@@ -1,14 +1,76 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  output   = "../src/lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────
+
+enum OutputType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum GenerationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+
+}
+
+// ─── Models ───────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  credits   Int      @default(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  generations Generation[]
+}
+
+model Generation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  // ── 輸出媒體 ──────────────────────────────────────────────────
+  outputType  OutputType       @default(IMAGE)
+  status      GenerationStatus @default(COMPLETED)
+  url         String           // R2 永久 URL
+  storageKey  String           // R2 bucket 內的文件路徑
+  mimeType    String           @default("image/png")
+
+  // 圖片 / 影格尺寸
+  width   Int @default(1024)
+  height  Int @default(1024)
+
+  // 視頻專用（圖片留 null）
+  duration Float? // 秒數，例如 5.0
+
+  // ── Prompt ────────────────────────────────────────────────────
+  prompt         String  @db.Text
+  negativePrompt String? @db.Text
+
+  // ── 模型資訊 ──────────────────────────────────────────────────
+  model    String // 對應 AI_MODELS enum 的值
+  provider String // "HuggingFace" | "SiliconFlow" | "Seedance" 等
+
+  // ── 積分 ──────────────────────────────────────────────────────
+  creditsCost Int @default(1)
+
+  // ── 可見性 ────────────────────────────────────────────────────
+  isPublic Boolean @default(true)
+
+  // ── 關聯 ──────────────────────────────────────────────────────
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([outputType, isPublic, createdAt(sort: Desc)])
 }

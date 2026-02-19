@@ -1,12 +1,14 @@
-/**
- * (main) layout — shared layout for main app pages (studio, gallery, etc.)
- *
- * Will include Navbar and footer in Phase 4.
- */
+import { Navbar } from "@/components/layout/Navbar";
+
 export default function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <main className="min-h-screen bg-background">{children}</main>;
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main>{children}</main>
+    </div>
+  );
 }

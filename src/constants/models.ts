@@ -1,3 +1,5 @@
+import type { OutputType } from "@/types";
+
 /**
  * AI Model definitions and configuration
  */
@@ -25,6 +27,8 @@ export interface ModelOption {
   cost: number;
   /** AI provider name */
   provider: string;
+  /** Output type */
+  outputType: OutputType;
   /** Short description of the model */
   description: string;
   /** Whether the model is currently available for use */
@@ -38,6 +42,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Stable Diffusion XL",
     cost: 1,
     provider: "HuggingFace",
+    outputType: "IMAGE",          // ← 加這行
     description: "High-resolution image generation with excellent detail",
     available: true,
   },
@@ -46,6 +51,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Animagine XL 4.0",
     cost: 1,
     provider: "HuggingFace",
+    outputType: "IMAGE",          // ← 加這行
     description: "High-quality anime-style image generation",
     available: true,
   },
@@ -54,6 +60,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Stable Diffusion 3.5 Large",
     cost: 1,
     provider: "SiliconFlow",
+    outputType: "IMAGE",          // ← 加這行
     description: "Open-source model with strong artistic capabilities",
     available: false,
   },

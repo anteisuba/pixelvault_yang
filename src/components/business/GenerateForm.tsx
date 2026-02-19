@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 export function GenerateForm() {
   const [prompt, setPrompt] = useState("");
   const [modelId, setModelId] = useState<string>(AI_MODELS.SDXL);
-  const { isGenerating, error, generatedImageUrl, generate } =
+  const { isGenerating, error, generatedGeneration, generate } =
     useGenerateImage();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,12 +85,12 @@ export function GenerateForm() {
       )}
 
       {/* Generated Image */}
-      {generatedImageUrl && (
+      {generatedGeneration && (
         <div className="overflow-hidden rounded-lg border animate-in fade-in-0 zoom-in-95 duration-500">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={generatedImageUrl}
-            alt={prompt}
+            src={generatedGeneration.url}
+            alt={generatedGeneration.prompt}
             className="h-auto w-full object-cover"
           />
         </div>

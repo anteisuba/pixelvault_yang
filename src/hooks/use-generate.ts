@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { GenerateRequest } from "@/types";
+import type { GenerateRequest, GenerationRecord } from "@/types";
 import { generateImageAPI } from "@/lib/api-client";
 
 interface UseGenerateImageReturn {
@@ -9,11 +9,11 @@ interface UseGenerateImageReturn {
   isGenerating: boolean;
   /** Error message from the last generation attempt, or null */
   error: string | null;
-  /** URL of the most recently generated image, or null */
-  generatedImageUrl: string | null;
+  /** The most recently generated Generation record, or null */
+  generatedGeneration: GenerationRecord | null;
   /** Trigger image generation with the given parameters */
   generate: (params: GenerateRequest) => Promise<void>;
-  /** Clear the current error and generated image */
+  /** Clear the current error and generated generation */
   reset: () => void;
 }
 
@@ -25,20 +25,19 @@ interface UseGenerateImageReturn {
 export function useGenerateImage(): UseGenerateImageReturn {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(
-    null,
-  );
+  const [generatedGeneration, setGeneratedGeneration] =
+    useState<GenerationRecord | null>(null);
 
   const generate = useCallback(async (params: GenerateRequest) => {
     setIsGenerating(true);
     setError(null);
-    setGeneratedImageUrl(null);
+    setGeneratedGeneration(null);
 
     try {
       const response = await generateImageAPI(params);
 
       if (response.success && response.data) {
-        setGeneratedImageUrl(response.data.imageUrl);
+        setGeneratedGeneration(response.data.generation);
       } else {
         setError(response.error ?? "Image generation failed");
       }
@@ -53,8 +52,8 @@ export function useGenerateImage(): UseGenerateImageReturn {
 
   const reset = useCallback(() => {
     setError(null);
-    setGeneratedImageUrl(null);
+    setGeneratedGeneration(null);
   }, []);
 
-  return { isGenerating, error, generatedImageUrl, generate, reset };
+  return { isGenerating, error, generatedGeneration, generate, reset };
 }

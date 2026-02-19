@@ -27,12 +27,7 @@ export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 
 /** Successful generation response data */
 export interface GenerateResponseData {
-  /** URL of the generated image */
-  imageUrl: string;
-  /** The prompt used for generation */
-  prompt: string;
-  /** The model used for generation */
-  model: string;
+  generation: GenerationRecord;
 }
 
 /** Image generation API response */
@@ -47,28 +42,25 @@ export interface GenerateResponse {
 
 // ─── Image Record ─────────────────────────────────────────────────
 
-/** Database Image record (corresponds to Prisma Image model) */
-export interface ImageRecord {
-  /** Unique identifier (cuid) */
+export type OutputType = "IMAGE" | "VIDEO" | "AUDIO";
+export type GenerationStatus = "PENDING" | "COMPLETED" | "FAILED";
+
+export interface GenerationRecord {
   id: string;
-  /** Creation timestamp */
   createdAt: Date;
-  /** Permanent URL (R2 public link) */
+  outputType: OutputType;
+  status: GenerationStatus;
   url: string;
-  /** File path in R2 bucket */
   storageKey: string;
-  /** User's text prompt */
-  prompt: string;
-  /** Optional negative prompt */
-  negativePrompt?: string | null;
-  /** AI model identifier used for generation */
-  model: string;
-  /** Image width in pixels */
+  mimeType: string;
   width: number;
-  /** Image height in pixels */
   height: number;
-  /** Associated user ID (null for guest generations) */
-  userId?: string | null;
-  /** Whether the image is visible in the public gallery */
+  duration?: number | null;
+  prompt: string;
+  negativePrompt?: string | null;
+  model: string;
+  provider: string;
+  creditsCost: number;
   isPublic: boolean;
+  userId?: string | null;
 }

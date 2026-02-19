@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GenerateRequestSchema } from "@/types";
 import type { GenerateResponse } from "@/types";
-import { AI_MODELS, HF_MODEL_IDS } from "@/constants/models";
+import { AI_MODELS, HF_MODEL_IDS, getModelById } from "@/constants/models";
 import { IMAGE_SIZES, AI_PROVIDER_ENDPOINTS } from "@/constants/config";
 import type { AspectRatio } from "@/constants/config";
+import {
+  generateStorageKey,
+  fetchAsBuffer,
+  uploadToR2,
+} from "@/services/storage/r2";
+import { createGeneration } from "@/services/generation.service";
 
 // ─── Helper: resolve image dimensions ─────────────────────────────
 
@@ -116,12 +122,12 @@ export async function POST(request: NextRequest) {
     const { prompt, modelId, aspectRatio } = parseResult.data;
 
     // 2. Route to the appropriate AI provider
-    let imageUrl: string;
+    let aiImageUrl: string;
 
     switch (modelId) {
       case AI_MODELS.SDXL:
       case AI_MODELS.ANIMAGINE_XL_4:
-        imageUrl = await generateWithHuggingFace(
+        aiImageUrl = await generateWithHuggingFace(
           prompt,
           modelId,
           aspectRatio as AspectRatio,
@@ -144,10 +150,36 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // 3. Return success response (no database persistence for now)
+    // 3. Generate a unique R2 storage key
+    const key = generateStorageKey("IMAGE");
+
+    // 4. Normalize AI output (base64 data URL or https URL) to a Buffer
+    const { buffer, mimeType } = await fetchAsBuffer(aiImageUrl);
+
+    // 5. Upload to Cloudflare R2
+    const permanentUrl = await uploadToR2({ data: buffer, key, mimeType });
+
+    // 6. Resolve model metadata for DB record
+    const modelOption = getModelById(modelId);
+    const { width, height } = getImageSize(aspectRatio as AspectRatio);
+
+    // 7. Persist the generation to the database
+    const generation = await createGeneration({
+      url: permanentUrl,
+      storageKey: key,
+      mimeType,
+      width,
+      height,
+      prompt,
+      model: modelId,
+      provider: modelOption?.provider ?? "Unknown",
+      creditsCost: modelOption?.cost ?? 1,
+    });
+
+    // 8. Return the persisted generation record
     return NextResponse.json<GenerateResponse>({
       success: true,
-      data: { imageUrl, prompt, model: modelId },
+      data: { generation },
     });
   } catch (error) {
     console.error("[API /api/generate] Error:", error);

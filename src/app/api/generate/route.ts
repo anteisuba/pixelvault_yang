@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { GenerateRequestSchema } from "@/types";
 import type { GenerateResponse } from "@/types";
 import { AI_MODELS, HF_MODEL_IDS, getModelById } from "@/constants/models";
@@ -10,6 +11,8 @@ import {
   uploadToR2,
 } from "@/services/storage/r2";
 import { createGeneration } from "@/services/generation.service";
+import { deductCredits, getUserByClerkId } from "@/services/user.service";
+
 
 // ─── Helper: resolve image dimensions ─────────────────────────────
 
@@ -103,7 +106,16 @@ async function generateWithSiliconFlow(
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    // 1. Auth check
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json<GenerateResponse>(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const parseResult = GenerateRequestSchema.safeParse(body);
 
@@ -121,7 +133,32 @@ export async function POST(request: NextRequest) {
 
     const { prompt, modelId, aspectRatio } = parseResult.data;
 
-    // 2. Route to the appropriate AI provider
+    // 3. Resolve model cost and deduct credits before the AI call
+    
+    const modelOption = getModelById(modelId);
+    const cost = modelOption?.cost ?? 1;
+
+    const dbUser = await getUserByClerkId(clerkId);
+    if (!dbUser) {
+      return NextResponse.json<GenerateResponse>(
+        { success: false, error: "User not found" },
+        { status: 404 },
+      );
+    }
+
+    try {
+      await deductCredits(clerkId, cost);
+    } catch (err) {
+      if (err instanceof Error && err.message === "INSUFFICIENT_CREDITS") {
+        return NextResponse.json<GenerateResponse>(
+          { success: false, error: "Insufficient credits" },
+          { status: 402 },
+        );
+      }
+      throw err;
+    }
+
+    // 4. Route to the appropriate AI provider
     let aiImageUrl: string;
 
     switch (modelId) {
@@ -150,20 +187,18 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // 3. Generate a unique R2 storage key
+    // 5. Generate a unique R2 storage key
     const key = generateStorageKey("IMAGE");
 
-    // 4. Normalize AI output (base64 data URL or https URL) to a Buffer
+    // 6. Normalize AI output (base64 data URL or https URL) to a Buffer
     const { buffer, mimeType } = await fetchAsBuffer(aiImageUrl);
 
-    // 5. Upload to Cloudflare R2
+    // 7. Upload to Cloudflare R2
     const permanentUrl = await uploadToR2({ data: buffer, key, mimeType });
 
-    // 6. Resolve model metadata for DB record
-    const modelOption = getModelById(modelId);
+    // 8. Resolve image dimensions and persist generation to the database
     const { width, height } = getImageSize(aspectRatio as AspectRatio);
 
-    // 7. Persist the generation to the database
     const generation = await createGeneration({
       url: permanentUrl,
       storageKey: key,
@@ -173,10 +208,13 @@ export async function POST(request: NextRequest) {
       prompt,
       model: modelId,
       provider: modelOption?.provider ?? "Unknown",
-      creditsCost: modelOption?.cost ?? 1,
+      creditsCost: cost,
+      userId: dbUser.id,
     });
 
-    // 8. Return the persisted generation record
+
+
+    // 9. Return the persisted generation record
     return NextResponse.json<GenerateResponse>({
       success: true,
       data: { generation },

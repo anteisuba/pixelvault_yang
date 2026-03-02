@@ -8,7 +8,7 @@ import type { OutputType } from "@/types";
 export enum AI_MODELS {
   SDXL = "sdxl",
   ANIMAGINE_XL_4 = "animagine-xl-4.0",
-  STABLE_DIFFUSION_3_5_LARGE = "stable-diffusion-3.5-large",
+  GEMINI_FLASH_IMAGE = "gemini-3.1-flash-image-preview",
 }
 
 /** Hugging Face model repository IDs */
@@ -42,7 +42,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Stable Diffusion XL",
     cost: 1,
     provider: "HuggingFace",
-    outputType: "IMAGE",          // ← 加這行
+    outputType: "IMAGE",
     description: "High-resolution image generation with excellent detail",
     available: true,
   },
@@ -51,18 +51,18 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: "Animagine XL 4.0",
     cost: 1,
     provider: "HuggingFace",
-    outputType: "IMAGE",          // ← 加這行
+    outputType: "IMAGE",
     description: "High-quality anime-style image generation",
     available: true,
   },
   {
-    id: AI_MODELS.STABLE_DIFFUSION_3_5_LARGE,
-    label: "Stable Diffusion 3.5 Large",
-    cost: 1,
-    provider: "SiliconFlow",
-    outputType: "IMAGE",          // ← 加這行
-    description: "Open-source model with strong artistic capabilities",
-    available: false,
+    id: AI_MODELS.GEMINI_FLASH_IMAGE,
+    label: "Gemini 3.1 Flash Image",
+    cost: 2,
+    provider: "Gemini",
+    outputType: "IMAGE",
+    description: "Google's state-of-the-art image generation model",
+    available: true,
   },
 ];
 

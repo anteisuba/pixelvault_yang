@@ -5,9 +5,11 @@ CLAUDE.md — Personal AI Gallery Project Rules
 🎯 項目概覽
 Personal AI Gallery — 支持多 AI 模型的圖片生成 & 永久歸檔平台。
 
-Web (Next.js) + Mobile (Capacitor) 共用一套代碼
-支持 DALL-E 3、FLUX.1、Stable Diffusion 3.5
+Web (Next.js 16, App Router + Turbopack)
+支持 Stable Diffusion XL、Animagine XL 4.0（動漫風格）、Gemini 3.1 Flash Image
+AI 提供商：HuggingFace Inference API、Google Gemini API
 用戶系統 (Clerk) + 積分系統 + 圖片永久存儲 (Cloudflare R2)
+數據庫：Prisma 7 + PostgreSQL (Neon)，使用 PrismaPg Driver Adapter
 
 🚫 絕對禁止事項 (Hard Rules)
 
@@ -82,59 +84,65 @@ import { useGenerateImage } from '@/hooks/use-generate'
 // 5. 樣式（如需要）
 import styles from './styles.module.css'
 
-📁 目錄結構（完整版）
+📁 目錄結構（實際）
 src/
 ├── app/
+│ ├── layout.tsx # 根佈局
+│ ├── page.tsx # 根頁面（重定向到 /en/sign-in）
 │ └── [locale]/
-│ ├── (auth)/
-│ │ ├── sign-in/page.tsx
-│ │ └── sign-up/page.tsx
-│ ├── (main)/
-│ │ ├── studio/page.tsx # 創作台（需登錄）
-│ │ ├── gallery/page.tsx # 作品集（公開）
-│ │ └── profile/page.tsx # 個人中心（需登錄）
-│ ├── api/
-│ │ ├── generate/route.ts # POST 生成圖片
-│ │ ├── images/route.ts # GET 圖片列表
-│ │ └── webhooks/clerk/route.ts # Clerk 用戶同步
-│ └── layout.tsx
+│ │ ├── layout.tsx # locale 佈局
+│ │ ├── (auth)/
+│ │ │ ├── sign-in/[[...sign-in]]/page.tsx
+│ │ │ └── sign-up/[[...sign-up]]/page.tsx
+│ │ └── (main)/
+│ │ ├── layout.tsx # 包含 Navbar 的佈局
+│ │ └── studio/page.tsx # 創作台（需登錄）✅
+│ └── api/
+│ ├── generate/route.ts # POST 圖片生成 → AI → R2 → DB
+│ ├── credits/route.ts # GET 當前用戶積分
+│ └── webhooks/clerk/route.ts # Clerk user.created 同步
 │
 ├── components/
-│ ├── ui/ # shadcn/ui 原子組件
+│ ├── ui/ # shadcn/ui 原子組件（button, select, textarea）
 │ ├── business/
-│ │ ├── ImageCard.tsx
-│ │ ├── GenerateForm.tsx
-│ │ ├── ModelSelector.tsx
-│ │ └── GalleryGrid.tsx
+│ │ ├── GenerateForm.tsx # 生成表單（prompt + 模型選擇 + 圖片預覽）
+│ │ └── ModelSelector.tsx # 模型下拉選擇器
 │ └── layout/
-│ ├── Navbar.tsx
-│ └── MobileTabBar.tsx
+│ └── Navbar.tsx # 頂部導航（Logo + 積分 + UserButton）
 │
 ├── hooks/
-│ ├── use-generate.ts
-│ ├── use-gallery.ts
-│ └── use-credits.ts
+│ ├── use-generate.ts # 圖片生成狀態管理
+│ └── use-credits.ts # 用戶積分查詢
 │
 ├── services/
-│ ├── image.service.ts
-│ ├── user.service.ts
+│ ├── generation.service.ts # Generation CRUD（createGeneration, getUserGenerations, getPublicGenerations）
+│ ├── user.service.ts # User CRUD + 積分操作（deductCredits, addCredits）
 │ └── storage/
-│ └── r2.ts
+│ └── r2.ts # Cloudflare R2 上傳（fetchAsBuffer, uploadToR2, generateStorageKey）
 │
 ├── lib/
-│ ├── db.ts # Prisma singleton
-│ ├── utils.ts
-│ └── api-client.ts
+│ ├── db.ts # Prisma 單例（PrismaPg Driver Adapter）
+│ ├── api-client.ts # 前端 API 請求封裝
+│ ├── utils.ts # cn() 等工具函數
+│ └── generated/prisma/ # Prisma 自動生成的 Client
 │
 ├── constants/
-│ ├── models.ts # AI 模型枚舉
+│ ├── models.ts # AI 模型枚舉（SDXL, Animagine, Gemini）
 │ ├── routes.ts # 路由常量
 │ └── config.ts # 全局配置（積分數量等）
 │
 ├── types/
-│ └── index.ts
+│ └── index.ts # TypeScript 型別 + Zod Schema
 │
-└── env.mjs # T3 環境變量校驗
+└── middleware.ts # Clerk 路由保護
+
+尚未實現的頁面/組件：
+- gallery/page.tsx — 公開作品集（路由已定義，中間件已配置，頁面未實現）
+- profile/page.tsx — 個人中心
+- ImageCard.tsx — 圖片卡片組件
+- GalleryGrid.tsx — 瀑布流佈局
+- MobileTabBar.tsx — 移動端底部導航
+- use-gallery.ts — 畫廊 hook
 
 🔐 安全規範
 
@@ -152,7 +160,26 @@ API Route 必須先用 auth() from Clerk 驗證身份再處理請求
 
 📋 當前開發狀態
 
-Phase 1: MVP（核心生成功能）
-Phase 2: 持久化存儲
-Phase 3: 用戶系統 + 積分
-Phase 4: UI 優化 + 移動端打包
+✅ Phase 1: MVP（核心生成功能）— 已完成
+✅ Phase 2: 持久化存儲（Prisma + R2）— 已完成
+🔧 Phase 3: 用戶系統 + 積分 — 大部分完成
+  - ✅ Clerk 登錄/註冊 + Navbar UserButton
+  - ✅ Clerk Webhook 同步 user.created
+  - ✅ 積分扣除/增加服務端邏輯 + GET /api/credits
+  - ✅ 路由保護中間件
+  - ❌ Gallery 頁面未實現
+  - ❌ Profile 頁面未實現
+⬜ Phase 4: UI 優化 + Gallery + 部署
+
+🗄️ 數據庫模型
+- User: id(UUID), clerkId, email, credits(默認100), generations[]
+- Generation: id(UUID), outputType(IMAGE/VIDEO/AUDIO), status(PENDING/COMPLETED/FAILED),
+  url, storageKey, mimeType, width, height, duration, prompt, negativePrompt,
+  model, provider, creditsCost, isPublic, userId
+
+🤖 AI 模型配置
+| 模型 ID | 名稱 | 積分 | 提供商 |
+|---------|------|------|--------|
+| sdxl | Stable Diffusion XL | 1 | HuggingFace |
+| animagine-xl-4.0 | Animagine XL 4.0 | 1 | HuggingFace |
+| gemini-3.1-flash-image-preview | Gemini 3.1 Flash Image | 2 | Google Gemini |

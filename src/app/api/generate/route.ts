@@ -13,7 +13,6 @@ import {
 import { createGeneration } from "@/services/generation.service";
 import { deductCredits, getUserByClerkId } from "@/services/user.service";
 
-
 // ─── Helper: resolve image dimensions ─────────────────────────────
 
 function getImageSize(aspectRatio: AspectRatio) {
@@ -63,43 +62,67 @@ async function generateWithHuggingFace(
   return `data:${contentType};base64,${base64}`;
 }
 
-// ─── Provider: SiliconFlow ────────────────────────────────────────
+// ─── Provider: Google Gemini Imagen ───────────────────────────────
 
-async function generateWithSiliconFlow(
+async function generateWithGemini(
   prompt: string,
   modelId: string,
   aspectRatio: AspectRatio,
 ) {
-  const { width, height } = getImageSize(aspectRatio);
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.GEMINI}/${modelId}:generateContent`;
 
-  const response = await fetch(AI_PROVIDER_ENDPOINTS.SILICONFLOW, {
+  // Map our aspect ratios to Gemini-supported values (1:1, 3:4, 4:3, 9:16, 16:9)
+  const geminiAspectMap: Record<string, string> = {
+    "1:1": "1:1",
+    "16:9": "16:9",
+    "9:16": "9:16",
+    "4:3": "4:3",
+    "3:4": "3:4",
+  };
+  const geminiAspect = geminiAspectMap[aspectRatio] ?? "1:1";
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.SILICONFLOW_API_KEY}`,
+      "x-goog-api-key": process.env.SILICONFLOW_API_KEY!,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: modelId,
-      prompt,
-      image_size: `${width}x${height}`,
-      num_inference_steps: 20,
-      n: 1,
+      contents: [
+        {
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"],
+        imageConfig: {
+          aspectRatio: geminiAspect,
+        },
+      },
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "Unknown error");
-    throw new Error(`SiliconFlow API error (${response.status}): ${errorBody}`);
+    throw new Error(`Gemini API error (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();
-  const imageUrl: string | undefined =
-    data?.images?.[0]?.url ?? data?.data?.[0]?.url;
-
-  if (!imageUrl) {
-    throw new Error("No image URL returned from SiliconFlow");
+  const parts = data?.candidates?.[0]?.content?.parts;
+  if (!parts || !Array.isArray(parts)) {
+    throw new Error("No content returned from Gemini");
   }
-  return imageUrl;
+
+  // Find the image part in the response
+  const imagePart = parts.find(
+    (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData,
+  );
+  if (!imagePart?.inlineData) {
+    throw new Error("No image data returned from Gemini");
+  }
+
+  const { mimeType, data: base64Data } = imagePart.inlineData;
+  return `data:${mimeType};base64,${base64Data}`;
 }
 
 // ─── POST /api/generate ───────────────────────────────────────────
@@ -134,7 +157,7 @@ export async function POST(request: NextRequest) {
     const { prompt, modelId, aspectRatio } = parseResult.data;
 
     // 3. Resolve model cost and deduct credits before the AI call
-    
+
     const modelOption = getModelById(modelId);
     const cost = modelOption?.cost ?? 1;
 
@@ -171,14 +194,13 @@ export async function POST(request: NextRequest) {
         );
         break;
 
-      case AI_MODELS.STABLE_DIFFUSION_3_5_LARGE:
-        return NextResponse.json<GenerateResponse>(
-          {
-            success: false,
-            error: "Stable Diffusion 3.5 Large is not currently available",
-          },
-          { status: 400 },
+      case AI_MODELS.GEMINI_FLASH_IMAGE:
+        aiImageUrl = await generateWithGemini(
+          prompt,
+          modelId,
+          aspectRatio as AspectRatio,
         );
+        break;
 
       default:
         return NextResponse.json<GenerateResponse>(
@@ -211,8 +233,6 @@ export async function POST(request: NextRequest) {
       creditsCost: cost,
       userId: dbUser.id,
     });
-
-
 
     // 9. Return the persisted generation record
     return NextResponse.json<GenerateResponse>({

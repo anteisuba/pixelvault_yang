@@ -38,7 +38,7 @@ export const API_ENDPOINTS = {
 /** External AI provider endpoints */
 export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: "https://router.huggingface.co/hf-inference/models",
-  SILICONFLOW: "https://api.siliconflow.cn/v1/images/generations",
+  GEMINI: "https://generativelanguage.googleapis.com/v1beta/models",
 } as const;
 
 /** Pagination defaults */

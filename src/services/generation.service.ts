@@ -100,3 +100,12 @@ export async function getGenerationById(
     where: { id },
   });
 }
+
+/**
+ * Count total public generations (for pagination hasMore calculation)
+ */
+export async function countPublicGenerations(): Promise<number> {
+  return db.generation.count({
+    where: { isPublic: true },
+  });
+}

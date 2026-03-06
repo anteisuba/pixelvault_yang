@@ -1,56 +1,41 @@
 {
   "main": {
-    "id": "de20c87ee1e45477",
+    "id": "16bace5d582c84ae",
     "type": "split",
     "children": [
       {
-        "id": "32bec1ee24693286",
+        "id": "fba08714f8bd8966",
         "type": "tabs",
         "children": [
           {
-            "id": "c1c7c51dfdd4e6dd",
+            "id": "06556caa4522efd4",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "未命名.md",
-                "mode": "source",
+                "file": "plan/gallery-page.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "未命名"
-            }
-          },
-          {
-            "id": "8e41551746be25f8",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Gallery 頁面實作指南.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Gallery 頁面實作指南"
+              "title": "gallery-page"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
   },
   "left": {
-    "id": "6ba5bfb8a95b895a",
+    "id": "63734a3ca8d1bef6",
     "type": "split",
     "children": [
       {
-        "id": "9cab5e6172ba69c3",
+        "id": "52e66d0effbf77a8",
         "type": "tabs",
         "children": [
           {
-            "id": "174efbd22c8c1e19",
+            "id": "14751aaf2e2add8e",
             "type": "leaf",
             "state": {
               "type": "file-explorer",
@@ -63,7 +48,7 @@
             }
           },
           {
-            "id": "1abbe2e393c972a2",
+            "id": "dde0f4cdd179a935",
             "type": "leaf",
             "state": {
               "type": "search",
@@ -80,7 +65,7 @@
             }
           },
           {
-            "id": "742b40130fd8a4e9",
+            "id": "99bdf462c7273eb7",
             "type": "leaf",
             "state": {
               "type": "bookmarks",
@@ -93,24 +78,23 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
-    "id": "a43bd3af5fc2c8ec",
+    "id": "f46e5f49437a67f9",
     "type": "split",
     "children": [
       {
-        "id": "8b0e9491dcab1e39",
+        "id": "9071c69dba947f10",
         "type": "tabs",
         "children": [
           {
-            "id": "1bfd640b871a1868",
+            "id": "24a1bc852be0e932",
             "type": "leaf",
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Gallery 頁面實作指南.md",
+                "file": "plan/gallery-page.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -120,25 +104,25 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Gallery 頁面實作指南 的反向链接列表"
+              "title": "gallery-page 的反向链接列表"
             }
           },
           {
-            "id": "93a7d13e2fefe9a2",
+            "id": "527bf95563546c06",
             "type": "leaf",
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Gallery 頁面實作指南.md",
+                "file": "plan/gallery-page.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Gallery 頁面實作指南 的出链列表"
+              "title": "gallery-page 的出链列表"
             }
           },
           {
-            "id": "4f4d9097ba96f86d",
+            "id": "cbd75d113ae9f722",
             "type": "leaf",
             "state": {
               "type": "tag",
@@ -153,7 +137,7 @@
             }
           },
           {
-            "id": "e1331b2dc972e576",
+            "id": "f2060c31de1e8cca",
             "type": "leaf",
             "state": {
               "type": "all-properties",
@@ -167,18 +151,18 @@
             }
           },
           {
-            "id": "df023531cbb621a7",
+            "id": "d7d750fdaf473755",
             "type": "leaf",
             "state": {
               "type": "outline",
               "state": {
-                "file": "Gallery 頁面實作指南.md",
+                "file": "plan/gallery-page.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Gallery 頁面實作指南 的大纲"
+              "title": "gallery-page 的大纲"
             }
           }
         ]
@@ -199,9 +183,21 @@
       "bases:新建数据库": false
     }
   },
-  "active": "8e41551746be25f8",
+  "active": "06556caa4522efd4",
   "lastOpenFiles": [
-    "未命名.md",
-    "Gallery 頁面實作指南.md"
+    "package.json.tmp.51368.1772770861388",
+    "eslint.config.mjs.tmp.51368.1772770847342",
+    "node_modules/prettier/plugins/glimmer.mjs",
+    "node_modules/prettier/internal/legacy-cli.mjs",
+    "node_modules/prettier/internal/experimental-cli.mjs",
+    "node_modules/prettier/internal/experimental-cli-worker.mjs",
+    "node_modules/prettier/internal",
+    "node_modules/prettier/doc.mjs",
+    "node_modules/prettier/THIRD-PARTY-NOTICES.md",
+    "node_modules/prettier/README.md",
+    "node_modules/prettier/package.json",
+    "node_modules/prettier/standalone.js",
+    "node_modules/prettier/doc.js",
+    "node_modules/eslint-config-prettier/README.md"
   ]
 }

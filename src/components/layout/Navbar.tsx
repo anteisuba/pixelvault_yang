@@ -1,15 +1,15 @@
-"use client";
+'use client'
 
-import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import { Coins } from "lucide-react";
+import Link from 'next/link'
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+import { Coins } from 'lucide-react'
 
-import { ROUTES } from "@/constants/routes";
-import { Button } from "@/components/ui/button";
-import { useCredits } from "@/hooks/use-credits";
+import { ROUTES } from '@/constants/routes'
+import { Button } from '@/components/ui/button'
+import { useCredits } from '@/hooks/use-credits'
 
 export function Navbar() {
-  const { credits, isLoading } = useCredits();
+  const { credits, isLoading } = useCredits()
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
@@ -39,7 +39,7 @@ export function Navbar() {
             <div className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm">
               <Coins className="size-4 shrink-0 text-yellow-500" />
               <span className="hidden sm:inline">
-                {isLoading ? "..." : `${credits} credits`}
+                {isLoading ? '...' : `${credits} credits`}
               </span>
             </div>
             <UserButton />
@@ -53,5 +53,5 @@ export function Navbar() {
         </div>
       </div>
     </header>
-  );
+  )
 }

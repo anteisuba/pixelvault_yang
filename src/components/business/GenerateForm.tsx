@@ -1,13 +1,13 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { useState } from 'react'
+import { Loader2, Sparkles, AlertCircle } from 'lucide-react'
 
-import { useGenerateImage } from "@/hooks/use-generate";
-import { AI_MODELS } from "@/constants/models";
-import { ModelSelector } from "@/components/business/ModelSelector";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { useGenerateImage } from '@/hooks/use-generate'
+import { AI_MODELS } from '@/constants/models'
+import { ModelSelector } from '@/components/business/ModelSelector'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 /**
  * Main form for generating AI images.
@@ -16,21 +16,21 @@ import { Textarea } from "@/components/ui/textarea";
  * and displays the generated image or error.
  */
 export function GenerateForm() {
-  const [prompt, setPrompt] = useState("");
-  const [modelId, setModelId] = useState<string>(AI_MODELS.SDXL);
+  const [prompt, setPrompt] = useState('')
+  const [modelId, setModelId] = useState<string>(AI_MODELS.SDXL)
   const { isGenerating, error, generatedGeneration, generate } =
-    useGenerateImage();
+    useGenerateImage()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim() || isGenerating) return;
+    e.preventDefault()
+    if (!prompt.trim() || isGenerating) return
 
     await generate({
       prompt: prompt.trim(),
       modelId: modelId as AI_MODELS,
-      aspectRatio: "1:1",
-    });
-  };
+      aspectRatio: '1:1',
+    })
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -96,5 +96,5 @@ export function GenerateForm() {
         </div>
       )}
     </form>
-  );
+  )
 }

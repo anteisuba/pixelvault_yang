@@ -1,19 +1,19 @@
-"use client";
+'use client'
 
-import { getAvailableModels } from "@/constants/models";
+import { getAvailableModels } from '@/constants/models'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select'
 
 interface ModelSelectorProps {
   /** Currently selected model ID */
-  value: string;
+  value: string
   /** Callback when the selected model changes */
-  onChange: (value: string) => void;
+  onChange: (value: string) => void
 }
 
 /**
@@ -21,7 +21,7 @@ interface ModelSelectorProps {
  * Only displays models that are currently available.
  */
 export function ModelSelector({ value, onChange }: ModelSelectorProps) {
-  const availableModels = getAvailableModels();
+  const availableModels = getAvailableModels()
 
   return (
     <div className="space-y-2">
@@ -44,5 +44,5 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
         </SelectContent>
       </Select>
     </div>
-  );
+  )
 }

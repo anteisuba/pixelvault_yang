@@ -1,31 +1,31 @@
-import "server-only";
+import 'server-only'
 
-import { db } from "@/lib/db";
-import type { GenerationRecord, OutputType } from "@/types";
-import { PAGINATION } from "@/constants/config";
+import { db } from '@/lib/db'
+import type { GenerationRecord, OutputType } from '@/types'
+import { PAGINATION } from '@/constants/config'
 
 // ─── Input Types ──────────────────────────────────────────────────
 
 export interface CreateGenerationInput {
-  url: string;
-  storageKey: string;
-  mimeType: string;
-  width: number;
-  height: number;
-  duration?: number;
-  prompt: string;
-  negativePrompt?: string;
-  model: string;
-  provider: string;
-  creditsCost: number;
-  outputType?: OutputType;
-  isPublic?: boolean;
-  userId?: string;
+  url: string
+  storageKey: string
+  mimeType: string
+  width: number
+  height: number
+  duration?: number
+  prompt: string
+  negativePrompt?: string
+  model: string
+  provider: string
+  creditsCost: number
+  outputType?: OutputType
+  isPublic?: boolean
+  userId?: string
 }
 
 export interface ListGenerationsOptions {
-  page?: number;
-  limit?: number;
+  page?: number
+  limit?: number
 }
 
 // ─── Service Functions ────────────────────────────────────────────
@@ -50,11 +50,11 @@ export async function createGeneration(
       model: input.model,
       provider: input.provider,
       creditsCost: input.creditsCost,
-      outputType: input.outputType ?? "IMAGE",
+      outputType: input.outputType ?? 'IMAGE',
       isPublic: input.isPublic ?? true,
       userId: input.userId,
     },
-  });
+  })
 }
 
 /**
@@ -69,10 +69,10 @@ export async function getUserGenerations(
 ): Promise<GenerationRecord[]> {
   return db.generation.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
-  });
+  })
 }
 
 /**
@@ -84,10 +84,10 @@ export async function getPublicGenerations({
 }: ListGenerationsOptions = {}): Promise<GenerationRecord[]> {
   return db.generation.findMany({
     where: { isPublic: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
-  });
+  })
 }
 
 /**
@@ -98,7 +98,7 @@ export async function getGenerationById(
 ): Promise<GenerationRecord | null> {
   return db.generation.findUnique({
     where: { id },
-  });
+  })
 }
 
 /**
@@ -107,5 +107,5 @@ export async function getGenerationById(
 export async function countPublicGenerations(): Promise<number> {
   return db.generation.count({
     where: { isPublic: true },
-  });
+  })
 }

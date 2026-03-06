@@ -1,4 +1,4 @@
-import { GenerateForm } from "@/components/business/GenerateForm";
+import { GenerateForm } from '@/components/business/GenerateForm'
 
 export default function StudioPage() {
   return (
@@ -19,5 +19,5 @@ export default function StudioPage() {
         <GenerateForm />
       </div>
     </div>
-  );
+  )
 }

@@ -6,18 +6,18 @@
 
 export const ROUTES = {
   /** Public pages */
-  HOME: "/",
-  GALLERY: "/gallery",
+  HOME: '/',
+  GALLERY: '/gallery',
 
   /** Auth pages */
-  SIGN_IN: "/sign-in",
-  SIGN_UP: "/sign-up",
+  SIGN_IN: '/sign-in',
+  SIGN_UP: '/sign-up',
 
   /** Protected pages */
-  STUDIO: "/studio",
-  PROFILE: "/profile",
-  CREDITS: "/credits",
-} as const;
+  STUDIO: '/studio',
+  PROFILE: '/profile',
+  CREDITS: '/credits',
+} as const
 
 /** Type for all route values */
-export type Route = (typeof ROUTES)[keyof typeof ROUTES];
+export type Route = (typeof ROUTES)[keyof typeof ROUTES]

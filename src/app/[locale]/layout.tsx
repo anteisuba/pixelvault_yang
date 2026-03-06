@@ -7,7 +7,7 @@
 export default function LocaleLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
-  return <>{children}</>;
+  return <>{children}</>
 }

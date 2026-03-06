@@ -64,3 +64,19 @@ export interface GenerationRecord {
   isPublic: boolean
   userId?: string | null
 }
+
+// ─── Gallery Response ─────────────────────────────────────────────
+
+export interface GalleryResponseData {
+  generations: GenerationRecord[]
+  page: number
+  limit: number
+  total: number
+  hasMore: boolean
+}
+
+export interface GalleryResponse {
+  success: boolean
+  data?: GalleryResponseData
+  error?: string
+}

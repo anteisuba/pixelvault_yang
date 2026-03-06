@@ -185,6 +185,9 @@
   },
   "active": "06556caa4522efd4",
   "lastOpenFiles": [
+    "src/hooks/use-gallery.ts",
+    "src/app/api/images/route.ts",
+    "src/app/api/images",
     "package.json.tmp.51368.1772770861388",
     "eslint.config.mjs.tmp.51368.1772770847342",
     "node_modules/prettier/plugins/glimmer.mjs",
@@ -195,9 +198,6 @@
     "node_modules/prettier/doc.mjs",
     "node_modules/prettier/THIRD-PARTY-NOTICES.md",
     "node_modules/prettier/README.md",
-    "node_modules/prettier/package.json",
-    "node_modules/prettier/standalone.js",
-    "node_modules/prettier/doc.js",
     "node_modules/eslint-config-prettier/README.md"
   ]
 }

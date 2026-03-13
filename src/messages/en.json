@@ -1,0 +1,199 @@
+{
+  "Common": {
+    "brand": "PixelVault",
+    "creditCount": "{count, plural, one {# credit} other {# credits}}"
+  },
+  "Metadata": {
+    "title": "PixelVault | Personal AI Gallery",
+    "description": "Generate with Stable Diffusion XL, Animagine XL 4.0, and Gemini 3.1 Flash Image, then archive every result in one personal gallery."
+  },
+  "Navbar": {
+    "creditsLoading": "...",
+    "signIn": "Sign In"
+  },
+  "LocaleSwitcher": {
+    "label": "Language",
+    "options": {
+      "en": "EN",
+      "ja": "JA",
+      "zh": "ZH"
+    },
+    "names": {
+      "en": "English",
+      "ja": "Japanese",
+      "zh": "Chinese"
+    }
+  },
+  "Homepage": {
+    "brandLabel": "Personal AI Gallery",
+    "brandSubline": "A personal archive for the images you want to revisit.",
+    "navigationLabel": "Homepage",
+    "navigation": {
+      "workflow": "Workflow",
+      "models": "Models"
+    },
+    "heroEyebrow": "Permanent AI archive",
+    "heroTitle": "Make images worth keeping.",
+    "heroDescription": "Generate with three distinct image engines, save the winners, and return to a gallery that remembers how you like to create.",
+    "actions": {
+      "signedOutPrimary": "Create your vault",
+      "signedInPrimary": "Open the studio",
+      "signedOutUtility": "Sign in",
+      "signedInUtility": "Continue",
+      "sharedSecondary": "See the model lineup",
+      "signInPrimary": "Need an account?",
+      "signUpPrimary": "Already registered?",
+      "authSecondary": "Back to home"
+    },
+    "auth": {
+      "note": "Accounts keep your credits, private prompts, and archived generations in sync across sessions.",
+      "signIn": {
+        "eyebrow": "Welcome back",
+        "title": "Return to your private gallery.",
+        "description": "Sign in to continue generating, reviewing archived results, and tracking credits without losing your creative trail."
+      },
+      "signUp": {
+        "eyebrow": "Start your collection",
+        "title": "Open a vault for your best prompts.",
+        "description": "Create an account to generate with multiple AI models, archive every keeper, and build a gallery that grows with your taste."
+      }
+    },
+    "stage": {
+      "label": "Gallery preview",
+      "value": "Creative direction without guesswork",
+      "savedLabel": "Saved to vault"
+    },
+    "signals": {
+      "modelCoverageLabel": "Model coverage",
+      "modelCoverageValue": "{modelCount} image models across {providerCount, plural, one {# provider} other {# providers}}",
+      "creditLabel": "Credit clarity",
+      "creditValue": "Generation starts at {creditCount} per image",
+      "archiveLabel": "Archive behavior",
+      "archiveValue": "Prompts, outputs, and model choices stay together"
+    },
+    "features": {
+      "eyebrow": "Creative advantages",
+      "title": "Start with the studio. Stay for the archive.",
+      "description": "The first visit now makes the value proposition legible: flexible image engines, durable storage, and clear credit behavior.",
+      "items": {
+        "chooseEngine": {
+          "title": "Choose the right engine",
+          "description": "Move between realism, anime styling, and Gemini-native experimentation from the same studio."
+        },
+        "keepEveryKeeper": {
+          "title": "Keep every keeper",
+          "description": "Strong results do not disappear after one session. They land in a gallery you can revisit later."
+        },
+        "spendCredits": {
+          "title": "Spend credits with clarity",
+          "description": "Model costs stay visible up front so experimentation feels informed instead of uncertain."
+        }
+      }
+    },
+    "workflow": {
+      "eyebrow": "From prompt to archive",
+      "title": "A creative flow that stays legible.",
+      "description": "The entry experience now explains what you can make, how the archive behaves, and why the model choice matters before it asks for commitment.",
+      "items": {
+        "frameIdea": {
+          "title": "Frame the idea",
+          "description": "Start with a prompt and choose the model that matches the mood you want before you spend a credit."
+        },
+        "generateWithIntent": {
+          "title": "Generate with intent",
+          "description": "Compare photoreal, anime, and Gemini-driven outputs without leaving the same creative surface."
+        },
+        "archiveWinners": {
+          "title": "Archive the winners",
+          "description": "Keep the prompt, model choice, and final image together so future sessions start from context."
+        }
+      }
+    },
+    "models": {
+      "eyebrow": "Model lineup",
+      "title": "Three image engines, one vault.",
+      "description": "Switch between realism, anime stylization, and fast Gemini exploration without changing tools or losing context."
+    },
+    "scenes": {
+      "items": {
+        "sdxlRealism": {
+          "note": "Detail-rich realism",
+          "prompt": "Stormlight sweeping across a quiet brutalist museum courtyard"
+        },
+        "animagineAnime": {
+          "note": "Anime energy",
+          "prompt": "Courier on a hoverboard threading through a lantern market at dusk"
+        },
+        "geminiConcept": {
+          "note": "Fast concepting",
+          "prompt": "Editorial still life of camera parts, metal tools, and pressed flowers"
+        }
+      }
+    },
+    "footer": {
+      "eyebrow": "Built for revisitability",
+      "title": "The image is the output. The archive is the advantage.",
+      "description": "PixelVault keeps the prompt, model choice, and result together so the next idea starts with context instead of guesswork."
+    }
+  },
+  "StudioPage": {
+    "heroEyebrow": "Studio",
+    "heroTitle": "Generate your next image",
+    "heroDescription": "Pick a model, write a prompt, and create in one focused workspace.",
+    "workspaceLabel": "Studio workspace",
+    "workspaceTitle": "Prompt and generate",
+    "workspaceDescription": "The generation flow is unchanged, with clearer structure around model choice, prompt writing, and results.",
+    "metrics": {
+      "modelCoverageLabel": "Model coverage",
+      "modelCoverageValue": "{modelCount} available models across {providerCount, plural, one {# provider} other {# providers}}",
+      "startingCostLabel": "Starting cost",
+      "startingCostValue": "Generation starts at {creditCount} per image",
+      "archiveBehaviorLabel": "Archive behavior",
+      "archiveBehaviorValue": "Each result keeps the prompt and model details together."
+    }
+  },
+  "StudioForm": {
+    "selectedModelLabel": "Selected model",
+    "providerLabel": "Provider",
+    "creditCostLabel": "Credit cost",
+    "promptLabel": "Prompt",
+    "promptHint": "Be specific about subject, setting, lighting, composition, or style.",
+    "promptPlaceholder": "Describe the image you want to generate...",
+    "promptCounter": "{current} / {max} characters",
+    "ctaSectionLabel": "Ready to generate",
+    "ctaSectionDescription": "Review the selected model and prompt, then generate when you are ready.",
+    "ctaLabel": "Generate image",
+    "ctaLoadingLabel": "Generating...",
+    "errorTitle": "Generation error",
+    "errorFallback": "Image generation failed",
+    "errorUnexpected": "An unexpected error occurred",
+    "resultLabel": "Latest result",
+    "resultDescription": "The newest generated image appears here.",
+    "resultEmptyTitle": "No generation yet",
+    "resultEmptyDescription": "Run the form to preview the newest image in this workspace.",
+    "resultPromptLabel": "Prompt",
+    "resultModelLabel": "Model",
+    "resultProviderLabel": "Provider",
+    "resultCreditLabel": "Credits used",
+    "resultStorageNote": "Saved with its prompt and model details.",
+    "modelSelector": {
+      "label": "AI model",
+      "hint": "Choose the model that best matches the look you want.",
+      "placeholder": "Select a model"
+    }
+  },
+  "Models": {
+    "sdxl": {
+      "label": "Stable Diffusion XL",
+      "description": "High-resolution image generation with excellent detail."
+    },
+    "animagineXl4": {
+      "label": "Animagine XL 4.0",
+      "description": "High-quality anime-style image generation."
+    },
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "Fast image exploration powered by Google's latest generation model."
+    }
+  }
+}

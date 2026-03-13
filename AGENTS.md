@@ -1,185 +1,1363 @@
-AGENTS.md — Personal AI Gallery Project Rules
+# AGENTS.md — Personal AI Gallery Project Rules
 
-這個文件是 Codex 的「行為規範」。每次啟動新對話時，Codex 會自動讀取並遵守這些規則。
+This file defines the project-level operating rules for Codex in this repository.
+Codex must read and follow these instructions for every new task in this project.
 
-🎯 項目概覽
-Personal AI Gallery — 支持多 AI 模型的圖片生成 & 永久歸檔平台。
+This file is authoritative unless the user explicitly overrides a rule for a specific task.
 
-Web (Next.js 16, App Router + Turbopack)
-支持 Stable Diffusion XL、Animagine XL 4.0（動漫風格）、Gemini 3.1 Flash Image
-AI 提供商：HuggingFace Inference API、Google Gemini API
-用戶系統 (Clerk) + 積分系統 + 圖片永久存儲 (Cloudflare R2)
-數據庫：Prisma 7 + PostgreSQL (Neon)，使用 PrismaPg Driver Adapter
+---
 
-🚫 絕對禁止事項 (Hard Rules)
+# 0. Core Role
 
-禁止 Magic Values：不得在組件或邏輯代碼中硬編碼字符串/數字
+You are working on **Personal AI Gallery**.
 
-❌ model === 'dall-e-3'
-✅ model === AI_MODELS.DALLE_3（從 @/constants/models.ts 引入）
+This is a production-oriented web application for:
+- multi-model AI image generation
+- permanent archive/storage
+- user authentication
+- credit-based generation
+- future public gallery and profile pages
+- multilingual UI
 
-禁止使用 any：所有類型必須明確定義
+Your job is not just to "make code work".
+Your job is to:
+- preserve architecture
+- preserve type safety
+- preserve security boundaries
+- preserve maintainability
+- improve UI intentionally
+- make all new user-facing features translation-ready
 
-❌ const data: any = response
-✅ 使用 interface、zod schema 或具體類型
+Do not behave like a code generator that rewrites everything blindly.
+Behave like a careful staff engineer working inside an existing codebase.
 
-禁止在組件內直接 fetch：所有 API 請求必須封裝
+---
 
-❌ fetch('/api/generate', {...}) 寫在組件 onClick 裡
-✅ 調用 @/lib/api-client.ts 中封裝的函數
+# 1. Product Overview
 
-禁止在 API Route 寫業務邏輯：API Route 只做三件事
+## Product Name
+**Personal AI Gallery**
 
-驗證身份 (Auth check)
-校驗入參 (Zod parse)
-調用 Service
+## Product Goal
+A platform that allows users to:
+- sign in
+- choose an AI model
+- submit prompts
+- generate images
+- store outputs permanently
+- manage credits
+- later browse public galleries and personal works
 
-禁止使用 Tailwind 任意值（除非已在 config 定義）
+## Main Stack
+- **Framework**: Next.js 16
+- **Routing**: App Router
+- **Build**: Turbopack
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Auth**: Clerk
+- **Database**: PostgreSQL (Neon)
+- **ORM**: Prisma 7
+- **Prisma Adapter**: PrismaPg Driver Adapter
+- **Storage**: Cloudflare R2
+- **AI Providers**:
+  - HuggingFace Inference API
+  - Google Gemini API
 
-❌ w-[256px]
-✅ w-64 或在 tailwind.config.ts 中定義 extend
+## Supported Models
+- Stable Diffusion XL
+- Animagine XL 4.0
+- Gemini 3.1 Flash Image
 
-✅ 必須遵守的規範
-代碼架構
-新功能開發順序（必須按此順序）：
+---
 
-1. constants/ → 先定義所有配置變量
-2. types/ → 定義數據結構和接口類型
-3. services/ → 寫後端業務邏輯（如涉及後端）
-4. hooks/ → 寫前端狀態邏輯
-5. components/ → 最後組裝 UI
-   TypeScript
+# 2. High-Level Engineering Priorities
 
-所有文件使用 .ts / .tsx，不使用 .js
-所有 props 必須定義 interface，命名為 XxxProps
-API 請求/響應使用 zod schema 驗證，並從 schema 推導類型：
+When multiple implementation options exist, use these priorities in order:
 
-ts const schema = z.object({...})
-type MyType = z.infer<typeof schema>
-組件規範
+1. **Correctness**
+2. **Security**
+3. **Type safety**
+4. **Architecture consistency**
+5. **Readability / maintainability**
+6. **UI/UX quality**
+7. **Performance**
+8. **Speed of implementation**
 
-UI 組件 (components/ui/)：無狀態、無業務邏輯、純展示
-業務組件 (components/business/)：可使用 hooks，但不直接調用 API
-佈局組件 (components/layout/)：頁面骨架、導航欄
+Do not sacrifice 1–5 for superficial speed.
 
-命名規範
-類型規範例子組件文件PascalCaseImageCard.tsxHookcamelCase + use前綴useGenerateImage.tsServicecamelCase + Service後綴image.service.ts常量SCREAMING_SNAKE_CASEAI_MODELS, ROUTES類型/接口PascalCaseGenerateRequest
-導入順序（必須按此順序，空行分隔）
-ts// 1. React / Next.js
+---
+
+# 3. Non-Negotiable Hard Rules
+
+## 3.1 No magic values
+Do not hardcode model IDs, route paths, provider names, credit costs, UI mode strings, or reusable text literals inside components or logic.
+
+### Bad
+```ts
+if (model === 'sdxl') { ... }
+router.push('/en/studio')
+Good
+if (model === AI_MODELS.SDXL) { ... }
+router.push(ROUTES.STUDIO)
+
+Use constants from:
+
+src/constants/models.ts
+
+src/constants/routes.ts
+
+src/constants/config.ts
+
+or create a new constants file if needed
+
+3.2 No any
+
+Do not use any.
+
+Allowed replacements:
+
+interface
+
+type
+
+unknown + narrowing
+
+Zod schema + inferred type
+
+generic type parameters
+
+Bad
+const result: any = await response.json()
+Good
+const result = GenerateResponseSchema.parse(await response.json())
+type GenerateResponse = z.infer<typeof GenerateResponseSchema>
+3.3 No direct fetch inside components
+
+Do not call fetch directly inside React components for app business operations.
+
+Bad
+const handleSubmit = async () => {
+  await fetch('/api/generate', { method: 'POST', body: ... })
+}
+Good
+const handleSubmit = async () => {
+  await generateImage(payload)
+}
+
+All front-end requests must be encapsulated through:
+
+src/lib/api-client.ts
+
+or a clearly named API client module
+
+3.4 No business logic inside API routes
+
+API routes may do only these things:
+
+auth check
+
+input validation
+
+call service layer
+
+return response
+
+Do not put complex orchestration, credits rules, provider-specific business logic, R2 key design, or Prisma coordination directly in route handlers.
+
+3.5 No unsafe client trust
+
+Never trust:
+
+client-reported credits
+
+client-reported user ID
+
+client-reported ownership
+
+client-reported generation status
+
+client-reported permissions
+
+Credits deduction and permission checks must always happen on the server.
+
+3.6 No Tailwind arbitrary values unless justified
+
+Avoid arbitrary values like:
+
+w-[257px]
+
+mt-[13px]
+
+rounded-[23px]
+
+Prefer:
+
+standard Tailwind tokens
+
+reusable semantic classes
+
+tailwind config extensions when genuinely necessary
+
+Arbitrary values are allowed only if:
+
+there is a compelling visual/system reason
+
+they are rare
+
+they are not replacing a perfectly good token
+
+3.7 No hidden architecture drift
+
+Do not silently introduce a second way of doing the same thing.
+
+Examples:
+
+do not mix direct component fetches with API client usage
+
+do not mix scattered schema definitions and central schema definitions without reason
+
+do not create another translation pattern once i18n is established
+
+do not create another page layout pattern unless there is a clear architecture reason
+
+4. Required Development Order
+
+For new features, follow this order whenever possible:
+
+constants/
+
+types/
+
+services/
+
+hooks/
+
+components/
+
+pages/routes
+
+tests / validation
+
+UI polish
+
+If task scope is small, this order can be collapsed, but the same dependency direction must be preserved.
+
+5. Project-Specific Architecture Rules
+5.1 Layer responsibilities
+constants/
+
+Contains:
+
+model IDs
+
+provider IDs
+
+route definitions
+
+config values
+
+enums-like objects
+
+reusable option metadata
+
+types/
+
+Contains:
+
+shared interfaces
+
+Zod schemas
+
+inferred types
+
+DTO-like data shapes
+
+domain types
+
+services/
+
+Contains:
+
+server-side business logic
+
+DB coordination
+
+storage logic
+
+credit logic
+
+provider invocation orchestration
+
+hooks/
+
+Contains:
+
+client-side state logic
+
+async orchestration for UI
+
+derived UI state
+
+reusable interaction logic
+
+components/ui/
+
+Contains:
+
+dumb/presentational components
+
+styling primitives
+
+reusable UI building blocks
+
+no business logic
+
+components/business/
+
+Contains:
+
+domain-aware components
+
+hook usage
+
+UI orchestration
+
+no direct business logic implementation
+
+no direct API fetches
+
+components/layout/
+
+Contains:
+
+page shells
+
+layout structure
+
+navigation
+
+top bars / tab bars / wrappers
+
+app/
+
+Contains:
+
+route entry files
+
+route layouts
+
+route composition
+
+server component page composition
+
+api/
+
+Contains:
+
+thin request/response boundary only
+
+5.2 Keep business logic out of the UI
+
+UI components should not decide:
+
+final credits deduction
+
+final storage keys
+
+DB persistence flow
+
+provider security handling
+
+authorization outcome
+
+They may request those outcomes, but server code must decide them.
+
+5.3 Keep route files thin
+
+Page files should mostly:
+
+compose components
+
+load route-level data if necessary
+
+wire localization
+
+define metadata if needed
+
+Do not turn page.tsx into a 400-line mixed kitchen sink.
+
+6. TypeScript Rules
+6.1 File types
+
+Use:
+
+.ts
+
+.tsx
+
+Do not introduce:
+
+.js
+
+.jsx
+
+6.2 Props typing
+
+All props must have explicit interfaces.
+
+Convention:
+
+XxxProps
+
+Example
+interface GenerateFormProps {
+  defaultModel: ModelId
+  onSuccess?: (generationId: string) => void
+}
+6.3 Schema-first whenever data crosses boundaries
+
+Use Zod for:
+
+API request bodies
+
+API responses when relevant
+
+env validation if added
+
+external provider payload normalization
+
+form-level structured validation when appropriate
+
+Pattern:
+
+const GenerateRequestSchema = z.object({
+  prompt: z.string().min(1),
+  model: z.enum([...])
+})
+
+type GenerateRequest = z.infer<typeof GenerateRequestSchema>
+6.4 Prefer inference from schema
+
+If a shape is already represented in a Zod schema, prefer:
+
+type T = z.infer<typeof Schema>
+
+instead of duplicating the type manually.
+
+6.5 Avoid unsafe type assertions
+
+Do not use:
+
+as any
+
+as unknown as X
+
+large blind casts
+
+Use narrowing, parser functions, discriminated unions, or schema parsing instead.
+
+7. Naming Conventions
+File naming
+
+Components: PascalCase.tsx
+
+Hooks: use-xxx.ts or useXxx.ts
+
+Services: xxx.service.ts
+
+Constants: semantic file names such as models.ts, routes.ts, config.ts
+
+Schema/type modules: descriptive names, not vague names like common.ts unless truly common
+
+Symbol naming
+
+constants: SCREAMING_SNAKE_CASE
+
+types/interfaces: PascalCase
+
+hooks/functions/variables: camelCase
+
+React components: PascalCase
+
+8. Import Order
+
+Always prefer this order:
+
+// 1. React / Next.js
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-// 2. 第三方庫
+// 2. Third-party libraries
 import { z } from 'zod'
 import { useUser } from '@clerk/nextjs'
 
-// 3. 內部常量/類型
-import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
+// 3. Internal constants / types
+import { AI_MODELS } from '@/constants/models'
 import type { GenerateRequest } from '@/types'
 
-// 4. 內部組件/服務/hooks
+// 4. Internal hooks / services / components
+import { useGenerate } from '@/hooks/use-generate'
 import { Button } from '@/components/ui/button'
-import { useGenerateImage } from '@/hooks/use-generate'
 
-// 5. 樣式（如需要）
+// 5. Local styles if necessary
 import styles from './styles.module.css'
 
-📁 目錄結構（實際）
+Keep imports grouped and stable.
+
+9. Routing Rules
+9.1 App Router is the source of truth
+
+This project uses Next.js App Router.
+
+Do not introduce Pages Router patterns.
+
+9.2 Locale-based routing
+
+The app uses locale segments under:
+
+/en/...
+
+/ja/...
+
+/zh/...
+
+Default locale is:
+
+en
+
+All routing and page design must remain compatible with locale-prefixed routes.
+
+9.3 Route constants
+
+Reusable route paths should be defined in constants.
+
+Do not scatter route strings across the codebase.
+
+9.4 Preserve route structure
+
+Do not change route structure casually during UI work.
+UI improvement tasks must not break existing route conventions.
+
+10. Authentication Rules (Clerk)
+10.1 Auth boundary
+
+Protected pages and protected route handlers must verify auth before doing privileged work.
+
+10.2 Never trust client identity
+
+Never trust identity from:
+
+form values
+
+search params
+
+headers unless part of verified middleware flow
+
+User identity must come from Clerk/auth context.
+
+10.3 Webhook logic
+
+Webhook handlers must remain thin and validated.
+Do not put unrelated business logic into Clerk webhook routes.
+
+11. Credits Rules
+11.1 Credits are server-owned state
+
+The client may display credits.
+The server decides:
+
+current balance
+
+affordability
+
+deduction
+
+refund if applicable
+
+consistency guarantees
+
+11.2 Model cost must come from constants/config
+
+Do not hardcode credit costs inside components or handlers.
+
+11.3 Failed generation handling
+
+If generation failure affects credits policy, it must be decided and implemented in service logic, not guessed in UI.
+
+12. AI Provider Integration Rules
+12.1 Provider-specific code belongs in services or adapters
+
+Do not put provider request format logic into page files or React components.
+
+12.2 Normalize provider differences
+
+Different providers may return different shapes.
+Normalize them into project-controlled shapes before they reach the broader app.
+
+12.3 Never expose secrets to client
+
+Provider API keys must never be exposed via NEXT_PUBLIC_*.
+
+13. Storage Rules (Cloudflare R2)
+13.1 R2 logic belongs in storage service modules
+
+Storage upload, key generation, content normalization, and related helper logic must live in:
+
+src/services/storage/...
+
+13.2 No storage key logic in UI
+
+UI should never generate or assume final storage keys.
+
+13.3 Persist canonical metadata
+
+If width, height, mime type, storage key, provider, etc. are stored, those values must come from trusted server-side flow.
+
+14. Database / Prisma Rules
+14.1 Prisma access should be centralized
+
+Use shared Prisma access patterns.
+Do not create multiple ad-hoc Prisma clients.
+
+14.2 DB writes belong in services
+
+Page files, hooks, and components must not directly orchestrate DB logic.
+
+14.3 Keep schema usage explicit
+
+When using Prisma results in app code:
+
+transform to stable shapes if needed
+
+do not leak raw DB concerns into UI unnecessarily
+
+14.4 Migrations should stay intentional
+
+Do not casually change schema during unrelated UI tasks.
+
+If a feature requires schema changes:
+
+state that clearly
+
+keep migration focused
+
+keep code changes aligned with the migration
+
+15. UI / Design Rules (Impeccable Workflow)
+
+For any task involving:
+
+page redesign
+
+layout changes
+
+spacing changes
+
+typography changes
+
+visual hierarchy
+
+CTA treatment
+
+mobile adaptation
+
+component visual cleanup
+
+section rhythm
+
+premium feel / polish
+
+Codex must follow the Impeccable frontend-design workflow.
+
+15.1 Required UI workflow
+
+For page-level UI tasks, use this sequence:
+
+Inspect
+
+locate route entry
+
+locate related components
+
+locate where visible text is defined
+
+identify current styling approach
+
+identify shared layout dependencies
+
+Audit
+Evaluate:
+
+hierarchy
+
+spacing rhythm
+
+typography
+
+CTA clarity
+
+consistency
+
+responsiveness
+
+visual noise
+
+anti-patterns
+
+Critique
+State what is weak and what should improve.
+
+Implement
+Perform only the necessary page/component changes.
+
+Normalize
+Unify spacing, text scale, buttons, containers, section transitions, and responsive behavior.
+
+Polish
+Final light refinement only.
+Do not overdesign.
+
+15.2 UI hard rules
+
+When improving UI:
+
+do not change business logic unless the task explicitly requires it
+
+do not change API contracts unless required
+
+do not change route structure unless required
+
+prefer improving existing components over creating unnecessary duplicates
+
+avoid turning every section into nested cards
+
+avoid generic AI-looking dashboard aesthetics when the page is meant to feel product-focused or creator-focused
+
+avoid random decorative gradients that reduce clarity
+
+avoid weak contrast
+
+avoid overly dense mobile layouts
+
+avoid inconsistent padding scales across sibling sections
+
+avoid introducing new dependencies just for cosmetic tweaks unless truly justified
+
+15.3 UI quality goals
+
+Aim for:
+
+intentional hierarchy
+
+readable typography
+
+clean spacing rhythm
+
+clear CTA
+
+stable container widths
+
+visually coherent sections
+
+responsive layouts that still feel deliberate on mobile
+
+minimal but confident styling
+
+15.4 During UI tasks, preserve architecture
+
+A UI task is not permission to:
+
+move business logic into components
+
+move fetch calls into click handlers
+
+duplicate route-level logic
+
+create inconsistent text translation patterns
+
+16. i18n / Localization Rules
+
+This project must support multilingual UI in a scalable way.
+
+16.1 Supported locales
+
+en
+
+ja
+
+zh
+
+16.2 Default locale
+
+en
+
+16.3 All new user-facing text must be translation-ready
+
+Do not introduce new hardcoded visible UI strings once i18n is active or being implemented.
+
+This applies to:
+
+button labels
+
+headings
+
+empty states
+
+toasts
+
+descriptions
+
+field labels
+
+helper text
+
+tabs
+
+nav items
+
+error copy shown to users
+
+16.4 Translation architecture
+
+Use a single consistent i18n architecture for the app.
+
+Do not mix:
+
+scattered inline dictionaries
+
+component-local hand-made translation objects
+
+route-level ad-hoc string maps
+
+multiple unrelated translation loading styles
+
+Keep message organization predictable and scalable.
+
+16.5 Locale route compatibility
+
+All localization changes must remain compatible with:
+
+/en/...
+
+/ja/...
+
+/zh/...
+
+Do not introduce a second incompatible routing model.
+
+16.6 Key naming
+
+Translation keys should be:
+
+stable
+
+semantic
+
+reusable
+
+not excessively tied to layout structure
+
+Prefer:
+
+studio.title
+
+studio.form.promptLabel
+
+gallery.empty.description
+
+Avoid:
+
+page1.section2.blueButtonText
+
+16.7 Reuse keys where meaning is shared
+
+If multiple pages use the same meaning, prefer reusing shared keys rather than duplicating slightly different ones without reason.
+
+16.8 No translation logic mixed with business logic
+
+Translation retrieval should remain a presentation concern.
+Business services should not depend on UI translation keys.
+
+17. Hooks Rules
+17.1 Hooks own client-side interaction logic
+
+Hooks may manage:
+
+loading state
+
+form interaction state
+
+optimistic UI state if appropriate
+
+local selection state
+
+request invocation via API client
+
+Hooks must not secretly absorb server-only business rules.
+
+17.2 Keep hooks cohesive
+
+Do not build giant hooks that manage unrelated concerns.
+
+18. Component Rules
+18.1 Prefer composition
+
+Prefer several small, readable components over one oversized all-purpose component.
+
+18.2 Keep presentational components dumb
+
+components/ui/ should be easy to reuse and easy to test visually.
+
+18.3 Avoid component duplication
+
+Before creating a new component:
+
+check if an existing one can be extended
+
+check if a small variant/prop solves the need
+
+Do not create PrimaryButton2, FancyButton, StudioButtonNew style chaos.
+
+19. Styling Rules
+19.1 Follow existing stack
+
+Prefer:
+
+Tailwind
+
+shadcn/ui
+
+existing utility patterns
+
+existing design tokens / conventions
+
+Do not introduce a second styling system.
+
+19.2 Keep visual system consistent
+
+Spacing, radius, border usage, text sizes, and layout containers should feel part of one system.
+
+19.3 Avoid visual entropy
+
+Do not add:
+
+unnecessary shadows everywhere
+
+multiple unrelated border styles
+
+inconsistent radius tokens
+
+random color choices
+
+decorative effects that do not improve clarity
+
+20. Accessibility Rules
+
+All user-facing UI work should consider:
+
+sufficient contrast
+
+keyboard access
+
+correct button/link semantics
+
+readable form labels
+
+disabled state clarity
+
+focus visibility
+
+Do not trade accessibility away for decoration.
+
+21. Performance Rules
+21.1 Avoid unnecessary client components
+
+Prefer server components unless client interactivity is needed.
+
+21.2 Avoid unnecessary rerenders
+
+Do not introduce prop churn or unstable inline structures if avoidable.
+
+21.3 Keep bundle growth intentional
+
+Do not add heavy dependencies lightly.
+
+22. Error Handling Rules
+22.1 User-facing errors
+
+Errors shown to users should be:
+
+concise
+
+understandable
+
+safe
+
+translation-ready
+
+22.2 Internal errors
+
+Preserve useful debug detail in logs where appropriate, but do not leak secrets.
+
+22.3 Validation first
+
+Prefer failing early with validation rather than allowing bad data deeper into the stack.
+
+23. Testing / Validation Rules
+
+For meaningful code changes, Codex should do as many of the following as are available and relevant:
+
+run type checking
+
+run lint
+
+run tests if present
+
+run build if relevant and feasible
+
+summarize what was verified
+
+If a command cannot be run, say so clearly.
+
+Do not claim verification you did not perform.
+
+24. Change Scope Rules
+24.1 Stay within task scope
+
+Do not refactor unrelated files just because they look improvable.
+
+24.2 Make the smallest correct change
+
+Prefer minimal, coherent, architecture-respecting changes.
+
+24.3 Explain cross-cutting changes
+
+If a task requires touching multiple layers, explain why.
+
+25. Git / Commit Discipline
+
+When making grouped changes, keep them logically separable.
+
+Prefer this split when relevant:
+
+UI upgrade changes
+
+i18n infrastructure changes
+
+schema/migration changes
+
+service logic changes
+
+Do not mix unrelated categories into one chaotic patch unless the task truly demands it.
+
+26. Current Known Directory Structure
 src/
 ├── app/
-│ ├── layout.tsx # 根佈局
-│ ├── page.tsx # 根頁面（重定向到 /en/sign-in）
-│ └── [locale]/
-│ │ ├── layout.tsx # locale 佈局
-│ │ ├── (auth)/
-│ │ │ ├── sign-in/[[...sign-in]]/page.tsx
-│ │ │ └── sign-up/[[...sign-up]]/page.tsx
-│ │ └── (main)/
-│ │ ├── layout.tsx # 包含 Navbar 的佈局
-│ │ └── studio/page.tsx # 創作台（需登錄）✅
-│ └── api/
-│ ├── generate/route.ts # POST 圖片生成 → AI → R2 → DB
-│ ├── credits/route.ts # GET 當前用戶積分
-│ └── webhooks/clerk/route.ts # Clerk user.created 同步
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── [locale]/
+│   │   ├── layout.tsx
+│   │   ├── (auth)/
+│   │   │   ├── sign-in/[[...sign-in]]/page.tsx
+│   │   │   └── sign-up/[[...sign-up]]/page.tsx
+│   │   └── (main)/
+│   │       ├── layout.tsx
+│   │       └── studio/page.tsx
+│   └── api/
+│       ├── generate/route.ts
+│       ├── credits/route.ts
+│       └── webhooks/clerk/route.ts
 │
 ├── components/
-│ ├── ui/ # shadcn/ui 原子組件（button, select, textarea）
-│ ├── business/
-│ │ ├── GenerateForm.tsx # 生成表單（prompt + 模型選擇 + 圖片預覽）
-│ │ └── ModelSelector.tsx # 模型下拉選擇器
-│ └── layout/
-│ └── Navbar.tsx # 頂部導航（Logo + 積分 + UserButton）
+│   ├── ui/
+│   ├── business/
+│   │   ├── GenerateForm.tsx
+│   │   └── ModelSelector.tsx
+│   └── layout/
+│       └── Navbar.tsx
 │
 ├── hooks/
-│ ├── use-generate.ts # 圖片生成狀態管理
-│ └── use-credits.ts # 用戶積分查詢
+│   ├── use-generate.ts
+│   └── use-credits.ts
 │
 ├── services/
-│ ├── generation.service.ts # Generation CRUD（createGeneration, getUserGenerations, getPublicGenerations）
-│ ├── user.service.ts # User CRUD + 積分操作（deductCredits, addCredits）
-│ └── storage/
-│ └── r2.ts # Cloudflare R2 上傳（fetchAsBuffer, uploadToR2, generateStorageKey）
+│   ├── generation.service.ts
+│   ├── user.service.ts
+│   └── storage/
+│       └── r2.ts
 │
 ├── lib/
-│ ├── db.ts # Prisma 單例（PrismaPg Driver Adapter）
-│ ├── api-client.ts # 前端 API 請求封裝
-│ ├── utils.ts # cn() 等工具函數
-│ └── generated/prisma/ # Prisma 自動生成的 Client
+│   ├── db.ts
+│   ├── api-client.ts
+│   ├── utils.ts
+│   └── generated/prisma/
 │
 ├── constants/
-│ ├── models.ts # AI 模型枚舉（SDXL, Animagine, Gemini）
-│ ├── routes.ts # 路由常量
-│ └── config.ts # 全局配置（積分數量等）
+│   ├── models.ts
+│   ├── routes.ts
+│   └── config.ts
 │
 ├── types/
-│ └── index.ts # TypeScript 型別 + Zod Schema
+│   └── index.ts
 │
-└── middleware.ts # Clerk 路由保護
+└── middleware.ts
 
-尚未實現的頁面/組件：
-- gallery/page.tsx — 公開作品集（路由已定義，中間件已配置，頁面未實現）
-- profile/page.tsx — 個人中心
-- ImageCard.tsx — 圖片卡片組件
-- GalleryGrid.tsx — 瀑布流佈局
-- MobileTabBar.tsx — 移動端底部導航
-- use-gallery.ts — 畫廊 hook
+This structure may evolve, but Codex should preserve the same architectural direction.
 
-🔐 安全規範
+27. Current Missing / Planned Areas
 
-NEXT*PUBLIC* 前綴僅用於：Clerk 公鑰、CDN 域名、App URL
-所有 AI API Keys、數據庫密碼嚴禁加 NEXT*PUBLIC* 前綴
-API Route 必須先用 auth() from Clerk 驗證身份再處理請求
-積分扣除邏輯必須在服務端執行，不信任客戶端傳來的積分數值
+The following are known planned or incomplete areas:
 
-💡 當 Codex 不確定時
+gallery/page.tsx
 
-優先查閱 src/constants/ 看有沒有已定義的變量
-優先複用 src/components/ui/ 的已有組件
-不確定架構時，遵循「先 Service，後 Hook，最後 UI」的順序
-遇到類型問題時，用 zod 定義 schema 再推導類型，不使用 as 強轉
+profile/page.tsx
 
-📋 當前開發狀態
+ImageCard.tsx
 
-✅ Phase 1: MVP（核心生成功能）— 已完成
-✅ Phase 2: 持久化存儲（Prisma + R2）— 已完成
-🔧 Phase 3: 用戶系統 + 積分 — 大部分完成
-  - ✅ Clerk 登錄/註冊 + Navbar UserButton
-  - ✅ Clerk Webhook 同步 user.created
-  - ✅ 積分扣除/增加服務端邏輯 + GET /api/credits
-  - ✅ 路由保護中間件
-  - ❌ Gallery 頁面未實現
-  - ❌ Profile 頁面未實現
-⬜ Phase 4: UI 優化 + Gallery + 部署
+GalleryGrid.tsx
 
-🗄️ 數據庫模型
-- User: id(UUID), clerkId, email, credits(默認100), generations[]
-- Generation: id(UUID), outputType(IMAGE/VIDEO/AUDIO), status(PENDING/COMPLETED/FAILED),
-  url, storageKey, mimeType, width, height, duration, prompt, negativePrompt,
-  model, provider, creditsCost, isPublic, userId
+MobileTabBar.tsx
 
-🤖 AI 模型配置
-| 模型 ID | 名稱 | 積分 | 提供商 |
-|---------|------|------|--------|
-| sdxl | Stable Diffusion XL | 1 | HuggingFace |
-| animagine-xl-4.0 | Animagine XL 4.0 | 1 | HuggingFace |
-| gemini-3.1-flash-image-preview | Gemini 3.1 Flash Image | 2 | Google Gemini |
+use-gallery.ts
+
+When implementing these, follow all layering, UI, and i18n rules in this file.
+
+28. Current Development Status
+Phase 1: MVP core generation
+
+Completed
+
+Phase 2: persistence (Prisma + R2)
+
+Completed
+
+Phase 3: user system + credits
+
+Mostly completed
+
+Clerk sign-in/sign-up
+
+Clerk webhook sync
+
+credits logic on server
+
+route protection
+
+credits API
+
+Still incomplete:
+
+gallery page
+
+profile page
+
+Phase 4: UI refinement + gallery + deployment
+
+In progress
+
+29. Data Model Snapshot
+User
+
+id (UUID)
+
+clerkId
+
+email
+
+credits
+
+generations[]
+
+Generation
+
+id (UUID)
+
+outputType
+
+status
+
+url
+
+storageKey
+
+mimeType
+
+width
+
+height
+
+duration
+
+prompt
+
+negativePrompt
+
+model
+
+provider
+
+creditsCost
+
+isPublic
+
+userId
+
+Do not assume this snapshot authorizes schema changes.
+It is documentation, not permission for casual DB drift.
+
+30. Model Catalog Snapshot
+Model ID	Name	Credits	Provider
+sdxl	Stable Diffusion XL	1	HuggingFace
+animagine-xl-4.0	Animagine XL 4.0	1	HuggingFace
+gemini-3.1-flash-image-preview	Gemini 3.1 Flash Image	2	Google
+
+Always confirm existing constants before editing model-related logic.
+
+31. Security Rules
+31.1 Environment variables
+
+NEXT_PUBLIC_* may be used only for values that are safe for the browser, such as:
+
+Clerk publishable key
+
+public CDN domain
+
+public app URL
+
+Never expose:
+
+AI API keys
+
+DB credentials
+
+storage secrets
+
+private service credentials
+
+31.2 Sensitive operations
+
+Sensitive operations must happen server-side:
+
+credits mutation
+
+ownership checks
+
+persistence of generation records
+
+storage finalization
+
+31.3 Do not log secrets
+
+Do not print secrets in logs, errors, or debug output.
+
+32. When Codex Is Uncertain
+
+When uncertain, follow this order:
+
+check src/constants/
+
+check src/types/
+
+check src/services/
+
+check src/hooks/
+
+check src/components/ui/
+
+check existing route/layout patterns
+
+check i18n structure if visible text is involved
+
+If still uncertain:
+
+preserve the current architecture
+
+prefer the smallest correct change
+
+prefer schema-first typing
+
+do not use any
+
+do not hardcode user-facing copy
+
+do not invent a second architecture pattern
+
+33. Required Behavior for Page Upgrade Tasks
+
+When the task is "upgrade page UI", Codex must:
+
+identify the route entry
+
+identify related components
+
+identify where visible strings come from
+
+audit the current UI
+
+propose or infer a minimal coherent rewrite
+
+implement only necessary changes
+
+normalize and polish
+
+run validation if possible
+
+summarize changed files and reasons
+
+Do not jump straight to a full rewrite without inspection.
+
+34. Required Behavior for i18n Tasks
+
+When the task is "add or improve localization", Codex must:
+
+inspect current locale routing
+
+inspect current message organization if any
+
+identify visible strings in target pages/components
+
+establish or extend a single consistent i18n pattern
+
+keep /en, /ja, /zh compatible
+
+make user-facing strings translation-ready
+
+avoid mixing translation logic into service/business logic
+
+summarize which files now own translations
+
+35. Required Output Discipline
+
+After implementing a task, Codex should summarize:
+
+what files changed
+
+why they changed
+
+what architectural choices were preserved
+
+what was verified
+
+what remains intentionally unchanged
+
+Do not claim more than was actually done.
+
+36. Final Principle
+
+This codebase should grow like a clean city, not like a pile of cables.
+
+Every change should make the project:
+
+more consistent
+
+more predictable
+
+more type-safe
+
+more translation-ready
+
+more maintainable
+
+more visually intentional
+
+If a change makes the codebase noisier, less predictable, or more ad-hoc, it is probably the wrong change.

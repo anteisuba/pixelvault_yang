@@ -1,37 +1,49 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
+import { getLocale } from 'next-intl/server'
 
 import { HOMEPAGE_METADATA } from '@/constants/homepage'
+import { ROUTES } from '@/constants/routes'
+import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
+import {
+  chineseDisplay,
+  chineseSans,
+  geistMono,
+  geistSans,
+  japaneseSans,
+} from '@/i18n/fonts'
+import { getPathname } from '@/i18n/navigation'
 
 import './globals.css'
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: HOMEPAGE_METADATA.title,
   description: HOMEPAGE_METADATA.description,
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const locale = await getLocale()
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${chineseDisplay.variable} font-sans antialiased`}
       >
-        <ClerkProvider signInFallbackRedirectUrl="/en/studio">
+        <ClerkProvider
+          localization={CLERK_LOCALIZATIONS[locale] ?? CLERK_LOCALIZATIONS.en}
+          signInFallbackRedirectUrl={getPathname({
+            locale,
+            href: ROUTES.STUDIO,
+          })}
+          signUpFallbackRedirectUrl={getPathname({
+            locale,
+            href: ROUTES.STUDIO,
+          })}
+        >
           {children}
         </ClerkProvider>
       </body>

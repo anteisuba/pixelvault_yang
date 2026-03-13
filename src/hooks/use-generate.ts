@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+
 import type { GenerateRequest, GenerationRecord } from '@/types'
 import { generateImageAPI } from '@/lib/api-client'
 
@@ -27,6 +29,7 @@ export function useGenerateImage(): UseGenerateImageReturn {
   const [error, setError] = useState<string | null>(null)
   const [generatedGeneration, setGeneratedGeneration] =
     useState<GenerationRecord | null>(null)
+  const t = useTranslations('StudioForm')
 
   const generate = useCallback(async (params: GenerateRequest) => {
     setIsGenerating(true)
@@ -39,16 +42,15 @@ export function useGenerateImage(): UseGenerateImageReturn {
       if (response.success && response.data) {
         setGeneratedGeneration(response.data.generation)
       } else {
-        setError(response.error ?? 'Image generation failed')
+        setError(response.error ?? t('errorFallback'))
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'An unexpected error occurred'
+      const message = err instanceof Error ? err.message : t('errorUnexpected')
       setError(message)
     } finally {
       setIsGenerating(false)
     }
-  }, [])
+  }, [t])
 
   const reset = useCallback(() => {
     setError(null)

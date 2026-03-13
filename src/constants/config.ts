@@ -5,6 +5,11 @@
 /** Default credits for new users */
 export const DEFAULT_CREDITS = 10
 
+/** Limits for image generation */
+export const GENERATION_LIMITS = {
+  PROMPT_MAX_LENGTH: 4000,
+} as const
+
 /** Supported image size configurations */
 export const IMAGE_SIZES = {
   '1:1': { width: 1024, height: 1024, label: '1:1 (Square)' },

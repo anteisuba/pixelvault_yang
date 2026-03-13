@@ -1,155 +1,181 @@
-# Personal AI Gallery
+# PixelVault — Personal AI Gallery
 
-AI 圖片生成 Web 應用 — 輸入文字描述，生成精美圖片，永久存儲到個人相冊。
+A multi-model AI image generation and permanent archive platform.
 
-## 功能特點
+**Live Demo:** [https://pixelvault-seven.vercel.app/](https://pixelvault-seven.vercel.app/)
 
-- **AI 圖片生成** — 輸入 prompt 即時生成圖片
-- **多模型支持** — Stable Diffusion XL、Animagine XL 4.0（動漫風格）、Gemini 3.1 Flash Image
-- **永久存儲** — 生成結果自動上傳到 Cloudflare R2，寫入 PostgreSQL
-- **用戶認證** — Clerk 登錄／註冊，保護創作台路由
-- **積分系統** — 每次生成消耗積分（1-2 積分），服務端校驗
-- **響應式 UI** — shadcn/ui 組件庫 + Tailwind CSS
+---
 
-## 技術棧
+## Features
 
-| 分類    | 技術                               |
-| ------- | ---------------------------------- |
-| 框架    | Next.js 16 (App Router, Turbopack) |
-| 語言    | TypeScript (strict mode)           |
-| UI      | shadcn/ui + Tailwind CSS 4         |
-| AI 服務 | HuggingFace Inference API / Google Gemini API |
-| 認證    | Clerk                              |
-| 資料庫  | Prisma 7 (PrismaPg Driver Adapter) + PostgreSQL (Neon) |
-| 存儲    | Cloudflare R2                      |
-| 驗證    | Zod 4                              |
+- **Multi-model AI image generation** — Choose from 3 AI models across 2 providers
+- **Permanent image storage** — All generated images stored on Cloudflare R2
+- **Credit-based system** — New users receive 10 credits; each generation costs 1–2 credits
+- **User authentication** — Sign in / sign up via Clerk
+- **Multilingual UI** — English, Japanese, Traditional Chinese (`/en`, `/ja`, `/zh`)
+- **Multiple aspect ratios** — 1:1, 16:9, 9:16, 4:3, 3:4
 
-## 快速開始
+---
 
-### 環境需求
+## AI Models
 
-- Node.js 18.17+
-- npm
-- PostgreSQL 資料庫（推薦 Neon）
-- Cloudflare R2 Bucket
-- Clerk 帳號
-- HuggingFace Access Token
-- Google Gemini API Key（可選）
+| Model | Provider | Credits | Description |
+|-------|----------|---------|-------------|
+| Stable Diffusion XL | HuggingFace | 1 | High-resolution, detailed image generation |
+| Animagine XL 4.0 | HuggingFace | 1 | High-quality anime-style image generation |
+| Gemini 3.1 Flash Image | Google Gemini | 2 | Google's state-of-the-art image generation |
 
-### 安裝與啟動
+---
 
-```bash
-# 安裝依賴
-npm install
+## Tech Stack
 
-# 配置環境變數
-cp .env.local.example .env.local
-# 編輯 .env.local，填入所有必填變數
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router + Turbopack) |
+| Language | TypeScript |
+| Styling | Tailwind CSS + shadcn/ui |
+| Auth | Clerk |
+| Database | PostgreSQL (Neon) via Prisma 7 + PrismaPg Driver Adapter |
+| Storage | Cloudflare R2 |
+| AI Providers | HuggingFace Inference API, Google Gemini API |
+| Validation | Zod |
+| Deployment | Vercel |
 
-# 執行資料庫 migration
-npx prisma migrate dev
+---
 
-# 啟動開發伺服器
-npm run dev
-```
-
-打開 [http://localhost:3000](http://localhost:3000) 即可使用。
-
-### 環境變數
-
-| 變數 | 說明 | 必填 |
-| ---- | ---- | ---- |
-| `DATABASE_URL` | PostgreSQL 連接字串（Neon） | Yes |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk 公鑰 | Yes |
-| `CLERK_SECRET_KEY` | Clerk 私鑰 | Yes |
-| `CLERK_WEBHOOK_SECRET` | Clerk Webhook 簽名密鑰 | Yes |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/en/sign-in` | Yes |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/en/sign-up` | Yes |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | `/en/studio` | Yes |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | `/en/studio` | Yes |
-| `HF_API_TOKEN` | HuggingFace Access Token | Yes |
-| `SILICONFLOW_API_KEY` | SiliconFlow API Key | No |
-| `R2_ACCOUNT_ID` | Cloudflare R2 Account ID | Yes |
-| `R2_ACCESS_KEY_ID` | R2 Access Key | Yes |
-| `R2_SECRET_ACCESS_KEY` | R2 Secret Key | Yes |
-| `R2_BUCKET_NAME` | R2 Bucket 名稱 | Yes |
-| `NEXT_PUBLIC_STORAGE_BASE_URL` | R2 公開域名 | Yes |
-
-## 專案結構
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── layout.tsx              # 根佈局
-│   ├── page.tsx                # 根頁面（重定向到 /en/sign-in）
 │   ├── [locale]/
-│   │   ├── layout.tsx          # locale 佈局
-│   │   ├── (auth)/
-│   │   │   ├── sign-in/[[...sign-in]]/   # Clerk 登錄頁
-│   │   │   └── sign-up/[[...sign-up]]/   # Clerk 註冊頁
+│   │   ├── (auth)/          # sign-in, sign-up
 │   │   └── (main)/
-│   │       ├── layout.tsx      # 包含 Navbar 的佈局
-│   │       └── studio/         # 創作台（需登錄）
+│   │       └── studio/      # AI generation studio (requires login)
 │   └── api/
-│       ├── generate/           # POST 圖片生成 → AI → R2 → DB
-│       ├── credits/            # GET 當前用戶積分
-│       └── webhooks/clerk/     # Clerk user.created 同步
+│       ├── generate/        # POST — AI generation → R2 → DB
+│       ├── credits/         # GET  — current user credits
+│       └── webhooks/clerk/  # Clerk user.created sync
+│
 ├── components/
-│   ├── business/               # GenerateForm, ModelSelector
-│   ├── layout/                 # Navbar
-│   └── ui/                     # shadcn/ui 基礎組件（button, select, textarea）
-├── constants/                  # models, routes, config
-├── hooks/                      # useGenerateImage, useCredits
-├── lib/
-│   ├── db.ts                   # Prisma 單例（PrismaPg Driver Adapter）
-│   ├── api-client.ts           # 前端 API 請求封裝
-│   ├── utils.ts                # cn() 等工具函數
-│   └── generated/prisma/       # Prisma 生成的 Client
-├── middleware.ts               # Clerk 路由保護
+│   ├── ui/                  # shadcn/ui atoms (stateless)
+│   ├── business/
+│   │   ├── GenerateForm.tsx # Prompt + model selector + preview
+│   │   └── ModelSelector.tsx
+│   └── layout/
+│       └── Navbar.tsx       # Logo + credits + UserButton
+│
+├── hooks/
+│   ├── use-generate.ts      # Generation state management
+│   └── use-credits.ts       # Credits query
+│
 ├── services/
-│   ├── generation.service.ts   # Generation CRUD
-│   ├── user.service.ts         # User CRUD + 積分操作
-│   └── storage/r2.ts           # Cloudflare R2 上傳
-└── types/                      # TypeScript 型別 + Zod Schema
+│   ├── generation.service.ts
+│   ├── user.service.ts      # Credits deduction / addition
+│   └── storage/r2.ts        # Cloudflare R2 upload
+│
+├── lib/
+│   ├── db.ts                # Prisma singleton
+│   ├── api-client.ts        # Frontend API wrapper
+│   └── utils.ts
+│
+├── constants/
+│   ├── models.ts            # AI model enum + options
+│   ├── routes.ts            # Route constants
+│   └── config.ts            # Credits, limits, pagination
+│
+└── types/index.ts           # TypeScript types + Zod schemas
 ```
 
-## AI 模型
+---
 
-| 模型 | 積分 | 提供商 | 說明 |
-|------|------|--------|------|
-| Stable Diffusion XL | 1 | HuggingFace | 高解析度通用圖片生成 |
-| Animagine XL 4.0 | 1 | HuggingFace | 高品質動漫風格圖片 |
-| Gemini 3.1 Flash Image | 2 | Google Gemini | Google 最新圖片生成模型 |
+## Getting Started
 
-## 資料庫模型
+### Prerequisites
 
-- **User** — clerkId, email, credits (默認 100)
-- **Generation** — prompt, model, provider, outputType (IMAGE/VIDEO/AUDIO), status (PENDING/COMPLETED/FAILED), url, storageKey, creditsCost, isPublic
+- Node.js 20+
+- PostgreSQL database (Neon recommended)
+- Cloudflare R2 bucket
+- Clerk account
+- HuggingFace API key
+- Google Gemini API key
 
-## 開發進度
+### Environment Variables
 
-- [x] **Phase 1** — MVP（圖片生成核心功能）
-  - AI 圖片生成（HuggingFace SDXL / Animagine XL 4.0 / Gemini）
-  - 多模型選擇、Prompt 輸入、響應式 UI
-- [x] **Phase 2** — 資料庫 + 存儲
-  - Prisma 7 + PostgreSQL (Neon) — Generation / User 表
-  - Cloudflare R2 永久存儲，自動生成 storage key
-  - generation.service / user.service / r2 storage service
-- [x] **Phase 3** — 用戶認證 + 積分系統（大部分完成）
-  - Clerk 登錄／註冊頁面 + Navbar UserButton
-  - Clerk Webhook 同步 user.created 到資料庫
-  - 積分 deduct / add 服務端邏輯 + GET /api/credits
-  - 路由保護（/en/studio 需登錄）
-- [ ] **Phase 4** — Gallery + UI 優化 + 部署
-  - 公開 Gallery 頁面（瀑布流）
-  - 個人 Profile 頁面
-  - Vercel 部署
-  - 移動端打包（Capacitor）
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+CLERK_WEBHOOK_SECRET=whsec_...
 
-## 部署後待處理
+# Database
+DATABASE_URL=postgresql://...
 
-詳見 [TODO.md](./TODO.md)
+# Cloudflare R2
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+NEXT_PUBLIC_R2_PUBLIC_URL=
 
-## License
+# AI Providers
+HUGGINGFACE_API_KEY=hf_...
+GEMINI_API_KEY=AIza...
+```
 
-MIT
+### Install & Run
+
+```bash
+npm install
+
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate deploy
+
+# Start development server
+npm run dev
+```
+
+---
+
+## Development Status
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | Done | MVP — core generation flow |
+| Phase 2 | Done | Persistence — Prisma + Cloudflare R2 |
+| Phase 3 | Mostly done | User system + credits |
+| Phase 4 | In progress | Gallery page + UI polish + deployment |
+
+### Remaining Work
+
+- [ ] `gallery/page.tsx` — public image gallery with infinite scroll
+- [ ] `profile/page.tsx` — personal generation history + credits
+- [ ] `ImageCard.tsx` — image card with hover effects
+- [ ] `GalleryGrid.tsx` — masonry layout
+- [ ] `MobileTabBar.tsx` — bottom navigation for mobile
+- [ ] Landing page (currently redirects to sign-in)
+
+---
+
+## Post-Deployment Setup
+
+After deploying to Vercel, configure the Clerk webhook:
+
+1. Clerk Dashboard → **Webhooks** → **Add Endpoint**
+2. URL: `https://pixelvault-seven.vercel.app/api/webhooks/clerk`
+3. Enable event: `user.created`
+4. Copy the Signing Secret → set `CLERK_WEBHOOK_SECRET` in Vercel environment variables
+
+---
+
+## Architecture Principles
+
+- **No magic values** — all model IDs, routes, and config in `src/constants/`
+- **Strict TypeScript** — no `any`; all types via interfaces or Zod schemas
+- **Layered architecture** — constants → types → services → hooks → components
+- **Thin API routes** — auth check + Zod parse + service call only
+- **Server-side credit logic** — credits never trusted from client
+- **Secrets never exposed** — no AI keys or DB credentials with `NEXT_PUBLIC_` prefix

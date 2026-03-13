@@ -1,0 +1,199 @@
+{
+  "Common": {
+    "brand": "PixelVault",
+    "creditCount": "{count} クレジット"
+  },
+  "Metadata": {
+    "title": "PixelVault | パーソナルAIギャラリー",
+    "description": "Stable Diffusion XL、Animagine XL 4.0、Gemini 3.1 Flash Image で生成し、すべての結果をひとつの個人ギャラリーに保存できます。"
+  },
+  "Navbar": {
+    "creditsLoading": "...",
+    "signIn": "サインイン"
+  },
+  "LocaleSwitcher": {
+    "label": "言語",
+    "options": {
+      "en": "EN",
+      "ja": "JA",
+      "zh": "ZH"
+    },
+    "names": {
+      "en": "English",
+      "ja": "日本語",
+      "zh": "中文"
+    }
+  },
+  "Homepage": {
+    "brandLabel": "パーソナルAIギャラリー",
+    "brandSubline": "あとで見返したくなる画像を残すための個人アーカイブ。",
+    "navigationLabel": "ホームページ",
+    "navigation": {
+      "workflow": "ワークフロー",
+      "models": "モデル"
+    },
+    "heroEyebrow": "永続的なAIアーカイブ",
+    "heroTitle": "残しておきたい画像をつくる。",
+    "heroDescription": "3つの異なる画像エンジンで生成し、良い結果を保存して、自分の作り方を覚えてくれるギャラリーに戻れます。",
+    "actions": {
+      "signedOutPrimary": "Vaultを作成",
+      "signedInPrimary": "スタジオを開く",
+      "signedOutUtility": "サインイン",
+      "signedInUtility": "続ける",
+      "sharedSecondary": "モデル一覧を見る",
+      "signInPrimary": "アカウントを作成",
+      "signUpPrimary": "登録済みの方はこちら",
+      "authSecondary": "ホームに戻る"
+    },
+    "auth": {
+      "note": "アカウントを使うと、クレジット、非公開プロンプト、保存済み生成結果をセッションをまたいで同期できます。",
+      "signIn": {
+        "eyebrow": "おかえりなさい",
+        "title": "あなたのプライベートギャラリーへ戻る。",
+        "description": "サインインすると、制作の流れを失わずに生成、保存済み結果の確認、クレジット管理を続けられます。"
+      },
+      "signUp": {
+        "eyebrow": "コレクションを始める",
+        "title": "お気に入りのプロンプトのためのVaultを開く。",
+        "description": "アカウントを作成して複数のAIモデルで生成し、気に入った結果を保存しながら、自分の好みに合わせてギャラリーを育てましょう。"
+      }
+    },
+    "stage": {
+      "label": "ギャラリープレビュー",
+      "value": "迷いを減らすクリエイティブの方向づけ",
+      "savedLabel": "Vaultに保存"
+    },
+    "signals": {
+      "modelCoverageLabel": "対応モデル",
+      "modelCoverageValue": "{modelCount}種類の画像モデル、{providerCount}社のプロバイダーに対応",
+      "creditLabel": "クレジットの見通し",
+      "creditValue": "生成は1枚あたり{creditCount}から",
+      "archiveLabel": "保存の仕組み",
+      "archiveValue": "プロンプト、出力、モデル選択をまとめて残せます"
+    },
+    "features": {
+      "eyebrow": "クリエイティブの強み",
+      "title": "始まりはスタジオ、価値はアーカイブ。",
+      "description": "最初の訪問で、柔軟な画像エンジン、長期保存、明確なクレジットの使い方がすぐ伝わるようになっています。",
+      "items": {
+        "chooseEngine": {
+          "title": "最適なエンジンを選ぶ",
+          "description": "同じスタジオの中で、リアル表現、アニメ調、Geminiの高速な試行を切り替えられます。"
+        },
+        "keepEveryKeeper": {
+          "title": "良い結果を残す",
+          "description": "優れた結果は1回限りで消えません。あとから見返せるギャラリーに残ります。"
+        },
+        "spendCredits": {
+          "title": "クレジットを明確に使う",
+          "description": "モデルごとのコストが事前に見えるので、安心して試せます。"
+        }
+      }
+    },
+    "workflow": {
+      "eyebrow": "プロンプトから保存まで",
+      "title": "見通しのよい制作フロー。",
+      "description": "最初の体験で、何が作れるか、アーカイブがどう機能するか、モデル選択がなぜ重要かを、登録前に理解できます。",
+      "items": {
+        "frameIdea": {
+          "title": "アイデアを定める",
+          "description": "クレジットを使う前に、プロンプトを書き、雰囲気に合うモデルを選びます。"
+        },
+        "generateWithIntent": {
+          "title": "意図を持って生成する",
+          "description": "同じ制作画面のまま、フォトリアル、アニメ、Geminiの出力を比較できます。"
+        },
+        "archiveWinners": {
+          "title": "良い結果を保存する",
+          "description": "プロンプト、モデル選択、最終画像を一緒に残して、次回の制作を文脈から始められます。"
+        }
+      }
+    },
+    "models": {
+      "eyebrow": "モデル一覧",
+      "title": "3つの画像エンジン、1つのVault。",
+      "description": "リアル表現、アニメ調、Geminiの高速探索を、ツールや文脈を失わずに切り替えられます。"
+    },
+    "scenes": {
+      "items": {
+        "sdxlRealism": {
+          "note": "ディテール重視のリアリズム",
+          "prompt": "静かなブルータリズム建築の中庭を横切る嵐明かり"
+        },
+        "animagineAnime": {
+          "note": "アニメらしい躍動感",
+          "prompt": "夕暮れの提灯市場をホバーボードで駆け抜ける配達員"
+        },
+        "geminiConcept": {
+          "note": "素早いコンセプト探索",
+          "prompt": "カメラ部品、金属工具、押し花を並べたエディトリアル静物"
+        }
+      }
+    },
+    "footer": {
+      "eyebrow": "見返せることのために",
+      "title": "出力は画像、価値はアーカイブ。",
+      "description": "PixelVaultは、プロンプト、モデル選択、結果を一緒に保存するので、次のアイデアを推測ではなく文脈から始められます。"
+    }
+  },
+  "StudioPage": {
+    "heroEyebrow": "スタジオ",
+    "heroTitle": "次の画像を生成する",
+    "heroDescription": "モデルを選び、プロンプトを書き、集中できるワークスペースで生成します。",
+    "workspaceLabel": "スタジオワークスペース",
+    "workspaceTitle": "プロンプトを書いて生成",
+    "workspaceDescription": "生成フローはそのままに、モデル選択、プロンプト入力、結果確認の構成をより分かりやすくしました。",
+    "metrics": {
+      "modelCoverageLabel": "対応モデル",
+      "modelCoverageValue": "{modelCount}種類の利用可能モデル、{providerCount}社のプロバイダーに対応",
+      "startingCostLabel": "開始コスト",
+      "startingCostValue": "生成は1枚あたり{creditCount}から",
+      "archiveBehaviorLabel": "保存の仕組み",
+      "archiveBehaviorValue": "各結果はプロンプトとモデル情報を一緒に保持します。"
+    }
+  },
+  "StudioForm": {
+    "selectedModelLabel": "選択中のモデル",
+    "providerLabel": "プロバイダー",
+    "creditCostLabel": "必要クレジット",
+    "promptLabel": "プロンプト",
+    "promptHint": "被写体、場面、ライティング、構図、スタイルなどを具体的に書いてください。",
+    "promptPlaceholder": "生成したい画像を説明してください...",
+    "promptCounter": "{current} / {max} 文字",
+    "ctaSectionLabel": "生成の準備完了",
+    "ctaSectionDescription": "選択したモデルとプロンプトを確認して、準備ができたら生成します。",
+    "ctaLabel": "画像を生成",
+    "ctaLoadingLabel": "生成中...",
+    "errorTitle": "生成エラー",
+    "errorFallback": "画像生成に失敗しました",
+    "errorUnexpected": "予期しないエラーが発生しました",
+    "resultLabel": "最新の結果",
+    "resultDescription": "最新の生成画像がここに表示されます。",
+    "resultEmptyTitle": "まだ生成結果がありません",
+    "resultEmptyDescription": "フォームを送信すると、このワークスペースに最新の画像が表示されます。",
+    "resultPromptLabel": "プロンプト",
+    "resultModelLabel": "モデル",
+    "resultProviderLabel": "プロバイダー",
+    "resultCreditLabel": "使用クレジット",
+    "resultStorageNote": "プロンプトとモデル情報を添えて保存されます。",
+    "modelSelector": {
+      "label": "AIモデル",
+      "hint": "欲しい見た目に最も合うモデルを選んでください。",
+      "placeholder": "モデルを選択"
+    }
+  },
+  "Models": {
+    "sdxl": {
+      "label": "Stable Diffusion XL",
+      "description": "高解像度でディテールに優れた画像生成。"
+    },
+    "animagineXl4": {
+      "label": "Animagine XL 4.0",
+      "description": "高品質なアニメ調画像の生成。"
+    },
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "Googleの最新世代モデルによる高速な画像探索。"
+    }
+  }
+}

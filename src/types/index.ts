@@ -1,6 +1,7 @@
 import { z } from 'zod'
+
+import { GENERATION_LIMITS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import type { AspectRatio } from '@/constants/config'
 
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
@@ -13,7 +14,10 @@ export const GenerateRequestSchema = z.object({
   prompt: z
     .string()
     .min(1, 'Prompt is required')
-    .max(4000, 'Prompt must be less than 4000 characters'),
+    .max(
+      GENERATION_LIMITS.PROMPT_MAX_LENGTH,
+      `Prompt must be less than ${GENERATION_LIMITS.PROMPT_MAX_LENGTH} characters`,
+    ),
   /** Selected AI model identifier */
   modelId: z.nativeEnum(AI_MODELS),
   /** Aspect ratio for the generated image */

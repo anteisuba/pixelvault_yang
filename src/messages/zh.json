@@ -1,0 +1,199 @@
+{
+  "Common": {
+    "brand": "PixelVault",
+    "creditCount": "{count} 积分"
+  },
+  "Metadata": {
+    "title": "PixelVault | 个人 AI 画廊",
+    "description": "使用 Stable Diffusion XL、Animagine XL 4.0 和 Gemini 3.1 Flash Image 生成图像，并将每次结果归档到同一个个人画廊中。"
+  },
+  "Navbar": {
+    "creditsLoading": "...",
+    "signIn": "登录"
+  },
+  "LocaleSwitcher": {
+    "label": "语言",
+    "options": {
+      "en": "EN",
+      "ja": "JA",
+      "zh": "ZH"
+    },
+    "names": {
+      "en": "English",
+      "ja": "日本語",
+      "zh": "中文"
+    }
+  },
+  "Homepage": {
+    "brandLabel": "个人 AI 画廊",
+    "brandSubline": "为那些值得反复回看的图像准备的个人档案库。",
+    "navigationLabel": "首页",
+    "navigation": {
+      "workflow": "工作流",
+      "models": "模型"
+    },
+    "heroEyebrow": "长期保存的 AI 档案",
+    "heroTitle": "创作值得留下的图像。",
+    "heroDescription": "使用三种不同的图像引擎进行生成，保存最好的结果，并回到一个记得你创作方式的画廊。",
+    "actions": {
+      "signedOutPrimary": "创建你的 Vault",
+      "signedInPrimary": "打开工作台",
+      "signedOutUtility": "登录",
+      "signedInUtility": "继续",
+      "sharedSecondary": "查看模型阵容",
+      "signInPrimary": "还没有账号？",
+      "signUpPrimary": "已经注册？",
+      "authSecondary": "返回首页"
+    },
+    "auth": {
+      "note": "账号会在不同会话之间同步你的积分、私有提示词和已归档的生成结果。",
+      "signIn": {
+        "eyebrow": "欢迎回来",
+        "title": "回到你的私人画廊。",
+        "description": "登录后即可继续生成、查看归档结果并跟踪积分，不会丢失你的创作轨迹。"
+      },
+      "signUp": {
+        "eyebrow": "开始收藏",
+        "title": "为你最好的提示词打开一个 Vault。",
+        "description": "创建账号后，你可以使用多个 AI 模型生成图像、归档每个满意结果，并建立一个随着审美成长的画廊。"
+      }
+    },
+    "stage": {
+      "label": "画廊预览",
+      "value": "更清晰的创作方向",
+      "savedLabel": "已保存到 Vault"
+    },
+    "signals": {
+      "modelCoverageLabel": "模型覆盖",
+      "modelCoverageValue": "{modelCount} 个图像模型，覆盖 {providerCount} 个提供商",
+      "creditLabel": "积分透明",
+      "creditValue": "每张图像生成起价为 {creditCount}",
+      "archiveLabel": "归档方式",
+      "archiveValue": "提示词、输出结果和模型选择会一起保存"
+    },
+    "features": {
+      "eyebrow": "创作优势",
+      "title": "从工作台开始，把价值留在档案里。",
+      "description": "首次访问就能清楚看到产品价值：灵活的图像引擎、可持续保存，以及明确的积分消耗规则。",
+      "items": {
+        "chooseEngine": {
+          "title": "选择合适的引擎",
+          "description": "在同一个工作台里切换写实、动漫风和 Gemini 原生探索。"
+        },
+        "keepEveryKeeper": {
+          "title": "保留每个好结果",
+          "description": "优秀的结果不会在一次会话后消失，它们会进入一个之后还能回看的画廊。"
+        },
+        "spendCredits": {
+          "title": "清楚地使用积分",
+          "description": "模型成本会提前展示，让每次尝试都更有把握。"
+        }
+      }
+    },
+    "workflow": {
+      "eyebrow": "从提示词到归档",
+      "title": "清晰可读的创作流程。",
+      "description": "进入产品后，会先解释你能做什么、归档如何工作，以及为什么模型选择重要，再让你做进一步操作。",
+      "items": {
+        "frameIdea": {
+          "title": "确定想法",
+          "description": "先写下提示词，再选择最符合目标氛围的模型，然后再消耗积分。"
+        },
+        "generateWithIntent": {
+          "title": "带着意图生成",
+          "description": "无需离开同一创作界面，就能比较写实、动漫和 Gemini 风格输出。"
+        },
+        "archiveWinners": {
+          "title": "归档最佳结果",
+          "description": "将提示词、模型选择和最终图像一起保存，让之后的创作从上下文开始。"
+        }
+      }
+    },
+    "models": {
+      "eyebrow": "模型阵容",
+      "title": "三种图像引擎，一个 Vault。",
+      "description": "在写实、动漫风和 Gemini 快速探索之间切换，而无需更换工具或丢失上下文。"
+    },
+    "scenes": {
+      "items": {
+        "sdxlRealism": {
+          "note": "细节丰富的写实感",
+          "prompt": "暴风般的晨光掠过一座安静的粗野主义博物馆庭院"
+        },
+        "animagineAnime": {
+          "note": "鲜明的动漫动感",
+          "prompt": "一名快递员踩着悬浮滑板穿过傍晚灯笼集市"
+        },
+        "geminiConcept": {
+          "note": "快速概念探索",
+          "prompt": "由相机零件、金属工具和压花组成的编辑风静物"
+        }
+      }
+    },
+    "footer": {
+      "eyebrow": "为反复回看而生",
+      "title": "图像是输出，档案才是优势。",
+      "description": "PixelVault 会把提示词、模型选择和结果一起保存，让下一个想法从上下文开始，而不是从猜测开始。"
+    }
+  },
+  "StudioPage": {
+    "heroEyebrow": "工作台",
+    "heroTitle": "生成你的下一张图像",
+    "heroDescription": "选择模型、编写提示词，并在一个专注的工作区内完成生成。",
+    "workspaceLabel": "工作台空间",
+    "workspaceTitle": "编写提示词并生成",
+    "workspaceDescription": "生成流程保持不变，但模型选择、提示词输入和结果展示的结构更清晰了。",
+    "metrics": {
+      "modelCoverageLabel": "模型覆盖",
+      "modelCoverageValue": "{modelCount} 个可用模型，覆盖 {providerCount} 个提供商",
+      "startingCostLabel": "起始成本",
+      "startingCostValue": "每张图像生成起价为 {creditCount}",
+      "archiveBehaviorLabel": "归档方式",
+      "archiveBehaviorValue": "每个结果都会与提示词和模型信息一起保存。"
+    }
+  },
+  "StudioForm": {
+    "selectedModelLabel": "当前模型",
+    "providerLabel": "提供商",
+    "creditCostLabel": "积分消耗",
+    "promptLabel": "提示词",
+    "promptHint": "尽量具体描述主体、场景、光线、构图或风格。",
+    "promptPlaceholder": "描述你想生成的图像...",
+    "promptCounter": "{current} / {max} 字符",
+    "ctaSectionLabel": "准备生成",
+    "ctaSectionDescription": "确认所选模型和提示词，准备好后即可开始生成。",
+    "ctaLabel": "生成图像",
+    "ctaLoadingLabel": "生成中...",
+    "errorTitle": "生成错误",
+    "errorFallback": "图像生成失败",
+    "errorUnexpected": "发生了意外错误",
+    "resultLabel": "最新结果",
+    "resultDescription": "最新生成的图像会显示在这里。",
+    "resultEmptyTitle": "还没有生成结果",
+    "resultEmptyDescription": "提交表单后，最新图像会显示在这个工作区中。",
+    "resultPromptLabel": "提示词",
+    "resultModelLabel": "模型",
+    "resultProviderLabel": "提供商",
+    "resultCreditLabel": "已用积分",
+    "resultStorageNote": "会与提示词和模型信息一起保存。",
+    "modelSelector": {
+      "label": "AI 模型",
+      "hint": "选择最符合你想要视觉风格的模型。",
+      "placeholder": "选择模型"
+    }
+  },
+  "Models": {
+    "sdxl": {
+      "label": "Stable Diffusion XL",
+      "description": "高分辨率且细节丰富的图像生成。"
+    },
+    "animagineXl4": {
+      "label": "Animagine XL 4.0",
+      "description": "高质量动漫风图像生成。"
+    },
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "由 Google 最新一代模型驱动的快速图像探索。"
+    }
+  }
+}

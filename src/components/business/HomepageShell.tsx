@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react'
 
-import Link from 'next/link'
-
 import type { LucideIcon } from 'lucide-react'
 import { Archive, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
-  HOMEPAGE_COPY,
   HOMEPAGE_FEATURES,
   HOMEPAGE_NAVIGATION,
   HOMEPAGE_ROUTES,
@@ -15,8 +13,12 @@ import {
   type HomepageFeatureIcon,
   type HomepageSceneTone,
 } from '@/constants/homepage'
-import { MODEL_OPTIONS } from '@/constants/models'
+import { getModelMessageKey, MODEL_OPTIONS } from '@/constants/models'
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
+import { Link } from '@/i18n/navigation'
+import { isCjkLocale } from '@/i18n/routing'
+import { cn } from '@/lib/utils'
 
 import styles from './HomepageShell.module.css'
 
@@ -70,6 +72,11 @@ export function HomepageShell({
   const stageContentClassName = authPanel
     ? `${styles.stageContent} ${styles.stageContentAuth}`
     : styles.stageContent
+  const locale = useLocale()
+  const isDenseLocale = isCjkLocale(locale)
+  const t = useTranslations('Homepage')
+  const tCommon = useTranslations('Common')
+  const tModels = useTranslations('Models')
 
   return (
     <div className={styles.page}>
@@ -78,38 +85,53 @@ export function HomepageShell({
       >
         <header className={styles.header}>
           <Link href={HOMEPAGE_ROUTES.home} className={styles.brandBlock}>
-            <span className={styles.brandLabel}>{HOMEPAGE_COPY.label}</span>
-            <span className={styles.brandName}>{HOMEPAGE_COPY.brand}</span>
+            <span
+              className={cn(
+                styles.brandLabel,
+                isDenseLocale && styles.denseCopy,
+              )}
+            >
+              {t('brandLabel')}
+            </span>
+            <span className={styles.brandName}>{tCommon('brand')}</span>
             <span className={styles.brandSubline}>
-              {HOMEPAGE_COPY.brandSubline}
+              {t('brandSubline')}
             </span>
           </Link>
 
-          <nav
-            className={styles.nav}
-            aria-label={HOMEPAGE_COPY.navigationLabel}
-          >
+          <nav className={styles.nav} aria-label={t('navigationLabel')}>
             {HOMEPAGE_NAVIGATION.map((item) => (
               <Link key={item.href} href={item.href} className={styles.navLink}>
-                {item.label}
+                {t(`navigation.${item.id}`)}
               </Link>
             ))}
           </nav>
 
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className={styles.utilityButton}
-          >
-            <Link href={utilityActionHref}>{utilityActionLabel}</Link>
-          </Button>
+          <div className={styles.headerActions}>
+            <LocaleSwitcher />
+
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className={styles.utilityButton}
+            >
+              <Link href={utilityActionHref}>{utilityActionLabel}</Link>
+            </Button>
+          </div>
         </header>
 
         <main className={styles.main}>
           <section className={heroClassName}>
             <div className={styles.heroCopy}>
-              <p className={styles.eyebrow}>{eyebrow}</p>
+              <p
+                className={cn(
+                  styles.eyebrow,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {eyebrow}
+              </p>
               <h1 className={styles.title}>{title}</h1>
               <p className={styles.description}>{description}</p>
 
@@ -133,31 +155,48 @@ export function HomepageShell({
 
               <div className={styles.signalList}>
                 <div className={styles.signalItem}>
-                  <span className={styles.signalLabel}>
-                    {HOMEPAGE_COPY.signalModelCoverageLabel}
+                  <span
+                    className={cn(
+                      styles.signalLabel,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {t('signals.modelCoverageLabel')}
                   </span>
                   <span className={styles.signalValue}>
-                    {MODEL_OPTIONS.length}{' '}
-                    {HOMEPAGE_COPY.signalModelCoverageSuffix} {providerCount}{' '}
-                    {HOMEPAGE_COPY.signalModelCoverageTail}
+                    {t('signals.modelCoverageValue', {
+                      modelCount: MODEL_OPTIONS.length,
+                      providerCount,
+                    })}
                   </span>
                 </div>
                 <div className={styles.signalItem}>
-                  <span className={styles.signalLabel}>
-                    {HOMEPAGE_COPY.signalCreditLabel}
+                  <span
+                    className={cn(
+                      styles.signalLabel,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {t('signals.creditLabel')}
                   </span>
                   <span className={styles.signalValue}>
-                    {HOMEPAGE_COPY.signalCreditPrefix} {startingCreditCost}{' '}
-                    {HOMEPAGE_COPY.signalCreditSuffix}
+                    {t('signals.creditValue', {
+                      creditCount: tCommon('creditCount', {
+                        count: startingCreditCost,
+                      }),
+                    })}
                   </span>
                 </div>
                 <div className={styles.signalItem}>
-                  <span className={styles.signalLabel}>
-                    {HOMEPAGE_COPY.signalArchiveLabel}
+                  <span
+                    className={cn(
+                      styles.signalLabel,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {t('signals.archiveLabel')}
                   </span>
-                  <span className={styles.signalValue}>
-                    {HOMEPAGE_COPY.signalArchiveValue}
-                  </span>
+                  <span className={styles.signalValue}>{t('signals.archiveValue')}</span>
                 </div>
               </div>
             </div>
@@ -165,26 +204,38 @@ export function HomepageShell({
             <div className={styles.stage}>
               <div className={styles.stagePanel}>
                 <div className={styles.stageTopline}>
-                  <span className={styles.stageLabel}>
-                    {HOMEPAGE_COPY.stageLabel}
+                  <span
+                    className={cn(
+                      styles.stageLabel,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {t('stage.label')}
                   </span>
-                  <span className={styles.stageValue}>
-                    {HOMEPAGE_COPY.stageValue}
-                  </span>
+                  <span className={styles.stageValue}>{t('stage.value')}</span>
                 </div>
 
                 <div className={stageContentClassName}>
                   <div className={styles.sceneGrid}>
                     {HOMEPAGE_SCENES.map((scene) => (
                       <article
-                        key={scene.label}
+                        key={scene.id}
                         className={`${styles.sceneCard} ${sceneToneClasses[scene.tone]}`}
                       >
-                        <span className={styles.sceneTag}>{scene.label}</span>
-                        <p className={styles.scenePrompt}>{scene.prompt}</p>
+                        <span
+                          className={cn(
+                            styles.sceneTag,
+                            isDenseLocale && styles.denseCopy,
+                          )}
+                        >
+                          {tModels(`${getModelMessageKey(scene.modelId)}.label`)}
+                        </span>
+                        <p className={styles.scenePrompt}>
+                          {t(`scenes.items.${scene.id}.prompt`)}
+                        </p>
                         <div className={styles.sceneMeta}>
-                          <span>{scene.note}</span>
-                          <span>{HOMEPAGE_COPY.sceneSavedLabel}</span>
+                          <span>{t(`scenes.items.${scene.id}.note`)}</span>
+                          <span>{t('stage.savedLabel')}</span>
                         </div>
                       </article>
                     ))}
@@ -193,9 +244,7 @@ export function HomepageShell({
                   {authPanel ? (
                     <aside className={styles.authPanel}>
                       {authPanel}
-                      <p className={styles.authNote}>
-                        {HOMEPAGE_COPY.authNote}
-                      </p>
+                      <p className={styles.authNote}>{t('auth.note')}</p>
                     </aside>
                   ) : null}
                 </div>
@@ -205,14 +254,17 @@ export function HomepageShell({
 
           <section className={styles.section}>
             <div className={styles.sectionIntro}>
-              <p className={styles.sectionLabel}>
-                {HOMEPAGE_COPY.featuresEyebrow}
+              <p
+                className={cn(
+                  styles.sectionLabel,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {t('features.eyebrow')}
               </p>
-              <h2 className={styles.sectionTitle}>
-                {HOMEPAGE_COPY.featuresTitle}
-              </h2>
+              <h2 className={styles.sectionTitle}>{t('features.title')}</h2>
               <p className={styles.sectionDescription}>
-                {HOMEPAGE_COPY.featuresDescription}
+                {t('features.description')}
               </p>
             </div>
 
@@ -221,15 +273,17 @@ export function HomepageShell({
                 const FeatureIcon = featureIcons[feature.icon]
 
                 return (
-                  <article key={feature.title} className={styles.featureItem}>
+                  <article key={feature.id} className={styles.featureItem}>
                     <div className={styles.featureHeader}>
                       <span className={styles.featureIcon}>
                         <FeatureIcon className="size-5" />
                       </span>
-                      <h3 className={styles.featureTitle}>{feature.title}</h3>
+                      <h3 className={styles.featureTitle}>
+                        {t(`features.items.${feature.id}.title`)}
+                      </h3>
                     </div>
                     <p className={styles.featureDescription}>
-                      {feature.description}
+                      {t(`features.items.${feature.id}.description`)}
                     </p>
                   </article>
                 )
@@ -239,24 +293,36 @@ export function HomepageShell({
 
           <section id="workflow" className={styles.section}>
             <div className={styles.sectionIntro}>
-              <p className={styles.sectionLabel}>
-                {HOMEPAGE_COPY.workflowEyebrow}
+              <p
+                className={cn(
+                  styles.sectionLabel,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {t('workflow.eyebrow')}
               </p>
-              <h2 className={styles.sectionTitle}>
-                {HOMEPAGE_COPY.workflowTitle}
-              </h2>
+              <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
               <p className={styles.sectionDescription}>
-                {HOMEPAGE_COPY.workflowDescription}
+                {t('workflow.description')}
               </p>
             </div>
 
             <div className={styles.workflowGrid}>
               {HOMEPAGE_WORKFLOW.map((item) => (
                 <article key={item.step} className={styles.workflowItem}>
-                  <span className={styles.workflowStep}>{item.step}</span>
-                  <h3 className={styles.workflowTitle}>{item.title}</h3>
+                  <span
+                    className={cn(
+                      styles.workflowStep,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {item.step}
+                  </span>
+                  <h3 className={styles.workflowTitle}>
+                    {t(`workflow.items.${item.id}.title`)}
+                  </h3>
                   <p className={styles.workflowDescription}>
-                    {item.description}
+                    {t(`workflow.items.${item.id}.description`)}
                   </p>
                 </article>
               ))}
@@ -265,14 +331,17 @@ export function HomepageShell({
 
           <section id="models" className={styles.section}>
             <div className={styles.sectionIntro}>
-              <p className={styles.sectionLabel}>
-                {HOMEPAGE_COPY.modelsEyebrow}
+              <p
+                className={cn(
+                  styles.sectionLabel,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {t('models.eyebrow')}
               </p>
-              <h2 className={styles.sectionTitle}>
-                {HOMEPAGE_COPY.modelsTitle}
-              </h2>
+              <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
               <p className={styles.sectionDescription}>
-                {HOMEPAGE_COPY.modelsDescription}
+                {t('models.description')}
               </p>
             </div>
 
@@ -281,27 +350,48 @@ export function HomepageShell({
                 <article key={model.id} className={styles.modelCard}>
                   <div>
                     <div className={styles.modelMeta}>
-                      <span className={styles.providerTag}>
+                      <span
+                        className={cn(
+                          styles.providerTag,
+                          isDenseLocale && styles.denseCopy,
+                        )}
+                      >
                         {model.provider}
                       </span>
-                      <span className={styles.costTag}>
-                        {model.cost} credit{model.cost === 1 ? '' : 's'}
+                      <span
+                        className={cn(
+                          styles.costTag,
+                          isDenseLocale && styles.denseCopy,
+                        )}
+                      >
+                        {tCommon('creditCount', { count: model.cost })}
                       </span>
                     </div>
-                    <h3 className={styles.modelTitle}>{model.label}</h3>
+                    <h3 className={styles.modelTitle}>
+                      {tModels(`${getModelMessageKey(model.id)}.label`)}
+                    </h3>
                   </div>
 
-                  <p className={styles.modelDescription}>{model.description}</p>
+                  <p className={styles.modelDescription}>
+                    {tModels(`${getModelMessageKey(model.id)}.description`)}
+                  </p>
                 </article>
               ))}
             </div>
           </section>
 
           <section className={styles.footerBand}>
-            <p className={styles.sectionLabel}>{HOMEPAGE_COPY.footerEyebrow}</p>
-            <h2 className={styles.footerTitle}>{HOMEPAGE_COPY.footerTitle}</h2>
+            <p
+              className={cn(
+                styles.sectionLabel,
+                isDenseLocale && styles.denseCopy,
+              )}
+            >
+              {t('footer.eyebrow')}
+            </p>
+            <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
             <p className={styles.footerDescription}>
-              {HOMEPAGE_COPY.footerDescription}
+              {t('footer.description')}
             </p>
           </section>
         </main>

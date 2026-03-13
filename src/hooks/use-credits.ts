@@ -15,15 +15,42 @@ export function useCredits(): UseCreditsReturn {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!isSignedIn) return
+    let isCancelled = false
 
-    setIsLoading(true)
+    async function loadCredits() {
+      if (!isSignedIn) {
+        if (!isCancelled) {
+          setCredits(0)
+          setIsLoading(false)
+        }
+        return
+      }
 
-    fetch(API_ENDPOINTS.CREDITS)
-      .then((res) => res.json())
-      .then((data: { credits: number }) => setCredits(data.credits ?? 0))
-      .catch(() => setCredits(0))
-      .finally(() => setIsLoading(false))
+      setIsLoading(true)
+
+      try {
+        const response = await fetch(API_ENDPOINTS.CREDITS)
+        const data: { credits: number } = await response.json()
+
+        if (!isCancelled) {
+          setCredits(data.credits ?? 0)
+        }
+      } catch {
+        if (!isCancelled) {
+          setCredits(0)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadCredits()
+
+    return () => {
+      isCancelled = true
+    }
   }, [isSignedIn])
 
   return { credits, isLoading }

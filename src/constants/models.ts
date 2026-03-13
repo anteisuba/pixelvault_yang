@@ -11,6 +11,12 @@ export enum AI_MODELS {
   GEMINI_FLASH_IMAGE = 'gemini-3.1-flash-image-preview',
 }
 
+export const MODEL_MESSAGE_KEYS = {
+  [AI_MODELS.SDXL]: 'sdxl',
+  [AI_MODELS.ANIMAGINE_XL_4]: 'animagineXl4',
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: 'geminiFlashImage',
+} as const
+
 /** Hugging Face model repository IDs */
 export const HF_MODEL_IDS: Record<string, string> = {
   [AI_MODELS.SDXL]: 'stabilityai/stable-diffusion-xl-base-1.0',
@@ -73,3 +79,10 @@ export const getAvailableModels = (): ModelOption[] =>
 /** Get a model option by its ID */
 export const getModelById = (id: AI_MODELS): ModelOption | undefined =>
   MODEL_OPTIONS.find((model) => model.id === id)
+
+export const getModelMessageKey = (
+  id: AI_MODELS,
+): (typeof MODEL_MESSAGE_KEYS)[AI_MODELS] => MODEL_MESSAGE_KEYS[id]
+
+export const isAiModel = (value: string): value is AI_MODELS =>
+  Object.values(AI_MODELS).includes(value as AI_MODELS)

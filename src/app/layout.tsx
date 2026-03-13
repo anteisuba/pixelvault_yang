@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
+
+import { HOMEPAGE_METADATA } from '@/constants/homepage'
+
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,8 +17,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Personal AI Gallery',
-  description: 'Generate stunning AI images with DALL·E 3, FLUX Pro, and more.',
+  title: HOMEPAGE_METADATA.title,
+  description: HOMEPAGE_METADATA.description,
 }
 
 export default function RootLayout({

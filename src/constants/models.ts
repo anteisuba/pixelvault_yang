@@ -14,12 +14,14 @@ export enum AI_MODELS {
   SDXL = 'sdxl',
   ANIMAGINE_XL_4 = 'animagine-xl-4.0',
   GEMINI_FLASH_IMAGE = 'gemini-3.1-flash-image-preview',
+  OPENAI_GPT_IMAGE_15 = 'gpt-image-1.5',
 }
 
 export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.SDXL]: 'sdxl',
   [AI_MODELS.ANIMAGINE_XL_4]: 'animagineXl4',
   [AI_MODELS.GEMINI_FLASH_IMAGE]: 'geminiFlashImage',
+  [AI_MODELS.OPENAI_GPT_IMAGE_15]: 'openaiGptImage15',
 } as const
 
 /** Model option configuration */
@@ -66,6 +68,15 @@ export const MODEL_OPTIONS: ModelOption[] = [
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
     externalModelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+    outputType: 'IMAGE',
+    available: true,
+  },
+  {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_15,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+    externalModelId: AI_MODELS.OPENAI_GPT_IMAGE_15,
     outputType: 'IMAGE',
     available: true,
   },

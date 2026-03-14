@@ -5,7 +5,7 @@
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
-    "description": "使用 Stable Diffusion XL、Animagine XL 4.0 和 Gemini 3.1 Flash Image 生成图像，并将每次结果归档到同一个个人画廊中。"
+    "description": "使用多个 AI 图像模型生成图像，并将每次结果归档到同一个个人画廊中。"
   },
   "Navbar": {
     "creditsLoading": "...",
@@ -34,7 +34,7 @@
     },
     "heroEyebrow": "长期保存的 AI 档案",
     "heroTitle": "创作值得留下的图像。",
-    "heroDescription": "使用三种不同的图像引擎进行生成，保存最好的结果，并回到一个记得你创作方式的画廊。",
+    "heroDescription": "使用多个图像引擎进行生成，保存最好的结果，并回到一个记得你创作方式的画廊。",
     "actions": {
       "signedOutPrimary": "创建你的 Vault",
       "signedInPrimary": "打开工作台",
@@ -78,7 +78,7 @@
       "items": {
         "chooseEngine": {
           "title": "选择合适的引擎",
-          "description": "在同一个工作台里切换写实、动漫风和 Gemini 原生探索。"
+          "description": "在同一个工作台里切换写实、动漫风、OpenAI 图像生成和 Gemini 原生探索。"
         },
         "keepEveryKeeper": {
           "title": "保留每个好结果",
@@ -101,7 +101,7 @@
         },
         "generateWithIntent": {
           "title": "带着意图生成",
-          "description": "无需离开同一创作界面，就能比较写实、动漫和 Gemini 风格输出。"
+          "description": "无需离开同一创作界面，就能比较写实、动漫、OpenAI 和 Gemini 风格输出。"
         },
         "archiveWinners": {
           "title": "归档最佳结果",
@@ -111,8 +111,8 @@
     },
     "models": {
       "eyebrow": "模型阵容",
-      "title": "三种图像引擎，一个 Vault。",
-      "description": "在写实、动漫风和 Gemini 快速探索之间切换，而无需更换工具或丢失上下文。"
+      "title": "多个图像引擎，一个 Vault。",
+      "description": "在写实、动漫风、OpenAI 图像生成和 Gemini 快速探索之间切换，而无需更换工具或丢失上下文。"
     },
     "scenes": {
       "items": {
@@ -235,6 +235,10 @@
       "gemini": {
         "label": "Gemini",
         "description": "使用 Gemini 图像生成端点，或兼容的代理。"
+      },
+      "openai": {
+        "label": "OpenAI",
+        "description": "使用 OpenAI Images 端点，或 OpenAI 兼容代理。"
       }
     },
     "summary": {
@@ -313,6 +317,10 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "由 Google 最新一代模型驱动的快速图像探索。"
+    },
+    "openaiGptImage15": {
+      "label": "OpenAI GPT Image 1.5",
+      "description": "OpenAI 最新图像模型，适合更精细且更贴近提示词的图像生成。"
     }
   }
 }

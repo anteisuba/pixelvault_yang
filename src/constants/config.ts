@@ -47,6 +47,7 @@ export const API_ENDPOINTS = {
 export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: 'https://router.huggingface.co/hf-inference/models',
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
+  OPENAI: 'https://api.openai.com/v1/images',
 } as const
 
 /** Pagination defaults */

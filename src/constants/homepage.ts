@@ -4,7 +4,7 @@ import { ROUTES } from '@/constants/routes'
 export const HOMEPAGE_METADATA = {
   title: 'PixelVault | Personal AI Gallery',
   description:
-    'Generate with Stable Diffusion XL, Animagine XL 4.0, and Gemini 3.1 Flash Image, then archive every result in one personal gallery.',
+    'Generate with multiple AI image models, then archive every result in one personal gallery.',
 } as const
 
 export const HOMEPAGE_ROUTES = {

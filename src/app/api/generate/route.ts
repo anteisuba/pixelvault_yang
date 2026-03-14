@@ -32,6 +32,35 @@ function getImageSize(aspectRatio: AspectRatio) {
   return IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
 }
 
+function getOpenAiImageSize(aspectRatio: AspectRatio): string {
+  const openAiSizeMap: Record<AspectRatio, string> = {
+    '1:1': '1024x1024',
+    '16:9': '1536x1024',
+    '9:16': '1024x1536',
+    '4:3': '1536x1024',
+    '3:4': '1024x1536',
+  }
+
+  return openAiSizeMap[aspectRatio] ?? '1024x1024'
+}
+
+function getOpenAiEndpoint(
+  baseUrl: string,
+  hasReferenceImage: boolean,
+): string {
+  const trimmedBaseUrl = baseUrl.replace(/\/$/, '')
+  const targetPath = hasReferenceImage ? 'edits' : 'generations'
+
+  if (
+    trimmedBaseUrl.endsWith('/generations') ||
+    trimmedBaseUrl.endsWith('/edits')
+  ) {
+    return trimmedBaseUrl.replace(/\/(generations|edits)$/, `/${targetPath}`)
+  }
+
+  return `${trimmedBaseUrl}/${targetPath}`
+}
+
 // ─── Provider: Hugging Face Inference API ─────────────────────────
 
 async function generateWithHuggingFace(
@@ -173,6 +202,91 @@ async function generateWithGemini(
 
   const { mimeType: geminiMimeType, data: base64Data } = imagePart.inlineData
   return `data:${geminiMimeType};base64,${base64Data}`
+}
+
+// ─── Provider: OpenAI Images API ──────────────────────────────────
+
+async function generateWithOpenAI(
+  prompt: string,
+  modelId: string,
+  providerConfig: ProviderConfig,
+  aspectRatio: AspectRatio,
+  apiKey: string | null,
+  referenceImage?: string,
+) {
+  const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI
+  const endpoint = getOpenAiEndpoint(baseUrl, Boolean(referenceImage))
+  const size = getOpenAiImageSize(aspectRatio)
+  const token = apiKey
+
+  if (!token) {
+    throw new Error('Missing OpenAI API key')
+  }
+
+  let response: Response
+
+  if (referenceImage) {
+    const { buffer, mimeType } = await fetchAsBuffer(referenceImage)
+    const extension = mimeType.split('/')[1] ?? 'png'
+    const formData = new FormData()
+
+    formData.append('model', getExecutionModelId(modelId))
+    formData.append('prompt', prompt)
+    formData.append('size', size)
+    formData.append(
+      'image',
+      new Blob([Uint8Array.from(buffer)], { type: mimeType }),
+      `reference.${extension}`,
+    )
+
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    })
+  } else {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: getExecutionModelId(modelId),
+        prompt,
+        size,
+      }),
+    })
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new Error(`OpenAI API error (${response.status}): ${errorBody}`)
+  }
+
+  const responseData = (await response.json()) as {
+    data?: Array<{
+      b64_json?: string
+      url?: string
+    }>
+  }
+  const imageItem = responseData.data?.[0]
+
+  if (!imageItem) {
+    throw new Error('No image data returned from OpenAI')
+  }
+
+  if (imageItem.b64_json) {
+    return `data:image/png;base64,${imageItem.b64_json}`
+  }
+
+  if (imageItem.url) {
+    return imageItem.url
+  }
+
+  throw new Error('No image data returned from OpenAI')
 }
 
 // ─── POST /api/generate ───────────────────────────────────────────
@@ -319,6 +433,17 @@ export async function POST(request: NextRequest) {
 
       case AI_ADAPTER_TYPES.GEMINI:
         aiImageUrl = await generateWithGemini(
+          prompt,
+          resolvedModelId,
+          effectiveProviderConfig,
+          aspectRatio as AspectRatio,
+          resolvedKey,
+          referenceImage,
+        )
+        break
+
+      case AI_ADAPTER_TYPES.OPENAI:
+        aiImageUrl = await generateWithOpenAI(
           prompt,
           resolvedModelId,
           effectiveProviderConfig,

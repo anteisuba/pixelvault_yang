@@ -21,6 +21,7 @@ Studio 現在把「API key 管理」升級成「provider route 管理」。
 
 - `huggingface`
 - `gemini`
+- `openai`
 
 但同一個模型現在可以同時保存多條 provider routes，不再受舊的 `providerType` 單值設計限制。
 
@@ -81,6 +82,7 @@ API_KEY_ENCRYPTION_SECRET="<32-byte-hex>"
 | `sdxl`                           | `huggingface` | `HF_API_TOKEN`        |
 | `animagine-xl-4.0`               | `huggingface` | `HF_API_TOKEN`        |
 | `gemini-3.1-flash-image-preview` | `gemini`      | `SILICONFLOW_API_KEY` |
+| `gpt-image-1.5`                  | `openai`      | `OPENAI_API_KEY`      |
 
 ---
 
@@ -120,6 +122,7 @@ src/
 - Stable Diffusion XL
 - Animagine XL 4.0
 - Gemini 3.1 Flash Image
+- OpenAI GPT Image 1.5
 
 這些 route 使用內建的：
 
@@ -192,6 +195,7 @@ if (apiKeyId) {
 
 - `huggingface` -> `generateWithHuggingFace`
 - `gemini` -> `generateWithGemini`
+- `openai` -> `generateWithOpenAI`
 
 生成記錄中保存的 `provider` 字段來自 `providerConfig.label`。
 

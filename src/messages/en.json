@@ -5,7 +5,7 @@
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
-    "description": "Generate with Stable Diffusion XL, Animagine XL 4.0, and Gemini 3.1 Flash Image, then archive every result in one personal gallery."
+    "description": "Generate with multiple AI image models, then archive every result in one personal gallery."
   },
   "Navbar": {
     "creditsLoading": "...",
@@ -34,7 +34,7 @@
     },
     "heroEyebrow": "Permanent AI archive",
     "heroTitle": "Make images worth keeping.",
-    "heroDescription": "Generate with three distinct image engines, save the winners, and return to a gallery that remembers how you like to create.",
+    "heroDescription": "Generate with multiple image engines, save the winners, and return to a gallery that remembers how you like to create.",
     "actions": {
       "signedOutPrimary": "Create your vault",
       "signedInPrimary": "Open the studio",
@@ -78,7 +78,7 @@
       "items": {
         "chooseEngine": {
           "title": "Choose the right engine",
-          "description": "Move between realism, anime styling, and Gemini-native experimentation from the same studio."
+          "description": "Move between realism, anime styling, OpenAI image generation, and Gemini-native experimentation from the same studio."
         },
         "keepEveryKeeper": {
           "title": "Keep every keeper",
@@ -101,7 +101,7 @@
         },
         "generateWithIntent": {
           "title": "Generate with intent",
-          "description": "Compare photoreal, anime, and Gemini-driven outputs without leaving the same creative surface."
+          "description": "Compare photoreal, anime, OpenAI, and Gemini-driven outputs without leaving the same creative surface."
         },
         "archiveWinners": {
           "title": "Archive the winners",
@@ -111,8 +111,8 @@
     },
     "models": {
       "eyebrow": "Model lineup",
-      "title": "Three image engines, one vault.",
-      "description": "Switch between realism, anime stylization, and fast Gemini exploration without changing tools or losing context."
+      "title": "Image engines, one vault.",
+      "description": "Switch between realism, anime stylization, OpenAI image generation, and fast Gemini exploration without changing tools or losing context."
     },
     "scenes": {
       "items": {
@@ -235,6 +235,10 @@
       "gemini": {
         "label": "Gemini",
         "description": "Use Gemini image generation endpoints or a compatible proxy."
+      },
+      "openai": {
+        "label": "OpenAI",
+        "description": "Use OpenAI Images endpoints or an OpenAI-compatible proxy."
       }
     },
     "summary": {
@@ -313,6 +317,10 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Fast image exploration powered by Google's latest generation model."
+    },
+    "openaiGptImage15": {
+      "label": "OpenAI GPT Image 1.5",
+      "description": "OpenAI's latest image model for polished, prompt-faithful image generation."
     }
   }
 }

@@ -3,4 +3,5 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 export const API_KEY_ADAPTER_OPTIONS = [
   AI_ADAPTER_TYPES.HUGGINGFACE,
   AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.OPENAI,
 ] as const

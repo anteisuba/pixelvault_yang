@@ -5,7 +5,7 @@
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
-    "description": "Stable Diffusion XL、Animagine XL 4.0、Gemini 3.1 Flash Image で生成し、すべての結果をひとつの個人ギャラリーに保存できます。"
+    "description": "複数の AI 画像モデルで生成し、すべての結果をひとつの個人ギャラリーに保存できます。"
   },
   "Navbar": {
     "creditsLoading": "...",
@@ -34,7 +34,7 @@
     },
     "heroEyebrow": "永続的なAIアーカイブ",
     "heroTitle": "残しておきたい画像をつくる。",
-    "heroDescription": "3つの異なる画像エンジンで生成し、良い結果を保存して、自分の作り方を覚えてくれるギャラリーに戻れます。",
+    "heroDescription": "複数の画像エンジンで生成し、良い結果を保存して、自分の作り方を覚えてくれるギャラリーに戻れます。",
     "actions": {
       "signedOutPrimary": "Vaultを作成",
       "signedInPrimary": "スタジオを開く",
@@ -78,7 +78,7 @@
       "items": {
         "chooseEngine": {
           "title": "最適なエンジンを選ぶ",
-          "description": "同じスタジオの中で、リアル表現、アニメ調、Geminiの高速な試行を切り替えられます。"
+          "description": "同じスタジオの中で、リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速な試行を切り替えられます。"
         },
         "keepEveryKeeper": {
           "title": "良い結果を残す",
@@ -101,7 +101,7 @@
         },
         "generateWithIntent": {
           "title": "意図を持って生成する",
-          "description": "同じ制作画面のまま、フォトリアル、アニメ、Geminiの出力を比較できます。"
+          "description": "同じ制作画面のまま、フォトリアル、アニメ、OpenAI、Gemini の出力を比較できます。"
         },
         "archiveWinners": {
           "title": "良い結果を保存する",
@@ -111,8 +111,8 @@
     },
     "models": {
       "eyebrow": "モデル一覧",
-      "title": "3つの画像エンジン、1つのVault。",
-      "description": "リアル表現、アニメ調、Geminiの高速探索を、ツールや文脈を失わずに切り替えられます。"
+      "title": "複数の画像エンジン、1つのVault。",
+      "description": "リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速探索を、ツールや文脈を失わずに切り替えられます。"
     },
     "scenes": {
       "items": {
@@ -235,6 +235,10 @@
       "gemini": {
         "label": "Gemini",
         "description": "Gemini の画像生成エンドポイント、または互換プロキシを使います。"
+      },
+      "openai": {
+        "label": "OpenAI",
+        "description": "OpenAI Images エンドポイント、または OpenAI 互換プロキシを使います。"
       }
     },
     "summary": {
@@ -313,6 +317,10 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Googleの最新世代モデルによる高速な画像探索。"
+    },
+    "openaiGptImage15": {
+      "label": "OpenAI GPT Image 1.5",
+      "description": "OpenAI の最新画像モデルによる、指示忠実度の高い洗練された画像生成。"
     }
   }
 }

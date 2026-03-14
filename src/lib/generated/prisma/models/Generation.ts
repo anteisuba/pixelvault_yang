@@ -705,10 +705,6 @@ export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type GenerationCreateWithoutUserInput = {
   id?: string
   createdAt?: Date | string

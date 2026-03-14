@@ -45,6 +45,11 @@ export { Prisma }
  */
 export type User = Prisma.UserModel
 /**
+ * Model UserApiKey
+ * 
+ */
+export type UserApiKey = Prisma.UserApiKeyModel
+/**
  * Model Generation
  * 
  */

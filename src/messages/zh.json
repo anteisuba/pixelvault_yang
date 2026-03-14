@@ -153,13 +153,36 @@
     }
   },
   "StudioForm": {
-    "selectedModelLabel": "当前模型",
+    "selectedModelLabel": "当前路由",
     "providerLabel": "提供商",
     "creditCostLabel": "积分消耗",
+    "keyStatusLabel": "路由状态",
+    "keyStatusSavedRouteTitle": "正在使用这个已保存路由",
+    "keyStatusSavedRouteDescription": "这个路由会使用 {label}（{maskedKey}）。",
+    "keyStatusFallbackTitle": "正在使用工作区默认路由",
+    "keyStatusFallbackDescription": "这个工作区路由会在可用时调用 PixelVault 配置好的 {provider} 端点和回退密钥。",
+    "routeSourceLabel": "路由来源",
+    "routeSources": {
+      "workspace": "工作区默认",
+      "saved": "已保存路由"
+    },
+    "adapterLabel": "适配器",
+    "providerEndpointLabel": "Base URL",
+    "modelIdLabel": "模型 ID",
+    "modelCustomDescription": "通过你保存的 provider 路由调用的自定义 {provider} 模型。",
+    "customModelBadge": "自定义模型",
     "promptLabel": "提示词",
     "promptHint": "尽量具体描述主体、场景、光线、构图或风格。",
     "promptPlaceholder": "描述你想生成的图像...",
     "promptCounter": "{current} / {max} 字符",
+    "referenceTitle": "参考图像",
+    "referenceSelectedDescription": "已选择图像。下一次生成会启用 img2img 引导。",
+    "referenceIdleDescription": "可选。当你想让生成结果跟随已有构图或氛围时，可以上传一张参考图。",
+    "referenceBadge": "img2img",
+    "referencePreviewAlt": "参考图预览",
+    "referenceRemoveLabel": "移除参考图",
+    "referenceUploadAction": "拖放到这里，或点击上传",
+    "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "准备生成",
     "ctaSectionDescription": "确认所选模型和提示词，准备好后即可开始生成。",
     "ctaLabel": "生成图像",
@@ -178,8 +201,104 @@
     "resultStorageNote": "会与提示词和模型信息一起保存。",
     "modelSelector": {
       "label": "AI 模型",
-      "hint": "选择最符合你想要视觉风格的模型。",
-      "placeholder": "选择模型"
+      "hint": "选择工作区模型，或你已经启用的已保存路由。",
+      "placeholder": "选择模型",
+      "customBadge": "自定义",
+      "savedRouteBadge": "已保存",
+      "workspaceRouteBadge": "默认",
+      "routeSources": {
+        "workspace": "工作区默认",
+        "saved": "已保存路由"
+      },
+      "customDescription": "使用你保存路由的自定义 {provider} 模型。"
+    }
+  },
+  "StudioApiKeys": {
+    "triggerLabel": "API 路由",
+    "triggerLoading": "加载中",
+    "triggerCount": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
+    "sheetTitle": "管理 API 路由",
+    "sheetDescription": "按模型保存 provider 路由，自定义提供商名称和 Base URL，并只启用你希望出现在 Studio 里的路由。",
+    "title": "已保存的 provider 路由",
+    "description": "每个保存的路由都由适配器、provider 配置、模型 ID 和密钥组成。内置工作区路由默认保留，启用后的已保存路由会一起出现在 Studio 中。",
+    "loading": "正在加载你保存的路由...",
+    "customBadge": "自定义",
+    "groupCustomDescription": "带有一个或多个已保存路由的自定义 {adapter} 模型。",
+    "emptyModel": "还没有为 {model} 保存路由。",
+    "emptyCustomTitle": "还没有自定义路由",
+    "emptyCustomDescription": "如果你要调用内置目录之外的 provider 路由，可以先添加一个自定义模型 ID。",
+    "providers": {
+      "huggingface": {
+        "label": "HuggingFace",
+        "description": "使用兼容 HuggingFace 的适配器和端点格式。"
+      },
+      "gemini": {
+        "label": "Gemini",
+        "description": "使用 Gemini 图像生成端点，或兼容的代理。"
+      }
+    },
+    "summary": {
+      "activeRoutesLabel": "启用路由",
+      "activeRoutesValue": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
+      "builtInModelsLabel": "内置模型",
+      "builtInModelsValue": "{count, plural, one {# 个内置模型} other {# 个内置模型}}",
+      "customRoutesLabel": "自定义路由",
+      "customRoutesValue": "{count, plural, =0 {没有自定义路由} one {# 个自定义路由} other {# 个自定义路由}}",
+      "routeCount": "{count, plural, =0 {没有路由} one {# 个路由} other {# 个路由}}"
+    },
+    "sections": {
+      "builtInTitle": "内置模型路由",
+      "builtInDescription": "当你希望内置模型改用你自己的密钥或自定义 provider 端点时，可以在这里添加保存路由。",
+      "customTitle": "自定义模型路由",
+      "customDescription": "任何启用的自定义保存路由，都会自动出现在 Studio 模型选择器中。"
+    },
+    "actions": {
+      "openComposer": "添加路由",
+      "hideComposer": "收起表单",
+      "enableRoute": "启用路由",
+      "disableRoute": "停用路由",
+      "deleteKey": "删除路由"
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已停用"
+    },
+    "deleteDialog": {
+      "title": "删除已保存路由",
+      "description": "要删除“{label}”吗？此操作无法撤销。",
+      "cancelAction": "取消",
+      "confirmAction": "删除"
+    },
+    "addForm": {
+      "title": "添加已保存路由",
+      "description": "先选择适配器，配置提供商名称和 Base URL，再绑定模型 ID 与 API 密钥。",
+      "adapterLabel": "适配器",
+      "providerNameLabel": "提供商名称",
+      "providerBaseUrlLabel": "Base URL",
+      "providerBaseUrlHint": "请使用与适配器兼容的 Base URL。适配器需要时会自动拼接模型 ID。",
+      "modelModeLabel": "模型来源",
+      "presetModelLabel": "内置模型",
+      "presetModelPlaceholder": "选择一个内置模型",
+      "customModelLabel": "自定义模型 ID",
+      "customModelHint": "请输入你要调用的 {provider} 精确模型 ID。",
+      "labelLabel": "路由标签",
+      "labelPlaceholder": "我的个人路由",
+      "keyLabel": "API 密钥",
+      "showKey": "显示 API 密钥",
+      "hideKey": "隐藏 API 密钥",
+      "saveAction": "保存路由",
+      "savingAction": "保存中...",
+      "cancelAction": "取消",
+      "modelModes": {
+        "preset": {
+          "label": "使用内置模型",
+          "description": "为 Studio 已经支持的模型补充一条已保存路由。"
+        },
+        "custom": {
+          "label": "使用自定义模型 ID",
+          "description": "当你需要预设目录之外的路由时，直接使用自己的模型 ID。"
+        }
+      }
     }
   },
   "Models": {

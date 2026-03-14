@@ -38,6 +38,9 @@ export const API_ENDPOINTS = {
 
   /** Clerk webhook */
   CLERK_WEBHOOK: '/api/webhooks/clerk',
+
+  /** User API keys management */
+  API_KEYS: '/api/api-keys',
 } as const
 
 /** External AI provider endpoints */

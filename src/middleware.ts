@@ -21,13 +21,22 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, request) => {
-  const response = handleI18nRouting(request)
   const pathname = request.nextUrl.pathname
+
+  // Skip i18n handling for API routes
+  if (pathname.startsWith('/api')) {
+    if (!isPublicRoute(request)) {
+      await auth.protect()
+    }
+    return
+  }
+
+  const response = handleI18nRouting(request)
   const hasLocalePrefix = LOCALES.some(
     (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
   )
 
-  if (!hasLocalePrefix && !pathname.startsWith('/api')) {
+  if (!hasLocalePrefix) {
     return response
   }
 

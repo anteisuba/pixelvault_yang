@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateRequestSchema } from '@/types'
 import type { GenerateResponse } from '@/types'
-import { AI_MODELS, HF_MODEL_IDS, getModelById } from '@/constants/models'
+import {
+  getBuiltInProviderConfig,
+  getExecutionModelId,
+  getModelById,
+} from '@/constants/models'
+import {
+  AI_ADAPTER_TYPES,
+  getAdapterDefaultCost,
+  getAdapterEnvFallback,
+  getDefaultProviderConfig,
+  getProviderLabel,
+  type ProviderConfig,
+} from '@/constants/providers'
 import { IMAGE_SIZES, AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -12,6 +24,7 @@ import {
 } from '@/services/storage/r2'
 import { createGeneration } from '@/services/generation.service'
 import { deductCredits, getUserByClerkId } from '@/services/user.service'
+import { getApiKeyValueById } from '@/services/apiKey.service'
 
 // ─── Helper: resolve image dimensions ─────────────────────────────
 
@@ -24,29 +37,37 @@ function getImageSize(aspectRatio: AspectRatio) {
 async function generateWithHuggingFace(
   prompt: string,
   modelId: string,
+  providerConfig: ProviderConfig,
   aspectRatio: AspectRatio,
+  apiKey: string | null,
+  referenceImage?: string,
 ) {
-  const hfModelId = HF_MODEL_IDS[modelId]
-  if (!hfModelId) {
-    throw new Error(`No HuggingFace model mapping for: ${modelId}`)
+  const { width, height } = getImageSize(aspectRatio)
+  const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.HUGGINGFACE
+  const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}`
+  const token = apiKey
+
+  if (!token) {
+    throw new Error('Missing HuggingFace API key')
   }
 
-  const { width, height } = getImageSize(aspectRatio)
-  const endpoint = `${AI_PROVIDER_ENDPOINTS.HUGGINGFACE}/${hfModelId}`
+  const body: Record<string, unknown> = {
+    inputs: prompt,
+    parameters: { width, height },
+  }
+
+  // img2img: include reference image if provided
+  if (referenceImage) {
+    body.image = referenceImage
+  }
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        width,
-        height,
-      },
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -67,9 +88,13 @@ async function generateWithHuggingFace(
 async function generateWithGemini(
   prompt: string,
   modelId: string,
+  providerConfig: ProviderConfig,
   aspectRatio: AspectRatio,
+  apiKey: string | null,
+  referenceImage?: string,
 ) {
-  const endpoint = `${AI_PROVIDER_ENDPOINTS.GEMINI}/${modelId}:generateContent`
+  const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
+  const endpoint = `${baseUrl}/${modelId}:generateContent`
 
   // Map our aspect ratios to Gemini-supported values (1:1, 3:4, 4:3, 9:16, 16:9)
   const geminiAspectMap: Record<string, string> = {
@@ -80,19 +105,35 @@ async function generateWithGemini(
     '3:4': '3:4',
   }
   const geminiAspect = geminiAspectMap[aspectRatio] ?? '1:1'
+  const token = apiKey
+
+  if (!token) {
+    throw new Error('Missing Gemini API key')
+  }
+
+  // Build parts array, optionally including a reference image
+  const parts: Array<Record<string, unknown>> = [{ text: prompt }]
+  if (referenceImage) {
+    // Extract mimeType and base64 data from data URL, or pass as URL reference
+    const dataUrlMatch = referenceImage.match(/^data:([^;]+);base64,(.+)$/)
+    if (dataUrlMatch) {
+      parts.push({
+        inlineData: {
+          mimeType: dataUrlMatch[1],
+          data: dataUrlMatch[2],
+        },
+      })
+    }
+  }
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'x-goog-api-key': process.env.SILICONFLOW_API_KEY!,
+      'x-goog-api-key': token,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents: [{ parts }],
       generationConfig: {
         responseModalities: ['TEXT', 'IMAGE'],
         imageConfig: {
@@ -107,22 +148,31 @@ async function generateWithGemini(
     throw new Error(`Gemini API error (${response.status}): ${errorBody}`)
   }
 
-  const data = await response.json()
-  const parts = data?.candidates?.[0]?.content?.parts
-  if (!parts || !Array.isArray(parts)) {
+  const responseData = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          inlineData?: {
+            mimeType: string
+            data: string
+          }
+        }>
+      }
+    }>
+  }
+  const responseParts = responseData.candidates?.[0]?.content?.parts
+  if (!responseParts || !Array.isArray(responseParts)) {
     throw new Error('No content returned from Gemini')
   }
 
   // Find the image part in the response
-  const imagePart = parts.find(
-    (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData,
-  )
+  const imagePart = responseParts.find((part) => part.inlineData)
   if (!imagePart?.inlineData) {
     throw new Error('No image data returned from Gemini')
   }
 
-  const { mimeType, data: base64Data } = imagePart.inlineData
-  return `data:${mimeType};base64,${base64Data}`
+  const { mimeType: geminiMimeType, data: base64Data } = imagePart.inlineData
+  return `data:${geminiMimeType};base64,${base64Data}`
 }
 
 // ─── POST /api/generate ───────────────────────────────────────────
@@ -154,12 +204,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { prompt, modelId, aspectRatio } = parseResult.data
+    const { prompt, modelId, aspectRatio, referenceImage, apiKeyId } =
+      parseResult.data
+
+    const builtInModel = getModelById(modelId)
+    let resolvedModelId = modelId
+    let resolvedAdapterType = builtInModel?.adapterType ?? null
+    let resolvedProviderConfig = builtInModel?.providerConfig ?? null
+    let resolvedKey: string | null = null
 
     // 3. Resolve model cost and deduct credits before the AI call
-
-    const modelOption = getModelById(modelId)
-    const cost = modelOption?.cost ?? 1
 
     const dbUser = await getUserByClerkId(clerkId)
     if (!dbUser) {
@@ -169,8 +223,75 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (apiKeyId) {
+      const selectedApiKey = await getApiKeyValueById(apiKeyId, dbUser.id)
+      if (!selectedApiKey) {
+        return NextResponse.json<GenerateResponse>(
+          { success: false, error: 'Selected API key is unavailable' },
+          { status: 400 },
+        )
+      }
+
+      if (selectedApiKey.modelId !== modelId) {
+        return NextResponse.json<GenerateResponse>(
+          {
+            success: false,
+            error: 'Selected API key does not match the chosen model',
+          },
+          { status: 400 },
+        )
+      }
+
+      resolvedModelId = selectedApiKey.modelId
+      resolvedAdapterType = selectedApiKey.adapterType
+      resolvedProviderConfig = selectedApiKey.providerConfig
+      resolvedKey = selectedApiKey.keyValue
+    } else if (builtInModel) {
+      const envFallbackName = getAdapterEnvFallback(builtInModel.adapterType)
+      resolvedAdapterType = builtInModel.adapterType
+      resolvedProviderConfig =
+        getBuiltInProviderConfig(builtInModel.id) ??
+        getDefaultProviderConfig(builtInModel.adapterType)
+      resolvedKey = process.env[envFallbackName] ?? null
+    } else {
+      return NextResponse.json<GenerateResponse>(
+        {
+          success: false,
+          error: 'Custom models require selecting an active API key',
+        },
+        { status: 400 },
+      )
+    }
+
+    const effectiveAdapterType = resolvedAdapterType
+    const effectiveProviderConfig =
+      resolvedProviderConfig ??
+      (effectiveAdapterType
+        ? getDefaultProviderConfig(effectiveAdapterType)
+        : null)
+
+    if (!effectiveAdapterType || !effectiveProviderConfig) {
+      return NextResponse.json<GenerateResponse>(
+        { success: false, error: `Unsupported model: ${resolvedModelId}` },
+        { status: 400 },
+      )
+    }
+
+    if (!resolvedKey) {
+      return NextResponse.json<GenerateResponse>(
+        {
+          success: false,
+          error: 'No API key is available for the selected model',
+        },
+        { status: 400 },
+      )
+    }
+
+    const effectiveCost =
+      builtInModel?.cost ?? getAdapterDefaultCost(effectiveAdapterType)
+
     try {
-      await deductCredits(clerkId, cost)
+      await deductCredits(clerkId, effectiveCost)
     } catch (err) {
       if (err instanceof Error && err.message === 'INSUFFICIENT_CREDITS') {
         return NextResponse.json<GenerateResponse>(
@@ -184,27 +305,32 @@ export async function POST(request: NextRequest) {
     // 4. Route to the appropriate AI provider
     let aiImageUrl: string
 
-    switch (modelId) {
-      case AI_MODELS.SDXL:
-      case AI_MODELS.ANIMAGINE_XL_4:
+    switch (effectiveAdapterType) {
+      case AI_ADAPTER_TYPES.HUGGINGFACE:
         aiImageUrl = await generateWithHuggingFace(
           prompt,
-          modelId,
+          resolvedModelId,
+          effectiveProviderConfig,
           aspectRatio as AspectRatio,
+          resolvedKey,
+          referenceImage,
         )
         break
 
-      case AI_MODELS.GEMINI_FLASH_IMAGE:
+      case AI_ADAPTER_TYPES.GEMINI:
         aiImageUrl = await generateWithGemini(
           prompt,
-          modelId,
+          resolvedModelId,
+          effectiveProviderConfig,
           aspectRatio as AspectRatio,
+          resolvedKey,
+          referenceImage,
         )
         break
 
       default:
         return NextResponse.json<GenerateResponse>(
-          { success: false, error: `Unsupported model: ${modelId}` },
+          { success: false, error: `Unsupported model: ${resolvedModelId}` },
           { status: 400 },
         )
     }
@@ -228,9 +354,9 @@ export async function POST(request: NextRequest) {
       width,
       height,
       prompt,
-      model: modelId,
-      provider: modelOption?.provider ?? 'Unknown',
-      creditsCost: cost,
+      model: resolvedModelId,
+      provider: getProviderLabel(effectiveProviderConfig),
+      creditsCost: effectiveCost,
       userId: dbUser.id,
     })
 

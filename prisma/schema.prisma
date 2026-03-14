@@ -19,7 +19,6 @@ enum GenerationStatus {
   PENDING
   COMPLETED
   FAILED
-
 }
 
 // ─── Models ───────────────────────────────────────────────────────
@@ -33,6 +32,23 @@ model User {
   updatedAt DateTime @updatedAt
 
   generations Generation[]
+  userApiKeys UserApiKey[]
+}
+
+model UserApiKey {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modelId        String
+  adapterType    String
+  providerConfig Json
+  label          String
+  encryptedKey   String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, modelId, adapterType])
 }
 
 model Generation {
@@ -40,15 +56,15 @@ model Generation {
   createdAt DateTime @default(now())
 
   // ── 輸出媒體 ──────────────────────────────────────────────────
-  outputType  OutputType       @default(IMAGE)
-  status      GenerationStatus @default(COMPLETED)
-  url         String           // R2 永久 URL
-  storageKey  String           // R2 bucket 內的文件路徑
-  mimeType    String           @default("image/png")
+  outputType OutputType       @default(IMAGE)
+  status     GenerationStatus @default(COMPLETED)
+  url        String // R2 永久 URL
+  storageKey String // R2 bucket 內的文件路徑
+  mimeType   String           @default("image/png")
 
   // 圖片 / 影格尺寸
-  width   Int @default(1024)
-  height  Int @default(1024)
+  width  Int @default(1024)
+  height Int @default(1024)
 
   // 視頻專用（圖片留 null）
   duration Float? // 秒數，例如 5.0

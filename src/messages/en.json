@@ -153,13 +153,36 @@
     }
   },
   "StudioForm": {
-    "selectedModelLabel": "Selected model",
+    "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
     "creditCostLabel": "Credit cost",
+    "keyStatusLabel": "Route status",
+    "keyStatusSavedRouteTitle": "Using this saved route",
+    "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
+    "keyStatusFallbackTitle": "Using the workspace default route",
+    "keyStatusFallbackDescription": "This workspace route calls PixelVault's configured {provider} endpoint and fallback key when available.",
+    "routeSourceLabel": "Route source",
+    "routeSources": {
+      "workspace": "Workspace default",
+      "saved": "Saved route"
+    },
+    "adapterLabel": "Adapter",
+    "providerEndpointLabel": "Base URL",
+    "modelIdLabel": "Model ID",
+    "modelCustomDescription": "Custom {provider} model routed through your saved provider route.",
+    "customModelBadge": "Custom model",
     "promptLabel": "Prompt",
     "promptHint": "Be specific about subject, setting, lighting, composition, or style.",
     "promptPlaceholder": "Describe the image you want to generate...",
     "promptCounter": "{current} / {max} characters",
+    "referenceTitle": "Reference image",
+    "referenceSelectedDescription": "Image selected. The next run will use img2img guidance.",
+    "referenceIdleDescription": "Optional. Upload a reference image when you want the generation to follow an existing composition or mood.",
+    "referenceBadge": "img2img",
+    "referencePreviewAlt": "Reference image preview",
+    "referenceRemoveLabel": "Remove reference image",
+    "referenceUploadAction": "Drag and drop or click to upload",
+    "referenceUploadFormats": "PNG, JPG, and WebP",
     "ctaSectionLabel": "Ready to generate",
     "ctaSectionDescription": "Review the selected model and prompt, then generate when you are ready.",
     "ctaLabel": "Generate image",
@@ -178,8 +201,104 @@
     "resultStorageNote": "Saved with its prompt and model details.",
     "modelSelector": {
       "label": "AI model",
-      "hint": "Choose the model that best matches the look you want.",
-      "placeholder": "Select a model"
+      "hint": "Choose a workspace model or one of your enabled saved routes.",
+      "placeholder": "Select a model",
+      "customBadge": "Custom",
+      "savedRouteBadge": "Saved route",
+      "workspaceRouteBadge": "Workspace",
+      "routeSources": {
+        "workspace": "Workspace default",
+        "saved": "Saved route"
+      },
+      "customDescription": "Custom {provider} model using your saved route."
+    }
+  },
+  "StudioApiKeys": {
+    "triggerLabel": "API Routes",
+    "triggerLoading": "Loading",
+    "triggerCount": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
+    "sheetTitle": "Manage API routes",
+    "sheetDescription": "Save provider routes per model, customize the provider label and base URL, and enable only the routes you want to surface in Studio.",
+    "title": "Saved provider routes",
+    "description": "Each saved route combines an adapter, provider config, model ID, and key. Built-in workspace routes stay available by default, while enabled saved routes appear alongside them in Studio.",
+    "loading": "Loading your saved routes...",
+    "customBadge": "Custom",
+    "groupCustomDescription": "Custom {adapter} model with one or more saved routes.",
+    "emptyModel": "No saved route for {model} yet.",
+    "emptyCustomTitle": "No custom routes yet",
+    "emptyCustomDescription": "Add a custom model ID when you want to run a provider route outside the built-in catalog.",
+    "providers": {
+      "huggingface": {
+        "label": "HuggingFace",
+        "description": "Use a HuggingFace-compatible adapter and endpoint shape."
+      },
+      "gemini": {
+        "label": "Gemini",
+        "description": "Use Gemini image generation endpoints or a compatible proxy."
+      }
+    },
+    "summary": {
+      "activeRoutesLabel": "Active routes",
+      "activeRoutesValue": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
+      "builtInModelsLabel": "Built-in models",
+      "builtInModelsValue": "{count, plural, one {# built-in model} other {# built-in models}}",
+      "customRoutesLabel": "Custom routes",
+      "customRoutesValue": "{count, plural, =0 {No custom routes} one {# custom route} other {# custom routes}}",
+      "routeCount": "{count, plural, =0 {No routes} one {# route} other {# routes}}"
+    },
+    "sections": {
+      "builtInTitle": "Built-in model routes",
+      "builtInDescription": "Add saved routes when you want a built-in model to use your own key or a custom provider endpoint.",
+      "customTitle": "Custom model routes",
+      "customDescription": "Enable any saved custom route to surface it in the Studio model picker."
+    },
+    "actions": {
+      "openComposer": "Add route",
+      "hideComposer": "Hide form",
+      "enableRoute": "Enable route",
+      "disableRoute": "Disable route",
+      "deleteKey": "Delete route"
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "deleteDialog": {
+      "title": "Delete saved route",
+      "description": "Delete \"{label}\"? This cannot be undone.",
+      "cancelAction": "Cancel",
+      "confirmAction": "Delete"
+    },
+    "addForm": {
+      "title": "Add a saved route",
+      "description": "Choose the adapter, configure the provider label and base URL, then attach a model ID and API key.",
+      "adapterLabel": "Adapter",
+      "providerNameLabel": "Provider label",
+      "providerBaseUrlLabel": "Base URL",
+      "providerBaseUrlHint": "Use the adapter-compatible base URL. The model ID will be appended automatically when the adapter requires it.",
+      "modelModeLabel": "Model source",
+      "presetModelLabel": "Built-in model",
+      "presetModelPlaceholder": "Choose a built-in model",
+      "customModelLabel": "Custom model ID",
+      "customModelHint": "Enter the exact {provider} model ID you want to call.",
+      "labelLabel": "Route label",
+      "labelPlaceholder": "My personal route",
+      "keyLabel": "API key",
+      "showKey": "Show API key",
+      "hideKey": "Hide API key",
+      "saveAction": "Save route",
+      "savingAction": "Saving...",
+      "cancelAction": "Cancel",
+      "modelModes": {
+        "preset": {
+          "label": "Use a built-in model",
+          "description": "Expose a saved route for one of the models already available in Studio."
+        },
+        "custom": {
+          "label": "Use a custom model ID",
+          "description": "Bring your own model ID when you need a route outside the preset catalog."
+        }
+      }
     }
   },
   "Models": {

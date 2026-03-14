@@ -14,6 +14,7 @@ import {
   type HomepageSceneTone,
 } from '@/constants/homepage'
 import { getModelMessageKey, MODEL_OPTIONS } from '@/constants/models'
+import { getProviderLabel } from '@/constants/providers'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
@@ -39,7 +40,8 @@ const startingCreditCost = MODEL_OPTIONS.reduce(
   MODEL_OPTIONS[0]?.cost ?? 0,
 )
 
-const providerCount = new Set(MODEL_OPTIONS.map((model) => model.provider)).size
+const providerCount = new Set(MODEL_OPTIONS.map((model) => model.adapterType))
+  .size
 
 interface HomepageShellProps {
   eyebrow: string
@@ -94,9 +96,7 @@ export function HomepageShell({
               {t('brandLabel')}
             </span>
             <span className={styles.brandName}>{tCommon('brand')}</span>
-            <span className={styles.brandSubline}>
-              {t('brandSubline')}
-            </span>
+            <span className={styles.brandSubline}>{t('brandSubline')}</span>
           </Link>
 
           <nav className={styles.nav} aria-label={t('navigationLabel')}>
@@ -196,7 +196,9 @@ export function HomepageShell({
                   >
                     {t('signals.archiveLabel')}
                   </span>
-                  <span className={styles.signalValue}>{t('signals.archiveValue')}</span>
+                  <span className={styles.signalValue}>
+                    {t('signals.archiveValue')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -228,7 +230,9 @@ export function HomepageShell({
                             isDenseLocale && styles.denseCopy,
                           )}
                         >
-                          {tModels(`${getModelMessageKey(scene.modelId)}.label`)}
+                          {tModels(
+                            `${getModelMessageKey(scene.modelId)}.label`,
+                          )}
                         </span>
                         <p className={styles.scenePrompt}>
                           {t(`scenes.items.${scene.id}.prompt`)}
@@ -356,7 +360,7 @@ export function HomepageShell({
                           isDenseLocale && styles.denseCopy,
                         )}
                       >
-                        {model.provider}
+                        {getProviderLabel(model.providerConfig)}
                       </span>
                       <span
                         className={cn(

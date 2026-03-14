@@ -153,13 +153,36 @@
     }
   },
   "StudioForm": {
-    "selectedModelLabel": "選択中のモデル",
+    "selectedModelLabel": "選択中のルート",
     "providerLabel": "プロバイダー",
     "creditCostLabel": "必要クレジット",
+    "keyStatusLabel": "ルートの状態",
+    "keyStatusSavedRouteTitle": "この保存済みルートを使用",
+    "keyStatusSavedRouteDescription": "{label}（{maskedKey}）がこのルートに使われます。",
+    "keyStatusFallbackTitle": "ワークスペース既定ルートを使用",
+    "keyStatusFallbackDescription": "このワークスペースルートは、利用可能な場合に PixelVault の設定済み {provider} エンドポイントとフォールバックキーを使います。",
+    "routeSourceLabel": "ルート種別",
+    "routeSources": {
+      "workspace": "ワークスペース既定",
+      "saved": "保存済みルート"
+    },
+    "adapterLabel": "アダプター",
+    "providerEndpointLabel": "Base URL",
+    "modelIdLabel": "モデル ID",
+    "modelCustomDescription": "保存済みプロバイダールート経由で呼び出すカスタム {provider} モデルです。",
+    "customModelBadge": "カスタムモデル",
     "promptLabel": "プロンプト",
     "promptHint": "被写体、場面、ライティング、構図、スタイルなどを具体的に書いてください。",
     "promptPlaceholder": "生成したい画像を説明してください...",
     "promptCounter": "{current} / {max} 文字",
+    "referenceTitle": "参照画像",
+    "referenceSelectedDescription": "画像を選択済みです。次回の生成は img2img ガイド付きで実行されます。",
+    "referenceIdleDescription": "任意です。既存の構図や雰囲気をなぞりたいときに参照画像をアップロードしてください。",
+    "referenceBadge": "img2img",
+    "referencePreviewAlt": "参照画像のプレビュー",
+    "referenceRemoveLabel": "参照画像を削除",
+    "referenceUploadAction": "ドラッグ＆ドロップ、またはクリックしてアップロード",
+    "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "生成の準備完了",
     "ctaSectionDescription": "選択したモデルとプロンプトを確認して、準備ができたら生成します。",
     "ctaLabel": "画像を生成",
@@ -178,8 +201,104 @@
     "resultStorageNote": "プロンプトとモデル情報を添えて保存されます。",
     "modelSelector": {
       "label": "AIモデル",
-      "hint": "欲しい見た目に最も合うモデルを選んでください。",
-      "placeholder": "モデルを選択"
+      "hint": "ワークスペースモデル、または有効化した保存済みルートから選んでください。",
+      "placeholder": "モデルを選択",
+      "customBadge": "カスタム",
+      "savedRouteBadge": "保存済み",
+      "workspaceRouteBadge": "既定",
+      "routeSources": {
+        "workspace": "ワークスペース既定",
+        "saved": "保存済みルート"
+      },
+      "customDescription": "保存済みルートを使うカスタム {provider} モデルです。"
+    }
+  },
+  "StudioApiKeys": {
+    "triggerLabel": "API ルート",
+    "triggerLoading": "読込中",
+    "triggerCount": "{count, plural, =0 {有効なルートなし} one {# 個の有効ルート} other {# 個の有効ルート}}",
+    "sheetTitle": "API ルート管理",
+    "sheetDescription": "モデルごとにプロバイダールートを保存し、表示名と Base URL を調整し、Studio に出すルートだけを有効化できます。",
+    "title": "保存済みプロバイダールート",
+    "description": "各保存済みルートは、アダプター、プロバイダー設定、モデル ID、キーで構成されます。組み込みのワークスペースルートは常に残り、有効化した保存済みルートは Studio に並んで表示されます。",
+    "loading": "保存済みルートを読み込んでいます...",
+    "customBadge": "カスタム",
+    "groupCustomDescription": "1 つ以上の保存済みルートを持つカスタム {adapter} モデルです。",
+    "emptyModel": "{model} 用の保存済みルートはまだありません。",
+    "emptyCustomTitle": "カスタムルートはまだありません",
+    "emptyCustomDescription": "組み込み一覧の外にあるプロバイダールートを使いたい場合は、カスタムモデル ID を追加してください。",
+    "providers": {
+      "huggingface": {
+        "label": "HuggingFace",
+        "description": "HuggingFace 互換のアダプターとエンドポイント形式を使います。"
+      },
+      "gemini": {
+        "label": "Gemini",
+        "description": "Gemini の画像生成エンドポイント、または互換プロキシを使います。"
+      }
+    },
+    "summary": {
+      "activeRoutesLabel": "有効ルート",
+      "activeRoutesValue": "{count, plural, =0 {有効なルートはありません} one {# 個の有効ルート} other {# 個の有効ルート}}",
+      "builtInModelsLabel": "組み込みモデル",
+      "builtInModelsValue": "{count, plural, one {# 個の組み込みモデル} other {# 個の組み込みモデル}}",
+      "customRoutesLabel": "カスタムルート",
+      "customRoutesValue": "{count, plural, =0 {カスタムルートなし} one {# 個のカスタムルート} other {# 個のカスタムルート}}",
+      "routeCount": "{count, plural, =0 {ルートなし} one {# 個のルート} other {# 個のルート}}"
+    },
+    "sections": {
+      "builtInTitle": "組み込みモデル用ルート",
+      "builtInDescription": "組み込みモデルを自分のキーやカスタム provider endpoint で動かしたいときに、保存済みルートを追加します。",
+      "customTitle": "カスタムモデル用ルート",
+      "customDescription": "保存済みのカスタムルートを有効化すると、そのまま Studio のモデルピッカーに表示されます。"
+    },
+    "actions": {
+      "openComposer": "ルートを追加",
+      "hideComposer": "フォームを閉じる",
+      "enableRoute": "ルートを有効化",
+      "disableRoute": "ルートを無効化",
+      "deleteKey": "ルートを削除"
+    },
+    "status": {
+      "enabled": "有効",
+      "disabled": "無効"
+    },
+    "deleteDialog": {
+      "title": "保存済みルートを削除",
+      "description": "「{label}」を削除しますか？ この操作は取り消せません。",
+      "cancelAction": "キャンセル",
+      "confirmAction": "削除"
+    },
+    "addForm": {
+      "title": "保存済みルートを追加",
+      "description": "アダプターを選び、プロバイダー名と Base URL を設定してから、モデル ID と API キーを紐づけます。",
+      "adapterLabel": "アダプター",
+      "providerNameLabel": "プロバイダー名",
+      "providerBaseUrlLabel": "Base URL",
+      "providerBaseUrlHint": "アダプター互換の Base URL を使ってください。必要に応じてモデル ID は自動で末尾に追加されます。",
+      "modelModeLabel": "モデルの種類",
+      "presetModelLabel": "組み込みモデル",
+      "presetModelPlaceholder": "組み込みモデルを選択",
+      "customModelLabel": "カスタムモデル ID",
+      "customModelHint": "呼び出したい {provider} の正確なモデル ID を入力してください。",
+      "labelLabel": "ルート名",
+      "labelPlaceholder": "自分用ルート",
+      "keyLabel": "API キー",
+      "showKey": "API キーを表示",
+      "hideKey": "API キーを非表示",
+      "saveAction": "ルートを保存",
+      "savingAction": "保存中...",
+      "cancelAction": "キャンセル",
+      "modelModes": {
+        "preset": {
+          "label": "組み込みモデルを使う",
+          "description": "Studio にすでにあるモデルの 1 つに保存済みルートを追加します。"
+        },
+        "custom": {
+          "label": "カスタムモデル ID を使う",
+          "description": "プリセット外のルートが必要なときは、自分のモデル ID を使います。"
+        }
+      }
     }
   },
   "Models": {

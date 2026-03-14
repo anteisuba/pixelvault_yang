@@ -1,10 +1,17 @@
 'use client'
 
+import { KeyRound, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { getAvailableModels, getModelMessageKey } from '@/constants/models'
+import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
+import {
+  getProviderLabel,
+  type AI_ADAPTER_TYPES,
+  type ProviderConfig,
+} from '@/constants/providers'
 import { isCjkLocale } from '@/i18n/routing'
 
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -14,27 +21,52 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
-interface ModelSelectorProps {
-  /** Currently selected model ID */
-  value: string
-  /** Callback when the selected model changes */
-  onChange: (value: string) => void
+export interface StudioModelOption {
+  optionId: string
+  modelId: string
+  adapterType: AI_ADAPTER_TYPES
+  providerConfig: ProviderConfig
+  cost: number
+  isBuiltIn: boolean
+  sourceType: 'workspace' | 'saved'
+  keyId?: string
+  keyLabel?: string
+  maskedKey?: string
 }
 
-/**
- * Dropdown selector for choosing an AI image generation model.
- * Only displays models that are currently available.
- */
-export function ModelSelector({ value, onChange }: ModelSelectorProps) {
-  const availableModels = getAvailableModels()
+interface ModelSelectorProps {
+  value: string
+  onChange: (value: string) => void
+  options: StudioModelOption[]
+}
+
+function getOptionMessageId(modelId: string): string {
+  return isBuiltInModel(modelId) ? getModelMessageKey(modelId) : modelId
+}
+
+function getModelLabel(
+  option: StudioModelOption,
+  tModels: (key: string) => string,
+): string {
+  return isBuiltInModel(option.modelId)
+    ? tModels(`${getOptionMessageId(option.modelId)}.label`)
+    : option.modelId
+}
+
+export function ModelSelector({
+  value,
+  onChange,
+  options,
+}: ModelSelectorProps) {
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('StudioForm.modelSelector')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const selectedOption = options.find((option) => option.optionId === value)
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="space-y-1">
         <label className="text-sm font-semibold text-foreground">
           {t('label')}
@@ -43,36 +75,116 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
       </div>
 
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-11 w-full rounded-xl bg-background">
-          <SelectValue placeholder={t('placeholder')} />
+        <SelectTrigger className="h-16 w-full rounded-2xl border-border/70 bg-background/80 px-4 text-left">
+          <SelectValue
+            placeholder={t('placeholder')}
+            aria-label={selectedOption?.modelId ?? t('placeholder')}
+          >
+            {selectedOption ? (
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {getModelLabel(selectedOption, tModels)}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {getProviderLabel(selectedOption.providerConfig)} ·{' '}
+                    {t(`routeSources.${selectedOption.sourceType}`)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge
+                    variant={
+                      selectedOption.sourceType === 'saved'
+                        ? 'secondary'
+                        : 'outline'
+                    }
+                    className="rounded-full px-2 py-0 text-[11px]"
+                  >
+                    {selectedOption.sourceType === 'saved' ? (
+                      <KeyRound className="size-3" />
+                    ) : (
+                      <Sparkles className="size-3" />
+                    )}
+                    {selectedOption.sourceType === 'saved'
+                      ? t('savedRouteBadge')
+                      : t('workspaceRouteBadge')}
+                  </Badge>
+                  {!selectedOption.isBuiltIn ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full px-2 py-0 text-[11px]"
+                    >
+                      {t('customBadge')}
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {availableModels.map((model) => {
-            const modelMessageKey = getModelMessageKey(model.id)
+          {options.map((option) => {
+            const isBuiltIn = isBuiltInModel(option.modelId)
 
             return (
-              <SelectItem key={model.id} value={model.id}>
-                <div className="flex w-full items-start justify-between gap-3 py-0.5 pr-4">
-                  <div className="space-y-1">
-                    <span className="block font-medium text-foreground">
-                      {tModels(`${modelMessageKey}.label`)}
+              <SelectItem key={option.optionId} value={option.optionId}>
+                <div className="flex w-full items-start justify-between gap-3 py-1 pr-4">
+                  <div className="min-w-0 space-y-1">
+                    <span className="block truncate font-medium text-foreground">
+                      {getModelLabel(option, tModels)}
                     </span>
                     <span className="block text-xs leading-5 text-muted-foreground">
-                      {tModels(`${modelMessageKey}.description`)}
+                      {isBuiltIn
+                        ? tModels(
+                            `${getOptionMessageId(option.modelId)}.description`,
+                          )
+                        : t('customDescription', {
+                            provider: getProviderLabel(option.providerConfig),
+                          })}
+                    </span>
+                    <span className="block truncate text-[11px] text-muted-foreground/90">
+                      {getProviderLabel(option.providerConfig)} ·{' '}
+                      {option.providerConfig.baseUrl}
                     </span>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                     <span className="text-xs font-medium text-foreground">
-                      {tCommon('creditCount', { count: model.cost })}
+                      {tCommon('creditCount', { count: option.cost })}
                     </span>
-                    <span
-                      className={cn(
-                        'text-xs text-muted-foreground',
-                        isDenseLocale && 'tracking-normal normal-case',
-                      )}
-                    >
-                      {model.provider}
-                    </span>
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <Badge
+                        variant={
+                          option.sourceType === 'saved'
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        className={cn(
+                          'rounded-full px-2 py-0 text-[11px]',
+                          isDenseLocale && 'tracking-normal normal-case',
+                        )}
+                      >
+                        {option.sourceType === 'saved' ? (
+                          <KeyRound className="size-3" />
+                        ) : (
+                          <Sparkles className="size-3" />
+                        )}
+                        {option.sourceType === 'saved'
+                          ? t('savedRouteBadge')
+                          : t('workspaceRouteBadge')}
+                      </Badge>
+                      {!option.isBuiltIn ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'rounded-full px-2 py-0 text-[11px]',
+                            isDenseLocale && 'tracking-normal normal-case',
+                          )}
+                        >
+                          <Sparkles className="size-3" />
+                          {t('customBadge')}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </SelectItem>

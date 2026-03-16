@@ -10,19 +10,21 @@
 
 ## Phase 1：打好公开发布的后端地基
 
-- [ ] 抽出 Provider Adapter 层。
+- [x] 抽出 Provider Adapter 层。
 - [ ] 建立 `providers` 和 `model_catalog` 配置中心。
 - [ ] 增加 `generation_jobs`，让生成流程支持状态机。
-- [ ] 增加 `usage_ledger`，把积分变化做成可追踪流水。
+- [ ] 增加 `api_usage_ledger`，把每次真实 API 调用做成可追踪流水。
+- [ ] 明确记录 provider / adapter / model / 请求次数 / 图像尺寸 / 响应时长 / 是否成功。
+- [ ] 为 API usage 增加按日、按用户、按 provider 的聚合查询。
 - [ ] 增加基础限流和防刷。
 - [ ] 增加错误监控和日志追踪。
 
 ## Phase 2：做出能发给别人用的 Web Beta
 
-- [ ] Landing Page。
-- [ ] Studio 页面增强。
-- [ ] My Library 页面。
-- [ ] Gallery 页面。
+- [x] Landing Page。
+- [x] Studio 页面增强。
+- [x] My Library 页面。
+- [x] Gallery 页面。
 - [ ] 图片发布/取消发布。
 - [ ] 失败提示、重试、空状态、加载状态。
 - [ ] 手机端响应式打磨。
@@ -38,10 +40,10 @@
 
 ## Phase 4：准备商业化
 
-- [ ] 设计套餐和额度模型。
-- [ ] 接入支付前先补对账能力。
-- [ ] 建立成本面板，能看每个 Provider 的消耗。
-- [ ] 设计免费用户、付费用户、管理员权限差异。
+- [ ] 明确是否彻底废弃站内积分体系，迁移为纯 API usage 记录。
+- [ ] 接入支付前先补 usage 对账能力，而不是先做套餐 UI。
+- [ ] 建立成本面板，能看每个 Provider / Model / User 的实际消耗。
+- [ ] 设计普通用户、BYOK 用户、管理员的权限差异。
 - [ ] 决定是否支持 BYOK。
 
 ## Phase 5：移动端路线
@@ -61,6 +63,6 @@
 
 ## 现在最值得马上开始的三个任务
 
-1. 拆 Provider Adapter。
-2. 设计 `generation_jobs` 和 `usage_ledger`。
-3. 补出 `Gallery + My Library + Prompt Templates` 三个页面的信息架构。
+1. 设计 `generation_jobs` 和 `api_usage_ledger`。
+2. 把现有 credits 逻辑迁移为 usage 记录与展示。
+3. 做图片发布/取消发布、失败重试、移动端细化。

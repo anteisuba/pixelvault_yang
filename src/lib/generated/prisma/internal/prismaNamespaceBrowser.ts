@@ -53,7 +53,9 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   UserApiKey: 'UserApiKey',
-  Generation: 'Generation'
+  Generation: 'Generation',
+  GenerationJob: 'GenerationJob',
+  ApiUsageLedger: 'ApiUsageLedger'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -76,7 +78,6 @@ export const UserScalarFieldEnum = {
   id: 'id',
   clerkId: 'clerkId',
   email: 'email',
-  credits: 'credits',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -115,12 +116,53 @@ export const GenerationScalarFieldEnum = {
   negativePrompt: 'negativePrompt',
   model: 'model',
   provider: 'provider',
-  creditsCost: 'creditsCost',
+  requestCount: 'requestCount',
   isPublic: 'isPublic',
   userId: 'userId'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
+
+
+export const GenerationJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  adapterType: 'adapterType',
+  provider: 'provider',
+  modelId: 'modelId',
+  status: 'status',
+  requestCount: 'requestCount',
+  errorMessage: 'errorMessage',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GenerationJobScalarFieldEnum = (typeof GenerationJobScalarFieldEnum)[keyof typeof GenerationJobScalarFieldEnum]
+
+
+export const ApiUsageLedgerScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  generationJobId: 'generationJobId',
+  adapterType: 'adapterType',
+  provider: 'provider',
+  modelId: 'modelId',
+  requestCount: 'requestCount',
+  inputImageCount: 'inputImageCount',
+  outputImageCount: 'outputImageCount',
+  width: 'width',
+  height: 'height',
+  durationMs: 'durationMs',
+  wasSuccessful: 'wasSuccessful',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt'
+} as const
+
+export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
 
 
 export const SortOrder = {

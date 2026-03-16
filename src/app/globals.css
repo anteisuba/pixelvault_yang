@@ -9,6 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-app-sans);
   --font-display: var(--font-app-display);
+  --font-serif: var(--font-app-serif);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -49,92 +50,419 @@
 }
 
 :root {
-  --font-app-sans: var(--font-geist-sans);
-  --font-app-display: var(--font-geist-sans);
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --font-app-sans: var(--font-instrument-sans);
+  --font-app-display: var(--font-space-grotesk);
+  --font-app-serif: var(--font-source-serif);
+  --radius: 0.9rem;
+  --background: oklch(0.975 0.008 75.4);
+  --foreground: oklch(0.245 0.017 58.1);
+  --card: oklch(0.986 0.006 77.5);
+  --card-foreground: oklch(0.245 0.017 58.1);
+  --popover: oklch(0.986 0.006 77.5);
+  --popover-foreground: oklch(0.245 0.017 58.1);
+  --primary: oklch(0.64 0.112 42.3);
+  --primary-foreground: oklch(0.987 0.004 88.4);
+  --secondary: oklch(0.952 0.011 73.2);
+  --secondary-foreground: oklch(0.245 0.017 58.1);
+  --muted: oklch(0.949 0.009 76.8);
+  --muted-foreground: oklch(0.53 0.017 61.2);
+  --accent: oklch(0.937 0.016 65.4);
+  --accent-foreground: oklch(0.245 0.017 58.1);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.866 0.013 72.7);
+  --input: oklch(0.866 0.013 72.7);
+  --ring: oklch(0.63 0.05 42.1);
+  --chart-1: oklch(0.64 0.112 42.3);
+  --chart-2: oklch(0.66 0.065 231.4);
+  --chart-3: oklch(0.61 0.05 146.7);
+  --chart-4: oklch(0.79 0.034 80.7);
+  --chart-5: oklch(0.57 0.04 33.9);
+  --sidebar: oklch(0.982 0.007 76.4);
+  --sidebar-foreground: oklch(0.245 0.017 58.1);
+  --sidebar-primary: oklch(0.64 0.112 42.3);
+  --sidebar-primary-foreground: oklch(0.987 0.004 88.4);
+  --sidebar-accent: oklch(0.952 0.011 73.2);
+  --sidebar-accent-foreground: oklch(0.245 0.017 58.1);
+  --sidebar-border: oklch(0.866 0.013 72.7);
+  --sidebar-ring: oklch(0.63 0.05 42.1);
+  --surface-elevated: color-mix(in oklab, var(--card) 92%, var(--background));
+  --surface-soft: color-mix(in oklab, var(--secondary) 78%, var(--background));
+  --surface-highlight: color-mix(
+    in oklab,
+    var(--primary) 8%,
+    var(--background)
+  );
+  --page-border: color-mix(in oklab, var(--border) 90%, transparent);
 }
 
 html:lang(ja) {
-  --font-app-sans: var(--font-japanese-sans);
   --font-app-display: var(--font-japanese-sans);
+  --font-app-serif: var(--font-japanese-display);
 }
 
 html:lang(zh) {
-  --font-app-sans: var(--font-chinese-sans);
-  --font-app-display: var(--font-chinese-display);
+  --font-app-display: var(--font-chinese-sans);
+  --font-app-serif: var(--font-chinese-display);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.19 0.012 52.4);
+  --foreground: oklch(0.955 0.008 84.1);
+  --card: oklch(0.228 0.013 50.3);
+  --card-foreground: oklch(0.955 0.008 84.1);
+  --popover: oklch(0.228 0.013 50.3);
+  --popover-foreground: oklch(0.955 0.008 84.1);
+  --primary: oklch(0.7 0.109 43.3);
+  --primary-foreground: oklch(0.18 0.012 52.4);
+  --secondary: oklch(0.272 0.015 49.7);
+  --secondary-foreground: oklch(0.955 0.008 84.1);
+  --muted: oklch(0.272 0.015 49.7);
+  --muted-foreground: oklch(0.735 0.014 71.1);
+  --accent: oklch(0.312 0.018 56.6);
+  --accent-foreground: oklch(0.955 0.008 84.1);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.109 43.3);
+  --chart-1: oklch(0.7 0.109 43.3);
+  --chart-2: oklch(0.69 0.086 231.2);
+  --chart-3: oklch(0.7 0.072 146.3);
+  --chart-4: oklch(0.76 0.044 79.8);
+  --chart-5: oklch(0.65 0.055 34.7);
+  --sidebar: oklch(0.228 0.013 50.3);
+  --sidebar-foreground: oklch(0.955 0.008 84.1);
+  --sidebar-primary: oklch(0.7 0.109 43.3);
+  --sidebar-primary-foreground: oklch(0.18 0.012 52.4);
+  --sidebar-accent: oklch(0.272 0.015 49.7);
+  --sidebar-accent-foreground: oklch(0.955 0.008 84.1);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.7 0.109 43.3);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--primary) 5%, transparent),
+        transparent 18rem
+      ),
+      linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in oklab, var(--border) 18%, transparent) 50%,
+        transparent
+      ),
+      var(--background);
     font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 26%, transparent);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .editorial-page {
+    position: relative;
+    min-height: calc(100vh - 3.5rem);
+  }
+
+  .editorial-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--primary) 4%, transparent),
+        transparent 20rem
+      ),
+      linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in oklab, var(--border) 18%, transparent) 50%,
+        transparent
+      );
+    pointer-events: none;
+  }
+
+  .editorial-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3.25rem, 5vw, 4.75rem);
+    width: 100%;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding: clamp(2.2rem, 4vw, 3rem) 1rem clamp(4rem, 7vw, 5.5rem);
+  }
+
+  .editorial-hero {
+    display: grid;
+    gap: clamp(2rem, 4vw, 3.5rem);
+    align-items: end;
+    padding-bottom: clamp(2rem, 4vw, 3rem);
+    border-bottom: 1px solid var(--page-border);
+  }
+
+  .editorial-hero-copy {
+    display: grid;
+    gap: 1.15rem;
+    min-width: 0;
+  }
+
+  .editorial-eyebrow {
+    display: inline-flex;
+    width: fit-content;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--muted-foreground) 92%, var(--background));
+  }
+
+  .editorial-title {
+    max-width: 11ch;
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 7vw, 5.4rem);
+    font-weight: 500;
+    line-height: 0.92;
+    letter-spacing: -0.065em;
+    text-wrap: balance;
+  }
+
+  .editorial-copy {
+    max-width: 43rem;
+    font-family: var(--font-serif);
+    font-size: clamp(1.03rem, 1.65vw, 1.18rem);
+    line-height: 1.8;
+    color: color-mix(in oklab, var(--foreground) 78%, var(--background));
+    text-wrap: pretty;
+  }
+
+  .editorial-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+  }
+
+  .editorial-metrics {
+    display: grid;
+    gap: 0.95rem;
+    align-content: start;
+  }
+
+  .editorial-metric {
+    display: grid;
+    gap: 0.35rem;
+    padding-bottom: 0.95rem;
+    border-bottom: 1px solid var(--page-border);
+  }
+
+  .editorial-metric:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .editorial-metric-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--muted-foreground) 92%, var(--background));
+  }
+
+  .editorial-metric-value {
+    font-family: var(--font-serif);
+    font-size: 0.99rem;
+    line-height: 1.72;
+    color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+    text-wrap: pretty;
+  }
+
+  .editorial-panel {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(1.3rem, 2.5vw, 1.8rem);
+    border: 1px solid var(--page-border);
+    border-radius: var(--radius-3xl);
+    background: color-mix(
+      in oklab,
+      var(--surface-elevated) 94%,
+      var(--background)
+    );
+  }
+
+  .editorial-section-head {
+    display: grid;
+    gap: 0.7rem;
+    max-width: 40rem;
+  }
+
+  .editorial-section-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    font-weight: 500;
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+    text-wrap: balance;
+  }
+
+  .editorial-section-copy {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--muted-foreground);
+    text-wrap: pretty;
+  }
+
+  .editorial-count-pill {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.58rem 0.9rem;
+    border: 1px solid var(--page-border);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--background) 80%, transparent);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  }
+
+  .cl-rootBox,
+  .cl-cardBox,
+  .cl-card {
+    width: 100%;
+  }
+
+  .cl-card {
+    border: 1px solid var(--page-border);
+    border-radius: var(--radius-3xl);
+    background: color-mix(in oklab, var(--background) 78%, var(--card));
+    box-shadow: none;
+    padding: clamp(1.2rem, 2vw, 1.6rem);
+  }
+
+  .cl-headerTitle {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3.2vw, 2.15rem);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    color: var(--foreground);
+  }
+
+  .cl-headerSubtitle,
+  .cl-footer,
+  .cl-dividerText,
+  .cl-footerActionText,
+  .cl-formResendCodeLink {
+    font-family: var(--font-serif);
+    line-height: 1.7;
+    color: var(--muted-foreground);
+  }
+
+  .cl-socialButtonsBlockButton,
+  .cl-formButtonPrimary {
+    min-height: 2.9rem;
+    border-radius: 999px;
+    box-shadow: none;
+    font-weight: 600;
+  }
+
+  .cl-socialButtonsBlockButton {
+    border: 1px solid var(--page-border);
+    background: color-mix(in oklab, var(--background) 72%, var(--card));
+    color: var(--foreground);
+  }
+
+  .cl-socialButtonsBlockButton:hover {
+    background: var(--surface-soft);
+  }
+
+  .cl-formButtonPrimary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .cl-formButtonPrimary:hover {
+    background: color-mix(in oklab, var(--primary) 92%, black);
+  }
+
+  .cl-formFieldLabel,
+  .cl-identityPreviewText,
+  .cl-formFieldHintText {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--muted-foreground) 92%, var(--background));
+  }
+
+  .cl-formFieldInput,
+  .cl-formFieldInputShowPasswordButton,
+  .cl-otpCodeFieldInput {
+    border-color: var(--page-border);
+    background: color-mix(in oklab, var(--background) 76%, var(--card));
+    box-shadow: none;
+    color: var(--foreground);
+  }
+
+  .cl-formFieldInput,
+  .cl-otpCodeFieldInput {
+    min-height: 2.95rem;
+    border-radius: calc(var(--radius-2xl) - 2px);
+  }
+
+  .cl-formFieldInput::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .cl-formFieldAction,
+  .cl-footerActionLink,
+  .cl-navbarButton {
+    color: color-mix(in oklab, var(--primary) 85%, var(--foreground));
+  }
+
+  .cl-dividerLine {
+    background: var(--page-border);
+  }
+
+  .cl-badge {
+    background: var(--surface-soft);
+    color: var(--foreground);
+    border: 1px solid var(--page-border);
+  }
+
+  @media (min-width: 640px) {
+    .editorial-container {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .editorial-container {
+      padding-inline: 2rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .editorial-hero {
+      grid-template-columns: minmax(0, 1.2fr) minmax(19rem, 0.8fr);
+    }
   }
 }

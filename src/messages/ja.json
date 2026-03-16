@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} クレジット"
+    "creditCount": "{count} リクエスト"
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
@@ -9,7 +9,12 @@
   },
   "Navbar": {
     "creditsLoading": "...",
-    "signIn": "サインイン"
+    "signIn": "サインイン",
+    "links": {
+      "gallery": "ギャラリー",
+      "studio": "スタジオ",
+      "library": "アーカイブ"
+    }
   },
   "LocaleSwitcher": {
     "label": "言語",
@@ -26,78 +31,78 @@
   },
   "Homepage": {
     "brandLabel": "パーソナルAIギャラリー",
-    "brandSubline": "あとで見返したくなる画像を残すための個人アーカイブ。",
+    "brandSubline": "AI画像を静かに作り、残しておくための個人アーカイブ。",
     "navigationLabel": "ホームページ",
     "navigation": {
       "workflow": "ワークフロー",
       "models": "モデル"
     },
-    "heroEyebrow": "永続的なAIアーカイブ",
-    "heroTitle": "残しておきたい画像をつくる。",
-    "heroDescription": "複数の画像エンジンで生成し、良い結果を保存して、自分の作り方を覚えてくれるギャラリーに戻れます。",
+    "heroEyebrow": "個人AIアーカイブ",
+    "heroTitle": "意図して作り、きちんと残す。",
+    "heroDescription": "複数の主要な画像モデルを使い分けながら生成し、良い結果を保存し、プロンプトとルートの文脈ごと見返せます。",
     "actions": {
-      "signedOutPrimary": "Vaultを作成",
+      "signedOutPrimary": "アーカイブを始める",
       "signedInPrimary": "スタジオを開く",
       "signedOutUtility": "サインイン",
-      "signedInUtility": "続ける",
-      "sharedSecondary": "モデル一覧を見る",
+      "signedInUtility": "スタジオへ",
+      "sharedSecondary": "モデルを見る",
       "signInPrimary": "アカウントを作成",
-      "signUpPrimary": "登録済みの方はこちら",
+      "signUpPrimary": "すでにアカウントがありますか？",
       "authSecondary": "ホームに戻る"
     },
     "auth": {
-      "note": "アカウントを使うと、クレジット、非公開プロンプト、保存済み生成結果をセッションをまたいで同期できます。",
+      "note": "アカウントを使うと、保存済みルート、非公開プロンプト、アーカイブ済み結果を同じ制作履歴として保てます。",
       "signIn": {
         "eyebrow": "おかえりなさい",
-        "title": "あなたのプライベートギャラリーへ戻る。",
-        "description": "サインインすると、制作の流れを失わずに生成、保存済み結果の確認、クレジット管理を続けられます。"
+        "title": "あなたのアーカイブへ戻る。",
+        "description": "サインインすると、生成や保存済み結果の確認、使用量の追跡をそのまま続けられます。"
       },
       "signUp": {
-        "eyebrow": "コレクションを始める",
-        "title": "お気に入りのプロンプトのためのVaultを開く。",
-        "description": "アカウントを作成して複数のAIモデルで生成し、気に入った結果を保存しながら、自分の好みに合わせてギャラリーを育てましょう。"
+        "eyebrow": "アーカイブを始める",
+        "title": "落ち着いた画像制作フローを始める。",
+        "description": "アカウントを作成して複数モデルで生成し、良い結果を保存しながら、あとで見返せる記録を育てましょう。"
       }
     },
     "stage": {
       "label": "ギャラリープレビュー",
-      "value": "迷いを減らすクリエイティブの方向づけ",
+      "value": "制作の流れをより素直に残す",
       "savedLabel": "Vaultに保存"
     },
     "signals": {
       "modelCoverageLabel": "対応モデル",
       "modelCoverageValue": "{modelCount}種類の画像モデル、{providerCount}社のプロバイダーに対応",
-      "creditLabel": "クレジットの見通し",
-      "creditValue": "生成は1枚あたり{creditCount}から",
-      "archiveLabel": "保存の仕組み",
-      "archiveValue": "プロンプト、出力、モデル選択をまとめて残せます"
+      "creditLabel": "1回ごと",
+      "creditValue": "各生成は {creditCount} として記録されます",
+      "archiveLabel": "残る情報",
+      "archiveValue": "プロンプト、モデル、プロバイダー、出力をまとめて残せます"
     },
     "features": {
-      "eyebrow": "クリエイティブの強み",
-      "title": "始まりはスタジオ、価値はアーカイブ。",
-      "description": "最初の訪問で、柔軟な画像エンジン、長期保存、明確なクレジットの使い方がすぐ伝わるようになっています。",
+      "eyebrow": "静かに使える理由",
+      "title": "抑制の効いた画像制作フロー。",
+      "description": "PixelVault はスタジオを集中しやすく、アーカイブを読みやすく保ち、UI が作品より前に出ないようにします。",
       "items": {
         "chooseEngine": {
-          "title": "最適なエンジンを選ぶ",
-          "description": "同じスタジオの中で、リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速な試行を切り替えられます。"
+          "title": "ツールを変えずにモデルを切り替える",
+          "description": "同じスタジオの中で、リアル表現、アニメ調、OpenAI 画像生成、Gemini 探索を行き来できます。"
         },
         "keepEveryKeeper": {
-          "title": "良い結果を残す",
-          "description": "優れた結果は1回限りで消えません。あとから見返せるギャラリーに残ります。"
+          "title": "見返したい結果を残す",
+          "description": "良い結果は1回限りで消えません。あとから戻れるアーカイブに残ります。"
         },
         "spendCredits": {
-          "title": "クレジットを明確に使う",
-          "description": "モデルごとのコストが事前に見えるので、安心して試せます。"
+          "title": "各生成のコストを見通す",
+          "description": "各生成にはプロバイダーとモデルの文脈が残るため、使用量を追いやすくなります。"
         }
       }
     },
     "workflow": {
       "eyebrow": "プロンプトから保存まで",
-      "title": "見通しのよい制作フロー。",
-      "description": "最初の体験で、何が作れるか、アーカイブがどう機能するか、モデル選択がなぜ重要かを、登録前に理解できます。",
+      "title": "プロンプトから保存まで、余計な混雑なしに。",
+      "description": "モデルを選び、意図を持って書き、結果をその文脈ごと残します。",
       "items": {
         "frameIdea": {
           "title": "アイデアを定める",
-          "description": "クレジットを使う前に、プロンプトを書き、雰囲気に合うモデルを選びます。"
+          "description": "まずプロンプトを書き、その画像に合うモデルを選びます。"
         },
         "generateWithIntent": {
           "title": "意図を持って生成する",
@@ -105,14 +110,14 @@
         },
         "archiveWinners": {
           "title": "良い結果を保存する",
-          "description": "プロンプト、モデル選択、最終画像を一緒に残して、次回の制作を文脈から始められます。"
+          "description": "プロンプト、ルート、最終画像を一緒に残して、次回の制作を文脈から始められます。"
         }
       }
     },
     "models": {
       "eyebrow": "モデル一覧",
-      "title": "複数の画像エンジン、1つのVault。",
-      "description": "リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速探索を、ツールや文脈を失わずに切り替えられます。"
+      "title": "4つの画像モデル、1つの静かな作業場。",
+      "description": "リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速探索を、ツールを変えずに切り替えられます。"
     },
     "scenes": {
       "items": {
@@ -132,30 +137,87 @@
     },
     "footer": {
       "eyebrow": "見返せることのために",
-      "title": "出力は画像、価値はアーカイブ。",
-      "description": "PixelVaultは、プロンプト、モデル選択、結果を一緒に保存するので、次のアイデアを推測ではなく文脈から始められます。"
+      "title": "画像は成果の一部にすぎない。",
+      "description": "PixelVault は制作の文脈ごと残すので、次のアイデアを推測ではなく記憶から始められます。"
     }
   },
   "StudioPage": {
     "heroEyebrow": "スタジオ",
-    "heroTitle": "次の画像を生成する",
-    "heroDescription": "モデルを選び、プロンプトを書き、集中できるワークスペースで生成します。",
+    "heroTitle": "より静かに集中できるスタジオ",
+    "heroDescription": "ルートを選び、プロンプトを書き、最新の結果まで同じ場所で確認できます。",
     "workspaceLabel": "スタジオワークスペース",
-    "workspaceTitle": "プロンプトを書いて生成",
-    "workspaceDescription": "生成フローはそのままに、モデル選択、プロンプト入力、結果確認の構成をより分かりやすくしました。",
+    "workspaceTitle": "一度書いて、文脈ごと生成する",
+    "workspaceDescription": "ルート情報、プロンプト、参照画像、結果を同じ静かな構成にまとめました。",
     "metrics": {
-      "modelCoverageLabel": "対応モデル",
+      "modelCoverageLabel": "利用可能モデル",
       "modelCoverageValue": "{modelCount}種類の利用可能モデル、{providerCount}社のプロバイダーに対応",
-      "startingCostLabel": "開始コスト",
-      "startingCostValue": "生成は1枚あたり{creditCount}から",
-      "archiveBehaviorLabel": "保存の仕組み",
-      "archiveBehaviorValue": "各結果はプロンプトとモデル情報を一緒に保持します。"
+      "startingCostLabel": "1回ごと",
+      "startingCostValue": "各生成は {creditCount} として記録されます",
+      "archiveBehaviorLabel": "保存の基本",
+      "archiveBehaviorValue": "各結果はプロンプトとルート情報を一緒に保持します。"
     }
+  },
+  "GalleryPage": {
+    "heroEyebrow": "公開ギャラリー",
+    "heroTitle": "ここは画像の壁ではなく、公開アーカイブ。",
+    "heroDescription": "公開された生成結果には、プロンプト、モデル、プロバイダーの文脈が残るので、単なる画像一覧ではなく制作記録として読めます。",
+    "actions": {
+      "primarySignedIn": "スタジオを開く",
+      "primarySignedOut": "サインインして作成する",
+      "secondarySignedIn": "自分のアーカイブを見る",
+      "secondarySignedOut": "ホームに戻る"
+    },
+    "metrics": {
+      "archiveSizeLabel": "公開アーカイブ",
+      "archiveSizeValue": "{count, plural, =0 {公開作品はまだありません} one {# 件の公開画像} other {# 件の公開画像}}",
+      "modelCoverageLabel": "現在の対応範囲",
+      "modelCoverageValue": "{count, plural, one {# 個の組み込み画像モデル} other {# 個の組み込み画像モデル}}",
+      "curationLabel": "表示順",
+      "curationValue": "新しい画像ほど上に並び、文脈ごとすぐ確認できます。"
+    },
+    "feedEyebrow": "オープンアーカイブ",
+    "feedTitle": "最近の公開生成結果",
+    "feedDescription": "アーカイブ全体の最近の公開作品をたどれます。さらに見たいときだけ続きを読み込んでください。",
+    "feedCount": "{shown} / {total} 件を表示中",
+    "emptyTitle": "公開アーカイブはまだ静かです",
+    "emptyDescription": "Studio から公開作品が共有され始めると、ここに少しずつ並んでいきます。",
+    "emptyAction": "スタジオを開く",
+    "loadMore": "さらに画像を読み込む",
+    "loadingMore": "画像を読み込んでいます...",
+    "endOfArchive": "現在の公開アーカイブはここまでです。"
+  },
+  "LibraryPage": {
+    "heroEyebrow": "マイアーカイブ",
+    "heroTitle": "最近の作品を、ひとつの記録として持っておく。",
+    "heroDescription": "最近の生成結果、公開状態、累積 API 使用量をひとまとめにして、次の制作を文脈から始められるようにします。",
+    "actions": {
+      "primary": "新しく生成する",
+      "secondary": "公開ギャラリーを見る"
+    },
+    "metrics": {
+      "totalWorksLabel": "総作品数",
+      "totalWorksValue": "{count, plural, =0 {保存済み作品はまだありません} one {# 件の保存画像} other {# 件の保存画像}}",
+      "publicWorksLabel": "公開作品",
+      "publicWorksValue": "{count, plural, =0 {公開作品なし} one {# 件の公開画像} other {# 件の公開画像}}",
+      "privateWorksLabel": "非公開作品",
+      "privateWorksValue": "{count, plural, =0 {非公開作品なし} one {# 件の非公開画像} other {# 件の非公開画像}}",
+      "creditsLabel": "API リクエスト数"
+    },
+    "collectionEyebrow": "最近のアーカイブ",
+    "collectionTitle": "最近保存した画像",
+    "collectionDescription": "この画面には、あなたのアーカイブ内で新しい順の画像と、それぞれが公開中かどうかが表示されます。",
+    "collectionCount": "{shown} / {total} 件を表示中",
+    "emptyTitle": "保存済み生成結果はまだありません",
+    "emptyDescription": "まずは Studio で 1 枚生成してください。プロンプトやルート情報と一緒にここへ保存されます。",
+    "emptyAction": "スタジオへ移動",
+    "syncPendingTitle": "アーカイブを同期しています",
+    "syncPendingDescription": "このアカウントに対応するアーカイブプロフィールがまだ見つかりません。Clerk の同期完了後に Studio に戻って再読み込みしてください。",
+    "syncPendingAction": "スタジオに戻る"
   },
   "StudioForm": {
     "selectedModelLabel": "選択中のルート",
     "providerLabel": "プロバイダー",
-    "creditCostLabel": "必要クレジット",
+    "creditCostLabel": "1回ごと",
     "keyStatusLabel": "ルートの状態",
     "keyStatusSavedRouteTitle": "この保存済みルートを使用",
     "keyStatusSavedRouteDescription": "{label}（{maskedKey}）がこのルートに使われます。",
@@ -172,11 +234,11 @@
     "modelCustomDescription": "保存済みプロバイダールート経由で呼び出すカスタム {provider} モデルです。",
     "customModelBadge": "カスタムモデル",
     "promptLabel": "プロンプト",
-    "promptHint": "被写体、場面、ライティング、構図、スタイルなどを具体的に書いてください。",
+    "promptHint": "被写体、場面、ライティング、構図、スタイルなどをできるだけ明確に書いてください。",
     "promptPlaceholder": "生成したい画像を説明してください...",
     "promptCounter": "{current} / {max} 文字",
     "referenceTitle": "参照画像",
-    "referenceSelectedDescription": "画像を選択済みです。次回の生成は img2img ガイド付きで実行されます。",
+    "referenceSelectedDescription": "画像を選択済みです。次回の生成では参照画像として使われます。",
     "referenceIdleDescription": "任意です。既存の構図や雰囲気をなぞりたいときに参照画像をアップロードしてください。",
     "referenceBadge": "img2img",
     "referencePreviewAlt": "参照画像のプレビュー",
@@ -184,24 +246,24 @@
     "referenceUploadAction": "ドラッグ＆ドロップ、またはクリックしてアップロード",
     "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "生成の準備完了",
-    "ctaSectionDescription": "選択したモデルとプロンプトを確認して、準備ができたら生成します。",
+    "ctaSectionDescription": "ルートとプロンプトを確認して、準備ができたら生成します。",
     "ctaLabel": "画像を生成",
     "ctaLoadingLabel": "生成中...",
     "errorTitle": "生成エラー",
     "errorFallback": "画像生成に失敗しました",
     "errorUnexpected": "予期しないエラーが発生しました",
     "resultLabel": "最新の結果",
-    "resultDescription": "最新の生成画像がここに表示されます。",
+    "resultDescription": "このワークスペースで最新に生成した画像がここに表示されます。",
     "resultEmptyTitle": "まだ生成結果がありません",
     "resultEmptyDescription": "フォームを送信すると、このワークスペースに最新の画像が表示されます。",
     "resultPromptLabel": "プロンプト",
     "resultModelLabel": "モデル",
     "resultProviderLabel": "プロバイダー",
-    "resultCreditLabel": "使用クレジット",
-    "resultStorageNote": "プロンプトとモデル情報を添えて保存されます。",
+    "resultCreditLabel": "記録済みリクエスト",
+    "resultStorageNote": "プロンプトとルートの文脈を添えて保存されます。",
     "modelSelector": {
       "label": "AIモデル",
-      "hint": "ワークスペースモデル、または有効化した保存済みルートから選んでください。",
+      "hint": "組み込みモデル、または現在有効な保存済みルートから選んでください。",
       "placeholder": "モデルを選択",
       "customBadge": "カスタム",
       "savedRouteBadge": "保存済み",
@@ -304,6 +366,16 @@
         }
       }
     }
+  },
+  "GalleryCard": {
+    "openImage": "画像を新しいタブで開く",
+    "openLabel": "開く",
+    "modelLabel": "モデル",
+    "providerLabel": "プロバイダー",
+    "requestsLabel": "リクエスト",
+    "visibilityLabel": "公開設定",
+    "publicLabel": "公開",
+    "privateLabel": "非公開"
   },
   "Models": {
     "sdxl": {

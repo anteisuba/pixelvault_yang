@@ -21,18 +21,26 @@ enum GenerationStatus {
   FAILED
 }
 
+enum GenerationJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 // ─── Models ───────────────────────────────────────────────────────
 
 model User {
   id        String   @id @default(uuid())
   clerkId   String   @unique
   email     String   @unique
-  credits   Int      @default(100)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  generations Generation[]
-  userApiKeys UserApiKey[]
+  generations    Generation[]
+  userApiKeys    UserApiKey[]
+  generationJobs GenerationJob[]
+  apiUsageLedger ApiUsageLedger[]
 }
 
 model UserApiKey {
@@ -77,16 +85,67 @@ model Generation {
   model    String // 對應 AI_MODELS enum 的值
   provider String // "HuggingFace" | "SiliconFlow" | "Seedance" 等
 
-  // ── 積分 ──────────────────────────────────────────────────────
-  creditsCost Int @default(1)
+  // ── API usage ────────────────────────────────────────────────
+  requestCount Int @default(1)
 
   // ── 可見性 ────────────────────────────────────────────────────
   isPublic Boolean @default(true)
 
   // ── 關聯 ──────────────────────────────────────────────────────
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id])
+  generationJob  GenerationJob?   @relation("GenerationToJob")
+  apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
 
   @@index([userId])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
+}
+
+model GenerationJob {
+  id           String              @id @default(uuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId String?             @unique
+  generation   Generation?         @relation("GenerationToJob", fields: [generationId], references: [id], onDelete: SetNull)
+  adapterType  String
+  provider     String
+  modelId      String
+  status       GenerationJobStatus @default(QUEUED)
+  requestCount Int                 @default(0)
+  errorMessage String?             @db.Text
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  apiUsageLedger ApiUsageLedger[] @relation("GenerationJobToUsage")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model ApiUsageLedger {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId     String?
+  generation       Generation?    @relation("GenerationToUsage", fields: [generationId], references: [id], onDelete: SetNull)
+  generationJobId  String?
+  generationJob    GenerationJob? @relation("GenerationJobToUsage", fields: [generationJobId], references: [id], onDelete: SetNull)
+  adapterType      String
+  provider         String
+  modelId          String
+  requestCount     Int            @default(1)
+  inputImageCount  Int            @default(0)
+  outputImageCount Int            @default(1)
+  width            Int?
+  height           Int?
+  durationMs       Int?
+  wasSuccessful    Boolean        @default(true)
+  errorMessage     String?        @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([adapterType, modelId, createdAt(sort: Desc)])
+  @@index([wasSuccessful, createdAt(sort: Desc)])
 }

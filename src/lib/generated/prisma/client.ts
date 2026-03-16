@@ -54,3 +54,13 @@ export type UserApiKey = Prisma.UserApiKeyModel
  * 
  */
 export type Generation = Prisma.GenerationModel
+/**
+ * Model GenerationJob
+ * 
+ */
+export type GenerationJob = Prisma.GenerationJobModel
+/**
+ * Model ApiUsageLedger
+ * 
+ */
+export type ApiUsageLedger = Prisma.ApiUsageLedgerModel

@@ -2,12 +2,15 @@
  * Application-wide configuration constants
  */
 
-/** Default credits for new users */
-export const DEFAULT_CREDITS = 10
-
 /** Limits for image generation */
 export const GENERATION_LIMITS = {
   PROMPT_MAX_LENGTH: 4000,
+} as const
+
+/** API usage tracking defaults */
+export const API_USAGE = {
+  DEFAULT_REQUESTS_PER_GENERATION: 1,
+  SUMMARY_LOOKBACK_DAYS: 30,
 } as const
 
 /** Supported image size configurations */
@@ -33,8 +36,8 @@ export const API_ENDPOINTS = {
   /** Image listing (public gallery) */
   IMAGES: '/api/images',
 
-  /** User credits */
-  CREDITS: '/api/credits',
+  /** User API usage summary */
+  USAGE_SUMMARY: '/api/usage-summary',
 
   /** Clerk webhook */
   CLERK_WEBHOOK: '/api/webhooks/clerk',

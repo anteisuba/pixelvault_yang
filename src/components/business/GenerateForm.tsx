@@ -14,16 +14,18 @@ import {
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { DEFAULT_ASPECT_RATIO, GENERATION_LIMITS } from '@/constants/config'
+import {
+  API_USAGE,
+  DEFAULT_ASPECT_RATIO,
+  GENERATION_LIMITS,
+} from '@/constants/config'
 import {
   AI_MODELS,
-  getModelById,
   getModelMessageKey,
   isBuiltInModel,
   MODEL_OPTIONS,
 } from '@/constants/models'
 import {
-  getAdapterDefaultCost,
   getDefaultProviderConfig,
   getProviderLabel,
 } from '@/constants/providers'
@@ -94,7 +96,7 @@ export function GenerateForm() {
     modelId: model.id,
     adapterType: model.adapterType,
     providerConfig: model.providerConfig,
-    cost: model.cost,
+    requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     isBuiltIn: true,
     sourceType: 'workspace',
   }))
@@ -103,8 +105,7 @@ export function GenerateForm() {
     modelId: key.modelId,
     adapterType: key.adapterType,
     providerConfig: key.providerConfig,
-    cost:
-      getModelById(key.modelId)?.cost ?? getAdapterDefaultCost(key.adapterType),
+    requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     isBuiltIn: isBuiltInModel(key.modelId),
     sourceType: 'saved',
     keyId: key.id,
@@ -181,16 +182,16 @@ export function GenerateForm() {
   const selectedRouteSourceLabel = t(`routeSources.${selectedModel.sourceType}`)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <section className="rounded-[1.75rem] border border-border/70 bg-card/95 p-5 shadow-sm sm:p-6">
+    <form onSubmit={handleSubmit} className="space-y-10">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
           <ModelSelector
             value={selectedModel.optionId}
             onChange={setSelectedOptionId}
             options={modelOptions}
           />
 
-          <div className="mt-5 rounded-[1.5rem] border border-border/70 bg-secondary/30 p-5">
+          <div className="mt-6 rounded-3xl border border-border/70 bg-background/50 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-2">
                 <p
@@ -204,36 +205,50 @@ export function GenerateForm() {
                   {t('selectedModelLabel')}
                 </p>
                 <div className="space-y-2">
-                  <h3 className="font-display text-xl font-semibold tracking-tight text-foreground">
+                  <h3 className="font-display text-xl font-medium tracking-tight text-foreground">
                     {selectedModelLabel}
                   </h3>
-                  <p className="text-sm leading-6 text-muted-foreground">
+                  <p className="font-serif text-sm leading-6 text-muted-foreground">
                     {selectedModelDescription}
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-border/70 bg-background/70 px-3 py-1"
+                >
                   {selectedRouteSourceLabel}
                 </Badge>
                 {!selectedModel.isBuiltIn ? (
-                  <Badge variant="outline" className="rounded-full px-3 py-1">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-border/70 bg-background/70 px-3 py-1"
+                  >
                     {t('customModelBadge')}
                   </Badge>
                 ) : null}
-                <Badge variant="outline" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-border/70 bg-background/70 px-3 py-1"
+                >
                   {t('providerLabel')}:{' '}
                   {getProviderLabel(selectedModel.providerConfig)}
                 </Badge>
-                <Badge variant="secondary" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full bg-primary/10 px-3 py-1 text-foreground"
+                >
                   {t('creditCostLabel')}:{' '}
-                  {tCommon('creditCount', { count: selectedModel.cost })}
+                  {tCommon('creditCount', {
+                    count: selectedModel.requestCount,
+                  })}
                 </Badge>
               </div>
             </div>
 
-            <div className="mt-4 space-y-4 rounded-[1.35rem] border border-border/70 bg-background/80 p-4">
+            <div className="mt-5 space-y-5 border-t border-border/65 pt-5">
               <div className="space-y-2">
                 <p
                   className={cn(
@@ -248,10 +263,10 @@ export function GenerateForm() {
                 {selectedModel.sourceType === 'saved' ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <KeyRound className="size-4 text-emerald-600" />
+                      <KeyRound className="size-4 text-primary" />
                       {t('keyStatusSavedRouteTitle')}
                     </div>
-                    <p className="text-sm leading-6 text-muted-foreground">
+                    <p className="font-serif text-sm leading-6 text-muted-foreground">
                       {t('keyStatusSavedRouteDescription', {
                         label: selectedModel.keyLabel ?? '',
                         maskedKey: selectedModel.maskedKey ?? '****',
@@ -261,10 +276,10 @@ export function GenerateForm() {
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Sparkles className="size-4 text-chart-1" />
+                      <Sparkles className="size-4 text-primary" />
                       {t('keyStatusFallbackTitle')}
                     </div>
-                    <p className="text-sm leading-6 text-muted-foreground">
+                    <p className="font-serif text-sm leading-6 text-muted-foreground">
                       {t('keyStatusFallbackDescription', {
                         provider: getProviderLabel(
                           selectedModel.providerConfig,
@@ -276,7 +291,7 @@ export function GenerateForm() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="space-y-2 rounded-[1.15rem] border border-border/70 bg-secondary/25 px-3 py-3">
+                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -292,7 +307,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-[1.15rem] border border-border/70 bg-secondary/25 px-3 py-3">
+                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -308,7 +323,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-[1.15rem] border border-border/70 bg-secondary/25 px-3 py-3 sm:col-span-2">
+                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -324,7 +339,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-[1.15rem] border border-border/70 bg-secondary/25 px-3 py-3 sm:col-span-2 xl:col-span-4">
+                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2 xl:col-span-4">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -344,7 +359,7 @@ export function GenerateForm() {
           </div>
         </section>
 
-        <section className="rounded-[1.75rem] border border-border/70 bg-card/95 p-5 shadow-sm sm:p-6">
+        <section className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <label
@@ -353,7 +368,7 @@ export function GenerateForm() {
               >
                 {t('promptLabel')}
               </label>
-              <p className="text-sm leading-6 text-muted-foreground">
+              <p className="font-serif text-sm leading-6 text-muted-foreground">
                 {t('promptHint')}
               </p>
             </div>
@@ -374,11 +389,11 @@ export function GenerateForm() {
               rows={8}
               maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
               disabled={isGenerating}
-              className="min-h-48 resize-none rounded-[1.5rem] border-border/70 bg-background/80 px-4 py-3"
+              className="min-h-48 resize-none rounded-3xl border-border/75 bg-background/72 px-4 py-3 font-serif"
             />
           </div>
 
-          <div className="mt-5 rounded-[1.5rem] border border-border/70 bg-secondary/25 p-4">
+          <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
             <button
               type="button"
               onClick={() => setShowReferencePanel((value) => !value)}
@@ -388,7 +403,7 @@ export function GenerateForm() {
                 <p className="text-sm font-semibold text-foreground">
                   {t('referenceTitle')}
                 </p>
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="font-serif text-sm leading-6 text-muted-foreground">
                   {referenceImage
                     ? t('referenceSelectedDescription')
                     : t('referenceIdleDescription')}
@@ -411,7 +426,7 @@ export function GenerateForm() {
             {showReferencePanel ? (
               <div className="mt-4 border-t border-border/70 pt-4">
                 {referenceImage ? (
-                  <div className="relative inline-flex overflow-hidden rounded-[1.25rem] border border-border/70 bg-background">
+                  <div className="relative inline-flex overflow-hidden rounded-2xl border border-border/75 bg-background">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={referenceImage}
@@ -421,7 +436,7 @@ export function GenerateForm() {
                     <button
                       type="button"
                       onClick={() => setReferenceImage(undefined)}
-                      className="absolute right-3 top-3 rounded-full border border-border/70 bg-background/90 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
+                      className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
                       aria-label={t('referenceRemoveLabel')}
                     >
                       <X className="size-3.5" />
@@ -444,17 +459,17 @@ export function GenerateForm() {
                       }
                     }}
                     className={cn(
-                      'flex cursor-pointer flex-col items-center gap-2 rounded-[1.35rem] border-2 border-dashed px-6 py-10 text-center transition-colors',
+                      'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
                       isDragging
                         ? 'border-primary/60 bg-primary/5'
-                        : 'border-border/80 bg-background/70 hover:border-primary/40 hover:bg-secondary/25',
+                        : 'border-border/80 bg-background/72 hover:border-primary/40 hover:bg-secondary/18',
                     )}
                   >
                     <Upload className="size-5 text-muted-foreground" />
                     <p className="text-sm font-medium text-foreground">
                       {t('referenceUploadAction')}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-serif text-xs text-muted-foreground">
                       {t('referenceUploadFormats')}
                     </p>
                   </div>
@@ -475,7 +490,7 @@ export function GenerateForm() {
         </section>
       </div>
 
-      <section className="rounded-[1.75rem] border border-border/70 bg-secondary/25 p-5 sm:p-6">
+      <section className="rounded-3xl border border-border/75 bg-primary/6 p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p
@@ -488,7 +503,7 @@ export function GenerateForm() {
             >
               {t('ctaSectionLabel')}
             </p>
-            <p className="max-w-2xl text-sm leading-6 text-foreground">
+            <p className="max-w-2xl font-serif text-sm leading-6 text-foreground">
               {t('ctaSectionDescription')}
             </p>
           </div>
@@ -515,7 +530,7 @@ export function GenerateForm() {
       </section>
 
       {error ? (
-        <div className="flex items-start gap-3 rounded-[1.5rem] border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="flex items-start gap-3 rounded-3xl border border-destructive/35 bg-destructive/8 p-4 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <div className="space-y-1">
             <p className="font-medium">{t('errorTitle')}</p>
@@ -542,7 +557,7 @@ export function GenerateForm() {
         </div>
 
         {generatedGeneration ? (
-          <div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-sm animate-in fade-in-0 zoom-in-95 duration-500">
+          <div className="animate-in fade-in-0 zoom-in-95 overflow-hidden rounded-3xl border border-border/75 bg-card/86 duration-500">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={generatedGeneration.url}
@@ -550,7 +565,7 @@ export function GenerateForm() {
               className="h-auto w-full object-cover"
             />
 
-            <div className="space-y-4 border-t border-border/70 p-5 sm:p-6">
+            <div className="space-y-4 border-t border-border/75 p-5 sm:p-6">
               <div className="space-y-2">
                 <p
                   className={cn(
@@ -562,42 +577,51 @@ export function GenerateForm() {
                 >
                   {t('resultPromptLabel')}
                 </p>
-                <p className="text-sm leading-6 text-foreground">
+                <p className="font-serif text-sm leading-6 text-foreground">
                   {generatedGeneration.prompt}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-border/75 bg-background/72 px-3 py-1"
+                >
                   {t('resultModelLabel')}: {generatedModelLabel}
                 </Badge>
-                <Badge variant="outline" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-border/75 bg-background/72 px-3 py-1"
+                >
                   {t('resultProviderLabel')}: {generatedGeneration.provider}
                 </Badge>
-                <Badge variant="secondary" className="rounded-full px-3 py-1">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full bg-primary/10 px-3 py-1 text-foreground"
+                >
                   {t('resultCreditLabel')}:{' '}
                   {tCommon('creditCount', {
-                    count: generatedGeneration.creditsCost,
+                    count: generatedGeneration.requestCount,
                   })}
                 </Badge>
               </div>
 
-              <p className="text-sm text-muted-foreground">
+              <p className="font-serif text-sm text-muted-foreground">
                 {t('resultStorageNote')}
               </p>
             </div>
           </div>
         ) : (
-          <div className="rounded-[1.75rem] border border-dashed border-border/80 bg-card/70 p-6">
+          <div className="rounded-3xl border border-dashed border-border/75 bg-card/72 p-6">
             <div className="flex items-start gap-4">
-              <span className="rounded-[1.15rem] bg-secondary p-3 text-foreground">
+              <span className="rounded-2xl bg-primary/10 p-3 text-foreground">
                 <ImageIcon className="size-5" />
               </span>
               <div className="space-y-1">
-                <h3 className="font-display text-lg font-semibold text-foreground">
+                <h3 className="font-display text-lg font-medium text-foreground">
                   {t('resultEmptyTitle')}
                 </h3>
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="font-serif text-sm leading-6 text-muted-foreground">
                   {t('resultEmptyDescription')}
                 </p>
               </div>

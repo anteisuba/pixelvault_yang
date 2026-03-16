@@ -24,11 +24,11 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
     <nav
       aria-label={t('label')}
       className={cn(
-        'flex items-center gap-1 rounded-full border bg-background/80 p-1 shadow-xs backdrop-blur-sm',
+        'flex items-center gap-1 rounded-full border border-border/80 bg-background/84 px-1.5 py-1',
         className,
       )}
     >
-      <span className="hidden px-2 text-xs font-medium text-muted-foreground md:inline">
+      <span className="hidden px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:inline">
         {t('label')}
       </span>
 
@@ -44,10 +44,10 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+              'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
               isActive
                 ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
             )}
           >
             {t(`options.${option}`)}

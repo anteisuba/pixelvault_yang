@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count, plural, one {# credit} other {# credits}}"
+    "creditCount": "{count, plural, one {# request} other {# requests}}"
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
@@ -9,7 +9,12 @@
   },
   "Navbar": {
     "creditsLoading": "...",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "links": {
+      "gallery": "Gallery",
+      "studio": "Studio",
+      "library": "Archive"
+    }
   },
   "LocaleSwitcher": {
     "label": "Language",
@@ -26,93 +31,93 @@
   },
   "Homepage": {
     "brandLabel": "Personal AI Gallery",
-    "brandSubline": "A personal archive for the images you want to revisit.",
+    "brandSubline": "A quieter place to make and keep AI images.",
     "navigationLabel": "Homepage",
     "navigation": {
       "workflow": "Workflow",
       "models": "Models"
     },
-    "heroEyebrow": "Permanent AI archive",
-    "heroTitle": "Make images worth keeping.",
-    "heroDescription": "Generate with multiple image engines, save the winners, and return to a gallery that remembers how you like to create.",
+    "heroEyebrow": "Personal AI archive",
+    "heroTitle": "Make deliberately. Keep everything.",
+    "heroDescription": "Generate across leading image models, keep the strong results, and return to a library that preserves the prompt and route behind each image.",
     "actions": {
-      "signedOutPrimary": "Create your vault",
-      "signedInPrimary": "Open the studio",
+      "signedOutPrimary": "Start your archive",
+      "signedInPrimary": "Open studio",
       "signedOutUtility": "Sign in",
-      "signedInUtility": "Continue",
-      "sharedSecondary": "See the model lineup",
-      "signInPrimary": "Need an account?",
-      "signUpPrimary": "Already registered?",
-      "authSecondary": "Back to home"
+      "signedInUtility": "Go to studio",
+      "sharedSecondary": "See models",
+      "signInPrimary": "Create an account",
+      "signUpPrimary": "Already have an account?",
+      "authSecondary": "Back home"
     },
     "auth": {
-      "note": "Accounts keep your credits, private prompts, and archived generations in sync across sessions.",
+      "note": "Your account keeps saved routes, private prompts, and archived generations together across sessions.",
       "signIn": {
         "eyebrow": "Welcome back",
-        "title": "Return to your private gallery.",
-        "description": "Sign in to continue generating, reviewing archived results, and tracking credits without losing your creative trail."
+        "title": "Return to your archive.",
+        "description": "Sign in to continue generating, review saved work, and keep your usage history intact."
       },
       "signUp": {
-        "eyebrow": "Start your collection",
-        "title": "Open a vault for your best prompts.",
-        "description": "Create an account to generate with multiple AI models, archive every keeper, and build a gallery that grows with your taste."
+        "eyebrow": "Start your archive",
+        "title": "Begin a calmer image workflow.",
+        "description": "Create an account to generate with multiple models, save each keeper, and build a record you can return to later."
       }
     },
     "stage": {
       "label": "Gallery preview",
-      "value": "Creative direction without guesswork",
+      "value": "A cleaner record of how you create",
       "savedLabel": "Saved to vault"
     },
     "signals": {
       "modelCoverageLabel": "Model coverage",
       "modelCoverageValue": "{modelCount} image models across {providerCount, plural, one {# provider} other {# providers}}",
-      "creditLabel": "Credit clarity",
-      "creditValue": "Generation starts at {creditCount} per image",
-      "archiveLabel": "Archive behavior",
-      "archiveValue": "Prompts, outputs, and model choices stay together"
+      "creditLabel": "Per run",
+      "creditValue": "Each generation is recorded as {creditCount}",
+      "archiveLabel": "What stays saved",
+      "archiveValue": "Prompt, model, provider, and output stay together"
     },
     "features": {
-      "eyebrow": "Creative advantages",
-      "title": "Start with the studio. Stay for the archive.",
-      "description": "The first visit now makes the value proposition legible: flexible image engines, durable storage, and clear credit behavior.",
+      "eyebrow": "Why it feels calmer",
+      "title": "A quieter workflow for making images.",
+      "description": "PixelVault keeps the studio focused and the archive readable, so the interface does not compete with the work.",
       "items": {
         "chooseEngine": {
-          "title": "Choose the right engine",
-          "description": "Move between realism, anime styling, OpenAI image generation, and Gemini-native experimentation from the same studio."
+          "title": "Switch models without switching tools",
+          "description": "Move between realism, anime styling, OpenAI image generation, and Gemini exploration from one studio."
         },
         "keepEveryKeeper": {
-          "title": "Keep every keeper",
-          "description": "Strong results do not disappear after one session. They land in a gallery you can revisit later."
+          "title": "Keep the work worth revisiting",
+          "description": "Good results do not disappear after one session. They stay in an archive you can return to later."
         },
         "spendCredits": {
-          "title": "Spend credits with clarity",
-          "description": "Model costs stay visible up front so experimentation feels informed instead of uncertain."
+          "title": "See what each run costs",
+          "description": "Each generation keeps its provider and model context, so usage stays understandable instead of vague."
         }
       }
     },
     "workflow": {
       "eyebrow": "From prompt to archive",
-      "title": "A creative flow that stays legible.",
-      "description": "The entry experience now explains what you can make, how the archive behaves, and why the model choice matters before it asks for commitment.",
+      "title": "From prompt to archive, without clutter.",
+      "description": "Pick a model, write with intent, and keep the result with the context that produced it.",
       "items": {
         "frameIdea": {
           "title": "Frame the idea",
-          "description": "Start with a prompt and choose the model that matches the mood you want before you spend a credit."
+          "description": "Start with the prompt and choose the model that fits the image you want to make."
         },
         "generateWithIntent": {
           "title": "Generate with intent",
-          "description": "Compare photoreal, anime, OpenAI, and Gemini-driven outputs without leaving the same creative surface."
+          "description": "Compare photoreal, anime, OpenAI, and Gemini outputs without leaving the same workspace."
         },
         "archiveWinners": {
           "title": "Archive the winners",
-          "description": "Keep the prompt, model choice, and final image together so future sessions start from context."
+          "description": "Keep the prompt, route, and final image together so the next session starts with context."
         }
       }
     },
     "models": {
       "eyebrow": "Model lineup",
-      "title": "Image engines, one vault.",
-      "description": "Switch between realism, anime stylization, OpenAI image generation, and fast Gemini exploration without changing tools or losing context."
+      "title": "Four image models. One calm workspace.",
+      "description": "Switch between realism, anime stylization, OpenAI image generation, and fast Gemini exploration without changing tools."
     },
     "scenes": {
       "items": {
@@ -131,31 +136,88 @@
       }
     },
     "footer": {
-      "eyebrow": "Built for revisitability",
-      "title": "The image is the output. The archive is the advantage.",
-      "description": "PixelVault keeps the prompt, model choice, and result together so the next idea starts with context instead of guesswork."
+      "eyebrow": "Built to be revisited",
+      "title": "The image is only part of the work.",
+      "description": "PixelVault keeps the surrounding context intact, so the next idea starts from memory instead of guesswork."
     }
   },
   "StudioPage": {
     "heroEyebrow": "Studio",
-    "heroTitle": "Generate your next image",
-    "heroDescription": "Pick a model, write a prompt, and create in one focused workspace.",
+    "heroTitle": "A quieter studio for focused generation",
+    "heroDescription": "Choose a route, write the prompt, and review the latest result in one workspace.",
     "workspaceLabel": "Studio workspace",
-    "workspaceTitle": "Prompt and generate",
-    "workspaceDescription": "The generation flow is unchanged, with clearer structure around model choice, prompt writing, and results.",
+    "workspaceTitle": "Write once, generate with context",
+    "workspaceDescription": "Route details, prompt writing, reference input, and results now share the same calmer structure.",
     "metrics": {
-      "modelCoverageLabel": "Model coverage",
+      "modelCoverageLabel": "Available models",
       "modelCoverageValue": "{modelCount} available models across {providerCount, plural, one {# provider} other {# providers}}",
-      "startingCostLabel": "Starting cost",
-      "startingCostValue": "Generation starts at {creditCount} per image",
-      "archiveBehaviorLabel": "Archive behavior",
-      "archiveBehaviorValue": "Each result keeps the prompt and model details together."
+      "startingCostLabel": "Per run",
+      "startingCostValue": "Each generation is recorded as {creditCount}",
+      "archiveBehaviorLabel": "Archive default",
+      "archiveBehaviorValue": "Every result stays tied to its prompt and route details."
     }
+  },
+  "GalleryPage": {
+    "heroEyebrow": "Public gallery",
+    "heroTitle": "A public record, not just a wall of images.",
+    "heroDescription": "Every public generation keeps its prompt, model, and provider context attached, so the gallery reads like an archive instead of a loose feed.",
+    "actions": {
+      "primarySignedIn": "Open studio",
+      "primarySignedOut": "Sign in to create",
+      "secondarySignedIn": "Open my archive",
+      "secondarySignedOut": "Back home"
+    },
+    "metrics": {
+      "archiveSizeLabel": "Public archive",
+      "archiveSizeValue": "{count, plural, =0 {No public images yet} one {# public image} other {# public images}}",
+      "modelCoverageLabel": "Current coverage",
+      "modelCoverageValue": "{count, plural, one {# built-in image model} other {# built-in image models}}",
+      "curationLabel": "Reading order",
+      "curationValue": "Newest images come first, with full context one click away."
+    },
+    "feedEyebrow": "Open archive",
+    "feedTitle": "Recent public generations",
+    "feedDescription": "Browse recent outputs from across the archive, then load more when you want to go deeper.",
+    "feedCount": "Showing {shown} of {total}",
+    "emptyTitle": "The public archive is still quiet",
+    "emptyDescription": "Public generations will appear here once creators begin sharing work from the studio.",
+    "emptyAction": "Open studio",
+    "loadMore": "Load more images",
+    "loadingMore": "Loading more images...",
+    "endOfArchive": "That is the current end of the public archive."
+  },
+  "LibraryPage": {
+    "heroEyebrow": "My archive",
+    "heroTitle": "Your recent work, kept in one archive.",
+    "heroDescription": "Recent outputs, visibility state, and cumulative API usage live together here so the next session starts with context.",
+    "actions": {
+      "primary": "Make a new image",
+      "secondary": "Browse public gallery"
+    },
+    "metrics": {
+      "totalWorksLabel": "Total works",
+      "totalWorksValue": "{count, plural, =0 {No saved images yet} one {# saved image} other {# saved images}}",
+      "publicWorksLabel": "Public works",
+      "publicWorksValue": "{count, plural, =0 {No public images} one {# public image} other {# public images}}",
+      "privateWorksLabel": "Private works",
+      "privateWorksValue": "{count, plural, =0 {No private images} one {# private image} other {# private images}}",
+      "creditsLabel": "API requests"
+    },
+    "collectionEyebrow": "Recent archive",
+    "collectionTitle": "Latest saved images",
+    "collectionDescription": "This view shows the newest images in your archive, including whether each one is currently public.",
+    "collectionCount": "Showing {shown} of {total}",
+    "emptyTitle": "No saved generations yet",
+    "emptyDescription": "Run your first image in Studio and it will appear here with its prompt and route details.",
+    "emptyAction": "Go to studio",
+    "syncPendingTitle": "Your archive is still syncing",
+    "syncPendingDescription": "We could not find an archive profile for this account yet. Return to the studio and refresh after Clerk sync completes.",
+    "syncPendingAction": "Return to studio"
   },
   "StudioForm": {
     "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
-    "creditCostLabel": "Credit cost",
+    "creditCostLabel": "Per run",
     "keyStatusLabel": "Route status",
     "keyStatusSavedRouteTitle": "Using this saved route",
     "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
@@ -172,11 +234,11 @@
     "modelCustomDescription": "Custom {provider} model routed through your saved provider route.",
     "customModelBadge": "Custom model",
     "promptLabel": "Prompt",
-    "promptHint": "Be specific about subject, setting, lighting, composition, or style.",
+    "promptHint": "Describe the subject, setting, light, composition, or style as clearly as you can.",
     "promptPlaceholder": "Describe the image you want to generate...",
     "promptCounter": "{current} / {max} characters",
     "referenceTitle": "Reference image",
-    "referenceSelectedDescription": "Image selected. The next run will use img2img guidance.",
+    "referenceSelectedDescription": "Image selected. The next run will use it as reference guidance.",
     "referenceIdleDescription": "Optional. Upload a reference image when you want the generation to follow an existing composition or mood.",
     "referenceBadge": "img2img",
     "referencePreviewAlt": "Reference image preview",
@@ -184,24 +246,24 @@
     "referenceUploadAction": "Drag and drop or click to upload",
     "referenceUploadFormats": "PNG, JPG, and WebP",
     "ctaSectionLabel": "Ready to generate",
-    "ctaSectionDescription": "Review the selected model and prompt, then generate when you are ready.",
+    "ctaSectionDescription": "Check the route and prompt, then generate when you are ready.",
     "ctaLabel": "Generate image",
     "ctaLoadingLabel": "Generating...",
     "errorTitle": "Generation error",
     "errorFallback": "Image generation failed",
     "errorUnexpected": "An unexpected error occurred",
     "resultLabel": "Latest result",
-    "resultDescription": "The newest generated image appears here.",
+    "resultDescription": "The newest image from this workspace appears here.",
     "resultEmptyTitle": "No generation yet",
     "resultEmptyDescription": "Run the form to preview the newest image in this workspace.",
     "resultPromptLabel": "Prompt",
     "resultModelLabel": "Model",
     "resultProviderLabel": "Provider",
-    "resultCreditLabel": "Credits used",
-    "resultStorageNote": "Saved with its prompt and model details.",
+    "resultCreditLabel": "Requests logged",
+    "resultStorageNote": "Stored with its prompt and route context.",
     "modelSelector": {
       "label": "AI model",
-      "hint": "Choose a workspace model or one of your enabled saved routes.",
+      "hint": "Choose a built-in model or one of your active saved routes.",
       "placeholder": "Select a model",
       "customBadge": "Custom",
       "savedRouteBadge": "Saved route",
@@ -304,6 +366,16 @@
         }
       }
     }
+  },
+  "GalleryCard": {
+    "openImage": "Open image in a new tab",
+    "openLabel": "Open",
+    "modelLabel": "Model",
+    "providerLabel": "Provider",
+    "requestsLabel": "Requests",
+    "visibilityLabel": "Visibility",
+    "publicLabel": "Public",
+    "privateLabel": "Private"
   },
   "Models": {
     "sdxl": {

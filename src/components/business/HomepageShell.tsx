@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Archive, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { API_USAGE } from '@/constants/config'
 import {
   HOMEPAGE_FEATURES,
   HOMEPAGE_NAVIGATION,
@@ -35,11 +36,6 @@ const sceneToneClasses: Record<HomepageSceneTone, string> = {
   ink: styles.sceneInk,
 }
 
-const startingCreditCost = MODEL_OPTIONS.reduce(
-  (lowestCost, model) => Math.min(lowestCost, model.cost),
-  MODEL_OPTIONS[0]?.cost ?? 0,
-)
-
 const providerCount = new Set(MODEL_OPTIONS.map((model) => model.adapterType))
   .size
 
@@ -68,10 +64,11 @@ export function HomepageShell({
   utilityActionLabel,
   authPanel,
 }: HomepageShellProps) {
-  const heroClassName = authPanel
+  const isAuthMode = Boolean(authPanel)
+  const heroClassName = isAuthMode
     ? `${styles.hero} ${styles.heroAuth}`
     : styles.hero
-  const stageContentClassName = authPanel
+  const stageContentClassName = isAuthMode
     ? `${styles.stageContent} ${styles.stageContentAuth}`
     : styles.stageContent
   const locale = useLocale()
@@ -139,7 +136,7 @@ export function HomepageShell({
                 <Button asChild size="lg" className={styles.primaryButton}>
                   <Link href={primaryActionHref}>
                     {primaryActionLabel}
-                    <ArrowRight className="size-4" />
+                    {!isAuthMode ? <ArrowRight className="size-4" /> : null}
                   </Link>
                 </Button>
 
@@ -182,7 +179,7 @@ export function HomepageShell({
                   <span className={styles.signalValue}>
                     {t('signals.creditValue', {
                       creditCount: tCommon('creditCount', {
-                        count: startingCreditCost,
+                        count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
                       }),
                     })}
                   </span>
@@ -245,7 +242,7 @@ export function HomepageShell({
                     ))}
                   </div>
 
-                  {authPanel ? (
+                  {isAuthMode ? (
                     <aside className={styles.authPanel}>
                       {authPanel}
                       <p className={styles.authNote}>{t('auth.note')}</p>
@@ -295,109 +292,115 @@ export function HomepageShell({
             </div>
           </section>
 
-          <section id="workflow" className={styles.section}>
-            <div className={styles.sectionIntro}>
-              <p
-                className={cn(
-                  styles.sectionLabel,
-                  isDenseLocale && styles.denseCopy,
-                )}
-              >
-                {t('workflow.eyebrow')}
-              </p>
-              <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
-              <p className={styles.sectionDescription}>
-                {t('workflow.description')}
-              </p>
-            </div>
-
-            <div className={styles.workflowGrid}>
-              {HOMEPAGE_WORKFLOW.map((item) => (
-                <article key={item.step} className={styles.workflowItem}>
-                  <span
+          {!isAuthMode ? (
+            <>
+              <section id="workflow" className={styles.section}>
+                <div className={styles.sectionIntro}>
+                  <p
                     className={cn(
-                      styles.workflowStep,
+                      styles.sectionLabel,
                       isDenseLocale && styles.denseCopy,
                     )}
                   >
-                    {item.step}
-                  </span>
-                  <h3 className={styles.workflowTitle}>
-                    {t(`workflow.items.${item.id}.title`)}
-                  </h3>
-                  <p className={styles.workflowDescription}>
-                    {t(`workflow.items.${item.id}.description`)}
+                    {t('workflow.eyebrow')}
                   </p>
-                </article>
-              ))}
-            </div>
-          </section>
+                  <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
+                  <p className={styles.sectionDescription}>
+                    {t('workflow.description')}
+                  </p>
+                </div>
 
-          <section id="models" className={styles.section}>
-            <div className={styles.sectionIntro}>
-              <p
-                className={cn(
-                  styles.sectionLabel,
-                  isDenseLocale && styles.denseCopy,
-                )}
-              >
-                {t('models.eyebrow')}
-              </p>
-              <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
-              <p className={styles.sectionDescription}>
-                {t('models.description')}
-              </p>
-            </div>
-
-            <div className={styles.modelRail}>
-              {MODEL_OPTIONS.map((model) => (
-                <article key={model.id} className={styles.modelCard}>
-                  <div>
-                    <div className={styles.modelMeta}>
+                <div className={styles.workflowGrid}>
+                  {HOMEPAGE_WORKFLOW.map((item) => (
+                    <article key={item.step} className={styles.workflowItem}>
                       <span
                         className={cn(
-                          styles.providerTag,
+                          styles.workflowStep,
                           isDenseLocale && styles.denseCopy,
                         )}
                       >
-                        {getProviderLabel(model.providerConfig)}
+                        {item.step}
                       </span>
-                      <span
-                        className={cn(
-                          styles.costTag,
-                          isDenseLocale && styles.denseCopy,
-                        )}
-                      >
-                        {tCommon('creditCount', { count: model.cost })}
-                      </span>
-                    </div>
-                    <h3 className={styles.modelTitle}>
-                      {tModels(`${getModelMessageKey(model.id)}.label`)}
-                    </h3>
-                  </div>
+                      <h3 className={styles.workflowTitle}>
+                        {t(`workflow.items.${item.id}.title`)}
+                      </h3>
+                      <p className={styles.workflowDescription}>
+                        {t(`workflow.items.${item.id}.description`)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
 
-                  <p className={styles.modelDescription}>
-                    {tModels(`${getModelMessageKey(model.id)}.description`)}
+              <section id="models" className={styles.section}>
+                <div className={styles.sectionIntro}>
+                  <p
+                    className={cn(
+                      styles.sectionLabel,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {t('models.eyebrow')}
                   </p>
-                </article>
-              ))}
-            </div>
-          </section>
+                  <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
+                  <p className={styles.sectionDescription}>
+                    {t('models.description')}
+                  </p>
+                </div>
 
-          <section className={styles.footerBand}>
-            <p
-              className={cn(
-                styles.sectionLabel,
-                isDenseLocale && styles.denseCopy,
-              )}
-            >
-              {t('footer.eyebrow')}
-            </p>
-            <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
-            <p className={styles.footerDescription}>
-              {t('footer.description')}
-            </p>
-          </section>
+                <div className={styles.modelRail}>
+                  {MODEL_OPTIONS.map((model) => (
+                    <article key={model.id} className={styles.modelCard}>
+                      <div>
+                        <div className={styles.modelMeta}>
+                          <span
+                            className={cn(
+                              styles.providerTag,
+                              isDenseLocale && styles.denseCopy,
+                            )}
+                          >
+                            {getProviderLabel(model.providerConfig)}
+                          </span>
+                          <span
+                            className={cn(
+                              styles.costTag,
+                              isDenseLocale && styles.denseCopy,
+                            )}
+                          >
+                            {tCommon('creditCount', {
+                              count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                            })}
+                          </span>
+                        </div>
+                        <h3 className={styles.modelTitle}>
+                          {tModels(`${getModelMessageKey(model.id)}.label`)}
+                        </h3>
+                      </div>
+
+                      <p className={styles.modelDescription}>
+                        {tModels(`${getModelMessageKey(model.id)}.description`)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className={styles.footerBand}>
+                <p
+                  className={cn(
+                    styles.sectionLabel,
+                    isDenseLocale && styles.denseCopy,
+                  )}
+                >
+                  {t('footer.eyebrow')}
+                </p>
+                <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
+                <p className={styles.footerDescription}>
+                  {t('footer.description')}
+                </p>
+              </section>
+            </>
+          ) : null}
         </main>
       </div>
     </div>

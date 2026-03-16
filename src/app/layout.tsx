@@ -6,10 +6,13 @@ import { HOMEPAGE_METADATA } from '@/constants/homepage'
 import { ROUTES } from '@/constants/routes'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
 import {
+  appDisplay,
+  appSerif,
+  appSans,
   chineseDisplay,
   chineseSans,
   geistMono,
-  geistSans,
+  japaneseDisplay,
   japaneseSans,
 } from '@/i18n/fonts'
 import { getPathname } from '@/i18n/navigation'
@@ -31,7 +34,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} ${chineseDisplay.variable} font-sans antialiased`}
+        className={`${appSans.variable} ${appDisplay.variable} ${appSerif.variable} ${geistMono.variable} ${japaneseSans.variable} ${japaneseDisplay.variable} ${chineseSans.variable} ${chineseDisplay.variable} font-sans antialiased`}
       >
         <ClerkProvider
           localization={CLERK_LOCALIZATIONS[locale] ?? CLERK_LOCALIZATIONS.en}

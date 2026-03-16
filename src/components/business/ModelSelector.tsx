@@ -3,6 +3,7 @@
 import { KeyRound, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { API_USAGE } from '@/constants/config'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import {
   getProviderLabel,
@@ -26,7 +27,7 @@ export interface StudioModelOption {
   modelId: string
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
-  cost: number
+  requestCount: number
   isBuiltIn: boolean
   sourceType: 'workspace' | 'saved'
   keyId?: string
@@ -66,16 +67,18 @@ export function ModelSelector({
   const selectedOption = options.find((option) => option.optionId === value)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="space-y-1">
         <label className="text-sm font-semibold text-foreground">
           {t('label')}
         </label>
-        <p className="text-sm leading-6 text-muted-foreground">{t('hint')}</p>
+        <p className="font-serif text-sm leading-6 text-muted-foreground">
+          {t('hint')}
+        </p>
       </div>
 
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-16 w-full rounded-2xl border-border/70 bg-background/80 px-4 text-left">
+        <SelectTrigger className="h-16 w-full rounded-3xl border-border/75 bg-background/72 px-4 text-left shadow-none">
           <SelectValue
             placeholder={t('placeholder')}
             aria-label={selectedOption?.modelId ?? t('placeholder')}
@@ -86,7 +89,7 @@ export function ModelSelector({
                   <p className="truncate text-sm font-medium text-foreground">
                     {getModelLabel(selectedOption, tModels)}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate font-serif text-xs text-muted-foreground">
                     {getProviderLabel(selectedOption.providerConfig)} ·{' '}
                     {t(`routeSources.${selectedOption.sourceType}`)}
                   </p>
@@ -112,7 +115,7 @@ export function ModelSelector({
                   {!selectedOption.isBuiltIn ? (
                     <Badge
                       variant="outline"
-                      className="rounded-full px-2 py-0 text-[11px]"
+                      className="rounded-full px-2 py-0 text-[11px] text-muted-foreground"
                     >
                       {t('customBadge')}
                     </Badge>
@@ -122,18 +125,18 @@ export function ModelSelector({
             ) : null}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-3xl border-border/80 bg-card/98 p-1">
           {options.map((option) => {
             const isBuiltIn = isBuiltInModel(option.modelId)
 
             return (
               <SelectItem key={option.optionId} value={option.optionId}>
-                <div className="flex w-full items-start justify-between gap-3 py-1 pr-4">
+                <div className="flex w-full items-start justify-between gap-3 py-2 pr-4">
                   <div className="min-w-0 space-y-1">
                     <span className="block truncate font-medium text-foreground">
                       {getModelLabel(option, tModels)}
                     </span>
-                    <span className="block text-xs leading-5 text-muted-foreground">
+                    <span className="block font-serif text-xs leading-5 text-muted-foreground">
                       {isBuiltIn
                         ? tModels(
                             `${getOptionMessageId(option.modelId)}.description`,
@@ -149,7 +152,11 @@ export function ModelSelector({
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                     <span className="text-xs font-medium text-foreground">
-                      {tCommon('creditCount', { count: option.cost })}
+                      {tCommon('creditCount', {
+                        count:
+                          option.requestCount ??
+                          API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                      })}
                     </span>
                     <div className="flex flex-wrap items-center justify-end gap-1">
                       <Badge
@@ -176,7 +183,7 @@ export function ModelSelector({
                         <Badge
                           variant="outline"
                           className={cn(
-                            'rounded-full px-2 py-0 text-[11px]',
+                            'rounded-full px-2 py-0 text-[11px] text-muted-foreground',
                             isDenseLocale && 'tracking-normal normal-case',
                           )}
                         >

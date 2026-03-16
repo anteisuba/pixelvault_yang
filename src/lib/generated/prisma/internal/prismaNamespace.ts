@@ -386,7 +386,9 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   UserApiKey: 'UserApiKey',
-  Generation: 'Generation'
+  Generation: 'Generation',
+  GenerationJob: 'GenerationJob',
+  ApiUsageLedger: 'ApiUsageLedger'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -402,7 +404,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userApiKey" | "generation"
+    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -628,6 +630,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GenerationJob: {
+      payload: Prisma.$GenerationJobPayload<ExtArgs>
+      fields: Prisma.GenerationJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GenerationJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GenerationJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        findFirst: {
+          args: Prisma.GenerationJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GenerationJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        findMany: {
+          args: Prisma.GenerationJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>[]
+        }
+        create: {
+          args: Prisma.GenerationJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        createMany: {
+          args: Prisma.GenerationJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GenerationJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>[]
+        }
+        delete: {
+          args: Prisma.GenerationJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        update: {
+          args: Prisma.GenerationJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.GenerationJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GenerationJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GenerationJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.GenerationJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationJobPayload>
+        }
+        aggregate: {
+          args: Prisma.GenerationJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGenerationJob>
+        }
+        groupBy: {
+          args: Prisma.GenerationJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GenerationJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationJobCountAggregateOutputType> | number
+        }
+      }
+    }
+    ApiUsageLedger: {
+      payload: Prisma.$ApiUsageLedgerPayload<ExtArgs>
+      fields: Prisma.ApiUsageLedgerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ApiUsageLedgerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ApiUsageLedgerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        findFirst: {
+          args: Prisma.ApiUsageLedgerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ApiUsageLedgerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        findMany: {
+          args: Prisma.ApiUsageLedgerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>[]
+        }
+        create: {
+          args: Prisma.ApiUsageLedgerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        createMany: {
+          args: Prisma.ApiUsageLedgerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ApiUsageLedgerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>[]
+        }
+        delete: {
+          args: Prisma.ApiUsageLedgerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        update: {
+          args: Prisma.ApiUsageLedgerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        deleteMany: {
+          args: Prisma.ApiUsageLedgerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ApiUsageLedgerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ApiUsageLedgerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>[]
+        }
+        upsert: {
+          args: Prisma.ApiUsageLedgerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ApiUsageLedgerPayload>
+        }
+        aggregate: {
+          args: Prisma.ApiUsageLedgerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateApiUsageLedger>
+        }
+        groupBy: {
+          args: Prisma.ApiUsageLedgerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ApiUsageLedgerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ApiUsageLedgerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ApiUsageLedgerCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -671,7 +821,6 @@ export const UserScalarFieldEnum = {
   id: 'id',
   clerkId: 'clerkId',
   email: 'email',
-  credits: 'credits',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -710,12 +859,53 @@ export const GenerationScalarFieldEnum = {
   negativePrompt: 'negativePrompt',
   model: 'model',
   provider: 'provider',
-  creditsCost: 'creditsCost',
+  requestCount: 'requestCount',
   isPublic: 'isPublic',
   userId: 'userId'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
+
+
+export const GenerationJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  adapterType: 'adapterType',
+  provider: 'provider',
+  modelId: 'modelId',
+  status: 'status',
+  requestCount: 'requestCount',
+  errorMessage: 'errorMessage',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GenerationJobScalarFieldEnum = (typeof GenerationJobScalarFieldEnum)[keyof typeof GenerationJobScalarFieldEnum]
+
+
+export const ApiUsageLedgerScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  generationJobId: 'generationJobId',
+  adapterType: 'adapterType',
+  provider: 'provider',
+  modelId: 'modelId',
+  requestCount: 'requestCount',
+  inputImageCount: 'inputImageCount',
+  outputImageCount: 'outputImageCount',
+  width: 'width',
+  height: 'height',
+  durationMs: 'durationMs',
+  wasSuccessful: 'wasSuccessful',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt'
+} as const
+
+export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -775,20 +965,6 @@ export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 
  * Reference to a field of type 'String[]'
  */
 export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String[]'>
-    
-
-
-/**
- * Reference to a field of type 'Int'
- */
-export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-/**
- * Reference to a field of type 'Int[]'
- */
-export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -856,6 +1032,20 @@ export type ListEnumGenerationStatusFieldRefInput<$PrismaModel> = FieldRefInputT
 
 
 /**
+ * Reference to a field of type 'Int'
+ */
+export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+/**
+ * Reference to a field of type 'Int[]'
+ */
+export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -866,6 +1056,20 @@ export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, '
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+/**
+ * Reference to a field of type 'GenerationJobStatus'
+ */
+export type EnumGenerationJobStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationJobStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'GenerationJobStatus[]'
+ */
+export type ListEnumGenerationJobStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationJobStatus[]'>
     
 
 /**
@@ -966,6 +1170,8 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   userApiKey?: Prisma.UserApiKeyOmit
   generation?: Prisma.GenerationOmit
+  generationJob?: Prisma.GenerationJobOmit
+  apiUsageLedger?: Prisma.ApiUsageLedgerOmit
 }
 
 /* Types for Logging */

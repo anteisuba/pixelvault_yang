@@ -17,7 +17,7 @@ export interface CreateGenerationInput {
   negativePrompt?: string
   model: string
   provider: string
-  creditsCost: number
+  requestCount: number
   outputType?: OutputType
   isPublic?: boolean
   userId?: string
@@ -49,7 +49,7 @@ export async function createGeneration(
       negativePrompt: input.negativePrompt,
       model: input.model,
       provider: input.provider,
-      creditsCost: input.creditsCost,
+      requestCount: input.requestCount,
       outputType: input.outputType ?? 'IMAGE',
       isPublic: input.isPublic ?? true,
       userId: input.userId,
@@ -72,6 +72,23 @@ export async function getUserGenerations(
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
+  })
+}
+
+export async function countUserGenerations(userId: string): Promise<number> {
+  return db.generation.count({
+    where: { userId },
+  })
+}
+
+export async function countUserPublicGenerations(
+  userId: string,
+): Promise<number> {
+  return db.generation.count({
+    where: {
+      userId,
+      isPublic: true,
+    },
   })
 }
 

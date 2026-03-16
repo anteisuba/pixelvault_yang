@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} 积分"
+    "creditCount": "{count} 次请求"
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
@@ -9,7 +9,12 @@
   },
   "Navbar": {
     "creditsLoading": "...",
-    "signIn": "登录"
+    "signIn": "登录",
+    "links": {
+      "gallery": "画廊",
+      "studio": "工作台",
+      "library": "档案"
+    }
   },
   "LocaleSwitcher": {
     "label": "语言",
@@ -26,93 +31,93 @@
   },
   "Homepage": {
     "brandLabel": "个人 AI 画廊",
-    "brandSubline": "为那些值得反复回看的图像准备的个人档案库。",
+    "brandSubline": "一个更安静、适合长期保存 AI 图像的个人档案。",
     "navigationLabel": "首页",
     "navigation": {
       "workflow": "工作流",
       "models": "模型"
     },
-    "heroEyebrow": "长期保存的 AI 档案",
-    "heroTitle": "创作值得留下的图像。",
-    "heroDescription": "使用多个图像引擎进行生成，保存最好的结果，并回到一个记得你创作方式的画廊。",
+    "heroEyebrow": "个人 AI 档案",
+    "heroTitle": "认真创作，完整保存。",
+    "heroDescription": "在多个主流图像模型之间生成、挑选、保存，并回到一个会保留提示词与路由上下文的个人档案。",
     "actions": {
-      "signedOutPrimary": "创建你的 Vault",
+      "signedOutPrimary": "开始建立档案",
       "signedInPrimary": "打开工作台",
       "signedOutUtility": "登录",
-      "signedInUtility": "继续",
-      "sharedSecondary": "查看模型阵容",
-      "signInPrimary": "还没有账号？",
-      "signUpPrimary": "已经注册？",
+      "signedInUtility": "前往工作台",
+      "sharedSecondary": "查看模型",
+      "signInPrimary": "创建账号",
+      "signUpPrimary": "已有账号？",
       "authSecondary": "返回首页"
     },
     "auth": {
-      "note": "账号会在不同会话之间同步你的积分、私有提示词和已归档的生成结果。",
+      "note": "账号会把已保存路由、私有提示词和归档结果保留在同一条创作记录里。",
       "signIn": {
         "eyebrow": "欢迎回来",
-        "title": "回到你的私人画廊。",
-        "description": "登录后即可继续生成、查看归档结果并跟踪积分，不会丢失你的创作轨迹。"
+        "title": "回到你的档案。",
+        "description": "登录后继续生成、查看已保存结果，并保留你的用量记录。"
       },
       "signUp": {
-        "eyebrow": "开始收藏",
-        "title": "为你最好的提示词打开一个 Vault。",
-        "description": "创建账号后，你可以使用多个 AI 模型生成图像、归档每个满意结果，并建立一个随着审美成长的画廊。"
+        "eyebrow": "开始建立档案",
+        "title": "从更安静的图像工作流开始。",
+        "description": "创建账号后即可使用多个模型生成、保存每个满意结果，并在以后继续回看。"
       }
     },
     "stage": {
       "label": "画廊预览",
-      "value": "更清晰的创作方向",
+      "value": "更清楚地记录你的创作方式",
       "savedLabel": "已保存到 Vault"
     },
     "signals": {
       "modelCoverageLabel": "模型覆盖",
       "modelCoverageValue": "{modelCount} 个图像模型，覆盖 {providerCount} 个提供商",
-      "creditLabel": "积分透明",
-      "creditValue": "每张图像生成起价为 {creditCount}",
-      "archiveLabel": "归档方式",
-      "archiveValue": "提示词、输出结果和模型选择会一起保存"
+      "creditLabel": "单次生成",
+      "creditValue": "每次生成会记录为 {creditCount}",
+      "archiveLabel": "保存内容",
+      "archiveValue": "提示词、模型、提供商和输出结果会一起保存"
     },
     "features": {
-      "eyebrow": "创作优势",
-      "title": "从工作台开始，把价值留在档案里。",
-      "description": "首次访问就能清楚看到产品价值：灵活的图像引擎、可持续保存，以及明确的积分消耗规则。",
+      "eyebrow": "为什么更安静",
+      "title": "一个更克制的图像工作流。",
+      "description": "PixelVault 让工作台保持专注，让档案更易阅读，而不是让界面抢走注意力。",
       "items": {
         "chooseEngine": {
-          "title": "选择合适的引擎",
-          "description": "在同一个工作台里切换写实、动漫风、OpenAI 图像生成和 Gemini 原生探索。"
+          "title": "不用换工具也能切换模型",
+          "description": "在同一个工作台里切换写实、动漫风、OpenAI 图像生成和 Gemini 探索。"
         },
         "keepEveryKeeper": {
-          "title": "保留每个好结果",
-          "description": "优秀的结果不会在一次会话后消失，它们会进入一个之后还能回看的画廊。"
+          "title": "把值得回看的结果留下来",
+          "description": "好的结果不会在一次会话后消失，它们会进入一个之后还能回看的档案。"
         },
         "spendCredits": {
-          "title": "清楚地使用积分",
-          "description": "模型成本会提前展示，让每次尝试都更有把握。"
+          "title": "看清每次生成的成本",
+          "description": "每次生成都会保留提供商和模型上下文，让用量信息保持清楚。"
         }
       }
     },
     "workflow": {
       "eyebrow": "从提示词到归档",
-      "title": "清晰可读的创作流程。",
-      "description": "进入产品后，会先解释你能做什么、归档如何工作，以及为什么模型选择重要，再让你做进一步操作。",
+      "title": "从提示词到归档，不再杂乱。",
+      "description": "选择模型、带着意图编写提示词，并把结果连同上下文一起留下。",
       "items": {
         "frameIdea": {
           "title": "确定想法",
-          "description": "先写下提示词，再选择最符合目标氛围的模型，然后再消耗积分。"
+          "description": "先写提示词，再选择最适合这张图像的模型。"
         },
         "generateWithIntent": {
           "title": "带着意图生成",
-          "description": "无需离开同一创作界面，就能比较写实、动漫、OpenAI 和 Gemini 风格输出。"
+          "description": "无需离开同一界面，就能比较写实、动漫、OpenAI 和 Gemini 的输出。"
         },
         "archiveWinners": {
           "title": "归档最佳结果",
-          "description": "将提示词、模型选择和最终图像一起保存，让之后的创作从上下文开始。"
+          "description": "把提示词、路由和最终图像一起保存，让下一次创作从上下文开始。"
         }
       }
     },
     "models": {
       "eyebrow": "模型阵容",
-      "title": "多个图像引擎，一个 Vault。",
-      "description": "在写实、动漫风、OpenAI 图像生成和 Gemini 快速探索之间切换，而无需更换工具或丢失上下文。"
+      "title": "四个图像模型，一个安静的工作区。",
+      "description": "在写实、动漫风、OpenAI 图像生成和 Gemini 快速探索之间切换，而无需更换工具。"
     },
     "scenes": {
       "items": {
@@ -132,30 +137,87 @@
     },
     "footer": {
       "eyebrow": "为反复回看而生",
-      "title": "图像是输出，档案才是优势。",
-      "description": "PixelVault 会把提示词、模型选择和结果一起保存，让下一个想法从上下文开始，而不是从猜测开始。"
+      "title": "图像只是作品的一部分。",
+      "description": "PixelVault 会把创作上下文一起保存，让下一个想法从记忆开始，而不是从猜测开始。"
     }
   },
   "StudioPage": {
     "heroEyebrow": "工作台",
-    "heroTitle": "生成你的下一张图像",
-    "heroDescription": "选择模型、编写提示词，并在一个专注的工作区内完成生成。",
+    "heroTitle": "一个更安静、更专注的工作台",
+    "heroDescription": "选择路由、编写提示词，并在同一空间查看最新结果。",
     "workspaceLabel": "工作台空间",
-    "workspaceTitle": "编写提示词并生成",
-    "workspaceDescription": "生成流程保持不变，但模型选择、提示词输入和结果展示的结构更清晰了。",
+    "workspaceTitle": "写一次，带着上下文生成",
+    "workspaceDescription": "路由信息、提示词、参考图和结果，现在共用同一套更安静的结构。",
     "metrics": {
-      "modelCoverageLabel": "模型覆盖",
+      "modelCoverageLabel": "可用模型",
       "modelCoverageValue": "{modelCount} 个可用模型，覆盖 {providerCount} 个提供商",
-      "startingCostLabel": "起始成本",
-      "startingCostValue": "每张图像生成起价为 {creditCount}",
-      "archiveBehaviorLabel": "归档方式",
-      "archiveBehaviorValue": "每个结果都会与提示词和模型信息一起保存。"
+      "startingCostLabel": "单次生成",
+      "startingCostValue": "每次生成会记录为 {creditCount}",
+      "archiveBehaviorLabel": "归档默认行为",
+      "archiveBehaviorValue": "每个结果都会和提示词及路由信息一起保存。"
     }
+  },
+  "GalleryPage": {
+    "heroEyebrow": "公共画廊",
+    "heroTitle": "这里是公开档案，不只是图片墙。",
+    "heroDescription": "每个公开作品都会带着提示词、模型和提供商上下文，所以这里更像一份档案，而不是松散的信息流。",
+    "actions": {
+      "primarySignedIn": "打开工作台",
+      "primarySignedOut": "登录后开始创作",
+      "secondarySignedIn": "打开我的档案",
+      "secondarySignedOut": "返回首页"
+    },
+    "metrics": {
+      "archiveSizeLabel": "公开档案",
+      "archiveSizeValue": "{count, plural, =0 {还没有公开作品} one {# 张公开图像} other {# 张公开图像}}",
+      "modelCoverageLabel": "当前覆盖",
+      "modelCoverageValue": "{count, plural, one {# 个内置图像模型} other {# 个内置图像模型}}",
+      "curationLabel": "浏览顺序",
+      "curationValue": "最新图像优先展示，并可一键查看完整上下文。"
+    },
+    "feedEyebrow": "开放档案",
+    "feedTitle": "最近公开的生成结果",
+    "feedDescription": "浏览整个档案里最近公开的作品，想看更早的内容时再继续加载。",
+    "feedCount": "已显示 {shown} / {total}",
+    "emptyTitle": "公开档案还很安静",
+    "emptyDescription": "当创作者开始从工作台分享公开作品后，这里就会逐渐充实起来。",
+    "emptyAction": "打开工作台",
+    "loadMore": "加载更多图像",
+    "loadingMore": "正在加载更多图像...",
+    "endOfArchive": "这就是当前公开档案的末尾了。"
+  },
+  "LibraryPage": {
+    "heroEyebrow": "我的档案",
+    "heroTitle": "最近的作品，都放在同一个档案里。",
+    "heroDescription": "最近的生成结果、公开状态和累计 API 用量都会集中保存在这里，让下一次创作从上下文开始。",
+    "actions": {
+      "primary": "生成新图像",
+      "secondary": "浏览公共画廊"
+    },
+    "metrics": {
+      "totalWorksLabel": "总作品数",
+      "totalWorksValue": "{count, plural, =0 {还没有保存作品} one {# 张已保存图像} other {# 张已保存图像}}",
+      "publicWorksLabel": "公开作品",
+      "publicWorksValue": "{count, plural, =0 {没有公开作品} one {# 张公开图像} other {# 张公开图像}}",
+      "privateWorksLabel": "私有作品",
+      "privateWorksValue": "{count, plural, =0 {没有私有作品} one {# 张私有图像} other {# 张私有图像}}",
+      "creditsLabel": "API 请求数"
+    },
+    "collectionEyebrow": "最近归档",
+    "collectionTitle": "最近保存的图像",
+    "collectionDescription": "这里会显示你档案中最新的图像，以及它们当前是否公开。",
+    "collectionCount": "已显示 {shown} / {total}",
+    "emptyTitle": "还没有保存的生成结果",
+    "emptyDescription": "先去 Studio 跑出第一张图像，它会连同提示词和路由信息一起出现在这里。",
+    "emptyAction": "前往工作台",
+    "syncPendingTitle": "你的档案还在同步中",
+    "syncPendingDescription": "当前还没有找到这个账号对应的档案资料。等待 Clerk 同步完成后，返回工作台再刷新一次。",
+    "syncPendingAction": "返回工作台"
   },
   "StudioForm": {
     "selectedModelLabel": "当前路由",
     "providerLabel": "提供商",
-    "creditCostLabel": "积分消耗",
+    "creditCostLabel": "单次生成",
     "keyStatusLabel": "路由状态",
     "keyStatusSavedRouteTitle": "正在使用这个已保存路由",
     "keyStatusSavedRouteDescription": "这个路由会使用 {label}（{maskedKey}）。",
@@ -172,11 +234,11 @@
     "modelCustomDescription": "通过你保存的 provider 路由调用的自定义 {provider} 模型。",
     "customModelBadge": "自定义模型",
     "promptLabel": "提示词",
-    "promptHint": "尽量具体描述主体、场景、光线、构图或风格。",
+    "promptHint": "尽量清楚地描述主体、场景、光线、构图或风格。",
     "promptPlaceholder": "描述你想生成的图像...",
     "promptCounter": "{current} / {max} 字符",
     "referenceTitle": "参考图像",
-    "referenceSelectedDescription": "已选择图像。下一次生成会启用 img2img 引导。",
+    "referenceSelectedDescription": "已选择图像。下一次生成会把它作为参考。",
     "referenceIdleDescription": "可选。当你想让生成结果跟随已有构图或氛围时，可以上传一张参考图。",
     "referenceBadge": "img2img",
     "referencePreviewAlt": "参考图预览",
@@ -184,24 +246,24 @@
     "referenceUploadAction": "拖放到这里，或点击上传",
     "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "准备生成",
-    "ctaSectionDescription": "确认所选模型和提示词，准备好后即可开始生成。",
+    "ctaSectionDescription": "确认路由和提示词后即可开始生成。",
     "ctaLabel": "生成图像",
     "ctaLoadingLabel": "生成中...",
     "errorTitle": "生成错误",
     "errorFallback": "图像生成失败",
     "errorUnexpected": "发生了意外错误",
     "resultLabel": "最新结果",
-    "resultDescription": "最新生成的图像会显示在这里。",
+    "resultDescription": "这个工作区最新生成的图像会显示在这里。",
     "resultEmptyTitle": "还没有生成结果",
     "resultEmptyDescription": "提交表单后，最新图像会显示在这个工作区中。",
     "resultPromptLabel": "提示词",
     "resultModelLabel": "模型",
     "resultProviderLabel": "提供商",
-    "resultCreditLabel": "已用积分",
-    "resultStorageNote": "会与提示词和模型信息一起保存。",
+    "resultCreditLabel": "已记录请求",
+    "resultStorageNote": "会连同提示词和路由上下文一起保存。",
     "modelSelector": {
       "label": "AI 模型",
-      "hint": "选择工作区模型，或你已经启用的已保存路由。",
+      "hint": "选择内置模型，或你当前启用的已保存路由。",
       "placeholder": "选择模型",
       "customBadge": "自定义",
       "savedRouteBadge": "已保存",
@@ -304,6 +366,16 @@
         }
       }
     }
+  },
+  "GalleryCard": {
+    "openImage": "在新标签页中打开图像",
+    "openLabel": "查看",
+    "modelLabel": "模型",
+    "providerLabel": "提供商",
+    "requestsLabel": "请求数",
+    "visibilityLabel": "可见性",
+    "publicLabel": "公开",
+    "privateLabel": "私有"
   },
   "Models": {
     "sdxl": {

@@ -32,7 +32,7 @@ export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-10 shrink-0 rounded-full border-border/70 bg-background/75 px-3 text-foreground shadow-xs backdrop-blur-sm"
+          className="h-10 shrink-0 rounded-full border-border/70 bg-background/78 px-3 text-foreground shadow-none"
         >
           <KeyRound className="size-4" />
           <span>{t('triggerLabel')}</span>
@@ -48,11 +48,11 @@ export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-xl">
         <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
-          <SheetTitle className="flex items-center gap-2 text-lg">
+          <SheetTitle className="flex items-center gap-2 font-display text-lg font-medium">
             <KeyRound className="size-4" />
             {t('sheetTitle')}
           </SheetTitle>
-          <SheetDescription className="max-w-md leading-6">
+          <SheetDescription className="max-w-md font-serif leading-6">
             {t('sheetDescription')}
           </SheetDescription>
         </SheetHeader>

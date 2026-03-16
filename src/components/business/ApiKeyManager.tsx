@@ -162,13 +162,13 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-5 rounded-[1.5rem] border border-border/70 bg-card p-5 shadow-sm"
+      className="space-y-5 rounded-3xl border border-border/70 bg-card/84 p-5"
     >
       <div className="space-y-1">
-        <h3 className="text-base font-semibold text-foreground">
+        <h3 className="font-display text-base font-medium text-foreground">
           {t('addForm.title')}
         </h3>
-        <p className="text-sm leading-6 text-muted-foreground">
+        <p className="font-serif text-sm leading-6 text-muted-foreground">
           {t('addForm.description')}
         </p>
       </div>
@@ -184,16 +184,16 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
               type="button"
               onClick={() => handleAdapterChange(option)}
               className={cn(
-                'rounded-[1.25rem] border px-4 py-3 text-left transition-colors',
+                'rounded-2xl border px-4 py-3 text-left transition-colors',
                 adapterType === option
-                  ? 'border-primary/30 bg-primary/5'
-                  : 'border-border/70 bg-background hover:bg-secondary/30',
+                  ? 'border-primary/25 bg-primary/6'
+                  : 'border-border/70 bg-background/72 hover:bg-secondary/24',
               )}
             >
               <p className="font-medium text-foreground">
                 {t(`providers.${option}.label`)}
               </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              <p className="mt-1 font-serif text-xs leading-5 text-muted-foreground">
                 {t(`providers.${option}.description`)}
               </p>
             </button>
@@ -253,16 +253,16 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
               type="button"
               onClick={() => setEntryMode(mode)}
               className={cn(
-                'rounded-[1.25rem] border px-4 py-3 text-left transition-colors',
+                'rounded-2xl border px-4 py-3 text-left transition-colors',
                 entryMode === mode
-                  ? 'border-primary/30 bg-primary/5'
-                  : 'border-border/70 bg-background hover:bg-secondary/30',
+                  ? 'border-primary/25 bg-primary/6'
+                  : 'border-border/70 bg-background/72 hover:bg-secondary/24',
               )}
             >
               <p className="font-medium text-foreground">
                 {t(`addForm.modelModes.${mode}.label`)}
               </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              <p className="mt-1 font-serif text-xs leading-5 text-muted-foreground">
                 {t(`addForm.modelModes.${mode}.description`)}
               </p>
             </button>
@@ -424,10 +424,10 @@ function KeyRow({ record, onToggle, onDelete }: KeyRowProps) {
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-[1.25rem] border px-4 py-3 transition-colors',
+        'flex items-start gap-3 rounded-2xl border px-4 py-3 transition-colors',
         record.isActive
-          ? 'border-primary/30 bg-primary/5'
-          : 'border-border/70 bg-background/80',
+          ? 'border-primary/25 bg-primary/6'
+          : 'border-border/70 bg-background/76',
       )}
     >
       <button
@@ -579,13 +579,13 @@ export function ApiKeyManager() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.5rem] border border-border/70 bg-secondary/25 p-5">
+      <div className="rounded-3xl border border-border/70 bg-secondary/18 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">
+            <h2 className="font-display text-base font-medium text-foreground">
               {t('title')}
             </h2>
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+            <p className="max-w-xl font-serif text-sm leading-6 text-muted-foreground">
               {t('description')}
             </p>
           </div>
@@ -608,7 +608,7 @@ export function ApiKeyManager() {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <article className="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
+          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {t('summary.activeRoutesLabel')}
             </p>
@@ -616,7 +616,7 @@ export function ApiKeyManager() {
               {t('summary.activeRoutesValue', { count: activeRouteCount })}
             </p>
           </article>
-          <article className="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
+          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {t('summary.builtInModelsLabel')}
             </p>
@@ -624,7 +624,7 @@ export function ApiKeyManager() {
               {t('summary.builtInModelsValue', { count: builtInGroups.length })}
             </p>
           </article>
-          <article className="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
+          <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {t('summary.customRoutesLabel')}
             </p>
@@ -644,13 +644,13 @@ export function ApiKeyManager() {
       ) : null}
 
       {error ? (
-        <p className="rounded-[1.25rem] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <p className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </p>
       ) : null}
 
       {isLoading ? (
-        <div className="flex items-center gap-2 rounded-[1.5rem] border border-border/70 bg-card px-4 py-6 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 rounded-3xl border border-border/70 bg-card/84 px-4 py-6 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           {t('loading')}
         </div>
@@ -658,10 +658,10 @@ export function ApiKeyManager() {
         <div className="space-y-6">
           <section className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="font-display text-sm font-medium text-foreground">
                 {t('sections.builtInTitle')}
               </h3>
-              <p className="text-sm leading-6 text-muted-foreground">
+              <p className="font-serif text-sm leading-6 text-muted-foreground">
                 {t('sections.builtInDescription')}
               </p>
             </div>
@@ -670,12 +670,12 @@ export function ApiKeyManager() {
               {builtInGroups.map((group) => (
                 <article
                   key={group.modelId}
-                  className="rounded-[1.5rem] border border-border/70 bg-card p-5 shadow-sm"
+                  className="rounded-3xl border border-border/70 bg-card/84 p-5"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-sm font-semibold text-foreground">
+                        <h4 className="font-display text-sm font-medium text-foreground">
                           {getModelDisplayLabel(tModels, group.modelId)}
                         </h4>
                         <Badge
@@ -693,7 +693,7 @@ export function ApiKeyManager() {
                           })}
                         </Badge>
                       </div>
-                      <p className="text-sm leading-6 text-muted-foreground">
+                      <p className="font-serif text-sm leading-6 text-muted-foreground">
                         {tModels(
                           `${getModelMessageKey(group.modelId)}.description`,
                         )}
@@ -715,7 +715,7 @@ export function ApiKeyManager() {
                         />
                       ))
                     ) : (
-                      <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+                      <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
                         {t('emptyModel', {
                           model: getModelDisplayLabel(tModels, group.modelId),
                         })}
@@ -729,10 +729,10 @@ export function ApiKeyManager() {
 
           <section className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="font-display text-sm font-medium text-foreground">
                 {t('sections.customTitle')}
               </h3>
-              <p className="text-sm leading-6 text-muted-foreground">
+              <p className="font-serif text-sm leading-6 text-muted-foreground">
                 {t('sections.customDescription')}
               </p>
             </div>
@@ -747,12 +747,12 @@ export function ApiKeyManager() {
                   return (
                     <article
                       key={group.groupId}
-                      className="rounded-[1.5rem] border border-border/70 bg-card p-5 shadow-sm"
+                      className="rounded-3xl border border-border/70 bg-card/84 p-5"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-sm font-semibold text-foreground">
+                            <h4 className="font-display text-sm font-medium text-foreground">
                               {group.modelId}
                             </h4>
                             <Badge

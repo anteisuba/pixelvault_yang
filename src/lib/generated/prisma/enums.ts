@@ -25,3 +25,13 @@ export const GenerationStatus = {
 } as const
 
 export type GenerationStatus = (typeof GenerationStatus)[keyof typeof GenerationStatus]
+
+
+export const GenerationJobStatus = {
+  QUEUED: 'QUEUED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type GenerationJobStatus = (typeof GenerationJobStatus)[keyof typeof GenerationJobStatus]

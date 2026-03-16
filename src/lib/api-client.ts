@@ -6,8 +6,25 @@ import type {
   UpdateApiKeyRequest,
   ApiKeysResponse,
   ApiKeyResponse,
+  UsageSummary,
 } from '@/types'
-import { API_ENDPOINTS } from '@/constants/config'
+import { UsageSummarySchema } from '@/types'
+import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
+
+interface ApiErrorPayload {
+  error?: string
+}
+
+async function getErrorMessage(
+  response: Response,
+  fallbackMessage: string,
+): Promise<string> {
+  const errorData = (await response
+    .json()
+    .catch(() => null)) as ApiErrorPayload | null
+
+  return errorData?.error ?? fallbackMessage
+}
 
 /**
  * Call the image generation API.
@@ -27,9 +44,10 @@ export async function generateImageAPI(
 
     // Handle non-OK HTTP responses
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      const message =
-        errorData?.error ?? `Generation failed with status ${response.status}`
+      const message = await getErrorMessage(
+        response,
+        `Generation failed with status ${response.status}`,
+      )
       return { success: false, error: message }
     }
 
@@ -48,16 +66,25 @@ export async function listApiKeys(): Promise<ApiKeysResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.API_KEYS)
     if (!response.ok) {
-      return { success: false, error: `Failed with status ${response.status}` }
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
     }
     return await response.json()
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
     return { success: false, error: message }
   }
 }
 
-export async function createApiKey(data: CreateApiKeyRequest): Promise<ApiKeyResponse> {
+export async function createApiKey(
+  data: CreateApiKeyRequest,
+): Promise<ApiKeyResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.API_KEYS, {
       method: 'POST',
@@ -65,12 +92,18 @@ export async function createApiKey(data: CreateApiKeyRequest): Promise<ApiKeyRes
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      return { success: false, error: errorData?.error ?? `Failed with status ${response.status}` }
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
     }
     return await response.json()
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
     return { success: false, error: message }
   }
 }
@@ -86,46 +119,78 @@ export async function updateApiKey(
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      return { success: false, error: errorData?.error ?? `Failed with status ${response.status}` }
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
     }
     return await response.json()
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
     return { success: false, error: message }
   }
 }
 
-export async function deleteApiKey(id: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteApiKey(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_ENDPOINTS.API_KEYS}/${id}`, {
       method: 'DELETE',
     })
     if (response.status === 204) return { success: true }
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      return { success: false, error: errorData?.error ?? `Failed with status ${response.status}` }
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
     }
     return { success: true }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
     return { success: false, error: message }
   }
+}
+
+export async function fetchUsageSummary(): Promise<UsageSummary> {
+  const response = await fetch(API_ENDPOINTS.USAGE_SUMMARY)
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(response, `Failed with status ${response.status}`),
+    )
+  }
+
+  return UsageSummarySchema.parse(await response.json())
 }
 
 /**
  * Fetch public gallery images with pagination
  */
 export async function fetchGalleryImages(
-  page: 1,
-  limit: 20,
+  page: number = PAGINATION.DEFAULT_PAGE,
+  limit: number = PAGINATION.DEFAULT_LIMIT,
 ): Promise<GalleryResponse> {
   try {
     const response = await fetch(
       `${API_ENDPOINTS.IMAGES}?page=${page}&limit=${limit}`,
     )
     if (!response.ok) {
-      return { success: false, error: 'Failed with status ${response.status}' }
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
     }
     return await response.json()
   } catch (error) {

@@ -70,7 +70,7 @@ export interface GenerationRecord {
   negativePrompt?: string | null
   model: string
   provider: string
-  creditsCost: number
+  requestCount: number
   isPublic: boolean
   userId?: string | null
 }
@@ -136,3 +136,13 @@ export interface GalleryResponse {
   data?: GalleryResponseData
   error?: string
 }
+
+export const UsageSummarySchema = z.object({
+  totalRequests: z.number().int().nonnegative(),
+  successfulRequests: z.number().int().nonnegative(),
+  failedRequests: z.number().int().nonnegative(),
+  last30DaysRequests: z.number().int().nonnegative(),
+  lastRequestAt: z.string().datetime().nullable(),
+})
+
+export type UsageSummary = z.infer<typeof UsageSummarySchema>

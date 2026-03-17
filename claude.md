@@ -5,6 +5,53 @@ CLAUDE.md — Personal AI Gallery Project Rules
 🎯 項目概覽
 Personal AI Gallery — 支持多 AI 模型的圖片生成 & 永久歸檔平台。
 
+🎨 设计语言（必须遵守）
+
+参考：Anthropic.com 的 Warm Editorial 风格
+
+色彩系统：
+
+- 背景：#faf9f5（米白，非纯白）
+- 主文字：#141413（近黑，非纯黑）
+- 次要文字：#b0aea5
+- 区块分隔：#e8e6dc
+- 主强调色：#d97757（terracotta 橙）
+- 次强调色：#6a9bcc
+- 三级强调色：#788c5d
+
+字体：
+
+- 标题：Space Grotesk（或你实际用的）
+- 正文：Lora / 系统衬线体
+- 标题与正文必须是 sans + serif 配对
+
+布局：
+
+- 内容最大宽度 1200px
+- 正文列宽 ≤720px
+- Section 间距 80-128px
+- 留白宁多勿少
+
+动效：
+
+- 仅用 fade-in + translate-up，duration 300-600ms
+- easing: ease-out
+- 禁止 bounce、spring、视差滚动、粒子效果
+
+绝对禁止的视觉风格：
+
+- ❌ 蓝紫渐变、霓虹光效
+- ❌ 重投影卡片
+- ❌ 纯白 #ffffff 背景
+- ❌ Inter/Roboto 等通用字体
+- ❌ generic AI 美学（深色 + 蓝光 + 科技感）
+
+🔥 当前任务焦点
+
+- Hero section 重构：左右失衡，画廊预览应独立成 section
+- Landing page 整体节奏：大标题 → 说明文 → CTA 层次要清晰
+- 移动端响应式
+
 Web (Next.js 16, App Router + Turbopack)
 支持 Stable Diffusion XL、Animagine XL 4.0（動漫風格）、Gemini 3.1 Flash Image
 AI 提供商：HuggingFace Inference API、Google Gemini API
@@ -137,6 +184,7 @@ src/
 └── middleware.ts # Clerk 路由保護
 
 尚未實現的頁面/組件：
+
 - gallery/page.tsx — 公開作品集（路由已定義，中間件已配置，頁面未實現）
 - profile/page.tsx — 個人中心
 - ImageCard.tsx — 圖片卡片組件
@@ -163,15 +211,17 @@ API Route 必須先用 auth() from Clerk 驗證身份再處理請求
 ✅ Phase 1: MVP（核心生成功能）— 已完成
 ✅ Phase 2: 持久化存儲（Prisma + R2）— 已完成
 🔧 Phase 3: 用戶系統 + 積分 — 大部分完成
-  - ✅ Clerk 登錄/註冊 + Navbar UserButton
-  - ✅ Clerk Webhook 同步 user.created
-  - ✅ 積分扣除/增加服務端邏輯 + GET /api/credits
-  - ✅ 路由保護中間件
-  - ❌ Gallery 頁面未實現
-  - ❌ Profile 頁面未實現
-⬜ Phase 4: UI 優化 + Gallery + 部署
+
+- ✅ Clerk 登錄/註冊 + Navbar UserButton
+- ✅ Clerk Webhook 同步 user.created
+- ✅ 積分扣除/增加服務端邏輯 + GET /api/credits
+- ✅ 路由保護中間件
+- ❌ Gallery 頁面未實現
+- ❌ Profile 頁面未實現
+  ⬜ Phase 4: UI 優化 + Gallery + 部署
 
 🗄️ 數據庫模型
+
 - User: id(UUID), clerkId, email, credits(默認100), generations[]
 - Generation: id(UUID), outputType(IMAGE/VIDEO/AUDIO), status(PENDING/COMPLETED/FAILED),
   url, storageKey, mimeType, width, height, duration, prompt, negativePrompt,

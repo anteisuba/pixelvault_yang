@@ -1,0 +1,34 @@
+.tabList {
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+
+.tabLink {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  color: var(--muted-foreground);
+  transition: color 180ms ease-out;
+}
+
+.tabLink:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.tabLabel {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.active {
+  color: var(--primary);
+}

@@ -47,14 +47,17 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  padding-block: 0.9rem 1rem;
+  border-bottom: 1px solid var(--home-border);
+  background: color-mix(in oklab, var(--background) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.headerInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 0 1rem;
-  border-bottom: 1px solid var(--home-border);
-  background: color-mix(in oklab, var(--background) 88%, transparent);
-  backdrop-filter: blur(12px);
 }
 
 .brandBlock {
@@ -64,7 +67,7 @@
 }
 
 .brandLabel {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -73,7 +76,7 @@
 
 .brandName {
   font-family: var(--font-display);
-  font-size: clamp(1.12rem, 1.5vw, 1.35rem);
+  font-size: clamp(1.3rem, 1.8vw, 1.55rem);
   font-weight: 500;
   line-height: 0.95;
   letter-spacing: -0.04em;
@@ -82,7 +85,7 @@
 .brandSubline {
   max-width: 24rem;
   font-family: var(--font-serif);
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.65;
   color: var(--home-muted);
   text-wrap: pretty;
@@ -97,7 +100,7 @@
 .navLink {
   position: relative;
   padding-bottom: 0.35rem;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -166,23 +169,44 @@
 }
 
 .hero {
-  display: grid;
-  gap: clamp(2rem, 4vw, 3.5rem);
-  align-items: end;
-  min-height: min(64rem, calc(100svh - 7rem));
-  padding-bottom: clamp(2rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-block: clamp(5rem, 9vw, 7rem) clamp(3.5rem, 5vw, 5rem);
   border-bottom: 1px solid var(--home-border);
 }
 
 .heroAuth {
-  min-height: auto;
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  align-items: end;
+  min-height: min(60rem, calc(100svh - 7rem));
+  padding-block: clamp(2rem, 4vw, 3rem);
+  text-align: left;
+}
+
+.heroAuth .heroCopy {
+  align-content: end;
 }
 
 .heroCopy {
   display: grid;
   gap: 1.25rem;
-  align-content: end;
   min-width: 0;
+}
+
+.heroCopyCenter {
+  max-width: 44rem;
+  justify-items: center;
+}
+
+.heroCopyCenter .actions {
+  justify-content: center;
+}
+
+.heroCopyCenter .signalList {
+  width: 100%;
 }
 
 .eyebrow {
@@ -400,6 +424,27 @@
   text-wrap: pretty;
 }
 
+.galleryPreview {
+  display: grid;
+  gap: 2rem;
+  padding-top: clamp(2.25rem, 4vw, 3rem);
+  border-top: 1px solid var(--home-border);
+}
+
+.galleryPreviewHead {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.galleryPreviewDesc {
+  max-width: 40rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--home-muted);
+  text-wrap: pretty;
+}
+
 .section {
   display: grid;
   gap: 1.5rem;
@@ -558,6 +603,10 @@
   border-top: 1px solid var(--home-border);
 }
 
+.footerActions {
+  padding-top: 0.65rem;
+}
+
 .footerTitle {
   max-width: 12ch;
   font-family: var(--font-display);
@@ -584,6 +633,10 @@
     border-bottom: 0;
   }
 
+  .sceneGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .featureGrid,
   .workflowGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -598,7 +651,7 @@
 }
 
 @media (min-width: 1180px) {
-  .hero {
+  .heroAuth {
     grid-template-columns: minmax(0, 1.14fr) minmax(20rem, 0.86fr);
   }
 
@@ -629,5 +682,34 @@
   .secondaryButton {
     width: 100%;
     min-width: 0;
+  }
+}
+
+/* ── Scroll reveal animations ─────────────────────────────────────────────── */
+
+@keyframes fadeReveal {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero copy: fires on page load (hero is above fold, no scroll trigger needed) */
+  .heroCopy {
+    animation: fadeReveal 600ms 100ms ease-out both;
+  }
+
+  /* Sections below the fold: scroll-triggered reveal */
+  .galleryPreview,
+  .section,
+  .footerBand {
+    animation: fadeReveal 500ms ease-out both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 20%;
   }
 }

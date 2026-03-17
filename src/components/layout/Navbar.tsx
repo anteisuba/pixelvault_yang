@@ -26,12 +26,12 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/75 bg-background/88 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-[78rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 max-w-content items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-5 lg:gap-8">
           <SignedIn>
             <Link
               href={ROUTES.STUDIO}
-              className="font-display text-[1.12rem] font-medium tracking-[-0.04em] transition-opacity hover:opacity-75"
+              className="font-display text-brand font-medium tracking-brand transition-opacity hover:opacity-75"
             >
               {tCommon('brand')}
             </Link>
@@ -39,7 +39,7 @@ export function Navbar() {
           <SignedOut>
             <Link
               href={ROUTES.HOME}
-              className="font-display text-[1.12rem] font-medium tracking-[-0.04em] transition-opacity hover:opacity-75"
+              className="font-display text-brand font-medium tracking-brand transition-opacity hover:opacity-75"
             >
               {tCommon('brand')}
             </Link>
@@ -52,7 +52,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'relative py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground',
+                    'relative py-1 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors hover:text-foreground',
                     'after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:after:scale-x-100',
                     pathname === link.href &&
                       'text-foreground after:scale-x-100',
@@ -71,7 +71,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'relative py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground',
+                    'relative py-1 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors hover:text-foreground',
                     'after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:after:scale-x-100',
                     pathname === link.href &&
                       'text-foreground after:scale-x-100',
@@ -88,7 +88,7 @@ export function Navbar() {
           <LocaleSwitcher />
 
           <SignedIn>
-            <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/84 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
+            <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/84 px-3 py-1.5 text-nav font-semibold uppercase tracking-nav-dense text-foreground">
               <Coins className="size-3.5 shrink-0 text-primary" />
               <span className="hidden sm:inline">
                 {isLoading
@@ -104,7 +104,7 @@ export function Navbar() {
               asChild
               size="sm"
               variant="outline"
-              className="rounded-full border-border/80 bg-card/72 px-4 text-[11px] font-semibold uppercase tracking-[0.16em]"
+              className="rounded-full border-border/80 bg-card/72 px-4 text-nav font-semibold uppercase tracking-nav"
             >
               <Link href={ROUTES.SIGN_IN}>{t('signIn')}</Link>
             </Button>

@@ -1,3 +1,4 @@
+import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { Navbar } from '@/components/layout/Navbar'
 
 export default function MainLayout({
@@ -8,7 +9,8 @@ export default function MainLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main>{children}</main>
+      <main className="pb-16 md:pb-0">{children}</main>
+      <MobileTabBar />
     </div>
   )
 }

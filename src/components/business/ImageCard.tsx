@@ -7,6 +7,7 @@ import { ArrowUpRight, Coins, Globe2, LockKeyhole } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
+import { useRouter } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
 import { toggleGenerationVisibility } from '@/lib/api-client'
 
@@ -24,12 +25,14 @@ export function ImageCard({
 }: ImageCardProps) {
   const [isPublic, setIsPublic] = useState(generation.isPublic)
   const [isToggling, setIsToggling] = useState(false)
+  const router = useRouter()
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('GalleryCard')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+
   const handleToggleVisibility = async () => {
     if (isToggling) return
     setIsToggling(true)
@@ -38,6 +41,8 @@ export function ImageCard({
     const result = await toggleGenerationVisibility(generation.id)
     if (!result.success) {
       setIsPublic(prev)
+    } else {
+      router.refresh()
     }
     setIsToggling(false)
   }
@@ -69,6 +74,11 @@ export function ImageCard({
     },
   ]
 
+  const labelClass = cn(
+    'text-nav font-semibold text-muted-foreground',
+    isDenseLocale ? 'tracking-normal normal-case' : 'uppercase tracking-nav-dense',
+  )
+
   return (
     <article className="group overflow-hidden rounded-3xl border border-border/75 bg-card/84 transition-colors hover:border-foreground/15">
       <div className="overflow-hidden bg-secondary/18">
@@ -93,10 +103,10 @@ export function ImageCard({
         <div className="flex items-start justify-between gap-4">
           <p
             className={cn(
-              'text-[11px] font-semibold text-muted-foreground',
+              'text-nav font-semibold text-muted-foreground',
               isDenseLocale
                 ? 'tracking-normal normal-case'
-                : 'uppercase tracking-[0.16em]',
+                : 'uppercase tracking-nav',
             )}
           >
             {format.dateTime(createdAt, {
@@ -110,7 +120,12 @@ export function ImageCard({
             href={generation.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
+              isDenseLocale
+                ? 'tracking-normal normal-case'
+                : 'uppercase tracking-nav-dense',
+            )}
             aria-label={t('openImage')}
           >
             {t('openLabel')}
@@ -118,7 +133,7 @@ export function ImageCard({
           </a>
         </div>
 
-        <p className="line-clamp-3 font-serif text-[1.01rem] leading-6 text-foreground">
+        <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
           {generation.prompt}
         </p>
 
@@ -128,35 +143,18 @@ export function ImageCard({
               key={item.key}
               className="flex items-start justify-between gap-3"
             >
-              <dt
-                className={cn(
-                  'text-[11px] font-semibold text-muted-foreground',
-                  isDenseLocale
-                    ? 'tracking-normal normal-case'
-                    : 'uppercase tracking-[0.14em]',
-                )}
-              >
-                {item.label}
-              </dt>
+              <dt className={labelClass}>{item.label}</dt>
               <dd className="flex items-center gap-1.5 text-right text-sm text-foreground">
                 {item.icon}
                 <span>{item.value}</span>
               </dd>
             </div>
           ))}
+
           {showVisibility ? (
-            <div className="flex items-start justify-between gap-3">
-              <dt
-                className={cn(
-                  'text-[11px] font-semibold text-muted-foreground',
-                  isDenseLocale
-                    ? 'tracking-normal normal-case'
-                    : 'uppercase tracking-[0.14em]',
-                )}
-              >
-                {t('visibilityLabel')}
-              </dt>
-              <dd className="flex items-center gap-2">
+            <div className="flex items-start justify-between gap-3 pt-0.5">
+              <dt className={labelClass}>{t('visibilityLabel')}</dt>
+              <dd className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-sm text-foreground">
                   {isPublic ? (
                     <Globe2 className="size-3 text-chart-2" />
@@ -170,11 +168,11 @@ export function ImageCard({
                   disabled={isToggling}
                   onClick={() => void handleToggleVisibility()}
                   className={cn(
-                    'text-[11px] font-semibold text-primary underline-offset-2 transition-opacity hover:underline',
+                    'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
                     isDenseLocale
                       ? 'tracking-normal normal-case'
-                      : 'uppercase tracking-[0.14em]',
-                    isToggling && 'pointer-events-none opacity-50',
+                      : 'uppercase tracking-nav-dense',
+                    isToggling && 'opacity-50',
                   )}
                 >
                   {isPublic ? t('makePrivateAction') : t('makePublicAction')}

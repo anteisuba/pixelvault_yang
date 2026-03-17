@@ -19,7 +19,12 @@
       "Read(//Users/fulina/Desktop/workspace/pixelvault_yang/**)",
       "Bash(done)",
       "Bash(node -e \"const f=require\\('/Users/fulina/Desktop/workspace/pixelvault_yang/src/messages/en.json'\\); console.log\\(JSON.stringify\\(f.Homepage?.footer, null, 2\\)\\); console.log\\('---actions---'\\); console.log\\(JSON.stringify\\(f.Homepage?.actions, null, 2\\)\\)\")",
-      "Bash(node -e \"const r=require\\('/Users/fulina/Desktop/workspace/pixelvault_yang/src/i18n/routing.ts'\\); console.log\\(JSON.stringify\\(r, null, 2\\)\\)\" 2>/dev/null || cat /Users/fulina/Desktop/workspace/pixelvault_yang/src/i18n/routing.ts)"
+      "Bash(node -e \"const r=require\\('/Users/fulina/Desktop/workspace/pixelvault_yang/src/i18n/routing.ts'\\); console.log\\(JSON.stringify\\(r, null, 2\\)\\)\" 2>/dev/null || cat /Users/fulina/Desktop/workspace/pixelvault_yang/src/i18n/routing.ts)",
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm check 2>&1)",
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -30)",
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | grep \"FAIL\\\\|AssertionError\\\\|toEqual\\\\|error\\\\|message\\\\|code\" | head -60)",
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -20)",
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -10)"
     ]
   }
 }

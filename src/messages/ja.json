@@ -375,7 +375,10 @@
     "requestsLabel": "リクエスト",
     "visibilityLabel": "公開設定",
     "publicLabel": "公開",
-    "privateLabel": "非公開"
+    "privateLabel": "非公開",
+    "makePublicAction": "公開にする",
+    "makePrivateAction": "非公開にする",
+    "toggleError": "公開設定の更新に失敗しました"
   },
   "Models": {
     "sdxl": {

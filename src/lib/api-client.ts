@@ -6,6 +6,7 @@ import type {
   UpdateApiKeyRequest,
   ApiKeysResponse,
   ApiKeyResponse,
+  ToggleVisibilityResponse,
   UsageSummary,
 } from '@/types'
 import { UsageSummarySchema } from '@/types'
@@ -170,6 +171,34 @@ export async function fetchUsageSummary(): Promise<UsageSummary> {
   }
 
   return UsageSummarySchema.parse(await response.json())
+}
+
+/**
+ * Toggle the isPublic visibility of a generation owned by the current user.
+ */
+export async function toggleGenerationVisibility(
+  id: string,
+): Promise<ToggleVisibilityResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATIONS}/${id}/visibility`,
+      { method: 'PATCH' },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
 }
 
 /**

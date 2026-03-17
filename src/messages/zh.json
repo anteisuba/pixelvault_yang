@@ -375,7 +375,10 @@
     "requestsLabel": "请求数",
     "visibilityLabel": "可见性",
     "publicLabel": "公开",
-    "privateLabel": "私有"
+    "privateLabel": "私有",
+    "makePublicAction": "设为公开",
+    "makePrivateAction": "设为私有",
+    "toggleError": "更新可见性失败"
   },
   "Models": {
     "sdxl": {

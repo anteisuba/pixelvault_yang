@@ -119,6 +119,32 @@ export async function getGenerationById(
 }
 
 /**
+ * Toggle the isPublic flag on a generation that belongs to the given user.
+ * Returns the updated record, or null if not found / not owned.
+ */
+export async function toggleGenerationVisibility(
+  id: string,
+  userId: string,
+): Promise<Pick<GenerationRecord, 'id' | 'isPublic'> | null> {
+  const generation = await db.generation.findUnique({
+    where: { id },
+    select: { id: true, userId: true, isPublic: true },
+  })
+
+  if (!generation || generation.userId !== userId) {
+    return null
+  }
+
+  const updated = await db.generation.update({
+    where: { id },
+    data: { isPublic: !generation.isPublic },
+    select: { id: true, isPublic: true },
+  })
+
+  return updated
+}
+
+/**
  * Count total public generations (for pagination hasMore calculation)
  */
 export async function countPublicGenerations(): Promise<number> {

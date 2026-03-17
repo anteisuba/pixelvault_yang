@@ -44,6 +44,9 @@ export const API_ENDPOINTS = {
 
   /** User API keys management */
   API_KEYS: '/api/api-keys',
+
+  /** Generation management */
+  GENERATIONS: '/api/generations',
 } as const
 
 /** External AI provider endpoints */

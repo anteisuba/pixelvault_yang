@@ -375,7 +375,10 @@
     "requestsLabel": "Requests",
     "visibilityLabel": "Visibility",
     "publicLabel": "Public",
-    "privateLabel": "Private"
+    "privateLabel": "Private",
+    "makePublicAction": "Make Public",
+    "makePrivateAction": "Make Private",
+    "toggleError": "Failed to update visibility"
   },
   "Models": {
     "sdxl": {

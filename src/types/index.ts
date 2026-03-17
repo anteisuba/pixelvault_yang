@@ -121,6 +121,14 @@ export interface ApiKeyResponse {
   error?: string
 }
 
+// ─── Visibility Toggle ────────────────────────────────────────────
+
+export interface ToggleVisibilityResponse {
+  success: boolean
+  data?: Pick<GenerationRecord, 'id' | 'isPublic'>
+  error?: string
+}
+
 // ─── Gallery Response ─────────────────────────────────────────────
 
 export interface GalleryResponseData {

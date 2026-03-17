@@ -1,11 +1,14 @@
 'use client'
 /* eslint-disable @next/next/no-img-element */
 
+import { useState } from 'react'
+
 import { ArrowUpRight, Coins, Globe2, LockKeyhole } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
+import { toggleGenerationVisibility } from '@/lib/api-client'
 
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
@@ -19,12 +22,26 @@ export function ImageCard({
   generation,
   showVisibility = false,
 }: ImageCardProps) {
+  const [isPublic, setIsPublic] = useState(generation.isPublic)
+  const [isToggling, setIsToggling] = useState(false)
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('GalleryCard')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const handleToggleVisibility = async () => {
+    if (isToggling) return
+    setIsToggling(true)
+    const prev = isPublic
+    setIsPublic(!prev)
+    const result = await toggleGenerationVisibility(generation.id)
+    if (!result.success) {
+      setIsPublic(prev)
+    }
+    setIsToggling(false)
+  }
+
   const createdAt = new Date(generation.createdAt)
   const modelLabel = isBuiltInModel(generation.model)
     ? tModels(`${getModelMessageKey(generation.model)}.label`)
@@ -139,15 +156,29 @@ export function ImageCard({
               >
                 {t('visibilityLabel')}
               </dt>
-              <dd className="flex items-center gap-1.5 text-sm text-foreground">
-                {generation.isPublic ? (
-                  <Globe2 className="size-3 text-chart-2" />
-                ) : (
-                  <LockKeyhole className="size-3 text-muted-foreground" />
-                )}
-                <span>
-                  {generation.isPublic ? t('publicLabel') : t('privateLabel')}
+              <dd className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-sm text-foreground">
+                  {isPublic ? (
+                    <Globe2 className="size-3 text-chart-2" />
+                  ) : (
+                    <LockKeyhole className="size-3 text-muted-foreground" />
+                  )}
+                  {isPublic ? t('publicLabel') : t('privateLabel')}
                 </span>
+                <button
+                  type="button"
+                  disabled={isToggling}
+                  onClick={() => void handleToggleVisibility()}
+                  className={cn(
+                    'text-[11px] font-semibold text-primary underline-offset-2 transition-opacity hover:underline',
+                    isDenseLocale
+                      ? 'tracking-normal normal-case'
+                      : 'uppercase tracking-[0.14em]',
+                    isToggling && 'pointer-events-none opacity-50',
+                  )}
+                >
+                  {isPublic ? t('makePrivateAction') : t('makePublicAction')}
+                </button>
               </dd>
             </div>
           ) : null}

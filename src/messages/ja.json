@@ -195,7 +195,8 @@
     "heroDescription": "最近の生成結果、公開状態、累積 API 使用量をひとまとめにして、次の制作を文脈から始められるようにします。",
     "actions": {
       "primary": "新しく生成する",
-      "secondary": "公開ギャラリーを見る"
+      "secondary": "公開ギャラリーを見る",
+      "signOut": "サインアウト"
     },
     "metrics": {
       "totalWorksLabel": "総作品数",
@@ -369,6 +370,15 @@
         }
       }
     }
+  },
+  "ImageDetail": {
+    "title": "画像の詳細",
+    "promptLabel": "プロンプト",
+    "negativePromptLabel": "ネガティブプロンプト",
+    "dimensionsLabel": "サイズ",
+    "download": "ダウンロード",
+    "downloading": "ダウンロード中...",
+    "openOriginal": "原画像を開く"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

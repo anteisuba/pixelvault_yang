@@ -195,7 +195,8 @@
     "heroDescription": "Recent outputs, visibility state, and cumulative API usage live together here so the next session starts with context.",
     "actions": {
       "primary": "Make a new image",
-      "secondary": "Browse public gallery"
+      "secondary": "Browse public gallery",
+      "signOut": "Sign out"
     },
     "metrics": {
       "totalWorksLabel": "Total works",
@@ -369,6 +370,15 @@
         }
       }
     }
+  },
+  "ImageDetail": {
+    "title": "Image details",
+    "promptLabel": "Prompt",
+    "negativePromptLabel": "Negative prompt",
+    "dimensionsLabel": "Dimensions",
+    "download": "Download",
+    "downloading": "Downloading...",
+    "openOriginal": "Open original"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

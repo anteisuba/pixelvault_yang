@@ -180,19 +180,6 @@
   border-bottom: 1px solid var(--home-border);
 }
 
-.heroAuth {
-  display: grid;
-  gap: clamp(2rem, 4vw, 3.5rem);
-  align-items: end;
-  min-height: min(60rem, calc(100svh - 7rem));
-  padding-block: clamp(2rem, 4vw, 3rem);
-  text-align: left;
-}
-
-.heroAuth .heroCopy {
-  align-content: end;
-}
-
 .heroGrid {
   display: grid;
   gap: clamp(2rem, 4vw, 3rem);
@@ -317,54 +304,6 @@
   text-wrap: pretty;
 }
 
-/* ── Stage panel (auth mode) ─────────────────────────────────────────────── */
-
-.stage {
-  min-width: 0;
-}
-
-.stagePanel {
-  display: grid;
-  gap: 1.25rem;
-  min-height: 29rem;
-  padding: clamp(1.2rem, 2.4vw, 1.7rem);
-  border: 1px solid var(--home-border);
-  border-radius: calc(var(--radius-3xl) + 2px);
-  background: color-mix(in oklab, var(--home-surface) 94%, var(--background));
-}
-
-.stageTopline {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-bottom: 0.7rem;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
-}
-
-.stageLabel {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--home-muted);
-}
-
-.stageValue {
-  max-width: 18rem;
-  font-family: var(--font-serif);
-  font-size: 0.95rem;
-  line-height: 1.65;
-  color: var(--home-muted);
-  text-wrap: pretty;
-}
-
-.stageContent {
-  display: grid;
-  gap: 1rem;
-  align-items: start;
-}
-
 /* ── Scene cards ─────────────────────────────────────────────────────────── */
 
 .sceneGrid {
@@ -433,26 +372,6 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--home-muted);
-}
-
-/* ── Auth panel ──────────────────────────────────────────────────────────── */
-
-.authPanel {
-  display: grid;
-  gap: 0.9rem;
-  align-content: start;
-  padding: 1rem;
-  border: 1px solid var(--home-border);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in oklab, var(--background) 86%, transparent);
-}
-
-.authNote {
-  font-family: var(--font-serif);
-  font-size: 0.95rem;
-  line-height: 1.7;
-  color: var(--home-muted);
-  text-wrap: pretty;
 }
 
 /* ── Gallery preview section ─────────────────────────────────────────────── */
@@ -714,16 +633,6 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
     align-items: start;
     gap: 1.5rem;
-  }
-}
-
-@media (min-width: 1180px) {
-  .heroAuth {
-    grid-template-columns: minmax(0, 1.14fr) minmax(20rem, 0.86fr);
-  }
-
-  .stageContentAuth {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.85fr);
   }
 }
 

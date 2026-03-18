@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
 
 import { GalleryGrid } from '@/components/business/GalleryGrid'
+import { SignOutButton } from '@/components/business/SignOutButton'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
@@ -97,6 +98,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               >
                 <Link href={ROUTES.GALLERY}>{t('actions.secondary')}</Link>
               </Button>
+              <SignOutButton label={t('actions.signOut')} />
             </div>
           </div>
 

@@ -195,7 +195,8 @@
     "heroDescription": "最近的生成结果、公开状态和累计 API 用量都会集中保存在这里，让下一次创作从上下文开始。",
     "actions": {
       "primary": "生成新图像",
-      "secondary": "浏览公共画廊"
+      "secondary": "浏览公共画廊",
+      "signOut": "退出登录"
     },
     "metrics": {
       "totalWorksLabel": "总作品数",
@@ -369,6 +370,15 @@
         }
       }
     }
+  },
+  "ImageDetail": {
+    "title": "图像详情",
+    "promptLabel": "提示词",
+    "negativePromptLabel": "反向提示词",
+    "dimensionsLabel": "尺寸",
+    "download": "下载",
+    "downloading": "下载中...",
+    "openOriginal": "查看原图"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

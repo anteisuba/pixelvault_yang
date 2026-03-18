@@ -1,7 +1,7 @@
 'use client'
 
-import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
-import { Coins } from 'lucide-react'
+import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { Coins, UserCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
@@ -96,7 +96,13 @@ export function Navbar() {
                   : tCommon('creditCount', { count: summary.totalRequests })}
               </span>
             </div>
-            <UserButton />
+            <Link
+              href={ROUTES.PROFILE}
+              className="flex size-8 items-center justify-center rounded-full border border-border/80 bg-card/84 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label={t('links.library')}
+            >
+              <UserCircle className="size-4.5" />
+            </Link>
           </SignedIn>
 
           <SignedOut>

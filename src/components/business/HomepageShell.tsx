@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react'
-
 import type { LucideIcon } from 'lucide-react'
 import { Archive, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -90,7 +88,6 @@ interface HomepageShellProps {
   secondaryActionLabel: string
   utilityActionHref: string
   utilityActionLabel: string
-  authPanel?: ReactNode
 }
 
 export function HomepageShell({
@@ -103,15 +100,7 @@ export function HomepageShell({
   secondaryActionLabel,
   utilityActionHref,
   utilityActionLabel,
-  authPanel,
 }: HomepageShellProps) {
-  const isAuthMode = Boolean(authPanel)
-  const heroClassName = isAuthMode
-    ? `${styles.hero} ${styles.heroAuth}`
-    : styles.hero
-  const stageContentClassName = isAuthMode
-    ? `${styles.stageContent} ${styles.stageContentAuth}`
-    : styles.stageContent
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('Homepage')
@@ -213,138 +202,61 @@ export function HomepageShell({
         className={`mx-auto max-w-content px-4 sm:px-6 lg:px-8 ${styles.shell}`}
       >
         <main className={styles.main}>
-          <section className={heroClassName}>
-            {isAuthMode ? (
-              <>
-                <div className={styles.heroCopy}>
-                  <p
-                    className={cn(
-                      styles.eyebrow,
-                      isDenseLocale && styles.denseCopy,
-                    )}
+          <section className={styles.hero}>
+            <div className={styles.heroGrid}>
+              <div className={styles.heroCopy}>
+                <p
+                  className={cn(
+                    styles.eyebrow,
+                    isDenseLocale && styles.denseCopy,
+                  )}
+                >
+                  {eyebrow}
+                </p>
+                <h1 className={styles.title}>{title}</h1>
+                <p className={styles.description}>{description}</p>
+
+                <div className={styles.actions}>
+                  <Button asChild size="lg" className={styles.primaryButton}>
+                    <Link href={primaryActionHref}>
+                      {primaryActionLabel}
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className={styles.secondaryButton}
                   >
-                    {eyebrow}
-                  </p>
-                  <h1 className={styles.title}>{title}</h1>
-                  <p className={styles.description}>{description}</p>
-
-                  <div className={styles.actions}>
-                    <Button asChild size="lg" className={styles.primaryButton}>
-                      <Link href={primaryActionHref}>
-                        {primaryActionLabel}
-                      </Link>
-                    </Button>
-
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="lg"
-                      className={styles.secondaryButton}
-                    >
-                      <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-                    </Button>
-                  </div>
-
-                  {signalItems}
+                    <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
+                  </Button>
                 </div>
+              </div>
 
-                <div className={styles.stage}>
-                  <div className={styles.stagePanel}>
-                    <div className={styles.stageTopline}>
-                      <span
-                        className={cn(
-                          styles.stageLabel,
-                          isDenseLocale && styles.denseCopy,
-                        )}
-                      >
-                        {t('stage.label')}
-                      </span>
-                      <span className={styles.stageValue}>
-                        {t('stage.value')}
-                      </span>
-                    </div>
-
-                    <div className={stageContentClassName}>
-                      <div className={styles.sceneGrid}>
-                        {HOMEPAGE_SCENES.map((scene) => (
-                          <SceneCard
-                            key={scene.id}
-                            sceneId={scene.id}
-                            modelId={scene.modelId}
-                            tone={scene.tone}
-                            isDenseLocale={isDenseLocale}
-                          />
-                        ))}
-                      </div>
-
-                      <aside className={styles.authPanel}>
-                        {authPanel}
-                        <p className={styles.authNote}>{t('auth.note')}</p>
-                      </aside>
-                    </div>
-                  </div>
+              <div className={styles.heroVisual}>
+                <div className={styles.heroVisualInner}>
+                  {HOMEPAGE_SCENES.slice(0, HERO_SCENE_COUNT).map((scene) => (
+                    <SceneCard
+                      key={scene.id}
+                      sceneId={scene.id}
+                      modelId={scene.modelId}
+                      tone={scene.tone}
+                      isDenseLocale={isDenseLocale}
+                      className={styles.heroVisualCard}
+                    />
+                  ))}
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Non-auth hero: split layout */}
-                <div className={styles.heroGrid}>
-                  <div className={styles.heroCopy}>
-                    <p
-                      className={cn(
-                        styles.eyebrow,
-                        isDenseLocale && styles.denseCopy,
-                      )}
-                    >
-                      {eyebrow}
-                    </p>
-                    <h1 className={styles.title}>{title}</h1>
-                    <p className={styles.description}>{description}</p>
+              </div>
+            </div>
 
-                    <div className={styles.actions}>
-                      <Button asChild size="lg" className={styles.primaryButton}>
-                        <Link href={primaryActionHref}>
-                          {primaryActionLabel}
-                          <ArrowRight className="size-4" />
-                        </Link>
-                      </Button>
-
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="lg"
-                        className={styles.secondaryButton}
-                      >
-                        <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className={styles.heroVisual}>
-                    <div className={styles.heroVisualInner}>
-                      {HOMEPAGE_SCENES.slice(0, HERO_SCENE_COUNT).map((scene) => (
-                        <SceneCard
-                          key={scene.id}
-                          sceneId={scene.id}
-                          modelId={scene.modelId}
-                          tone={scene.tone}
-                          isDenseLocale={isDenseLocale}
-                          className={styles.heroVisualCard}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.heroMetrics}>
-                  {signalItems}
-                </div>
-              </>
-            )}
+            <div className={styles.heroMetrics}>
+              {signalItems}
+            </div>
           </section>
 
-          {!isAuthMode ? (
-            <section id="gallery" className={styles.galleryPreview}>
+          <section id="gallery" className={styles.galleryPreview}>
               <div className={styles.galleryPreviewHead}>
                 <p
                   className={cn(
@@ -382,8 +294,7 @@ export function HomepageShell({
                   </Link>
                 </Button>
               </div>
-            </section>
-          ) : null}
+          </section>
 
           <section className={styles.section}>
             <div className={styles.sectionIntro}>
@@ -424,123 +335,119 @@ export function HomepageShell({
             </div>
           </section>
 
-          {!isAuthMode ? (
-            <>
-              <section id="workflow" className={styles.section}>
-                <div className={styles.sectionIntro}>
-                  <p
+          <section id="workflow" className={styles.section}>
+            <div className={styles.sectionIntro}>
+              <p
+                className={cn(
+                  styles.sectionLabel,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {t('workflow.eyebrow')}
+              </p>
+              <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
+              <p className={styles.sectionDescription}>
+                {t('workflow.description')}
+              </p>
+            </div>
+
+            <div className={styles.workflowGrid}>
+              {HOMEPAGE_WORKFLOW.map((item) => (
+                <article key={item.step} className={styles.workflowItem}>
+                  <span
                     className={cn(
-                      styles.sectionLabel,
+                      styles.workflowStep,
                       isDenseLocale && styles.denseCopy,
                     )}
                   >
-                    {t('workflow.eyebrow')}
+                    {item.step}
+                  </span>
+                  <h3 className={styles.workflowTitle}>
+                    {t(`workflow.items.${item.id}.title`)}
+                  </h3>
+                  <p className={styles.workflowDescription}>
+                    {t(`workflow.items.${item.id}.description`)}
                   </p>
-                  <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
-                  <p className={styles.sectionDescription}>
-                    {t('workflow.description')}
-                  </p>
-                </div>
+                </article>
+              ))}
+            </div>
+          </section>
 
-                <div className={styles.workflowGrid}>
-                  {HOMEPAGE_WORKFLOW.map((item) => (
-                    <article key={item.step} className={styles.workflowItem}>
+          <section id="models" className={styles.section}>
+            <div className={styles.sectionIntro}>
+              <p
+                className={cn(
+                  styles.sectionLabel,
+                  isDenseLocale && styles.denseCopy,
+                )}
+              >
+                {t('models.eyebrow')}
+              </p>
+              <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
+              <p className={styles.sectionDescription}>
+                {t('models.description')}
+              </p>
+            </div>
+
+            <div className={styles.modelRail}>
+              {MODEL_OPTIONS.map((model) => (
+                <article key={model.id} className={styles.modelCard}>
+                  <div>
+                    <div className={styles.modelMeta}>
                       <span
                         className={cn(
-                          styles.workflowStep,
+                          styles.providerTag,
                           isDenseLocale && styles.denseCopy,
                         )}
                       >
-                        {item.step}
+                        {getProviderLabel(model.providerConfig)}
                       </span>
-                      <h3 className={styles.workflowTitle}>
-                        {t(`workflow.items.${item.id}.title`)}
-                      </h3>
-                      <p className={styles.workflowDescription}>
-                        {t(`workflow.items.${item.id}.description`)}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              </section>
+                      <span
+                        className={cn(
+                          styles.costTag,
+                          isDenseLocale && styles.denseCopy,
+                        )}
+                      >
+                        {tCommon('creditCount', {
+                          count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                        })}
+                      </span>
+                    </div>
+                    <h3 className={styles.modelTitle}>
+                      {tModels(`${getModelMessageKey(model.id)}.label`)}
+                    </h3>
+                  </div>
 
-              <section id="models" className={styles.section}>
-                <div className={styles.sectionIntro}>
-                  <p
-                    className={cn(
-                      styles.sectionLabel,
-                      isDenseLocale && styles.denseCopy,
-                    )}
-                  >
-                    {t('models.eyebrow')}
+                  <p className={styles.modelDescription}>
+                    {tModels(`${getModelMessageKey(model.id)}.description`)}
                   </p>
-                  <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
-                  <p className={styles.sectionDescription}>
-                    {t('models.description')}
-                  </p>
-                </div>
+                </article>
+              ))}
+            </div>
+          </section>
 
-                <div className={styles.modelRail}>
-                  {MODEL_OPTIONS.map((model) => (
-                    <article key={model.id} className={styles.modelCard}>
-                      <div>
-                        <div className={styles.modelMeta}>
-                          <span
-                            className={cn(
-                              styles.providerTag,
-                              isDenseLocale && styles.denseCopy,
-                            )}
-                          >
-                            {getProviderLabel(model.providerConfig)}
-                          </span>
-                          <span
-                            className={cn(
-                              styles.costTag,
-                              isDenseLocale && styles.denseCopy,
-                            )}
-                          >
-                            {tCommon('creditCount', {
-                              count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                            })}
-                          </span>
-                        </div>
-                        <h3 className={styles.modelTitle}>
-                          {tModels(`${getModelMessageKey(model.id)}.label`)}
-                        </h3>
-                      </div>
-
-                      <p className={styles.modelDescription}>
-                        {tModels(`${getModelMessageKey(model.id)}.description`)}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              </section>
-
-              <section className={styles.footerBand}>
-                <p
-                  className={cn(
-                    styles.sectionLabel,
-                    isDenseLocale && styles.denseCopy,
-                  )}
-                >
-                  {t('footer.eyebrow')}
-                </p>
-                <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
-                <p className={styles.footerDescription}>
-                  {t('footer.description')}
-                </p>
-                <div className={styles.footerActions}>
-                  <Button asChild size="lg" className={styles.primaryButton}>
-                    <Link href={primaryActionHref}>
-                      {primaryActionLabel}
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </section>
-            </>
-          ) : null}
+          <section className={styles.footerBand}>
+            <p
+              className={cn(
+                styles.sectionLabel,
+                isDenseLocale && styles.denseCopy,
+              )}
+            >
+              {t('footer.eyebrow')}
+            </p>
+            <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
+            <p className={styles.footerDescription}>
+              {t('footer.description')}
+            </p>
+            <div className={styles.footerActions}>
+              <Button asChild size="lg" className={styles.primaryButton}>
+                <Link href={primaryActionHref}>
+                  {primaryActionLabel}
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            </div>
+          </section>
         </main>
       </div>
     </div>

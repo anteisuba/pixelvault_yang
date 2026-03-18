@@ -34,6 +34,7 @@
     "brandSubline": "一个更安静、适合长期保存 AI 图像的个人档案。",
     "navigationLabel": "首页",
     "navigation": {
+      "gallery": "画廊",
       "workflow": "工作流",
       "models": "模型"
     },
@@ -65,8 +66,10 @@
     },
     "stage": {
       "label": "画廊预览",
+      "title": "看看它是如何组合在一起的。",
       "value": "更清楚地记录你的创作方式",
-      "savedLabel": "已保存到 Vault"
+      "savedLabel": "已保存到 Vault",
+      "cta": "浏览画廊"
     },
     "signals": {
       "modelCoverageLabel": "模型覆盖",

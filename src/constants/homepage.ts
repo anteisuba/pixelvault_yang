@@ -18,6 +18,10 @@ export const HOMEPAGE_ROUTES = {
 
 export const HOMEPAGE_NAVIGATION = [
   {
+    href: '#gallery',
+    id: 'gallery',
+  },
+  {
     href: HOMEPAGE_ROUTES.workflow,
     id: 'workflow',
   },

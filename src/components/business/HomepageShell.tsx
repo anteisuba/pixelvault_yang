@@ -5,6 +5,7 @@ import { Archive, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
+import type { AI_MODELS } from '@/constants/models'
 import {
   HOMEPAGE_FEATURES,
   HOMEPAGE_NAVIGATION,
@@ -39,6 +40,46 @@ const sceneToneClasses: Record<HomepageSceneTone, string> = {
 const providerCount = new Set(MODEL_OPTIONS.map((model) => model.adapterType))
   .size
 
+const HERO_SCENE_COUNT = 2
+
+interface SceneCardProps {
+  sceneId: string
+  modelId: AI_MODELS
+  tone: HomepageSceneTone
+  isDenseLocale: boolean
+  className?: string
+}
+
+function SceneCard({
+  sceneId,
+  modelId,
+  tone,
+  isDenseLocale,
+  className,
+}: SceneCardProps) {
+  const t = useTranslations('Homepage')
+  const tModels = useTranslations('Models')
+
+  return (
+    <article
+      className={cn(styles.sceneCard, sceneToneClasses[tone], className)}
+    >
+      <span
+        className={cn(styles.sceneTag, isDenseLocale && styles.denseCopy)}
+      >
+        {tModels(`${getModelMessageKey(modelId)}.label`)}
+      </span>
+      <p className={styles.scenePrompt}>
+        {t(`scenes.items.${sceneId}.prompt`)}
+      </p>
+      <div className={styles.sceneMeta}>
+        <span>{t(`scenes.items.${sceneId}.note`)}</span>
+        <span>{t('stage.savedLabel')}</span>
+      </div>
+    </article>
+  )
+}
+
 interface HomepageShellProps {
   eyebrow: string
   title: string
@@ -71,14 +112,62 @@ export function HomepageShell({
   const stageContentClassName = isAuthMode
     ? `${styles.stageContent} ${styles.stageContentAuth}`
     : styles.stageContent
-  const heroCopyClassName = isAuthMode
-    ? styles.heroCopy
-    : cn(styles.heroCopy, styles.heroCopyCenter)
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+
+  const signalItems = (
+    <>
+      <div className={styles.signalItem}>
+        <span
+          className={cn(
+            styles.signalLabel,
+            isDenseLocale && styles.denseCopy,
+          )}
+        >
+          {t('signals.modelCoverageLabel')}
+        </span>
+        <span className={styles.signalValue}>
+          {t('signals.modelCoverageValue', {
+            modelCount: MODEL_OPTIONS.length,
+            providerCount,
+          })}
+        </span>
+      </div>
+      <div className={styles.signalItem}>
+        <span
+          className={cn(
+            styles.signalLabel,
+            isDenseLocale && styles.denseCopy,
+          )}
+        >
+          {t('signals.creditLabel')}
+        </span>
+        <span className={styles.signalValue}>
+          {t('signals.creditValue', {
+            creditCount: tCommon('creditCount', {
+              count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+            }),
+          })}
+        </span>
+      </div>
+      <div className={styles.signalItem}>
+        <span
+          className={cn(
+            styles.signalLabel,
+            isDenseLocale && styles.denseCopy,
+          )}
+        >
+          {t('signals.archiveLabel')}
+        </span>
+        <span className={styles.signalValue}>
+          {t('signals.archiveValue')}
+        </span>
+      </div>
+    </>
+  )
 
   return (
     <div className={styles.page}>
@@ -125,143 +214,137 @@ export function HomepageShell({
       >
         <main className={styles.main}>
           <section className={heroClassName}>
-            <div className={heroCopyClassName}>
-              <p
-                className={cn(
-                  styles.eyebrow,
-                  isDenseLocale && styles.denseCopy,
-                )}
-              >
-                {eyebrow}
-              </p>
-              <h1 className={styles.title}>{title}</h1>
-              <p className={styles.description}>{description}</p>
-
-              <div className={styles.actions}>
-                <Button asChild size="lg" className={styles.primaryButton}>
-                  <Link href={primaryActionHref}>
-                    {primaryActionLabel}
-                    {!isAuthMode ? <ArrowRight className="size-4" /> : null}
-                  </Link>
-                </Button>
-
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className={styles.secondaryButton}
-                >
-                  <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-                </Button>
-              </div>
-
-              <div className={styles.signalList}>
-                <div className={styles.signalItem}>
-                  <span
-                    className={cn(
-                      styles.signalLabel,
-                      isDenseLocale && styles.denseCopy,
-                    )}
-                  >
-                    {t('signals.modelCoverageLabel')}
-                  </span>
-                  <span className={styles.signalValue}>
-                    {t('signals.modelCoverageValue', {
-                      modelCount: MODEL_OPTIONS.length,
-                      providerCount,
-                    })}
-                  </span>
-                </div>
-                <div className={styles.signalItem}>
-                  <span
-                    className={cn(
-                      styles.signalLabel,
-                      isDenseLocale && styles.denseCopy,
-                    )}
-                  >
-                    {t('signals.creditLabel')}
-                  </span>
-                  <span className={styles.signalValue}>
-                    {t('signals.creditValue', {
-                      creditCount: tCommon('creditCount', {
-                        count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                      }),
-                    })}
-                  </span>
-                </div>
-                <div className={styles.signalItem}>
-                  <span
-                    className={cn(
-                      styles.signalLabel,
-                      isDenseLocale && styles.denseCopy,
-                    )}
-                  >
-                    {t('signals.archiveLabel')}
-                  </span>
-                  <span className={styles.signalValue}>
-                    {t('signals.archiveValue')}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {isAuthMode ? (
-              <div className={styles.stage}>
-                <div className={styles.stagePanel}>
-                  <div className={styles.stageTopline}>
-                    <span
+              <>
+                <div className={styles.heroCopy}>
+                  <p
+                    className={cn(
+                      styles.eyebrow,
+                      isDenseLocale && styles.denseCopy,
+                    )}
+                  >
+                    {eyebrow}
+                  </p>
+                  <h1 className={styles.title}>{title}</h1>
+                  <p className={styles.description}>{description}</p>
+
+                  <div className={styles.actions}>
+                    <Button asChild size="lg" className={styles.primaryButton}>
+                      <Link href={primaryActionHref}>
+                        {primaryActionLabel}
+                      </Link>
+                    </Button>
+
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="lg"
+                      className={styles.secondaryButton}
+                    >
+                      <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
+                    </Button>
+                  </div>
+
+                  {signalItems}
+                </div>
+
+                <div className={styles.stage}>
+                  <div className={styles.stagePanel}>
+                    <div className={styles.stageTopline}>
+                      <span
+                        className={cn(
+                          styles.stageLabel,
+                          isDenseLocale && styles.denseCopy,
+                        )}
+                      >
+                        {t('stage.label')}
+                      </span>
+                      <span className={styles.stageValue}>
+                        {t('stage.value')}
+                      </span>
+                    </div>
+
+                    <div className={stageContentClassName}>
+                      <div className={styles.sceneGrid}>
+                        {HOMEPAGE_SCENES.map((scene) => (
+                          <SceneCard
+                            key={scene.id}
+                            sceneId={scene.id}
+                            modelId={scene.modelId}
+                            tone={scene.tone}
+                            isDenseLocale={isDenseLocale}
+                          />
+                        ))}
+                      </div>
+
+                      <aside className={styles.authPanel}>
+                        {authPanel}
+                        <p className={styles.authNote}>{t('auth.note')}</p>
+                      </aside>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Non-auth hero: split layout */}
+                <div className={styles.heroGrid}>
+                  <div className={styles.heroCopy}>
+                    <p
                       className={cn(
-                        styles.stageLabel,
+                        styles.eyebrow,
                         isDenseLocale && styles.denseCopy,
                       )}
                     >
-                      {t('stage.label')}
-                    </span>
-                    <span className={styles.stageValue}>
-                      {t('stage.value')}
-                    </span>
+                      {eyebrow}
+                    </p>
+                    <h1 className={styles.title}>{title}</h1>
+                    <p className={styles.description}>{description}</p>
+
+                    <div className={styles.actions}>
+                      <Button asChild size="lg" className={styles.primaryButton}>
+                        <Link href={primaryActionHref}>
+                          {primaryActionLabel}
+                          <ArrowRight className="size-4" />
+                        </Link>
+                      </Button>
+
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="lg"
+                        className={styles.secondaryButton}
+                      >
+                        <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className={stageContentClassName}>
-                    <div className={styles.sceneGrid}>
-                      {HOMEPAGE_SCENES.map((scene) => (
-                        <article
+                  <div className={styles.heroVisual}>
+                    <div className={styles.heroVisualInner}>
+                      {HOMEPAGE_SCENES.slice(0, HERO_SCENE_COUNT).map((scene) => (
+                        <SceneCard
                           key={scene.id}
-                          className={`${styles.sceneCard} ${sceneToneClasses[scene.tone]}`}
-                        >
-                          <span
-                            className={cn(
-                              styles.sceneTag,
-                              isDenseLocale && styles.denseCopy,
-                            )}
-                          >
-                            {tModels(
-                              `${getModelMessageKey(scene.modelId)}.label`,
-                            )}
-                          </span>
-                          <p className={styles.scenePrompt}>
-                            {t(`scenes.items.${scene.id}.prompt`)}
-                          </p>
-                          <div className={styles.sceneMeta}>
-                            <span>{t(`scenes.items.${scene.id}.note`)}</span>
-                            <span>{t('stage.savedLabel')}</span>
-                          </div>
-                        </article>
+                          sceneId={scene.id}
+                          modelId={scene.modelId}
+                          tone={scene.tone}
+                          isDenseLocale={isDenseLocale}
+                          className={styles.heroVisualCard}
+                        />
                       ))}
                     </div>
-
-                    <aside className={styles.authPanel}>
-                      {authPanel}
-                      <p className={styles.authNote}>{t('auth.note')}</p>
-                    </aside>
                   </div>
                 </div>
-              </div>
-            ) : null}
+
+                <div className={styles.heroMetrics}>
+                  {signalItems}
+                </div>
+              </>
+            )}
           </section>
 
           {!isAuthMode ? (
-            <section className={styles.galleryPreview}>
+            <section id="gallery" className={styles.galleryPreview}>
               <div className={styles.galleryPreviewHead}>
                 <p
                   className={cn(
@@ -271,6 +354,9 @@ export function HomepageShell({
                 >
                   {t('stage.label')}
                 </p>
+                <h2 className={styles.galleryPreviewTitle}>
+                  {t('stage.title')}
+                </h2>
                 <p className={styles.galleryPreviewDesc}>
                   {t('stage.value')}
                 </p>
@@ -278,29 +364,23 @@ export function HomepageShell({
 
               <div className={styles.sceneGrid}>
                 {HOMEPAGE_SCENES.map((scene) => (
-                  <article
+                  <SceneCard
                     key={scene.id}
-                    className={`${styles.sceneCard} ${sceneToneClasses[scene.tone]}`}
-                  >
-                    <span
-                      className={cn(
-                        styles.sceneTag,
-                        isDenseLocale && styles.denseCopy,
-                      )}
-                    >
-                      {tModels(
-                        `${getModelMessageKey(scene.modelId)}.label`,
-                      )}
-                    </span>
-                    <p className={styles.scenePrompt}>
-                      {t(`scenes.items.${scene.id}.prompt`)}
-                    </p>
-                    <div className={styles.sceneMeta}>
-                      <span>{t(`scenes.items.${scene.id}.note`)}</span>
-                      <span>{t('stage.savedLabel')}</span>
-                    </div>
-                  </article>
+                    sceneId={scene.id}
+                    modelId={scene.modelId}
+                    tone={scene.tone}
+                    isDenseLocale={isDenseLocale}
+                  />
                 ))}
+              </div>
+
+              <div className={styles.galleryPreviewActions}>
+                <Button asChild variant="outline" size="lg" className={styles.secondaryButton}>
+                  <Link href={HOMEPAGE_ROUTES.signUp}>
+                    {t('stage.cta')}
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
               </div>
             </section>
           ) : null}

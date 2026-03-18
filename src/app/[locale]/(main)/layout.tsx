@@ -9,7 +9,7 @@ export default function MainLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pb-16 md:pb-0">{children}</main>
+      <main className="pb-14 md:pb-0">{children}</main>
       <MobileTabBar />
     </div>
   )

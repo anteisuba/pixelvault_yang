@@ -34,6 +34,7 @@
     "brandSubline": "A quieter place to make and keep AI images.",
     "navigationLabel": "Homepage",
     "navigation": {
+      "gallery": "Gallery",
       "workflow": "Workflow",
       "models": "Models"
     },
@@ -65,8 +66,10 @@
     },
     "stage": {
       "label": "Gallery preview",
+      "title": "See how it comes together.",
       "value": "A cleaner record of how you create",
-      "savedLabel": "Saved to vault"
+      "savedLabel": "Saved to vault",
+      "cta": "Explore the gallery"
     },
     "signals": {
       "modelCoverageLabel": "Model coverage",

@@ -34,6 +34,7 @@
     "brandSubline": "AI画像を静かに作り、残しておくための個人アーカイブ。",
     "navigationLabel": "ホームページ",
     "navigation": {
+      "gallery": "ギャラリー",
       "workflow": "ワークフロー",
       "models": "モデル"
     },
@@ -65,8 +66,10 @@
     },
     "stage": {
       "label": "ギャラリープレビュー",
+      "title": "どう組み合わさるか見てみる。",
       "value": "制作の流れをより素直に残す",
-      "savedLabel": "Vaultに保存"
+      "savedLabel": "Vaultに保存",
+      "cta": "ギャラリーを見る"
     },
     "signals": {
       "modelCoverageLabel": "対応モデル",

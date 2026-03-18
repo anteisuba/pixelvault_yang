@@ -26,7 +26,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/75 bg-background/88 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-content items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 max-w-content items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-5 lg:gap-8">
           <SignedIn>
             <Link

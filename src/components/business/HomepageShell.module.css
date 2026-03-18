@@ -161,19 +161,22 @@
   text-transform: none;
 }
 
+/* ── Main layout ─────────────────────────────────────────────────────────── */
+
 .main {
   display: flex;
   flex-direction: column;
-  gap: clamp(4rem, 6vw, 6rem);
+  gap: clamp(5rem, 7vw, 8rem);
   padding-block: clamp(2rem, 4vw, 2.75rem) clamp(4.25rem, 7vw, 5.5rem);
 }
+
+/* ── Hero section ────────────────────────────────────────────────────────── */
 
 .hero {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding-block: clamp(5rem, 9vw, 7rem) clamp(3.5rem, 5vw, 5rem);
+  gap: clamp(2.5rem, 4vw, 3.5rem);
+  padding-block: clamp(4rem, 8vw, 6rem) clamp(3rem, 5vw, 4rem);
   border-bottom: 1px solid var(--home-border);
 }
 
@@ -190,23 +193,16 @@
   align-content: end;
 }
 
+.heroGrid {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+  align-items: end;
+}
+
 .heroCopy {
   display: grid;
   gap: 1.25rem;
   min-width: 0;
-}
-
-.heroCopyCenter {
-  max-width: 44rem;
-  justify-items: center;
-}
-
-.heroCopyCenter .actions {
-  justify-content: center;
-}
-
-.heroCopyCenter .signalList {
-  width: 100%;
 }
 
 .eyebrow {
@@ -220,7 +216,7 @@
 }
 
 .title {
-  max-width: 9.5ch;
+  max-width: 14ch;
   font-family: var(--font-display);
   font-size: clamp(3.35rem, 7.4vw, 6.35rem);
   font-weight: 500;
@@ -230,7 +226,7 @@
 }
 
 .description {
-  max-width: 42rem;
+  max-width: 36rem;
   font-family: var(--font-serif);
   font-size: clamp(1.04rem, 1.7vw, 1.18rem);
   line-height: 1.8;
@@ -262,10 +258,39 @@
   background: color-mix(in oklab, var(--background) 76%, transparent);
 }
 
-.signalList {
+/* ── Hero visual (right side scene cards) ────────────────────────────────── */
+
+.heroVisual {
+  display: none;
+  position: relative;
+  padding: 1.5rem;
+  border: 1px dashed color-mix(in oklab, var(--border) 60%, transparent);
+  border-radius: var(--radius-3xl);
+}
+
+.heroVisualInner {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.heroVisualCard {
+  transition: transform 400ms ease-out;
+}
+
+.heroVisualCard:first-child {
+  transform: rotate(-1.5deg);
+}
+
+.heroVisualCard:last-child {
+  transform: rotate(1deg);
+  margin-top: -0.5rem;
+}
+
+/* ── Hero metrics strip ──────────────────────────────────────────────────── */
+
+.heroMetrics {
   display: grid;
   gap: 0;
-  margin-top: clamp(1rem, 2vw, 1.4rem);
   border-top: 1px solid var(--home-border);
 }
 
@@ -291,6 +316,8 @@
   color: color-mix(in oklab, var(--foreground) 90%, var(--background));
   text-wrap: pretty;
 }
+
+/* ── Stage panel (auth mode) ─────────────────────────────────────────────── */
 
 .stage {
   min-width: 0;
@@ -337,6 +364,8 @@
   gap: 1rem;
   align-items: start;
 }
+
+/* ── Scene cards ─────────────────────────────────────────────────────────── */
 
 .sceneGrid {
   display: grid;
@@ -406,6 +435,8 @@
   color: var(--home-muted);
 }
 
+/* ── Auth panel ──────────────────────────────────────────────────────────── */
+
 .authPanel {
   display: grid;
   gap: 0.9rem;
@@ -424,16 +455,29 @@
   text-wrap: pretty;
 }
 
+/* ── Gallery preview section ─────────────────────────────────────────────── */
+
 .galleryPreview {
   display: grid;
   gap: 2rem;
-  padding-top: clamp(2.25rem, 4vw, 3rem);
+  padding-top: clamp(3rem, 5vw, 5rem);
   border-top: 1px solid var(--home-border);
+  scroll-margin-top: 6rem;
 }
 
 .galleryPreviewHead {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.65rem;
+  max-width: 42rem;
+}
+
+.galleryPreviewTitle {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.6vw, 3.35rem);
+  font-weight: 500;
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
 }
 
 .galleryPreviewDesc {
@@ -445,10 +489,16 @@
   text-wrap: pretty;
 }
 
+.galleryPreviewActions {
+  padding-top: 0.25rem;
+}
+
+/* ── Shared section styles ───────────────────────────────────────────────── */
+
 .section {
   display: grid;
   gap: 1.5rem;
-  padding-top: clamp(2.25rem, 4vw, 3rem);
+  padding-top: clamp(3rem, 5vw, 5rem);
   border-top: 1px solid var(--home-border);
   scroll-margin-top: 6rem;
 }
@@ -484,6 +534,8 @@
   color: var(--home-muted);
   text-wrap: pretty;
 }
+
+/* ── Feature & workflow grids ────────────────────────────────────────────── */
 
 .featureGrid,
 .workflowGrid {
@@ -550,6 +602,8 @@
   color: color-mix(in oklab, var(--primary) 75%, var(--foreground));
 }
 
+/* ── Model cards ─────────────────────────────────────────────────────────── */
+
 .modelCard {
   display: grid;
   gap: 1rem;
@@ -596,10 +650,12 @@
   letter-spacing: -0.035em;
 }
 
+/* ── Footer band ─────────────────────────────────────────────────────────── */
+
 .footerBand {
   display: grid;
   gap: 0.95rem;
-  padding-top: clamp(2.25rem, 4vw, 3rem);
+  padding-top: clamp(3rem, 5vw, 5rem);
   border-top: 1px solid var(--home-border);
 }
 
@@ -617,12 +673,23 @@
   text-wrap: balance;
 }
 
+/* ── Responsive: tablet+ ─────────────────────────────────────────────────── */
+
 @media (min-width: 768px) {
   .nav {
     display: flex;
   }
 
-  .signalList {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: end;
+  }
+
+  .heroVisual {
+    display: block;
+  }
+
+  .heroMetrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
     border-top: 0;
@@ -660,6 +727,8 @@
   }
 }
 
+/* ── Responsive: small screens ───────────────────────────────────────────── */
+
 @media (max-width: 639px) {
   .brandLabel {
     display: none;
@@ -678,10 +747,30 @@
     gap: 0.5rem;
   }
 
+  .hero {
+    padding-block: clamp(2.5rem, 6vw, 4rem) clamp(2rem, 4vw, 3rem);
+  }
+
+  .main {
+    gap: clamp(3.5rem, 6vw, 5rem);
+  }
+
+  .footerBand {
+    padding-bottom: 2rem;
+  }
+
   .primaryButton,
   .secondaryButton {
     width: 100%;
     min-width: 0;
+  }
+
+  .sceneCard {
+    min-height: 9rem;
+  }
+
+  .galleryPreview {
+    gap: 1.5rem;
   }
 }
 
@@ -699,12 +788,18 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Hero copy: fires on page load (hero is above fold, no scroll trigger needed) */
   .heroCopy {
     animation: fadeReveal 600ms 100ms ease-out both;
   }
 
-  /* Sections below the fold: scroll-triggered reveal */
+  .heroVisual {
+    animation: fadeReveal 600ms 250ms ease-out both;
+  }
+
+  .heroMetrics {
+    animation: fadeReveal 500ms 400ms ease-out both;
+  }
+
   .galleryPreview,
   .section,
   .footerBand {

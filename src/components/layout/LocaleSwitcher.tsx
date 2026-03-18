@@ -28,7 +28,7 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
         className,
       )}
     >
-      <span className="hidden px-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:inline">
+      <span className="hidden px-2 text-nav font-semibold uppercase tracking-nav text-muted-foreground md:inline">
         {t('label')}
       </span>
 
@@ -44,7 +44,7 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors',
+              'rounded-full px-2.5 py-1 text-nav font-semibold uppercase tracking-nav transition-colors',
               isActive
                 ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:bg-secondary hover:text-foreground',

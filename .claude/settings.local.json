@@ -24,7 +24,10 @@
       "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -30)",
       "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | grep \"FAIL\\\\|AssertionError\\\\|toEqual\\\\|error\\\\|message\\\\|code\" | head -60)",
       "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -20)",
-      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -10)"
+      "Bash(cd /Users/fulina/Desktop/workspace/vtuber-blog/v-module-frontend && pnpm test 2>&1 | tail -10)",
+      "Bash(npx next:*)",
+      "Bash(find /c/work/ecplise/yang/personal-ai-gallery -name tailwind.config.* -o -name next.config.*)",
+      "Bash(find /c/work/ecplise/yang/personal-ai-gallery/src/app/[locale]/\\\\\\(main\\\\\\) -type f -name \"*.tsx\" -o -name \"*.ts\")"
     ]
   }
 }

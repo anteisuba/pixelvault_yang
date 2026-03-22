@@ -4,6 +4,7 @@ import { API_USAGE } from '@/constants/config'
 import { cn } from '@/lib/utils'
 
 import { GenerateForm } from '@/components/business/GenerateForm'
+import { ModelRanking } from '@/components/business/ModelRanking'
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
@@ -130,6 +131,10 @@ export default async function StudioPage({ params }: StudioPageProps) {
             <div className="pt-6">
               <GenerateForm />
             </div>
+          </section>
+
+          <section className="editorial-panel">
+            <ModelRanking />
           </section>
         </ApiKeysProvider>
       </div>

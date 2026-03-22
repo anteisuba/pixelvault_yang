@@ -148,24 +148,24 @@
   },
   "StudioPage": {
     "heroEyebrow": "スタジオ",
-    "heroTitle": "より静かに集中できるスタジオ",
-    "heroDescription": "ルートを選び、プロンプトを書き、最新の結果まで同じ場所で確認できます。",
-    "workspaceLabel": "スタジオワークスペース",
-    "workspaceTitle": "一度書いて、文脈ごと生成する",
-    "workspaceDescription": "ルート情報、プロンプト、参照画像、結果を同じ静かな構成にまとめました。",
+    "heroTitle": "生成スタジオ",
+    "heroDescription": "モデルを選び、プロンプトを書き、生成。",
+    "workspaceLabel": "ワークスペース",
+    "workspaceTitle": "制作開始",
+    "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
     "metrics": {
-      "modelCoverageLabel": "利用可能モデル",
-      "modelCoverageValue": "{modelCount}種類の利用可能モデル、{providerCount}社のプロバイダーに対応",
-      "startingCostLabel": "1回ごと",
-      "startingCostValue": "各生成は {creditCount} として記録されます",
-      "archiveBehaviorLabel": "保存の基本",
-      "archiveBehaviorValue": "各結果はプロンプトとルート情報を一緒に保持します。"
+      "modelCoverageLabel": "モデル",
+      "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
+      "startingCostLabel": "1回",
+      "startingCostValue": "{creditCount}",
+      "archiveBehaviorLabel": "自動保存",
+      "archiveBehaviorValue": "結果は自動保存"
     }
   },
   "GalleryPage": {
-    "heroEyebrow": "公開ギャラリー",
-    "heroTitle": "ここは画像の壁ではなく、公開アーカイブ。",
-    "heroDescription": "公開された生成結果には、プロンプト、モデル、プロバイダーの文脈が残るので、単なる画像一覧ではなく制作記録として読めます。",
+    "heroEyebrow": "ギャラリー",
+    "heroTitle": "公開アーカイブ",
+    "heroDescription": "各画像にプロンプト、モデル、生成情報を付属。",
     "actions": {
       "primarySignedIn": "スタジオを開く",
       "primarySignedOut": "サインインして作成する",
@@ -177,12 +177,12 @@
       "archiveSizeValue": "{count, plural, =0 {公開作品はまだありません} one {# 件の公開画像} other {# 件の公開画像}}",
       "modelCoverageLabel": "現在の対応範囲",
       "modelCoverageValue": "{count, plural, one {# 個の組み込み画像モデル} other {# 個の組み込み画像モデル}}",
-      "curationLabel": "表示順",
-      "curationValue": "新しい画像ほど上に並び、文脈ごとすぐ確認できます。"
+      "curationLabel": "並び順",
+      "curationValue": "新しい順"
     },
-    "feedEyebrow": "オープンアーカイブ",
-    "feedTitle": "最近の公開生成結果",
-    "feedDescription": "アーカイブ全体の最近の公開作品をたどれます。さらに見たいときだけ続きを読み込んでください。",
+    "feedEyebrow": "アーカイブ",
+    "feedTitle": "最近の公開作品",
+    "feedDescription": "",
     "feedCount": "{shown} / {total} 件を表示中",
     "emptyTitle": "公開アーカイブはまだ静かです",
     "emptyDescription": "Studio から公開作品が共有され始めると、ここに少しずつ並んでいきます。",
@@ -193,8 +193,8 @@
   },
   "LibraryPage": {
     "heroEyebrow": "マイアーカイブ",
-    "heroTitle": "最近の作品を、ひとつの記録として持っておく。",
-    "heroDescription": "最近の生成結果、公開状態、累積 API 使用量をひとまとめにして、次の制作を文脈から始められるようにします。",
+    "heroTitle": "マイ作品",
+    "heroDescription": "生成履歴とAPI使用量。",
     "actions": {
       "primary": "新しく生成する",
       "secondary": "公開ギャラリーを見る",
@@ -209,9 +209,9 @@
       "privateWorksValue": "{count, plural, =0 {非公開作品なし} one {# 件の非公開画像} other {# 件の非公開画像}}",
       "creditsLabel": "API リクエスト数"
     },
-    "collectionEyebrow": "最近のアーカイブ",
-    "collectionTitle": "最近保存した画像",
-    "collectionDescription": "この画面には、あなたのアーカイブ内で新しい順の画像と、それぞれが公開中かどうかが表示されます。",
+    "collectionEyebrow": "アーカイブ",
+    "collectionTitle": "最近の生成",
+    "collectionDescription": "",
     "collectionCount": "{shown} / {total} 件を表示中",
     "emptyTitle": "保存済み生成結果はまだありません",
     "emptyDescription": "まずは Studio で 1 枚生成してください。プロンプトやルート情報と一緒にここへ保存されます。",
@@ -422,10 +422,24 @@
       }
     }
   },
+  "ModelRanking": {
+    "title": "2026 画像AIランキング",
+    "subtitle": "LM Arena ELO · 「対応」マークのモデルはAPIキーで利用可能。",
+    "supported": "対応",
+    "noApi": "API なし",
+    "strengths": {
+      "photorealism": "フォトリアリズム · ライティング",
+      "overall": "総合最強 · テキスト描画",
+      "logos": "ロゴ · ベクターデザイン",
+      "textInImage": "画像内テキスト",
+      "multimodal": "プロンプト理解 · マルチモーダル",
+      "artistic": "アートスタイル · 美学"
+    }
+  },
   "StoryBoard": {
     "heroEyebrow": "ストーリーボード",
     "heroTitle": "画像をストーリーに",
-    "heroDescription": "生成した画像を選び、AIにビジュアルナラティブを紡がせましょう。",
+    "heroDescription": "画像を選び、AIがナラティブを作成。",
     "createButton": "新規ストーリー",
     "titlePlaceholder": "ストーリータイトル...",
     "idsPlaceholder": "生成ID（カンマ区切り）",
@@ -452,9 +466,9 @@
     "makePrivate": "非公開にする"
   },
   "ArenaPage": {
-    "heroEyebrow": "モデルアリーナ",
-    "heroTitle": "どのAIがあなたのビジョンを最もよく描く？",
-    "heroDescription": "プロンプトを入力して全モデルを競わせましょう。ブラインド投票で勝者を決め、ELOランキングを上げましょう。",
+    "heroEyebrow": "アリーナ",
+    "heroTitle": "ブラインドモデルバトル",
+    "heroDescription": "1プロンプト、全モデル生成、ブラインド投票、ELOランキング。",
     "promptLabel": "バトルプロンプト",
     "promptPlaceholder": "すべてのモデルに生成させたい画像を説明...",
     "battleButton": "バトル！",
@@ -469,8 +483,8 @@
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "ランキング",
-    "heroTitle": "モデルランキング",
-    "heroDescription": "ブラインドコミュニティ投票に基づくELOランキング。最高のモデルがトップに。",
+    "heroTitle": "ELOランキング",
+    "heroDescription": "ブラインド投票によるモデル順位。",
     "backToArena": "アリーナに戻る",
     "loading": "ランキングを読み込み中...",
     "empty": "まだ対戦がありません。バトルを始めてランキングを確認しましょう！",

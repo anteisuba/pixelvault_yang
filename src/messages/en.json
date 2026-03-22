@@ -148,24 +148,24 @@
   },
   "StudioPage": {
     "heroEyebrow": "Studio",
-    "heroTitle": "A quieter studio for focused generation",
-    "heroDescription": "Choose a route, write the prompt, and review the latest result in one workspace.",
-    "workspaceLabel": "Studio workspace",
-    "workspaceTitle": "Write once, generate with context",
-    "workspaceDescription": "Route details, prompt writing, reference input, and results now share the same calmer structure.",
+    "heroTitle": "Generation Studio",
+    "heroDescription": "Pick a model, write a prompt, generate.",
+    "workspaceLabel": "Workspace",
+    "workspaceTitle": "Start creating",
+    "workspaceDescription": "Select a model and route, enter your prompt to generate.",
     "metrics": {
-      "modelCoverageLabel": "Available models",
-      "modelCoverageValue": "{modelCount} available models across {providerCount, plural, one {# provider} other {# providers}}",
+      "modelCoverageLabel": "Models",
+      "modelCoverageValue": "{modelCount} models · {providerCount} providers",
       "startingCostLabel": "Per run",
-      "startingCostValue": "Each generation is recorded as {creditCount}",
-      "archiveBehaviorLabel": "Archive default",
-      "archiveBehaviorValue": "Every result stays tied to its prompt and route details."
+      "startingCostValue": "{creditCount}",
+      "archiveBehaviorLabel": "Auto-archive",
+      "archiveBehaviorValue": "Results saved automatically"
     }
   },
   "GalleryPage": {
-    "heroEyebrow": "Public gallery",
-    "heroTitle": "A public record, not just a wall of images.",
-    "heroDescription": "Every public generation keeps its prompt, model, and provider context attached, so the gallery reads like an archive instead of a loose feed.",
+    "heroEyebrow": "Gallery",
+    "heroTitle": "Public Archive",
+    "heroDescription": "Every image includes its prompt, model, and generation info.",
     "actions": {
       "primarySignedIn": "Open studio",
       "primarySignedOut": "Sign in to create",
@@ -177,12 +177,12 @@
       "archiveSizeValue": "{count, plural, =0 {No public images yet} one {# public image} other {# public images}}",
       "modelCoverageLabel": "Current coverage",
       "modelCoverageValue": "{count, plural, one {# built-in image model} other {# built-in image models}}",
-      "curationLabel": "Reading order",
-      "curationValue": "Newest images come first, with full context one click away."
+      "curationLabel": "Sort",
+      "curationValue": "Newest first"
     },
-    "feedEyebrow": "Open archive",
-    "feedTitle": "Recent public generations",
-    "feedDescription": "Browse recent outputs from across the archive, then load more when you want to go deeper.",
+    "feedEyebrow": "Archive",
+    "feedTitle": "Recent public works",
+    "feedDescription": "",
     "feedCount": "Showing {shown} of {total}",
     "emptyTitle": "The public archive is still quiet",
     "emptyDescription": "Public generations will appear here once creators begin sharing work from the studio.",
@@ -193,8 +193,8 @@
   },
   "LibraryPage": {
     "heroEyebrow": "My archive",
-    "heroTitle": "Your recent work, kept in one archive.",
-    "heroDescription": "Recent outputs, visibility state, and cumulative API usage live together here so the next session starts with context.",
+    "heroTitle": "My Works",
+    "heroDescription": "Your generations and API usage.",
     "actions": {
       "primary": "Make a new image",
       "secondary": "Browse public gallery",
@@ -209,9 +209,9 @@
       "privateWorksValue": "{count, plural, =0 {No private images} one {# private image} other {# private images}}",
       "creditsLabel": "API requests"
     },
-    "collectionEyebrow": "Recent archive",
-    "collectionTitle": "Latest saved images",
-    "collectionDescription": "This view shows the newest images in your archive, including whether each one is currently public.",
+    "collectionEyebrow": "Archive",
+    "collectionTitle": "Recent generations",
+    "collectionDescription": "",
     "collectionCount": "Showing {shown} of {total}",
     "emptyTitle": "No saved generations yet",
     "emptyDescription": "Run your first image in Studio and it will appear here with its prompt and route details.",
@@ -422,10 +422,24 @@
       }
     }
   },
+  "ModelRanking": {
+    "title": "2026 Image AI Rankings",
+    "subtitle": "LM Arena ELO · Models marked 'Supported' can be used with your API key.",
+    "supported": "Supported",
+    "noApi": "No API",
+    "strengths": {
+      "photorealism": "Photorealism & lighting",
+      "overall": "Best overall & text rendering",
+      "logos": "Logos & vector design",
+      "textInImage": "Text in images",
+      "multimodal": "Prompt understanding & multimodal",
+      "artistic": "Artistic style & aesthetics"
+    }
+  },
   "StoryBoard": {
     "heroEyebrow": "Storyboard",
-    "heroTitle": "Turn Images into Stories",
-    "heroDescription": "Select your generated images and let AI weave them into a visual narrative.",
+    "heroTitle": "Images to Stories",
+    "heroDescription": "Select images, AI writes the narrative.",
     "createButton": "New Story",
     "titlePlaceholder": "Story title...",
     "idsPlaceholder": "Generation IDs (comma-separated)",
@@ -452,9 +466,9 @@
     "makePrivate": "Make Private"
   },
   "ArenaPage": {
-    "heroEyebrow": "Model Arena",
-    "heroTitle": "Which AI Sees Your Vision Best?",
-    "heroDescription": "Enter a prompt and let all models compete. Vote blind, reveal the winner, climb the ELO leaderboard.",
+    "heroEyebrow": "Arena",
+    "heroTitle": "Blind Model Battle",
+    "heroDescription": "One prompt, all models, blind vote, ELO ranking.",
     "promptLabel": "Battle Prompt",
     "promptPlaceholder": "Describe the image you want all models to generate...",
     "battleButton": "Battle!",
@@ -469,8 +483,8 @@
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "Leaderboard",
-    "heroTitle": "Model Rankings",
-    "heroDescription": "ELO rankings based on blind community votes. The best model rises to the top.",
+    "heroTitle": "ELO Rankings",
+    "heroDescription": "Model rankings from blind votes.",
     "backToArena": "Back to Arena",
     "loading": "Loading leaderboard...",
     "empty": "No matches yet. Start a battle to see rankings!",

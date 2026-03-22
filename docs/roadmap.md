@@ -15,11 +15,6 @@ Items roughly ordered by impact and dependency.
 - SEO metadata (Open Graph image, title, description)
 - Reuse `ImageDetailModal` layout as full-page variant
 
-### Landing Page Animations
-- Fade-in + translate-up entrance on scroll (IntersectionObserver)
-- Staggered delays per section card
-- Respect `prefers-reduced-motion`
-
 ### SEO & Metadata
 - Per-page `generateMetadata()` with Open Graph tags
 - `sitemap.xml` generation via Next.js App Router
@@ -49,21 +44,10 @@ Items roughly ordered by impact and dependency.
 
 ### Advanced Generation
 - Batch generation (multiple prompts in one run)
-- Image-to-image variations (expand existing img2img)
 - Prompt templates / presets library
 - Generation history comparison (side-by-side)
 
 ## Long-term
-
-### Video Generation
-- Support video AI models (schema already has `VIDEO` output type + `duration` field)
-- Video player in detail modal
-- Video-specific metadata (duration, frame rate)
-
-### API Access
-- Public REST API for programmatic generation
-- API key management (partially built: `UserApiKey` model exists)
-- Rate limiting + usage quotas per key
 
 ### Multi-tenant / Team
 - Shared workspaces for teams
@@ -92,3 +76,18 @@ Items roughly ordered by impact and dependency.
 - Database backup automation
 - R2 lifecycle policies (storage cost management)
 - GDPR data export / deletion flow
+
+---
+
+## Already Completed (moved from roadmap)
+
+These items were originally planned for mid/long-term but have been implemented:
+
+- ~~Video Generation~~ — 5 models via fal.ai (Kling, MiniMax, Luma, WAN, Hunyuan)
+- ~~API Key Management~~ — Full CRUD with AES-256-GCM encryption per user per provider
+- ~~Image-to-Image~~ — Reference image support in generation
+- ~~Prompt Enhancement~~ — LLM-based enhancement (3 styles)
+- ~~Image Reverse Engineering~~ — Upload → extract prompt → generate variations
+- ~~AI Model Arena~~ — Blind comparison with ELO ranking system
+- ~~Storyboard~~ — AI narrative generation, comic/scroll view, drag reorder, PNG export
+- ~~Landing Page~~ — Hero redesign, metrics bar, gallery preview section

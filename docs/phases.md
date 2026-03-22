@@ -32,7 +32,19 @@
 - MobileTabBar navigation coherence (3-tab alignment with Navbar, auth state consistency)
 - Standalone auth pages (removed HomepageShell auth coupling)
 - Image detail modal (full prompt, metadata, download, open original)
+- Multi-provider architecture (HuggingFace, Google Gemini, OpenAI, fal.ai, Replicate)
+- Per-user API key management (AES-256-GCM encrypted storage)
+- Image-to-image generation (reference image support)
+- Prompt enhancement (detailed / artistic / photorealistic styles via LLM)
+- Image reverse engineering (upload → extract prompt → generate variations)
+- AI Model Arena with ELO ranking (blind comparison + voting)
+- Storyboard with AI narrative (comic view, drag reorder, PNG export, public share)
+- Video generation (5 models via fal.ai — Kling, MiniMax, Luma, WAN, Hunyuan)
+- 9 image models + 5 video models across 5 providers
 
 ### Remaining
 
-- See `docs/roadmap.md` for planned features
+- Gallery search & filter (keyword, model, sort)
+- Image detail page `/gallery/[id]` (shareable permalink)
+- SEO & metadata (generateMetadata, sitemap.xml, JSON-LD)
+- Deployment hardening (CSP, Sentry, R2 CDN cache)

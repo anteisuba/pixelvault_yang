@@ -1,0 +1,225 @@
+/* eslint-disable @next/next/no-img-element */
+import { ArrowLeft, ArrowUpRight, Coins, Download } from 'lucide-react'
+import type { Metadata } from 'next'
+import { getFormatter, getTranslations } from 'next-intl/server'
+import { notFound } from 'next/navigation'
+
+import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
+import { ROUTES } from '@/constants/routes'
+import { Link } from '@/i18n/navigation'
+import { isCjkLocale, type AppLocale } from '@/i18n/routing'
+import { cn } from '@/lib/utils'
+import { getGenerationById } from '@/services/generation.service'
+
+import { Button } from '@/components/ui/button'
+
+interface ImageDetailPageProps {
+  params: Promise<{ locale: AppLocale; id: string }>
+}
+
+export async function generateMetadata({
+  params,
+}: ImageDetailPageProps): Promise<Metadata> {
+  const { id, locale } = await params
+  const generation = await getGenerationById(id)
+
+  if (!generation || !generation.isPublic) {
+    return { title: 'Not Found' }
+  }
+
+  const t = await getTranslations({ locale, namespace: 'ImageDetail' })
+  const tModels = await getTranslations({ locale, namespace: 'Models' })
+
+  const modelLabel = isBuiltInModel(generation.model)
+    ? tModels(`${getModelMessageKey(generation.model)}.label`)
+    : generation.model
+
+  const title = `${modelLabel} — PixelVault`
+  const description = generation.prompt.slice(0, 160)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `${appUrl}/${locale}/gallery/${id}`,
+      images: [
+        {
+          url: generation.url,
+          width: generation.width,
+          height: generation.height,
+          alt: description,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [generation.url],
+    },
+  }
+}
+
+export default async function ImageDetailPage({
+  params,
+}: ImageDetailPageProps) {
+  const { id, locale } = await params
+  const generation = await getGenerationById(id)
+
+  if (!generation || !generation.isPublic) {
+    notFound()
+  }
+
+  const isDenseLocale = isCjkLocale(locale)
+  const t = await getTranslations({ locale, namespace: 'ImageDetail' })
+  const tCard = await getTranslations({ locale, namespace: 'GalleryCard' })
+  const tCommon = await getTranslations({ locale, namespace: 'Common' })
+  const tModels = await getTranslations({ locale, namespace: 'Models' })
+  const format = await getFormatter({ locale })
+
+  const modelLabel = isBuiltInModel(generation.model)
+    ? tModels(`${getModelMessageKey(generation.model)}.label`)
+    : generation.model
+
+  const createdAt = new Date(generation.createdAt)
+  const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(generation.height, 1)}`
+
+  const labelClass = cn(
+    'text-nav font-semibold text-muted-foreground',
+    isDenseLocale
+      ? 'tracking-normal normal-case'
+      : 'uppercase tracking-nav-dense',
+  )
+
+  const metadata = [
+    { label: tCard('modelLabel'), value: modelLabel, key: 'model' },
+    {
+      label: tCard('providerLabel'),
+      value: generation.provider,
+      key: 'provider',
+    },
+    {
+      label: tCard('requestsLabel'),
+      value: tCommon('creditCount', { count: generation.requestCount }),
+      key: 'requests',
+      icon: <Coins className="size-3 text-primary" />,
+    },
+  ]
+
+  return (
+    <div className="editorial-page">
+      <div className="editorial-container max-w-4xl">
+        <div className="mb-6">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="rounded-full text-muted-foreground"
+          >
+            <Link href={ROUTES.GALLERY}>
+              <ArrowLeft className="size-3.5" />
+              {t('backToGallery')}
+            </Link>
+          </Button>
+        </div>
+
+        <div className="overflow-hidden rounded-3xl border border-border/75 bg-card">
+          <div className="bg-secondary/18">
+            <img
+              src={generation.url}
+              alt={generation.prompt}
+              className="h-auto max-h-[70svh] w-full object-contain"
+              style={{ aspectRatio }}
+            />
+          </div>
+
+          <div className="space-y-5 p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <p
+                className={cn(
+                  'text-nav font-semibold text-muted-foreground',
+                  isDenseLocale
+                    ? 'tracking-normal normal-case'
+                    : 'uppercase tracking-nav',
+                )}
+              >
+                {format.dateTime(createdAt, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className={labelClass}>{t('promptLabel')}</p>
+              <p className="font-serif text-base leading-7 text-foreground">
+                {generation.prompt}
+              </p>
+            </div>
+
+            {generation.negativePrompt ? (
+              <div className="space-y-2">
+                <p className={labelClass}>{t('negativePromptLabel')}</p>
+                <p className="font-serif text-sm leading-6 text-muted-foreground">
+                  {generation.negativePrompt}
+                </p>
+              </div>
+            ) : null}
+
+            <dl className="grid gap-2 border-t border-border/70 pt-4">
+              {metadata.map((item) => (
+                <div
+                  key={item.key}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <dt className={labelClass}>{item.label}</dt>
+                  <dd className="flex items-center gap-1.5 text-right text-sm text-foreground">
+                    {item.icon}
+                    <span>{item.value}</span>
+                  </dd>
+                </div>
+              ))}
+              <div className="flex items-start justify-between gap-3">
+                <dt className={labelClass}>{t('dimensionsLabel')}</dt>
+                <dd className="text-right text-sm text-foreground">
+                  {generation.width} &times; {generation.height}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                asChild
+              >
+                <a href={generation.url} download>
+                  <Download className="size-3.5" />
+                  {t('download')}
+                </a>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                asChild
+              >
+                <a href={generation.url} target="_blank" rel="noreferrer">
+                  <ArrowUpRight className="size-3.5" />
+                  {t('openOriginal')}
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

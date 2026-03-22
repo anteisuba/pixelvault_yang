@@ -427,7 +427,8 @@
     "dimensionsLabel": "Dimensions",
     "download": "Download",
     "downloading": "Downloading...",
-    "openOriginal": "Open original"
+    "openOriginal": "Open original",
+    "backToGallery": "Back to gallery"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

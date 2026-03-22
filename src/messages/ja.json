@@ -427,7 +427,8 @@
     "dimensionsLabel": "サイズ",
     "download": "ダウンロード",
     "downloading": "ダウンロード中...",
-    "openOriginal": "原画像を開く"
+    "openOriginal": "原画像を開く",
+    "backToGallery": "ギャラリーに戻る"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

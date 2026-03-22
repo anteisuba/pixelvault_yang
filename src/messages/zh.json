@@ -427,7 +427,8 @@
     "dimensionsLabel": "尺寸",
     "download": "下载",
     "downloading": "下载中...",
-    "openOriginal": "查看原图"
+    "openOriginal": "查看原图",
+    "backToGallery": "返回画廊"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

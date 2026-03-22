@@ -389,7 +389,10 @@ export const ModelName = {
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
   ApiUsageLedger: 'ApiUsageLedger',
-  ImageAnalysis: 'ImageAnalysis'
+  ImageAnalysis: 'ImageAnalysis',
+  ArenaMatch: 'ArenaMatch',
+  ArenaEntry: 'ArenaEntry',
+  ModelEloRating: 'ModelEloRating'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -405,7 +408,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis"
+    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -853,6 +856,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ArenaMatch: {
+      payload: Prisma.$ArenaMatchPayload<ExtArgs>
+      fields: Prisma.ArenaMatchFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ArenaMatchFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ArenaMatchFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        findFirst: {
+          args: Prisma.ArenaMatchFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ArenaMatchFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        findMany: {
+          args: Prisma.ArenaMatchFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>[]
+        }
+        create: {
+          args: Prisma.ArenaMatchCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        createMany: {
+          args: Prisma.ArenaMatchCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ArenaMatchCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>[]
+        }
+        delete: {
+          args: Prisma.ArenaMatchDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        update: {
+          args: Prisma.ArenaMatchUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        deleteMany: {
+          args: Prisma.ArenaMatchDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ArenaMatchUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ArenaMatchUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>[]
+        }
+        upsert: {
+          args: Prisma.ArenaMatchUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaMatchPayload>
+        }
+        aggregate: {
+          args: Prisma.ArenaMatchAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateArenaMatch>
+        }
+        groupBy: {
+          args: Prisma.ArenaMatchGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ArenaMatchGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ArenaMatchCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ArenaMatchCountAggregateOutputType> | number
+        }
+      }
+    }
+    ArenaEntry: {
+      payload: Prisma.$ArenaEntryPayload<ExtArgs>
+      fields: Prisma.ArenaEntryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ArenaEntryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ArenaEntryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        findFirst: {
+          args: Prisma.ArenaEntryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ArenaEntryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        findMany: {
+          args: Prisma.ArenaEntryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>[]
+        }
+        create: {
+          args: Prisma.ArenaEntryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        createMany: {
+          args: Prisma.ArenaEntryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ArenaEntryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>[]
+        }
+        delete: {
+          args: Prisma.ArenaEntryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        update: {
+          args: Prisma.ArenaEntryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        deleteMany: {
+          args: Prisma.ArenaEntryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ArenaEntryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ArenaEntryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>[]
+        }
+        upsert: {
+          args: Prisma.ArenaEntryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ArenaEntryPayload>
+        }
+        aggregate: {
+          args: Prisma.ArenaEntryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateArenaEntry>
+        }
+        groupBy: {
+          args: Prisma.ArenaEntryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ArenaEntryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ArenaEntryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ArenaEntryCountAggregateOutputType> | number
+        }
+      }
+    }
+    ModelEloRating: {
+      payload: Prisma.$ModelEloRatingPayload<ExtArgs>
+      fields: Prisma.ModelEloRatingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ModelEloRatingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ModelEloRatingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        findFirst: {
+          args: Prisma.ModelEloRatingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ModelEloRatingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        findMany: {
+          args: Prisma.ModelEloRatingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>[]
+        }
+        create: {
+          args: Prisma.ModelEloRatingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        createMany: {
+          args: Prisma.ModelEloRatingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ModelEloRatingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>[]
+        }
+        delete: {
+          args: Prisma.ModelEloRatingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        update: {
+          args: Prisma.ModelEloRatingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        deleteMany: {
+          args: Prisma.ModelEloRatingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ModelEloRatingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ModelEloRatingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>[]
+        }
+        upsert: {
+          args: Prisma.ModelEloRatingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelEloRatingPayload>
+        }
+        aggregate: {
+          args: Prisma.ModelEloRatingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateModelEloRating>
+        }
+        groupBy: {
+          args: Prisma.ModelEloRatingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ModelEloRatingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ModelEloRatingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ModelEloRatingCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -994,6 +1219,43 @@ export const ImageAnalysisScalarFieldEnum = {
 } as const
 
 export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
+
+
+export const ArenaMatchScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  prompt: 'prompt',
+  aspectRatio: 'aspectRatio',
+  winnerId: 'winnerId',
+  votedAt: 'votedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type ArenaMatchScalarFieldEnum = (typeof ArenaMatchScalarFieldEnum)[keyof typeof ArenaMatchScalarFieldEnum]
+
+
+export const ArenaEntryScalarFieldEnum = {
+  id: 'id',
+  matchId: 'matchId',
+  generationId: 'generationId',
+  modelId: 'modelId',
+  slotIndex: 'slotIndex',
+  wasVoted: 'wasVoted'
+} as const
+
+export type ArenaEntryScalarFieldEnum = (typeof ArenaEntryScalarFieldEnum)[keyof typeof ArenaEntryScalarFieldEnum]
+
+
+export const ModelEloRatingScalarFieldEnum = {
+  id: 'id',
+  modelId: 'modelId',
+  rating: 'rating',
+  matchCount: 'matchCount',
+  winCount: 'winCount',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ModelEloRatingScalarFieldEnum = (typeof ModelEloRatingScalarFieldEnum)[keyof typeof ModelEloRatingScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1261,6 +1523,9 @@ export type GlobalOmitConfig = {
   generationJob?: Prisma.GenerationJobOmit
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
+  arenaMatch?: Prisma.ArenaMatchOmit
+  arenaEntry?: Prisma.ArenaEntryOmit
+  modelEloRating?: Prisma.ModelEloRatingOmit
 }
 
 /* Types for Logging */

@@ -13,6 +13,7 @@
     "links": {
       "gallery": "ギャラリー",
       "studio": "スタジオ",
+      "arena": "アリーナ",
       "library": "アーカイブ"
     }
   },
@@ -418,6 +419,35 @@
         "description": "アニメスタイルとキャラクターの詳細を追加"
       }
     }
+  },
+  "ArenaPage": {
+    "heroEyebrow": "モデルアリーナ",
+    "heroTitle": "どのAIがあなたのビジョンを最もよく描く？",
+    "heroDescription": "プロンプトを入力して全モデルを競わせましょう。ブラインド投票で勝者を決め、ELOランキングを上げましょう。",
+    "promptLabel": "バトルプロンプト",
+    "promptPlaceholder": "すべてのモデルに生成させたい画像を説明...",
+    "battleButton": "バトル！",
+    "creating": "全モデルで生成中...",
+    "leaderboardLink": "ランキング",
+    "promptUsed": "プロンプト",
+    "voteInstruction": "どの画像がプロンプトに最も合っていますか？投票してモデルを明かしましょう。",
+    "modelSlot": "モデル",
+    "winner": "勝者",
+    "voteButton": "投票",
+    "newBattle": "新しいバトル"
+  },
+  "ArenaLeaderboard": {
+    "heroEyebrow": "ランキング",
+    "heroTitle": "モデルランキング",
+    "heroDescription": "ブラインドコミュニティ投票に基づくELOランキング。最高のモデルがトップに。",
+    "backToArena": "アリーナに戻る",
+    "loading": "ランキングを読み込み中...",
+    "empty": "まだ対戦がありません。バトルを始めてランキングを確認しましょう！",
+    "rank": "順位",
+    "model": "モデル",
+    "elo": "ELO",
+    "matches": "対戦数",
+    "winRate": "勝率"
   },
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",

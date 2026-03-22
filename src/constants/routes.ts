@@ -16,6 +16,8 @@ export const ROUTES = {
   /** Protected pages */
   STUDIO: '/studio',
   PROFILE: '/profile',
+  ARENA: '/arena',
+  ARENA_LEADERBOARD: '/arena/leaderboard',
 } as const
 
 /** Type for all route values */

@@ -13,6 +13,7 @@
     "links": {
       "gallery": "画廊",
       "studio": "工作台",
+      "arena": "竞技场",
       "library": "档案"
     }
   },
@@ -418,6 +419,35 @@
         "description": "添加动漫风格和角色细节"
       }
     }
+  },
+  "ArenaPage": {
+    "heroEyebrow": "模型竞技场",
+    "heroTitle": "哪个 AI 最懂你的想象？",
+    "heroDescription": "输入提示词，让所有模型同台竞技。盲投票选出赢家，攀登 ELO 排行榜。",
+    "promptLabel": "对战提示词",
+    "promptPlaceholder": "描述你想让所有模型生成的图片...",
+    "battleButton": "开战！",
+    "creating": "全模型生成中...",
+    "leaderboardLink": "排行榜",
+    "promptUsed": "提示词",
+    "voteInstruction": "哪张图片最符合你的提示词？投票揭晓模型身份。",
+    "modelSlot": "模型",
+    "winner": "胜者",
+    "voteButton": "投票",
+    "newBattle": "新对战"
+  },
+  "ArenaLeaderboard": {
+    "heroEyebrow": "排行榜",
+    "heroTitle": "模型排名",
+    "heroDescription": "基于社区盲投票的 ELO 排名。最强模型登顶。",
+    "backToArena": "返回竞技场",
+    "loading": "加载排行榜中...",
+    "empty": "还没有对战记录。开始一场对战来查看排名！",
+    "rank": "排名",
+    "model": "模型",
+    "elo": "ELO",
+    "matches": "对战数",
+    "winRate": "胜率"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",

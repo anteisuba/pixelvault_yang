@@ -227,3 +227,84 @@ export interface GenerateVariationsResponse {
   data?: GenerateVariationsResponseData
   error?: string
 }
+
+// ─── Arena ───────────────────────────────────────────────────────
+
+export const CreateArenaMatchRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(GENERATION_LIMITS.PROMPT_MAX_LENGTH),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+})
+
+export type CreateArenaMatchRequest = z.infer<
+  typeof CreateArenaMatchRequestSchema
+>
+
+export const ArenaVoteRequestSchema = z.object({
+  winnerEntryId: z.string().trim().min(1),
+})
+
+export type ArenaVoteRequest = z.infer<typeof ArenaVoteRequestSchema>
+
+export type ArenaEntryStatus = 'pending' | 'completed' | 'failed'
+
+export interface ArenaEntryRecord {
+  id: string
+  slotIndex: number
+  modelId: string
+  status: ArenaEntryStatus
+  imageUrl?: string
+  wasVoted: boolean
+}
+
+export interface ArenaMatchRecord {
+  id: string
+  prompt: string
+  aspectRatio: string
+  winnerId: string | null
+  votedAt: Date | null
+  createdAt: Date
+  entries: ArenaEntryRecord[]
+}
+
+export interface CreateArenaMatchResponse {
+  success: boolean
+  data?: { matchId: string }
+  error?: string
+}
+
+export interface ArenaMatchResponse {
+  success: boolean
+  data?: ArenaMatchRecord
+  error?: string
+}
+
+export interface ArenaVoteResponse {
+  success: boolean
+  data?: { winnerId: string; eloUpdates: EloUpdate[] }
+  error?: string
+}
+
+export interface EloUpdate {
+  modelId: string
+  oldRating: number
+  newRating: number
+  change: number
+}
+
+export interface LeaderboardEntry {
+  modelId: string
+  rating: number
+  matchCount: number
+  winCount: number
+  winRate: number
+}
+
+export interface ArenaLeaderboardResponse {
+  success: boolean
+  data?: LeaderboardEntry[]
+  error?: string
+}

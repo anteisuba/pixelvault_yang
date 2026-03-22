@@ -327,6 +327,7 @@ export type GenerationWhereInput = {
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  arenaEntries?: Prisma.ArenaEntryListRelationFilter
 }
 
 export type GenerationOrderByWithRelationInput = {
@@ -350,6 +351,7 @@ export type GenerationOrderByWithRelationInput = {
   user?: Prisma.UserOrderByWithRelationInput
   generationJob?: Prisma.GenerationJobOrderByWithRelationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
+  arenaEntries?: Prisma.ArenaEntryOrderByRelationAggregateInput
 }
 
 export type GenerationWhereUniqueInput = Prisma.AtLeast<{
@@ -376,6 +378,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  arenaEntries?: Prisma.ArenaEntryListRelationFilter
 }, "id">
 
 export type GenerationOrderByWithAggregationInput = {
@@ -446,6 +449,7 @@ export type GenerationCreateInput = {
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateInput = {
@@ -468,6 +472,7 @@ export type GenerationUncheckedCreateInput = {
   userId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUpdateInput = {
@@ -490,6 +495,7 @@ export type GenerationUpdateInput = {
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateInput = {
@@ -512,6 +518,7 @@ export type GenerationUncheckedUpdateInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateManyInput = {
@@ -662,6 +669,11 @@ export type GenerationNullableScalarRelationFilter = {
   isNot?: Prisma.GenerationWhereInput | null
 }
 
+export type GenerationScalarRelationFilter = {
+  is?: Prisma.GenerationWhereInput
+  isNot?: Prisma.GenerationWhereInput
+}
+
 export type GenerationCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.GenerationCreateWithoutUserInput, Prisma.GenerationUncheckedCreateWithoutUserInput> | Prisma.GenerationCreateWithoutUserInput[] | Prisma.GenerationUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutUserInput | Prisma.GenerationCreateOrConnectWithoutUserInput[]
@@ -764,6 +776,20 @@ export type GenerationUpdateOneWithoutApiUsageLedgerNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutApiUsageLedgerInput, Prisma.GenerationUpdateWithoutApiUsageLedgerInput>, Prisma.GenerationUncheckedUpdateWithoutApiUsageLedgerInput>
 }
 
+export type GenerationCreateNestedOneWithoutArenaEntriesInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutArenaEntriesInput, Prisma.GenerationUncheckedCreateWithoutArenaEntriesInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutArenaEntriesInput
+  connect?: Prisma.GenerationWhereUniqueInput
+}
+
+export type GenerationUpdateOneRequiredWithoutArenaEntriesNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutArenaEntriesInput, Prisma.GenerationUncheckedCreateWithoutArenaEntriesInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutArenaEntriesInput
+  upsert?: Prisma.GenerationUpsertWithoutArenaEntriesInput
+  connect?: Prisma.GenerationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutArenaEntriesInput, Prisma.GenerationUpdateWithoutArenaEntriesInput>, Prisma.GenerationUncheckedUpdateWithoutArenaEntriesInput>
+}
+
 export type GenerationCreateWithoutUserInput = {
   id?: string
   createdAt?: Date | string
@@ -783,6 +809,7 @@ export type GenerationCreateWithoutUserInput = {
   isPublic?: boolean
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutUserInput = {
@@ -804,6 +831,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   isPublic?: boolean
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutUserInput = {
@@ -874,6 +902,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutGenerationJobInput = {
@@ -895,6 +924,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   userId?: string | null
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutGenerationJobInput = {
@@ -932,6 +962,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
@@ -953,6 +984,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutApiUsageLedgerInput = {
@@ -974,6 +1006,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -995,6 +1028,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   userId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -1032,6 +1066,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -1053,6 +1088,111 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationCreateWithoutArenaEntriesInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isPublic?: boolean
+  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isPublic?: boolean
+  userId?: string | null
+  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationCreateOrConnectWithoutArenaEntriesInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutArenaEntriesInput, Prisma.GenerationUncheckedCreateWithoutArenaEntriesInput>
+}
+
+export type GenerationUpsertWithoutArenaEntriesInput = {
+  update: Prisma.XOR<Prisma.GenerationUpdateWithoutArenaEntriesInput, Prisma.GenerationUncheckedUpdateWithoutArenaEntriesInput>
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutArenaEntriesInput, Prisma.GenerationUncheckedCreateWithoutArenaEntriesInput>
+  where?: Prisma.GenerationWhereInput
+}
+
+export type GenerationUpdateToOneWithWhereWithoutArenaEntriesInput = {
+  where?: Prisma.GenerationWhereInput
+  data: Prisma.XOR<Prisma.GenerationUpdateWithoutArenaEntriesInput, Prisma.GenerationUncheckedUpdateWithoutArenaEntriesInput>
+}
+
+export type GenerationUpdateWithoutArenaEntriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateManyUserInput = {
@@ -1093,6 +1233,7 @@ export type GenerationUpdateWithoutUserInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutUserInput = {
@@ -1114,6 +1255,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutUserInput = {
@@ -1142,10 +1284,12 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
 
 export type GenerationCountOutputType = {
   apiUsageLedger: number
+  arenaEntries: number
 }
 
 export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   apiUsageLedger?: boolean | GenerationCountOutputTypeCountApiUsageLedgerArgs
+  arenaEntries?: boolean | GenerationCountOutputTypeCountArenaEntriesArgs
 }
 
 /**
@@ -1163,6 +1307,13 @@ export type GenerationCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.E
  */
 export type GenerationCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ApiUsageLedgerWhereInput
+}
+
+/**
+ * GenerationCountOutputType without action
+ */
+export type GenerationCountOutputTypeCountArenaEntriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ArenaEntryWhereInput
 }
 
 
@@ -1187,6 +1338,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
+  arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
@@ -1257,6 +1409,7 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
+  arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type GenerationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1272,6 +1425,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     user: Prisma.$UserPayload<ExtArgs> | null
     generationJob: Prisma.$GenerationJobPayload<ExtArgs> | null
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
+    arenaEntries: Prisma.$ArenaEntryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1688,6 +1842,7 @@ export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runti
   user<T extends Prisma.Generation$userArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$userArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   generationJob<T extends Prisma.Generation$generationJobArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$generationJobArgs<ExtArgs>>): Prisma.Prisma__GenerationJobClient<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   apiUsageLedger<T extends Prisma.Generation$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  arenaEntries<T extends Prisma.Generation$arenaEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$arenaEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ArenaEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2189,6 +2344,30 @@ export type Generation$apiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   distinct?: Prisma.ApiUsageLedgerScalarFieldEnum | Prisma.ApiUsageLedgerScalarFieldEnum[]
+}
+
+/**
+ * Generation.arenaEntries
+ */
+export type Generation$arenaEntriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ArenaEntry
+   */
+  select?: Prisma.ArenaEntrySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ArenaEntry
+   */
+  omit?: Prisma.ArenaEntryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ArenaEntryInclude<ExtArgs> | null
+  where?: Prisma.ArenaEntryWhereInput
+  orderBy?: Prisma.ArenaEntryOrderByWithRelationInput | Prisma.ArenaEntryOrderByWithRelationInput[]
+  cursor?: Prisma.ArenaEntryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ArenaEntryScalarFieldEnum | Prisma.ArenaEntryScalarFieldEnum[]
 }
 
 /**

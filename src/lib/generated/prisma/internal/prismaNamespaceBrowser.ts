@@ -56,7 +56,10 @@ export const ModelName = {
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
   ApiUsageLedger: 'ApiUsageLedger',
-  ImageAnalysis: 'ImageAnalysis'
+  ImageAnalysis: 'ImageAnalysis',
+  ArenaMatch: 'ArenaMatch',
+  ArenaEntry: 'ArenaEntry',
+  ModelEloRating: 'ModelEloRating'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -177,6 +180,43 @@ export const ImageAnalysisScalarFieldEnum = {
 } as const
 
 export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
+
+
+export const ArenaMatchScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  prompt: 'prompt',
+  aspectRatio: 'aspectRatio',
+  winnerId: 'winnerId',
+  votedAt: 'votedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type ArenaMatchScalarFieldEnum = (typeof ArenaMatchScalarFieldEnum)[keyof typeof ArenaMatchScalarFieldEnum]
+
+
+export const ArenaEntryScalarFieldEnum = {
+  id: 'id',
+  matchId: 'matchId',
+  generationId: 'generationId',
+  modelId: 'modelId',
+  slotIndex: 'slotIndex',
+  wasVoted: 'wasVoted'
+} as const
+
+export type ArenaEntryScalarFieldEnum = (typeof ArenaEntryScalarFieldEnum)[keyof typeof ArenaEntryScalarFieldEnum]
+
+
+export const ModelEloRatingScalarFieldEnum = {
+  id: 'id',
+  modelId: 'modelId',
+  rating: 'rating',
+  matchCount: 'matchCount',
+  winCount: 'winCount',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ModelEloRatingScalarFieldEnum = (typeof ModelEloRatingScalarFieldEnum)[keyof typeof ModelEloRatingScalarFieldEnum]
 
 
 export const SortOrder = {

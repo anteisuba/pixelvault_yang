@@ -42,6 +42,7 @@ model User {
   generationJobs GenerationJob[]
   apiUsageLedger ApiUsageLedger[]
   imageAnalyses  ImageAnalysis[]
+  arenaMatches   ArenaMatch[]
 }
 
 model UserApiKey {
@@ -97,6 +98,7 @@ model Generation {
   user           User?            @relation(fields: [userId], references: [id])
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
+  arenaEntries   ArenaEntry[]
 
   @@index([userId])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
@@ -162,4 +164,40 @@ model ImageAnalysis {
   createdAt        DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model ArenaMatch {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt      String       @db.Text
+  aspectRatio String
+  winnerId    String?
+  votedAt     DateTime?
+  createdAt   DateTime     @default(now())
+  entries     ArenaEntry[]
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model ArenaEntry {
+  id           String     @id @default(uuid())
+  matchId      String
+  match        ArenaMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  modelId      String
+  slotIndex    Int
+  wasVoted     Boolean    @default(false)
+
+  @@unique([matchId, generationId])
+}
+
+model ModelEloRating {
+  id         String   @id @default(uuid())
+  modelId    String   @unique
+  rating     Float    @default(1500)
+  matchCount Int      @default(0)
+  winCount   Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }

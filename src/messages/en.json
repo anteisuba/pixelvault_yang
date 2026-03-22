@@ -13,6 +13,7 @@
     "links": {
       "gallery": "Gallery",
       "studio": "Studio",
+      "arena": "Arena",
       "library": "Archive"
     }
   },
@@ -418,6 +419,35 @@
         "description": "Add anime style and character details"
       }
     }
+  },
+  "ArenaPage": {
+    "heroEyebrow": "Model Arena",
+    "heroTitle": "Which AI Sees Your Vision Best?",
+    "heroDescription": "Enter a prompt and let all models compete. Vote blind, reveal the winner, climb the ELO leaderboard.",
+    "promptLabel": "Battle Prompt",
+    "promptPlaceholder": "Describe the image you want all models to generate...",
+    "battleButton": "Battle!",
+    "creating": "Generating across all models...",
+    "leaderboardLink": "Leaderboard",
+    "promptUsed": "Prompt",
+    "voteInstruction": "Which image best matches your prompt? Vote to reveal the models.",
+    "modelSlot": "Model",
+    "winner": "Winner",
+    "voteButton": "Vote",
+    "newBattle": "New Battle"
+  },
+  "ArenaLeaderboard": {
+    "heroEyebrow": "Leaderboard",
+    "heroTitle": "Model Rankings",
+    "heroDescription": "ELO rankings based on blind community votes. The best model rises to the top.",
+    "backToArena": "Back to Arena",
+    "loading": "Loading leaderboard...",
+    "empty": "No matches yet. Start a battle to see rankings!",
+    "rank": "Rank",
+    "model": "Model",
+    "elo": "ELO",
+    "matches": "Matches",
+    "winRate": "Win Rate"
   },
   "ReverseEngineer": {
     "title": "Reverse Engineer",

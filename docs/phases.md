@@ -42,9 +42,10 @@
 - Video generation (5 models via fal.ai — Kling, MiniMax, Luma, WAN, Hunyuan)
 - 9 image models + 5 video models across 5 providers
 
-### Remaining
+- Gallery search & filter (keyword search, model dropdown, sort by date)
+- Image detail page `/gallery/[id]` (shareable permalink + OG/Twitter cards + JSON-LD)
+- SEO & metadata (per-page generateMetadata, sitemap.xml, robots.txt, alternate languages)
+- Deployment hardening (security headers, remote image patterns, public route config)
+- Landing page scroll animations (CSS View Transitions API, staggered hero entrance)
 
-- Gallery search & filter (keyword, model, sort)
-- Image detail page `/gallery/[id]` (shareable permalink)
-- SEO & metadata (generateMetadata, sitemap.xml, JSON-LD)
-- Deployment hardening (CSP, Sentry, R2 CDN cache)
+## Phase 4: COMPLETE

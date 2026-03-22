@@ -2,31 +2,7 @@
 
 Items roughly ordered by impact and dependency.
 
-## Near-term (Phase 4 completion)
-
-### Gallery Search & Filter
-- Keyword search on prompt text
-- Filter by model / provider
-- Sort by date (newest / oldest)
-- Scope: API query params + frontend filter bar component
-
-### Image Detail Page (dedicated route)
-- `/gallery/[id]` as a shareable permalink
-- SEO metadata (Open Graph image, title, description)
-- Reuse `ImageDetailModal` layout as full-page variant
-
-### SEO & Metadata
-- Per-page `generateMetadata()` with Open Graph tags
-- `sitemap.xml` generation via Next.js App Router
-- Structured data (JSON-LD) for gallery images
-
-### Deployment Hardening
-- Vercel deployment config (env vars, edge middleware)
-- Production CSP headers
-- R2 CDN cache rules
-- Error monitoring (Sentry or similar)
-
-## Mid-term
+## Next up
 
 ### Credits & Billing
 - Credit purchase / top-up flow (Stripe or LemonSqueezy)
@@ -91,3 +67,8 @@ These items were originally planned for mid/long-term but have been implemented:
 - ~~AI Model Arena~~ — Blind comparison with ELO ranking system
 - ~~Storyboard~~ — AI narrative generation, comic/scroll view, drag reorder, PNG export
 - ~~Landing Page~~ — Hero redesign, metrics bar, gallery preview section
+- ~~Gallery Search & Filter~~ — Keyword search, model filter, date sort
+- ~~Image Detail Page~~ — `/gallery/[id]` with OG/Twitter cards, JSON-LD
+- ~~SEO & Metadata~~ — Per-page generateMetadata, sitemap.xml, robots.txt, alternate languages
+- ~~Deployment Hardening~~ — Security headers, remote image patterns, public route config
+- ~~Landing Page Animations~~ — CSS View Transitions scroll reveal, staggered hero entrance

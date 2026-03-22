@@ -444,7 +444,11 @@
       "dramatic": "Dramatic",
       "poetic": "Poetic",
       "adventure": "Adventure"
-    }
+    },
+    "reorderHint": "Drag to reorder panels",
+    "exportPng": "Export PNG",
+    "makePublic": "Make Public",
+    "makePrivate": "Make Private"
   },
   "ArenaPage": {
     "heroEyebrow": "Model Arena",

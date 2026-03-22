@@ -444,7 +444,11 @@
       "dramatic": "戏剧",
       "poetic": "诗意",
       "adventure": "冒险"
-    }
+    },
+    "reorderHint": "拖拽调整面板顺序",
+    "exportPng": "导出 PNG",
+    "makePublic": "设为公开",
+    "makePrivate": "设为私有"
   },
   "ArenaPage": {
     "heroEyebrow": "模型竞技场",

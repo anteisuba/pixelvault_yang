@@ -526,6 +526,33 @@ export async function generateNarrativeAPI(
   }
 }
 
+export async function reorderPanelsAPI(
+  storyId: string,
+  panelIds: string[],
+): Promise<StoryResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.STORIES}/${storyId}/reorder`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelIds }),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to reorder panels'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
 /**
  * Fetch public gallery images with pagination
  */

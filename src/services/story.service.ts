@@ -193,6 +193,43 @@ export async function deleteStory(
   await db.story.delete({ where: { id: storyId } })
 }
 
+export async function reorderPanels(
+  storyId: string,
+  clerkId: string,
+  panelIds: string[],
+): Promise<StoryRecord> {
+  const dbUser = await getUserByClerkId(clerkId)
+  if (!dbUser) throw new Error('User not found')
+
+  const existing = await db.story.findUnique({ where: { id: storyId } })
+  if (!existing || existing.userId !== dbUser.id) {
+    throw new Error('Story not found')
+  }
+
+  // Update orderIndex for each panel using a unique temporary offset to avoid constraint conflicts
+  const offset = 10000
+  for (let i = 0; i < panelIds.length; i++) {
+    await db.storyPanel.update({
+      where: { id: panelIds[i] },
+      data: { orderIndex: offset + i },
+    })
+  }
+
+  for (let i = 0; i < panelIds.length; i++) {
+    await db.storyPanel.update({
+      where: { id: panelIds[i] },
+      data: { orderIndex: i },
+    })
+  }
+
+  const story = await db.story.findUnique({
+    where: { id: storyId },
+    include: STORY_INCLUDE,
+  })
+
+  return mapStory(story!)
+}
+
 // ─── Narrative Generation ────────────────────────────────────────
 
 export async function generateNarrative(

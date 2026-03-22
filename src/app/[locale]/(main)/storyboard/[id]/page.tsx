@@ -1,7 +1,7 @@
 'use client'
 
-import { use } from 'react'
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react'
+import { use, useRef } from 'react'
+import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -9,6 +9,9 @@ import { ROUTES } from '@/constants/routes'
 import type { NarrativeTone } from '@/types'
 import { Button } from '@/components/ui/button'
 import { StoryScrollRenderer } from '@/components/business/StoryScrollRenderer'
+import { StoryComicRenderer } from '@/components/business/StoryComicRenderer'
+import { StoryImagePicker } from '@/components/business/StoryImagePicker'
+import { StoryExportButton } from '@/components/business/StoryExportButton'
 import { useStoryEditor } from '@/hooks/use-storyboard'
 
 const TONE_OPTIONS: { value: NarrativeTone; emoji: string }[] = [
@@ -25,6 +28,7 @@ interface StoryDetailPageProps {
 export default function StoryDetailPage({ params }: StoryDetailPageProps) {
   const { id } = use(params)
   const t = useTranslations('StoryBoard')
+  const contentRef = useRef<HTMLDivElement>(null)
   const {
     story,
     loading,
@@ -32,6 +36,7 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
     error,
     updateStory,
     generateNarrative,
+    reorderPanels,
   } = useStoryEditor(id)
 
   if (loading) {
@@ -70,7 +75,7 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link href={ROUTES.STORYBOARD}>
               <Button variant="outline" className="gap-2 rounded-full">
                 <ArrowLeft className="size-4" />
@@ -78,7 +83,6 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
               </Button>
             </Link>
 
-            {/* Display mode toggle */}
             <Button
               variant="outline"
               className="rounded-full"
@@ -93,10 +97,38 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
                 ? t('switchToComic')
                 : t('switchToScroll')}
             </Button>
+
+            <Button
+              variant="outline"
+              className="gap-1.5 rounded-full"
+              onClick={() => updateStory({ isPublic: !story.isPublic })}
+            >
+              {story.isPublic ? (
+                <>
+                  <EyeOff className="size-3.5" />
+                  {t('makePrivate')}
+                </>
+              ) : (
+                <>
+                  <Eye className="size-3.5" />
+                  {t('makePublic')}
+                </>
+              )}
+            </Button>
+
+            <StoryExportButton
+              storyTitle={story.title}
+              contentRef={contentRef}
+            />
           </div>
         </section>
 
         <section className="editorial-panel">
+          {/* Panel reorder */}
+          <div className="mb-6">
+            <StoryImagePicker panels={story.panels} onReorder={reorderPanels} />
+          </div>
+
           {/* Narrative generation */}
           {!hasNarrative && (
             <div className="mb-8 rounded-2xl border border-primary/20 bg-primary/3 p-4">
@@ -147,7 +179,13 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
           )}
 
           {/* Render story */}
-          <StoryScrollRenderer panels={story.panels} />
+          <div ref={contentRef}>
+            {story.displayMode === 'comic' ? (
+              <StoryComicRenderer panels={story.panels} />
+            ) : (
+              <StoryScrollRenderer panels={story.panels} />
+            )}
+          </div>
 
           {error && (
             <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">

@@ -444,7 +444,11 @@
       "dramatic": "ドラマチック",
       "poetic": "詩的",
       "adventure": "冒険"
-    }
+    },
+    "reorderHint": "ドラッグしてパネルを並び替え",
+    "exportPng": "PNG出力",
+    "makePublic": "公開する",
+    "makePrivate": "非公開にする"
   },
   "ArenaPage": {
     "heroEyebrow": "モデルアリーナ",

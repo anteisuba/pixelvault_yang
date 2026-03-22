@@ -8,6 +8,7 @@ import {
   getStoryAPI,
   updateStoryAPI,
   deleteStoryAPI,
+  reorderPanelsAPI,
   generateNarrativeAPI,
 } from '@/lib/api-client'
 
@@ -103,6 +104,17 @@ export function useStoryEditor(storyId: string) {
     [storyId],
   )
 
+  const reorderPanels = useCallback(
+    async (panelIds: string[]) => {
+      const result = await reorderPanelsAPI(storyId, panelIds)
+      if (result.success && result.data) {
+        setStory(result.data)
+      }
+      return result
+    },
+    [storyId],
+  )
+
   return {
     story,
     loading,
@@ -110,5 +122,6 @@ export function useStoryEditor(storyId: string) {
     error,
     updateStory,
     generateNarrative,
+    reorderPanels,
   }
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { API_USAGE } from '@/constants/config'
@@ -13,6 +14,17 @@ import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 
 interface StudioPageProps {
   params: Promise<{ locale: AppLocale }>
+}
+
+export async function generateMetadata({
+  params,
+}: StudioPageProps): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+  return {
+    title: t('studio.title'),
+    description: t('studio.description'),
+  }
 }
 
 export default async function StudioPage({ params }: StudioPageProps) {

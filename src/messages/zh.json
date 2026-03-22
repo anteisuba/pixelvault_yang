@@ -5,7 +5,31 @@
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
-    "description": "使用多个 AI 图像模型生成图像，并将每次结果归档到同一个个人画廊中。"
+    "description": "使用多个 AI 图像模型生成图像，并将每次结果归档到同一个个人画廊中。",
+    "studio": {
+      "title": "工作台 — PixelVault",
+      "description": "在同一工作区使用多个 AI 模型生成图像和视频。"
+    },
+    "gallery": {
+      "title": "画廊 — PixelVault",
+      "description": "浏览 AI 生成图像的公开档案。"
+    },
+    "profile": {
+      "title": "个人中心 — PixelVault",
+      "description": "你的生成历史、积分和保存的 API 路由。"
+    },
+    "arena": {
+      "title": "竞技场 — PixelVault",
+      "description": "盲测 AI 图像模型并投票选出最佳结果。"
+    },
+    "arenaLeaderboard": {
+      "title": "排行榜 — PixelVault",
+      "description": "基于社区投票的 AI 模型排名。"
+    },
+    "storyboard": {
+      "title": "故事板 — PixelVault",
+      "description": "用 AI 生成的图像创建视觉叙事。"
+    }
   },
   "Navbar": {
     "creditsLoading": "...",

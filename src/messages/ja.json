@@ -5,7 +5,31 @@
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
-    "description": "複数の AI 画像モデルで生成し、すべての結果をひとつの個人ギャラリーに保存できます。"
+    "description": "複数の AI 画像モデルで生成し、すべての結果をひとつの個人ギャラリーに保存できます。",
+    "studio": {
+      "title": "スタジオ — PixelVault",
+      "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。"
+    },
+    "gallery": {
+      "title": "ギャラリー — PixelVault",
+      "description": "AI生成画像の公開アーカイブを閲覧。"
+    },
+    "profile": {
+      "title": "プロフィール — PixelVault",
+      "description": "生成履歴、クレジット、保存済みAPIルートの管理。"
+    },
+    "arena": {
+      "title": "アリーナ — PixelVault",
+      "description": "AIモデルをブラインドテストして最良の結果に投票。"
+    },
+    "arenaLeaderboard": {
+      "title": "ランキング — PixelVault",
+      "description": "コミュニティ投票に基づくAIモデルランキング。"
+    },
+    "storyboard": {
+      "title": "ストーリーボード — PixelVault",
+      "description": "AI生成画像からビジュアルナラティブを作成。"
+    }
   },
   "Navbar": {
     "creditsLoading": "...",

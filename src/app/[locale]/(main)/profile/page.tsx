@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
+import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
@@ -20,6 +21,17 @@ import { getUserUsageSummary } from '@/services/usage.service'
 
 interface ProfilePageProps {
   params: Promise<{ locale: AppLocale }>
+}
+
+export async function generateMetadata({
+  params,
+}: ProfilePageProps): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+  return {
+    title: t('profile.title'),
+    description: t('profile.description'),
+  }
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {

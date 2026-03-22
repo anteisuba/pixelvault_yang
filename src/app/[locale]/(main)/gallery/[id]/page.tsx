@@ -85,8 +85,22 @@ export default async function ImageDetailPage({
     ? tModels(`${getModelMessageKey(generation.model)}.label`)
     : generation.model
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const createdAt = new Date(generation.createdAt)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(generation.height, 1)}`
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ImageObject',
+    name: `${modelLabel} generation`,
+    description: generation.prompt,
+    contentUrl: generation.url,
+    url: `${appUrl}/${locale}/gallery/${id}`,
+    width: generation.width,
+    height: generation.height,
+    dateCreated: createdAt.toISOString(),
+    creator: { '@type': 'Organization', name: 'PixelVault' },
+  }
 
   const labelClass = cn(
     'text-nav font-semibold text-muted-foreground',
@@ -112,6 +126,10 @@ export default async function ImageDetailPage({
 
   return (
     <div className="editorial-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="editorial-container max-w-4xl">
         <div className="mb-6">
           <Button

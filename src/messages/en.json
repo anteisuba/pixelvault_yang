@@ -5,7 +5,31 @@
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
-    "description": "Generate with multiple AI image models, then archive every result in one personal gallery."
+    "description": "Generate with multiple AI image models, then archive every result in one personal gallery.",
+    "studio": {
+      "title": "Studio — PixelVault",
+      "description": "Generate images and videos with multiple AI models in one workspace."
+    },
+    "gallery": {
+      "title": "Gallery — PixelVault",
+      "description": "Browse the public archive of AI-generated images."
+    },
+    "profile": {
+      "title": "Profile — PixelVault",
+      "description": "Your generation history, credits, and saved API routes."
+    },
+    "arena": {
+      "title": "Arena — PixelVault",
+      "description": "Blind-test AI image models and vote for the best result."
+    },
+    "arenaLeaderboard": {
+      "title": "Leaderboard — PixelVault",
+      "description": "AI model rankings based on community votes."
+    },
+    "storyboard": {
+      "title": "Storyboard — PixelVault",
+      "description": "Create visual narratives from your AI-generated images."
+    }
   },
   "Navbar": {
     "creditsLoading": "...",

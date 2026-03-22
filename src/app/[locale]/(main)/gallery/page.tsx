@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
+import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
@@ -17,6 +18,17 @@ import {
 
 interface GalleryPageProps {
   params: Promise<{ locale: AppLocale }>
+}
+
+export async function generateMetadata({
+  params,
+}: GalleryPageProps): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+  return {
+    title: t('gallery.title'),
+    description: t('gallery.description'),
+  }
 }
 
 export default async function GalleryPage({ params }: GalleryPageProps) {

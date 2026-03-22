@@ -208,6 +208,16 @@
       "curationLabel": "並び順",
       "curationValue": "新しい順"
     },
+    "filters": {
+      "searchPlaceholder": "プロンプトで検索...",
+      "modelPlaceholder": "モデルで絞り込み",
+      "allModels": "すべてのモデル",
+      "clearFilters": "フィルターをクリア",
+      "sort": {
+        "newest": "新しい順",
+        "oldest": "古い順"
+      }
+    },
     "feedEyebrow": "アーカイブ",
     "feedTitle": "最近の公開作品",
     "feedDescription": "",

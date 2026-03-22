@@ -208,6 +208,16 @@
       "curationLabel": "排序",
       "curationValue": "按时间倒序"
     },
+    "filters": {
+      "searchPlaceholder": "按提示词搜索...",
+      "modelPlaceholder": "按模型筛选",
+      "allModels": "全部模型",
+      "clearFilters": "清除筛选",
+      "sort": {
+        "newest": "最新优先",
+        "oldest": "最早优先"
+      }
+    },
     "feedEyebrow": "档案",
     "feedTitle": "最近公开作品",
     "feedDescription": "",

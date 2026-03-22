@@ -11,22 +11,38 @@ import {
 
 import { PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
-import type { GenerationRecord } from '@/types'
+import type { GallerySortOption, GenerationRecord } from '@/types'
+
+export interface GalleryFilters {
+  search: string
+  model: string
+  sort: GallerySortOption
+}
 
 interface UseGalleryOptions {
   initialGenerations?: GenerationRecord[]
   initialPage?: number
   initialHasMore?: boolean
+  initialTotal?: number
   limit?: number
 }
 
 export interface UseGalleryReturn {
   generations: GenerationRecord[]
+  total: number
   isLoading: boolean
   hasMore: boolean
   error: string | null
+  filters: GalleryFilters
+  setFilters: (filters: GalleryFilters) => void
   loadMore: () => void
   sentinelRef: RefObject<HTMLDivElement | null>
+}
+
+const DEFAULT_FILTERS: GalleryFilters = {
+  search: '',
+  model: '',
+  sort: 'newest',
 }
 
 function mergeGenerations(
@@ -43,19 +59,23 @@ export function useGallery({
   initialGenerations = [],
   initialPage = PAGINATION.DEFAULT_PAGE,
   initialHasMore = false,
+  initialTotal = 0,
   limit = PAGINATION.DEFAULT_LIMIT,
 }: UseGalleryOptions = {}): UseGalleryReturn {
   const [generations, setGenerations] =
     useState<GenerationRecord[]>(initialGenerations)
+  const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(initialPage)
   const [hasMore, setHasMore] = useState(initialHasMore)
   const [error, setError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [filters, setFiltersState] = useState<GalleryFilters>(DEFAULT_FILTERS)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(initialPage)
   const hasMoreRef = useRef(initialHasMore)
   const isFetchingRef = useRef(false)
+  const filtersRef = useRef(filters)
 
   useEffect(() => {
     pageRef.current = page
@@ -69,39 +89,72 @@ export function useGallery({
     isFetchingRef.current = isFetching
   }, [isFetching])
 
-  const loadMorePage = useCallback(async () => {
-    if (isFetchingRef.current || !hasMoreRef.current) {
-      return
-    }
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
-    setIsFetching(true)
+  const fetchPage = useCallback(
+    async (targetPage: number, append: boolean) => {
+      if (isFetchingRef.current) return
 
-    try {
-      const response = await fetchGalleryImages(pageRef.current + 1, limit)
+      setIsFetching(true)
 
-      if (response.success && response.data) {
-        startTransition(() => {
-          setGenerations((current) =>
-            mergeGenerations(current, response.data?.generations ?? []),
-          )
-          setPage(response.data?.page ?? pageRef.current)
-          setHasMore(response.data?.hasMore ?? false)
-          setError(null)
-        })
-      } else {
-        setError(response.error ?? 'Failed to load gallery')
+      try {
+        const f = filtersRef.current
+        const filterParams = {
+          search: f.search || undefined,
+          model: f.model || undefined,
+          sort: f.sort,
+        }
+        const response = await fetchGalleryImages(
+          targetPage,
+          limit,
+          filterParams,
+        )
+
+        if (response.success && response.data) {
+          startTransition(() => {
+            if (append) {
+              setGenerations((current) =>
+                mergeGenerations(current, response.data?.generations ?? []),
+              )
+            } else {
+              setGenerations(response.data?.generations ?? [])
+            }
+            setPage(response.data?.page ?? targetPage)
+            setTotal(response.data?.total ?? 0)
+            setHasMore(response.data?.hasMore ?? false)
+            setError(null)
+          })
+        } else {
+          setError(response.error ?? 'Failed to load gallery')
+        }
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : 'Failed to load gallery',
+        )
       }
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : 'Failed to load gallery',
-      )
-    }
-    setIsFetching(false)
-  }, [limit, startTransition])
+      setIsFetching(false)
+    },
+    [limit, startTransition],
+  )
 
   const loadMore = useCallback(() => {
-    void loadMorePage()
-  }, [loadMorePage])
+    void fetchPage(pageRef.current + 1, true)
+  }, [fetchPage])
+
+  const setFilters = useCallback(
+    (newFilters: GalleryFilters) => {
+      setFiltersState(newFilters)
+      filtersRef.current = newFilters
+      pageRef.current = 1
+      setPage(1)
+      setGenerations([])
+      setHasMore(false)
+      void fetchPage(1, false)
+    },
+    [fetchPage],
+  )
 
   useEffect(() => {
     const target = sentinelRef.current
@@ -113,7 +166,7 @@ export function useGallery({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          void loadMorePage()
+          void fetchPage(pageRef.current + 1, true)
         }
       },
       {
@@ -126,13 +179,16 @@ export function useGallery({
     return () => {
       observer.disconnect()
     }
-  }, [hasMore, loadMorePage])
+  }, [hasMore, fetchPage])
 
   return {
     generations,
+    total,
     isLoading: isFetching || isPending,
     hasMore,
     error,
+    filters,
+    setFilters,
     loadMore,
     sentinelRef,
   }

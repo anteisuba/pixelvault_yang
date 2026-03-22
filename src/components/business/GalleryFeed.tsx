@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
 
+import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
 import { useGallery } from '@/hooks/use-gallery'
@@ -24,15 +25,33 @@ export function GalleryFeed({
   total,
 }: GalleryFeedProps) {
   const t = useTranslations('GalleryPage')
-  const { generations, isLoading, hasMore, error, loadMore, sentinelRef } =
-    useGallery({
-      initialGenerations,
-      initialPage,
-      initialHasMore,
-    })
+  const {
+    generations,
+    total: currentTotal,
+    isLoading,
+    hasMore,
+    error,
+    filters,
+    setFilters,
+    loadMore,
+    sentinelRef,
+  } = useGallery({
+    initialGenerations,
+    initialPage,
+    initialHasMore,
+    initialTotal: total,
+  })
+
+  const displayTotal = currentTotal ?? total
 
   return (
     <div className="space-y-7">
+      <GalleryFilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        isLoading={isLoading}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <p className="font-serif text-sm leading-7 text-muted-foreground">
@@ -42,7 +61,7 @@ export function GalleryFeed({
         <span className="editorial-count-pill">
           {t('feedCount', {
             shown: generations.length,
-            total,
+            total: displayTotal,
           })}
         </span>
       </div>

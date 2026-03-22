@@ -208,6 +208,16 @@
       "curationLabel": "Sort",
       "curationValue": "Newest first"
     },
+    "filters": {
+      "searchPlaceholder": "Search by prompt...",
+      "modelPlaceholder": "Filter by model",
+      "allModels": "All models",
+      "clearFilters": "Clear filters",
+      "sort": {
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      }
+    },
     "feedEyebrow": "Archive",
     "feedTitle": "Recent public works",
     "feedDescription": "",

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import type { GenerationRecord, OutputType } from '@/types'
+import type { GenerationRecord, GallerySortOption, OutputType } from '@/types'
 import { PAGINATION } from '@/constants/config'
 
 // ─── Input Types ──────────────────────────────────────────────────
@@ -26,6 +26,27 @@ export interface CreateGenerationInput {
 export interface ListGenerationsOptions {
   page?: number
   limit?: number
+}
+
+export interface GalleryQueryOptions {
+  page?: number
+  limit?: number
+  search?: string
+  model?: string
+  sort?: GallerySortOption
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+function buildGalleryWhere(search?: string, model?: string) {
+  const where: Record<string, unknown> = { isPublic: true }
+  if (search) {
+    where.prompt = { contains: search, mode: 'insensitive' }
+  }
+  if (model) {
+    where.model = model
+  }
+  return where
 }
 
 // ─── Service Functions ────────────────────────────────────────────
@@ -93,15 +114,18 @@ export async function countUserPublicGenerations(
 }
 
 /**
- * Get public generations for the gallery, newest first.
+ * Get public generations for the gallery with optional search/filter.
  */
 export async function getPublicGenerations({
   page = PAGINATION.DEFAULT_PAGE,
   limit = PAGINATION.DEFAULT_LIMIT,
-}: ListGenerationsOptions = {}): Promise<GenerationRecord[]> {
+  search,
+  model,
+  sort = 'newest',
+}: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
   return db.generation.findMany({
-    where: { isPublic: true },
-    orderBy: { createdAt: 'desc' },
+    where: buildGalleryWhere(search, model),
+    orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
   })
@@ -147,8 +171,10 @@ export async function toggleGenerationVisibility(
 /**
  * Count total public generations (for pagination hasMore calculation)
  */
-export async function countPublicGenerations(): Promise<number> {
+export async function countPublicGenerations(
+  options: Pick<GalleryQueryOptions, 'search' | 'model'> = {},
+): Promise<number> {
   return db.generation.count({
-    where: { isPublic: true },
+    where: buildGalleryWhere(options.search, options.model),
   })
 }

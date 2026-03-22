@@ -161,6 +161,21 @@ export interface ToggleVisibilityResponse {
   error?: string
 }
 
+// ─── Gallery Search & Filter ──────────────────────────────────────
+
+export const GALLERY_SORT_OPTIONS = ['newest', 'oldest'] as const
+export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
+
+export const GallerySearchSchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  model: z.string().trim().max(100).optional(),
+  sort: z.enum(GALLERY_SORT_OPTIONS).default('newest'),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+})
+
+export type GallerySearchParams = z.infer<typeof GallerySearchSchema>
+
 // ─── Gallery Response ─────────────────────────────────────────────
 
 export interface GalleryResponseData {

@@ -585,16 +585,23 @@ export async function reorderPanelsAPI(
 }
 
 /**
- * Fetch public gallery images with pagination
+ * Fetch public gallery images with pagination, search, and filter
  */
 export async function fetchGalleryImages(
   page: number = PAGINATION.DEFAULT_PAGE,
   limit: number = PAGINATION.DEFAULT_LIMIT,
+  filters?: { search?: string; model?: string; sort?: string },
 ): Promise<GalleryResponse> {
   try {
-    const response = await fetch(
-      `${API_ENDPOINTS.IMAGES}?page=${page}&limit=${limit}`,
-    )
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    })
+    if (filters?.search) params.set('search', filters.search)
+    if (filters?.model) params.set('model', filters.model)
+    if (filters?.sort) params.set('sort', filters.sort)
+
+    const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
     if (!response.ok) {
       return {
         success: false,

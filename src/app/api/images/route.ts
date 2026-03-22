@@ -1,26 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
+
 import {
   getPublicGenerations,
   countPublicGenerations,
 } from '@/services/generation.service'
-import { PAGINATION } from '@/constants/config'
-import type { GalleryResponse } from '@/types'
+import { GallerySearchSchema, type GalleryResponse } from '@/types'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const page = Math.max(
-      1,
-      Number(searchParams.get('page')) || PAGINATION.DEFAULT_PAGE,
+    const parsed = GallerySearchSchema.safeParse(
+      Object.fromEntries(searchParams),
     )
-    const limit = Math.min(
-      50,
-      Number(searchParams.get('limit')) || PAGINATION.DEFAULT_LIMIT,
-    )
+
+    if (!parsed.success) {
+      return NextResponse.json<GalleryResponse>(
+        { success: false, error: 'Invalid query parameters' },
+        { status: 400 },
+      )
+    }
+
+    const { page, limit, search, model, sort } = parsed.data
+    const filterOpts = { search, model }
+
     const [generations, total] = await Promise.all([
-      getPublicGenerations({ page, limit }),
-      countPublicGenerations(),
+      getPublicGenerations({ page, limit, search, model, sort }),
+      countPublicGenerations(filterOpts),
     ])
+
     return NextResponse.json<GalleryResponse>({
       success: true,
       data: {

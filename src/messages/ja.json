@@ -307,6 +307,14 @@
       "openai": {
         "label": "OpenAI",
         "description": "OpenAI Images エンドポイント、または OpenAI 互換プロキシを使います。"
+      },
+      "fal": {
+        "label": "fal.ai",
+        "description": "fal.ai プラットフォームで Flux 2 などのモデルを使用。"
+      },
+      "replicate": {
+        "label": "Replicate",
+        "description": "Replicate プラットフォームで Ideogram などのモデルを使用。"
       }
     },
     "summary": {

@@ -307,6 +307,14 @@
       "openai": {
         "label": "OpenAI",
         "description": "Use OpenAI Images endpoints or an OpenAI-compatible proxy."
+      },
+      "fal": {
+        "label": "fal.ai",
+        "description": "Use fal.ai platform for Flux 2 and other models."
+      },
+      "replicate": {
+        "label": "Replicate",
+        "description": "Use Replicate platform for Ideogram and other models."
       }
     },
     "summary": {

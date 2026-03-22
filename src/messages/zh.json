@@ -307,6 +307,14 @@
       "openai": {
         "label": "OpenAI",
         "description": "使用 OpenAI Images 端点，或 OpenAI 兼容代理。"
+      },
+      "fal": {
+        "label": "fal.ai",
+        "description": "使用 fal.ai 平台，支持 Flux 2 等模型。"
+      },
+      "replicate": {
+        "label": "Replicate",
+        "description": "使用 Replicate 平台，支持 Ideogram 等模型。"
       }
     },
     "summary": {

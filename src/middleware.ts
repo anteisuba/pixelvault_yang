@@ -9,6 +9,7 @@ const handleI18nRouting = createIntlMiddleware(routing)
 const publicLocaleRoutes = LOCALES.flatMap((locale) => [
   `/${locale}`,
   `/${locale}${ROUTES.GALLERY}`,
+  `/${locale}${ROUTES.GALLERY}/(.*)`,
   `/${locale}${ROUTES.SIGN_IN}(.*)`,
   `/${locale}${ROUTES.SIGN_UP}(.*)`,
 ])

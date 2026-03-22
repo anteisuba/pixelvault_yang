@@ -186,6 +186,7 @@ export type UserWhereInput = {
   userApiKeys?: Prisma.UserApiKeyListRelationFilter
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -198,6 +199,7 @@ export type UserOrderByWithRelationInput = {
   userApiKeys?: Prisma.UserApiKeyOrderByRelationAggregateInput
   generationJobs?: Prisma.GenerationJobOrderByRelationAggregateInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
+  imageAnalyses?: Prisma.ImageAnalysisOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -213,6 +215,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   userApiKeys?: Prisma.UserApiKeyListRelationFilter
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
 }, "id" | "clerkId" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -247,6 +250,7 @@ export type UserCreateInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -259,6 +263,7 @@ export type UserUncheckedCreateInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -271,6 +276,7 @@ export type UserUpdateInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -283,6 +289,7 @@ export type UserUncheckedUpdateInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -409,6 +416,20 @@ export type UserUpdateOneRequiredWithoutApiUsageLedgerNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutApiUsageLedgerInput, Prisma.UserUpdateWithoutApiUsageLedgerInput>, Prisma.UserUncheckedUpdateWithoutApiUsageLedgerInput>
 }
 
+export type UserCreateNestedOneWithoutImageAnalysesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutImageAnalysesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutImageAnalysesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutImageAnalysesInput
+  upsert?: Prisma.UserUpsertWithoutImageAnalysesInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutImageAnalysesInput, Prisma.UserUpdateWithoutImageAnalysesInput>, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
+}
+
 export type UserCreateWithoutUserApiKeysInput = {
   id?: string
   clerkId: string
@@ -418,6 +439,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutUserApiKeysInput = {
@@ -429,6 +451,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutUserApiKeysInput = {
@@ -456,6 +479,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutUserApiKeysInput = {
@@ -467,6 +491,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationsInput = {
@@ -478,6 +503,7 @@ export type UserCreateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationsInput = {
@@ -489,6 +515,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationsInput = {
@@ -516,6 +543,7 @@ export type UserUpdateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationsInput = {
@@ -527,6 +555,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationJobsInput = {
@@ -538,6 +567,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationJobsInput = {
@@ -549,6 +579,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationJobsInput = {
@@ -576,6 +607,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationJobsInput = {
@@ -587,6 +619,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutApiUsageLedgerInput = {
@@ -598,6 +631,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -609,6 +643,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -636,6 +671,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -647,6 +683,71 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutImageAnalysesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutImageAnalysesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutImageAnalysesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
+}
+
+export type UserUpsertWithoutImageAnalysesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutImageAnalysesInput, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutImageAnalysesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutImageAnalysesInput, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
+}
+
+export type UserUpdateWithoutImageAnalysesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutImageAnalysesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -659,6 +760,7 @@ export type UserCountOutputType = {
   userApiKeys: number
   generationJobs: number
   apiUsageLedger: number
+  imageAnalyses: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -666,6 +768,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   userApiKeys?: boolean | UserCountOutputTypeCountUserApiKeysArgs
   generationJobs?: boolean | UserCountOutputTypeCountGenerationJobsArgs
   apiUsageLedger?: boolean | UserCountOutputTypeCountApiUsageLedgerArgs
+  imageAnalyses?: boolean | UserCountOutputTypeCountImageAnalysesArgs
 }
 
 /**
@@ -706,6 +809,13 @@ export type UserCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends runtime.T
   where?: Prisma.ApiUsageLedgerWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountImageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ImageAnalysisWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -717,6 +827,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
+  imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -750,6 +861,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
+  imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -762,6 +874,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     userApiKeys: Prisma.$UserApiKeyPayload<ExtArgs>[]
     generationJobs: Prisma.$GenerationJobPayload<ExtArgs>[]
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
+    imageAnalyses: Prisma.$ImageAnalysisPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1167,6 +1280,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   userApiKeys<T extends Prisma.User$userApiKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$userApiKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserApiKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   generationJobs<T extends Prisma.User$generationJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$generationJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   apiUsageLedger<T extends Prisma.User$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  imageAnalyses<T extends Prisma.User$imageAnalysesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$imageAnalysesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ImageAnalysisPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1682,6 +1796,30 @@ export type User$apiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.ApiUsageLedgerScalarFieldEnum | Prisma.ApiUsageLedgerScalarFieldEnum[]
+}
+
+/**
+ * User.imageAnalyses
+ */
+export type User$imageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ImageAnalysis
+   */
+  select?: Prisma.ImageAnalysisSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ImageAnalysis
+   */
+  omit?: Prisma.ImageAnalysisOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ImageAnalysisInclude<ExtArgs> | null
+  where?: Prisma.ImageAnalysisWhereInput
+  orderBy?: Prisma.ImageAnalysisOrderByWithRelationInput | Prisma.ImageAnalysisOrderByWithRelationInput[]
+  cursor?: Prisma.ImageAnalysisWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ImageAnalysisScalarFieldEnum | Prisma.ImageAnalysisScalarFieldEnum[]
 }
 
 /**

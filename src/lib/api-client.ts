@@ -8,6 +8,12 @@ import type {
   ApiKeyResponse,
   ToggleVisibilityResponse,
   UsageSummary,
+  EnhancePromptRequest,
+  EnhancePromptResponse,
+  AnalyzeImageRequest,
+  AnalyzeImageResponse,
+  GenerateVariationsRequest,
+  GenerateVariationsResponse,
 } from '@/types'
 import { UsageSummarySchema } from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
@@ -193,6 +199,92 @@ export async function toggleGenerationVisibility(
         ),
       }
     }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Prompt Enhancement ──────────────────────────────────────────
+
+export async function enhancePromptAPI(
+  params: EnhancePromptRequest,
+): Promise<EnhancePromptResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ENHANCE_PROMPT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Enhancement failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Image Reverse Engineering ───────────────────────────────────
+
+export async function analyzeImageAPI(
+  params: AnalyzeImageRequest,
+): Promise<AnalyzeImageResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ANALYZE_IMAGE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Analysis failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function generateVariationsAPI(
+  analysisId: string,
+  params: GenerateVariationsRequest,
+): Promise<GenerateVariationsResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ANALYZE_IMAGE}/${analysisId}/variations`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+    )
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Variation generation failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
     return await response.json()
   } catch (error) {
     const message =

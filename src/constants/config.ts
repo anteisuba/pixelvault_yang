@@ -47,13 +47,29 @@ export const API_ENDPOINTS = {
 
   /** Generation management */
   GENERATIONS: '/api/generations',
+
+  /** Prompt enhancement */
+  ENHANCE_PROMPT: '/api/prompt/enhance',
+
+  /** Image reverse engineering */
+  ANALYZE_IMAGE: '/api/image/analyze',
 } as const
+
+/** Prompt enhancement configuration */
+export const PROMPT_ENHANCE = {
+  MAX_INPUT_LENGTH: 2000,
+  STYLES: ['detailed', 'artistic', 'photorealistic', 'anime'] as const,
+} as const
+
+export type PromptEnhanceStyle = (typeof PROMPT_ENHANCE.STYLES)[number]
 
 /** External AI provider endpoints */
 export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: 'https://router.huggingface.co/hf-inference/models',
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
+  FAL: 'https://fal.run',
+  REPLICATE: 'https://api.replicate.com/v1',
 } as const
 
 /** Pagination defaults */

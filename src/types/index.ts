@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { GENERATION_LIMITS } from '@/constants/config'
+import { GENERATION_LIMITS, PROMPT_ENHANCE } from '@/constants/config'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 
@@ -154,3 +154,76 @@ export const UsageSummarySchema = z.object({
 })
 
 export type UsageSummary = z.infer<typeof UsageSummarySchema>
+
+// ─── Prompt Enhancement ──────────────────────────────────────────
+
+export const EnhancePromptRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+  style: z.enum(PROMPT_ENHANCE.STYLES),
+})
+
+export type EnhancePromptRequest = z.infer<typeof EnhancePromptRequestSchema>
+
+export interface EnhancePromptResponseData {
+  original: string
+  enhanced: string
+  style: string
+}
+
+export interface EnhancePromptResponse {
+  success: boolean
+  data?: EnhancePromptResponseData
+  error?: string
+}
+
+// ─── Image Reverse Engineering ───────────────────────────────────
+
+export const AnalyzeImageRequestSchema = z.object({
+  imageData: z.string().min(1, 'Image data is required'),
+})
+
+export type AnalyzeImageRequest = z.infer<typeof AnalyzeImageRequestSchema>
+
+export interface ImageAnalysisRecord {
+  id: string
+  sourceImageUrl: string
+  generatedPrompt: string
+  modelUsed: string
+  createdAt: Date
+}
+
+export interface AnalyzeImageResponseData {
+  id: string
+  generatedPrompt: string
+  sourceImageUrl: string
+}
+
+export interface AnalyzeImageResponse {
+  success: boolean
+  data?: AnalyzeImageResponseData
+  error?: string
+}
+
+export const GenerateVariationsRequestSchema = z.object({
+  modelIds: z.array(z.string().trim().min(1)).min(1).max(9),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+})
+
+export type GenerateVariationsRequest = z.infer<
+  typeof GenerateVariationsRequestSchema
+>
+
+export interface GenerateVariationsResponseData {
+  variations: GenerationRecord[]
+  failed: string[]
+}
+
+export interface GenerateVariationsResponse {
+  success: boolean
+  data?: GenerateVariationsResponseData
+  error?: string
+}

@@ -393,6 +393,45 @@
     "makePrivateAction": "Make Private",
     "toggleError": "Failed to update visibility"
   },
+  "PromptEnhance": {
+    "button": "Enhance",
+    "comparisonTitle": "Prompt Enhancement",
+    "originalLabel": "Original",
+    "enhancedLabel": "Enhanced",
+    "useEnhanced": "Use Enhanced",
+    "keepOriginal": "Keep Original",
+    "styles": {
+      "detailed": {
+        "label": "Detailed",
+        "description": "Add environment, lighting, and texture details"
+      },
+      "artistic": {
+        "label": "Artistic",
+        "description": "Add art style and medium references"
+      },
+      "photorealistic": {
+        "label": "Photo",
+        "description": "Add camera and lighting parameters"
+      },
+      "anime": {
+        "label": "Anime",
+        "description": "Add anime style and character details"
+      }
+    }
+  },
+  "ReverseEngineer": {
+    "title": "Reverse Engineer",
+    "uploadTitle": "Drop an image or click to upload",
+    "uploadHint": "JPG, PNG, WebP — max 10MB",
+    "analyzing": "Analyzing image with AI...",
+    "generatedPromptLabel": "Generated Prompt",
+    "generateVariations": "Generate Variations with All Models",
+    "generatingVariations": "Generating variations...",
+    "variationsTitle": "{count} variations generated",
+    "originalImage": "Original",
+    "failedModels": "Failed: {models}",
+    "reset": "Reset"
+  },
   "Models": {
     "sdxl": {
       "label": "Stable Diffusion XL",
@@ -409,6 +448,26 @@
     "openaiGptImage15": {
       "label": "OpenAI GPT Image 1.5",
       "description": "OpenAI's latest image model for polished, prompt-faithful image generation."
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Top-ranked image model by Black Forest Labs with exceptional quality."
+    },
+    "flux2Dev": {
+      "label": "Flux 2 Dev",
+      "description": "Cost-effective variant of Flux 2 for development and iteration."
+    },
+    "flux2Schnell": {
+      "label": "Flux 2 Schnell",
+      "description": "Fastest Flux 2 variant for rapid prototyping and quick generation."
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google's premium image model with top-tier quality and prompt adherence."
+    },
+    "ideogram2": {
+      "label": "Ideogram 2.0",
+      "description": "Exceptional at rendering text in images with strong artistic quality."
     }
   }
 }

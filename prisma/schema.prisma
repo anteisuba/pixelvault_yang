@@ -41,6 +41,7 @@ model User {
   userApiKeys    UserApiKey[]
   generationJobs GenerationJob[]
   apiUsageLedger ApiUsageLedger[]
+  imageAnalyses  ImageAnalysis[]
 }
 
 model UserApiKey {
@@ -148,4 +149,17 @@ model ApiUsageLedger {
   @@index([userId, createdAt(sort: Desc)])
   @@index([adapterType, modelId, createdAt(sort: Desc)])
   @@index([wasSuccessful, createdAt(sort: Desc)])
+}
+
+model ImageAnalysis {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceImageUrl   String
+  sourceStorageKey String
+  generatedPrompt  String   @db.Text
+  modelUsed        String
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
 }

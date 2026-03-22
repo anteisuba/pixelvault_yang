@@ -393,6 +393,45 @@
     "makePrivateAction": "设为私有",
     "toggleError": "更新可见性失败"
   },
+  "PromptEnhance": {
+    "button": "增强",
+    "comparisonTitle": "提示词增强",
+    "originalLabel": "原始",
+    "enhancedLabel": "增强版",
+    "useEnhanced": "使用增强版",
+    "keepOriginal": "保留原始",
+    "styles": {
+      "detailed": {
+        "label": "详细",
+        "description": "添加环境、光线和纹理细节"
+      },
+      "artistic": {
+        "label": "艺术",
+        "description": "添加艺术风格和媒介参考"
+      },
+      "photorealistic": {
+        "label": "写实",
+        "description": "添加相机和灯光参数"
+      },
+      "anime": {
+        "label": "动漫",
+        "description": "添加动漫风格和角色细节"
+      }
+    }
+  },
+  "ReverseEngineer": {
+    "title": "图片反向工程",
+    "uploadTitle": "拖拽图片或点击上传",
+    "uploadHint": "JPG, PNG, WebP — 最大 10MB",
+    "analyzing": "AI 正在分析图片...",
+    "generatedPromptLabel": "生成的提示词",
+    "generateVariations": "用所有模型生成变体",
+    "generatingVariations": "正在生成变体...",
+    "variationsTitle": "已生成 {count} 个变体",
+    "originalImage": "原图",
+    "failedModels": "失败: {models}",
+    "reset": "重置"
+  },
   "Models": {
     "sdxl": {
       "label": "Stable Diffusion XL",
@@ -409,6 +448,26 @@
     "openaiGptImage15": {
       "label": "OpenAI GPT Image 1.5",
       "description": "OpenAI 最新图像模型，适合更精细且更贴近提示词的图像生成。"
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Black Forest Labs 出品的顶级图像模型，质量排名第一。"
+    },
+    "flux2Dev": {
+      "label": "Flux 2 Dev",
+      "description": "Flux 2 的高性价比版本，适合开发和快速迭代。"
+    },
+    "flux2Schnell": {
+      "label": "Flux 2 Schnell",
+      "description": "Flux 2 的极速版本，适合快速原型和即时生成。"
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google 旗舰级图像模型，顶级质量与提示词忠实度。"
+    },
+    "ideogram2": {
+      "label": "Ideogram 2.0",
+      "description": "擅长在图像中渲染文字，兼具出色的艺术质感。"
     }
   }
 }

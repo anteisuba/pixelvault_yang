@@ -35,11 +35,15 @@ import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
+import { PromptEnhanceButton } from '@/components/business/PromptEnhanceButton'
+import { PromptComparisonPanel } from '@/components/business/PromptComparisonPanel'
+import { ReverseEngineerPanel } from '@/components/business/ReverseEngineerPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateImage } from '@/hooks/use-generate'
+import { usePromptEnhance } from '@/hooks/use-prompt-enhance'
 import { cn } from '@/lib/utils'
 
 type MessageGetter = (
@@ -83,6 +87,14 @@ export function GenerateForm() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { isGenerating, error, generatedGeneration, generate } =
     useGenerateImage()
+  const {
+    isEnhancing,
+    enhanced,
+    original: enhancedOriginal,
+    style: enhancedStyle,
+    enhance: enhancePrompt,
+    clearEnhancement,
+  } = usePromptEnhance()
   const { keys: apiKeys } = useApiKeysContext()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -372,12 +384,20 @@ export function GenerateForm() {
                 {t('promptHint')}
               </p>
             </div>
-            <p className="text-xs font-medium text-muted-foreground">
-              {t('promptCounter', {
-                current: prompt.length,
-                max: GENERATION_LIMITS.PROMPT_MAX_LENGTH,
-              })}
-            </p>
+            <div className="flex items-center gap-2">
+              <PromptEnhanceButton
+                prompt={prompt}
+                isEnhancing={isEnhancing}
+                disabled={isGenerating}
+                onEnhance={(style) => enhancePrompt(prompt, style)}
+              />
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('promptCounter', {
+                  current: prompt.length,
+                  max: GENERATION_LIMITS.PROMPT_MAX_LENGTH,
+                })}
+              </p>
+            </div>
           </div>
 
           <div className="mt-4">
@@ -392,6 +412,19 @@ export function GenerateForm() {
               className="min-h-48 resize-none rounded-3xl border-border/75 bg-background/72 px-4 py-3 font-serif"
             />
           </div>
+
+          {enhanced && enhancedOriginal && enhancedStyle && (
+            <PromptComparisonPanel
+              original={enhancedOriginal}
+              enhanced={enhanced}
+              style={enhancedStyle}
+              onUseEnhanced={(text) => {
+                setPrompt(text)
+                clearEnhancement()
+              }}
+              onDismiss={clearEnhancement}
+            />
+          )}
 
           <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
             <button
@@ -486,6 +519,11 @@ export function GenerateForm() {
                 />
               </div>
             ) : null}
+          </div>
+
+          {/* Reverse Engineer Panel */}
+          <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
+            <ReverseEngineerPanel />
           </div>
         </section>
       </div>

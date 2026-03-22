@@ -393,6 +393,45 @@
     "makePrivateAction": "非公開にする",
     "toggleError": "公開設定の更新に失敗しました"
   },
+  "PromptEnhance": {
+    "button": "強化",
+    "comparisonTitle": "プロンプト強化",
+    "originalLabel": "オリジナル",
+    "enhancedLabel": "強化版",
+    "useEnhanced": "強化版を使用",
+    "keepOriginal": "オリジナルを維持",
+    "styles": {
+      "detailed": {
+        "label": "詳細",
+        "description": "環境、照明、テクスチャの詳細を追加"
+      },
+      "artistic": {
+        "label": "アート",
+        "description": "アートスタイルと画材の参照を追加"
+      },
+      "photorealistic": {
+        "label": "写真",
+        "description": "カメラと照明のパラメータを追加"
+      },
+      "anime": {
+        "label": "アニメ",
+        "description": "アニメスタイルとキャラクターの詳細を追加"
+      }
+    }
+  },
+  "ReverseEngineer": {
+    "title": "リバースエンジニアリング",
+    "uploadTitle": "画像をドロップまたはクリックしてアップロード",
+    "uploadHint": "JPG, PNG, WebP — 最大10MB",
+    "analyzing": "AIで画像を分析中...",
+    "generatedPromptLabel": "生成されたプロンプト",
+    "generateVariations": "全モデルでバリエーションを生成",
+    "generatingVariations": "バリエーションを生成中...",
+    "variationsTitle": "{count}個のバリエーションを生成",
+    "originalImage": "オリジナル",
+    "failedModels": "失敗: {models}",
+    "reset": "リセット"
+  },
   "Models": {
     "sdxl": {
       "label": "Stable Diffusion XL",
@@ -409,6 +448,26 @@
     "openaiGptImage15": {
       "label": "OpenAI GPT Image 1.5",
       "description": "OpenAI の最新画像モデルによる、指示忠実度の高い洗練された画像生成。"
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Black Forest Labs による最高品質の画像生成モデル。"
+    },
+    "flux2Dev": {
+      "label": "Flux 2 Dev",
+      "description": "Flux 2 のコスト効率の良い開発・反復向けバリアント。"
+    },
+    "flux2Schnell": {
+      "label": "Flux 2 Schnell",
+      "description": "Flux 2 の最速バリアント。素早いプロトタイピングに最適。"
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google のプレミアム画像モデル。最高品質とプロンプト忠実度。"
+    },
+    "ideogram2": {
+      "label": "Ideogram 2.0",
+      "description": "画像内テキスト描画に優れた高品質アートモデル。"
     }
   }
 }

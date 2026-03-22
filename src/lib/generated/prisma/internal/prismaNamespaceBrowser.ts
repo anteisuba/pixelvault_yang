@@ -55,7 +55,8 @@ export const ModelName = {
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
-  ApiUsageLedger: 'ApiUsageLedger'
+  ApiUsageLedger: 'ApiUsageLedger',
+  ImageAnalysis: 'ImageAnalysis'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -163,6 +164,19 @@ export const ApiUsageLedgerScalarFieldEnum = {
 } as const
 
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
+
+
+export const ImageAnalysisScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  generatedPrompt: 'generatedPrompt',
+  modelUsed: 'modelUsed',
+  createdAt: 'createdAt'
+} as const
+
+export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -42,3 +42,8 @@ export type GenerationJob = Prisma.GenerationJobModel
  * 
  */
 export type ApiUsageLedger = Prisma.ApiUsageLedgerModel
+/**
+ * Model ImageAnalysis
+ * 
+ */
+export type ImageAnalysis = Prisma.ImageAnalysisModel

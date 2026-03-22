@@ -388,7 +388,8 @@ export const ModelName = {
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
-  ApiUsageLedger: 'ApiUsageLedger'
+  ApiUsageLedger: 'ApiUsageLedger',
+  ImageAnalysis: 'ImageAnalysis'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -404,7 +405,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger"
+    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -778,6 +779,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ImageAnalysis: {
+      payload: Prisma.$ImageAnalysisPayload<ExtArgs>
+      fields: Prisma.ImageAnalysisFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ImageAnalysisFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ImageAnalysisFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        findFirst: {
+          args: Prisma.ImageAnalysisFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ImageAnalysisFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        findMany: {
+          args: Prisma.ImageAnalysisFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
+        }
+        create: {
+          args: Prisma.ImageAnalysisCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        createMany: {
+          args: Prisma.ImageAnalysisCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ImageAnalysisCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
+        }
+        delete: {
+          args: Prisma.ImageAnalysisDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        update: {
+          args: Prisma.ImageAnalysisUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        deleteMany: {
+          args: Prisma.ImageAnalysisDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ImageAnalysisUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ImageAnalysisUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
+        }
+        upsert: {
+          args: Prisma.ImageAnalysisUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
+        }
+        aggregate: {
+          args: Prisma.ImageAnalysisAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateImageAnalysis>
+        }
+        groupBy: {
+          args: Prisma.ImageAnalysisGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ImageAnalysisGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ImageAnalysisCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ImageAnalysisCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -906,6 +981,19 @@ export const ApiUsageLedgerScalarFieldEnum = {
 } as const
 
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
+
+
+export const ImageAnalysisScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  generatedPrompt: 'generatedPrompt',
+  modelUsed: 'modelUsed',
+  createdAt: 'createdAt'
+} as const
+
+export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1172,6 +1260,7 @@ export type GlobalOmitConfig = {
   generation?: Prisma.GenerationOmit
   generationJob?: Prisma.GenerationJobOmit
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
+  imageAnalysis?: Prisma.ImageAnalysisOmit
 }
 
 /* Types for Logging */

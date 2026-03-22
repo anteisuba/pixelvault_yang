@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   CheckCircle2,
   Circle,
+  ExternalLink,
   Eye,
   EyeOff,
   KeyRound,
@@ -23,6 +24,7 @@ import {
 } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
+  getAdapterApiGuide,
   getAdapterCustomModelExample,
   getAdapterKeyHint,
   getDefaultProviderConfig,
@@ -364,6 +366,23 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
               )}
             </button>
           </div>
+          {(() => {
+            const guide = getAdapterApiGuide(adapterType)
+            return (
+              <div className="mt-1.5 space-y-0.5">
+                <p className="text-xs text-muted-foreground">{guide.steps}</p>
+                <a
+                  href={guide.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  {t('addForm.getKeyLink')}
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
+            )
+          })()}
         </div>
       </div>
 

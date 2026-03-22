@@ -358,6 +358,7 @@
       "keyLabel": "API key",
       "showKey": "Show API key",
       "hideKey": "Hide API key",
+      "getKeyLink": "Get your API key →",
       "saveAction": "Save route",
       "savingAction": "Saving...",
       "cancelAction": "Cancel",

@@ -358,6 +358,7 @@
       "keyLabel": "API キー",
       "showKey": "API キーを表示",
       "hideKey": "API キーを非表示",
+      "getKeyLink": "APIキーを取得 →",
       "saveAction": "ルートを保存",
       "savingAction": "保存中...",
       "cancelAction": "キャンセル",

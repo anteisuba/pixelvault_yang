@@ -95,6 +95,38 @@ export const getAdapterKeyHint = (adapterType: AI_ADAPTER_TYPES): string =>
 export const getAdapterDefaultCost = (adapterType: AI_ADAPTER_TYPES): number =>
   ADAPTER_DEFAULT_COSTS[adapterType]
 
+export interface ProviderGuide {
+  url: string
+  steps: string
+}
+
+export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
+  [AI_ADAPTER_TYPES.HUGGINGFACE]: {
+    url: 'https://huggingface.co/settings/tokens',
+    steps: 'Sign in → Settings → Access Tokens → New token (Read)',
+  },
+  [AI_ADAPTER_TYPES.GEMINI]: {
+    url: 'https://aistudio.google.com/apikey',
+    steps: 'Sign in → Get API key → Create API key',
+  },
+  [AI_ADAPTER_TYPES.OPENAI]: {
+    url: 'https://platform.openai.com/api-keys',
+    steps: 'Sign in → API keys → Create new secret key',
+  },
+  [AI_ADAPTER_TYPES.FAL]: {
+    url: 'https://fal.ai/dashboard/keys',
+    steps: 'Sign in → Dashboard → Keys → Create key',
+  },
+  [AI_ADAPTER_TYPES.REPLICATE]: {
+    url: 'https://replicate.com/account/api-tokens',
+    steps: 'Sign in → Account → API tokens → Create token',
+  },
+}
+
+export const getAdapterApiGuide = (
+  adapterType: AI_ADAPTER_TYPES,
+): ProviderGuide => ADAPTER_API_GUIDES[adapterType]
+
 export const getAdapterCustomModelExample = (
   adapterType: AI_ADAPTER_TYPES,
 ): string => ADAPTER_CUSTOM_MODEL_EXAMPLES[adapterType]

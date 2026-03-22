@@ -358,6 +358,7 @@
       "keyLabel": "API 密钥",
       "showKey": "显示 API 密钥",
       "hideKey": "隐藏 API 密钥",
+      "getKeyLink": "获取 API Key →",
       "saveAction": "保存路由",
       "savingAction": "保存中...",
       "cancelAction": "取消",

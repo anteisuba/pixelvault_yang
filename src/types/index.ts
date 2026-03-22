@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-import { GENERATION_LIMITS, PROMPT_ENHANCE } from '@/constants/config'
+import {
+  GENERATION_LIMITS,
+  PROMPT_ENHANCE,
+  VIDEO_GENERATION,
+} from '@/constants/config'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 
@@ -49,6 +53,34 @@ export interface GenerateResponse {
   /** Error message (present when success is false) */
   error?: string
 }
+
+// ─── Video Generate Request ───────────────────────────────────────
+
+export const GenerateVideoRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(
+      GENERATION_LIMITS.PROMPT_MAX_LENGTH,
+      `Prompt must be less than ${GENERATION_LIMITS.PROMPT_MAX_LENGTH} characters`,
+    ),
+  modelId: z.string().trim().min(1, 'Model is required').max(160),
+  aspectRatio: z
+    .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
+    .default(VIDEO_GENERATION.DEFAULT_ASPECT_RATIO),
+  duration: z
+    .number()
+    .min(1)
+    .max(VIDEO_GENERATION.MAX_DURATION)
+    .default(VIDEO_GENERATION.DEFAULT_DURATION),
+  referenceImage: z.string().optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+})
+
+export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
+
+export type GenerateVideoResponse = GenerateResponse
 
 // ─── Image Record ─────────────────────────────────────────────────
 

@@ -17,9 +17,30 @@ export interface ProviderGenerationResult {
   requestCount: number
 }
 
+export interface ProviderVideoInput {
+  prompt: string
+  modelId: string
+  aspectRatio: AspectRatio
+  providerConfig: ProviderConfig
+  apiKey: string
+  duration?: number
+  referenceImage?: string
+  timeoutMs?: number
+}
+
+export interface ProviderVideoResult {
+  videoUrl: string
+  thumbnailUrl?: string
+  width: number
+  height: number
+  duration: number
+  requestCount: number
+}
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(
     input: ProviderGenerationInput,
   ): Promise<ProviderGenerationResult>
+  generateVideo?(input: ProviderVideoInput): Promise<ProviderVideoResult>
 }

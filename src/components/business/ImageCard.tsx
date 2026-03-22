@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 
-import { ArrowUpRight, Coins, Globe2, LockKeyhole } from 'lucide-react'
+import { ArrowUpRight, Coins, Globe2, LockKeyhole, Play } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
@@ -78,7 +78,9 @@ export function ImageCard({
 
   const labelClass = cn(
     'text-nav font-semibold text-muted-foreground',
-    isDenseLocale ? 'tracking-normal normal-case' : 'uppercase tracking-nav-dense',
+    isDenseLocale
+      ? 'tracking-normal normal-case'
+      : 'uppercase tracking-nav-dense',
   )
 
   const detailGeneration = {
@@ -89,12 +91,16 @@ export function ImageCard({
   return (
     <>
       <article className="group overflow-hidden rounded-3xl border border-border/75 bg-card/84 transition-colors hover:border-foreground/15">
-        <div className="overflow-hidden bg-secondary/18">
+        <div className="relative overflow-hidden bg-secondary/18">
           <button
             type="button"
             className="block w-full cursor-pointer"
             onClick={() => setDetailOpen(true)}
-            aria-label={t('openImage')}
+            aria-label={
+              generation.outputType === 'VIDEO'
+                ? t('openVideo')
+                : t('openImage')
+            }
           >
             <img
               src={generation.url}
@@ -104,6 +110,18 @@ export function ImageCard({
               style={{ aspectRatio }}
             />
           </button>
+          {generation.outputType === 'VIDEO' && (
+            <>
+              <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur-sm">
+                <Play className="ml-0.5 size-3.5" fill="currentColor" />
+              </span>
+              {generation.duration != null && (
+                <span className="absolute bottom-3 right-3 rounded-full bg-foreground/60 px-2 py-0.5 font-mono text-xs text-background backdrop-blur-sm">
+                  0:{String(Math.round(generation.duration)).padStart(2, '0')}
+                </span>
+              )}
+            </>
+          )}
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">

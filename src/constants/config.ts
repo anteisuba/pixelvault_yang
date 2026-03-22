@@ -60,6 +60,9 @@ export const API_ENDPOINTS = {
 
   /** Stories */
   STORIES: '/api/stories',
+
+  /** Video generation */
+  GENERATE_VIDEO: '/api/generate-video',
 } as const
 
 /** Arena configuration */
@@ -86,6 +89,15 @@ export const AI_PROVIDER_ENDPOINTS = {
   OPENAI: 'https://api.openai.com/v1/images',
   FAL: 'https://fal.run',
   REPLICATE: 'https://api.replicate.com/v1',
+} as const
+
+/** Video generation configuration */
+export const VIDEO_GENERATION = {
+  MAX_DURATION: 10,
+  DEFAULT_DURATION: 5,
+  DURATION_OPTIONS: [3, 5, 10] as const,
+  POLL_INTERVAL_MS: 3000,
+  DEFAULT_ASPECT_RATIO: '16:9' as const,
 } as const
 
 /** Pagination defaults */

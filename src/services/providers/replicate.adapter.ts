@@ -6,6 +6,7 @@ import {
   API_USAGE,
   AI_PROVIDER_ENDPOINTS,
   IMAGE_SIZES,
+  VIDEO_GENERATION,
 } from '@/constants/config'
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -13,6 +14,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   ProviderAdapter,
   ProviderGenerationInput,
+  ProviderVideoInput,
 } from '@/services/providers/types'
 
 const REPLICATE_PREDICTION_SCHEMA = z.object({
@@ -41,11 +43,12 @@ function sleep(ms: number): Promise<void> {
 async function pollPrediction(
   predictionUrl: string,
   apiKey: string,
+  timeoutMs: number = POLL_TIMEOUT_MS,
 ): Promise<z.infer<typeof REPLICATE_PREDICTION_SCHEMA>> {
   const startTime = Date.now()
   let delay = POLL_INITIAL_DELAY_MS
 
-  while (Date.now() - startTime < POLL_TIMEOUT_MS) {
+  while (Date.now() - startTime < timeoutMs) {
     await sleep(delay)
 
     const response = await fetch(predictionUrl, {
@@ -73,7 +76,9 @@ async function pollPrediction(
     delay = Math.min(delay * 2, POLL_MAX_DELAY_MS)
   }
 
-  throw new Error('Replicate prediction timed out after 60s')
+  throw new Error(
+    `Replicate prediction timed out after ${Math.round(timeoutMs / 1000)}s`,
+  )
 }
 
 function extractImageUrl(output: unknown): string {
@@ -156,6 +161,78 @@ export const replicateAdapter: ProviderAdapter = {
       imageUrl: extractImageUrl(completed.output),
       width,
       height,
+      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+    }
+  },
+
+  async generateVideo({
+    prompt,
+    modelId,
+    aspectRatio,
+    providerConfig,
+    apiKey,
+    duration,
+    referenceImage,
+    timeoutMs,
+  }: ProviderVideoInput) {
+    const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['16:9']
+    const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
+    const endpoint = `${baseUrl}/predictions`
+    const externalModelId = getExecutionModelId(modelId)
+
+    const input: Record<string, unknown> = {
+      prompt,
+      aspect_ratio: REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '16:9',
+      duration: duration ?? VIDEO_GENERATION.DEFAULT_DURATION,
+    }
+
+    if (referenceImage) {
+      input.image = referenceImage
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: externalModelId,
+        input,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw new Error(
+        `Replicate video API error (${response.status}): ${errorBody}`,
+      )
+    }
+
+    const prediction = REPLICATE_PREDICTION_SCHEMA.parse(await response.json())
+
+    if (prediction.status === 'succeeded' && prediction.output) {
+      return {
+        videoUrl: extractImageUrl(prediction.output),
+        width,
+        height,
+        duration: duration ?? VIDEO_GENERATION.DEFAULT_DURATION,
+        requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      }
+    }
+
+    const pollUrl = `${baseUrl}/predictions/${prediction.id}`
+    const completed = await pollPrediction(
+      pollUrl,
+      apiKey,
+      timeoutMs ?? 180_000,
+    )
+
+    return {
+      videoUrl: extractImageUrl(completed.output),
+      width,
+      height,
+      duration: duration ?? VIDEO_GENERATION.DEFAULT_DURATION,
       requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     }
   },

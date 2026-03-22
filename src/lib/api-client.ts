@@ -1,6 +1,8 @@
 import type {
   GenerateRequest,
   GenerateResponse,
+  GenerateVideoRequest,
+  GenerateVideoResponse,
   GalleryResponse,
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
@@ -72,6 +74,35 @@ export async function generateImageAPI(
     }
 
     const data: GenerateResponse = await response.json()
+    return data
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Video Generation ─────────────────────────────────────────────
+
+export async function generateVideoAPI(
+  params: GenerateVideoRequest,
+): Promise<GenerateVideoResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_VIDEO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Video generation failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    const data: GenerateVideoResponse = await response.json()
     return data
   } catch (error) {
     const message =

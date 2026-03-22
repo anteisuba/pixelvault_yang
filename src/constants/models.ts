@@ -11,6 +11,7 @@ import {
 
 /** Supported AI model identifiers */
 export enum AI_MODELS {
+  // Image models
   SDXL = 'sdxl',
   ANIMAGINE_XL_4 = 'animagine-xl-4.0',
   GEMINI_FLASH_IMAGE = 'gemini-3.1-flash-image-preview',
@@ -20,6 +21,12 @@ export enum AI_MODELS {
   FLUX_2_SCHNELL = 'flux-2-schnell',
   GEMINI_PRO_IMAGE = 'gemini-3-pro-image',
   IDEOGRAM_2 = 'ideogram-2',
+  // Video models
+  KLING_VIDEO = 'kling-video',
+  MINIMAX_VIDEO = 'minimax-video',
+  LUMA_RAY_2 = 'luma-ray-2',
+  WAN_VIDEO = 'wan-video',
+  HUNYUAN_VIDEO = 'hunyuan-video',
 }
 
 export const MODEL_MESSAGE_KEYS = {
@@ -32,6 +39,11 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.FLUX_2_SCHNELL]: 'flux2Schnell',
   [AI_MODELS.GEMINI_PRO_IMAGE]: 'geminiProImage',
   [AI_MODELS.IDEOGRAM_2]: 'ideogram2',
+  [AI_MODELS.KLING_VIDEO]: 'klingVideo',
+  [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
+  [AI_MODELS.LUMA_RAY_2]: 'lumaRay2',
+  [AI_MODELS.WAN_VIDEO]: 'wanVideo',
+  [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
 } as const
 
 /** Model option configuration */
@@ -50,6 +62,8 @@ export interface ModelOption {
   outputType: OutputType
   /** Whether the model is currently available for use */
   available: boolean
+  /** Provider polling timeout in ms (video models need longer) */
+  timeoutMs?: number
 }
 
 /** All model options with their configuration */
@@ -135,6 +149,57 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
   },
+  // Video models
+  {
+    id: AI_MODELS.KLING_VIDEO,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/v2/master',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 300_000,
+  },
+  {
+    id: AI_MODELS.MINIMAX_VIDEO,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/minimax-video/video-01',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 180_000,
+  },
+  {
+    id: AI_MODELS.LUMA_RAY_2,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/luma-dream-machine/ray-2',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 120_000,
+  },
+  {
+    id: AI_MODELS.WAN_VIDEO,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/wan/v2.1/1.3b',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 180_000,
+  },
+  {
+    id: AI_MODELS.HUNYUAN_VIDEO,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/hunyuan-video',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 300_000,
+  },
 ]
 
 /** Get only the currently available models */
@@ -163,3 +228,19 @@ export const isBuiltInModel = (value: string): value is AI_MODELS =>
   Object.values(AI_MODELS).includes(value as AI_MODELS)
 
 export const isAiModel = isBuiltInModel
+
+/** Get only the currently available video models */
+export const getAvailableVideoModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter(
+    (model) => model.available && model.outputType === 'VIDEO',
+  )
+
+/** Get only the currently available image models */
+export const getAvailableImageModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter(
+    (model) => model.available && model.outputType === 'IMAGE',
+  )
+
+/** Get the provider timeout for a model (defaults to 45s for images) */
+export const getModelTimeout = (modelId: string): number =>
+  getModelById(modelId)?.timeoutMs ?? 45_000

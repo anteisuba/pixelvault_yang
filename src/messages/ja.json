@@ -153,6 +153,8 @@
     "workspaceLabel": "ワークスペース",
     "workspaceTitle": "制作開始",
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
+    "modeImage": "画像",
+    "modeVideo": "動画",
     "metrics": {
       "modelCoverageLabel": "モデル",
       "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
@@ -161,6 +163,32 @@
       "archiveBehaviorLabel": "自動保存",
       "archiveBehaviorValue": "結果は自動保存"
     }
+  },
+  "VideoGenerate": {
+    "modelLabel": "動画モデル",
+    "modelPlaceholder": "動画モデルを選択",
+    "durationLabel": "再生時間",
+    "aspectRatioLabel": "アスペクト比",
+    "promptLabel": "プロンプト",
+    "promptPlaceholder": "作りたい動画を説明してください...",
+    "submitHint": "動画生成はモデルによって1〜5分かかる場合があります。",
+    "generateButton": "動画を生成",
+    "generating": "生成中...",
+    "stageQueued": "待機中",
+    "stageGenerating": "生成中",
+    "stageUploading": "アップロード中",
+    "generatingTitle": "動画を生成中...",
+    "elapsed": "経過時間: {seconds}",
+    "resultLabel": "結果",
+    "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
+    "errorUnexpected": "予期しないエラーが発生しました。"
+  },
+  "VideoPlayer": {
+    "play": "再生",
+    "pause": "一時停止",
+    "fullscreen": "全画面",
+    "download": "ダウンロード",
+    "errorPlayback": "この動画を再生できません。もう一度お試しください。"
   },
   "GalleryPage": {
     "heroEyebrow": "ギャラリー",
@@ -402,7 +430,8 @@
     "privateLabel": "非公開",
     "makePublicAction": "公開にする",
     "makePrivateAction": "非公開にする",
-    "toggleError": "公開設定の更新に失敗しました"
+    "toggleError": "公開設定の更新に失敗しました",
+    "openVideo": "動画を開く"
   },
   "PromptEnhance": {
     "button": "強化",
@@ -551,6 +580,26 @@
     "ideogram2": {
       "label": "Ideogram 2.0",
       "description": "画像内テキスト描画に優れた高品質アートモデル。"
+    },
+    "klingVideo": {
+      "label": "Kling Video",
+      "description": "高品質な映画的動画生成"
+    },
+    "minimaxVideo": {
+      "label": "MiniMax Video",
+      "description": "高品質な高速動画生成"
+    },
+    "lumaRay2": {
+      "label": "Luma Ray 2",
+      "description": "クリエイティブな芸術的動画生成"
+    },
+    "wanVideo": {
+      "label": "Wan Video",
+      "description": "高コスパのオープンソース動画モデル"
+    },
+    "hunyuanVideo": {
+      "label": "Hunyuan Video",
+      "description": "テンセントによる強力な動画生成"
     }
   }
 }

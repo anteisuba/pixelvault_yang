@@ -27,7 +27,7 @@ import {
 } from '@/services/usage.service'
 import { getUserByClerkId } from '@/services/user.service'
 
-interface ResolvedGenerationRoute {
+export interface ResolvedGenerationRoute {
   modelId: string
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
@@ -63,7 +63,7 @@ export function isGenerateImageServiceError(
   return error instanceof GenerateImageServiceError
 }
 
-async function resolveGenerationRoute(
+export async function resolveGenerationRoute(
   userId: string,
   { modelId, apiKeyId }: Pick<GenerateRequest, 'modelId' | 'apiKeyId'>,
 ): Promise<ResolvedGenerationRoute> {
@@ -111,7 +111,7 @@ async function resolveGenerationRoute(
   )
 }
 
-async function recordFailedUsage(params: {
+export async function recordFailedUsage(params: {
   userId: string
   generationJobId: string
   adapterType: AI_ADAPTER_TYPES

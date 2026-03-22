@@ -3,8 +3,8 @@ import { getTranslations } from 'next-intl/server'
 import { API_USAGE } from '@/constants/config'
 import { cn } from '@/lib/utils'
 
-import { GenerateForm } from '@/components/business/GenerateForm'
 import { ModelRanking } from '@/components/business/ModelRanking'
+import { StudioWorkspace } from '@/components/business/StudioWorkspace'
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
@@ -129,7 +129,7 @@ export default async function StudioPage({ params }: StudioPageProps) {
             </div>
 
             <div className="pt-6">
-              <GenerateForm />
+              <StudioWorkspace />
             </div>
           </section>
 

@@ -153,6 +153,8 @@
     "workspaceLabel": "Workspace",
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
+    "modeImage": "Image",
+    "modeVideo": "Video",
     "metrics": {
       "modelCoverageLabel": "Models",
       "modelCoverageValue": "{modelCount} models · {providerCount} providers",
@@ -161,6 +163,32 @@
       "archiveBehaviorLabel": "Auto-archive",
       "archiveBehaviorValue": "Results saved automatically"
     }
+  },
+  "VideoGenerate": {
+    "modelLabel": "Video Model",
+    "modelPlaceholder": "Select a video model",
+    "durationLabel": "Duration",
+    "aspectRatioLabel": "Aspect Ratio",
+    "promptLabel": "Prompt",
+    "promptPlaceholder": "Describe the video you want to create...",
+    "submitHint": "Video generation may take 1-5 minutes depending on the model.",
+    "generateButton": "Generate Video",
+    "generating": "Generating...",
+    "stageQueued": "Queued",
+    "stageGenerating": "Generating",
+    "stageUploading": "Uploading",
+    "generatingTitle": "Generating your video...",
+    "elapsed": "Elapsed: {seconds}",
+    "resultLabel": "Result",
+    "errorFallback": "Video generation failed. Please try again.",
+    "errorUnexpected": "An unexpected error occurred."
+  },
+  "VideoPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "fullscreen": "Fullscreen",
+    "download": "Download",
+    "errorPlayback": "Unable to play this video. Please try again."
   },
   "GalleryPage": {
     "heroEyebrow": "Gallery",
@@ -402,7 +430,8 @@
     "privateLabel": "Private",
     "makePublicAction": "Make Public",
     "makePrivateAction": "Make Private",
-    "toggleError": "Failed to update visibility"
+    "toggleError": "Failed to update visibility",
+    "openVideo": "Open video"
   },
   "PromptEnhance": {
     "button": "Enhance",
@@ -551,6 +580,26 @@
     "ideogram2": {
       "label": "Ideogram 2.0",
       "description": "Exceptional at rendering text in images with strong artistic quality."
+    },
+    "klingVideo": {
+      "label": "Kling Video",
+      "description": "High-quality cinematic video generation"
+    },
+    "minimaxVideo": {
+      "label": "MiniMax Video",
+      "description": "Fast video generation with good quality"
+    },
+    "lumaRay2": {
+      "label": "Luma Ray 2",
+      "description": "Creative and artistic video generation"
+    },
+    "wanVideo": {
+      "label": "Wan Video",
+      "description": "Open-source video model with great value"
+    },
+    "hunyuanVideo": {
+      "label": "Hunyuan Video",
+      "description": "Powerful video generation by Tencent"
     }
   }
 }

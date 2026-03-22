@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
 
 // ─── R2 Client ────────────────────────────────────────────────────
 
@@ -77,4 +78,45 @@ export async function uploadToR2(params: {
   )
 
   return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`
+}
+
+// ─── Stream Upload to R2 (for large files like video) ────────────
+
+/**
+ * Stream-upload a remote URL directly to R2 using multipart upload.
+ * Avoids loading the entire file into memory (prevents OOM for large videos).
+ */
+export async function streamUploadToR2(params: {
+  sourceUrl: string
+  key: string
+  mimeType: string
+}): Promise<{ publicUrl: string; sizeBytes: number }> {
+  const response = await fetch(params.sourceUrl)
+  if (!response.ok || !response.body) {
+    throw new Error(
+      `Failed to fetch video for upload (${response.status}): ${params.sourceUrl}`,
+    )
+  }
+
+  const upload = new Upload({
+    client: r2,
+    params: {
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: params.key,
+      Body: response.body as unknown as ReadableStream,
+      ContentType: params.mimeType,
+    },
+    queueSize: 1,
+    partSize: 5 * 1024 * 1024, // 5MB parts
+  })
+
+  await upload.done()
+
+  const contentLength = response.headers.get('content-length')
+  const sizeBytes = contentLength ? Number.parseInt(contentLength, 10) : 0
+
+  return {
+    publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
+    sizeBytes,
+  }
 }

@@ -153,6 +153,8 @@
     "workspaceLabel": "工作台",
     "workspaceTitle": "开始创作",
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
+    "modeImage": "图片",
+    "modeVideo": "视频",
     "metrics": {
       "modelCoverageLabel": "模型",
       "modelCoverageValue": "{modelCount} 个模型 · {providerCount} 个提供商",
@@ -161,6 +163,32 @@
       "archiveBehaviorLabel": "自动存档",
       "archiveBehaviorValue": "结果自动保存"
     }
+  },
+  "VideoGenerate": {
+    "modelLabel": "视频模型",
+    "modelPlaceholder": "选择视频模型",
+    "durationLabel": "时长",
+    "aspectRatioLabel": "宽高比",
+    "promptLabel": "提示词",
+    "promptPlaceholder": "描述你想创建的视频...",
+    "submitHint": "视频生成可能需要1-5分钟，取决于模型。",
+    "generateButton": "生成视频",
+    "generating": "生成中...",
+    "stageQueued": "排队中",
+    "stageGenerating": "生成中",
+    "stageUploading": "上传中",
+    "generatingTitle": "正在生成视频...",
+    "elapsed": "已等待 {seconds}",
+    "resultLabel": "结果",
+    "errorFallback": "视频生成失败，请重试。",
+    "errorUnexpected": "发生了意外错误。"
+  },
+  "VideoPlayer": {
+    "play": "播放",
+    "pause": "暂停",
+    "fullscreen": "全屏",
+    "download": "下载",
+    "errorPlayback": "无法播放此视频，请重试。"
   },
   "GalleryPage": {
     "heroEyebrow": "画廊",
@@ -402,7 +430,8 @@
     "privateLabel": "私有",
     "makePublicAction": "设为公开",
     "makePrivateAction": "设为私有",
-    "toggleError": "更新可见性失败"
+    "toggleError": "更新可见性失败",
+    "openVideo": "打开视频"
   },
   "PromptEnhance": {
     "button": "增强",
@@ -551,6 +580,26 @@
     "ideogram2": {
       "label": "Ideogram 2.0",
       "description": "擅长在图像中渲染文字，兼具出色的艺术质感。"
+    },
+    "klingVideo": {
+      "label": "可灵视频",
+      "description": "高质量电影级视频生成"
+    },
+    "minimaxVideo": {
+      "label": "MiniMax 视频",
+      "description": "快速高质量视频生成"
+    },
+    "lumaRay2": {
+      "label": "Luma Ray 2",
+      "description": "创意艺术视频生成"
+    },
+    "wanVideo": {
+      "label": "万象视频",
+      "description": "高性价比开源视频模型"
+    },
+    "hunyuanVideo": {
+      "label": "混元视频",
+      "description": "腾讯混元视频生成"
     }
   }
 }

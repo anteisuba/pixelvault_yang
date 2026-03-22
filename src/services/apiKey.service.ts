@@ -113,6 +113,33 @@ export async function getApiKeyValueById(
   }
 }
 
+export async function findActiveKeyForAdapter(
+  userId: string,
+  adapterType: AI_ADAPTER_TYPES,
+): Promise<ResolvedApiKeyValue | null> {
+  const record = await db.userApiKey.findFirst({
+    where: { userId, adapterType, isActive: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!record) return null
+  try {
+    const normalizedAdapter = normalizeAdapterType(record.adapterType)
+    return {
+      id: record.id,
+      modelId: record.modelId,
+      adapterType: normalizedAdapter,
+      providerConfig: normalizeProviderConfig(
+        normalizedAdapter,
+        record.providerConfig,
+      ),
+      label: record.label,
+      keyValue: decryptApiKey(record.encryptedKey),
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function createApiKey(
   userId: string,
   modelId: string,

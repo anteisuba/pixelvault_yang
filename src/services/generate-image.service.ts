@@ -9,7 +9,10 @@ import {
   type ProviderConfig,
 } from '@/constants/providers'
 import type { GenerateRequest, GenerationRecord } from '@/types'
-import { getApiKeyValueById } from '@/services/apiKey.service'
+import {
+  findActiveKeyForAdapter,
+  getApiKeyValueById,
+} from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import type { ProviderGenerationResult } from '@/services/providers/types'
@@ -102,6 +105,20 @@ export async function resolveGenerationRoute(
       'Custom models require selecting an active API key',
       400,
     )
+  }
+
+  // Auto-find an active key for this model's adapter
+  const autoKey = await findActiveKeyForAdapter(
+    userId,
+    builtInModel.adapterType,
+  )
+  if (autoKey) {
+    return {
+      modelId,
+      adapterType: autoKey.adapterType,
+      providerConfig: autoKey.providerConfig,
+      apiKey: autoKey.keyValue,
+    }
   }
 
   throw new GenerateImageServiceError(

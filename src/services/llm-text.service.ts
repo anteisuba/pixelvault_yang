@@ -3,11 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
-import {
-  AI_ADAPTER_TYPES,
-  getAdapterEnvFallback,
-  type ProviderConfig,
-} from '@/constants/providers'
+import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 
@@ -108,28 +104,8 @@ export async function resolveLlmTextRoute(
     }
   }
 
-  // Fall back to env keys
-  for (const adapterType of preferenceOrder) {
-    const envKeyName = getAdapterEnvFallback(adapterType)
-    const envKey = process.env[envKeyName]
-
-    if (envKey) {
-      return {
-        adapterType,
-        providerConfig: {
-          label: adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI',
-          baseUrl:
-            adapterType === AI_ADAPTER_TYPES.GEMINI
-              ? AI_PROVIDER_ENDPOINTS.GEMINI
-              : 'https://api.openai.com/v1',
-        },
-        apiKey: envKey,
-      }
-    }
-  }
-
   throw new Error(
-    'No API key available for LLM text completion. Please bind a Gemini or OpenAI API key.',
+    'No API key available for LLM text completion. Please bind a Gemini or OpenAI API key in the API Keys settings.',
   )
 }
 

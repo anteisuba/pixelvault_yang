@@ -3,7 +3,6 @@ import 'server-only'
 import { API_USAGE } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import {
-  getAdapterEnvFallback,
   getDefaultProviderConfig,
   getProviderLabel,
   type AI_ADAPTER_TYPES,
@@ -105,25 +104,11 @@ async function resolveGenerationRoute(
     )
   }
 
-  const envFallbackName = getAdapterEnvFallback(builtInModel.adapterType)
-  const apiKey = process.env[envFallbackName] ?? null
-
-  if (!apiKey) {
-    throw new GenerateImageServiceError(
-      'MISSING_API_KEY',
-      'No API key is available for the selected model',
-      400,
-    )
-  }
-
-  return {
-    modelId: builtInModel.id,
-    adapterType: builtInModel.adapterType,
-    providerConfig:
-      builtInModel.providerConfig ??
-      getDefaultProviderConfig(builtInModel.adapterType),
-    apiKey,
-  }
+  throw new GenerateImageServiceError(
+    'MISSING_API_KEY',
+    'Please bind your own API key for this model in the API Keys settings',
+    400,
+  )
 }
 
 async function recordFailedUsage(params: {

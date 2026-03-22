@@ -47,14 +47,6 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   },
 }
 
-export const ADAPTER_ENV_FALLBACKS: Record<AI_ADAPTER_TYPES, string> = {
-  [AI_ADAPTER_TYPES.HUGGINGFACE]: 'HF_API_TOKEN',
-  [AI_ADAPTER_TYPES.GEMINI]: 'SILICONFLOW_API_KEY',
-  [AI_ADAPTER_TYPES.OPENAI]: 'OPENAI_API_KEY',
-  [AI_ADAPTER_TYPES.FAL]: 'FAL_KEY',
-  [AI_ADAPTER_TYPES.REPLICATE]: 'REPLICATE_API_TOKEN',
-}
-
 export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: 'hf_...',
   [AI_ADAPTER_TYPES.GEMINI]: 'AIza...',
@@ -85,9 +77,6 @@ export const getDefaultProviderConfig = (
 
 export const getProviderLabel = (providerConfig: ProviderConfig): string =>
   providerConfig.label
-
-export const getAdapterEnvFallback = (adapterType: AI_ADAPTER_TYPES): string =>
-  ADAPTER_ENV_FALLBACKS[adapterType]
 
 export const getAdapterKeyHint = (adapterType: AI_ADAPTER_TYPES): string =>
   ADAPTER_KEY_HINTS[adapterType]

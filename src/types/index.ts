@@ -308,3 +308,89 @@ export interface ArenaLeaderboardResponse {
   data?: LeaderboardEntry[]
   error?: string
 }
+
+// ─── Storyboard ──────────────────────────────────────────────────
+
+export const CreateStoryRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  generationIds: z.array(z.string().trim().min(1)).min(1).max(20),
+})
+
+export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
+
+export const UpdateStoryRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  displayMode: z.enum(['scroll', 'comic']).optional(),
+  isPublic: z.boolean().optional(),
+})
+
+export type UpdateStoryRequest = z.infer<typeof UpdateStoryRequestSchema>
+
+export const GenerateNarrativeRequestSchema = z.object({
+  tone: z
+    .enum(['humorous', 'dramatic', 'poetic', 'adventure'])
+    .default('dramatic'),
+})
+
+export type GenerateNarrativeRequest = z.infer<
+  typeof GenerateNarrativeRequestSchema
+>
+export type NarrativeTone = GenerateNarrativeRequest['tone']
+
+export interface StoryPanelRecord {
+  id: string
+  generationId: string | null
+  orderIndex: number
+  caption: string | null
+  narration: string | null
+  generation?: {
+    id: string
+    url: string
+    prompt: string
+    model: string
+  } | null
+}
+
+export interface StoryRecord {
+  id: string
+  title: string
+  displayMode: string
+  isPublic: boolean
+  createdAt: Date
+  updatedAt: Date
+  panels: StoryPanelRecord[]
+}
+
+export interface StoryListItem {
+  id: string
+  title: string
+  displayMode: string
+  isPublic: boolean
+  panelCount: number
+  coverImageUrl: string | null
+  createdAt: Date
+}
+
+export interface CreateStoryResponse {
+  success: boolean
+  data?: StoryRecord
+  error?: string
+}
+
+export interface StoryResponse {
+  success: boolean
+  data?: StoryRecord
+  error?: string
+}
+
+export interface StoryListResponse {
+  success: boolean
+  data?: StoryListItem[]
+  error?: string
+}
+
+export interface GenerateNarrativeResponse {
+  success: boolean
+  data?: { panels: Array<{ id: string; narration: string; caption: string }> }
+  error?: string
+}

@@ -14,6 +14,7 @@
       "gallery": "Gallery",
       "studio": "Studio",
       "arena": "Arena",
+      "storyboard": "Stories",
       "library": "Archive"
     }
   },
@@ -418,6 +419,31 @@
         "label": "Anime",
         "description": "Add anime style and character details"
       }
+    }
+  },
+  "StoryBoard": {
+    "heroEyebrow": "Storyboard",
+    "heroTitle": "Turn Images into Stories",
+    "heroDescription": "Select your generated images and let AI weave them into a visual narrative.",
+    "createButton": "New Story",
+    "titlePlaceholder": "Story title...",
+    "idsPlaceholder": "Generation IDs (comma-separated)",
+    "idsHint": "Paste generation IDs from your profile library, separated by commas.",
+    "createAction": "Create Story",
+    "empty": "No stories yet. Create your first visual story!",
+    "panelCount": "{count} panels",
+    "backToList": "All Stories",
+    "storyEyebrow": "Story",
+    "notFound": "Story not found",
+    "switchToComic": "Comic View",
+    "switchToScroll": "Scroll View",
+    "generateNarrativePrompt": "Choose a narrative tone to generate the story text:",
+    "regenerateHint": "Regenerate with a different tone:",
+    "tones": {
+      "humorous": "Humorous",
+      "dramatic": "Dramatic",
+      "poetic": "Poetic",
+      "adventure": "Adventure"
     }
   },
   "ArenaPage": {

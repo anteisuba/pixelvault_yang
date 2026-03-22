@@ -59,7 +59,9 @@ export const ModelName = {
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
-  ModelEloRating: 'ModelEloRating'
+  ModelEloRating: 'ModelEloRating',
+  Story: 'Story',
+  StoryPanel: 'StoryPanel'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -217,6 +219,34 @@ export const ModelEloRatingScalarFieldEnum = {
 } as const
 
 export type ModelEloRatingScalarFieldEnum = (typeof ModelEloRatingScalarFieldEnum)[keyof typeof ModelEloRatingScalarFieldEnum]
+
+
+export const StoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  title: 'title',
+  coverImageId: 'coverImageId',
+  displayMode: 'displayMode',
+  isPublic: 'isPublic',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type StoryScalarFieldEnum = (typeof StoryScalarFieldEnum)[keyof typeof StoryScalarFieldEnum]
+
+
+export const StoryPanelScalarFieldEnum = {
+  id: 'id',
+  storyId: 'storyId',
+  generationId: 'generationId',
+  orderIndex: 'orderIndex',
+  caption: 'caption',
+  narration: 'narration',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof typeof StoryPanelScalarFieldEnum]
 
 
 export const SortOrder = {

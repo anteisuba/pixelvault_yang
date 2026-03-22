@@ -21,6 +21,7 @@ export function Navbar() {
     { href: ROUTES.GALLERY, label: t('links.gallery') },
     { href: ROUTES.STUDIO, label: t('links.studio') },
     { href: ROUTES.ARENA, label: t('links.arena') },
+    { href: ROUTES.STORYBOARD, label: t('links.storyboard') },
     { href: ROUTES.PROFILE, label: t('links.library') },
   ]
   const signedOutLinks = [{ href: ROUTES.GALLERY, label: t('links.gallery') }]

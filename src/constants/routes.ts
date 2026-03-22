@@ -18,6 +18,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',
+  STORYBOARD: '/storyboard',
 } as const
 
 /** Type for all route values */

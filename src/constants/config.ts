@@ -57,6 +57,9 @@ export const API_ENDPOINTS = {
   /** Arena */
   ARENA_MATCHES: '/api/arena/matches',
   ARENA_LEADERBOARD: '/api/arena/leaderboard',
+
+  /** Stories */
+  STORIES: '/api/stories',
 } as const
 
 /** Arena configuration */

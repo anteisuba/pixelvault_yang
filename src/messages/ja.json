@@ -14,6 +14,7 @@
       "gallery": "ギャラリー",
       "studio": "スタジオ",
       "arena": "アリーナ",
+      "storyboard": "ストーリー",
       "library": "アーカイブ"
     }
   },
@@ -418,6 +419,31 @@
         "label": "アニメ",
         "description": "アニメスタイルとキャラクターの詳細を追加"
       }
+    }
+  },
+  "StoryBoard": {
+    "heroEyebrow": "ストーリーボード",
+    "heroTitle": "画像をストーリーに",
+    "heroDescription": "生成した画像を選び、AIにビジュアルナラティブを紡がせましょう。",
+    "createButton": "新規ストーリー",
+    "titlePlaceholder": "ストーリータイトル...",
+    "idsPlaceholder": "生成ID（カンマ区切り）",
+    "idsHint": "プロフィールライブラリから生成IDをカンマ区切りで貼り付けてください。",
+    "createAction": "ストーリーを作成",
+    "empty": "ストーリーがまだありません。最初のビジュアルストーリーを作成しましょう！",
+    "panelCount": "{count}パネル",
+    "backToList": "すべてのストーリー",
+    "storyEyebrow": "ストーリー",
+    "notFound": "ストーリーが見つかりません",
+    "switchToComic": "コミック表示",
+    "switchToScroll": "スクロール表示",
+    "generateNarrativePrompt": "ナラティブのトーンを選択：",
+    "regenerateHint": "別のトーンで再生成：",
+    "tones": {
+      "humorous": "ユーモア",
+      "dramatic": "ドラマチック",
+      "poetic": "詩的",
+      "adventure": "冒険"
     }
   },
   "ArenaPage": {

@@ -43,6 +43,7 @@ model User {
   apiUsageLedger ApiUsageLedger[]
   imageAnalyses  ImageAnalysis[]
   arenaMatches   ArenaMatch[]
+  stories        Story[]
 }
 
 model UserApiKey {
@@ -99,6 +100,7 @@ model Generation {
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
   arenaEntries   ArenaEntry[]
+  storyPanels    StoryPanel[]
 
   @@index([userId])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
@@ -200,4 +202,36 @@ model ModelEloRating {
   matchCount Int      @default(0)
   winCount   Int      @default(0)
   updatedAt  DateTime @updatedAt
+}
+
+model Story {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  coverImageId String?
+  displayMode String       @default("scroll")
+  isPublic    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  panels      StoryPanel[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([isPublic, createdAt(sort: Desc)])
+}
+
+model StoryPanel {
+  id           String      @id @default(uuid())
+  storyId      String
+  story        Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  generationId String?
+  generation   Generation? @relation(fields: [generationId], references: [id], onDelete: SetNull)
+  orderIndex   Int
+  caption      String?     @db.Text
+  narration    String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([storyId, orderIndex])
+  @@index([storyId, orderIndex])
 }

@@ -14,6 +14,7 @@
       "gallery": "画廊",
       "studio": "工作台",
       "arena": "竞技场",
+      "storyboard": "故事",
       "library": "档案"
     }
   },
@@ -418,6 +419,31 @@
         "label": "动漫",
         "description": "添加动漫风格和角色细节"
       }
+    }
+  },
+  "StoryBoard": {
+    "heroEyebrow": "故事板",
+    "heroTitle": "让图片讲故事",
+    "heroDescription": "选择你生成的图片，让 AI 编织成视觉叙事。",
+    "createButton": "新建故事",
+    "titlePlaceholder": "故事标题...",
+    "idsPlaceholder": "生成 ID（逗号分隔）",
+    "idsHint": "从你的个人图库复制生成 ID，用逗号分隔。",
+    "createAction": "创建故事",
+    "empty": "还没有故事。创建你的第一个视觉故事！",
+    "panelCount": "{count} 个面板",
+    "backToList": "所有故事",
+    "storyEyebrow": "故事",
+    "notFound": "故事未找到",
+    "switchToComic": "漫画视图",
+    "switchToScroll": "滚动视图",
+    "generateNarrativePrompt": "选择叙事风格来生成故事文字：",
+    "regenerateHint": "换一种风格重新生成：",
+    "tones": {
+      "humorous": "幽默",
+      "dramatic": "戏剧",
+      "poetic": "诗意",
+      "adventure": "冒险"
     }
   },
   "ArenaPage": {

@@ -15,6 +15,8 @@ import type {
   ProviderAdapter,
   ProviderGenerationInput,
   ProviderVideoInput,
+  ProviderQueueSubmitInput,
+  ProviderQueueStatusInput,
 } from '@/services/providers/types'
 
 const FAL_RESPONSE_SCHEMA = z.object({
@@ -42,6 +44,15 @@ const FAL_VIDEO_RESPONSE_SCHEMA = z.object({
     })
     .optional()
     .nullable(),
+})
+
+const FAL_QUEUE_SUBMIT_SCHEMA = z.object({
+  request_id: z.string(),
+})
+
+const FAL_QUEUE_STATUS_SCHEMA = z.object({
+  status: z.enum(['IN_QUEUE', 'IN_PROGRESS', 'COMPLETED']),
+  response_url: z.string().url().optional(),
 })
 
 const FAL_IMAGE_SIZES: Record<string, string> = {
@@ -169,6 +180,107 @@ export const falAdapter: ProviderAdapter = {
       }
     } finally {
       clearTimeout(timeout)
+    }
+  },
+
+  async submitVideoToQueue({
+    prompt,
+    modelId,
+    aspectRatio,
+    providerConfig,
+    apiKey,
+    duration,
+    referenceImage,
+  }: ProviderQueueSubmitInput) {
+    const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.FAL_QUEUE
+    const externalModelId = getExecutionModelId(modelId)
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
+
+    const body: Record<string, unknown> = {
+      prompt,
+      aspect_ratio: aspectRatio.replace(':', ':'),
+      duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
+    }
+
+    if (referenceImage) {
+      body.image_url = referenceImage
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue submit error (${response.status}): ${errorBody}`,
+      )
+    }
+
+    const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+    return { requestId: data.request_id }
+  },
+
+  async checkVideoQueueStatus({
+    modelId,
+    requestId,
+    apiKey,
+  }: ProviderQueueStatusInput) {
+    const externalModelId = getExecutionModelId(modelId)
+    const statusEndpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}/requests/${requestId}/status`
+
+    const statusResponse = await fetch(statusEndpoint, {
+      headers: { Authorization: `Key ${apiKey}` },
+    })
+
+    if (!statusResponse.ok) {
+      const errorBody = await statusResponse.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue status error (${statusResponse.status}): ${errorBody}`,
+      )
+    }
+
+    const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
+      await statusResponse.json(),
+    )
+
+    if (statusData.status !== 'COMPLETED') {
+      return { status: statusData.status as 'IN_QUEUE' | 'IN_PROGRESS' }
+    }
+
+    // Fetch the actual result
+    const resultEndpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}/requests/${requestId}`
+    const resultResponse = await fetch(resultEndpoint, {
+      headers: { Authorization: `Key ${apiKey}` },
+    })
+
+    if (!resultResponse.ok) {
+      const errorBody = await resultResponse.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue result error (${resultResponse.status}): ${errorBody}`,
+      )
+    }
+
+    const resultData = FAL_VIDEO_RESPONSE_SCHEMA.parse(
+      await resultResponse.json(),
+    )
+    const { width, height } = IMAGE_SIZES['16:9']
+
+    return {
+      status: 'COMPLETED' as const,
+      result: {
+        videoUrl: resultData.video.url,
+        thumbnailUrl: resultData.thumbnail?.url,
+        width,
+        height,
+        duration: VIDEO_GENERATION.DEFAULT_DURATION,
+        requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      },
     }
   },
 }

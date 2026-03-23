@@ -205,7 +205,8 @@
     "elapsed": "已等待 {seconds}",
     "resultLabel": "结果",
     "errorFallback": "视频生成失败，请重试。",
-    "errorUnexpected": "发生了意外错误。"
+    "errorUnexpected": "发生了意外错误。",
+    "errorTimeout": "视频生成超时，请重试。"
   },
   "VideoPlayer": {
     "play": "播放",

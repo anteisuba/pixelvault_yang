@@ -205,7 +205,8 @@
     "elapsed": "Elapsed: {seconds}",
     "resultLabel": "Result",
     "errorFallback": "Video generation failed. Please try again.",
-    "errorUnexpected": "An unexpected error occurred."
+    "errorUnexpected": "An unexpected error occurred.",
+    "errorTimeout": "Video generation timed out. Please try again."
   },
   "VideoPlayer": {
     "play": "Play",

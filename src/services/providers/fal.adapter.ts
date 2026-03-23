@@ -48,6 +48,8 @@ const FAL_VIDEO_RESPONSE_SCHEMA = z.object({
 
 const FAL_QUEUE_SUBMIT_SCHEMA = z.object({
   request_id: z.string(),
+  status_url: z.string().url(),
+  response_url: z.string().url(),
 })
 
 const FAL_QUEUE_STATUS_SCHEMA = z.object({
@@ -223,18 +225,20 @@ export const falAdapter: ProviderAdapter = {
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
-    return { requestId: data.request_id }
+    return {
+      requestId: data.request_id,
+      statusUrl: data.status_url,
+      responseUrl: data.response_url,
+    }
   },
 
   async checkVideoQueueStatus({
-    modelId,
-    requestId,
+    statusUrl,
+    responseUrl,
     apiKey,
   }: ProviderQueueStatusInput) {
-    const externalModelId = getExecutionModelId(modelId)
-    const statusEndpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}/requests/${requestId}/status`
-
-    const statusResponse = await fetch(statusEndpoint, {
+    const statusResponse = await fetch(statusUrl, {
+      method: 'GET',
       headers: { Authorization: `Key ${apiKey}` },
     })
 
@@ -253,9 +257,9 @@ export const falAdapter: ProviderAdapter = {
       return { status: statusData.status as 'IN_QUEUE' | 'IN_PROGRESS' }
     }
 
-    // Fetch the actual result
-    const resultEndpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}/requests/${requestId}`
-    const resultResponse = await fetch(resultEndpoint, {
+    // Fetch the actual result using the response_url from submit
+    const resultResponse = await fetch(responseUrl, {
+      method: 'GET',
       headers: { Authorization: `Key ${apiKey}` },
     })
 

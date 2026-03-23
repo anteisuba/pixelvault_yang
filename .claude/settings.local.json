@@ -11,7 +11,11 @@
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(wc:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.fal.ai)",
+      "WebFetch(domain:fal.ai)"
     ]
   },
   "hooks": {

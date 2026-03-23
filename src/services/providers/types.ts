@@ -49,12 +49,13 @@ export interface ProviderQueueSubmitInput {
 
 export interface ProviderQueueSubmitResult {
   requestId: string
+  statusUrl: string
+  responseUrl: string
 }
 
 export interface ProviderQueueStatusInput {
-  modelId: string
-  requestId: string
-  providerConfig: ProviderConfig
+  statusUrl: string
+  responseUrl: string
   apiKey: string
 }
 

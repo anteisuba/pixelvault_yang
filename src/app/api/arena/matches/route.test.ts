@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
+  mockRateLimitAllowed,
   createPOST,
   parseJSON,
 } from '@/test/api-helpers'
@@ -16,6 +17,7 @@ import { POST } from './route'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockRateLimitAllowed()
 })
 
 describe('POST /api/arena/matches', () => {
@@ -104,6 +106,9 @@ describe('POST /api/arena/matches', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'DB down' })
+    expect(body).toEqual({
+      success: false,
+      error: 'Match creation failed. Please try again.',
+    })
   })
 })

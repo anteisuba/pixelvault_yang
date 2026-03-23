@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { randomBytes } from 'node:crypto'
 import {
   S3Client,
   PutObjectCommand,
@@ -26,7 +27,7 @@ const r2 = new S3Client({
  */
 export function generateStorageKey(outputType: 'IMAGE' | 'VIDEO'): string {
   const date = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-  const random = Math.random().toString(36).slice(2, 10).padEnd(8, '0')
+  const random = randomBytes(12).toString('hex') // 24-char cryptographically secure
 
   if (outputType === 'VIDEO') {
     return `generations/video/${date}_${random}.mp4`

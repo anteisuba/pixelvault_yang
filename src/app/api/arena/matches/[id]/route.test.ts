@@ -71,6 +71,6 @@ describe('GET /api/arena/matches/[id]', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'DB error' })
+    expect(body).toEqual({ success: false, error: 'Failed to fetch match.' })
   })
 })

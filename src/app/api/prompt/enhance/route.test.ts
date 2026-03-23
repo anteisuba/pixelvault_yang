@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
+  mockRateLimitAllowed,
   createPOST,
   parseJSON,
 } from '@/test/api-helpers'
@@ -15,6 +16,7 @@ import { POST } from './route'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockRateLimitAllowed()
 })
 
 describe('POST /api/prompt/enhance', () => {
@@ -99,6 +101,9 @@ describe('POST /api/prompt/enhance', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'AI error' })
+    expect(body).toEqual({
+      success: false,
+      error: 'Prompt enhancement failed. Please try again.',
+    })
   })
 })

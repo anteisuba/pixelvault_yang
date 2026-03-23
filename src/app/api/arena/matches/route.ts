@@ -5,6 +5,7 @@ import { CreateArenaMatchRequestSchema } from '@/types'
 export const maxDuration = 55
 import type { CreateArenaMatchResponse, ArenaMatchResponse } from '@/types'
 import { createArenaMatch, getArenaMatch } from '@/services/arena.service'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ─── POST /api/arena/matches — Create a match ────────────────────
 
@@ -15,6 +16,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<CreateArenaMatchResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`arena:${clerkId}`, {
+      limit: 5,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<CreateArenaMatchResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -51,10 +63,8 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[API /api/arena/matches] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<CreateArenaMatchResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Match creation failed. Please try again.' },
       { status: 500 },
     )
   }

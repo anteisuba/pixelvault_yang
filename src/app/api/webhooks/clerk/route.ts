@@ -36,6 +36,12 @@ export async function POST(request: Request) {
     return new Response('Missing svix headers', { status: 400 })
   }
 
+  // 1b. Reject stale webhooks (older than 5 minutes)
+  const timestampAge = Math.abs(Date.now() / 1000 - Number(svixTimestamp))
+  if (timestampAge > 300) {
+    return new Response('Webhook timestamp expired', { status: 400 })
+  }
+
   // 2. Verify webhook signature
   const body = await request.text()
   const wh = new Webhook(secret)

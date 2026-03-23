@@ -59,7 +59,7 @@ Items roughly ordered by impact and dependency.
 
 These items were originally planned for mid/long-term but have been implemented:
 
-- ~~Video Generation~~ — 5 models via fal.ai (Kling, MiniMax, Luma, WAN, Hunyuan)
+- ~~Video Generation~~ — 8 models via fal.ai (Veo 3, Kling 3.0 Pro, Seedance Pro, Kling V2, MiniMax, Luma Ray 2, WAN, Hunyuan) with queue-based architecture, I2V support, and parameter tuning
 - ~~API Key Management~~ — Full CRUD with AES-256-GCM encryption per user per provider
 - ~~Image-to-Image~~ — Reference image support in generation
 - ~~Prompt Enhancement~~ — LLM-based enhancement (3 styles)

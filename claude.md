@@ -2,10 +2,11 @@ CLAUDE.md — Personal AI Gallery Project Rules
 
 ## Project
 
-Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent archive platform.
+Personal AI Gallery (PixelVault) — multi-model AI image & video generation + permanent archive platform.
 
 **Stack**: Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)
-**AI Providers**: HuggingFace · Google Gemini · OpenAI
+**AI Providers**: HuggingFace · Google Gemini · OpenAI · fal.ai · Replicate
+**Video**: 8 models (Veo 3, Kling 3.0 Pro, Seedance Pro, Kling V2, MiniMax, Luma Ray 2, WAN, Hunyuan) — queue-based architecture with I2V support
 
 ## Key Entry Points
 

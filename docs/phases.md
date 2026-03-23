@@ -39,8 +39,11 @@
 - Image reverse engineering (upload → extract prompt → generate variations)
 - AI Model Arena with ELO ranking (blind comparison + voting)
 - Storyboard with AI narrative (comic view, drag reorder, PNG export, public share)
-- Video generation (5 models via fal.ai — Kling, MiniMax, Luma, WAN, Hunyuan)
-- 9 image models + 5 video models across 5 providers
+- Video generation with queue-based architecture (submit → poll → finalize)
+- 8 video models via fal.ai (Veo 3, Kling 3.0 Pro, Seedance Pro, Kling V2, MiniMax, Luma Ray 2, WAN, Hunyuan)
+- Image-to-Video (I2V) support with auto endpoint switching
+- Video parameter tuning (resolution, negative prompt, model-specific defaults)
+- 9 image models + 8 video models across 5 providers
 
 - Gallery search & filter (keyword search, model dropdown, sort by date)
 - Image detail page `/gallery/[id]` (shareable permalink + OG/Twitter cards + JSON-LD)

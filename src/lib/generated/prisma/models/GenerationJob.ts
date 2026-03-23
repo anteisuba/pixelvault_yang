@@ -43,7 +43,9 @@ export type GenerationJobMinAggregateOutputType = {
   modelId: string | null
   status: $Enums.GenerationJobStatus | null
   requestCount: number | null
+  prompt: string | null
   errorMessage: string | null
+  externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
   createdAt: Date | null
@@ -59,7 +61,9 @@ export type GenerationJobMaxAggregateOutputType = {
   modelId: string | null
   status: $Enums.GenerationJobStatus | null
   requestCount: number | null
+  prompt: string | null
   errorMessage: string | null
+  externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
   createdAt: Date | null
@@ -75,7 +79,9 @@ export type GenerationJobCountAggregateOutputType = {
   modelId: number
   status: number
   requestCount: number
+  prompt: number
   errorMessage: number
+  externalRequestId: number
   startedAt: number
   completedAt: number
   createdAt: number
@@ -101,7 +107,9 @@ export type GenerationJobMinAggregateInputType = {
   modelId?: true
   status?: true
   requestCount?: true
+  prompt?: true
   errorMessage?: true
+  externalRequestId?: true
   startedAt?: true
   completedAt?: true
   createdAt?: true
@@ -117,7 +125,9 @@ export type GenerationJobMaxAggregateInputType = {
   modelId?: true
   status?: true
   requestCount?: true
+  prompt?: true
   errorMessage?: true
+  externalRequestId?: true
   startedAt?: true
   completedAt?: true
   createdAt?: true
@@ -133,7 +143,9 @@ export type GenerationJobCountAggregateInputType = {
   modelId?: true
   status?: true
   requestCount?: true
+  prompt?: true
   errorMessage?: true
+  externalRequestId?: true
   startedAt?: true
   completedAt?: true
   createdAt?: true
@@ -236,7 +248,9 @@ export type GenerationJobGroupByOutputType = {
   modelId: string
   status: $Enums.GenerationJobStatus
   requestCount: number
+  prompt: string | null
   errorMessage: string | null
+  externalRequestId: string | null
   startedAt: Date | null
   completedAt: Date | null
   createdAt: Date
@@ -275,7 +289,9 @@ export type GenerationJobWhereInput = {
   modelId?: Prisma.StringFilter<"GenerationJob"> | string
   status?: Prisma.EnumGenerationJobStatusFilter<"GenerationJob"> | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
+  prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
@@ -294,7 +310,9 @@ export type GenerationJobOrderByWithRelationInput = {
   modelId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  prompt?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  externalRequestId?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -316,7 +334,9 @@ export type GenerationJobWhereUniqueInput = Prisma.AtLeast<{
   modelId?: Prisma.StringFilter<"GenerationJob"> | string
   status?: Prisma.EnumGenerationJobStatusFilter<"GenerationJob"> | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
+  prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
@@ -335,7 +355,9 @@ export type GenerationJobOrderByWithAggregationInput = {
   modelId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  prompt?: Prisma.SortOrderInput | Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  externalRequestId?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -359,7 +381,9 @@ export type GenerationJobScalarWhereWithAggregatesInput = {
   modelId?: Prisma.StringWithAggregatesFilter<"GenerationJob"> | string
   status?: Prisma.EnumGenerationJobStatusWithAggregatesFilter<"GenerationJob"> | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntWithAggregatesFilter<"GenerationJob"> | number
+  prompt?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
+  externalRequestId?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"GenerationJob"> | Date | string
@@ -373,7 +397,9 @@ export type GenerationJobCreateInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -392,7 +418,9 @@ export type GenerationJobUncheckedCreateInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -407,7 +435,9 @@ export type GenerationJobUpdateInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -426,7 +456,9 @@ export type GenerationJobUncheckedUpdateInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -443,7 +475,9 @@ export type GenerationJobCreateManyInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -457,7 +491,9 @@ export type GenerationJobUpdateManyMutationInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -473,7 +509,9 @@ export type GenerationJobUncheckedUpdateManyInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -504,7 +542,9 @@ export type GenerationJobCountOrderByAggregateInput = {
   modelId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -524,7 +564,9 @@ export type GenerationJobMaxOrderByAggregateInput = {
   modelId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -540,7 +582,9 @@ export type GenerationJobMinOrderByAggregateInput = {
   modelId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  prompt?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  externalRequestId?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -656,7 +700,9 @@ export type GenerationJobCreateWithoutUserInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -673,7 +719,9 @@ export type GenerationJobUncheckedCreateWithoutUserInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -719,7 +767,9 @@ export type GenerationJobScalarWhereInput = {
   modelId?: Prisma.StringFilter<"GenerationJob"> | string
   status?: Prisma.EnumGenerationJobStatusFilter<"GenerationJob"> | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFilter<"GenerationJob"> | number
+  prompt?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   errorMessage?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
+  externalRequestId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   startedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
@@ -733,7 +783,9 @@ export type GenerationJobCreateWithoutGenerationInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -750,7 +802,9 @@ export type GenerationJobUncheckedCreateWithoutGenerationInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -781,7 +835,9 @@ export type GenerationJobUpdateWithoutGenerationInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -798,7 +854,9 @@ export type GenerationJobUncheckedUpdateWithoutGenerationInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -813,7 +871,9 @@ export type GenerationJobCreateWithoutApiUsageLedgerInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -831,7 +891,9 @@ export type GenerationJobUncheckedCreateWithoutApiUsageLedgerInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -861,7 +923,9 @@ export type GenerationJobUpdateWithoutApiUsageLedgerInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -879,7 +943,9 @@ export type GenerationJobUncheckedUpdateWithoutApiUsageLedgerInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -894,7 +960,9 @@ export type GenerationJobCreateManyUserInput = {
   modelId: string
   status?: $Enums.GenerationJobStatus
   requestCount?: number
+  prompt?: string | null
   errorMessage?: string | null
+  externalRequestId?: string | null
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   createdAt?: Date | string
@@ -908,7 +976,9 @@ export type GenerationJobUpdateWithoutUserInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -925,7 +995,9 @@ export type GenerationJobUncheckedUpdateWithoutUserInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -941,7 +1013,9 @@ export type GenerationJobUncheckedUpdateManyWithoutUserInput = {
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -988,7 +1062,9 @@ export type GenerationJobSelect<ExtArgs extends runtime.Types.Extensions.Interna
   modelId?: boolean
   status?: boolean
   requestCount?: boolean
+  prompt?: boolean
   errorMessage?: boolean
+  externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
   createdAt?: boolean
@@ -1008,7 +1084,9 @@ export type GenerationJobSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   modelId?: boolean
   status?: boolean
   requestCount?: boolean
+  prompt?: boolean
   errorMessage?: boolean
+  externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
   createdAt?: boolean
@@ -1026,7 +1104,9 @@ export type GenerationJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   modelId?: boolean
   status?: boolean
   requestCount?: boolean
+  prompt?: boolean
   errorMessage?: boolean
+  externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
   createdAt?: boolean
@@ -1044,14 +1124,16 @@ export type GenerationJobSelectScalar = {
   modelId?: boolean
   status?: boolean
   requestCount?: boolean
+  prompt?: boolean
   errorMessage?: boolean
+  externalRequestId?: boolean
   startedAt?: boolean
   completedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "errorMessage" | "startedAt" | "completedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
+export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "prompt" | "errorMessage" | "externalRequestId" | "startedAt" | "completedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
 export type GenerationJobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.GenerationJob$generationArgs<ExtArgs>
@@ -1083,7 +1165,9 @@ export type $GenerationJobPayload<ExtArgs extends runtime.Types.Extensions.Inter
     modelId: string
     status: $Enums.GenerationJobStatus
     requestCount: number
+    prompt: string | null
     errorMessage: string | null
+    externalRequestId: string | null
     startedAt: Date | null
     completedAt: Date | null
     createdAt: Date
@@ -1522,7 +1606,9 @@ export interface GenerationJobFieldRefs {
   readonly modelId: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly status: Prisma.FieldRef<"GenerationJob", 'GenerationJobStatus'>
   readonly requestCount: Prisma.FieldRef<"GenerationJob", 'Int'>
+  readonly prompt: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly errorMessage: Prisma.FieldRef<"GenerationJob", 'String'>
+  readonly externalRequestId: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly startedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>

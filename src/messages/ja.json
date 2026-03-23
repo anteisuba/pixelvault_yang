@@ -205,7 +205,8 @@
     "elapsed": "経過時間: {seconds}",
     "resultLabel": "結果",
     "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
-    "errorUnexpected": "予期しないエラーが発生しました。"
+    "errorUnexpected": "予期しないエラーが発生しました。",
+    "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。"
   },
   "VideoPlayer": {
     "play": "再生",

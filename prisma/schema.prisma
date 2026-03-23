@@ -117,8 +117,10 @@ model GenerationJob {
   modelId      String
   status       GenerationJobStatus @default(QUEUED)
   requestCount Int                 @default(0)
-  errorMessage String?             @db.Text
-  startedAt    DateTime?
+  prompt            String?             @db.Text
+  errorMessage      String?             @db.Text
+  externalRequestId String?
+  startedAt         DateTime?
   completedAt  DateTime?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt

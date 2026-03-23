@@ -39,7 +39,9 @@ export interface ResolvedGenerationRoute {
 
 type GenerateImageServiceErrorCode =
   | 'CUSTOM_MODEL_REQUIRES_ROUTE'
+  | 'INVALID_JOB'
   | 'INVALID_ROUTE_SELECTION'
+  | 'JOB_NOT_FOUND'
   | 'MISSING_API_KEY'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'

@@ -213,7 +213,8 @@
     "negativePromptPlaceholder": "Describe what to avoid in the video...",
     "errorFallback": "Video generation failed. Please try again.",
     "errorUnexpected": "An unexpected error occurred.",
-    "errorTimeout": "Video generation timed out. Please try again."
+    "errorTimeout": "Video generation timed out. Please try again.",
+    "toastSuccess": "Video generated successfully!"
   },
   "VideoPlayer": {
     "play": "Play",
@@ -248,6 +249,11 @@
       "sort": {
         "newest": "Newest first",
         "oldest": "Oldest first"
+      },
+      "type": {
+        "all": "All types",
+        "image": "Images",
+        "video": "Videos"
       }
     },
     "feedEyebrow": "Archive",
@@ -272,11 +278,15 @@
     },
     "metrics": {
       "totalWorksLabel": "Total works",
-      "totalWorksValue": "{count, plural, =0 {No saved images yet} one {# saved image} other {# saved images}}",
-      "publicWorksLabel": "Public works",
-      "publicWorksValue": "{count, plural, =0 {No public images} one {# public image} other {# public images}}",
-      "privateWorksLabel": "Private works",
-      "privateWorksValue": "{count, plural, =0 {No private images} one {# private image} other {# private images}}",
+      "totalWorksValue": "{count, plural, =0 {No works yet} one {# work} other {# works}}",
+      "imagesLabel": "Images",
+      "imagesValue": "{count, plural, =0 {No images} one {# image} other {# images}}",
+      "videosLabel": "Videos",
+      "videosValue": "{count, plural, =0 {No videos} one {# video} other {# videos}}",
+      "publicWorksLabel": "Public",
+      "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
+      "privateWorksLabel": "Private",
+      "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
       "creditsLabel": "API requests"
     },
     "collectionEyebrow": "Archive",
@@ -286,6 +296,9 @@
     "emptyTitle": "No saved generations yet",
     "emptyDescription": "Run your first image in Studio and it will appear here with its prompt and route details.",
     "emptyAction": "Go to studio",
+    "loadMore": "Load more",
+    "loadingMore": "Loading...",
+    "endOfArchive": "That is the end of your archive.",
     "syncPendingTitle": "Your archive is still syncing",
     "syncPendingDescription": "We could not find an archive profile for this account yet. Return to the studio and refresh after Clerk sync completes.",
     "syncPendingAction": "Return to studio"
@@ -328,6 +341,7 @@
     "errorTitle": "Generation error",
     "errorFallback": "Image generation failed",
     "errorUnexpected": "An unexpected error occurred",
+    "toastSuccess": "Image generated successfully!",
     "resultLabel": "Latest result",
     "resultDescription": "The newest image from this workspace appears here.",
     "resultEmptyTitle": "No generation yet",
@@ -460,7 +474,12 @@
     "download": "Download",
     "downloading": "Downloading...",
     "openOriginal": "Open original",
-    "backToGallery": "Back to gallery"
+    "backToGallery": "Back to gallery",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete this generation?",
+    "deleteConfirmDescription": "This will permanently delete this generation and its stored file. This action cannot be undone.",
+    "deleteCancel": "Cancel",
+    "deleteConfirm": "Delete permanently"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

@@ -122,6 +122,22 @@ export async function getStoryById(
   return mapStory(story)
 }
 
+/**
+ * Get a public story by ID (no auth required).
+ * Returns null if the story does not exist or is not public.
+ */
+export async function getPublicStoryById(
+  storyId: string,
+): Promise<StoryRecord | null> {
+  const story = await db.story.findUnique({
+    where: { id: storyId },
+    include: STORY_INCLUDE,
+  })
+
+  if (!story || !story.isPublic) return null
+  return mapStory(story)
+}
+
 export async function listStories(clerkId: string): Promise<StoryListItem[]> {
   const dbUser = await getUserByClerkId(clerkId)
   if (!dbUser) return []

@@ -5,12 +5,17 @@ import { useTranslations } from 'next-intl'
 import { useCallback, useRef, useState } from 'react'
 
 import {
-  AI_MODELS,
   getAvailableImageModels,
+  getAvailableVideoModels,
   getModelMessageKey,
 } from '@/constants/models'
 import type { GalleryFilters } from '@/hooks/use-gallery'
-import { GALLERY_SORT_OPTIONS, type GallerySortOption } from '@/types'
+import {
+  GALLERY_SORT_OPTIONS,
+  OUTPUT_TYPE_FILTER_OPTIONS,
+  type GallerySortOption,
+  type OutputTypeFilter,
+} from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +35,7 @@ interface GalleryFilterBarProps {
 
 const ALL_MODELS_VALUE = '__all__'
 const imageModels = getAvailableImageModels()
+const videoModels = getAvailableVideoModels()
 
 export function GalleryFilterBar({
   filters,
@@ -68,6 +74,17 @@ export function GalleryFilterBar({
     [filters, onFiltersChange],
   )
 
+  const handleTypeChange = useCallback(
+    (value: string) => {
+      onFiltersChange({
+        ...filters,
+        type: value as OutputTypeFilter,
+        model: '',
+      })
+    },
+    [filters, onFiltersChange],
+  )
+
   const handleSortChange = useCallback(
     (value: string) => {
       onFiltersChange({ ...filters, sort: value as GallerySortOption })
@@ -75,7 +92,15 @@ export function GalleryFilterBar({
     [filters, onFiltersChange],
   )
 
-  const hasActiveFilters = filters.search || filters.model
+  const hasActiveFilters =
+    filters.search || filters.model || filters.type !== 'all'
+
+  const modelsForType =
+    filters.type === 'video'
+      ? videoModels
+      : filters.type === 'image'
+        ? imageModels
+        : [...imageModels, ...videoModels]
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -99,7 +124,24 @@ export function GalleryFilterBar({
         ) : null}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Select
+          value={filters.type}
+          onValueChange={handleTypeChange}
+          disabled={isLoading}
+        >
+          <SelectTrigger className="w-[130px] rounded-full border-border/70 bg-card/60">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {OUTPUT_TYPE_FILTER_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {t(`type.${option}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={filters.model || ALL_MODELS_VALUE}
           onValueChange={handleModelChange}
@@ -110,7 +152,7 @@ export function GalleryFilterBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_MODELS_VALUE}>{t('allModels')}</SelectItem>
-            {imageModels.map((model) => (
+            {modelsForType.map((model) => (
               <SelectItem key={model.id} value={model.id}>
                 {tModels(`${getModelMessageKey(model.id)}.label`)}
               </SelectItem>
@@ -142,7 +184,12 @@ export function GalleryFilterBar({
           variant="ghost"
           size="sm"
           onClick={() =>
-            onFiltersChange({ search: '', model: '', sort: filters.sort })
+            onFiltersChange({
+              search: '',
+              model: '',
+              sort: filters.sort,
+              type: 'all',
+            })
           }
           className="shrink-0 rounded-full text-muted-foreground"
           disabled={isLoading}

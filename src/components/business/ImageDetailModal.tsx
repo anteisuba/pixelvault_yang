@@ -3,14 +3,33 @@
 
 import { useState } from 'react'
 
-import { ArrowUpRight, Coins, Download, Globe2, LockKeyhole } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Coins,
+  Download,
+  Globe2,
+  LockKeyhole,
+  Trash2,
+} from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
 
 import type { GenerationRecord } from '@/types'
+import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +43,8 @@ interface ImageDetailModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   showVisibility?: boolean
+  showDelete?: boolean
+  onDelete?: (id: string) => void
 }
 
 export function ImageDetailModal({
@@ -31,6 +52,8 @@ export function ImageDetailModal({
   open,
   onOpenChange,
   showVisibility = false,
+  showDelete = false,
+  onDelete,
 }: ImageDetailModalProps) {
   const [isDownloading, setIsDownloading] = useState(false)
   const format = useFormatter()
@@ -75,12 +98,18 @@ export function ImageDetailModal({
 
   const labelClass = cn(
     'text-nav font-semibold text-muted-foreground',
-    isDenseLocale ? 'tracking-normal normal-case' : 'uppercase tracking-nav-dense',
+    isDenseLocale
+      ? 'tracking-normal normal-case'
+      : 'uppercase tracking-nav-dense',
   )
 
   const metadata = [
     { label: tCard('modelLabel'), value: modelLabel, key: 'model' },
-    { label: tCard('providerLabel'), value: generation.provider, key: 'provider' },
+    {
+      label: tCard('providerLabel'),
+      value: generation.provider,
+      key: 'provider',
+    },
     {
       label: tCard('requestsLabel'),
       value: tCommon('creditCount', { count: generation.requestCount }),
@@ -95,20 +124,27 @@ export function ImageDetailModal({
         className="max-h-[90svh] max-w-4xl gap-0 overflow-y-auto rounded-3xl border-border/75 bg-card p-0"
         showCloseButton
       >
-        <DialogTitle className="sr-only">
-          {t('title')}
-        </DialogTitle>
+        <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">
           {generation.prompt}
         </DialogDescription>
 
         <div className="overflow-hidden rounded-t-3xl bg-secondary/18">
-          <img
-            src={generation.url}
-            alt={generation.prompt}
-            className="h-auto max-h-[60svh] w-full object-contain"
-            style={{ aspectRatio }}
-          />
+          {generation.outputType === 'VIDEO' ? (
+            <VideoPlayer
+              src={generation.url}
+              width={generation.width}
+              height={generation.height}
+              className="max-h-[60svh] rounded-none border-0"
+            />
+          ) : (
+            <img
+              src={generation.url}
+              alt={generation.prompt}
+              className="h-auto max-h-[60svh] w-full object-contain"
+              style={{ aspectRatio }}
+            />
+          )}
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">
@@ -136,7 +172,9 @@ export function ImageDetailModal({
                   ) : (
                     <LockKeyhole className="size-3" />
                   )}
-                  {generation.isPublic ? tCard('publicLabel') : tCard('privateLabel')}
+                  {generation.isPublic
+                    ? tCard('publicLabel')
+                    : tCard('privateLabel')}
                 </span>
               ) : null}
             </div>
@@ -197,15 +235,50 @@ export function ImageDetailModal({
               className="rounded-full"
               asChild
             >
-              <a
-                href={generation.url}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a href={generation.url} target="_blank" rel="noreferrer">
                 <ArrowUpRight className="size-3.5" />
                 {t('openOriginal')}
               </a>
             </Button>
+
+            {showDelete && onDelete ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                    {t('delete')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-3xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t('deleteConfirmTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('deleteConfirmDescription')}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-full">
+                      {t('deleteCancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        onDelete(generation.id)
+                        onOpenChange(false)
+                      }}
+                    >
+                      {t('deleteConfirm')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
           </div>
         </div>
       </DialogContent>

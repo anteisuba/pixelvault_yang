@@ -213,7 +213,8 @@
     "negativePromptPlaceholder": "動画で避けたい要素を記述...",
     "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
     "errorUnexpected": "予期しないエラーが発生しました。",
-    "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。"
+    "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。",
+    "toastSuccess": "動画が生成されました！"
   },
   "VideoPlayer": {
     "play": "再生",
@@ -248,6 +249,11 @@
       "sort": {
         "newest": "新しい順",
         "oldest": "古い順"
+      },
+      "type": {
+        "all": "すべて",
+        "image": "画像",
+        "video": "動画"
       }
     },
     "feedEyebrow": "アーカイブ",
@@ -271,13 +277,17 @@
       "signOut": "サインアウト"
     },
     "metrics": {
-      "totalWorksLabel": "総作品数",
-      "totalWorksValue": "{count, plural, =0 {保存済み作品はまだありません} one {# 件の保存画像} other {# 件の保存画像}}",
-      "publicWorksLabel": "公開作品",
-      "publicWorksValue": "{count, plural, =0 {公開作品なし} one {# 件の公開画像} other {# 件の公開画像}}",
-      "privateWorksLabel": "非公開作品",
-      "privateWorksValue": "{count, plural, =0 {非公開作品なし} one {# 件の非公開画像} other {# 件の非公開画像}}",
-      "creditsLabel": "API リクエスト数"
+      "totalWorksLabel": "作品数",
+      "totalWorksValue": "{count, plural, =0 {作品なし} other {#件の作品}}",
+      "imagesLabel": "画像",
+      "imagesValue": "{count, plural, =0 {画像なし} other {#件の画像}}",
+      "videosLabel": "動画",
+      "videosValue": "{count, plural, =0 {動画なし} other {#件の動画}}",
+      "publicWorksLabel": "公開",
+      "publicWorksValue": "{count, plural, =0 {公開なし} other {#件公開}}",
+      "privateWorksLabel": "非公開",
+      "privateWorksValue": "{count, plural, =0 {非公開なし} other {#件非公開}}",
+      "creditsLabel": "APIリクエスト"
     },
     "collectionEyebrow": "アーカイブ",
     "collectionTitle": "最近の生成",
@@ -286,6 +296,9 @@
     "emptyTitle": "保存済み生成結果はまだありません",
     "emptyDescription": "まずは Studio で 1 枚生成してください。プロンプトやルート情報と一緒にここへ保存されます。",
     "emptyAction": "スタジオへ移動",
+    "loadMore": "もっと読み込む",
+    "loadingMore": "読み込み中...",
+    "endOfArchive": "これがアーカイブの最後です。",
     "syncPendingTitle": "アーカイブを同期しています",
     "syncPendingDescription": "このアカウントに対応するアーカイブプロフィールがまだ見つかりません。Clerk の同期完了後に Studio に戻って再読み込みしてください。",
     "syncPendingAction": "スタジオに戻る"
@@ -328,6 +341,7 @@
     "errorTitle": "生成エラー",
     "errorFallback": "画像生成に失敗しました",
     "errorUnexpected": "予期しないエラーが発生しました",
+    "toastSuccess": "画像が生成されました！",
     "resultLabel": "最新の結果",
     "resultDescription": "このワークスペースで最新に生成した画像がここに表示されます。",
     "resultEmptyTitle": "まだ生成結果がありません",
@@ -460,7 +474,12 @@
     "download": "ダウンロード",
     "downloading": "ダウンロード中...",
     "openOriginal": "原画像を開く",
-    "backToGallery": "ギャラリーに戻る"
+    "backToGallery": "ギャラリーに戻る",
+    "delete": "削除",
+    "deleteConfirmTitle": "この作品を削除しますか？",
+    "deleteConfirmDescription": "この作品とストレージファイルが完全に削除されます。この操作は元に戻せません。",
+    "deleteCancel": "キャンセル",
+    "deleteConfirm": "完全に削除"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

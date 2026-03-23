@@ -16,6 +16,8 @@ interface GalleryGridProps {
   emptyActionHref?: Route
   emptyActionLabel?: string
   showVisibility?: boolean
+  showDelete?: boolean
+  onDelete?: (id: string) => void
 }
 
 export function GalleryGrid({
@@ -25,6 +27,8 @@ export function GalleryGrid({
   emptyActionHref,
   emptyActionLabel,
   showVisibility = false,
+  showDelete = false,
+  onDelete,
 }: GalleryGridProps) {
   if (generations.length === 0) {
     return (
@@ -55,7 +59,12 @@ export function GalleryGrid({
     <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
       {generations.map((generation) => (
         <div key={generation.id} className="mb-4 break-inside-avoid">
-          <ImageCard generation={generation} showVisibility={showVisibility} />
+          <ImageCard
+            generation={generation}
+            showVisibility={showVisibility}
+            showDelete={showDelete}
+            onDelete={onDelete}
+          />
         </div>
       ))}
     </div>

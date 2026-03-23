@@ -5,6 +5,10 @@ import { AnalyzeImageRequestSchema } from '@/types'
 export const maxDuration = 30
 import type { AnalyzeImageResponse } from '@/types'
 import { analyzeImage } from '@/services/image-analysis.service'
+import { rateLimit } from '@/lib/rate-limit'
+
+// Max image upload size: 10MB base64 ≈ ~14MB string
+const MAX_IMAGE_DATA_LENGTH = 14 * 1024 * 1024
 
 // ─── POST /api/image/analyze ─────────────────────────────────────
 
@@ -15,6 +19,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<AnalyzeImageResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`analyze:${clerkId}`, {
+      limit: 10,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<AnalyzeImageResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -35,6 +50,13 @@ export async function POST(request: NextRequest) {
             .map((e: { message: string }) => e.message)
             .join(', '),
         },
+        { status: 400 },
+      )
+    }
+
+    if (parseResult.data.imageData.length > MAX_IMAGE_DATA_LENGTH) {
+      return NextResponse.json<AnalyzeImageResponse>(
+        { success: false, error: 'Image too large. Maximum size is 10MB.' },
         { status: 400 },
       )
     }

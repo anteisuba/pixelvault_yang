@@ -6,13 +6,14 @@ import { PAGINATION } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
 
-import { GalleryGrid } from '@/components/business/GalleryGrid'
+import { ProfileFeed } from '@/components/business/ProfileFeed'
 import { SignOutButton } from '@/components/business/SignOutButton'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import {
   countUserGenerations,
+  countUserGenerationsByType,
   countUserPublicGenerations,
   getUserGenerations,
 } from '@/services/generation.service'
@@ -70,15 +71,17 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     )
   }
 
-  const [usageSummary, generations, total, publicTotal] = await Promise.all([
-    getUserUsageSummary(user.id),
-    getUserGenerations(user.id, {
-      page: PAGINATION.DEFAULT_PAGE,
-      limit: PAGINATION.DEFAULT_LIMIT,
-    }),
-    countUserGenerations(user.id),
-    countUserPublicGenerations(user.id),
-  ])
+  const [usageSummary, generations, total, publicTotal, typeCounts] =
+    await Promise.all([
+      getUserUsageSummary(user.id),
+      getUserGenerations(user.id, {
+        page: PAGINATION.DEFAULT_PAGE,
+        limit: PAGINATION.DEFAULT_LIMIT,
+      }),
+      countUserGenerations(user.id),
+      countUserPublicGenerations(user.id),
+      countUserGenerationsByType(user.id),
+    ])
   const privateTotal = Math.max(total - publicTotal, 0)
 
   return (
@@ -136,6 +139,34 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                   isDenseLocale && 'tracking-normal normal-case',
                 )}
               >
+                {t('metrics.imagesLabel')}
+              </p>
+              <p className="editorial-metric-value">
+                {t('metrics.imagesValue', { count: typeCounts.images })}
+              </p>
+            </article>
+
+            <article className="editorial-metric">
+              <p
+                className={cn(
+                  'editorial-metric-label',
+                  isDenseLocale && 'tracking-normal normal-case',
+                )}
+              >
+                {t('metrics.videosLabel')}
+              </p>
+              <p className="editorial-metric-value">
+                {t('metrics.videosValue', { count: typeCounts.videos })}
+              </p>
+            </article>
+
+            <article className="editorial-metric">
+              <p
+                className={cn(
+                  'editorial-metric-label',
+                  isDenseLocale && 'tracking-normal normal-case',
+                )}
+              >
                 {t('metrics.publicWorksLabel')}
               </p>
               <p className="editorial-metric-value">
@@ -176,7 +207,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         </section>
 
         <section className="editorial-panel">
-          <div className="flex flex-col gap-3 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="border-b border-border/70 pb-6">
             <div className="editorial-section-head">
               <p
                 className={cn(
@@ -189,26 +220,17 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               <h2 className="editorial-section-title">
                 {t('collectionTitle')}
               </h2>
-              <p className="editorial-section-copy max-w-3xl">
-                {t('collectionDescription')}
-              </p>
             </div>
-            <span className="editorial-count-pill">
-              {t('collectionCount', {
-                shown: generations.length,
-                total,
-              })}
-            </span>
           </div>
 
           <div className="pt-6">
-            <GalleryGrid
-              generations={generations}
-              emptyTitle={t('emptyTitle')}
-              emptyDescription={t('emptyDescription')}
-              emptyActionHref={ROUTES.STUDIO}
-              emptyActionLabel={t('emptyAction')}
-              showVisibility
+            <ProfileFeed
+              initialGenerations={generations}
+              initialPage={PAGINATION.DEFAULT_PAGE}
+              initialHasMore={
+                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
+              }
+              total={total}
             />
           </div>
         </section>

@@ -15,7 +15,9 @@
       "Bash(npx tsc:*)",
       "WebSearch",
       "WebFetch(domain:docs.fal.ai)",
-      "WebFetch(domain:fal.ai)"
+      "WebFetch(domain:fal.ai)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   },
   "hooks": {

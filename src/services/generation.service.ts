@@ -1,7 +1,12 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import type { GenerationRecord, GallerySortOption, OutputType } from '@/types'
+import type {
+  GenerationRecord,
+  GallerySortOption,
+  OutputType,
+  OutputTypeFilter,
+} from '@/types'
 import { PAGINATION } from '@/constants/config'
 
 // ─── Input Types ──────────────────────────────────────────────────
@@ -34,17 +39,42 @@ export interface GalleryQueryOptions {
   search?: string
   model?: string
   sort?: GallerySortOption
+  type?: OutputTypeFilter
+  /** When set, query this user's own generations (including private) */
+  userId?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-function buildGalleryWhere(search?: string, model?: string) {
-  const where: Record<string, unknown> = { isPublic: true }
-  if (search) {
-    where.prompt = { contains: search, mode: 'insensitive' }
+function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
+  if (type === 'image') return 'IMAGE'
+  if (type === 'video') return 'VIDEO'
+  return undefined
+}
+
+function buildGalleryWhere(options: {
+  search?: string
+  model?: string
+  type?: OutputTypeFilter
+  userId?: string
+}) {
+  const where: Record<string, unknown> = {}
+
+  if (options.userId) {
+    where.userId = options.userId
+  } else {
+    where.isPublic = true
   }
-  if (model) {
-    where.model = model
+
+  if (options.search) {
+    where.prompt = { contains: options.search, mode: 'insensitive' }
+  }
+  if (options.model) {
+    where.model = options.model
+  }
+  const outputType = outputTypeToEnum(options.type)
+  if (outputType) {
+    where.outputType = outputType
   }
   return where
 }
@@ -115,6 +145,7 @@ export async function countUserPublicGenerations(
 
 /**
  * Get public generations for the gallery with optional search/filter.
+ * When userId is provided, returns that user's own generations (including private).
  */
 export async function getPublicGenerations({
   page = PAGINATION.DEFAULT_PAGE,
@@ -122,9 +153,11 @@ export async function getPublicGenerations({
   search,
   model,
   sort = 'newest',
+  type,
+  userId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
   return db.generation.findMany({
-    where: buildGalleryWhere(search, model),
+    where: buildGalleryWhere({ search, model, type, userId }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
@@ -170,11 +203,50 @@ export async function toggleGenerationVisibility(
 
 /**
  * Count total public generations (for pagination hasMore calculation)
+ * When userId is provided, counts that user's own generations.
  */
 export async function countPublicGenerations(
-  options: Pick<GalleryQueryOptions, 'search' | 'model'> = {},
+  options: Pick<
+    GalleryQueryOptions,
+    'search' | 'model' | 'type' | 'userId'
+  > = {},
 ): Promise<number> {
   return db.generation.count({
-    where: buildGalleryWhere(options.search, options.model),
+    where: buildGalleryWhere(options),
   })
+}
+
+/**
+ * Count user generations by output type.
+ */
+export async function countUserGenerationsByType(
+  userId: string,
+): Promise<{ images: number; videos: number }> {
+  const [images, videos] = await Promise.all([
+    db.generation.count({ where: { userId, outputType: 'IMAGE' } }),
+    db.generation.count({ where: { userId, outputType: 'VIDEO' } }),
+  ])
+  return { images, videos }
+}
+
+/**
+ * Hard-delete a generation: remove from DB and return storageKey for R2 cleanup.
+ * Returns null if not found or not owned by the user.
+ */
+export async function deleteGeneration(
+  id: string,
+  userId: string,
+): Promise<{ storageKey: string } | null> {
+  const generation = await db.generation.findUnique({
+    where: { id },
+    select: { id: true, userId: true, storageKey: true },
+  })
+
+  if (!generation || generation.userId !== userId) {
+    return null
+  }
+
+  await db.generation.delete({ where: { id } })
+
+  return { storageKey: generation.storageKey }
 }

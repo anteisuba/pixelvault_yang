@@ -18,11 +18,15 @@ import { cn } from '@/lib/utils'
 interface ImageCardProps {
   generation: GenerationRecord
   showVisibility?: boolean
+  showDelete?: boolean
+  onDelete?: (id: string) => void
 }
 
 export function ImageCard({
   generation,
   showVisibility = false,
+  showDelete = false,
+  onDelete,
 }: ImageCardProps) {
   const [isPublic, setIsPublic] = useState(generation.isPublic)
   const [isToggling, setIsToggling] = useState(false)
@@ -213,6 +217,8 @@ export function ImageCard({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         showVisibility={showVisibility}
+        showDelete={showDelete}
+        onDelete={onDelete}
       />
     </>
   )

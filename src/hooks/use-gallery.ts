@@ -11,12 +11,17 @@ import {
 
 import { PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
-import type { GallerySortOption, GenerationRecord } from '@/types'
+import type {
+  GallerySortOption,
+  GenerationRecord,
+  OutputTypeFilter,
+} from '@/types'
 
 export interface GalleryFilters {
   search: string
   model: string
   sort: GallerySortOption
+  type: OutputTypeFilter
 }
 
 interface UseGalleryOptions {
@@ -25,6 +30,8 @@ interface UseGalleryOptions {
   initialHasMore?: boolean
   initialTotal?: number
   limit?: number
+  /** When true, fetches current user's own generations (including private) */
+  mine?: boolean
 }
 
 export interface UseGalleryReturn {
@@ -37,12 +44,15 @@ export interface UseGalleryReturn {
   setFilters: (filters: GalleryFilters) => void
   loadMore: () => void
   sentinelRef: RefObject<HTMLDivElement | null>
+  /** Remove a generation from the local list (after successful deletion) */
+  removeGeneration: (id: string) => void
 }
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
   model: '',
   sort: 'newest',
+  type: 'all',
 }
 
 function mergeGenerations(
@@ -61,6 +71,7 @@ export function useGallery({
   initialHasMore = false,
   initialTotal = 0,
   limit = PAGINATION.DEFAULT_LIMIT,
+  mine = false,
 }: UseGalleryOptions = {}): UseGalleryReturn {
   const [generations, setGenerations] =
     useState<GenerationRecord[]>(initialGenerations)
@@ -105,6 +116,8 @@ export function useGallery({
           search: f.search || undefined,
           model: f.model || undefined,
           sort: f.sort,
+          type: f.type || undefined,
+          mine,
         }
         const response = await fetchGalleryImages(
           targetPage,
@@ -136,7 +149,7 @@ export function useGallery({
       }
       setIsFetching(false)
     },
-    [limit, startTransition],
+    [limit, mine, startTransition],
   )
 
   const loadMore = useCallback(() => {
@@ -150,6 +163,7 @@ export function useGallery({
       pageRef.current = 1
       setPage(1)
       setGenerations([])
+      setTotal(0)
       setHasMore(false)
       void fetchPage(1, false)
     },
@@ -181,6 +195,11 @@ export function useGallery({
     }
   }, [hasMore, fetchPage])
 
+  const removeGeneration = useCallback((id: string) => {
+    setGenerations((current) => current.filter((g) => g.id !== id))
+    setTotal((prev) => Math.max(prev - 1, 0))
+  }, [])
+
   return {
     generations,
     total,
@@ -191,5 +210,6 @@ export function useGallery({
     setFilters,
     loadMore,
     sentinelRef,
+    removeGeneration,
   }
 }

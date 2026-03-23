@@ -11,6 +11,7 @@ import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 import { getGenerationById } from '@/services/generation.service'
 
+import { GalleryDetailVideoPlayer } from '@/components/business/GalleryDetailVideoPlayer'
 import { Button } from '@/components/ui/button'
 
 interface ImageDetailPageProps {
@@ -89,18 +90,32 @@ export default async function ImageDetailPage({
   const createdAt = new Date(generation.createdAt)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(generation.height, 1)}`
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'ImageObject',
-    name: `${modelLabel} generation`,
-    description: generation.prompt,
-    contentUrl: generation.url,
-    url: `${appUrl}/${locale}/gallery/${id}`,
-    width: generation.width,
-    height: generation.height,
-    dateCreated: createdAt.toISOString(),
-    creator: { '@type': 'Organization', name: 'PixelVault' },
-  }
+  const isVideo = generation.outputType === 'VIDEO'
+
+  const jsonLd = isVideo
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: `${modelLabel} generation`,
+        description: generation.prompt,
+        contentUrl: generation.url,
+        url: `${appUrl}/${locale}/gallery/${id}`,
+        duration: generation.duration ? `PT${generation.duration}S` : undefined,
+        uploadDate: createdAt.toISOString(),
+        creator: { '@type': 'Organization', name: 'PixelVault' },
+      }
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'ImageObject',
+        name: `${modelLabel} generation`,
+        description: generation.prompt,
+        contentUrl: generation.url,
+        url: `${appUrl}/${locale}/gallery/${id}`,
+        width: generation.width,
+        height: generation.height,
+        dateCreated: createdAt.toISOString(),
+        creator: { '@type': 'Organization', name: 'PixelVault' },
+      }
 
   const labelClass = cn(
     'text-nav font-semibold text-muted-foreground',
@@ -147,12 +162,20 @@ export default async function ImageDetailPage({
 
         <div className="overflow-hidden rounded-3xl border border-border/75 bg-card">
           <div className="bg-secondary/18">
-            <img
-              src={generation.url}
-              alt={generation.prompt}
-              className="h-auto max-h-[70svh] w-full object-contain"
-              style={{ aspectRatio }}
-            />
+            {isVideo ? (
+              <GalleryDetailVideoPlayer
+                src={generation.url}
+                width={generation.width}
+                height={generation.height}
+              />
+            ) : (
+              <img
+                src={generation.url}
+                alt={generation.prompt}
+                className="h-auto max-h-[70svh] w-full object-contain"
+                style={{ aspectRatio }}
+              />
+            )}
           </div>
 
           <div className="space-y-5 p-5 sm:p-6">

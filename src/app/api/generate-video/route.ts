@@ -4,6 +4,7 @@ import { GenerateVideoRequestSchema } from '@/types'
 import type { VideoSubmitResponse } from '@/types'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { submitVideoGeneration } from '@/services/generate-video.service'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 30
 
@@ -16,6 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<VideoSubmitResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`generate-video:${clerkId}`, {
+      limit: 5,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<VideoSubmitResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -58,11 +70,8 @@ export async function POST(request: NextRequest) {
 
     console.error('[API /api/generate-video] Error:', error)
 
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
     return NextResponse.json<VideoSubmitResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Video generation failed. Please try again.' },
       { status: 500 },
     )
   }

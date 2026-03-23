@@ -1,6 +1,13 @@
 'use client'
 
-import { LayoutGrid, LogIn, Sparkles, User } from 'lucide-react'
+import {
+  BookOpen,
+  LayoutGrid,
+  LogIn,
+  Sparkles,
+  Swords,
+  User,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { SignedIn, SignedOut } from '@clerk/nextjs'
@@ -46,6 +53,8 @@ export function MobileTabBar() {
   const signedInTabs: TabItem[] = [
     { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
     { href: ROUTES.STUDIO, label: t('links.studio'), icon: Sparkles },
+    { href: ROUTES.ARENA, label: t('links.arena'), icon: Swords },
+    { href: ROUTES.STORYBOARD, label: t('links.storyboard'), icon: BookOpen },
     { href: ROUTES.PROFILE, label: t('links.library'), icon: User },
   ]
 

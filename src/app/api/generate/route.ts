@@ -8,6 +8,7 @@ import {
   generateImageForUser,
   isGenerateImageServiceError,
 } from '@/services/generate-image.service'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ─── POST /api/generate ───────────────────────────────────────────
 
@@ -18,6 +19,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<GenerateResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`generate:${clerkId}`, {
+      limit: 10,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<GenerateResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -60,11 +72,8 @@ export async function POST(request: NextRequest) {
 
     console.error('[API /api/generate] Error:', error)
 
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
     return NextResponse.json<GenerateResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Image generation failed. Please try again.' },
       { status: 500 },
     )
   }

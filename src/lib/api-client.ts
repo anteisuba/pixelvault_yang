@@ -611,12 +611,19 @@ export async function reorderPanelsAPI(
 }
 
 /**
- * Fetch public gallery images with pagination, search, and filter
+ * Fetch gallery images with pagination, search, and filter.
+ * Set `mine: true` to fetch the current user's own generations (including private).
  */
 export async function fetchGalleryImages(
   page: number = PAGINATION.DEFAULT_PAGE,
   limit: number = PAGINATION.DEFAULT_LIMIT,
-  filters?: { search?: string; model?: string; sort?: string },
+  filters?: {
+    search?: string
+    model?: string
+    sort?: string
+    type?: string
+    mine?: boolean
+  },
 ): Promise<GalleryResponse> {
   try {
     const params = new URLSearchParams({
@@ -626,8 +633,39 @@ export async function fetchGalleryImages(
     if (filters?.search) params.set('search', filters.search)
     if (filters?.model) params.set('model', filters.model)
     if (filters?.sort) params.set('sort', filters.sort)
+    if (filters?.type && filters.type !== 'all')
+      params.set('type', filters.type)
+    if (filters?.mine) params.set('mine', '1')
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Delete a generation permanently (DB record + R2 storage).
+ */
+export async function deleteGenerationAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}`, {
+      method: 'DELETE',
+    })
+    if (response.status === 204) return { success: true }
     if (!response.ok) {
       return {
         success: false,

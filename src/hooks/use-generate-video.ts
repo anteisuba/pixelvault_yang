@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { VIDEO_GENERATION } from '@/constants/config'
 import type { GenerateVideoRequest, GenerationRecord } from '@/types'
@@ -60,7 +61,10 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
       stopTimer()
       setIsGenerating(false)
       setStage('idle')
-      if (err) setError(err)
+      if (err) {
+        setError(err)
+        toast.error(err)
+      }
     },
     [stopPolling, stopTimer],
   )
@@ -108,6 +112,7 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
             if (status === 'COMPLETED' && generation) {
               setGeneratedGeneration(generation)
               finish()
+              toast.success(t('toastSuccess'))
               return
             }
 

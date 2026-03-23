@@ -204,6 +204,13 @@
     "generatingTitle": "Generating your video...",
     "elapsed": "Elapsed: {seconds}",
     "resultLabel": "Result",
+    "referenceImageLabel": "Reference Image (I2V)",
+    "referenceImageUpload": "Upload an image to animate",
+    "referenceImageHint": "PNG, JPG — drag & drop or click",
+    "resolutionLabel": "Resolution",
+    "advancedSettings": "Advanced Settings",
+    "negativePromptLabel": "Negative Prompt",
+    "negativePromptPlaceholder": "Describe what to avoid in the video...",
     "errorFallback": "Video generation failed. Please try again.",
     "errorUnexpected": "An unexpected error occurred.",
     "errorTimeout": "Video generation timed out. Please try again."
@@ -617,25 +624,37 @@
       "label": "Ideogram 2.0",
       "description": "Exceptional at rendering text in images with strong artistic quality."
     },
+    "veo3": {
+      "label": "Veo 3",
+      "description": "Google's flagship — 4K, native audio, dialogue sync"
+    },
+    "klingV3Pro": {
+      "label": "Kling 3.0 Pro",
+      "description": "Top-tier cinematic video, 15s, native audio, 1080p"
+    },
+    "seedancePro": {
+      "label": "Seedance Pro",
+      "description": "ByteDance — native audio, cinematic camera controls"
+    },
     "klingVideo": {
-      "label": "Kling Video",
-      "description": "High-quality cinematic video generation"
+      "label": "Kling V2",
+      "description": "Reliable cinematic video, motion-aware, I2V support"
     },
     "minimaxVideo": {
       "label": "MiniMax Video",
-      "description": "Fast video generation with good quality"
+      "description": "Fast generation with prompt optimizer, camera controls"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
-      "description": "Creative and artistic video generation"
+      "description": "Up to 1080p, loop support, dual-image interpolation"
     },
     "wanVideo": {
       "label": "Wan Video",
-      "description": "Open-source video model with great value"
+      "description": "Budget-friendly open-source, 720p, great value"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",
-      "description": "Powerful video generation by Tencent"
+      "description": "Tencent open-source, 8.3B params, 720p, I2V support"
     }
   }
 }

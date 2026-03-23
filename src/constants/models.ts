@@ -23,10 +23,13 @@ export enum AI_MODELS {
   IDEOGRAM_2 = 'ideogram-2',
   // Video models
   KLING_VIDEO = 'kling-video',
+  KLING_V3_PRO = 'kling-v3-pro',
   MINIMAX_VIDEO = 'minimax-video',
   LUMA_RAY_2 = 'luma-ray-2',
   WAN_VIDEO = 'wan-video',
   HUNYUAN_VIDEO = 'hunyuan-video',
+  SEEDANCE_PRO = 'seedance-pro',
+  VEO_3 = 'veo-3',
 }
 
 export const MODEL_MESSAGE_KEYS = {
@@ -40,11 +43,26 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.GEMINI_PRO_IMAGE]: 'geminiProImage',
   [AI_MODELS.IDEOGRAM_2]: 'ideogram2',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
+  [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
   [AI_MODELS.LUMA_RAY_2]: 'lumaRay2',
   [AI_MODELS.WAN_VIDEO]: 'wanVideo',
   [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
+  [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
+  [AI_MODELS.VEO_3]: 'veo3',
 } as const
+
+/** Quality tier for video models */
+export type QualityTier = 'budget' | 'standard' | 'premium'
+
+/** Model-specific default parameters for video generation */
+export interface VideoDefaults {
+  negativePrompt?: string
+  resolution?: string
+  cfgScale?: number
+  enablePromptOptimizer?: boolean
+  generateAudio?: boolean
+}
 
 /** Model option configuration */
 export interface ModelOption {
@@ -64,6 +82,12 @@ export interface ModelOption {
   available: boolean
   /** Provider polling timeout in ms (video models need longer) */
   timeoutMs?: number
+  /** Quality tier (video models) */
+  qualityTier?: QualityTier
+  /** Image-to-Video endpoint (when different from T2V endpoint) */
+  i2vModelId?: string
+  /** Model-specific default parameters for video */
+  videoDefaults?: VideoDefaults
 }
 
 /** All model options with their configuration */
@@ -149,7 +173,53 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
   },
-  // Video models
+  // ─── Video models (Premium) ─────────────────────────────────────
+  {
+    id: AI_MODELS.VEO_3,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/veo3',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    i2vModelId: 'fal-ai/veo3/image-to-video',
+    videoDefaults: {
+      resolution: '1080p',
+      generateAudio: true,
+    },
+  },
+  {
+    id: AI_MODELS.KLING_V3_PRO,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/v3/pro/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    i2vModelId: 'fal-ai/kling-video/v3/pro/image-to-video',
+    videoDefaults: {
+      negativePrompt: 'blur, distort, and low quality',
+      cfgScale: 0.5,
+      generateAudio: true,
+    },
+  },
+  // ─── Video models (Standard) ──────────────────────────────────
+  {
+    id: AI_MODELS.SEEDANCE_PRO,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/bytedance/seedance/v1/pro/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    i2vModelId: 'fal-ai/bytedance/seedance/v1/pro/image-to-video',
+  },
   {
     id: AI_MODELS.KLING_VIDEO,
     cost: 5,
@@ -159,6 +229,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'VIDEO',
     available: true,
     timeoutMs: 300_000,
+    qualityTier: 'standard',
+    i2vModelId: 'fal-ai/kling-video/v2/master/image-to-video',
+    videoDefaults: {
+      negativePrompt: 'blur, distort, and low quality',
+      cfgScale: 0.5,
+    },
   },
   {
     id: AI_MODELS.MINIMAX_VIDEO,
@@ -169,6 +245,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'VIDEO',
     available: true,
     timeoutMs: 180_000,
+    qualityTier: 'standard',
+    i2vModelId: 'fal-ai/minimax-video/video-01/image-to-video',
+    videoDefaults: {
+      enablePromptOptimizer: true,
+    },
   },
   {
     id: AI_MODELS.LUMA_RAY_2,
@@ -179,7 +260,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'VIDEO',
     available: true,
     timeoutMs: 120_000,
+    qualityTier: 'standard',
+    videoDefaults: {
+      resolution: '720p',
+    },
   },
+  // ─── Video models (Budget) ────────────────────────────────────
   {
     id: AI_MODELS.WAN_VIDEO,
     cost: 2,
@@ -189,6 +275,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'VIDEO',
     available: true,
     timeoutMs: 180_000,
+    qualityTier: 'budget',
+    videoDefaults: {
+      negativePrompt:
+        'bright colors, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards',
+      resolution: '720p',
+    },
   },
   {
     id: AI_MODELS.HUNYUAN_VIDEO,
@@ -199,6 +291,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'VIDEO',
     available: true,
     timeoutMs: 300_000,
+    qualityTier: 'budget',
+    i2vModelId: 'fal-ai/hunyuan-video-image-to-video',
+    videoDefaults: {
+      resolution: '720p',
+    },
   },
 ]
 

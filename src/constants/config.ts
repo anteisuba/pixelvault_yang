@@ -90,6 +90,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: 'https://router.huggingface.co/hf-inference/models',
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
+  OPENAI_CHAT: 'https://api.openai.com/v1',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',

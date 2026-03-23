@@ -141,7 +141,7 @@ export const falAdapter: ProviderAdapter = {
 
     const body: Record<string, unknown> = {
       prompt,
-      aspect_ratio: aspectRatio.replace(':', ':'),
+      aspect_ratio: aspectRatio,
       duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
     }
 
@@ -194,13 +194,12 @@ export const falAdapter: ProviderAdapter = {
     duration,
     referenceImage,
   }: ProviderQueueSubmitInput) {
-    const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.FAL_QUEUE
     const externalModelId = getExecutionModelId(modelId)
     const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
 
     const body: Record<string, unknown> = {
       prompt,
-      aspect_ratio: aspectRatio.replace(':', ':'),
+      aspect_ratio: aspectRatio,
       duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
     }
 

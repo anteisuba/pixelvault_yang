@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateNarrativeRequestSchema } from '@/types'
+
+export const maxDuration = 30
 import type { GenerateNarrativeResponse } from '@/types'
 import { generateNarrative } from '@/services/story.service'
 

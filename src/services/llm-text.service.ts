@@ -94,7 +94,7 @@ export async function resolveLlmTextRoute(
             baseUrl:
               adapterType === AI_ADAPTER_TYPES.GEMINI
                 ? AI_PROVIDER_ENDPOINTS.GEMINI
-                : 'https://api.openai.com/v1',
+                : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
           },
           apiKey: keyValue,
         }
@@ -167,7 +167,8 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
-  const baseUrl = input.providerConfig.baseUrl || 'https://api.openai.com/v1'
+  const baseUrl =
+    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
   const endpoint = `${baseUrl}/chat/completions`
 
   const messages: Array<Record<string, unknown>> = [

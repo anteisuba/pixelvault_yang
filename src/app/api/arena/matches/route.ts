@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
+
+export const maxDuration = 55
 import type { CreateArenaMatchResponse, ArenaMatchResponse } from '@/types'
 import { createArenaMatch, getArenaMatch } from '@/services/arena.service'
 

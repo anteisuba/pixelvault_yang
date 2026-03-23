@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { API_USAGE } from '@/constants/config'
-import { getModelById, getModelTimeout } from '@/constants/models'
+import { getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
 import type {
   GenerateVideoRequest,
@@ -52,6 +52,8 @@ export async function submitVideoGeneration(
     )
   }
 
+  const modelConfig = getModelById(executionRoute.modelId)
+
   const queueResult = await providerAdapter.submitVideoToQueue({
     prompt: input.prompt,
     modelId: executionRoute.modelId,
@@ -60,6 +62,10 @@ export async function submitVideoGeneration(
     apiKey: executionRoute.apiKey,
     duration: input.duration,
     referenceImage: input.referenceImage,
+    negativePrompt: input.negativePrompt,
+    resolution: input.resolution,
+    i2vModelId: modelConfig?.i2vModelId,
+    videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
   })
 
   const generationJob = await createGenerationJob({

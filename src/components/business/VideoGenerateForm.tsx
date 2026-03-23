@@ -1,7 +1,15 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { AlertCircle, Film, Loader2 } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Film,
+  Loader2,
+  Upload,
+  X,
+} from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
@@ -9,7 +17,7 @@ import {
   GENERATION_LIMITS,
   VIDEO_GENERATION,
 } from '@/constants/config'
-import { getAvailableVideoModels } from '@/constants/models'
+import { getAvailableVideoModels, getModelById } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
 
 import {
@@ -28,6 +36,17 @@ function formatDuration(seconds: number): string {
   const min = Math.floor(seconds / 60)
   const sec = seconds % 60
   return min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`
+}
+
+const RESOLUTION_OPTIONS = ['480p', '720p', '1080p'] as const
+
+function loadImageAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 export default function VideoGenerateForm() {
@@ -54,6 +73,12 @@ export default function VideoGenerateForm() {
   const [aspectRatio, setAspectRatio] = useState<string>(
     VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
   )
+  const [referenceImage, setReferenceImage] = useState<string | undefined>()
+  const [resolution, setResolution] = useState<string | undefined>()
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [negativePrompt, setNegativePrompt] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const videoModels = getAvailableVideoModels()
 
@@ -87,6 +112,25 @@ export default function VideoGenerateForm() {
     modelOptions.find((o) => o.optionId === selectedOptionId) ?? modelOptions[0]
 
   const selectedApiKeyId = selectedModel?.keyId
+  const selectedModelConfig = selectedModel
+    ? getModelById(selectedModel.modelId)
+    : undefined
+
+  const handleFileChange = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const base64 = await loadImageAsBase64(file)
+    setReferenceImage(base64)
+  }, [])
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      setIsDragging(false)
+      const file = e.dataTransfer.files[0]
+      if (file) await handleFileChange(file)
+    },
+    [handleFileChange],
+  )
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -98,10 +142,28 @@ export default function VideoGenerateForm() {
         modelId: selectedModel.modelId,
         aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
         duration,
+        referenceImage,
+        negativePrompt: negativePrompt.trim() || undefined,
+        resolution: resolution as
+          | '480p'
+          | '540p'
+          | '720p'
+          | '1080p'
+          | undefined,
         apiKeyId: selectedApiKeyId,
       })
     },
-    [selectedModel, prompt, aspectRatio, duration, selectedApiKeyId, generate],
+    [
+      selectedModel,
+      prompt,
+      aspectRatio,
+      duration,
+      referenceImage,
+      negativePrompt,
+      resolution,
+      selectedApiKeyId,
+      generate,
+    ],
   )
 
   const stageLabels: Record<string, string> = {
@@ -110,18 +172,30 @@ export default function VideoGenerateForm() {
     uploading: t('stageUploading'),
   }
 
+  const tierLabel = selectedModelConfig?.qualityTier
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Model Selector */}
       <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
-        <label
-          className={cn(
-            'mb-3 block text-xs font-semibold text-muted-foreground',
-            !cjk && 'uppercase tracking-nav',
+        <div className="mb-3 flex items-center gap-2">
+          <label
+            className={cn(
+              'text-xs font-semibold text-muted-foreground',
+              !cjk && 'uppercase tracking-nav',
+            )}
+          >
+            {t('modelLabel')}
+          </label>
+          {tierLabel && (
+            <Badge
+              variant={tierLabel === 'premium' ? 'default' : 'secondary'}
+              className="rounded-full px-2 py-0.5 text-[10px]"
+            >
+              {tierLabel}
+            </Badge>
           )}
-        >
-          {t('modelLabel')}
-        </label>
+        </div>
         <ModelSelector
           options={modelOptions}
           value={selectedModel?.optionId ?? ''}
@@ -129,8 +203,8 @@ export default function VideoGenerateForm() {
         />
       </div>
 
-      {/* Duration + Aspect Ratio */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Duration + Aspect Ratio + Resolution */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl border border-border/75 bg-card/82 p-5">
           <label
             className={cn(
@@ -186,6 +260,112 @@ export default function VideoGenerateForm() {
             ))}
           </div>
         </div>
+
+        <div className="rounded-3xl border border-border/75 bg-card/82 p-5">
+          <label
+            className={cn(
+              'mb-3 block text-xs font-semibold text-muted-foreground',
+              !cjk && 'uppercase tracking-nav',
+            )}
+          >
+            {t('resolutionLabel')}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {RESOLUTION_OPTIONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setResolution(resolution === r ? undefined : r)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  resolution === r
+                    ? 'bg-foreground text-background'
+                    : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Reference Image */}
+      <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <div className="mb-3 flex items-center justify-between">
+          <label
+            className={cn(
+              'text-xs font-semibold text-muted-foreground',
+              !cjk && 'uppercase tracking-nav',
+            )}
+          >
+            {t('referenceImageLabel')}
+          </label>
+          {referenceImage && (
+            <Badge variant="secondary" className="rounded-full px-2 py-0.5">
+              I2V
+            </Badge>
+          )}
+        </div>
+
+        {referenceImage ? (
+          <div className="relative inline-flex overflow-hidden rounded-2xl border border-border/75 bg-background">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={referenceImage}
+              alt={t('referenceImageLabel')}
+              className="h-36 w-auto object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setReferenceImage(undefined)}
+              className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div
+            role="button"
+            tabIndex={0}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDragging(true)
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                fileInputRef.current?.click()
+              }
+            }}
+            className={cn(
+              'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors',
+              isDragging
+                ? 'border-primary/60 bg-primary/5'
+                : 'border-border/80 bg-background/72 hover:border-primary/40 hover:bg-secondary/18',
+            )}
+          >
+            <Upload className="size-5 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              {t('referenceImageUpload')}
+            </p>
+            <p className="font-serif text-xs text-muted-foreground">
+              {t('referenceImageHint')}
+            </p>
+          </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            if (file) await handleFileChange(file)
+          }}
+        />
       </div>
 
       {/* Prompt */}
@@ -211,6 +391,44 @@ export default function VideoGenerateForm() {
           rows={4}
           className="min-h-28 rounded-3xl border-border/75 bg-background/72"
         />
+      </div>
+
+      {/* Advanced Settings */}
+      <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex w-full items-center justify-between"
+        >
+          <span
+            className={cn(
+              'text-xs font-semibold text-muted-foreground',
+              !cjk && 'uppercase tracking-nav',
+            )}
+          >
+            {t('advancedSettings')}
+          </span>
+          {showAdvanced ? (
+            <ChevronUp className="size-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-4 text-muted-foreground" />
+          )}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 border-t border-border/70 pt-4">
+            <label className="mb-2 block text-xs text-muted-foreground">
+              {t('negativePromptLabel')}
+            </label>
+            <Textarea
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              placeholder={t('negativePromptPlaceholder')}
+              rows={2}
+              className="min-h-16 rounded-2xl border-border/75 bg-background/72 text-sm"
+            />
+          </div>
+        )}
       </div>
 
       {/* Submit */}

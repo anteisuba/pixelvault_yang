@@ -45,6 +45,10 @@ export interface ProviderQueueSubmitInput {
   apiKey: string
   duration?: number
   referenceImage?: string
+  negativePrompt?: string
+  resolution?: string
+  i2vModelId?: string
+  videoDefaults?: Record<string, unknown>
 }
 
 export interface ProviderQueueSubmitResult {

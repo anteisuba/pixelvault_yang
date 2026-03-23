@@ -75,6 +75,8 @@ export const GenerateVideoRequestSchema = z.object({
     .max(VIDEO_GENERATION.MAX_DURATION)
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
+  negativePrompt: z.string().trim().max(2000).optional(),
+  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
 })
 

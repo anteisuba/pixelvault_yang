@@ -193,9 +193,17 @@ export const falAdapter: ProviderAdapter = {
     apiKey,
     duration,
     referenceImage,
+    negativePrompt,
+    resolution,
+    i2vModelId,
+    videoDefaults,
   }: ProviderQueueSubmitInput) {
     const externalModelId = getExecutionModelId(modelId)
-    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
+
+    // Use I2V endpoint when reference image is provided and model has a dedicated I2V endpoint
+    const effectiveModelId =
+      referenceImage && i2vModelId ? i2vModelId : externalModelId
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${effectiveModelId}`
 
     const body: Record<string, unknown> = {
       prompt,
@@ -203,8 +211,34 @@ export const falAdapter: ProviderAdapter = {
       duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
     }
 
+    // Reference image for I2V
     if (referenceImage) {
       body.image_url = referenceImage
+    }
+
+    // Apply model-specific defaults first, then user overrides
+    if (videoDefaults?.negativePrompt) {
+      body.negative_prompt = videoDefaults.negativePrompt
+    }
+    if (videoDefaults?.cfgScale !== undefined) {
+      body.cfg_scale = videoDefaults.cfgScale
+    }
+    if (videoDefaults?.enablePromptOptimizer !== undefined) {
+      body.prompt_optimizer = videoDefaults.enablePromptOptimizer
+    }
+    if (videoDefaults?.generateAudio !== undefined) {
+      body.generate_audio = videoDefaults.generateAudio
+    }
+    if (videoDefaults?.resolution) {
+      body.resolution = videoDefaults.resolution
+    }
+
+    // User overrides
+    if (negativePrompt) {
+      body.negative_prompt = negativePrompt
+    }
+    if (resolution) {
+      body.resolution = resolution
     }
 
     const response = await fetch(endpoint, {

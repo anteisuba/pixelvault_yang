@@ -1,9 +1,11 @@
+import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 import {
   getPublicGenerations,
   countPublicGenerations,
 } from '@/services/generation.service'
+import { getUserByClerkId } from '@/services/user.service'
 import { GallerySearchSchema, type GalleryResponse } from '@/types'
 
 export async function GET(request: NextRequest) {
@@ -20,11 +22,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { page, limit, search, model, sort } = parsed.data
-    const filterOpts = { search, model }
+    const { page, limit, search, model, sort, type } = parsed.data
+
+    // If "mine" param is set, return the current user's own generations
+    const mine = searchParams.get('mine') === '1'
+    let userId: string | undefined
+    if (mine) {
+      const { userId: clerkId } = await auth()
+      if (!clerkId) {
+        return NextResponse.json<GalleryResponse>(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 },
+        )
+      }
+      const user = await getUserByClerkId(clerkId)
+      if (!user) {
+        return NextResponse.json<GalleryResponse>(
+          { success: false, error: 'User not found' },
+          { status: 404 },
+        )
+      }
+      userId = user.id
+    }
+
+    const filterOpts = { search, model, type, userId }
 
     const [generations, total] = await Promise.all([
-      getPublicGenerations({ page, limit, search, model, sort }),
+      getPublicGenerations({ page, limit, search, model, sort, type, userId }),
       countPublicGenerations(filterOpts),
     ])
 

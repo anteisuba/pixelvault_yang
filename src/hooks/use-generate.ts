@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import type { GenerateRequest, GenerationRecord } from '@/types'
 import { generateImageAPI } from '@/lib/api-client'
@@ -31,26 +32,34 @@ export function useGenerateImage(): UseGenerateImageReturn {
     useState<GenerationRecord | null>(null)
   const t = useTranslations('StudioForm')
 
-  const generate = useCallback(async (params: GenerateRequest) => {
-    setIsGenerating(true)
-    setError(null)
-    setGeneratedGeneration(null)
+  const generate = useCallback(
+    async (params: GenerateRequest) => {
+      setIsGenerating(true)
+      setError(null)
+      setGeneratedGeneration(null)
 
-    try {
-      const response = await generateImageAPI(params)
+      try {
+        const response = await generateImageAPI(params)
 
-      if (response.success && response.data) {
-        setGeneratedGeneration(response.data.generation)
-      } else {
-        setError(response.error ?? t('errorFallback'))
+        if (response.success && response.data) {
+          setGeneratedGeneration(response.data.generation)
+          toast.success(t('toastSuccess'))
+        } else {
+          const msg = response.error ?? t('errorFallback')
+          setError(msg)
+          toast.error(msg)
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : t('errorUnexpected')
+        setError(message)
+        toast.error(message)
+      } finally {
+        setIsGenerating(false)
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('errorUnexpected')
-      setError(message)
-    } finally {
-      setIsGenerating(false)
-    }
-  }, [t])
+    },
+    [t],
+  )
 
   const reset = useCallback(() => {
     setError(null)

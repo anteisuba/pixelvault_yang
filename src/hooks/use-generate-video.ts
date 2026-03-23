@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import type { GenerateVideoRequest, GenerationRecord } from '@/types'
 import { generateVideoAPI } from '@/lib/api-client'
@@ -59,15 +60,19 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
           setStage('uploading')
           setGeneratedGeneration(response.data.generation)
           setStage('idle')
+          toast.success(t('toastSuccess'))
         } else {
-          setError(response.error ?? t('errorFallback'))
+          const msg = response.error ?? t('errorFallback')
+          setError(msg)
           setStage('idle')
+          toast.error(msg)
         }
       } catch (err) {
         const message =
           err instanceof Error ? err.message : t('errorUnexpected')
         setError(message)
         setStage('idle')
+        toast.error(message)
       } finally {
         setIsGenerating(false)
         stopTimer()

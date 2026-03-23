@@ -205,7 +205,8 @@
     "elapsed": "已等待 {seconds}",
     "resultLabel": "结果",
     "errorFallback": "视频生成失败，请重试。",
-    "errorUnexpected": "发生了意外错误。"
+    "errorUnexpected": "发生了意外错误。",
+    "toastSuccess": "视频生成成功！"
   },
   "VideoPlayer": {
     "play": "播放",
@@ -240,6 +241,11 @@
       "sort": {
         "newest": "最新优先",
         "oldest": "最早优先"
+      },
+      "type": {
+        "all": "全部类型",
+        "image": "图片",
+        "video": "视频"
       }
     },
     "feedEyebrow": "档案",
@@ -263,13 +269,17 @@
       "signOut": "退出登录"
     },
     "metrics": {
-      "totalWorksLabel": "总作品数",
-      "totalWorksValue": "{count, plural, =0 {还没有保存作品} one {# 张已保存图像} other {# 张已保存图像}}",
-      "publicWorksLabel": "公开作品",
-      "publicWorksValue": "{count, plural, =0 {没有公开作品} one {# 张公开图像} other {# 张公开图像}}",
-      "privateWorksLabel": "私有作品",
-      "privateWorksValue": "{count, plural, =0 {没有私有作品} one {# 张私有图像} other {# 张私有图像}}",
-      "creditsLabel": "API 请求数"
+      "totalWorksLabel": "总作品",
+      "totalWorksValue": "{count, plural, =0 {暂无作品} other {#件作品}}",
+      "imagesLabel": "图片",
+      "imagesValue": "{count, plural, =0 {暂无图片} other {#张图片}}",
+      "videosLabel": "视频",
+      "videosValue": "{count, plural, =0 {暂无视频} other {#个视频}}",
+      "publicWorksLabel": "公开",
+      "publicWorksValue": "{count, plural, =0 {暂无公开} other {#件公开}}",
+      "privateWorksLabel": "私密",
+      "privateWorksValue": "{count, plural, =0 {暂无私密} other {#件私密}}",
+      "creditsLabel": "API请求"
     },
     "collectionEyebrow": "归档",
     "collectionTitle": "最近生成",
@@ -278,6 +288,9 @@
     "emptyTitle": "还没有保存的生成结果",
     "emptyDescription": "先去 Studio 跑出第一张图像，它会连同提示词和路由信息一起出现在这里。",
     "emptyAction": "前往工作台",
+    "loadMore": "加载更多",
+    "loadingMore": "加载中...",
+    "endOfArchive": "已经到达存档末尾。",
     "syncPendingTitle": "你的档案还在同步中",
     "syncPendingDescription": "当前还没有找到这个账号对应的档案资料。等待 Clerk 同步完成后，返回工作台再刷新一次。",
     "syncPendingAction": "返回工作台"
@@ -320,6 +333,7 @@
     "errorTitle": "生成错误",
     "errorFallback": "图像生成失败",
     "errorUnexpected": "发生了意外错误",
+    "toastSuccess": "图片生成成功！",
     "resultLabel": "最新结果",
     "resultDescription": "这个工作区最新生成的图像会显示在这里。",
     "resultEmptyTitle": "还没有生成结果",
@@ -452,7 +466,12 @@
     "download": "下载",
     "downloading": "下载中...",
     "openOriginal": "查看原图",
-    "backToGallery": "返回画廊"
+    "backToGallery": "返回画廊",
+    "delete": "删除",
+    "deleteConfirmTitle": "确定删除此作品？",
+    "deleteConfirmDescription": "此作品及其存储文件将被永久删除，此操作不可恢复。",
+    "deleteCancel": "取消",
+    "deleteConfirm": "永久删除"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

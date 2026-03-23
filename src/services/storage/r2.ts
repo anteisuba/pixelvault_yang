@@ -1,6 +1,10 @@
 import 'server-only'
 
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 
 // ─── R2 Client ────────────────────────────────────────────────────
@@ -119,4 +123,18 @@ export async function streamUploadToR2(params: {
     publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
     sizeBytes,
   }
+}
+
+// ─── Delete from R2 ──────────────────────────────────────────────
+
+/**
+ * Delete an object from Cloudflare R2 by its storage key.
+ */
+export async function deleteFromR2(key: string): Promise<void> {
+  await r2.send(
+    new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: key,
+    }),
+  )
 }

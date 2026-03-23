@@ -1,5 +1,6 @@
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { Navbar } from '@/components/layout/Navbar'
+import { Toaster } from '@/components/ui/sonner'
 
 export default function MainLayout({
   children,
@@ -11,6 +12,7 @@ export default function MainLayout({
       <Navbar />
       <main className="pb-14 md:pb-0">{children}</main>
       <MobileTabBar />
+      <Toaster />
     </div>
   )
 }

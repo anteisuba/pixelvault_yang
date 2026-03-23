@@ -4,6 +4,7 @@ import { UpdateStoryRequestSchema } from '@/types'
 import type { StoryResponse } from '@/types'
 import {
   getStoryById,
+  getPublicStoryById,
   updateStory,
   deleteStory,
 } from '@/services/story.service'
@@ -13,31 +14,34 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<StoryResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
     const { id } = await params
-    const story = await getStoryById(id, clerkId)
+    const { userId: clerkId } = await auth()
 
-    if (!story) {
-      return NextResponse.json<StoryResponse>(
-        { success: false, error: 'Story not found' },
-        { status: 404 },
-      )
+    // Authenticated owner can see their own story (public or private)
+    if (clerkId) {
+      const story = await getStoryById(id, clerkId)
+      if (story) {
+        return NextResponse.json<StoryResponse>({ success: true, data: story })
+      }
     }
 
-    return NextResponse.json<StoryResponse>({ success: true, data: story })
+    // Fallback: anyone can view a public story
+    const publicStory = await getPublicStoryById(id)
+    if (publicStory) {
+      return NextResponse.json<StoryResponse>({
+        success: true,
+        data: publicStory,
+      })
+    }
+
+    return NextResponse.json<StoryResponse>(
+      { success: false, error: 'Story not found' },
+      { status: 404 },
+    )
   } catch (error) {
     console.error('[API /api/stories/[id] GET] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StoryResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Failed to fetch story' },
       { status: 500 },
     )
   }
@@ -82,10 +86,8 @@ export async function PUT(
     return NextResponse.json<StoryResponse>({ success: true, data: story })
   } catch (error) {
     console.error('[API /api/stories/[id] PUT] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StoryResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Failed to update story' },
       { status: 500 },
     )
   }
@@ -109,10 +111,8 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('[API /api/stories/[id] DELETE] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: 'Failed to delete story' },
       { status: 500 },
     )
   }

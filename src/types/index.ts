@@ -166,10 +166,14 @@ export interface ToggleVisibilityResponse {
 export const GALLERY_SORT_OPTIONS = ['newest', 'oldest'] as const
 export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
 
+export const OUTPUT_TYPE_FILTER_OPTIONS = ['all', 'image', 'video'] as const
+export type OutputTypeFilter = (typeof OUTPUT_TYPE_FILTER_OPTIONS)[number]
+
 export const GallerySearchSchema = z.object({
   search: z.string().trim().max(200).optional(),
   model: z.string().trim().max(100).optional(),
   sort: z.enum(GALLERY_SORT_OPTIONS).default('newest'),
+  type: z.enum(OUTPUT_TYPE_FILTER_OPTIONS).default('all'),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })
@@ -201,6 +205,13 @@ export const UsageSummarySchema = z.object({
 })
 
 export type UsageSummary = z.infer<typeof UsageSummarySchema>
+
+// ─── Delete Generation ───────────────────────────────────────────
+
+export interface DeleteGenerationResponse {
+  success: boolean
+  error?: string
+}
 
 // ─── Prompt Enhancement ──────────────────────────────────────────
 

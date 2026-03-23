@@ -204,8 +204,16 @@
     "generatingTitle": "正在生成视频...",
     "elapsed": "已等待 {seconds}",
     "resultLabel": "结果",
+    "referenceImageLabel": "参照图片（图生视频）",
+    "referenceImageUpload": "上传图片生成视频",
+    "referenceImageHint": "PNG、JPG — 拖拽或点击上传",
+    "resolutionLabel": "分辨率",
+    "advancedSettings": "高级设置",
+    "negativePromptLabel": "反向提示词",
+    "negativePromptPlaceholder": "描述视频中要避免的元素...",
     "errorFallback": "视频生成失败，请重试。",
     "errorUnexpected": "发生了意外错误。",
+    "errorTimeout": "视频生成超时，请重试。",
     "toastSuccess": "视频生成成功！"
   },
   "VideoPlayer": {
@@ -635,25 +643,37 @@
       "label": "Ideogram 2.0",
       "description": "擅长在图像中渲染文字，兼具出色的艺术质感。"
     },
+    "veo3": {
+      "label": "Veo 3",
+      "description": "Google 旗舰 — 4K、原生音频、对话同步"
+    },
+    "klingV3Pro": {
+      "label": "可灵 3.0 Pro",
+      "description": "顶级电影画质，15秒、原生音频、1080p"
+    },
+    "seedancePro": {
+      "label": "Seedance Pro",
+      "description": "字节跳动 — 原生音频、电影级镜头控制"
+    },
     "klingVideo": {
-      "label": "可灵视频",
-      "description": "高质量电影级视频生成"
+      "label": "可灵 V2",
+      "description": "稳定的电影级视频，运动感知，支持图生视频"
     },
     "minimaxVideo": {
       "label": "MiniMax 视频",
-      "description": "快速高质量视频生成"
+      "description": "快速生成，提示词优化，镜头控制"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
-      "description": "创意艺术视频生成"
+      "description": "最高1080p，循环视频，双图插值"
     },
     "wanVideo": {
       "label": "万象视频",
-      "description": "高性价比开源视频模型"
+      "description": "超高性价比开源模型，720p"
     },
     "hunyuanVideo": {
       "label": "混元视频",
-      "description": "腾讯混元视频生成"
+      "description": "腾讯开源，83亿参数，支持图生视频"
     }
   }
 }

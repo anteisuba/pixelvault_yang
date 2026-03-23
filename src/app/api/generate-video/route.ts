@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateVideoRequestSchema } from '@/types'
-import type { GenerateVideoResponse } from '@/types'
+import type { VideoSubmitResponse } from '@/types'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
-import { generateVideoForUser } from '@/services/generate-video.service'
+import { submitVideoGeneration } from '@/services/generate-video.service'
 import { rateLimit } from '@/lib/rate-limit'
+
+export const maxDuration = 30
 
 // ─── POST /api/generate-video ────────────────────────────────────
 
@@ -12,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const { userId: clerkId } = await auth()
     if (!clerkId) {
-      return NextResponse.json<GenerateVideoResponse>(
+      return NextResponse.json<VideoSubmitResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
       )
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
       windowSeconds: 60,
     })
     if (!allowed) {
-      return NextResponse.json<GenerateVideoResponse>(
+      return NextResponse.json<VideoSubmitResponse>(
         { success: false, error: 'Too many requests. Please wait a moment.' },
         { status: 429 },
       )
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null)
 
     if (!body) {
-      return NextResponse.json<GenerateVideoResponse>(
+      return NextResponse.json<VideoSubmitResponse>(
         { success: false, error: 'Invalid JSON body' },
         { status: 400 },
       )
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     const parseResult = GenerateVideoRequestSchema.safeParse(body)
 
     if (!parseResult.success) {
-      return NextResponse.json<GenerateVideoResponse>(
+      return NextResponse.json<VideoSubmitResponse>(
         {
           success: false,
           error: parseResult.error.issues
@@ -52,15 +54,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const generation = await generateVideoForUser(clerkId, parseResult.data)
+    const data = await submitVideoGeneration(clerkId, parseResult.data)
 
-    return NextResponse.json<GenerateVideoResponse>({
+    return NextResponse.json<VideoSubmitResponse>({
       success: true,
-      data: { generation },
+      data,
     })
   } catch (error) {
     if (isGenerateImageServiceError(error)) {
-      return NextResponse.json<GenerateVideoResponse>(
+      return NextResponse.json<VideoSubmitResponse>(
         { success: false, error: error.message },
         { status: error.status },
       )
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     console.error('[API /api/generate-video] Error:', error)
 
-    return NextResponse.json<GenerateVideoResponse>(
+    return NextResponse.json<VideoSubmitResponse>(
       { success: false, error: 'Video generation failed. Please try again.' },
       { status: 500 },
     )

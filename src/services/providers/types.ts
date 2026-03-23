@@ -37,10 +37,47 @@ export interface ProviderVideoResult {
   requestCount: number
 }
 
+export interface ProviderQueueSubmitInput {
+  prompt: string
+  modelId: string
+  aspectRatio: AspectRatio
+  providerConfig: ProviderConfig
+  apiKey: string
+  duration?: number
+  referenceImage?: string
+  negativePrompt?: string
+  resolution?: string
+  i2vModelId?: string
+  videoDefaults?: Record<string, unknown>
+}
+
+export interface ProviderQueueSubmitResult {
+  requestId: string
+  statusUrl: string
+  responseUrl: string
+}
+
+export interface ProviderQueueStatusInput {
+  statusUrl: string
+  responseUrl: string
+  apiKey: string
+}
+
+export interface ProviderQueueStatusResult {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  result?: ProviderVideoResult
+}
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(
     input: ProviderGenerationInput,
   ): Promise<ProviderGenerationResult>
   generateVideo?(input: ProviderVideoInput): Promise<ProviderVideoResult>
+  submitVideoToQueue?(
+    input: ProviderQueueSubmitInput,
+  ): Promise<ProviderQueueSubmitResult>
+  checkVideoQueueStatus?(
+    input: ProviderQueueStatusInput,
+  ): Promise<ProviderQueueStatusResult>
 }

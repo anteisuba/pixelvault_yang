@@ -75,12 +75,51 @@ export const GenerateVideoRequestSchema = z.object({
     .max(VIDEO_GENERATION.MAX_DURATION)
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
+  negativePrompt: z.string().trim().max(2000).optional(),
+  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
 })
 
 export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
 
 export type GenerateVideoResponse = GenerateResponse
+
+// ─── Video Queue (submit + poll) ─────────────────────────────────
+
+export const VideoJobStatusSchema = z.enum([
+  'IN_QUEUE',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'FAILED',
+])
+export type VideoJobStatus = z.infer<typeof VideoJobStatusSchema>
+
+export const VideoStatusRequestSchema = z.object({
+  jobId: z.string().trim().min(1, 'Job ID is required'),
+})
+
+export interface VideoSubmitResponseData {
+  jobId: string
+  requestId: string
+}
+
+export interface VideoSubmitResponse {
+  success: boolean
+  data?: VideoSubmitResponseData
+  error?: string
+}
+
+export interface VideoStatusResponseData {
+  jobId: string
+  status: VideoJobStatus
+  generation?: GenerationRecord
+}
+
+export interface VideoStatusResponse {
+  success: boolean
+  data?: VideoStatusResponseData
+  error?: string
+}
 
 // ─── Image Record ─────────────────────────────────────────────────
 

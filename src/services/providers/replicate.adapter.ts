@@ -34,7 +34,7 @@ const REPLICATE_ASPECT_RATIOS: Record<string, string> = {
 
 const POLL_INITIAL_DELAY_MS = 1000
 const POLL_MAX_DELAY_MS = 8000
-const POLL_TIMEOUT_MS = 60000
+const POLL_TIMEOUT_MS = 180_000
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { EnhancePromptRequestSchema } from '@/types'
+
+export const maxDuration = 30
 import type { EnhancePromptResponse } from '@/types'
 import { enhancePrompt } from '@/services/prompt-enhance.service'
 

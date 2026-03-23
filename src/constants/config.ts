@@ -63,6 +63,9 @@ export const API_ENDPOINTS = {
 
   /** Video generation */
   GENERATE_VIDEO: '/api/generate-video',
+
+  /** Video generation status polling */
+  GENERATE_VIDEO_STATUS: '/api/generate-video/status',
 } as const
 
 /** Arena configuration */
@@ -87,7 +90,9 @@ export const AI_PROVIDER_ENDPOINTS = {
   HUGGINGFACE: 'https://router.huggingface.co/hf-inference/models',
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
+  OPENAI_CHAT: 'https://api.openai.com/v1',
   FAL: 'https://fal.run',
+  FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',
 } as const
 
@@ -97,6 +102,7 @@ export const VIDEO_GENERATION = {
   DEFAULT_DURATION: 5,
   DURATION_OPTIONS: [3, 5, 10] as const,
   POLL_INTERVAL_MS: 3000,
+  MAX_POLL_ATTEMPTS: 120,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
 } as const
 

@@ -2,7 +2,8 @@ import type {
   GenerateRequest,
   GenerateResponse,
   GenerateVideoRequest,
-  GenerateVideoResponse,
+  VideoSubmitResponse,
+  VideoStatusResponse,
   GalleryResponse,
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
@@ -82,11 +83,11 @@ export async function generateImageAPI(
   }
 }
 
-// ─── Video Generation ─────────────────────────────────────────────
+// ─── Video Generation (queue-based) ──────────────────────────────
 
-export async function generateVideoAPI(
+export async function submitVideoAPI(
   params: GenerateVideoRequest,
-): Promise<GenerateVideoResponse> {
+): Promise<VideoSubmitResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.GENERATE_VIDEO, {
       method: 'POST',
@@ -102,7 +103,32 @@ export async function generateVideoAPI(
       return { success: false, error: message }
     }
 
-    const data: GenerateVideoResponse = await response.json()
+    const data: VideoSubmitResponse = await response.json()
+    return data
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function checkVideoStatusAPI(
+  jobId: string,
+): Promise<VideoStatusResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATE_VIDEO_STATUS}?jobId=${encodeURIComponent(jobId)}`,
+    )
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Status check failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    const data: VideoStatusResponse = await response.json()
     return data
   } catch (error) {
     const message =

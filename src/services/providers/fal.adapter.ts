@@ -15,6 +15,8 @@ import type {
   ProviderAdapter,
   ProviderGenerationInput,
   ProviderVideoInput,
+  ProviderQueueSubmitInput,
+  ProviderQueueStatusInput,
 } from '@/services/providers/types'
 
 const FAL_RESPONSE_SCHEMA = z.object({
@@ -42,6 +44,17 @@ const FAL_VIDEO_RESPONSE_SCHEMA = z.object({
     })
     .optional()
     .nullable(),
+})
+
+const FAL_QUEUE_SUBMIT_SCHEMA = z.object({
+  request_id: z.string(),
+  status_url: z.string().url(),
+  response_url: z.string().url(),
+})
+
+const FAL_QUEUE_STATUS_SCHEMA = z.object({
+  status: z.enum(['IN_QUEUE', 'IN_PROGRESS', 'COMPLETED']),
+  response_url: z.string().url().optional(),
 })
 
 const FAL_IMAGE_SIZES: Record<string, string> = {
@@ -128,7 +141,7 @@ export const falAdapter: ProviderAdapter = {
 
     const body: Record<string, unknown> = {
       prompt,
-      aspect_ratio: aspectRatio.replace(':', ':'),
+      aspect_ratio: aspectRatio,
       duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
     }
 
@@ -169,6 +182,142 @@ export const falAdapter: ProviderAdapter = {
       }
     } finally {
       clearTimeout(timeout)
+    }
+  },
+
+  async submitVideoToQueue({
+    prompt,
+    modelId,
+    aspectRatio,
+    providerConfig,
+    apiKey,
+    duration,
+    referenceImage,
+    negativePrompt,
+    resolution,
+    i2vModelId,
+    videoDefaults,
+  }: ProviderQueueSubmitInput) {
+    const externalModelId = getExecutionModelId(modelId)
+
+    // Use I2V endpoint when reference image is provided and model has a dedicated I2V endpoint
+    const effectiveModelId =
+      referenceImage && i2vModelId ? i2vModelId : externalModelId
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${effectiveModelId}`
+
+    const body: Record<string, unknown> = {
+      prompt,
+      aspect_ratio: aspectRatio,
+      duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
+    }
+
+    // Reference image for I2V
+    if (referenceImage) {
+      body.image_url = referenceImage
+    }
+
+    // Apply model-specific defaults first, then user overrides
+    if (videoDefaults?.negativePrompt) {
+      body.negative_prompt = videoDefaults.negativePrompt
+    }
+    if (videoDefaults?.cfgScale !== undefined) {
+      body.cfg_scale = videoDefaults.cfgScale
+    }
+    if (videoDefaults?.enablePromptOptimizer !== undefined) {
+      body.prompt_optimizer = videoDefaults.enablePromptOptimizer
+    }
+    if (videoDefaults?.generateAudio !== undefined) {
+      body.generate_audio = videoDefaults.generateAudio
+    }
+    if (videoDefaults?.resolution) {
+      body.resolution = videoDefaults.resolution
+    }
+
+    // User overrides
+    if (negativePrompt) {
+      body.negative_prompt = negativePrompt
+    }
+    if (resolution) {
+      body.resolution = resolution
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue submit error (${response.status}): ${errorBody}`,
+      )
+    }
+
+    const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+    return {
+      requestId: data.request_id,
+      statusUrl: data.status_url,
+      responseUrl: data.response_url,
+    }
+  },
+
+  async checkVideoQueueStatus({
+    statusUrl,
+    responseUrl,
+    apiKey,
+  }: ProviderQueueStatusInput) {
+    const statusResponse = await fetch(statusUrl, {
+      method: 'GET',
+      headers: { Authorization: `Key ${apiKey}` },
+    })
+
+    if (!statusResponse.ok) {
+      const errorBody = await statusResponse.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue status error (${statusResponse.status}): ${errorBody}`,
+      )
+    }
+
+    const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
+      await statusResponse.json(),
+    )
+
+    if (statusData.status !== 'COMPLETED') {
+      return { status: statusData.status as 'IN_QUEUE' | 'IN_PROGRESS' }
+    }
+
+    // Fetch the actual result using the response_url from submit
+    const resultResponse = await fetch(responseUrl, {
+      method: 'GET',
+      headers: { Authorization: `Key ${apiKey}` },
+    })
+
+    if (!resultResponse.ok) {
+      const errorBody = await resultResponse.text().catch(() => 'Unknown error')
+      throw new Error(
+        `fal.ai queue result error (${resultResponse.status}): ${errorBody}`,
+      )
+    }
+
+    const resultData = FAL_VIDEO_RESPONSE_SCHEMA.parse(
+      await resultResponse.json(),
+    )
+    const { width, height } = IMAGE_SIZES['16:9']
+
+    return {
+      status: 'COMPLETED' as const,
+      result: {
+        videoUrl: resultData.video.url,
+        thumbnailUrl: resultData.thumbnail?.url,
+        width,
+        height,
+        duration: VIDEO_GENERATION.DEFAULT_DURATION,
+        requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      },
     }
   },
 }

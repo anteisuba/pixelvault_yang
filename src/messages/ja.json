@@ -204,8 +204,16 @@
     "generatingTitle": "動画を生成中...",
     "elapsed": "経過時間: {seconds}",
     "resultLabel": "結果",
+    "referenceImageLabel": "参照画像（I2V）",
+    "referenceImageUpload": "アニメーションする画像をアップロード",
+    "referenceImageHint": "PNG、JPG — ドラッグ＆ドロップまたはクリック",
+    "resolutionLabel": "解像度",
+    "advancedSettings": "詳細設定",
+    "negativePromptLabel": "ネガティブプロンプト",
+    "negativePromptPlaceholder": "動画で避けたい要素を記述...",
     "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
     "errorUnexpected": "予期しないエラーが発生しました。",
+    "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。",
     "toastSuccess": "動画が生成されました！"
   },
   "VideoPlayer": {
@@ -635,25 +643,37 @@
       "label": "Ideogram 2.0",
       "description": "画像内テキスト描画に優れた高品質アートモデル。"
     },
+    "veo3": {
+      "label": "Veo 3",
+      "description": "Google最新 — 4K、ネイティブ音声、対話同期"
+    },
+    "klingV3Pro": {
+      "label": "Kling 3.0 Pro",
+      "description": "最高品質シネマティック、15秒、音声付き、1080p"
+    },
+    "seedancePro": {
+      "label": "Seedance Pro",
+      "description": "ByteDance — 音声付き、映画的カメラコントロール"
+    },
     "klingVideo": {
-      "label": "Kling Video",
-      "description": "高品質な映画的動画生成"
+      "label": "Kling V2",
+      "description": "安定した映画的動画、モーション対応、I2V対応"
     },
     "minimaxVideo": {
       "label": "MiniMax Video",
-      "description": "高品質な高速動画生成"
+      "description": "高速生成、プロンプト最適化、カメラ制御"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
-      "description": "クリエイティブな芸術的動画生成"
+      "description": "最大1080p、ループ対応、二画像補間"
     },
     "wanVideo": {
       "label": "Wan Video",
-      "description": "高コスパのオープンソース動画モデル"
+      "description": "高コスパのオープンソース、720p"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",
-      "description": "テンセントによる強力な動画生成"
+      "description": "テンセントオープンソース、8.3Bパラメータ、I2V対応"
     }
   }
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateVariationsRequestSchema } from '@/types'
+
+export const maxDuration = 55
 import type { GenerateVariationsResponse } from '@/types'
 import {
   getAnalysisById,

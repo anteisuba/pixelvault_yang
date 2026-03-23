@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { VIDEO_GENERATION } from '@/constants/config'
 import type { GenerateVideoRequest, GenerationRecord } from '@/types'
-import { generateVideoAPI } from '@/lib/api-client'
+import { submitVideoAPI, checkVideoStatusAPI } from '@/lib/api-client'
 
 type VideoGenerationStage = 'idle' | 'queued' | 'generating' | 'uploading'
 
@@ -27,6 +28,8 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
   const [generatedGeneration, setGeneratedGeneration] =
     useState<GenerationRecord | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollCountRef = useRef(0)
   const t = useTranslations('VideoGenerate')
 
   const stopTimer = useCallback(() => {
@@ -34,6 +37,14 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+  }, [])
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+    pollCountRef.current = 0
   }, [])
 
   const startTimer = useCallback(() => {
@@ -44,6 +55,20 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
     }, 1000)
   }, [stopTimer])
 
+  const finish = useCallback(
+    (err?: string) => {
+      stopPolling()
+      stopTimer()
+      setIsGenerating(false)
+      setStage('idle')
+      if (err) {
+        setError(err)
+        toast.error(err)
+      }
+    },
+    [stopPolling, stopTimer],
+  )
+
   const generate = useCallback(
     async (params: GenerateVideoRequest) => {
       setIsGenerating(true)
@@ -53,32 +78,64 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
       startTimer()
 
       try {
-        setStage('generating')
-        const response = await generateVideoAPI(params)
+        // Phase 1: Submit to queue
+        const submitResponse = await submitVideoAPI(params)
 
-        if (response.success && response.data) {
-          setStage('uploading')
-          setGeneratedGeneration(response.data.generation)
-          setStage('idle')
-          toast.success(t('toastSuccess'))
-        } else {
-          const msg = response.error ?? t('errorFallback')
-          setError(msg)
-          setStage('idle')
-          toast.error(msg)
+        if (!submitResponse.success || !submitResponse.data) {
+          finish(submitResponse.error ?? t('errorFallback'))
+          return
         }
+
+        const { jobId } = submitResponse.data
+        setStage('generating')
+        pollCountRef.current = 0
+
+        // Phase 2: Poll for status
+        pollRef.current = setInterval(async () => {
+          pollCountRef.current += 1
+
+          if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
+            finish(t('errorTimeout'))
+            return
+          }
+
+          try {
+            const statusResponse = await checkVideoStatusAPI(jobId)
+
+            if (!statusResponse.success || !statusResponse.data) {
+              finish(statusResponse.error ?? t('errorFallback'))
+              return
+            }
+
+            const { status, generation } = statusResponse.data
+
+            if (status === 'COMPLETED' && generation) {
+              setGeneratedGeneration(generation)
+              finish()
+              toast.success(t('toastSuccess'))
+              return
+            }
+
+            if (status === 'FAILED') {
+              finish(statusResponse.error ?? t('errorFallback'))
+              return
+            }
+
+            // IN_QUEUE or IN_PROGRESS — keep polling
+            if (status === 'IN_PROGRESS') {
+              setStage('generating')
+            }
+          } catch {
+            finish(t('errorUnexpected'))
+          }
+        }, VIDEO_GENERATION.POLL_INTERVAL_MS)
       } catch (err) {
         const message =
           err instanceof Error ? err.message : t('errorUnexpected')
-        setError(message)
-        setStage('idle')
-        toast.error(message)
-      } finally {
-        setIsGenerating(false)
-        stopTimer()
+        finish(message)
       }
     },
-    [t, startTimer, stopTimer],
+    [t, startTimer, finish],
   )
 
   const reset = useCallback(() => {
@@ -87,7 +144,16 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
     setStage('idle')
     setElapsedSeconds(0)
     stopTimer()
-  }, [stopTimer])
+    stopPolling()
+  }, [stopTimer, stopPolling])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopTimer()
+      stopPolling()
+    }
+  }, [stopTimer, stopPolling])
 
   return {
     isGenerating,

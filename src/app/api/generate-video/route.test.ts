@@ -7,13 +7,12 @@ import {
   mockRateLimitExceeded,
   createPOST,
   parseJSON,
-  FAKE_GENERATION,
 } from '@/test/api-helpers'
 
 // ─── Mocks ────────────────────────────────────────────────────────
 
 vi.mock('@/services/generate-video.service', () => ({
-  generateVideoForUser: vi.fn(),
+  submitVideoGeneration: vi.fn(),
 }))
 
 vi.mock('@/services/generate-image.service', () => ({
@@ -21,10 +20,10 @@ vi.mock('@/services/generate-image.service', () => ({
 }))
 
 import { POST } from '@/app/api/generate-video/route'
-import { generateVideoForUser } from '@/services/generate-video.service'
+import { submitVideoGeneration } from '@/services/generate-video.service'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 
-const mockGenerate = vi.mocked(generateVideoForUser)
+const mockSubmit = vi.mocked(submitVideoGeneration)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
 
 // ─── Tests ────────────────────────────────────────────────────────
@@ -34,15 +33,17 @@ const VALID_BODY = {
   modelId: 'wan-ai/Wan2.1-T2V-14B',
 }
 
+const FAKE_SUBMIT_DATA = {
+  jobId: 'job_123',
+  requestId: 'req_123',
+}
+
 describe('POST /api/generate-video', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
-    mockGenerate.mockResolvedValue({
-      ...FAKE_GENERATION,
-      outputType: 'VIDEO',
-    } as never)
+    mockSubmit.mockResolvedValue(FAKE_SUBMIT_DATA as never)
     mockIsServiceError.mockReturnValue(false)
   })
 
@@ -95,18 +96,18 @@ describe('POST /api/generate-video', () => {
     expect(json.success).toBe(false)
   })
 
-  it('returns generation on success', async () => {
+  it('returns submit data on success', async () => {
     const req = createPOST('/api/generate-video', VALID_BODY)
     const res = await POST(req)
     const json = await parseJSON<{
       success: boolean
-      data: { generation: typeof FAKE_GENERATION }
+      data: { jobId: string; requestId: string }
     }>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(json.data.generation).toBeDefined()
-    expect(mockGenerate).toHaveBeenCalledWith(
+    expect(json.data.jobId).toBe('job_123')
+    expect(mockSubmit).toHaveBeenCalledWith(
       'clerk_test_user',
       expect.objectContaining({ prompt: VALID_BODY.prompt }),
     )
@@ -116,7 +117,7 @@ describe('POST /api/generate-video', () => {
     const serviceError = Object.assign(new Error('Model unavailable'), {
       status: 503,
     })
-    mockGenerate.mockRejectedValue(serviceError)
+    mockSubmit.mockRejectedValue(serviceError)
     mockIsServiceError.mockReturnValue(true)
 
     const req = createPOST('/api/generate-video', VALID_BODY)
@@ -129,7 +130,7 @@ describe('POST /api/generate-video', () => {
   })
 
   it('returns 500 on unexpected error', async () => {
-    mockGenerate.mockRejectedValue(new Error('unexpected'))
+    mockSubmit.mockRejectedValue(new Error('unexpected'))
     mockIsServiceError.mockReturnValue(false)
 
     const req = createPOST('/api/generate-video', VALID_BODY)

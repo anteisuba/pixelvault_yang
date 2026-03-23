@@ -66,7 +66,8 @@ describe('POST /api/image/analyze', () => {
     mockAuthenticated()
     mockRateLimitAllowed()
 
-    const oversizedData = 'x'.repeat(14 * 1024 * 1024 + 1)
+    const oversizedData =
+      'data:image/png;base64,' + 'x'.repeat(14 * 1024 * 1024 + 1)
     const req = createPOST('/api/image/analyze', {
       imageData: oversizedData,
     })

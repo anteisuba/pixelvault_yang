@@ -89,6 +89,14 @@ export async function createStory(
   const dbUser = await getUserByClerkId(clerkId)
   if (!dbUser) throw new Error('User not found')
 
+  // Verify all generation IDs belong to this user
+  const ownedCount = await db.generation.count({
+    where: { id: { in: generationIds }, userId: dbUser.id },
+  })
+  if (ownedCount !== generationIds.length) {
+    throw new Error('One or more generations not found or not owned by you')
+  }
+
   const story = await db.story.create({
     data: {
       userId: dbUser.id,

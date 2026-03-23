@@ -280,7 +280,18 @@ export interface EnhancePromptResponse {
 // ─── Image Reverse Engineering ───────────────────────────────────
 
 export const AnalyzeImageRequestSchema = z.object({
-  imageData: z.string().min(1, 'Image data is required'),
+  imageData: z
+    .string()
+    .min(1, 'Image data is required')
+    .refine(
+      (data) =>
+        data.startsWith('data:image/png') ||
+        data.startsWith('data:image/jpeg') ||
+        data.startsWith('data:image/webp') ||
+        data.startsWith('data:image/gif') ||
+        data.startsWith('https://'),
+      'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTPS URL',
+    ),
 })
 
 export type AnalyzeImageRequest = z.infer<typeof AnalyzeImageRequestSchema>

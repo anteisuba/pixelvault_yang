@@ -5,6 +5,7 @@ import { GenerateNarrativeRequestSchema } from '@/types'
 export const maxDuration = 30
 import type { GenerateNarrativeResponse } from '@/types'
 import { generateNarrative } from '@/services/story.service'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(
   request: NextRequest,
@@ -16,6 +17,17 @@ export async function POST(
       return NextResponse.json<GenerateNarrativeResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`narrative:${clerkId}`, {
+      limit: 5,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<GenerateNarrativeResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -49,10 +61,11 @@ export async function POST(
     })
   } catch (error) {
     console.error('[API /api/stories/[id]/narrative] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<GenerateNarrativeResponse>(
-      { success: false, error: message },
+      {
+        success: false,
+        error: 'Narrative generation failed. Please try again.',
+      },
       { status: 500 },
     )
   }

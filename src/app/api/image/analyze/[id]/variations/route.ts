@@ -68,10 +68,11 @@ export async function POST(
     })
   } catch (error) {
     console.error('[API /api/image/analyze/[id]/variations] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<GenerateVariationsResponse>(
-      { success: false, error: message },
+      {
+        success: false,
+        error: 'Variation generation failed. Please try again.',
+      },
       { status: 500 },
     )
   }

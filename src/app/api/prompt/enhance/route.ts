@@ -5,6 +5,7 @@ import { EnhancePromptRequestSchema } from '@/types'
 export const maxDuration = 30
 import type { EnhancePromptResponse } from '@/types'
 import { enhancePrompt } from '@/services/prompt-enhance.service'
+import { rateLimit } from '@/lib/rate-limit'
 
 // ─── POST /api/prompt/enhance ────────────────────────────────────
 
@@ -15,6 +16,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<EnhancePromptResponse>(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = rateLimit(`enhance:${clerkId}`, {
+      limit: 10,
+      windowSeconds: 60,
+    })
+    if (!allowed) {
+      return NextResponse.json<EnhancePromptResponse>(
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 },
       )
     }
 
@@ -54,11 +66,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[API /api/prompt/enhance] Error:', error)
 
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
     return NextResponse.json<EnhancePromptResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Prompt enhancement failed. Please try again.' },
       { status: 500 },
     )
   }

@@ -34,10 +34,8 @@ export async function GET(
     })
   } catch (error) {
     console.error('[API /api/arena/matches/[id]] Error:', error)
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<ArenaMatchResponse>(
-      { success: false, error: message },
+      { success: false, error: 'Failed to fetch match.' },
       { status: 500 },
     )
   }

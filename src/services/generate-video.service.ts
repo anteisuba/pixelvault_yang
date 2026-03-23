@@ -52,7 +52,7 @@ export async function submitVideoGeneration(
     )
   }
 
-  const { requestId } = await providerAdapter.submitVideoToQueue({
+  const queueResult = await providerAdapter.submitVideoToQueue({
     prompt: input.prompt,
     modelId: executionRoute.modelId,
     aspectRatio: input.aspectRatio,
@@ -69,15 +69,21 @@ export async function submitVideoGeneration(
     modelId: executionRoute.modelId,
   })
 
-  // Store the fal.ai request ID and prompt for later polling
+  // Store queue metadata as JSON for later polling
+  const queueMeta = JSON.stringify({
+    requestId: queueResult.requestId,
+    statusUrl: queueResult.statusUrl,
+    responseUrl: queueResult.responseUrl,
+  })
+
   await db.generationJob.update({
     where: { id: generationJob.id },
-    data: { externalRequestId: requestId, prompt: input.prompt },
+    data: { externalRequestId: queueMeta, prompt: input.prompt },
   })
 
   return {
     jobId: generationJob.id,
-    requestId,
+    requestId: queueResult.requestId,
   }
 }
 
@@ -128,6 +134,18 @@ export async function checkVideoGenerationStatus(
     )
   }
 
+  // Parse stored queue metadata
+  let queueMeta: { requestId: string; statusUrl: string; responseUrl: string }
+  try {
+    queueMeta = JSON.parse(job.externalRequestId)
+  } catch {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid queue metadata',
+      400,
+    )
+  }
+
   const executionRoute = await resolveGenerationRoute(dbUser.id, {
     modelId: job.modelId,
   })
@@ -142,9 +160,8 @@ export async function checkVideoGenerationStatus(
   }
 
   const queueStatus = await providerAdapter.checkVideoQueueStatus({
-    modelId: job.modelId,
-    requestId: job.externalRequestId,
-    providerConfig: executionRoute.providerConfig,
+    statusUrl: queueMeta.statusUrl,
+    responseUrl: queueMeta.responseUrl,
     apiKey: executionRoute.apiKey,
   })
 

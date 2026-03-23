@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { AnalyzeImageRequestSchema } from '@/types'
+
+export const maxDuration = 30
 import type { AnalyzeImageResponse } from '@/types'
 import { analyzeImage } from '@/services/image-analysis.service'
 

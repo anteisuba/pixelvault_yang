@@ -1,6 +1,8 @@
+**English** | [日本語](README.ja.md) | [中文](README.zh.md)
+
 # PixelVault — Personal AI Gallery
 
-A multi-model AI image generation and permanent archive platform.
+A multi-model AI image & video generation platform with permanent archive, blind arena voting, and storyboard creation.
 
 **Live Demo:** [https://pixelvault-seven.vercel.app/](https://pixelvault-seven.vercel.app/)
 
@@ -8,22 +10,53 @@ A multi-model AI image generation and permanent archive platform.
 
 ## Features
 
-- **Multi-model AI image generation** — Choose from 3 AI models across 2 providers
-- **Permanent image storage** — All generated images stored on Cloudflare R2
-- **Credit-based system** — New users receive 10 credits; each generation costs 1–2 credits
-- **User authentication** — Sign in / sign up via Clerk
-- **Multilingual UI** — English, Japanese, Traditional Chinese (`/en`, `/ja`, `/zh`)
-- **Multiple aspect ratios** — 1:1, 16:9, 9:16, 4:3, 3:4
+- **Multi-model AI generation** — 11 image models + 10 video models across 6 providers
+- **Arena (blind voting)** — Compare outputs side-by-side with ELO ranking system
+- **Storyboard** — AI-generated comic-style narrative sequences
+- **Gallery** — Public feed with search, filter, and infinite scroll
+- **Profile** — Personal library with stats, hard-delete with R2 cleanup
+- **Prompt enhancement** — LLM-powered prompt improvement (OpenAI / Gemini / DeepSeek)
+- **Reverse engineering** — Analyze existing images to extract generation parameters
+- **BYOK (Bring Your Own Key)** — Encrypted API key management for premium models
+- **Permanent storage** — All generations stored on Cloudflare R2
+- **Credit system** — Free credits for new users; per-model cost tiers
+- **Multilingual** — English, Japanese, Chinese (`/en`, `/ja`, `/zh`)
+- **Mobile-first** — Responsive layout with bottom tab navigation
 
 ---
 
 ## AI Models
 
-| Model | Provider | Credits | Description |
-|-------|----------|---------|-------------|
-| Stable Diffusion XL | HuggingFace | 1 | High-resolution, detailed image generation |
-| Animagine XL 4.0 | HuggingFace | 1 | High-quality anime-style image generation |
-| Gemini 3.1 Flash Image | Google Gemini | 2 | Google's state-of-the-art image generation |
+### Image Models
+
+| Model | Provider | Tier | Credits |
+|-------|----------|------|---------|
+| GPT-Image 1.5 | OpenAI | Premium | 3 |
+| Gemini Pro Image | Google | Premium | 2 |
+| FLUX 2 Pro | Fal | Premium | 2 |
+| Seedream 4.5 | Replicate | Premium | 2 |
+| Ideogram 3 | Replicate | Standard | 2 |
+| Recraft V3 | Replicate | Standard | 2 |
+| Gemini Flash | Google | Standard | 1 |
+| FLUX 2 Dev | Fal | Standard | 1 |
+| FLUX 2 Schnell | Fal | Budget | 1 |
+| Animagine XL 4.0 | HuggingFace | Budget | 1 |
+| Stable Diffusion XL | HuggingFace | Budget | 1 |
+
+### Video Models
+
+| Model | Provider | Tier | Credits |
+|-------|----------|------|---------|
+| Kling V3 Pro | Fal | Premium | 5 |
+| Veo 3 | Google | Premium | 5 |
+| Sora 2 | OpenAI | Premium | 5 |
+| Seedance Pro | Replicate | Premium | 4 |
+| MiniMax Hailuo | Fal | Standard | 3 |
+| Luma Ray 2 | Fal | Standard | 3 |
+| Pika 2.2 | Replicate | Standard | 3 |
+| Kling V2 | Fal | Budget | 2 |
+| Wan 2.2 | Fal | Budget | 2 |
+| HunyuanVideo | HuggingFace | Budget | 2 |
 
 ---
 
@@ -32,13 +65,14 @@ A multi-model AI image generation and permanent archive platform.
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router + Turbopack) |
-| Language | TypeScript |
+| Language | TypeScript (strict) |
 | Styling | Tailwind CSS + shadcn/ui |
 | Auth | Clerk |
-| Database | PostgreSQL (Neon) via Prisma 7 + PrismaPg Driver Adapter |
+| Database | PostgreSQL (Neon) via Prisma 7 |
 | Storage | Cloudflare R2 |
-| AI Providers | HuggingFace Inference API, Google Gemini API |
+| AI Providers | HuggingFace, Google Gemini, OpenAI, Fal, Replicate |
 | Validation | Zod |
+| Testing | Vitest (97 tests) |
 | Deployment | Vercel |
 
 ---
@@ -49,42 +83,33 @@ A multi-model AI image generation and permanent archive platform.
 src/
 ├── app/
 │   ├── [locale]/
-│   │   ├── (auth)/          # sign-in, sign-up
+│   │   ├── (auth)/              # sign-in, sign-up
 │   │   └── (main)/
-│   │       └── studio/      # AI generation studio (requires login)
+│   │       ├── studio/          # Image & video generation
+│   │       ├── gallery/         # Public gallery + detail view
+│   │       ├── arena/           # Blind voting + leaderboard
+│   │       ├── storyboard/      # AI storyboard creation
+│   │       └── profile/         # Personal library + stats
 │   └── api/
-│       ├── generate/        # POST — AI generation → R2 → DB
-│       ├── credits/         # GET  — current user credits
-│       └── webhooks/clerk/  # Clerk user.created sync
+│       ├── generate/            # POST — AI generation → R2 → DB
+│       ├── arena/               # Arena matches + voting
+│       ├── api-keys/            # BYOK key management
+│       ├── models/              # Model listing + health check
+│       ├── admin/               # Admin model config CRUD
+│       ├── credits/             # User credits
+│       └── webhooks/clerk/      # Clerk user.created sync
 │
 ├── components/
-│   ├── ui/                  # shadcn/ui atoms (stateless)
-│   ├── business/
-│   │   ├── GenerateForm.tsx # Prompt + model selector + preview
-│   │   └── ModelSelector.tsx
-│   └── layout/
-│       └── Navbar.tsx       # Logo + credits + UserButton
+│   ├── ui/                      # shadcn/ui atoms (stateless)
+│   ├── business/                # Stateful UI (hooks, no direct API)
+│   └── layout/                  # Navbar, MobileTabBar
 │
-├── hooks/
-│   ├── use-generate.ts      # Generation state management
-│   └── use-credits.ts       # Credits query
-│
-├── services/
-│   ├── generation.service.ts
-│   ├── user.service.ts      # Credits deduction / addition
-│   └── storage/r2.ts        # Cloudflare R2 upload
-│
-├── lib/
-│   ├── db.ts                # Prisma singleton
-│   ├── api-client.ts        # Frontend API wrapper
-│   └── utils.ts
-│
-├── constants/
-│   ├── models.ts            # AI model enum + options
-│   ├── routes.ts            # Route constants
-│   └── config.ts            # Credits, limits, pagination
-│
-└── types/index.ts           # TypeScript types + Zod schemas
+├── hooks/                       # Client-side state management
+├── services/                    # Server-only business logic
+├── constants/                   # Config, enums, routes
+├── types/                       # Zod schemas + TypeScript types
+├── lib/                         # DB, API client, utilities
+└── messages/                    # i18n (en, ja, zh)
 ```
 
 ---
@@ -97,8 +122,7 @@ src/
 - PostgreSQL database (Neon recommended)
 - Cloudflare R2 bucket
 - Clerk account
-- HuggingFace API key
-- Google Gemini API key
+- API keys for at least one AI provider
 
 ### Environment Variables
 
@@ -118,23 +142,20 @@ R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 NEXT_PUBLIC_R2_PUBLIC_URL=
 
-# AI Providers
+# AI Providers (at least one required)
 HUGGINGFACE_API_KEY=hf_...
 GEMINI_API_KEY=AIza...
+OPENAI_API_KEY=sk-...
+FAL_KEY=...
+REPLICATE_API_TOKEN=r8_...
 ```
 
 ### Install & Run
 
 ```bash
 npm install
-
-# Generate Prisma client
 npx prisma generate
-
-# Run database migrations
 npx prisma migrate deploy
-
-# Start development server
 npm run dev
 ```
 
@@ -146,36 +167,28 @@ npm run dev
 |-------|--------|-------------|
 | Phase 1 | Done | MVP — core generation flow |
 | Phase 2 | Done | Persistence — Prisma + Cloudflare R2 |
-| Phase 3 | Mostly done | User system + credits |
-| Phase 4 | In progress | Gallery page + UI polish + deployment |
-
-### Remaining Work
-
-- [ ] `gallery/page.tsx` — public image gallery with infinite scroll
-- [ ] `profile/page.tsx` — personal generation history + credits
-- [ ] `ImageCard.tsx` — image card with hover effects
-- [ ] `GalleryGrid.tsx` — masonry layout
-- [ ] `MobileTabBar.tsx` — bottom navigation for mobile
-- [ ] Landing page (currently redirects to sign-in)
+| Phase 3 | Done | User system + credits |
+| Phase 4 | Done | Gallery, profile, storyboard, arena |
+| Phase 5 | Done | UX refinement, security hardening, video generation |
 
 ---
 
-## Post-Deployment Setup
+## Security
 
-After deploying to Vercel, configure the Clerk webhook:
-
-1. Clerk Dashboard → **Webhooks** → **Add Endpoint**
-2. URL: `https://pixelvault-seven.vercel.app/api/webhooks/clerk`
-3. Enable event: `user.created`
-4. Copy the Signing Secret → set `CLERK_WEBHOOK_SECRET` in Vercel environment variables
+- AES-256-GCM encrypted API key storage
+- Token bucket rate limiting (10 req/min generation, 5 req/min video)
+- Image upload validation (10MB max, MIME type check)
+- Error message sanitization (no internal details leaked)
+- Webhook replay protection
+- Server-side credit deduction only
+- No AI keys or DB credentials exposed via `NEXT_PUBLIC_`
 
 ---
 
 ## Architecture Principles
 
-- **No magic values** — all model IDs, routes, and config in `src/constants/`
-- **Strict TypeScript** — no `any`; all types via interfaces or Zod schemas
+- **No magic values** — all config in `src/constants/`
+- **Strict TypeScript** — no `any`; types via Zod schemas
 - **Layered architecture** — constants → types → services → hooks → components
 - **Thin API routes** — auth check + Zod parse + service call only
 - **Server-side credit logic** — credits never trusted from client
-- **Secrets never exposed** — no AI keys or DB credentials with `NEXT_PUBLIC_` prefix

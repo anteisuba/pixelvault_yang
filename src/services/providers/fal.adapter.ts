@@ -12,6 +12,7 @@ import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import type {
+  HealthCheckInput,
   ProviderAdapter,
   ProviderGenerationInput,
   ProviderVideoInput,
@@ -318,6 +319,33 @@ export const falAdapter: ProviderAdapter = {
         duration: VIDEO_GENERATION.DEFAULT_DURATION,
         requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
       },
+    }
+  },
+
+  async healthCheck({ modelId, apiKey, baseUrl, timeoutMs }: HealthCheckInput) {
+    const start = Date.now()
+    try {
+      const endpoint = `${baseUrl}/${modelId}`
+      const response = await fetch(endpoint, {
+        method: 'HEAD',
+        headers: { Authorization: `Key ${apiKey}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      const latencyMs = Date.now() - start
+      if (response.ok || response.status === 405 || response.status === 422) {
+        return { status: 'available' as const, latencyMs }
+      }
+      return {
+        status: 'unavailable' as const,
+        latencyMs,
+        error: `HTTP ${response.status}`,
+      }
+    } catch (err) {
+      return {
+        status: 'unavailable' as const,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      }
     }
   },
 }

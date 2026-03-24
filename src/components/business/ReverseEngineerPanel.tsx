@@ -49,7 +49,13 @@ function resizeImageToBase64(file: File): Promise<string> {
   })
 }
 
-export function ReverseEngineerPanel() {
+interface ReverseEngineerPanelProps {
+  onUsePrompt?: (prompt: string) => void
+}
+
+export function ReverseEngineerPanel({
+  onUsePrompt,
+}: ReverseEngineerPanelProps = {}) {
   const t = useTranslations('ReverseEngineer')
   const {
     step,
@@ -245,14 +251,27 @@ export function ReverseEngineerPanel() {
 
       {/* Generate variations button */}
       {step === 'prompt-ready' && (
-        <Button
-          type="button"
-          onClick={handleGenerateAll}
-          className="w-full gap-2 rounded-full"
-        >
-          <Sparkles className="size-4" />
-          {t('generateVariations')}
-        </Button>
+        <div className="flex gap-2">
+          {onUsePrompt && generatedPrompt ? (
+            <Button
+              type="button"
+              onClick={() => onUsePrompt(generatedPrompt)}
+              className="flex-1 gap-2 rounded-full"
+            >
+              <Sparkles className="size-4" />
+              {t('useAsPrompt')}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleGenerateAll}
+              className="flex-1 gap-2 rounded-full"
+            >
+              <Sparkles className="size-4" />
+              {t('generateVariations')}
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Loading */}

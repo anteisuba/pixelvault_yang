@@ -1,5 +1,6 @@
 import type { AspectRatio } from '@/constants/config'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
+import type { ModelHealthStatus } from '@/types'
 
 export interface ProviderGenerationInput {
   prompt: string
@@ -35,6 +36,8 @@ export interface ProviderVideoResult {
   height: number
   duration: number
   requestCount: number
+  /** Optional auth headers needed to fetch the video URL (e.g. OpenAI Sora) */
+  fetchHeaders?: Record<string, string>
 }
 
 export interface ProviderQueueSubmitInput {
@@ -68,6 +71,19 @@ export interface ProviderQueueStatusResult {
   result?: ProviderVideoResult
 }
 
+export interface HealthCheckInput {
+  modelId: string
+  apiKey: string
+  baseUrl: string
+  timeoutMs: number
+}
+
+export interface HealthCheckResult {
+  status: ModelHealthStatus
+  latencyMs: number
+  error?: string
+}
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(
@@ -80,4 +96,5 @@ export interface ProviderAdapter {
   checkVideoQueueStatus?(
     input: ProviderQueueStatusInput,
   ): Promise<ProviderQueueStatusResult>
+  healthCheck?(input: HealthCheckInput): Promise<HealthCheckResult>
 }

@@ -6,21 +6,25 @@ import type {
   UserApiKeyRecord,
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
+  ApiKeyHealthStatus,
 } from '@/types'
 import {
   listApiKeys,
   createApiKey,
   updateApiKey,
   deleteApiKey,
+  verifyApiKey,
 } from '@/lib/api-client'
 
 export interface UseApiKeysReturn {
   keys: UserApiKeyRecord[]
   isLoading: boolean
   error: string | null
+  healthMap: Record<string, ApiKeyHealthStatus>
   create: (data: CreateApiKeyRequest) => Promise<boolean>
   update: (id: string, data: UpdateApiKeyRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  verify: (id: string) => Promise<ApiKeyHealthStatus>
   refresh: () => Promise<void>
 }
 
@@ -28,6 +32,9 @@ export function useApiKeys(): UseApiKeysReturn {
   const [keys, setKeys] = useState<UserApiKeyRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [healthMap, setHealthMap] = useState<
+    Record<string, ApiKeyHealthStatus>
+  >({})
 
   const fetchKeys = useCallback(async () => {
     setIsLoading(true)
@@ -99,11 +106,37 @@ export function useApiKeys(): UseApiKeysReturn {
     if (response.success) {
       setError(null)
       setKeys((prev) => prev.filter((k) => k.id !== id))
+      setHealthMap((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       return true
     }
     setError(response.error ?? 'Failed to delete API key')
     return false
   }, [])
 
-  return { keys, isLoading, error, create, update, remove, refresh: fetchKeys }
+  const verify = useCallback(
+    async (id: string): Promise<ApiKeyHealthStatus> => {
+      const response = await verifyApiKey(id)
+      const status: ApiKeyHealthStatus =
+        response.success && response.data ? response.data.status : 'failed'
+      setHealthMap((prev) => ({ ...prev, [id]: status }))
+      return status
+    },
+    [],
+  )
+
+  return {
+    keys,
+    isLoading,
+    error,
+    healthMap,
+    create,
+    update,
+    remove,
+    verify,
+    refresh: fetchKeys,
+  }
 }

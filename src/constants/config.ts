@@ -66,6 +66,15 @@ export const API_ENDPOINTS = {
 
   /** Video generation status polling */
   GENERATE_VIDEO_STATUS: '/api/generate-video/status',
+
+  /** Public model list (merged DB + hardcoded) */
+  MODELS: '/api/models',
+
+  /** Model health check */
+  MODEL_HEALTH: '/api/models/health',
+
+  /** Admin model management */
+  ADMIN_MODELS: '/api/admin/models',
 } as const
 
 /** Arena configuration */
@@ -91,6 +100,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
+  OPENAI_VIDEO: 'https://api.openai.com/v1/videos',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',
@@ -104,6 +114,12 @@ export const VIDEO_GENERATION = {
   POLL_INTERVAL_MS: 3000,
   MAX_POLL_ATTEMPTS: 120,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
+} as const
+
+/** Health check configuration */
+export const HEALTH_CHECK = {
+  CACHE_TTL_MS: 300_000,
+  TIMEOUT_MS: 10_000,
 } as const
 
 /** Pagination defaults */

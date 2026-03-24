@@ -12,6 +12,7 @@ import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import type {
+  HealthCheckInput,
   ProviderAdapter,
   ProviderGenerationInput,
   ProviderVideoInput,
@@ -234,6 +235,41 @@ export const replicateAdapter: ProviderAdapter = {
       height,
       duration: duration ?? VIDEO_GENERATION.DEFAULT_DURATION,
       requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+    }
+  },
+
+  async healthCheck({ modelId, apiKey, baseUrl, timeoutMs }: HealthCheckInput) {
+    const start = Date.now()
+    try {
+      const [owner, name] = modelId.split('/')
+      if (!owner || !name) {
+        return {
+          status: 'unavailable' as const,
+          latencyMs: Date.now() - start,
+          error: 'Invalid Replicate model ID format',
+        }
+      }
+      const endpoint = `${baseUrl}/models/${owner}/${name}`
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      const latencyMs = Date.now() - start
+      if (response.ok) {
+        return { status: 'available' as const, latencyMs }
+      }
+      return {
+        status: 'unavailable' as const,
+        latencyMs,
+        error: `HTTP ${response.status}`,
+      }
+    } catch (err) {
+      return {
+        status: 'unavailable' as const,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      }
     }
   },
 }

@@ -6,6 +6,7 @@ import type { AspectRatio } from '@/constants/config'
 import type {
   ArenaMatchRecord,
   ArenaEntryRecord,
+  ArenaModelSelection,
   EloUpdate,
   LeaderboardEntry,
 } from '@/types'
@@ -15,35 +16,48 @@ import { getAvailableModels } from '@/constants/models'
 
 // ─── Match Creation ──────────────────────────────────────────────
 
+export interface CreateArenaMatchInput {
+  prompt: string
+  aspectRatio: AspectRatio
+  models?: ArenaModelSelection[]
+  referenceImage?: string
+}
+
 export async function createArenaMatch(
   clerkId: string,
-  prompt: string,
-  aspectRatio: AspectRatio,
+  input: CreateArenaMatchInput,
 ): Promise<string> {
   const dbUser = await getUserByClerkId(clerkId)
   if (!dbUser) throw new Error('User not found')
 
-  const models = getAvailableModels()
-  if (models.length < ARENA.MIN_MODELS_FOR_MATCH) {
-    throw new Error(
-      `Arena requires at least ${ARENA.MIN_MODELS_FOR_MATCH} available models`,
-    )
+  // Resolve which models to use: user-selected or all available
+  let selectedModels: ArenaModelSelection[]
+  if (input.models && input.models.length >= ARENA.MIN_MODELS_FOR_MATCH) {
+    selectedModels = input.models
+  } else {
+    const available = getAvailableModels()
+    if (available.length < ARENA.MIN_MODELS_FOR_MATCH) {
+      throw new Error(
+        `Arena requires at least ${ARENA.MIN_MODELS_FOR_MATCH} available models`,
+      )
+    }
+    selectedModels = available.map((m) => ({ modelId: m.id }))
   }
 
   // Shuffle model order for blind testing
-  const shuffled = [...models].sort(() => Math.random() - 0.5)
+  const shuffled = [...selectedModels].sort(() => Math.random() - 0.5)
 
   const match = await db.arenaMatch.create({
     data: {
       userId: dbUser.id,
-      prompt,
-      aspectRatio,
+      prompt: input.prompt,
+      aspectRatio: input.aspectRatio,
     },
   })
 
   // Generate images in parallel with timeout
   const results = await Promise.allSettled(
-    shuffled.map(async (model) => {
+    shuffled.map(async (selection) => {
       const controller = new AbortController()
       const timeout = setTimeout(
         () => controller.abort(),
@@ -52,11 +66,13 @@ export async function createArenaMatch(
 
       try {
         const generation = await generateImageForUser(clerkId, {
-          prompt,
-          modelId: model.id,
-          aspectRatio,
+          prompt: input.prompt,
+          modelId: selection.modelId,
+          aspectRatio: input.aspectRatio,
+          referenceImage: input.referenceImage,
+          apiKeyId: selection.apiKeyId,
         })
-        return { model, generation }
+        return { modelId: selection.modelId, generation }
       } finally {
         clearTimeout(timeout)
       }
@@ -71,12 +87,25 @@ export async function createArenaMatch(
         data: {
           matchId: match.id,
           generationId: result.value.generation.id,
-          modelId: result.value.model.id,
+          modelId: result.value.modelId,
           slotIndex,
         },
       })
       slotIndex++
+    } else {
+      console.error(
+        `[Arena] Generation failed for model ${shuffled[results.indexOf(result)]?.modelId}:`,
+        result.reason,
+      )
     }
+  }
+
+  // Require at least 2 successful entries for a valid match
+  if (slotIndex < ARENA.MIN_MODELS_FOR_MATCH) {
+    await db.arenaMatch.delete({ where: { id: match.id } })
+    throw new Error(
+      `Arena match requires at least ${ARENA.MIN_MODELS_FOR_MATCH} successful generations, but only ${slotIndex} succeeded`,
+    )
   }
 
   return match.id
@@ -137,17 +166,13 @@ function calculateElo(
 async function getOrCreateEloRating(
   modelId: string,
 ): Promise<{ rating: number }> {
-  const existing = await db.modelEloRating.findUnique({
+  const record = await db.modelEloRating.upsert({
     where: { modelId },
+    create: { modelId, rating: ARENA.INITIAL_ELO },
+    update: {},
   })
 
-  if (existing) return { rating: existing.rating }
-
-  const created = await db.modelEloRating.create({
-    data: { modelId, rating: ARENA.INITIAL_ELO },
-  })
-
-  return { rating: created.rating }
+  return { rating: record.rating }
 }
 
 async function updateEloWithOptimisticLock(

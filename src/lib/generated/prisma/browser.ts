@@ -63,6 +63,11 @@ export type ArenaEntry = Prisma.ArenaEntryModel
  */
 export type ModelEloRating = Prisma.ModelEloRatingModel
 /**
+ * Model ModelConfig
+ * 
+ */
+export type ModelConfig = Prisma.ModelConfigModel
+/**
  * Model Story
  * 
  */

@@ -4,12 +4,26 @@ import { useEffect, useState } from 'react'
 import { Trophy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
+import { ROUTES } from '@/constants/routes'
 import type { LeaderboardEntry } from '@/types'
 import { getArenaLeaderboardAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
+import { Link } from '@/i18n/navigation'
+
+function getModelDisplayName(
+  modelId: string,
+  tModels: (key: string) => string,
+): string {
+  if (isBuiltInModel(modelId)) {
+    return tModels(`${getModelMessageKey(modelId)}.label`)
+  }
+  return modelId
+}
 
 export function ArenaLeaderboard() {
   const t = useTranslations('ArenaLeaderboard')
+  const tModels = useTranslations('Models')
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -87,9 +101,12 @@ export function ArenaLeaderboard() {
                 </span>
               </td>
               <td className="px-4 py-3">
-                <p className="text-sm font-medium text-foreground">
-                  {entry.modelId}
-                </p>
+                <Link
+                  href={`${ROUTES.GALLERY}?model=${encodeURIComponent(entry.modelId)}`}
+                  className="text-sm font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary/50"
+                >
+                  {getModelDisplayName(entry.modelId, tModels)}
+                </Link>
               </td>
               <td className="px-4 py-3 text-right">
                 <p className="text-sm font-bold tabular-nums text-foreground">

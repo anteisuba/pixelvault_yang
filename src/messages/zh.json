@@ -421,11 +421,22 @@
       "hideComposer": "收起表单",
       "enableRoute": "启用路由",
       "disableRoute": "停用路由",
-      "deleteKey": "删除路由"
+      "deleteKey": "删除路由",
+      "verifyKey": "验证 API 密钥",
+      "verifying": "验证中..."
     },
     "status": {
       "enabled": "已启用",
       "disabled": "已停用"
+    },
+    "health": {
+      "available": "可用",
+      "noKey": "无 API 密钥",
+      "failed": "不可用"
+    },
+    "collapse": {
+      "showAll": "展开全部模型（{count}）",
+      "hideAll": "收起"
     },
     "deleteDialog": {
       "title": "删除已保存路由",
@@ -522,17 +533,31 @@
     }
   },
   "ModelRanking": {
-    "title": "2026 图片 AI 排名",
-    "subtitle": "LM Arena ELO 排名 · 标记「已接入」的模型可绑定 API Key 使用。",
+    "tabImage": "图片",
+    "tabVideo": "视频",
+    "imageTitle": "2026 图片 AI 排名",
+    "imageSubtitle": "Artificial Analysis 综合评测 · 标记「已接入」的模型可绑定 API Key 使用。",
+    "videoTitle": "2026 视频 AI 排名",
+    "videoSubtitle": "Artificial Analysis ELO 排名 · 标记「已接入」的模型可绑定 API Key 使用。",
     "supported": "已接入",
     "noApi": "无 API",
+    "tiers": {
+      "premium": "旗舰",
+      "standard": "标准"
+    },
     "strengths": {
       "photorealism": "写实 · 光影",
       "overall": "综合最强 · 文字渲染",
       "logos": "Logo · 矢量设计",
       "textInImage": "文字嵌入图像",
       "multimodal": "提示词理解 · 多模态",
-      "artistic": "艺术风格 · 美学"
+      "cinematic": "电影质感 · 空间理解",
+      "videoMotion": "运动流畅 · 物理仿真",
+      "videoRealism": "超写实 · 音频同步",
+      "videoCreative": "创意表达 · 镜头语言",
+      "videoConsistency": "角色一致性 · 稳定性",
+      "videoSpeed": "快速生成 · 性价比高",
+      "videoCinematic": "电影感 · 光影氛围"
     }
   },
   "StoryBoard": {
@@ -568,10 +593,31 @@
     "heroEyebrow": "竞技场",
     "heroTitle": "模型盲测 PK",
     "heroDescription": "一个提示词，全模型生成，盲投票，ELO 排名。",
+    "modelSelectLabel": "选择模型",
+    "modelSelectCount": "已选 {count} 个",
+    "modelSelectMinimum": "至少选择 2 个模型才能对战",
+    "modelBadgeWorkspace": "工作区",
+    "modelBadgeSaved": "已保存",
+    "keyStatus": {
+      "ready": "已配置 API 密钥",
+      "nokey": "未配置密钥",
+      "unavailable": "不可用"
+    },
+    "aspectRatioLabel": "宽高比",
     "promptLabel": "对战提示词",
     "promptPlaceholder": "描述你想让所有模型生成的图片...",
+    "referenceTitle": "参考图片",
+    "referenceIdle": "上传图片引导生成方向",
+    "referenceSelected": "已附参考图片",
+    "referenceBadge": "已附",
+    "referenceUpload": "拖拽图片或点击上传",
+    "referenceFormats": "JPG, PNG, WebP",
+    "referencePreviewAlt": "参考图片预览",
+    "referenceRemoveLabel": "移除参考图片",
+    "reverseTitle": "图片反向工程",
+    "reverseDescription": "上传图片，自动生成提示词",
     "battleButton": "开战！",
-    "creating": "全模型生成中...",
+    "creating": "正在用选定模型生成...",
     "leaderboardLink": "排行榜",
     "promptUsed": "提示词",
     "voteInstruction": "哪张图片最符合你的提示词？投票揭晓模型身份。",
@@ -604,7 +650,8 @@
     "variationsTitle": "已生成 {count} 个变体",
     "originalImage": "原图",
     "failedModels": "失败: {models}",
-    "reset": "重置"
+    "reset": "重置",
+    "useAsPrompt": "用作对战提示词"
   },
   "Models": {
     "sdxl": {
@@ -636,12 +683,20 @@
       "description": "Flux 2 的极速版本，适合快速原型和即时生成。"
     },
     "geminiProImage": {
-      "label": "Gemini 3 Pro Image",
-      "description": "Google 旗舰级图像模型，顶级质量与提示词忠实度。"
+      "label": "Gemini 3.1 Pro Image",
+      "description": "Google 旗舰级图像模型，工作室品质 4K 视觉效果。"
     },
-    "ideogram2": {
-      "label": "Ideogram 2.0",
-      "description": "擅长在图像中渲染文字，兼具出色的艺术质感。"
+    "ideogram3": {
+      "label": "Ideogram V3",
+      "description": "图像文字渲染最强，4 秒快速生成。"
+    },
+    "recraftV3": {
+      "label": "Recraft V3",
+      "description": "设计导向图像模型，支持品牌与风格系统。"
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
     },
     "veo3": {
       "label": "Veo 3",
@@ -659,17 +714,25 @@
       "label": "可灵 V2",
       "description": "稳定的电影级视频，运动感知，支持图生视频"
     },
+    "sora2": {
+      "label": "Sora 2",
+      "description": "OpenAI — 电影级视频生成，原生音频，720p"
+    },
     "minimaxVideo": {
-      "label": "MiniMax 视频",
-      "description": "快速生成，提示词优化，镜头控制"
+      "label": "MiniMax Hailuo",
+      "description": "1080p 快速生成，提示词优化，镜头控制"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "最高1080p，循环视频，双图插值"
     },
+    "pikaV22": {
+      "label": "Pika V2.2",
+      "description": "1080p 视频，PikaScenes 多图合成"
+    },
     "wanVideo": {
-      "label": "万象视频",
-      "description": "超高性价比开源模型，720p"
+      "label": "万象 2.2",
+      "description": "开源 14B 模型，超高性价比"
     },
     "hunyuanVideo": {
       "label": "混元视频",

@@ -16,6 +16,7 @@ interface GalleryFeedProps {
   initialPage: number
   initialHasMore: boolean
   total: number
+  initialModel?: string
 }
 
 export function GalleryFeed({
@@ -23,6 +24,7 @@ export function GalleryFeed({
   initialPage,
   initialHasMore,
   total,
+  initialModel,
 }: GalleryFeedProps) {
   const t = useTranslations('GalleryPage')
   const {
@@ -40,6 +42,7 @@ export function GalleryFeed({
     initialPage,
     initialHasMore,
     initialTotal: total,
+    initialModel,
   })
 
   const displayTotal = currentTotal ?? total

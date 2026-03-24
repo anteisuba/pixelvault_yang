@@ -60,6 +60,7 @@ export const ModelName = {
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
   ModelEloRating: 'ModelEloRating',
+  ModelConfig: 'ModelConfig',
   Story: 'Story',
   StoryPanel: 'StoryPanel'
 } as const
@@ -223,6 +224,30 @@ export const ModelEloRatingScalarFieldEnum = {
 export type ModelEloRatingScalarFieldEnum = (typeof ModelEloRatingScalarFieldEnum)[keyof typeof ModelEloRatingScalarFieldEnum]
 
 
+export const ModelConfigScalarFieldEnum = {
+  id: 'id',
+  modelId: 'modelId',
+  externalModelId: 'externalModelId',
+  adapterType: 'adapterType',
+  outputType: 'outputType',
+  cost: 'cost',
+  available: 'available',
+  officialUrl: 'officialUrl',
+  timeoutMs: 'timeoutMs',
+  qualityTier: 'qualityTier',
+  i2vModelId: 'i2vModelId',
+  videoDefaults: 'videoDefaults',
+  providerConfig: 'providerConfig',
+  sortOrder: 'sortOrder',
+  healthStatus: 'healthStatus',
+  lastHealthCheck: 'lastHealthCheck',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ModelConfigScalarFieldEnum = (typeof ModelConfigScalarFieldEnum)[keyof typeof ModelConfigScalarFieldEnum]
+
+
 export const StoryScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -264,6 +289,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {

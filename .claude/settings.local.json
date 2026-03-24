@@ -53,7 +53,14 @@
       "WebFetch(domain:developers.openai.com)",
       "Bash(curl -s https://lvyovo-wiki.tech/_next/static/chunks/cf4f245a648d25d8.js)",
       "Bash(curl -s https://lvyovo-wiki.tech/_next/static/chunks/7b8182882dcd1f4d.js)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(B=~/.claude/skills/gstack/browse/dist/browse)",
+      "Bash($B goto:*)",
+      "Bash(head -20 echo --- find ~/.claude/ -name *.md -path *web*)",
+      "Bash(bash ~/.claude/skills/web-access/scripts/check-deps.sh)",
+      "Bash(bash ~/.claude/web-access/check-deps.sh)",
+      "Bash(bash /c/Users/yang.jian.p/.claude/web-access/scripts/check-deps.sh)"
     ]
   },
   "hooks": {

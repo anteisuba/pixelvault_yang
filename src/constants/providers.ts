@@ -65,7 +65,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
 
 export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: 'black-forest-labs/FLUX.1-schnell',
-  [AI_ADAPTER_TYPES.GEMINI]: 'gemini-2.0-flash-exp-image-generation',
+  [AI_ADAPTER_TYPES.GEMINI]: 'gemini-3.1-flash-image-preview',
   [AI_ADAPTER_TYPES.OPENAI]: 'gpt-image-1.5',
   [AI_ADAPTER_TYPES.FAL]: 'fal-ai/flux-2-pro',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',

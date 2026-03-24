@@ -192,6 +192,22 @@ export interface ApiKeyResponse {
   error?: string
 }
 
+/** Result of verifying a user's API key */
+export type ApiKeyHealthStatus = 'available' | 'no_key' | 'failed'
+
+export interface ApiKeyVerifyResult {
+  id: string
+  status: ApiKeyHealthStatus
+  latencyMs?: number
+  error?: string
+}
+
+export interface ApiKeyVerifyResponse {
+  success: boolean
+  data?: ApiKeyVerifyResult
+  error?: string
+}
+
 // ─── Visibility Toggle ────────────────────────────────────────────
 
 export interface ToggleVisibilityResponse {
@@ -338,6 +354,13 @@ export interface GenerateVariationsResponse {
 
 // ─── Arena ───────────────────────────────────────────────────────
 
+export const ArenaModelSelectionSchema = z.object({
+  modelId: z.string().min(1),
+  apiKeyId: z.string().optional(),
+})
+
+export type ArenaModelSelection = z.infer<typeof ArenaModelSelectionSchema>
+
 export const CreateArenaMatchRequestSchema = z.object({
   prompt: z
     .string()
@@ -345,6 +368,8 @@ export const CreateArenaMatchRequestSchema = z.object({
     .min(1, 'Prompt is required')
     .max(GENERATION_LIMITS.PROMPT_MAX_LENGTH),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+  models: z.array(ArenaModelSelectionSchema).min(2).optional(),
+  referenceImage: z.string().optional(),
 })
 
 export type CreateArenaMatchRequest = z.infer<
@@ -502,3 +527,93 @@ export interface GenerateNarrativeResponse {
   data?: { panels: Array<{ id: string; narration: string; caption: string }> }
   error?: string
 }
+
+// ─── Model Config (Admin) ───────────────────────────────────────
+
+export const ModelConfigSchema = z.object({
+  modelId: z.string().trim().min(1).max(100),
+  externalModelId: z.string().trim().min(1).max(300),
+  adapterType: z.string().trim().min(1).max(50),
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO']),
+  cost: z.number().int().min(0).max(100),
+  available: z.boolean(),
+  officialUrl: z.string().url().optional().nullable(),
+  timeoutMs: z.number().int().min(1000).max(600000).optional().nullable(),
+  qualityTier: z.enum(['budget', 'standard', 'premium']).optional().nullable(),
+  i2vModelId: z.string().max(300).optional().nullable(),
+  videoDefaults: z.record(z.string(), z.unknown()).optional().nullable(),
+  providerConfig: z.object({
+    label: z.string(),
+    baseUrl: z.string().url(),
+  }),
+  sortOrder: z.number().int().default(0),
+})
+
+export const CreateModelConfigSchema = ModelConfigSchema
+
+export const UpdateModelConfigSchema = ModelConfigSchema.partial().omit({
+  modelId: true,
+})
+
+export type ModelConfigInput = z.infer<typeof ModelConfigSchema>
+export type UpdateModelConfigInput = z.infer<typeof UpdateModelConfigSchema>
+
+export interface ModelConfigRecord {
+  id: string
+  modelId: string
+  externalModelId: string
+  adapterType: string
+  outputType: OutputType
+  cost: number
+  available: boolean
+  officialUrl: string | null
+  timeoutMs: number | null
+  qualityTier: string | null
+  i2vModelId: string | null
+  videoDefaults: Record<string, unknown> | null
+  providerConfig: { label: string; baseUrl: string }
+  sortOrder: number
+  healthStatus: string | null
+  lastHealthCheck: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ModelConfigResponse {
+  success: boolean
+  data?: ModelConfigRecord
+  error?: string
+}
+
+export interface ModelConfigListResponse {
+  success: boolean
+  data?: ModelConfigRecord[]
+  error?: string
+}
+
+// ─── Model Health Check ─────────────────────────────────────────
+
+export const ModelHealthStatusSchema = z.enum([
+  'available',
+  'unavailable',
+  'degraded',
+])
+export type ModelHealthStatus = z.infer<typeof ModelHealthStatusSchema>
+
+export interface ModelHealthRecord {
+  modelId: string
+  status: ModelHealthStatus
+  lastChecked: Date
+  latencyMs?: number
+  error?: string
+}
+
+export interface ModelHealthResponse {
+  success: boolean
+  data?: ModelHealthRecord[]
+  error?: string
+}
+
+export const ModelHealthRefreshSchema = z.object({
+  modelId: z.string().trim().min(1).optional(),
+})

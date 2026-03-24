@@ -393,6 +393,7 @@ export const ModelName = {
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
   ModelEloRating: 'ModelEloRating',
+  ModelConfig: 'ModelConfig',
   Story: 'Story',
   StoryPanel: 'StoryPanel'
 } as const
@@ -410,7 +411,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "story" | "storyPanel"
+    modelProps: "user" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1080,6 +1081,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ModelConfig: {
+      payload: Prisma.$ModelConfigPayload<ExtArgs>
+      fields: Prisma.ModelConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ModelConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ModelConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.ModelConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ModelConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        findMany: {
+          args: Prisma.ModelConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>[]
+        }
+        create: {
+          args: Prisma.ModelConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        createMany: {
+          args: Prisma.ModelConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ModelConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.ModelConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        update: {
+          args: Prisma.ModelConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.ModelConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ModelConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ModelConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.ModelConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.ModelConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateModelConfig>
+        }
+        groupBy: {
+          args: Prisma.ModelConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ModelConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ModelConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ModelConfigCountAggregateOutputType> | number
+        }
+      }
+    }
     Story: {
       payload: Prisma.$StoryPayload<ExtArgs>
       fields: Prisma.StoryFieldRefs
@@ -1410,6 +1485,30 @@ export const ModelEloRatingScalarFieldEnum = {
 export type ModelEloRatingScalarFieldEnum = (typeof ModelEloRatingScalarFieldEnum)[keyof typeof ModelEloRatingScalarFieldEnum]
 
 
+export const ModelConfigScalarFieldEnum = {
+  id: 'id',
+  modelId: 'modelId',
+  externalModelId: 'externalModelId',
+  adapterType: 'adapterType',
+  outputType: 'outputType',
+  cost: 'cost',
+  available: 'available',
+  officialUrl: 'officialUrl',
+  timeoutMs: 'timeoutMs',
+  qualityTier: 'qualityTier',
+  i2vModelId: 'i2vModelId',
+  videoDefaults: 'videoDefaults',
+  providerConfig: 'providerConfig',
+  sortOrder: 'sortOrder',
+  healthStatus: 'healthStatus',
+  lastHealthCheck: 'lastHealthCheck',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ModelConfigScalarFieldEnum = (typeof ModelConfigScalarFieldEnum)[keyof typeof ModelConfigScalarFieldEnum]
+
+
 export const StoryScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -1451,6 +1550,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -1706,6 +1813,7 @@ export type GlobalOmitConfig = {
   arenaMatch?: Prisma.ArenaMatchOmit
   arenaEntry?: Prisma.ArenaEntryOmit
   modelEloRating?: Prisma.ModelEloRatingOmit
+  modelConfig?: Prisma.ModelConfigOmit
   story?: Prisma.StoryOmit
   storyPanel?: Prisma.StoryPanelOmit
 }

@@ -32,6 +32,8 @@ interface UseGalleryOptions {
   limit?: number
   /** When true, fetches current user's own generations (including private) */
   mine?: boolean
+  /** Pre-set model filter from URL query param */
+  initialModel?: string
 }
 
 export interface UseGalleryReturn {
@@ -72,6 +74,7 @@ export function useGallery({
   initialTotal = 0,
   limit = PAGINATION.DEFAULT_LIMIT,
   mine = false,
+  initialModel = '',
 }: UseGalleryOptions = {}): UseGalleryReturn {
   const [generations, setGenerations] =
     useState<GenerationRecord[]>(initialGenerations)
@@ -81,7 +84,10 @@ export function useGallery({
   const [error, setError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [filters, setFiltersState] = useState<GalleryFilters>(DEFAULT_FILTERS)
+  const [filters, setFiltersState] = useState<GalleryFilters>({
+    ...DEFAULT_FILTERS,
+    model: initialModel,
+  })
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(initialPage)
   const hasMoreRef = useRef(initialHasMore)
@@ -103,6 +109,9 @@ export function useGallery({
   useEffect(() => {
     filtersRef.current = filters
   }, [filters])
+
+  // When initialModel is set, server data is unfiltered — fetch filtered data on mount
+  const didInitialFetch = useRef(false)
 
   const fetchPage = useCallback(
     async (targetPage: number, append: boolean) => {
@@ -155,6 +164,14 @@ export function useGallery({
   const loadMore = useCallback(() => {
     void fetchPage(pageRef.current + 1, true)
   }, [fetchPage])
+
+  useEffect(() => {
+    if (initialModel && !didInitialFetch.current) {
+      didInitialFetch.current = true
+      setGenerations([])
+      void fetchPage(1, false)
+    }
+  }, [initialModel, fetchPage])
 
   const setFilters = useCallback(
     (newFilters: GalleryFilters) => {

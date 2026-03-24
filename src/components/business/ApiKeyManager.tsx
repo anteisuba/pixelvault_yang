@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Circle,
   ExternalLink,
   Eye,
@@ -10,6 +12,7 @@ import {
   KeyRound,
   Loader2,
   Plus,
+  ShieldCheck,
   Sparkles,
   Trash2,
 } from 'lucide-react'
@@ -31,6 +34,7 @@ import {
   getProviderLabel,
 } from '@/constants/providers'
 import type {
+  ApiKeyHealthStatus,
   CreateApiKeyRequest,
   UpdateApiKeyRequest,
   UserApiKeyRecord,
@@ -80,6 +84,43 @@ function getModelDisplayLabel(tModels: MessageGetter, modelId: string): string {
 
   return modelId
 }
+
+// ─── Health Status Dot ──────────────────────────────────────────────
+
+function HealthDot({ status }: { status: ApiKeyHealthStatus | undefined }) {
+  const t = useTranslations('StudioApiKeys')
+
+  if (!status) return null
+
+  const config: Record<ApiKeyHealthStatus, { color: string; label: string }> = {
+    available: {
+      color: 'bg-emerald-500',
+      label: t('health.available'),
+    },
+    no_key: {
+      color: 'bg-amber-500',
+      label: t('health.noKey'),
+    },
+    failed: {
+      color: 'bg-red-500',
+      label: t('health.failed'),
+    },
+  }
+
+  const { color, label } = config[status]
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+      title={label}
+    >
+      <span className={cn('size-2 shrink-0 rounded-full', color)} />
+      {label}
+    </span>
+  )
+}
+
+// ─── Add Key Form ──────────────────────────────────────────────────
 
 interface AddKeyFormProps {
   onAdd: (data: CreateApiKeyRequest) => Promise<void>
@@ -274,14 +315,21 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
 
       {entryMode === 'preset' ? (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
+          <label
+            htmlFor="preset-model-select"
+            className="text-sm font-medium text-foreground"
+          >
             {t('addForm.presetModelLabel')}
           </label>
           <Select
+            name="presetModelId"
             value={resolvedPresetModelId}
             onValueChange={(value) => setPresetModelId(value as AI_MODELS)}
           >
-            <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background/80">
+            <SelectTrigger
+              id="preset-model-select"
+              className="h-11 rounded-2xl border-border/70 bg-background/80"
+            >
               <SelectValue placeholder={t('addForm.presetModelPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -417,16 +465,27 @@ function AddKeyForm({ onAdd, onCancel, isSubmitting }: AddKeyFormProps) {
   )
 }
 
+// ─── Key Row ───────────────────────────────────────────────────────
+
 interface KeyRowProps {
   record: UserApiKeyRecord
+  healthStatus: ApiKeyHealthStatus | undefined
   onToggle: (id: string, data: UpdateApiKeyRequest) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onVerify: (id: string) => Promise<void>
 }
 
-function KeyRow({ record, onToggle, onDelete }: KeyRowProps) {
+function KeyRow({
+  record,
+  healthStatus,
+  onToggle,
+  onDelete,
+  onVerify,
+}: KeyRowProps) {
   const t = useTranslations('StudioApiKeys')
   const [isPending, setIsPending] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
 
   const handleToggle = async () => {
     setIsPending(true)
@@ -438,6 +497,12 @@ function KeyRow({ record, onToggle, onDelete }: KeyRowProps) {
     setIsDeleting(true)
     await onDelete(record.id)
     setIsDeleting(false)
+  }
+
+  const handleVerify = async () => {
+    setIsVerifying(true)
+    await onVerify(record.id)
+    setIsVerifying(false)
   }
 
   return (
@@ -481,6 +546,7 @@ function KeyRow({ record, onToggle, onDelete }: KeyRowProps) {
           >
             {record.isActive ? t('status.enabled') : t('status.disabled')}
           </Badge>
+          <HealthDot status={healthStatus} />
         </div>
         <p className="font-mono text-xs text-muted-foreground">
           {record.maskedKey}
@@ -490,44 +556,62 @@ function KeyRow({ record, onToggle, onDelete }: KeyRowProps) {
         </p>
       </div>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <button
-            type="button"
-            disabled={isDeleting}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
-            title={t('actions.deleteKey')}
-          >
-            {isDeleting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Trash2 className="size-4" />
-            )}
-          </button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteDialog.title')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteDialog.description', { label: record.label })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {t('deleteDialog.cancelAction')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={handleVerify}
+          disabled={isVerifying}
+          className="text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          title={t('actions.verifyKey')}
+        >
+          {isVerifying ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <ShieldCheck className="size-4" />
+          )}
+        </button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              disabled={isDeleting}
+              className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+              title={t('actions.deleteKey')}
             >
-              {t('deleteDialog.confirmAction')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {isDeleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('deleteDialog.title')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('deleteDialog.description', { label: record.label })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                {t('deleteDialog.cancelAction')}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {t('deleteDialog.confirmAction')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   )
 }
+
+// ─── Helpers ───────────────────────────────────────────────────────
 
 function sortRouteRecords(records: UserApiKeyRecord[]): UserApiKeyRecord[] {
   return [...records].sort((left, right) => {
@@ -541,25 +625,40 @@ function sortRouteRecords(records: UserApiKeyRecord[]): UserApiKeyRecord[] {
   })
 }
 
+// ─── Main Component ────────────────────────────────────────────────
+
 export function ApiKeyManager() {
-  const { keys, isLoading, error, create, update, remove } = useApiKeysContext()
+  const { keys, isLoading, error, healthMap, create, update, remove, verify } =
+    useApiKeysContext()
   const t = useTranslations('StudioApiKeys')
   const tModels = useTranslations('Models')
   const [showAddForm, setShowAddForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showAllBuiltIn, setShowAllBuiltIn] = useState(false)
+  const [showAllCustom, setShowAllCustom] = useState(false)
   const availableModels = getAvailableModels()
   const activeRouteCount = keys.filter((key) => key.isActive).length
   const customRouteCount = keys.filter(
     (key) => !isBuiltInModel(key.modelId),
   ).length
 
-  const builtInGroups = availableModels.map((model) => ({
+  // Group built-in models
+  const allBuiltInGroups = availableModels.map((model) => ({
     modelId: model.id,
     adapterType: model.adapterType,
     providerConfig: model.providerConfig,
     keys: sortRouteRecords(keys.filter((key) => key.modelId === model.id)),
   }))
 
+  // Only show models with active routes unless expanded
+  const activeBuiltInGroups = allBuiltInGroups.filter((group) =>
+    group.keys.some((k) => k.isActive),
+  )
+  const displayedBuiltInGroups = showAllBuiltIn
+    ? allBuiltInGroups
+    : activeBuiltInGroups
+
+  // Group custom routes
   const customGroupMap = new Map<string, UserApiKeyRecord[]>()
   keys
     .filter((key) => !isBuiltInModel(key.modelId))
@@ -569,7 +668,7 @@ export function ApiKeyManager() {
       customGroupMap.set(groupId, [...existingGroup, key])
     })
 
-  const customGroups: ProviderRouteGroup[] = Array.from(
+  const allCustomGroups: ProviderRouteGroup[] = Array.from(
     customGroupMap.entries(),
   ).map(([groupId, groupKeys]) => ({
     groupId,
@@ -577,6 +676,13 @@ export function ApiKeyManager() {
     adapterType: groupKeys[0]?.adapterType ?? AI_ADAPTER_TYPES.HUGGINGFACE,
     keys: sortRouteRecords(groupKeys),
   }))
+
+  const activeCustomGroups = allCustomGroups.filter((group) =>
+    group.keys.some((k) => k.isActive),
+  )
+  const displayedCustomGroups = showAllCustom
+    ? allCustomGroups
+    : activeCustomGroups
 
   const handleAdd = async (data: CreateApiKeyRequest) => {
     setIsSubmitting(true)
@@ -596,8 +702,13 @@ export function ApiKeyManager() {
     await remove(id)
   }
 
+  const handleVerify = async (id: string) => {
+    await verify(id)
+  }
+
   return (
     <div className="space-y-6">
+      {/* ── Header + Summary ─────────────────────────────────────── */}
       <div className="rounded-3xl border border-border/70 bg-secondary/18 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
@@ -640,7 +751,9 @@ export function ApiKeyManager() {
               {t('summary.builtInModelsLabel')}
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {t('summary.builtInModelsValue', { count: builtInGroups.length })}
+              {t('summary.builtInModelsValue', {
+                count: allBuiltInGroups.length,
+              })}
             </p>
           </article>
           <article className="rounded-2xl border border-border/70 bg-background/76 p-4">
@@ -654,6 +767,7 @@ export function ApiKeyManager() {
         </div>
       </div>
 
+      {/* ── Add Form ─────────────────────────────────────────────── */}
       {showAddForm ? (
         <AddKeyForm
           onAdd={handleAdd}
@@ -675,77 +789,112 @@ export function ApiKeyManager() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* ── Built-in Model Routes ──────────────────────────────── */}
           <section className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="font-display text-sm font-medium text-foreground">
-                {t('sections.builtInTitle')}
-              </h3>
-              <p className="font-serif text-sm leading-6 text-muted-foreground">
-                {t('sections.builtInDescription')}
-              </p>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="font-display text-sm font-medium text-foreground">
+                  {t('sections.builtInTitle')}
+                </h3>
+                <p className="font-serif text-sm leading-6 text-muted-foreground">
+                  {t('sections.builtInDescription')}
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {builtInGroups.map((group) => (
-                <article
-                  key={group.modelId}
-                  className="rounded-3xl border border-border/70 bg-card/84 p-5"
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-display text-sm font-medium text-foreground">
-                          {getModelDisplayLabel(tModels, group.modelId)}
-                        </h4>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full px-3 py-1"
-                        >
-                          {getProviderLabel(group.providerConfig)}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="rounded-full px-3 py-1"
-                        >
-                          {t('summary.routeCount', {
-                            count: group.keys.length,
-                          })}
-                        </Badge>
+            {displayedBuiltInGroups.length > 0 ? (
+              <div className="space-y-4">
+                {displayedBuiltInGroups.map((group) => (
+                  <article
+                    key={group.modelId}
+                    className="rounded-3xl border border-border/70 bg-card/84 p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-display text-sm font-medium text-foreground">
+                            {getModelDisplayLabel(tModels, group.modelId)}
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className="rounded-full px-3 py-1"
+                          >
+                            {getProviderLabel(group.providerConfig)}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-3 py-1"
+                          >
+                            {t('summary.routeCount', {
+                              count: group.keys.length,
+                            })}
+                          </Badge>
+                        </div>
+                        <p className="font-serif text-sm leading-6 text-muted-foreground">
+                          {tModels(
+                            `${getModelMessageKey(group.modelId)}.description`,
+                          )}
+                        </p>
+                        <p className="truncate font-mono text-xs text-muted-foreground">
+                          {group.providerConfig.baseUrl}
+                        </p>
                       </div>
-                      <p className="font-serif text-sm leading-6 text-muted-foreground">
-                        {tModels(
-                          `${getModelMessageKey(group.modelId)}.description`,
-                        )}
-                      </p>
-                      <p className="truncate font-mono text-xs text-muted-foreground">
-                        {group.providerConfig.baseUrl}
-                      </p>
                     </div>
-                  </div>
 
-                  <div className="mt-4 space-y-3">
-                    {group.keys.length ? (
-                      group.keys.map((record) => (
-                        <KeyRow
-                          key={record.id}
-                          record={record}
-                          onToggle={handleUpdate}
-                          onDelete={handleDelete}
-                        />
-                      ))
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
-                        {t('emptyModel', {
-                          model: getModelDisplayLabel(tModels, group.modelId),
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
+                    <div className="mt-4 space-y-3">
+                      {group.keys.length ? (
+                        group.keys.map((record) => (
+                          <KeyRow
+                            key={record.id}
+                            record={record}
+                            healthStatus={healthMap[record.id]}
+                            onToggle={handleUpdate}
+                            onDelete={handleDelete}
+                            onVerify={handleVerify}
+                          />
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+                          {t('emptyModel', {
+                            model: getModelDisplayLabel(tModels, group.modelId),
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : !showAllBuiltIn ? (
+              <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+                {t('emptyModel', { model: t('sections.builtInTitle') })}
+              </div>
+            ) : null}
+
+            {/* Toggle to show/hide all built-in models */}
+            {allBuiltInGroups.length > activeBuiltInGroups.length ? (
+              <button
+                type="button"
+                onClick={() => setShowAllBuiltIn((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                {showAllBuiltIn ? (
+                  <>
+                    <ChevronDown className="size-4" />
+                    {t('collapse.hideAll')}
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight className="size-4" />
+                    {t('collapse.showAll', {
+                      count: allBuiltInGroups.length,
+                    })}
+                  </>
+                )}
+              </button>
+            ) : null}
           </section>
 
+          {/* ── Custom Model Routes ────────────────────────────────── */}
           <section className="space-y-4">
             <div className="space-y-1">
               <h3 className="font-display text-sm font-medium text-foreground">
@@ -756,9 +905,9 @@ export function ApiKeyManager() {
               </p>
             </div>
 
-            {customGroups.length ? (
+            {displayedCustomGroups.length > 0 ? (
               <div className="space-y-4">
-                {customGroups.map((group) => {
+                {displayedCustomGroups.map((group) => {
                   const adapterLabel = getProviderLabel(
                     getDefaultProviderConfig(group.adapterType),
                   )
@@ -813,8 +962,10 @@ export function ApiKeyManager() {
                           <KeyRow
                             key={record.id}
                             record={record}
+                            healthStatus={healthMap[record.id]}
                             onToggle={handleUpdate}
                             onDelete={handleDelete}
+                            onVerify={handleVerify}
                           />
                         ))}
                       </div>
@@ -822,7 +973,7 @@ export function ApiKeyManager() {
                   )
                 })}
               </div>
-            ) : (
+            ) : !showAllCustom ? (
               <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-card/70 px-4 py-6 text-sm text-muted-foreground">
                 <div className="flex items-start gap-3">
                   <span className="rounded-full bg-secondary p-2 text-foreground">
@@ -836,7 +987,30 @@ export function ApiKeyManager() {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
+
+            {/* Toggle to show/hide all custom groups */}
+            {allCustomGroups.length > activeCustomGroups.length ? (
+              <button
+                type="button"
+                onClick={() => setShowAllCustom((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                {showAllCustom ? (
+                  <>
+                    <ChevronDown className="size-4" />
+                    {t('collapse.hideAll')}
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight className="size-4" />
+                    {t('collapse.showAll', {
+                      count: allCustomGroups.length,
+                    })}
+                  </>
+                )}
+              </button>
+            ) : null}
           </section>
         </div>
       )}

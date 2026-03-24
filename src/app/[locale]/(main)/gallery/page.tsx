@@ -18,6 +18,7 @@ import {
 
 interface GalleryPageProps {
   params: Promise<{ locale: AppLocale }>
+  searchParams: Promise<{ model?: string }>
 }
 
 export async function generateMetadata({
@@ -31,8 +32,12 @@ export async function generateMetadata({
   }
 }
 
-export default async function GalleryPage({ params }: GalleryPageProps) {
+export default async function GalleryPage({
+  params,
+  searchParams,
+}: GalleryPageProps) {
   const { locale } = await params
+  const { model: initialModel } = await searchParams
   const isDenseLocale = isCjkLocale(locale)
   const t = await getTranslations({
     locale,
@@ -157,6 +162,7 @@ export default async function GalleryPage({ params }: GalleryPageProps) {
                 PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
               }
               total={total}
+              initialModel={initialModel}
             />
           </div>
         </section>

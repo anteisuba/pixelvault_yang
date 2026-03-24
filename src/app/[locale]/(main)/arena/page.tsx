@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArenaForm } from '@/components/business/ArenaForm'
 import { ArenaGrid } from '@/components/business/ArenaGrid'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { useArena } from '@/hooks/use-arena'
 
 export default function ArenaPage() {
@@ -37,10 +38,12 @@ export default function ArenaPage() {
         <section className="editorial-panel">
           {/* Idle — show form */}
           {(step === 'idle' || step === 'creating') && (
-            <ArenaForm
-              isCreating={step === 'creating'}
-              onBattle={startBattle}
-            />
+            <ApiKeysProvider>
+              <ArenaForm
+                isCreating={step === 'creating'}
+                onBattle={startBattle}
+              />
+            </ApiKeysProvider>
           )}
 
           {/* Voting or Revealed — show grid */}

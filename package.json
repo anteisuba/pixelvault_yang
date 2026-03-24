@@ -10,11 +10,15 @@
     "test": "vitest",
     "test:run": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
+    "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.993.0",
-    "@aws-sdk/lib-storage": "^3.1014.0",
+    "@aws-sdk/lib-storage": "^3.1015.0",
     "@clerk/localizations": "^4.2.1",
     "@clerk/nextjs": "^6.38.0",
     "@prisma/adapter-pg": "^7.4.2",

@@ -206,6 +206,29 @@ model ModelEloRating {
   updatedAt  DateTime @updatedAt
 }
 
+model ModelConfig {
+  id              String     @id @default(uuid())
+  modelId         String     @unique
+  externalModelId String
+  adapterType     String
+  outputType      OutputType @default(IMAGE)
+  cost            Int        @default(1)
+  available       Boolean    @default(true)
+  officialUrl     String?
+  timeoutMs       Int?
+  qualityTier     String?
+  i2vModelId      String?
+  videoDefaults   Json?
+  providerConfig  Json
+  sortOrder       Int        @default(0)
+  healthStatus    String?
+  lastHealthCheck DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([outputType, available, sortOrder])
+}
+
 model Story {
   id          String       @id @default(uuid())
   userId      String

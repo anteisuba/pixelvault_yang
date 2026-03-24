@@ -421,11 +421,22 @@
       "hideComposer": "Hide form",
       "enableRoute": "Enable route",
       "disableRoute": "Disable route",
-      "deleteKey": "Delete route"
+      "deleteKey": "Delete route",
+      "verifyKey": "Verify API key",
+      "verifying": "Verifying..."
     },
     "status": {
       "enabled": "Enabled",
       "disabled": "Disabled"
+    },
+    "health": {
+      "available": "Available",
+      "noKey": "No API key",
+      "failed": "Unavailable"
+    },
+    "collapse": {
+      "showAll": "Show all models ({count})",
+      "hideAll": "Collapse"
     },
     "deleteDialog": {
       "title": "Delete saved route",
@@ -522,17 +533,31 @@
     }
   },
   "ModelRanking": {
-    "title": "2026 Image AI Rankings",
-    "subtitle": "LM Arena ELO · Models marked 'Supported' can be used with your API key.",
+    "tabImage": "Image",
+    "tabVideo": "Video",
+    "imageTitle": "2026 Image AI Rankings",
+    "imageSubtitle": "Artificial Analysis benchmarks · Models marked 'Supported' can be used with your API key.",
+    "videoTitle": "2026 Video AI Rankings",
+    "videoSubtitle": "Artificial Analysis ELO · Models marked 'Supported' can be used with your API key.",
     "supported": "Supported",
     "noApi": "No API",
+    "tiers": {
+      "premium": "Premium",
+      "standard": "Standard"
+    },
     "strengths": {
       "photorealism": "Photorealism & lighting",
       "overall": "Best overall & text rendering",
       "logos": "Logos & vector design",
       "textInImage": "Text in images",
       "multimodal": "Prompt understanding & multimodal",
-      "artistic": "Artistic style & aesthetics"
+      "cinematic": "Cinematic aesthetics & spatial",
+      "videoMotion": "Smooth motion & physics",
+      "videoRealism": "Ultra-realism & audio sync",
+      "videoCreative": "Creative expression & cinematography",
+      "videoConsistency": "Character consistency & stability",
+      "videoSpeed": "Fast generation & cost-effective",
+      "videoCinematic": "Cinematic feel & lighting"
     }
   },
   "StoryBoard": {
@@ -568,10 +593,31 @@
     "heroEyebrow": "Arena",
     "heroTitle": "Blind Model Battle",
     "heroDescription": "One prompt, all models, blind vote, ELO ranking.",
+    "modelSelectLabel": "Select Models",
+    "modelSelectCount": "{count} selected",
+    "modelSelectMinimum": "Select at least 2 models to battle",
+    "modelBadgeWorkspace": "Workspace",
+    "modelBadgeSaved": "Saved",
+    "keyStatus": {
+      "ready": "API key configured",
+      "nokey": "No API key",
+      "unavailable": "Unavailable"
+    },
+    "aspectRatioLabel": "Aspect Ratio",
     "promptLabel": "Battle Prompt",
     "promptPlaceholder": "Describe the image you want all models to generate...",
+    "referenceTitle": "Reference Image",
+    "referenceIdle": "Upload an image to guide generation",
+    "referenceSelected": "Reference image attached",
+    "referenceBadge": "Attached",
+    "referenceUpload": "Drop an image or click to upload",
+    "referenceFormats": "JPG, PNG, WebP",
+    "referencePreviewAlt": "Reference preview",
+    "referenceRemoveLabel": "Remove reference image",
+    "reverseTitle": "Image Reverse Engineer",
+    "reverseDescription": "Upload an image to generate a prompt from it",
     "battleButton": "Battle!",
-    "creating": "Generating across all models...",
+    "creating": "Generating across selected models...",
     "leaderboardLink": "Leaderboard",
     "promptUsed": "Prompt",
     "voteInstruction": "Which image best matches your prompt? Vote to reveal the models.",
@@ -604,7 +650,8 @@
     "variationsTitle": "{count} variations generated",
     "originalImage": "Original",
     "failedModels": "Failed: {models}",
-    "reset": "Reset"
+    "reset": "Reset",
+    "useAsPrompt": "Use as Battle Prompt"
   },
   "Models": {
     "sdxl": {
@@ -636,12 +683,20 @@
       "description": "Fastest Flux 2 variant for rapid prototyping and quick generation."
     },
     "geminiProImage": {
-      "label": "Gemini 3 Pro Image",
-      "description": "Google's premium image model with top-tier quality and prompt adherence."
+      "label": "Gemini 3.1 Pro Image",
+      "description": "Google's premium image model with studio-quality 4K visuals."
     },
-    "ideogram2": {
-      "label": "Ideogram 2.0",
-      "description": "Exceptional at rendering text in images with strong artistic quality."
+    "ideogram3": {
+      "label": "Ideogram V3",
+      "description": "Best-in-class text rendering in images with fast 4-second generation."
+    },
+    "recraftV3": {
+      "label": "Recraft V3",
+      "description": "Design-focused image model with strong brand and style system support."
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "ByteDance's unified generation and editing model with up to 4MP output."
     },
     "veo3": {
       "label": "Veo 3",
@@ -659,17 +714,25 @@
       "label": "Kling V2",
       "description": "Reliable cinematic video, motion-aware, I2V support"
     },
+    "sora2": {
+      "label": "Sora 2",
+      "description": "OpenAI — cinematic video generation with native audio, 720p"
+    },
     "minimaxVideo": {
-      "label": "MiniMax Video",
-      "description": "Fast generation with prompt optimizer, camera controls"
+      "label": "MiniMax Hailuo",
+      "description": "Fast 1080p generation with prompt optimizer, camera controls"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "Up to 1080p, loop support, dual-image interpolation"
     },
+    "pikaV22": {
+      "label": "Pika V2.2",
+      "description": "1080p video with PikaScenes multi-image compositing"
+    },
     "wanVideo": {
-      "label": "Wan Video",
-      "description": "Budget-friendly open-source, 720p, great value"
+      "label": "Wan 2.2",
+      "description": "Open-source 14B model, budget-friendly, great value"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",

@@ -421,11 +421,22 @@
       "hideComposer": "フォームを閉じる",
       "enableRoute": "ルートを有効化",
       "disableRoute": "ルートを無効化",
-      "deleteKey": "ルートを削除"
+      "deleteKey": "ルートを削除",
+      "verifyKey": "API キーを検証",
+      "verifying": "検証中..."
     },
     "status": {
       "enabled": "有効",
       "disabled": "無効"
+    },
+    "health": {
+      "available": "利用可能",
+      "noKey": "API キーなし",
+      "failed": "利用不可"
+    },
+    "collapse": {
+      "showAll": "全モデルを表示（{count}）",
+      "hideAll": "折りたたむ"
     },
     "deleteDialog": {
       "title": "保存済みルートを削除",
@@ -522,17 +533,31 @@
     }
   },
   "ModelRanking": {
-    "title": "2026 画像AIランキング",
-    "subtitle": "LM Arena ELO · 「対応」マークのモデルはAPIキーで利用可能。",
+    "tabImage": "画像",
+    "tabVideo": "動画",
+    "imageTitle": "2026 画像AIランキング",
+    "imageSubtitle": "Artificial Analysis 総合評価 · 「対応」マークのモデルはAPIキーで利用可能。",
+    "videoTitle": "2026 動画AIランキング",
+    "videoSubtitle": "Artificial Analysis ELO · 「対応」マークのモデルはAPIキーで利用可能。",
     "supported": "対応",
     "noApi": "API なし",
+    "tiers": {
+      "premium": "プレミアム",
+      "standard": "スタンダード"
+    },
     "strengths": {
       "photorealism": "フォトリアリズム · ライティング",
       "overall": "総合最強 · テキスト描画",
       "logos": "ロゴ · ベクターデザイン",
       "textInImage": "画像内テキスト",
       "multimodal": "プロンプト理解 · マルチモーダル",
-      "artistic": "アートスタイル · 美学"
+      "cinematic": "シネマティック · 空間表現",
+      "videoMotion": "滑らかな動き · 物理演算",
+      "videoRealism": "超リアル · 音声同期",
+      "videoCreative": "クリエイティブ表現 · 映画的演出",
+      "videoConsistency": "キャラクター一貫性 · 安定性",
+      "videoSpeed": "高速生成 · コスパ良し",
+      "videoCinematic": "映画的雰囲気 · ライティング"
     }
   },
   "StoryBoard": {
@@ -568,10 +593,31 @@
     "heroEyebrow": "アリーナ",
     "heroTitle": "ブラインドモデルバトル",
     "heroDescription": "1プロンプト、全モデル生成、ブラインド投票、ELOランキング。",
+    "modelSelectLabel": "モデルを選択",
+    "modelSelectCount": "{count}個選択中",
+    "modelSelectMinimum": "バトルには最低2つのモデルを選択してください",
+    "modelBadgeWorkspace": "ワークスペース",
+    "modelBadgeSaved": "保存済み",
+    "keyStatus": {
+      "ready": "APIキー設定済み",
+      "nokey": "APIキーなし",
+      "unavailable": "利用不可"
+    },
+    "aspectRatioLabel": "アスペクト比",
     "promptLabel": "バトルプロンプト",
     "promptPlaceholder": "すべてのモデルに生成させたい画像を説明...",
+    "referenceTitle": "参考画像",
+    "referenceIdle": "画像をアップロードして生成をガイド",
+    "referenceSelected": "参考画像が添付されています",
+    "referenceBadge": "添付済み",
+    "referenceUpload": "画像をドロップまたはクリックしてアップロード",
+    "referenceFormats": "JPG, PNG, WebP",
+    "referencePreviewAlt": "参考画像プレビュー",
+    "referenceRemoveLabel": "参考画像を削除",
+    "reverseTitle": "画像リバースエンジニアリング",
+    "reverseDescription": "画像をアップロードしてプロンプトを生成",
     "battleButton": "バトル！",
-    "creating": "全モデルで生成中...",
+    "creating": "選択モデルで生成中...",
     "leaderboardLink": "ランキング",
     "promptUsed": "プロンプト",
     "voteInstruction": "どの画像がプロンプトに最も合っていますか？投票してモデルを明かしましょう。",
@@ -604,7 +650,8 @@
     "variationsTitle": "{count}個のバリエーションを生成",
     "originalImage": "オリジナル",
     "failedModels": "失敗: {models}",
-    "reset": "リセット"
+    "reset": "リセット",
+    "useAsPrompt": "バトルプロンプトとして使用"
   },
   "Models": {
     "sdxl": {
@@ -636,12 +683,20 @@
       "description": "Flux 2 の最速バリアント。素早いプロトタイピングに最適。"
     },
     "geminiProImage": {
-      "label": "Gemini 3 Pro Image",
-      "description": "Google のプレミアム画像モデル。最高品質とプロンプト忠実度。"
+      "label": "Gemini 3.1 Pro Image",
+      "description": "Google のプレミアム画像モデル。スタジオ品質の4Kビジュアル。"
     },
-    "ideogram2": {
-      "label": "Ideogram 2.0",
-      "description": "画像内テキスト描画に優れた高品質アートモデル。"
+    "ideogram3": {
+      "label": "Ideogram V3",
+      "description": "画像内テキスト描画で最高クラス。4秒の高速生成。"
+    },
+    "recraftV3": {
+      "label": "Recraft V3",
+      "description": "デザイン特化の画像モデル。ブランド・スタイルシステムに対応。"
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
     },
     "veo3": {
       "label": "Veo 3",
@@ -659,17 +714,25 @@
       "label": "Kling V2",
       "description": "安定した映画的動画、モーション対応、I2V対応"
     },
+    "sora2": {
+      "label": "Sora 2",
+      "description": "OpenAI — シネマティック動画生成、音声付き、720p"
+    },
     "minimaxVideo": {
-      "label": "MiniMax Video",
-      "description": "高速生成、プロンプト最適化、カメラ制御"
+      "label": "MiniMax Hailuo",
+      "description": "1080p高速生成、プロンプト最適化、カメラ制御"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "最大1080p、ループ対応、二画像補間"
     },
+    "pikaV22": {
+      "label": "Pika V2.2",
+      "description": "1080p動画、PikaScenesマルチ画像合成対応"
+    },
     "wanVideo": {
-      "label": "Wan Video",
-      "description": "高コスパのオープンソース、720p"
+      "label": "Wan 2.2",
+      "description": "オープンソース14Bモデル、高コスパ"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",

@@ -24,12 +24,15 @@ import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
+import { PromptComparisonPanel } from '@/components/business/PromptComparisonPanel'
+import { PromptEnhanceButton } from '@/components/business/PromptEnhanceButton'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
+import { usePromptEnhance } from '@/hooks/use-prompt-enhance'
 import { cn } from '@/lib/utils'
 
 function formatDuration(seconds: number): string {
@@ -40,12 +43,43 @@ function formatDuration(seconds: number): string {
 
 const RESOLUTION_OPTIONS = ['480p', '720p', '1080p'] as const
 
+/** Video size lookup matching OpenAI Sora's expected sizes */
+const VIDEO_SIZES: Record<string, { width: number; height: number }> = {
+  '1:1': { width: 1024, height: 1024 },
+  '16:9': { width: 1280, height: 720 },
+  '9:16': { width: 720, height: 1280 },
+  '4:3': { width: 1024, height: 768 },
+  '3:4': { width: 768, height: 1024 },
+}
+
 function loadImageAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
     reader.onerror = reject
     reader.readAsDataURL(file)
+  })
+}
+
+/** Resize a base64 data-URL image to exact dimensions using Canvas */
+function resizeImageToDataUrl(
+  dataUrl: string,
+  width: number,
+  height: number,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('Canvas context unavailable'))
+      ctx.drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', 0.9))
+    }
+    img.onerror = () => reject(new Error('Failed to load image for resize'))
+    img.src = dataUrl
   })
 }
 
@@ -64,6 +98,14 @@ export default function VideoGenerateForm() {
     generatedGeneration,
     generate,
   } = useGenerateVideo()
+  const {
+    isEnhancing,
+    enhanced,
+    original: enhancedOriginal,
+    style: enhancedStyle,
+    enhance: enhancePrompt,
+    clearEnhancement,
+  } = usePromptEnhance()
 
   const [selectedOptionId, setSelectedOptionId] = useState('')
   const [prompt, setPrompt] = useState('')
@@ -137,12 +179,23 @@ export default function VideoGenerateForm() {
       e.preventDefault()
       if (!selectedModel || !prompt.trim()) return
 
+      // For OpenAI Sora: resize reference image to match video dimensions
+      let processedImage = referenceImage
+      if (referenceImage && selectedModel.adapterType === 'openai') {
+        const dims = VIDEO_SIZES[aspectRatio] ?? VIDEO_SIZES['16:9']
+        processedImage = await resizeImageToDataUrl(
+          referenceImage,
+          dims.width,
+          dims.height,
+        )
+      }
+
       await generate({
         prompt: prompt.trim(),
         modelId: selectedModel.modelId,
         aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
         duration,
-        referenceImage,
+        referenceImage: processedImage,
         negativePrompt: negativePrompt.trim() || undefined,
         resolution: resolution as
           | '480p'
@@ -379,9 +432,17 @@ export default function VideoGenerateForm() {
           >
             {t('promptLabel')}
           </label>
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {prompt.length}/{GENERATION_LIMITS.PROMPT_MAX_LENGTH}
-          </span>
+          <div className="flex items-center gap-2">
+            <PromptEnhanceButton
+              prompt={prompt}
+              isEnhancing={isEnhancing}
+              disabled={isGenerating}
+              onEnhance={(style) => enhancePrompt(prompt, style)}
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {prompt.length}/{GENERATION_LIMITS.PROMPT_MAX_LENGTH}
+            </span>
+          </div>
         </div>
         <Textarea
           value={prompt}
@@ -391,6 +452,21 @@ export default function VideoGenerateForm() {
           rows={4}
           className="min-h-28 rounded-3xl border-border/75 bg-background/72"
         />
+
+        {enhanced && (
+          <div className="mt-3">
+            <PromptComparisonPanel
+              original={enhancedOriginal ?? ''}
+              enhanced={enhanced}
+              style={enhancedStyle ?? ''}
+              onUseEnhanced={(text) => {
+                setPrompt(text)
+                clearEnhancement()
+              }}
+              onDismiss={clearEnhancement}
+            />
+          </div>
+        )}
       </div>
 
       {/* Advanced Settings */}

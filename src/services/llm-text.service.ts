@@ -57,8 +57,8 @@ const OpenAiChatResponseSchema = z.object({
 // ─── LLM Text Models ────────────────────────────────────────────
 
 const LLM_TEXT_MODELS = {
-  [AI_ADAPTER_TYPES.GEMINI]: 'gemini-2.0-flash',
-  [AI_ADAPTER_TYPES.OPENAI]: 'gpt-4o-mini',
+  [AI_ADAPTER_TYPES.GEMINI]: 'gemini-2.5-flash-lite',
+  [AI_ADAPTER_TYPES.OPENAI]: 'gpt-4.1-nano',
 } as const
 
 // ─── Route Resolution ────────────────────────────────────────────
@@ -73,7 +73,11 @@ export async function resolveLlmTextRoute(
   const preferenceOrder = [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI]
 
   // Check user API keys first
+  const triedProviders: string[] = []
+
   for (const adapterType of preferenceOrder) {
+    const label = adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
+
     const userKey = await db.userApiKey.findFirst({
       where: {
         userId,
@@ -83,29 +87,32 @@ export async function resolveLlmTextRoute(
       orderBy: { createdAt: 'desc' },
     })
 
-    if (userKey) {
-      try {
-        const keyValue = decryptApiKey(userKey.encryptedKey)
-        return {
-          adapterType,
-          providerConfig: {
-            label:
-              adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI',
-            baseUrl:
-              adapterType === AI_ADAPTER_TYPES.GEMINI
-                ? AI_PROVIDER_ENDPOINTS.GEMINI
-                : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
-          },
-          apiKey: keyValue,
-        }
-      } catch {
-        // Key decryption failed, try next
+    if (!userKey) {
+      triedProviders.push(`${label} (no key bound)`)
+      continue
+    }
+
+    try {
+      const keyValue = decryptApiKey(userKey.encryptedKey)
+      return {
+        adapterType,
+        providerConfig: {
+          label,
+          baseUrl:
+            adapterType === AI_ADAPTER_TYPES.GEMINI
+              ? AI_PROVIDER_ENDPOINTS.GEMINI
+              : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
+        },
+        apiKey: keyValue,
       }
+    } catch {
+      triedProviders.push(`${label} (key decryption failed)`)
     }
   }
 
+  const tried = triedProviders.join(', ')
   throw new Error(
-    'No API key available for LLM text completion. Please bind a Gemini or OpenAI API key in the API Keys settings.',
+    `No API key available. Tried: ${tried}. Please add a Gemini or OpenAI API key in Settings > API Keys.`,
   )
 }
 

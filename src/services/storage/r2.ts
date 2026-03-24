@@ -95,8 +95,11 @@ export async function streamUploadToR2(params: {
   sourceUrl: string
   key: string
   mimeType: string
+  fetchHeaders?: Record<string, string>
 }): Promise<{ publicUrl: string; sizeBytes: number }> {
-  const response = await fetch(params.sourceUrl)
+  const response = await fetch(params.sourceUrl, {
+    headers: params.fetchHeaders,
+  })
   if (!response.ok || !response.body) {
     throw new Error(
       `Failed to fetch video for upload (${response.status}): ${params.sourceUrl}`,

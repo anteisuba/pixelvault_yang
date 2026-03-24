@@ -30,6 +30,7 @@ import type {
   UpdateStoryRequest,
   GenerateNarrativeRequest,
   GenerateNarrativeResponse,
+  ApiKeyVerifyResponse,
 } from '@/types'
 import { UsageSummarySchema } from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
@@ -230,6 +231,28 @@ export async function deleteApiKey(
       }
     }
     return { success: true }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function verifyApiKey(id: string): Promise<ApiKeyVerifyResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.API_KEYS}/${id}/verify`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'

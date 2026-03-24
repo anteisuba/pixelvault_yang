@@ -232,6 +232,7 @@ export async function checkVideoGenerationStatus(
       sourceUrl: videoResult.videoUrl,
       key: storageKey,
       mimeType: 'video/mp4',
+      fetchHeaders: videoResult.fetchHeaders,
     })
 
     const generation = await createGeneration({

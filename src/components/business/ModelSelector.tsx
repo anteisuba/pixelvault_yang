@@ -1,7 +1,8 @@
 'use client'
 
-import { Gift, KeyRound, Sparkles } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useEffect, useRef } from 'react'
+import { Check, Gift, KeyRound } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
@@ -10,16 +11,8 @@ import {
   type AI_ADAPTER_TYPES,
   type ProviderConfig,
 } from '@/constants/providers'
-import { isCjkLocale } from '@/i18n/routing'
 
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 export interface StudioModelOption {
@@ -55,172 +48,140 @@ function getModelLabel(
     : option.modelId
 }
 
+/** Max visible items before scrolling kicks in */
+const MAX_VISIBLE_ITEMS = 9
+
 export function ModelSelector({
   value,
   onChange,
   options,
 }: ModelSelectorProps) {
-  const locale = useLocale()
-  const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('StudioForm.modelSelector')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
-  const selectedOption = options.find((option) => option.optionId === value)
+  const listRef = useRef<HTMLDivElement>(null)
+  const selectedRef = useRef<HTMLButtonElement>(null)
+
+  // Scroll selected item into view when list overflows
+  useEffect(() => {
+    if (selectedRef.current && listRef.current) {
+      const list = listRef.current
+      const item = selectedRef.current
+      const listRect = list.getBoundingClientRect()
+      const itemRect = item.getBoundingClientRect()
+      if (itemRect.top < listRect.top || itemRect.bottom > listRect.bottom) {
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+  }, [value])
+
+  const needsScroll = options.length > MAX_VISIBLE_ITEMS
 
   return (
-    <div className="space-y-4" data-onboarding="model">
-      <div className="space-y-1">
-        <label className="text-sm font-semibold text-foreground">
-          {t('label')}
-        </label>
-        <p className="font-serif text-sm leading-6 text-muted-foreground">
-          {t('hint')}
-        </p>
+    <div className="space-y-3" data-onboarding="model">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-foreground">
+            {t('label')}
+          </label>
+          <p className="font-serif text-sm leading-6 text-muted-foreground">
+            {t('hint')}
+          </p>
+        </div>
+        {needsScroll ? (
+          <span className="shrink-0 text-xs text-muted-foreground/60">
+            {options.length} {t('modelCount')}
+          </span>
+        ) : null}
       </div>
 
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-16 w-full overflow-hidden rounded-3xl border-border/75 bg-background/72 px-4 text-left shadow-none">
-          <SelectValue
-            placeholder={t('placeholder')}
-            aria-label={selectedOption?.modelId ?? t('placeholder')}
-          >
-            {selectedOption ? (
-              <div className="flex min-w-0 items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {getModelLabel(selectedOption, tModels)}
-                  </p>
-                  <p className="truncate font-serif text-xs text-muted-foreground">
-                    {getProviderLabel(selectedOption.providerConfig)} ·{' '}
-                    {t(`routeSources.${selectedOption.sourceType}`)}
-                  </p>
-                </div>
-                <div className="hidden items-center gap-2 sm:flex">
-                  {selectedOption.freeTier &&
-                  selectedOption.sourceType === 'workspace' ? (
+      <div
+        ref={listRef}
+        className={cn('grid gap-2', needsScroll && 'max-h-96 overflow-y-auto')}
+      >
+        {options.map((option) => {
+          const isSelected = option.optionId === value
+          const isFree = option.freeTier && option.sourceType === 'workspace'
+          const isSaved = option.sourceType === 'saved'
+
+          return (
+            <button
+              key={option.optionId}
+              ref={isSelected ? selectedRef : undefined}
+              type="button"
+              onClick={() => onChange(option.optionId)}
+              className={cn(
+                'group relative flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
+                isSelected
+                  ? 'border-primary/40 bg-primary/5 shadow-sm shadow-primary/8'
+                  : 'border-border/50 bg-background/50 hover:border-primary/20 hover:bg-primary/3',
+              )}
+            >
+              {/* Selection indicator */}
+              <div
+                className={cn(
+                  'flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                  isSelected
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border/70 bg-background/80 group-hover:border-primary/30',
+                )}
+              >
+                {isSelected ? <Check className="size-3" /> : null}
+              </div>
+
+              {/* Model info */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-foreground">
+                    {getModelLabel(option, tModels)}
+                  </span>
+                  {isFree ? (
                     <Badge
                       variant="outline"
-                      className="rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
+                      className="shrink-0 rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
                     >
                       <Gift className="size-3" />
                       {t('freeBadge')}
                     </Badge>
-                  ) : (
+                  ) : null}
+                  {isSaved ? (
                     <Badge
-                      variant={
-                        selectedOption.sourceType === 'saved'
-                          ? 'secondary'
-                          : 'outline'
-                      }
-                      className="rounded-full px-2 py-0 text-[11px]"
+                      variant="secondary"
+                      className="shrink-0 rounded-full px-2 py-0 text-[11px]"
                     >
-                      {selectedOption.sourceType === 'saved' ? (
-                        <KeyRound className="size-3" />
-                      ) : (
-                        <Sparkles className="size-3" />
-                      )}
-                      {selectedOption.sourceType === 'saved'
-                        ? t('savedRouteBadge')
-                        : t('workspaceRouteBadge')}
-                    </Badge>
-                  )}
-                  {!selectedOption.isBuiltIn ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full px-2 py-0 text-[11px] text-muted-foreground"
-                    >
-                      {t('customBadge')}
+                      <KeyRound className="size-3" />
+                      {t('savedRouteBadge')}
                     </Badge>
                   ) : null}
                 </div>
+                <span className="mt-0.5 block truncate font-serif text-xs text-muted-foreground">
+                  {getProviderLabel(option.providerConfig)}
+                  {isSaved && option.maskedKey
+                    ? ` · ${option.maskedKey}`
+                    : null}
+                </span>
               </div>
-            ) : null}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="rounded-3xl border-border/80 bg-card/98 p-1">
-          {options.map((option) => {
-            const isBuiltIn = isBuiltInModel(option.modelId)
 
-            return (
-              <SelectItem key={option.optionId} value={option.optionId}>
-                <div className="flex w-full items-start justify-between gap-3 py-2 pr-4">
-                  <div className="min-w-0 space-y-1">
-                    <span className="block truncate font-medium text-foreground">
-                      {getModelLabel(option, tModels)}
-                    </span>
-                    <span className="block font-serif text-xs leading-5 text-muted-foreground">
-                      {isBuiltIn
-                        ? tModels(
-                            `${getOptionMessageId(option.modelId)}.description`,
-                          )
-                        : t('customDescription', {
-                            provider: getProviderLabel(option.providerConfig),
-                          })}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground/90">
-                      {getProviderLabel(option.providerConfig)} ·{' '}
-                      {option.providerConfig.baseUrl}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                    {option.freeTier && option.sourceType === 'workspace' ? (
-                      <Badge
-                        variant="outline"
-                        className="rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
-                      >
-                        <Gift className="size-3" />
-                        {t('freeBadge')}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs font-medium text-foreground">
-                        {tCommon('creditCount', {
-                          count:
-                            option.requestCount ??
-                            API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                        })}
-                      </span>
-                    )}
-                    <div className="flex flex-wrap items-center justify-end gap-1">
-                      <Badge
-                        variant={
-                          option.sourceType === 'saved'
-                            ? 'secondary'
-                            : 'outline'
-                        }
-                        className={cn(
-                          'rounded-full px-2 py-0 text-[11px]',
-                          isDenseLocale && 'tracking-normal normal-case',
-                        )}
-                      >
-                        {option.sourceType === 'saved' ? (
-                          <KeyRound className="size-3" />
-                        ) : (
-                          <Sparkles className="size-3" />
-                        )}
-                        {option.sourceType === 'saved'
-                          ? t('savedRouteBadge')
-                          : t('workspaceRouteBadge')}
-                      </Badge>
-                      {!option.isBuiltIn ? (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'rounded-full px-2 py-0 text-[11px] text-muted-foreground',
-                            isDenseLocale && 'tracking-normal normal-case',
-                          )}
-                        >
-                          <Sparkles className="size-3" />
-                          {t('customBadge')}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
+              {/* Cost */}
+              <div className="shrink-0 text-right">
+                {isFree ? (
+                  <span className="text-xs font-medium text-chart-3">
+                    {t('freeBadge')}
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {tCommon('creditCount', {
+                      count:
+                        option.requestCount ??
+                        API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                    })}
+                  </span>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

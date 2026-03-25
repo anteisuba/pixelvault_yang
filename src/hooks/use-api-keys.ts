@@ -48,6 +48,17 @@ export function useApiKeys(): UseApiKeysReturn {
     setIsLoading(false)
   }, [])
 
+  const verifyOne = useCallback(
+    async (id: string): Promise<ApiKeyHealthStatus> => {
+      const response = await verifyApiKey(id)
+      const status: ApiKeyHealthStatus =
+        response.success && response.data ? response.data.status : 'failed'
+      setHealthMap((prev) => ({ ...prev, [id]: status }))
+      return status
+    },
+    [],
+  )
+
   useEffect(() => {
     let isCancelled = false
 
@@ -58,6 +69,26 @@ export function useApiKeys(): UseApiKeysReturn {
       if (response.success && response.data) {
         setKeys(response.data)
         setError(null)
+
+        // Auto-verify all active keys in parallel
+        const activeKeys = response.data.filter((k) => k.isActive)
+        if (activeKeys.length > 0) {
+          const results = await Promise.allSettled(
+            activeKeys.map((k) => verifyApiKey(k.id)),
+          )
+          if (isCancelled) return
+          const newHealthMap: Record<string, ApiKeyHealthStatus> = {}
+          results.forEach((result, i) => {
+            const key = activeKeys[i]
+            newHealthMap[key.id] =
+              result.status === 'fulfilled' &&
+              result.value.success &&
+              result.value.data
+                ? result.value.data.status
+                : 'failed'
+          })
+          setHealthMap(newHealthMap)
+        }
       } else {
         setError(response.error ?? 'Failed to load API keys')
       }
@@ -76,13 +107,16 @@ export function useApiKeys(): UseApiKeysReturn {
       const response = await createApiKey(data)
       if (response.success && response.data) {
         setError(null)
-        setKeys((prev) => [response.data!, ...prev])
+        const newKey = response.data
+        setKeys((prev) => [newKey, ...prev])
+        // Auto-verify newly created key
+        void verifyOne(newKey.id)
         return true
       }
       setError(response.error ?? 'Failed to create API key')
       return false
     },
-    [],
+    [verifyOne],
   )
 
   const update = useCallback(
@@ -117,17 +151,6 @@ export function useApiKeys(): UseApiKeysReturn {
     return false
   }, [])
 
-  const verify = useCallback(
-    async (id: string): Promise<ApiKeyHealthStatus> => {
-      const response = await verifyApiKey(id)
-      const status: ApiKeyHealthStatus =
-        response.success && response.data ? response.data.status : 'failed'
-      setHealthMap((prev) => ({ ...prev, [id]: status }))
-      return status
-    },
-    [],
-  )
-
   return {
     keys,
     isLoading,
@@ -136,7 +159,7 @@ export function useApiKeys(): UseApiKeysReturn {
     create,
     update,
     remove,
-    verify,
+    verify: verifyOne,
     refresh: fetchKeys,
   }
 }

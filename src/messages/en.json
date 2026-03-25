@@ -373,7 +373,8 @@
         "saved": "Saved route"
       },
       "customDescription": "Custom {provider} model using your saved route.",
-      "freeBadge": "Free"
+      "freeBadge": "Free",
+      "modelCount": "models"
     }
   },
   "StudioApiKeys": {

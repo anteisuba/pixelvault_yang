@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronUp,
   ImageIcon,
-  KeyRound,
   Loader2,
   Sparkles,
   Upload,
@@ -27,10 +26,7 @@ import {
   isBuiltInModel,
   MODEL_OPTIONS,
 } from '@/constants/models'
-import {
-  getDefaultProviderConfig,
-  getProviderLabel,
-} from '@/constants/providers'
+import { getProviderLabel } from '@/constants/providers'
 import { isCjkLocale } from '@/i18n/routing'
 
 import {
@@ -81,7 +77,7 @@ function getTranslatedModelDescription(
 export function GenerateForm() {
   const [prompt, setPrompt] = useState('')
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
-    `workspace:${AI_MODELS.SDXL}`,
+    `workspace:${AI_MODELS.GEMINI_FLASH_IMAGE}`,
   )
   const [aspectRatio, setAspectRatio] =
     useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
@@ -99,15 +95,25 @@ export function GenerateForm() {
     enhance: enhancePrompt,
     clearEnhancement,
   } = usePromptEnhance()
-  const { keys: apiKeys } = useApiKeysContext()
+  const { keys: apiKeys, healthMap } = useApiKeysContext()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('StudioForm')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
-
   const activeApiKeys = apiKeys.filter((key) => key.isActive)
-  const builtInOptions: StudioModelOption[] = MODEL_OPTIONS.map((model) => ({
+
+  // Adapter types that have at least one verified (available) API key
+  const verifiedAdapterTypes = new Set(
+    activeApiKeys
+      .filter((key) => healthMap[key.id] === 'available')
+      .map((key) => key.adapterType),
+  )
+
+  // Built-in models: only show free tier when no verified keys for that adapter
+  const builtInOptions: StudioModelOption[] = MODEL_OPTIONS.filter(
+    (model) => model.freeTier || verifiedAdapterTypes.has(model.adapterType),
+  ).map((model) => ({
     optionId: `workspace:${model.id}`,
     modelId: model.id,
     adapterType: model.adapterType,
@@ -117,18 +123,20 @@ export function GenerateForm() {
     freeTier: model.freeTier,
     sourceType: 'workspace',
   }))
-  const savedOptions: StudioModelOption[] = activeApiKeys.map((key) => ({
-    optionId: `key:${key.id}`,
-    modelId: key.modelId,
-    adapterType: key.adapterType,
-    providerConfig: key.providerConfig,
-    requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-    isBuiltIn: isBuiltInModel(key.modelId),
-    sourceType: 'saved',
-    keyId: key.id,
-    keyLabel: key.label,
-    maskedKey: key.maskedKey,
-  }))
+  const savedOptions: StudioModelOption[] = activeApiKeys
+    .filter((key) => healthMap[key.id] === 'available')
+    .map((key) => ({
+      optionId: `key:${key.id}`,
+      modelId: key.modelId,
+      adapterType: key.adapterType,
+      providerConfig: key.providerConfig,
+      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      isBuiltIn: isBuiltInModel(key.modelId),
+      sourceType: 'saved',
+      keyId: key.id,
+      keyLabel: key.label,
+      maskedKey: key.maskedKey,
+    }))
   const modelOptions = [...builtInOptions, ...savedOptions]
   const selectedModel =
     modelOptions.find((option) => option.optionId === selectedOptionId) ??
@@ -193,14 +201,10 @@ export function GenerateForm() {
     tModels,
     selectedModel,
   )
-  const selectedAdapterLabel = getProviderLabel(
-    getDefaultProviderConfig(selectedModel.adapterType),
-  )
-  const selectedRouteSourceLabel = t(`routeSources.${selectedModel.sourceType}`)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card/82 p-5 shadow-sm sm:p-6">
           <ModelSelector
             value={selectedModel.optionId}
@@ -208,172 +212,38 @@ export function GenerateForm() {
             options={modelOptions}
           />
 
-          <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-background/40 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-2">
-                <p
-                  className={cn(
-                    'text-xs font-semibold text-muted-foreground',
-                    isDenseLocale
-                      ? 'tracking-normal normal-case'
-                      : 'uppercase tracking-[0.18em]',
-                  )}
-                >
-                  {t('selectedModelLabel')}
-                </p>
-                <div className="space-y-2">
-                  <h3 className="font-display text-xl font-medium tracking-tight text-foreground">
-                    {selectedModelLabel}
-                  </h3>
-                  <p className="font-serif text-sm leading-6 text-muted-foreground">
-                    {selectedModelDescription}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h3 className="font-display text-base font-medium tracking-tight text-foreground">
+              {selectedModelLabel}
+            </h3>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className="rounded-full border-border/70 bg-background/70 px-2.5 py-0.5 text-xs"
+              >
+                {getProviderLabel(selectedModel.providerConfig)}
+              </Badge>
+              <Badge
+                variant="secondary"
+                className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-foreground"
+              >
+                {tCommon('creditCount', {
+                  count: selectedModel.requestCount,
+                })}
+              </Badge>
+              {!selectedModel.isBuiltIn ? (
                 <Badge
                   variant="outline"
-                  className="rounded-full border-border/70 bg-background/70 px-3 py-1"
+                  className="rounded-full border-border/70 bg-background/70 px-2.5 py-0.5 text-xs"
                 >
-                  {selectedRouteSourceLabel}
+                  {t('customModelBadge')}
                 </Badge>
-                {!selectedModel.isBuiltIn ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-border/70 bg-background/70 px-3 py-1"
-                  >
-                    {t('customModelBadge')}
-                  </Badge>
-                ) : null}
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-border/70 bg-background/70 px-3 py-1"
-                >
-                  {t('providerLabel')}:{' '}
-                  {getProviderLabel(selectedModel.providerConfig)}
-                </Badge>
-                <Badge
-                  variant="secondary"
-                  className="rounded-full bg-primary/10 px-3 py-1 text-foreground"
-                >
-                  {t('creditCostLabel')}:{' '}
-                  {tCommon('creditCount', {
-                    count: selectedModel.requestCount,
-                  })}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-5 border-t border-border/65 pt-5">
-              <div className="space-y-2">
-                <p
-                  className={cn(
-                    'text-xs font-semibold text-muted-foreground',
-                    isDenseLocale
-                      ? 'tracking-normal normal-case'
-                      : 'uppercase tracking-[0.18em]',
-                  )}
-                >
-                  {t('keyStatusLabel')}
-                </p>
-                {selectedModel.sourceType === 'saved' ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <KeyRound className="size-4 text-primary" />
-                      {t('keyStatusSavedRouteTitle')}
-                    </div>
-                    <p className="font-serif text-sm leading-6 text-muted-foreground">
-                      {t('keyStatusSavedRouteDescription', {
-                        label: selectedModel.keyLabel ?? '',
-                        maskedKey: selectedModel.maskedKey ?? '****',
-                      })}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Sparkles className="size-4 text-primary" />
-                      {t('keyStatusFallbackTitle')}
-                    </div>
-                    <p className="font-serif text-sm leading-6 text-muted-foreground">
-                      {t('keyStatusFallbackDescription', {
-                        provider: getProviderLabel(
-                          selectedModel.providerConfig,
-                        ),
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
-                  <p
-                    className={cn(
-                      'text-[11px] font-semibold text-muted-foreground',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-[0.14em]',
-                    )}
-                  >
-                    {t('routeSourceLabel')}
-                  </p>
-                  <p className="text-sm font-medium text-foreground">
-                    {selectedRouteSourceLabel}
-                  </p>
-                </div>
-
-                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
-                  <p
-                    className={cn(
-                      'text-[11px] font-semibold text-muted-foreground',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-[0.14em]',
-                    )}
-                  >
-                    {t('adapterLabel')}
-                  </p>
-                  <p className="text-sm font-medium text-foreground">
-                    {selectedAdapterLabel}
-                  </p>
-                </div>
-
-                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2">
-                  <p
-                    className={cn(
-                      'text-[11px] font-semibold text-muted-foreground',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-[0.14em]',
-                    )}
-                  >
-                    {t('providerEndpointLabel')}
-                  </p>
-                  <p className="truncate font-mono text-xs text-foreground">
-                    {selectedModel.providerConfig.baseUrl}
-                  </p>
-                </div>
-
-                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2 xl:col-span-4">
-                  <p
-                    className={cn(
-                      'text-[11px] font-semibold text-muted-foreground',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-[0.14em]',
-                    )}
-                  >
-                    {t('modelIdLabel')}
-                  </p>
-                  <p className="truncate font-mono text-xs text-foreground">
-                    {selectedModel.modelId}
-                  </p>
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
+          <p className="mt-1.5 font-serif text-sm leading-6 text-muted-foreground">
+            {selectedModelDescription}
+          </p>
         </section>
 
         <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card/82 p-5 shadow-sm sm:p-6">
@@ -414,10 +284,10 @@ export function GenerateForm() {
               placeholder={t('promptPlaceholder')}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={8}
+              rows={5}
               maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
               disabled={isGenerating}
-              className="min-h-48 resize-none rounded-3xl border-border/75 bg-background/72 px-4 py-3 font-serif"
+              className="min-h-32 resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 font-serif"
             />
           </div>
 

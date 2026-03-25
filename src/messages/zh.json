@@ -373,7 +373,8 @@
         "saved": "已保存路由"
       },
       "customDescription": "使用你保存路由的自定义 {provider} 模型。",
-      "freeBadge": "免费"
+      "freeBadge": "免费",
+      "modelCount": "个模型"
     }
   },
   "StudioApiKeys": {

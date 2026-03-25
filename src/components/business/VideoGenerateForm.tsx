@@ -414,6 +414,7 @@ export default function VideoGenerateForm() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          aria-label={t('referenceImageLabel')}
           className="hidden"
           onChange={async (e) => {
             const file = e.target.files?.[0]

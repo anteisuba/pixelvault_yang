@@ -518,6 +518,7 @@ export function GenerateForm() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  aria-label={t('referenceImageLabel')}
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0]

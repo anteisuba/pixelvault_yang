@@ -49,7 +49,7 @@ function getModelLabel(
 }
 
 /** Max visible items before scrolling kicks in */
-const MAX_VISIBLE_ITEMS = 6
+const MAX_VISIBLE_ITEMS = 9
 
 export function ModelSelector({
   value,
@@ -97,7 +97,7 @@ export function ModelSelector({
 
       <div
         ref={listRef}
-        className={cn('grid gap-2', needsScroll && 'max-h-80 overflow-y-auto')}
+        className={cn('grid gap-2', needsScroll && 'max-h-96 overflow-y-auto')}
       >
         {options.map((option) => {
           const isSelected = option.optionId === value

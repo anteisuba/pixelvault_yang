@@ -364,7 +364,8 @@
         "workspace": "工作区默认",
         "saved": "已保存路由"
       },
-      "customDescription": "使用你保存路由的自定义 {provider} 模型。"
+      "customDescription": "使用你保存路由的自定义 {provider} 模型。",
+      "freeBadge": "免费"
     }
   },
   "StudioApiKeys": {

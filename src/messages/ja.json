@@ -364,7 +364,8 @@
         "workspace": "ワークスペース既定",
         "saved": "保存済みルート"
       },
-      "customDescription": "保存済みルートを使うカスタム {provider} モデルです。"
+      "customDescription": "保存済みルートを使うカスタム {provider} モデルです。",
+      "freeBadge": "無料"
     }
   },
   "StudioApiKeys": {

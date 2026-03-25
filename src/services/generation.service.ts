@@ -25,6 +25,7 @@ export interface CreateGenerationInput {
   provider: string
   requestCount: number
   outputType?: OutputType
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string
@@ -121,9 +122,28 @@ export async function createGeneration(
       provider: input.provider,
       requestCount: input.requestCount,
       outputType: input.outputType ?? 'IMAGE',
+      isFreeGeneration: input.isFreeGeneration ?? false,
       isPublic: input.isPublic ?? false,
       isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
+    },
+  })
+}
+
+/**
+ * Count how many free tier generations a user has made today (UTC).
+ */
+export async function getFreeGenerationCountToday(
+  userId: string,
+): Promise<number> {
+  const todayStart = new Date()
+  todayStart.setUTCHours(0, 0, 0, 0)
+
+  return db.generation.count({
+    where: {
+      userId,
+      isFreeGeneration: true,
+      createdAt: { gte: todayStart },
     },
   })
 }

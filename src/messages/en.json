@@ -364,7 +364,8 @@
         "workspace": "Workspace default",
         "saved": "Saved route"
       },
-      "customDescription": "Custom {provider} model using your saved route."
+      "customDescription": "Custom {provider} model using your saved route.",
+      "freeBadge": "Free"
     }
   },
   "StudioApiKeys": {

@@ -88,6 +88,8 @@ export interface ModelOption {
   outputType: OutputType
   /** Whether the model is currently available for use */
   available: boolean
+  /** Whether this model is available on the platform's free tier */
+  freeTier?: boolean
   /** Official documentation / API reference URL */
   officialUrl?: string
   /** Provider polling timeout in ms (video models need longer) */
@@ -179,6 +181,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     externalModelId: AI_MODELS.GEMINI_FLASH_IMAGE,
     outputType: 'IMAGE',
     available: true,
+    freeTier: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
   },
   // #8 — Developer-tier FLUX, good quality/price balance
@@ -444,6 +447,14 @@ export const getAvailableImageModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter(
     (model) => model.available && model.outputType === 'IMAGE',
   )
+
+/** Get only the free tier models */
+export const getFreeTierModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter((model) => model.available && model.freeTier)
+
+/** Check if a model is on the free tier */
+export const isFreeTierModel = (modelId: string): boolean =>
+  getModelById(modelId)?.freeTier === true
 
 /** Get the provider timeout for a model (defaults to 45s for images) */
 export const getModelTimeout = (modelId: string): number =>

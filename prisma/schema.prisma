@@ -92,7 +92,8 @@ model Generation {
   provider String // "HuggingFace" | "SiliconFlow" | "Seedance" 等
 
   // ── API usage ────────────────────────────────────────────────
-  requestCount Int @default(1)
+  requestCount     Int     @default(1)
+  isFreeGeneration Boolean @default(false)
 
   // ── 可見性 ────────────────────────────────────────────────────
   isPublic       Boolean @default(false)
@@ -107,6 +108,7 @@ model Generation {
   storyPanels    StoryPanel[]
 
   @@index([userId])
+  @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
 }
 

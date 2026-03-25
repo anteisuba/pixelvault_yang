@@ -122,6 +122,14 @@ export const HEALTH_CHECK = {
   TIMEOUT_MS: 10_000,
 } as const
 
+/** Free tier configuration */
+export const FREE_TIER = {
+  /** Maximum free generations per user per day */
+  DAILY_LIMIT: 5,
+  /** Whether the free tier is enabled */
+  ENABLED: true,
+} as const
+
 /** Pagination defaults */
 export const PAGINATION = {
   DEFAULT_PAGE: 1,

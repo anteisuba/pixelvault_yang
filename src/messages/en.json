@@ -179,6 +179,8 @@
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
     "modeImage": "Image",
     "modeVideo": "Video",
+    "freeQuota": "{remaining}/{limit} free today",
+    "freeQuotaLow": "Almost out",
     "metrics": {
       "modelCoverageLabel": "Models",
       "modelCoverageValue": "{modelCount} models · {providerCount} providers",
@@ -343,6 +345,11 @@
     "errorTitle": "Generation error",
     "errorFallback": "Image generation failed",
     "errorUnexpected": "An unexpected error occurred",
+    "freeQuotaGuide": {
+      "title": "Get unlimited access with your own API key:",
+      "step1": "Get a free Gemini API key from Google AI Studio",
+      "step2": "Paste it in \"API Routes\" above"
+    },
     "toastSuccess": "Image generated successfully!",
     "resultLabel": "Latest result",
     "resultDescription": "The newest image from this workspace appears here.",
@@ -353,6 +360,7 @@
     "resultProviderLabel": "Provider",
     "resultCreditLabel": "Requests logged",
     "resultStorageNote": "Stored with its prompt and route context.",
+    "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "modelSelector": {
       "label": "AI model",
       "hint": "Choose a built-in model or one of your active saved routes.",
@@ -678,7 +686,7 @@
       },
       "model": {
         "title": "Choose a model",
-        "description": "Pick the AI model that matches the style you want — realism, anime, or creative exploration."
+        "description": "Models marked \"Free\" can be used without an API key — up to 5 times per day. Bind your own key to unlock all models."
       },
       "prompt": {
         "title": "Write your prompt",

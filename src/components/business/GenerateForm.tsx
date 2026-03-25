@@ -625,6 +625,28 @@ export function GenerateForm() {
           <div className="space-y-1">
             <p className="font-medium">{t('errorTitle')}</p>
             <p>{error}</p>
+            {(error.includes('Free tier limit') ||
+              error.includes('bind your own API key') ||
+              error.includes('API key')) && (
+              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  {t('freeQuotaGuide.title')}
+                </p>
+                <ol className="list-inside list-decimal space-y-0.5">
+                  <li>
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      {t('freeQuotaGuide.step1')}
+                    </a>
+                  </li>
+                  <li>{t('freeQuotaGuide.step2')}</li>
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
@@ -699,6 +721,13 @@ export function GenerateForm() {
               <p className="font-serif text-sm text-muted-foreground">
                 {t('resultStorageNote')}
               </p>
+
+              {selectedModel?.freeTier &&
+                selectedModel.sourceType === 'workspace' && (
+                  <p className="font-serif text-xs text-muted-foreground/70">
+                    {t('upgradeHint')}
+                  </p>
+                )}
             </div>
           </div>
         ) : (

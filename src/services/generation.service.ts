@@ -149,6 +149,54 @@ export async function getFreeGenerationCountToday(
 }
 
 /**
+ * Platform-wide free tier usage stats for admin monitoring.
+ */
+export async function getFreeTierStats(): Promise<{
+  today: number
+  last7Days: number
+  last30Days: number
+  uniqueUsersToday: number
+}> {
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setUTCHours(0, 0, 0, 0)
+
+  const sevenDaysAgo = new Date(now)
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7)
+
+  const thirtyDaysAgo = new Date(now)
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30)
+
+  const [today, last7Days, last30Days, uniqueUsers] = await Promise.all([
+    db.generation.count({
+      where: { isFreeGeneration: true, createdAt: { gte: todayStart } },
+    }),
+    db.generation.count({
+      where: { isFreeGeneration: true, createdAt: { gte: sevenDaysAgo } },
+    }),
+    db.generation.count({
+      where: { isFreeGeneration: true, createdAt: { gte: thirtyDaysAgo } },
+    }),
+    db.generation.findMany({
+      where: {
+        isFreeGeneration: true,
+        createdAt: { gte: todayStart },
+        userId: { not: null },
+      },
+      select: { userId: true },
+      distinct: ['userId'],
+    }),
+  ])
+
+  return {
+    today,
+    last7Days,
+    last30Days,
+    uniqueUsersToday: uniqueUsers.length,
+  }
+}
+
+/**
  * Get all generations belonging to a specific user, newest first.
  */
 export async function getUserGenerations(

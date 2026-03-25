@@ -179,6 +179,8 @@
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
     "modeImage": "图片",
     "modeVideo": "视频",
+    "freeQuota": "今日免费 {remaining}/{limit}",
+    "freeQuotaLow": "即将用完",
     "metrics": {
       "modelCoverageLabel": "模型",
       "modelCoverageValue": "{modelCount} 个模型 · {providerCount} 个提供商",
@@ -343,6 +345,11 @@
     "errorTitle": "生成错误",
     "errorFallback": "图像生成失败",
     "errorUnexpected": "发生了意外错误",
+    "freeQuotaGuide": {
+      "title": "绑定自己的 API key 即可无限使用：",
+      "step1": "前往 Google AI Studio 获取免费 Gemini API key",
+      "step2": "粘贴到上方「API 路由」中"
+    },
     "toastSuccess": "图片生成成功！",
     "resultLabel": "最新结果",
     "resultDescription": "这个工作区最新生成的图像会显示在这里。",
@@ -353,6 +360,7 @@
     "resultProviderLabel": "提供商",
     "resultCreditLabel": "已记录请求",
     "resultStorageNote": "会连同提示词和路由上下文一起保存。",
+    "upgradeHint": "想要更高质量？用你自己的 API key 试试 GPT Image 或 FLUX Pro。",
     "modelSelector": {
       "label": "AI 模型",
       "hint": "选择内置模型，或你当前启用的已保存路由。",
@@ -678,7 +686,7 @@
       },
       "model": {
         "title": "选择模型",
-        "description": "选择适合你想要风格的 AI 模型 —— 写实、动漫或创意探索。"
+        "description": "标有「免费」的模型无需 API key，每天可用 5 次。绑定自己的 key 即可解锁全部模型。"
       },
       "prompt": {
         "title": "编写提示词",

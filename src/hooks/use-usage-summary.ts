@@ -17,6 +17,8 @@ const EMPTY_USAGE_SUMMARY: UsageSummary = {
   failedRequests: 0,
   last30DaysRequests: 0,
   lastRequestAt: null,
+  freeGenerationsToday: 0,
+  freeGenerationLimit: 5,
 }
 
 export function useUsageSummary(): UseUsageSummaryReturn {

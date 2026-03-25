@@ -214,7 +214,8 @@
     "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
     "errorUnexpected": "予期しないエラーが発生しました。",
     "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。",
-    "toastSuccess": "動画が生成されました！"
+    "toastSuccess": "動画が生成されました！",
+    "referenceRemoveLabel": "参照画像を削除"
   },
   "VideoPlayer": {
     "play": "再生",

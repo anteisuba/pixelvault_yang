@@ -214,7 +214,8 @@
     "errorFallback": "Video generation failed. Please try again.",
     "errorUnexpected": "An unexpected error occurred.",
     "errorTimeout": "Video generation timed out. Please try again.",
-    "toastSuccess": "Video generated successfully!"
+    "toastSuccess": "Video generated successfully!",
+    "referenceRemoveLabel": "Remove reference image"
   },
   "VideoPlayer": {
     "play": "Play",

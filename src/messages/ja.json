@@ -749,40 +749,36 @@
       "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
     },
     "veo3": {
-      "label": "Veo 3",
+      "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
-      "description": "最高品質シネマティック、15秒、音声付き、1080p"
+      "description": "マルチショット絵コンテ、ネイティブ音声、キャラ一貫性"
     },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — 音声付き、映画的カメラコントロール"
     },
     "klingVideo": {
-      "label": "Kling V2",
+      "label": "Kling V2.1",
       "description": "安定した映画的動画、モーション対応、I2V対応"
     },
-    "sora2": {
-      "label": "Sora 2",
-      "description": "OpenAI — シネマティック動画生成、音声付き、720p"
-    },
     "minimaxVideo": {
-      "label": "MiniMax Hailuo",
-      "description": "1080p高速生成、プロンプト最適化、カメラ制御"
+      "label": "MiniMax Hailuo 2.3",
+      "description": "リアリティ向上、カメラ制御、微表情強化"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "最大1080p、ループ対応、二画像補間"
     },
     "pikaV22": {
-      "label": "Pika V2.2",
-      "description": "1080p動画、PikaScenesマルチ画像合成対応"
+      "label": "Pika V2.5",
+      "description": "鮮明な映像、滑らかな動き、1080p生成"
     },
     "wanVideo": {
-      "label": "Wan 2.2",
-      "description": "オープンソース14Bモデル、高コスパ"
+      "label": "Wan 2.6",
+      "description": "マルチモーダル音声対応、最大1080p、高コスパ"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",

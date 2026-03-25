@@ -749,40 +749,36 @@
       "description": "ByteDance's unified generation and editing model with up to 4MP output."
     },
     "veo3": {
-      "label": "Veo 3",
-      "description": "Google's flagship — 4K, native audio, dialogue sync"
+      "label": "Veo 3.1",
+      "description": "Google's latest — 4K, native audio, dialogue sync"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",
-      "description": "Top-tier cinematic video, 15s, native audio, 1080p"
+      "description": "Multi-shot storyboarding, native audio, character consistency"
     },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — native audio, cinematic camera controls"
     },
     "klingVideo": {
-      "label": "Kling V2",
+      "label": "Kling V2.1",
       "description": "Reliable cinematic video, motion-aware, I2V support"
     },
-    "sora2": {
-      "label": "Sora 2",
-      "description": "OpenAI — cinematic video generation with native audio, 720p"
-    },
     "minimaxVideo": {
-      "label": "MiniMax Hailuo",
-      "description": "Fast 1080p generation with prompt optimizer, camera controls"
+      "label": "MiniMax Hailuo 2.3",
+      "description": "Improved realism, camera control, micro-expressions"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "Up to 1080p, loop support, dual-image interpolation"
     },
     "pikaV22": {
-      "label": "Pika V2.2",
-      "description": "1080p video with PikaScenes multi-image compositing"
+      "label": "Pika V2.5",
+      "description": "Sharper visuals, smoother motion, 1080p generation"
     },
     "wanVideo": {
-      "label": "Wan 2.2",
-      "description": "Open-source 14B model, budget-friendly, great value"
+      "label": "Wan 2.6",
+      "description": "Multi-modal with native audio, up to 1080p, great value"
     },
     "hunyuanVideo": {
       "label": "Hunyuan Video",

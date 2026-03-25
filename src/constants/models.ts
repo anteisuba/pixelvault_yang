@@ -32,7 +32,6 @@ export enum AI_MODELS {
   HUNYUAN_VIDEO = 'hunyuan-video',
   SEEDANCE_PRO = 'seedance-pro',
   VEO_3 = 'veo-3',
-  SORA_2 = 'sora-2',
   PIKA_V22 = 'pika-v2.2',
 }
 
@@ -56,7 +55,6 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
   [AI_MODELS.VEO_3]: 'veo3',
-  [AI_MODELS.SORA_2]: 'sora2',
   [AI_MODELS.PIKA_V22]: 'pikaV22',
 } as const
 
@@ -232,7 +230,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
 
   // ═══ Video Models — Premium Tier ═════════════════════════════════
 
-  // #1 — ELO 1248, cinematic multi-shot, native audio
+  // #1 — Kling 3.0 Pro, multi-shot storyboarding, native audio, 1080p
   {
     id: AI_MODELS.KLING_V3_PRO,
     cost: 6,
@@ -252,38 +250,22 @@ export const MODEL_OPTIONS: ModelOption[] = [
       generateAudio: true,
     },
   },
-  // #2 — ELO 1222, native audio, 1080p, Google's best
+  // #2 — Veo 3.1, Google's latest, 4K native audio
   {
     id: AI_MODELS.VEO_3,
     cost: 8,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/veo3',
+    externalModelId: 'fal-ai/veo3.1',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/fal-ai/veo3',
+    officialUrl: 'https://fal.ai/models/fal-ai/veo3.1',
     timeoutMs: 300_000,
     qualityTier: 'premium',
-    i2vModelId: 'fal-ai/veo3/image-to-video',
+    i2vModelId: 'fal-ai/veo3.1/reference-to-video',
     videoDefaults: {
       resolution: '1080p',
       generateAudio: true,
-    },
-  },
-  // #3 — OpenAI flagship video model
-  {
-    id: AI_MODELS.SORA_2,
-    cost: 6,
-    adapterType: AI_ADAPTER_TYPES.OPENAI,
-    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
-    externalModelId: 'sora-2',
-    outputType: 'VIDEO',
-    available: true,
-    officialUrl: 'https://platform.openai.com/docs/models/sora-2',
-    timeoutMs: 300_000,
-    qualityTier: 'premium',
-    videoDefaults: {
-      resolution: '720p',
     },
   },
 
@@ -304,19 +286,20 @@ export const MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     i2vModelId: 'fal-ai/bytedance/seedance/v1/pro/image-to-video',
   },
-  // #5 — MiniMax Hailuo, good quality/price ratio
+  // #5 — MiniMax Hailuo 2.3, improved realism & camera control
   {
     id: AI_MODELS.MINIMAX_VIDEO,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/minimax/hailuo-02',
+    externalModelId: 'fal-ai/minimax/hailuo-2.3/standard/text-to-video',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/fal-ai/minimax/hailuo-02',
+    officialUrl:
+      'https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video',
     timeoutMs: 180_000,
     qualityTier: 'standard',
-    i2vModelId: 'fal-ai/minimax/hailuo-02/image-to-video',
+    i2vModelId: 'fal-ai/minimax/hailuo-2.3/standard/image-to-video',
     videoDefaults: {
       enablePromptOptimizer: true,
     },
@@ -337,33 +320,34 @@ export const MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
-  // #7 — Pika, creative effects & stylized video
+  // #7 — Pika 2.5, sharper visuals & smoother motion
   {
     id: AI_MODELS.PIKA_V22,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/pika/v2.2/text-to-video',
+    externalModelId: 'fal-ai/pika/v2.5/text-to-video',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/fal-ai/pika/v2.2/text-to-video',
+    officialUrl: 'https://fal.ai/models/fal-ai/pika/v2.5/text-to-video',
     timeoutMs: 180_000,
     qualityTier: 'standard',
-    i2vModelId: 'fal-ai/pika/v2.2/image-to-video',
+    i2vModelId: 'fal-ai/pika/v2.5/image-to-video',
   },
-  // #8 — Kling V2 Master, older but solid
+  // #8 — Kling V2.1 Master, reliable cinematic quality
   {
     id: AI_MODELS.KLING_VIDEO,
     cost: 5,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/kling-video/v2/master',
+    externalModelId: 'fal-ai/kling-video/v2.1/master/text-to-video',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/fal-ai/kling-video/v2/master',
+    officialUrl:
+      'https://fal.ai/models/fal-ai/kling-video/v2.1/master/text-to-video',
     timeoutMs: 300_000,
     qualityTier: 'standard',
-    i2vModelId: 'fal-ai/kling-video/v2/master/image-to-video',
+    i2vModelId: 'fal-ai/kling-video/v2.1/master/image-to-video',
     videoDefaults: {
       negativePrompt: 'blur, distort, and low quality',
       cfgScale: 0.5,
@@ -372,21 +356,20 @@ export const MODEL_OPTIONS: ModelOption[] = [
 
   // ═══ Video Models — Budget Tier ══════════════════════════════════
 
-  // #9 — Wan 2.2, best open-source option, price-efficient
+  // #9 — Wan 2.6, multi-modal with native audio, up to 1080p
   {
     id: AI_MODELS.WAN_VIDEO,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    externalModelId: 'fal-ai/wan/v2.2-a14b/text-to-video',
+    externalModelId: 'wan/v2.6/text-to-video',
     outputType: 'VIDEO',
     available: true,
-    officialUrl: 'https://fal.ai/models/fal-ai/wan/v2.2-a14b/text-to-video',
+    officialUrl: 'https://fal.ai/models/wan/v2.6',
     timeoutMs: 180_000,
     qualityTier: 'budget',
+    i2vModelId: 'wan/v2.6/image-to-video',
     videoDefaults: {
-      negativePrompt:
-        'bright colors, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards',
       resolution: '720p',
     },
   },

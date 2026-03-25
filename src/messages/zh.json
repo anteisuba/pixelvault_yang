@@ -749,40 +749,36 @@
       "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
     },
     "veo3": {
-      "label": "Veo 3",
-      "description": "Google 旗舰 — 4K、原生音频、对话同步"
+      "label": "Veo 3.1",
+      "description": "Google 最新 — 4K、原生音频、对话同步"
     },
     "klingV3Pro": {
       "label": "可灵 3.0 Pro",
-      "description": "顶级电影画质，15秒、原生音频、1080p"
+      "description": "多镜头分镜、原生音频、角色一致性"
     },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "字节跳动 — 原生音频、电影级镜头控制"
     },
     "klingVideo": {
-      "label": "可灵 V2",
+      "label": "可灵 V2.1",
       "description": "稳定的电影级视频，运动感知，支持图生视频"
     },
-    "sora2": {
-      "label": "Sora 2",
-      "description": "OpenAI — 电影级视频生成，原生音频，720p"
-    },
     "minimaxVideo": {
-      "label": "MiniMax Hailuo",
-      "description": "1080p 快速生成，提示词优化，镜头控制"
+      "label": "MiniMax Hailuo 2.3",
+      "description": "更真实的画面、镜头控制、微表情增强"
     },
     "lumaRay2": {
       "label": "Luma Ray 2",
       "description": "最高1080p，循环视频，双图插值"
     },
     "pikaV22": {
-      "label": "Pika V2.2",
-      "description": "1080p 视频，PikaScenes 多图合成"
+      "label": "Pika V2.5",
+      "description": "更清晰画面、更流畅运动、1080p 生成"
     },
     "wanVideo": {
-      "label": "万象 2.2",
-      "description": "开源 14B 模型，超高性价比"
+      "label": "万象 2.6",
+      "description": "多模态原生音频，最高 1080p，超高性价比"
     },
     "hunyuanVideo": {
       "label": "混元视频",

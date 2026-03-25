@@ -278,11 +278,16 @@ export async function fetchUsageSummary(): Promise<UsageSummary> {
  */
 export async function toggleGenerationVisibility(
   id: string,
+  field: 'isPublic' | 'isPromptPublic' = 'isPublic',
 ): Promise<ToggleVisibilityResponse> {
   try {
     const response = await fetch(
       `${API_ENDPOINTS.GENERATIONS}/${id}/visibility`,
-      { method: 'PATCH' },
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field }),
+      },
     )
     if (!response.ok) {
       return {

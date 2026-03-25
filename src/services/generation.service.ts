@@ -26,6 +26,7 @@ export interface CreateGenerationInput {
   requestCount: number
   outputType?: OutputType
   isPublic?: boolean
+  isPromptPublic?: boolean
   userId?: string
 }
 
@@ -105,6 +106,7 @@ export async function createGeneration(
       requestCount: input.requestCount,
       outputType: input.outputType ?? 'IMAGE',
       isPublic: input.isPublic ?? false,
+      isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
     },
   })
@@ -184,10 +186,14 @@ export async function getGenerationById(
 export async function toggleGenerationVisibility(
   id: string,
   userId: string,
-): Promise<Pick<GenerationRecord, 'id' | 'isPublic'> | null> {
+  field: 'isPublic' | 'isPromptPublic' = 'isPublic',
+): Promise<Pick<
+  GenerationRecord,
+  'id' | 'isPublic' | 'isPromptPublic'
+> | null> {
   const generation = await db.generation.findUnique({
     where: { id },
-    select: { id: true, userId: true, isPublic: true },
+    select: { id: true, userId: true, isPublic: true, isPromptPublic: true },
   })
 
   if (!generation || generation.userId !== userId) {
@@ -196,8 +202,8 @@ export async function toggleGenerationVisibility(
 
   const updated = await db.generation.update({
     where: { id },
-    data: { isPublic: !generation.isPublic },
-    select: { id: true, isPublic: true },
+    data: { [field]: !generation[field] },
+    select: { id: true, isPublic: true, isPromptPublic: true },
   })
 
   return updated

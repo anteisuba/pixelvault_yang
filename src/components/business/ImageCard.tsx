@@ -36,7 +36,10 @@ export function ImageCard({
   onDelete,
 }: ImageCardProps) {
   const [isPublic, setIsPublic] = useState(generation.isPublic)
-  const [isToggling, setIsToggling] = useState(false)
+  const [isPromptPublic, setIsPromptPublic] = useState(
+    generation.isPromptPublic,
+  )
+  const [togglingField, setTogglingField] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const router = useRouter()
   const format = useFormatter()
@@ -46,18 +49,23 @@ export function ImageCard({
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
 
-  const handleToggleVisibility = async () => {
-    if (isToggling) return
-    setIsToggling(true)
-    const prev = isPublic
-    setIsPublic(!prev)
-    const result = await toggleGenerationVisibility(generation.id)
+  const handleToggle = async (field: 'isPublic' | 'isPromptPublic') => {
+    if (togglingField) return
+    setTogglingField(field)
+    const setter = field === 'isPublic' ? setIsPublic : setIsPromptPublic
+    const prev = field === 'isPublic' ? isPublic : isPromptPublic
+    setter(!prev)
+    const result = await toggleGenerationVisibility(generation.id, field)
     if (!result.success) {
-      setIsPublic(prev)
+      setter(prev)
     } else {
+      if (result.data) {
+        setIsPublic(result.data.isPublic)
+        setIsPromptPublic(result.data.isPromptPublic)
+      }
       router.refresh()
     }
-    setIsToggling(false)
+    setTogglingField(null)
   }
 
   const createdAt = new Date(generation.createdAt)
@@ -97,6 +105,7 @@ export function ImageCard({
   const detailGeneration = {
     ...generation,
     isPublic,
+    isPromptPublic,
   }
 
   return (
@@ -174,9 +183,11 @@ export function ImageCard({
             </button>
           </div>
 
-          <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
-            {generation.prompt}
-          </p>
+          {(showVisibility || generation.isPromptPublic) && (
+            <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
+              {generation.prompt}
+            </p>
+          )}
 
           <dl className="grid gap-2 border-t border-border/70 pt-3">
             {metadata.map((item) => (
@@ -193,33 +204,66 @@ export function ImageCard({
             ))}
 
             {showVisibility ? (
-              <div className="flex items-start justify-between gap-3 pt-0.5">
-                <dt className={labelClass}>{t('visibilityLabel')}</dt>
-                <dd className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-sm text-foreground">
-                    {isPublic ? (
-                      <Globe2 className="size-3 text-chart-2" />
-                    ) : (
-                      <LockKeyhole className="size-3 text-muted-foreground" />
-                    )}
-                    {isPublic ? t('publicLabel') : t('privateLabel')}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={isToggling}
-                    onClick={() => void handleToggleVisibility()}
-                    className={cn(
-                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-nav-dense',
-                      isToggling && 'opacity-50',
-                    )}
-                  >
-                    {isPublic ? t('makePrivateAction') : t('makePublicAction')}
-                  </button>
-                </dd>
-              </div>
+              <>
+                <div className="flex items-start justify-between gap-3 pt-0.5">
+                  <dt className={labelClass}>{t('imageVisibilityLabel')}</dt>
+                  <dd className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-sm text-foreground">
+                      {isPublic ? (
+                        <Globe2 className="size-3 text-chart-2" />
+                      ) : (
+                        <LockKeyhole className="size-3 text-muted-foreground" />
+                      )}
+                      {isPublic ? t('publicLabel') : t('privateLabel')}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={togglingField !== null}
+                      onClick={() => void handleToggle('isPublic')}
+                      className={cn(
+                        'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+                        isDenseLocale
+                          ? 'tracking-normal normal-case'
+                          : 'uppercase tracking-nav-dense',
+                        togglingField !== null && 'opacity-50',
+                      )}
+                    >
+                      {isPublic
+                        ? t('makePrivateAction')
+                        : t('makePublicAction')}
+                    </button>
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <dt className={labelClass}>{t('promptVisibilityLabel')}</dt>
+                  <dd className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-sm text-foreground">
+                      {isPromptPublic ? (
+                        <Globe2 className="size-3 text-chart-2" />
+                      ) : (
+                        <LockKeyhole className="size-3 text-muted-foreground" />
+                      )}
+                      {isPromptPublic ? t('publicLabel') : t('privateLabel')}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={togglingField !== null}
+                      onClick={() => void handleToggle('isPromptPublic')}
+                      className={cn(
+                        'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+                        isDenseLocale
+                          ? 'tracking-normal normal-case'
+                          : 'uppercase tracking-nav-dense',
+                        togglingField !== null && 'opacity-50',
+                      )}
+                    >
+                      {isPromptPublic
+                        ? t('makePrivateAction')
+                        : t('makePublicAction')}
+                    </button>
+                  </dd>
+                </div>
+              </>
             ) : null}
           </dl>
         </div>

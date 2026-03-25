@@ -10,7 +10,7 @@ interface RouteContext {
 }
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<ToggleVisibilityResponse>> {
   const { userId: clerkId } = await auth()
@@ -25,7 +25,9 @@ export async function PATCH(
   const user = await ensureUser(clerkId)
 
   const { id } = await params
-  const result = await toggleGenerationVisibility(id, user.id)
+  const body = await request.json().catch(() => ({}))
+  const field = body.field === 'isPromptPublic' ? 'isPromptPublic' : 'isPublic'
+  const result = await toggleGenerationVisibility(id, user.id, field)
 
   if (!result) {
     return NextResponse.json(

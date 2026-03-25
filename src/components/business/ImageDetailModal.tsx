@@ -167,34 +167,54 @@ export function ImageDetailModal({
 
             <div className="flex items-center gap-2">
               {showVisibility ? (
-                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  {generation.isPublic ? (
-                    <Globe2 className="size-3 text-chart-2" />
-                  ) : (
-                    <LockKeyhole className="size-3" />
-                  )}
-                  {generation.isPublic
-                    ? tCard('publicLabel')
-                    : tCard('privateLabel')}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    {generation.isPublic ? (
+                      <Globe2 className="size-3 text-chart-2" />
+                    ) : (
+                      <LockKeyhole className="size-3" />
+                    )}
+                    {tCard('imageVisibilityShort', {
+                      status: generation.isPublic
+                        ? tCard('publicLabel')
+                        : tCard('privateLabel'),
+                    })}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    {generation.isPromptPublic ? (
+                      <Globe2 className="size-3 text-chart-2" />
+                    ) : (
+                      <LockKeyhole className="size-3" />
+                    )}
+                    {tCard('promptVisibilityShort', {
+                      status: generation.isPromptPublic
+                        ? tCard('publicLabel')
+                        : tCard('privateLabel'),
+                    })}
+                  </span>
+                </div>
               ) : null}
             </div>
           </div>
 
-          <div className="space-y-2">
-            <p className={labelClass}>{t('promptLabel')}</p>
-            <p className="font-serif text-base leading-7 text-foreground">
-              {generation.prompt}
-            </p>
-          </div>
+          {showVisibility || generation.isPromptPublic ? (
+            <>
+              <div className="space-y-2">
+                <p className={labelClass}>{t('promptLabel')}</p>
+                <p className="font-serif text-base leading-7 text-foreground">
+                  {generation.prompt}
+                </p>
+              </div>
 
-          {generation.negativePrompt ? (
-            <div className="space-y-2">
-              <p className={labelClass}>{t('negativePromptLabel')}</p>
-              <p className="font-serif text-sm leading-6 text-muted-foreground">
-                {generation.negativePrompt}
-              </p>
-            </div>
+              {generation.negativePrompt ? (
+                <div className="space-y-2">
+                  <p className={labelClass}>{t('negativePromptLabel')}</p>
+                  <p className="font-serif text-sm leading-6 text-muted-foreground">
+                    {generation.negativePrompt}
+                  </p>
+                </div>
+              ) : null}
+            </>
           ) : null}
 
           {generation.referenceImageUrl ? (

@@ -501,7 +501,10 @@
     "referenceImageLabel": "参照",
     "providerLabel": "プロバイダー",
     "requestsLabel": "リクエスト",
-    "visibilityLabel": "公開設定",
+    "imageVisibilityLabel": "画像",
+    "promptVisibilityLabel": "プロンプト",
+    "imageVisibilityShort": "画像: {status}",
+    "promptVisibilityShort": "プロンプト: {status}",
     "publicLabel": "公開",
     "privateLabel": "非公開",
     "makePublicAction": "公開にする",
@@ -660,6 +663,34 @@
     "failedModels": "失敗: {models}",
     "reset": "リセット",
     "useAsPrompt": "バトルプロンプトとして使用"
+  },
+  "Onboarding": {
+    "next": "次へ",
+    "finish": "了解",
+    "dismiss": "ガイドを閉じる",
+    "skipStep": "スキップ",
+    "steps": {
+      "welcome": {
+        "title": "PixelVault へようこそ",
+        "description": "基本操作を確認して、すぐに画像生成を始めましょう。"
+      },
+      "model": {
+        "title": "モデルを選択",
+        "description": "リアル、アニメ、クリエイティブなど、目的に合った AI モデルを選びましょう。"
+      },
+      "prompt": {
+        "title": "プロンプトを入力",
+        "description": "見たい画像を説明してください。被写体、照明、構図、スタイルを具体的に記述しましょう。"
+      },
+      "apiKey": {
+        "title": "自分の API キーを使いますか？",
+        "description": "独自のプロバイダーキーを追加すると無制限に生成できます。デフォルトキーを使う場合はスキップしてください。"
+      },
+      "generate": {
+        "title": "生成！",
+        "description": "準備ができたらこのボタンを押してください。画像はプロンプトとモデル情報とともに自動保存されます。"
+      }
+    }
   },
   "Models": {
     "sdxl": {

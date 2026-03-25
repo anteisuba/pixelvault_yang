@@ -313,6 +313,7 @@ function mapGenerationToRecord(gen: {
   provider: string
   requestCount: number
   isPublic: boolean
+  isPromptPublic: boolean
   userId?: string | null
 }): GenerationRecord {
   return {
@@ -332,6 +333,7 @@ function mapGenerationToRecord(gen: {
     provider: gen.provider,
     requestCount: gen.requestCount,
     isPublic: gen.isPublic,
+    isPromptPublic: gen.isPromptPublic,
     userId: gen.userId,
   }
 }

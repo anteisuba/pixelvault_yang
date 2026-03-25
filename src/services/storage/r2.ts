@@ -22,17 +22,18 @@ const r2 = new S3Client({
 // ─── Storage Key ──────────────────────────────────────────────────
 
 /**
- * Generate a unique R2 storage key for a given output type.
- * Format: generations/image/YYYY-MM-DD_<8-char random>.png
+ * Generate a unique R2 storage key for a given output type, scoped to the user.
+ * Format: generations/{userId}/image/YYYY-MM-DD_<24-char random>.png
  */
-export function generateStorageKey(outputType: 'IMAGE' | 'VIDEO'): string {
+export function generateStorageKey(
+  outputType: 'IMAGE' | 'VIDEO',
+  userId: string,
+): string {
   const date = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
   const random = randomBytes(12).toString('hex') // 24-char cryptographically secure
-
-  if (outputType === 'VIDEO') {
-    return `generations/video/${date}_${random}.mp4`
-  }
-  return `generations/image/${date}_${random}.png`
+  const subdir = outputType === 'VIDEO' ? 'video' : 'image'
+  const ext = outputType === 'VIDEO' ? 'mp4' : 'png'
+  return `generations/${userId}/${subdir}/${date}_${random}.${ext}`
 }
 
 // ─── Fetch as Buffer ──────────────────────────────────────────────

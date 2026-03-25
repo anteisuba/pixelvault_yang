@@ -17,7 +17,7 @@ vi.mock('@/services/generation.service', () => ({
 }))
 
 vi.mock('@/services/user.service', () => ({
-  getUserByClerkId: vi.fn(),
+  ensureUser: vi.fn(),
 }))
 
 import { GET } from '@/app/api/images/route'
@@ -25,11 +25,11 @@ import {
   getPublicGenerations,
   countPublicGenerations,
 } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 const mockGetPublic = vi.mocked(getPublicGenerations)
 const mockCountPublic = vi.mocked(countPublicGenerations)
-const mockGetUser = vi.mocked(getUserByClerkId)
+const mockEnsureUser = vi.mocked(ensureUser)
 
 // ─── Tests ────────────────────────────────────────────────────────
 
@@ -113,21 +113,9 @@ describe('GET /api/images', () => {
     expect(json.error).toBe('Unauthorized')
   })
 
-  it('returns 404 when mine=1 and user not found in DB', async () => {
-    mockAuthenticated()
-    mockGetUser.mockResolvedValue(null)
-    const req = createGET('/api/images', { mine: '1' })
-    const res = await GET(req)
-    const json = await parseJSON<{ success: boolean; error: string }>(res)
-
-    expect(res.status).toBe(404)
-    expect(json.success).toBe(false)
-    expect(json.error).toBe('User not found')
-  })
-
   it('returns user own generations when mine=1', async () => {
     mockAuthenticated()
-    mockGetUser.mockResolvedValue(FAKE_DB_USER as never)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER as never)
     const req = createGET('/api/images', { mine: '1' })
     const res = await GET(req)
     const json = await parseJSON<{

@@ -16,7 +16,7 @@ vi.mock('@/services/generation.service', () => ({
 }))
 
 vi.mock('@/services/user.service', () => ({
-  getUserByClerkId: vi.fn(),
+  ensureUser: vi.fn(),
 }))
 
 vi.mock('@/services/storage/r2', () => ({
@@ -25,11 +25,11 @@ vi.mock('@/services/storage/r2', () => ({
 
 import { DELETE } from '@/app/api/generations/[id]/route'
 import { deleteGeneration } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { deleteFromR2 } from '@/services/storage/r2'
 
 const mockDeleteGen = vi.mocked(deleteGeneration)
-const mockGetUser = vi.mocked(getUserByClerkId)
+const mockEnsureUser = vi.mocked(ensureUser)
 const mockDeleteR2 = vi.mocked(deleteFromR2)
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ describe('DELETE /api/generations/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
-    mockGetUser.mockResolvedValue(FAKE_DB_USER as never)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER as never)
     mockDeleteGen.mockResolvedValue(FAKE_GENERATION as never)
     mockDeleteR2.mockResolvedValue(undefined)
   })
@@ -58,17 +58,6 @@ describe('DELETE /api/generations/[id]', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.error).toBe('Unauthorized')
-  })
-
-  it('returns 404 when user not found', async () => {
-    mockGetUser.mockResolvedValue(null)
-    const req = createDELETE('/api/generations/gen_123')
-    const res = await DELETE(req, routeParams('gen_123'))
-    const json = await parseJSON<{ success: boolean; error: string }>(res)
-
-    expect(res.status).toBe(404)
-    expect(json.success).toBe(false)
-    expect(json.error).toBe('User not found')
   })
 
   it('returns 404 when generation not found or not owned', async () => {

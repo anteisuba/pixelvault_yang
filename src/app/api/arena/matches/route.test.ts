@@ -65,11 +65,12 @@ describe('POST /api/arena/matches', () => {
       success: true,
       data: { matchId: 'match_abc123' },
     })
-    expect(createArenaMatch).toHaveBeenCalledWith(
-      'clerk_test_user',
-      'a beautiful sunset',
-      '1:1',
-    )
+    expect(createArenaMatch).toHaveBeenCalledWith('clerk_test_user', {
+      prompt: 'a beautiful sunset',
+      aspectRatio: '1:1',
+      models: undefined,
+      referenceImage: undefined,
+    })
   })
 
   it('returns matchId with custom aspectRatio', async () => {
@@ -88,11 +89,12 @@ describe('POST /api/arena/matches', () => {
       success: true,
       data: { matchId: 'match_456' },
     })
-    expect(createArenaMatch).toHaveBeenCalledWith(
-      'clerk_test_user',
-      'a cat',
-      '16:9',
-    )
+    expect(createArenaMatch).toHaveBeenCalledWith('clerk_test_user', {
+      prompt: 'a cat',
+      aspectRatio: '16:9',
+      models: undefined,
+      referenceImage: undefined,
+    })
   })
 
   it('returns 500 when service throws', async () => {

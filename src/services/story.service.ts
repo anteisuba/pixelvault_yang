@@ -6,7 +6,7 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 // ─── Narrative Prompts ───────────────────────────────────────────
 
@@ -86,8 +86,7 @@ export async function createStory(
   title: string,
   generationIds: string[],
 ): Promise<StoryRecord> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   // Verify all generation IDs belong to this user
   const ownedCount = await db.generation.count({
@@ -118,8 +117,7 @@ export async function getStoryById(
   storyId: string,
   clerkId: string,
 ): Promise<StoryRecord | null> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) return null
+  const dbUser = await ensureUser(clerkId)
 
   const story = await db.story.findUnique({
     where: { id: storyId },
@@ -147,8 +145,7 @@ export async function getPublicStoryById(
 }
 
 export async function listStories(clerkId: string): Promise<StoryListItem[]> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) return []
+  const dbUser = await ensureUser(clerkId)
 
   const stories = await db.story.findMany({
     where: { userId: dbUser.id },
@@ -181,8 +178,7 @@ export async function updateStory(
   clerkId: string,
   data: { title?: string; displayMode?: string; isPublic?: boolean },
 ): Promise<StoryRecord> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const existing = await db.story.findUnique({ where: { id: storyId } })
   if (!existing || existing.userId !== dbUser.id) {
@@ -206,8 +202,7 @@ export async function deleteStory(
   storyId: string,
   clerkId: string,
 ): Promise<void> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const existing = await db.story.findUnique({ where: { id: storyId } })
   if (!existing || existing.userId !== dbUser.id) {
@@ -222,8 +217,7 @@ export async function reorderPanels(
   clerkId: string,
   panelIds: string[],
 ): Promise<StoryRecord> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const existing = await db.story.findUnique({ where: { id: storyId } })
   if (!existing || existing.userId !== dbUser.id) {
@@ -261,8 +255,7 @@ export async function generateNarrative(
   clerkId: string,
   tone: NarrativeTone,
 ): Promise<Array<{ id: string; narration: string; caption: string }>> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const story = await db.story.findUnique({
     where: { id: storyId },

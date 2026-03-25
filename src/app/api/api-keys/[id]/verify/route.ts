@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import type { ApiKeyVerifyResponse } from '@/types'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { verifyApiKey } from '@/services/apiKey.service'
 
 interface RouteContext {
@@ -25,13 +25,7 @@ export async function POST(
 
   const { id } = await params
 
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) {
-    return NextResponse.json(
-      { success: false, error: 'User not found' },
-      { status: 404 },
-    )
-  }
+  const dbUser = await ensureUser(clerkId)
 
   try {
     const result = await verifyApiKey(id, dbUser.id)

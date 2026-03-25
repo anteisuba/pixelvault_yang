@@ -5,7 +5,7 @@ import {
   getPublicGenerations,
   countPublicGenerations,
 } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { GallerySearchSchema, type GalleryResponse } from '@/types'
 
 export async function GET(request: NextRequest) {
@@ -35,13 +35,7 @@ export async function GET(request: NextRequest) {
           { status: 401 },
         )
       }
-      const user = await getUserByClerkId(clerkId)
-      if (!user) {
-        return NextResponse.json<GalleryResponse>(
-          { success: false, error: 'User not found' },
-          { status: 404 },
-        )
-      }
+      const user = await ensureUser(clerkId)
       userId = user.id
     }
 

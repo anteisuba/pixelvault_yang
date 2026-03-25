@@ -9,7 +9,7 @@ import {
 } from '@/services/llm-text.service'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.`
 
@@ -17,8 +17,7 @@ export async function analyzeImage(
   clerkId: string,
   imageData: string,
 ): Promise<{ id: string; generatedPrompt: string; sourceImageUrl: string }> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   // Upload source image to R2
   const dataUrlMatch = imageData.match(/^data:([^;]+);base64,(.+)$/)
@@ -26,7 +25,7 @@ export async function analyzeImage(
 
   const mimeType = dataUrlMatch[1]
   const buffer = Buffer.from(dataUrlMatch[2], 'base64')
-  const storageKey = generateStorageKey('IMAGE')
+  const storageKey = generateStorageKey('IMAGE', dbUser.id)
   const sourceImageUrl = await uploadToR2({
     data: buffer,
     key: storageKey,
@@ -70,8 +69,7 @@ export async function getAnalysisById(
   generatedPrompt: string
   sourceImageUrl: string
 } | null> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) return null
+  const dbUser = await ensureUser(clerkId)
 
   const analysis = await db.imageAnalysis.findUnique({
     where: { id: analysisId },
@@ -92,8 +90,7 @@ export async function generateVariations(
   models: GenerateVariationsModel[],
   aspectRatio: AspectRatio,
 ): Promise<{ variations: GenerationRecord[]; failed: string[] }> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const analysis = await db.imageAnalysis.findUnique({
     where: { id: analysisId },

@@ -5,7 +5,7 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 const STYLE_SYSTEM_PROMPTS: Record<PromptEnhanceStyle, string> = {
   detailed: `You are an expert AI image prompt engineer. Enhance the given prompt by adding rich details about environment, lighting, composition, materials, textures, and mood. Keep the core subject unchanged. Return ONLY the enhanced prompt text, no explanation.`,
@@ -22,11 +22,7 @@ export async function enhancePrompt(
   prompt: string,
   style: PromptEnhanceStyle,
 ): Promise<{ original: string; enhanced: string; style: string }> {
-  const dbUser = await getUserByClerkId(clerkId)
-
-  if (!dbUser) {
-    throw new Error('User not found')
-  }
+  const dbUser = await ensureUser(clerkId)
 
   const route = await resolveLlmTextRoute(dbUser.id)
   const systemPrompt = STYLE_SYSTEM_PROMPTS[style]

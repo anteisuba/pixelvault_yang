@@ -9,7 +9,7 @@ import {
 } from '@/test/api-helpers'
 
 vi.mock('@/services/user.service', () => ({
-  getUserByClerkId: vi.fn(),
+  ensureUser: vi.fn(),
 }))
 
 vi.mock('@/services/apiKey.service', () => ({
@@ -18,10 +18,10 @@ vi.mock('@/services/apiKey.service', () => ({
 }))
 
 import { GET, POST } from '@/app/api/api-keys/route'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { listUserApiKeys, createApiKey } from '@/services/apiKey.service'
 
-const mockGetUserByClerkId = vi.mocked(getUserByClerkId)
+const mockEnsureUser = vi.mocked(ensureUser)
 const mockListUserApiKeys = vi.mocked(listUserApiKeys)
 const mockCreateApiKey = vi.mocked(createApiKey)
 
@@ -49,19 +49,9 @@ describe('GET /api/api-keys', () => {
     expect(body).toEqual({ success: false, error: 'Unauthorized' })
   })
 
-  it('returns 404 when user not found', async () => {
-    mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(null)
-
-    const res = await GET()
-    expect(res.status).toBe(404)
-    const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'User not found' })
-  })
-
   it('returns API key list on success', async () => {
     mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(FAKE_DB_USER)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     mockListUserApiKeys.mockResolvedValue([FAKE_API_KEY])
 
     const res = await GET()
@@ -102,7 +92,7 @@ describe('POST /api/api-keys', () => {
 
   it('returns 201 with created key on success', async () => {
     mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(FAKE_DB_USER)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     mockCreateApiKey.mockResolvedValue(FAKE_API_KEY)
 
     const req = createPOST('/api/api-keys', VALID_BODY)

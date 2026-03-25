@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 
 import { CreateApiKeySchema } from '@/types'
 import type { ApiKeysResponse, ApiKeyResponse } from '@/types'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { listUserApiKeys, createApiKey } from '@/services/apiKey.service'
 
 // ─── GET /api/api-keys ────────────────────────────────────────────
@@ -17,14 +17,7 @@ export async function GET(): Promise<NextResponse<ApiKeysResponse>> {
     )
   }
 
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) {
-    return NextResponse.json(
-      { success: false, error: 'User not found' },
-      { status: 404 },
-    )
-  }
-
+  const dbUser = await ensureUser(clerkId)
   const keys = await listUserApiKeys(dbUser.id)
   return NextResponse.json({ success: true, data: keys })
 }
@@ -54,14 +47,7 @@ export async function POST(
     )
   }
 
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) {
-    return NextResponse.json(
-      { success: false, error: 'User not found' },
-      { status: 404 },
-    )
-  }
-
+  const dbUser = await ensureUser(clerkId)
   const { adapterType, providerConfig, modelId, label, keyValue } =
     parseResult.data
   const record = await createApiKey(

@@ -20,7 +20,7 @@ import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
   recordFailedUsage,
@@ -34,11 +34,7 @@ export async function submitVideoGeneration(
   clerkId: string,
   input: GenerateVideoRequest,
 ): Promise<VideoSubmitResponseData> {
-  const dbUser = await getUserByClerkId(clerkId)
-
-  if (!dbUser) {
-    throw new GenerateImageServiceError('USER_NOT_FOUND', 'User not found', 404)
-  }
+  const dbUser = await ensureUser(clerkId)
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -99,11 +95,7 @@ export async function checkVideoGenerationStatus(
   clerkId: string,
   jobId: string,
 ): Promise<VideoStatusResponseData> {
-  const dbUser = await getUserByClerkId(clerkId)
-
-  if (!dbUser) {
-    throw new GenerateImageServiceError('USER_NOT_FOUND', 'User not found', 404)
-  }
+  const dbUser = await ensureUser(clerkId)
 
   const job = await db.generationJob.findUnique({
     where: { id: jobId },
@@ -225,7 +217,7 @@ export async function checkVideoGenerationStatus(
     wasSuccessful: true,
   })
 
-  const storageKey = generateStorageKey('VIDEO')
+  const storageKey = generateStorageKey('VIDEO', dbUser.id)
 
   try {
     const { publicUrl } = await streamUploadToR2({

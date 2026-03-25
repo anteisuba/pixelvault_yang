@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 import type { UsageSummary } from '@/types'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { getUserUsageSummary } from '@/services/usage.service'
 
 export async function GET() {
@@ -12,8 +12,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = await getUserByClerkId(clerkId)
-  const usageSummary = user ? await getUserUsageSummary(user.id) : null
+  const user = await ensureUser(clerkId)
+  const usageSummary = await getUserUsageSummary(user.id)
 
   const summary: UsageSummary = usageSummary
     ? {

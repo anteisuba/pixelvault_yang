@@ -17,7 +17,7 @@ import {
   countUserPublicGenerations,
   getUserGenerations,
 } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { getUserUsageSummary } from '@/services/usage.service'
 
 interface ProfilePageProps {
@@ -47,9 +47,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     namespace: 'Common',
   })
   const { userId: clerkId } = await auth()
-  const user = clerkId ? await getUserByClerkId(clerkId) : null
 
-  if (!clerkId || !user) {
+  if (!clerkId) {
     return (
       <div className="editorial-page">
         <div className="editorial-container">
@@ -70,6 +69,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       </div>
     )
   }
+
+  const user = await ensureUser(clerkId)
 
   const [usageSummary, generations, total, publicTotal, typeCounts] =
     await Promise.all([

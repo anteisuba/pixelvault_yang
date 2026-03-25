@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 import { deleteGeneration } from '@/services/generation.service'
 import { deleteFromR2 } from '@/services/storage/r2'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import type { DeleteGenerationResponse } from '@/types'
 
 interface RouteContext {
@@ -23,14 +23,7 @@ export async function DELETE(
     )
   }
 
-  const user = await getUserByClerkId(clerkId)
-
-  if (!user) {
-    return NextResponse.json(
-      { success: false, error: 'User not found' },
-      { status: 404 },
-    )
-  }
+  const user = await ensureUser(clerkId)
 
   const { id } = await params
   const result = await deleteGeneration(id, user.id)

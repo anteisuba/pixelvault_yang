@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 import { toggleGenerationVisibility } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import type { ToggleVisibilityResponse } from '@/types'
 
 interface RouteContext {
@@ -16,14 +16,13 @@ export async function PATCH(
   const { userId: clerkId } = await auth()
 
   if (!clerkId) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 },
+    )
   }
 
-  const user = await getUserByClerkId(clerkId)
-
-  if (!user) {
-    return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
-  }
+  const user = await ensureUser(clerkId)
 
   const { id } = await params
   const result = await toggleGenerationVisibility(id, user.id)

@@ -11,7 +11,7 @@ import type {
   LeaderboardEntry,
 } from '@/types'
 import { generateImageForUser } from '@/services/generate-image.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { getAvailableModels } from '@/constants/models'
 
 // ─── Match Creation ──────────────────────────────────────────────
@@ -27,8 +27,7 @@ export async function createArenaMatch(
   clerkId: string,
   input: CreateArenaMatchInput,
 ): Promise<string> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   // Resolve which models to use: user-selected or all available
   let selectedModels: ArenaModelSelection[]
@@ -119,8 +118,7 @@ export async function getArenaMatch(
   matchId: string,
   clerkId: string,
 ): Promise<ArenaMatchRecord | null> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) return null
+  const dbUser = await ensureUser(clerkId)
 
   const match = await db.arenaMatch.findUnique({
     where: { id: matchId },
@@ -200,8 +198,7 @@ export async function submitArenaVote(
   winnerEntryId: string,
   clerkId: string,
 ): Promise<{ winnerId: string; eloUpdates: EloUpdate[] }> {
-  const dbUser = await getUserByClerkId(clerkId)
-  if (!dbUser) throw new Error('User not found')
+  const dbUser = await ensureUser(clerkId)
 
   const match = await db.arenaMatch.findUnique({
     where: { id: matchId },

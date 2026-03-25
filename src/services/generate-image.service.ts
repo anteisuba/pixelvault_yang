@@ -28,7 +28,7 @@ import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 export interface ResolvedGenerationRoute {
   modelId: string
@@ -165,11 +165,7 @@ export async function generateImageForUser(
   clerkId: string,
   input: GenerateRequest,
 ): Promise<GenerationRecord> {
-  const dbUser = await getUserByClerkId(clerkId)
-
-  if (!dbUser) {
-    throw new GenerateImageServiceError('USER_NOT_FOUND', 'User not found', 404)
-  }
+  const dbUser = await ensureUser(clerkId)
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -235,7 +231,7 @@ export async function generateImageForUser(
     wasSuccessful: true,
   })
 
-  const storageKey = generateStorageKey('IMAGE')
+  const storageKey = generateStorageKey('IMAGE', dbUser.id)
 
   try {
     const { buffer, mimeType } = await fetchAsBuffer(generatedAsset.imageUrl)

@@ -9,7 +9,7 @@ import {
 } from '@/test/api-helpers'
 
 vi.mock('@/services/user.service', () => ({
-  getUserByClerkId: vi.fn(),
+  ensureUser: vi.fn(),
 }))
 
 vi.mock('@/services/apiKey.service', () => ({
@@ -18,10 +18,10 @@ vi.mock('@/services/apiKey.service', () => ({
 }))
 
 import { PUT, DELETE } from '@/app/api/api-keys/[id]/route'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 import { updateApiKey, deleteApiKey } from '@/services/apiKey.service'
 
-const mockGetUserByClerkId = vi.mocked(getUserByClerkId)
+const mockEnsureUser = vi.mocked(ensureUser)
 const mockUpdateApiKey = vi.mocked(updateApiKey)
 const mockDeleteApiKey = vi.mocked(deleteApiKey)
 
@@ -53,20 +53,9 @@ describe('PUT /api/api-keys/[id]', () => {
     expect(body).toEqual({ success: false, error: 'Unauthorized' })
   })
 
-  it('returns 404 when user not found', async () => {
-    mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(null)
-
-    const req = createPUT(`/api/api-keys/${KEY_ID}`, { label: 'Updated' })
-    const res = await PUT(req, routeParams)
-    expect(res.status).toBe(404)
-    const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'User not found' })
-  })
-
   it('returns updated key on success', async () => {
     mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(FAKE_DB_USER)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     const updated = { ...FAKE_API_KEY, label: 'Updated Label' }
     mockUpdateApiKey.mockResolvedValue(updated)
 
@@ -93,7 +82,7 @@ describe('DELETE /api/api-keys/[id]', () => {
 
   it('returns 204 on success', async () => {
     mockAuthenticated()
-    mockGetUserByClerkId.mockResolvedValue(FAKE_DB_USER)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     mockDeleteApiKey.mockResolvedValue(undefined)
 
     const req = createDELETE(`/api/api-keys/${KEY_ID}`)

@@ -15,15 +15,15 @@ vi.mock('@/services/generation.service', () => ({
 }))
 
 vi.mock('@/services/user.service', () => ({
-  getUserByClerkId: vi.fn(),
+  ensureUser: vi.fn(),
 }))
 
 import { PATCH } from '@/app/api/generations/[id]/visibility/route'
 import { toggleGenerationVisibility } from '@/services/generation.service'
-import { getUserByClerkId } from '@/services/user.service'
+import { ensureUser } from '@/services/user.service'
 
 const mockToggle = vi.mocked(toggleGenerationVisibility)
-const mockGetUser = vi.mocked(getUserByClerkId)
+const mockEnsureUser = vi.mocked(ensureUser)
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ describe('PATCH /api/generations/[id]/visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
-    mockGetUser.mockResolvedValue(FAKE_DB_USER as never)
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER as never)
     mockToggle.mockResolvedValue({ id: 'gen_123', isPublic: false })
   })
 
@@ -50,17 +50,6 @@ describe('PATCH /api/generations/[id]/visibility', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.error).toBe('Unauthorized')
-  })
-
-  it('returns 404 when user not found', async () => {
-    mockGetUser.mockResolvedValue(null)
-    const req = createPATCH('/api/generations/gen_123/visibility')
-    const res = await PATCH(req, routeParams('gen_123'))
-    const json = await parseJSON<{ success: boolean; error: string }>(res)
-
-    expect(res.status).toBe(404)
-    expect(json.success).toBe(false)
-    expect(json.error).toBe('User not found')
   })
 
   it('returns 404 when generation not found or not owned', async () => {

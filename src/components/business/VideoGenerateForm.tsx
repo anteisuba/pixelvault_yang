@@ -258,7 +258,7 @@ export default function VideoGenerateForm() {
 
       {/* Duration + Aspect Ratio + Resolution */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl border border-border/75 bg-card/82 p-5">
+        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
           <label
             className={cn(
               'mb-3 block text-xs font-semibold text-muted-foreground',
@@ -286,7 +286,7 @@ export default function VideoGenerateForm() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border/75 bg-card/82 p-5">
+        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
           <label
             className={cn(
               'mb-3 block text-xs font-semibold text-muted-foreground',
@@ -314,7 +314,7 @@ export default function VideoGenerateForm() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border/75 bg-card/82 p-5">
+        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
           <label
             className={cn(
               'mb-3 block text-xs font-semibold text-muted-foreground',

@@ -1,6 +1,6 @@
 'use client'
 
-import { RotateCcw, Trophy } from 'lucide-react'
+import { Loader2, RotateCcw, Trophy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -9,11 +9,20 @@ import { ArenaForm } from '@/components/business/ArenaForm'
 import { ArenaGrid } from '@/components/business/ArenaGrid'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { useArena } from '@/hooks/use-arena'
+import { cn } from '@/lib/utils'
 
 export default function ArenaPage() {
   const t = useTranslations('ArenaPage')
-  const { step, match, eloUpdates, error, startBattle, vote, reset } =
-    useArena()
+  const {
+    step,
+    match,
+    eloUpdates,
+    error,
+    entryProgress,
+    startBattle,
+    vote,
+    reset,
+  } = useArena()
 
   return (
     <div className="editorial-page">
@@ -36,7 +45,7 @@ export default function ArenaPage() {
         </section>
 
         <section className="editorial-panel">
-          {/* Idle — show form */}
+          {/* Idle / Creating — show form */}
           {(step === 'idle' || step === 'creating') && (
             <ApiKeysProvider>
               <ArenaForm
@@ -44,6 +53,49 @@ export default function ArenaPage() {
                 onBattle={startBattle}
               />
             </ApiKeysProvider>
+          )}
+
+          {/* Generating — show per-model progress */}
+          {step === 'generating' && entryProgress.length > 0 && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <Loader2 className="mx-auto size-6 animate-spin text-primary" />
+                <p className="mt-3 text-sm font-medium text-foreground">
+                  {t('generatingEntries')}
+                </p>
+                <p className="mt-1 font-serif text-xs text-muted-foreground">
+                  {entryProgress.filter((e) => e.status === 'completed').length}
+                  {' / '}
+                  {entryProgress.length} {t('entriesCompleted')}
+                </p>
+              </div>
+
+              <div className="mx-auto max-w-md space-y-2">
+                {entryProgress.map((ep) => (
+                  <div
+                    key={ep.modelId}
+                    className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/72 px-4 py-2.5"
+                  >
+                    <span
+                      className={cn(
+                        'size-2.5 shrink-0 rounded-full',
+                        ep.status === 'pending' && 'animate-pulse bg-amber-400',
+                        ep.status === 'completed' && 'bg-emerald-500',
+                        ep.status === 'failed' && 'bg-red-500',
+                      )}
+                    />
+                    <span className="flex-1 truncate text-sm text-foreground">
+                      {t('modelSlot', { index: entryProgress.indexOf(ep) + 1 })}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {ep.status === 'pending' && t('entryPending')}
+                      {ep.status === 'completed' && t('entryDone')}
+                      {ep.status === 'failed' && t('entryFailed')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Voting or Revealed — show grid */}

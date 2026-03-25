@@ -387,6 +387,16 @@ export type CreateArenaMatchRequest = z.infer<
   typeof CreateArenaMatchRequestSchema
 >
 
+export const CreateArenaEntryRequestSchema = z.object({
+  modelId: z.string().min(1),
+  apiKeyId: z.string().optional(),
+  slotIndex: z.number().int().min(0),
+})
+
+export type CreateArenaEntryRequest = z.infer<
+  typeof CreateArenaEntryRequestSchema
+>
+
 export const ArenaVoteRequestSchema = z.object({
   winnerEntryId: z.string().trim().min(1),
 })

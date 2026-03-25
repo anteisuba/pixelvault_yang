@@ -68,7 +68,6 @@ describe('POST /api/arena/matches', () => {
     expect(createArenaMatch).toHaveBeenCalledWith('clerk_test_user', {
       prompt: 'a beautiful sunset',
       aspectRatio: '1:1',
-      models: undefined,
       referenceImage: undefined,
     })
   })
@@ -92,7 +91,6 @@ describe('POST /api/arena/matches', () => {
     expect(createArenaMatch).toHaveBeenCalledWith('clerk_test_user', {
       prompt: 'a cat',
       aspectRatio: '16:9',
-      models: undefined,
       referenceImage: undefined,
     })
   })

@@ -19,6 +19,7 @@ import type {
   GenerateVariationsResponse,
   CreateArenaMatchRequest,
   CreateArenaMatchResponse,
+  ArenaEntryRecord,
   ArenaMatchResponse,
   ArenaVoteRequest,
   ArenaVoteResponse,
@@ -401,6 +402,33 @@ export async function createArenaMatchAPI(
       return {
         success: false,
         error: await getErrorMessage(response, `Match creation failed`),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function generateArenaEntryAPI(
+  matchId: string,
+  params: { modelId: string; apiKeyId?: string; slotIndex: number },
+): Promise<{ success: boolean; data?: ArenaEntryRecord; error?: string }> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ARENA_MATCHES}/${matchId}/entries`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, `Entry generation failed`),
       }
     }
     return await response.json()

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 // Allow large reference images (base64): 10MB image ≈ ~14MB JSON string
 export const bodySizeLimit = '15mb'

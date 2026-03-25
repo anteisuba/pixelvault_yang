@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateRequestSchema } from '@/types'
 
-export const maxDuration = 60
+export const maxDuration = 120
 import type { GenerateResponse } from '@/types'
 import {
   generateImageForUser,

@@ -26,6 +26,7 @@ export interface CreateGenerationInput {
   requestCount: number
   outputType?: OutputType
   isPublic?: boolean
+  isPromptPublic?: boolean
   userId?: string
 }
 
@@ -53,6 +54,13 @@ function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
   return undefined
 }
 
+/** Redact prompt fields for generations where isPromptPublic is false. */
+function redactPrompts(generations: GenerationRecord[]): GenerationRecord[] {
+  return generations.map((g) =>
+    g.isPromptPublic ? g : { ...g, prompt: '', negativePrompt: null },
+  )
+}
+
 function buildGalleryWhere(options: {
   search?: string
   model?: string
@@ -68,7 +76,16 @@ function buildGalleryWhere(options: {
   }
 
   if (options.search) {
-    where.prompt = { contains: options.search, mode: 'insensitive' }
+    if (options.userId) {
+      // Owner can search all their own prompts
+      where.prompt = { contains: options.search, mode: 'insensitive' }
+    } else {
+      // Public gallery: only search prompt-public generations
+      where.AND = [
+        { isPromptPublic: true },
+        { prompt: { contains: options.search, mode: 'insensitive' } },
+      ]
+    }
   }
   if (options.model) {
     where.model = options.model
@@ -105,6 +122,7 @@ export async function createGeneration(
       requestCount: input.requestCount,
       outputType: input.outputType ?? 'IMAGE',
       isPublic: input.isPublic ?? false,
+      isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
     },
   })
@@ -158,12 +176,14 @@ export async function getPublicGenerations({
   type,
   userId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
-  return db.generation.findMany({
+  const results = await db.generation.findMany({
     where: buildGalleryWhere({ search, model, type, userId }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
   })
+  // Owner sees full data; public viewers get redacted prompts
+  return userId ? results : redactPrompts(results)
 }
 
 /**
@@ -184,10 +204,14 @@ export async function getGenerationById(
 export async function toggleGenerationVisibility(
   id: string,
   userId: string,
-): Promise<Pick<GenerationRecord, 'id' | 'isPublic'> | null> {
+  field: 'isPublic' | 'isPromptPublic' = 'isPublic',
+): Promise<Pick<
+  GenerationRecord,
+  'id' | 'isPublic' | 'isPromptPublic'
+> | null> {
   const generation = await db.generation.findUnique({
     where: { id },
-    select: { id: true, userId: true, isPublic: true },
+    select: { id: true, userId: true, isPublic: true, isPromptPublic: true },
   })
 
   if (!generation || generation.userId !== userId) {
@@ -196,8 +220,8 @@ export async function toggleGenerationVisibility(
 
   const updated = await db.generation.update({
     where: { id },
-    data: { isPublic: !generation.isPublic },
-    select: { id: true, isPublic: true },
+    data: { [field]: !generation[field] },
+    select: { id: true, isPublic: true, isPromptPublic: true },
   })
 
   return updated

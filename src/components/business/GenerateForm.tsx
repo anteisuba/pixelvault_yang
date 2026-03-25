@@ -409,6 +409,7 @@ export function GenerateForm() {
           <div className="mt-4">
             <Textarea
               id="prompt"
+              data-onboarding="prompt"
               placeholder={t('promptPlaceholder')}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -517,6 +518,7 @@ export function GenerateForm() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  aria-label={t('referenceImageLabel')}
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0]
@@ -599,6 +601,7 @@ export function GenerateForm() {
             size="lg"
             disabled={!prompt.trim() || isGenerating}
             className="h-11 rounded-full px-6"
+            data-onboarding="generate"
           >
             {isGenerating ? (
               <>

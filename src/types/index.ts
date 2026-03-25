@@ -144,6 +144,7 @@ export interface GenerationRecord {
   provider: string
   requestCount: number
   isPublic: boolean
+  isPromptPublic: boolean
   userId?: string | null
 }
 
@@ -213,7 +214,7 @@ export interface ApiKeyVerifyResponse {
 
 export interface ToggleVisibilityResponse {
   success: boolean
-  data?: Pick<GenerationRecord, 'id' | 'isPublic'>
+  data?: Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'>
   error?: string
 }
 

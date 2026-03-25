@@ -214,7 +214,8 @@
     "errorFallback": "Video generation failed. Please try again.",
     "errorUnexpected": "An unexpected error occurred.",
     "errorTimeout": "Video generation timed out. Please try again.",
-    "toastSuccess": "Video generated successfully!"
+    "toastSuccess": "Video generated successfully!",
+    "referenceRemoveLabel": "Remove reference image"
   },
   "VideoPlayer": {
     "play": "Play",
@@ -501,7 +502,10 @@
     "referenceImageLabel": "Ref",
     "providerLabel": "Provider",
     "requestsLabel": "Requests",
-    "visibilityLabel": "Visibility",
+    "imageVisibilityLabel": "Image",
+    "promptVisibilityLabel": "Prompt",
+    "imageVisibilityShort": "Image: {status}",
+    "promptVisibilityShort": "Prompt: {status}",
     "publicLabel": "Public",
     "privateLabel": "Private",
     "makePublicAction": "Make Public",
@@ -660,6 +664,34 @@
     "failedModels": "Failed: {models}",
     "reset": "Reset",
     "useAsPrompt": "Use as Battle Prompt"
+  },
+  "Onboarding": {
+    "next": "Next",
+    "finish": "Got it",
+    "dismiss": "Close guide",
+    "skipStep": "Skip",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to PixelVault",
+        "description": "Let's walk through the basics so you can start generating images right away."
+      },
+      "model": {
+        "title": "Choose a model",
+        "description": "Pick the AI model that matches the style you want — realism, anime, or creative exploration."
+      },
+      "prompt": {
+        "title": "Write your prompt",
+        "description": "Describe what you want to see. Be specific about subject, lighting, composition, and style."
+      },
+      "apiKey": {
+        "title": "Want to use your own API key?",
+        "description": "You can add your own provider keys for unlimited generation. Skip this if you want to use the default workspace keys."
+      },
+      "generate": {
+        "title": "Generate!",
+        "description": "Hit this button when you're ready. Your image will be auto-archived with its prompt and model info."
+      }
+    }
   },
   "Models": {
     "sdxl": {

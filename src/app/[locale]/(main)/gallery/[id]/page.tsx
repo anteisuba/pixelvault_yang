@@ -36,7 +36,9 @@ export async function generateMetadata({
     : generation.model
 
   const title = `${modelLabel} — PixelVault`
-  const description = generation.prompt.slice(0, 160)
+  const description = generation.isPromptPublic
+    ? generation.prompt.slice(0, 160)
+    : `AI-generated ${generation.outputType === 'VIDEO' ? 'video' : 'image'} by ${modelLabel}`
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
   return {
@@ -92,12 +94,16 @@ export default async function ImageDetailPage({
 
   const isVideo = generation.outputType === 'VIDEO'
 
+  const jsonLdDescription = generation.isPromptPublic
+    ? generation.prompt
+    : `AI-generated ${isVideo ? 'video' : 'image'}`
+
   const jsonLd = isVideo
     ? {
         '@context': 'https://schema.org',
         '@type': 'VideoObject',
         name: `${modelLabel} generation`,
-        description: generation.prompt,
+        description: jsonLdDescription,
         contentUrl: generation.url,
         url: `${appUrl}/${locale}/gallery/${id}`,
         duration: generation.duration ? `PT${generation.duration}S` : undefined,
@@ -108,7 +114,7 @@ export default async function ImageDetailPage({
         '@context': 'https://schema.org',
         '@type': 'ImageObject',
         name: `${modelLabel} generation`,
-        description: generation.prompt,
+        description: jsonLdDescription,
         contentUrl: generation.url,
         url: `${appUrl}/${locale}/gallery/${id}`,
         width: generation.width,
@@ -171,7 +177,7 @@ export default async function ImageDetailPage({
             ) : (
               <img
                 src={generation.url}
-                alt={generation.prompt}
+                alt={generation.isPromptPublic ? generation.prompt : modelLabel}
                 className="h-auto max-h-[70svh] w-full object-contain"
                 style={{ aspectRatio }}
               />
@@ -196,20 +202,24 @@ export default async function ImageDetailPage({
               </p>
             </div>
 
-            <div className="space-y-2">
-              <p className={labelClass}>{t('promptLabel')}</p>
-              <p className="font-serif text-base leading-7 text-foreground">
-                {generation.prompt}
-              </p>
-            </div>
+            {generation.isPromptPublic ? (
+              <>
+                <div className="space-y-2">
+                  <p className={labelClass}>{t('promptLabel')}</p>
+                  <p className="font-serif text-base leading-7 text-foreground">
+                    {generation.prompt}
+                  </p>
+                </div>
 
-            {generation.negativePrompt ? (
-              <div className="space-y-2">
-                <p className={labelClass}>{t('negativePromptLabel')}</p>
-                <p className="font-serif text-sm leading-6 text-muted-foreground">
-                  {generation.negativePrompt}
-                </p>
-              </div>
+                {generation.negativePrompt ? (
+                  <div className="space-y-2">
+                    <p className={labelClass}>{t('negativePromptLabel')}</p>
+                    <p className="font-serif text-sm leading-6 text-muted-foreground">
+                      {generation.negativePrompt}
+                    </p>
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             <dl className="grid gap-2 border-t border-border/70 pt-4">

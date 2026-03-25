@@ -33,6 +33,7 @@ export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
           variant="outline"
           size="sm"
           className="h-10 shrink-0 rounded-full border-border/70 bg-background/78 px-3 text-foreground shadow-none"
+          data-onboarding="apiKey"
         >
           <KeyRound className="size-4" />
           <span>{t('triggerLabel')}</span>

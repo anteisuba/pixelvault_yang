@@ -371,6 +371,7 @@ export default function VideoGenerateForm() {
             />
             <button
               type="button"
+              aria-label={t('referenceRemoveLabel')}
               onClick={() => setReferenceImage(undefined)}
               className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
             >
@@ -413,6 +414,7 @@ export default function VideoGenerateForm() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          aria-label={t('referenceImageLabel')}
           className="hidden"
           onChange={async (e) => {
             const file = e.target.files?.[0]

@@ -119,12 +119,14 @@ export const GenerationScalarFieldEnum = {
   width: 'width',
   height: 'height',
   duration: 'duration',
+  referenceImageUrl: 'referenceImageUrl',
   prompt: 'prompt',
   negativePrompt: 'negativePrompt',
   model: 'model',
   provider: 'provider',
   requestCount: 'requestCount',
   isPublic: 'isPublic',
+  isPromptPublic: 'isPromptPublic',
   userId: 'userId'
 } as const
 

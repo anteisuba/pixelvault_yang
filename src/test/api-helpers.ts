@@ -107,5 +107,6 @@ export const FAKE_GENERATION = {
   provider: 'huggingface',
   requestCount: 1,
   isPublic: true,
+  isPromptPublic: false,
   userId: 'db_user_123',
 }

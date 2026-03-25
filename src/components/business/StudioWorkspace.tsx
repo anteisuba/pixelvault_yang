@@ -5,7 +5,9 @@ import { ImageIcon, Film } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { GenerateForm } from '@/components/business/GenerateForm'
+import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import VideoGenerateForm from '@/components/business/VideoGenerateForm'
+import { useOnboarding } from '@/hooks/use-onboarding'
 import { cn } from '@/lib/utils'
 
 type StudioMode = 'image' | 'video'
@@ -13,6 +15,7 @@ type StudioMode = 'image' | 'video'
 export function StudioWorkspace() {
   const [mode, setMode] = useState<StudioMode>('image')
   const t = useTranslations('StudioPage')
+  const onboarding = useOnboarding()
 
   return (
     <div className="space-y-6">
@@ -48,6 +51,19 @@ export function StudioWorkspace() {
 
       {/* Form area */}
       {mode === 'image' ? <GenerateForm /> : <VideoGenerateForm />}
+
+      {/* Onboarding tooltip */}
+      <OnboardingTooltip
+        active={onboarding.active}
+        step={onboarding.currentStep}
+        stepIndex={onboarding.currentIndex}
+        totalSteps={onboarding.totalSteps}
+        isLastStep={onboarding.isLastStep}
+        isSkippable={onboarding.isSkippable}
+        onNext={onboarding.next}
+        onSkip={onboarding.skip}
+        onDismiss={onboarding.dismiss}
+      />
     </div>
   )
 }

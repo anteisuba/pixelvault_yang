@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { AspectRatio } from '@/constants/config'
-import type { GenerationRecord } from '@/types'
+import type { GenerationRecord, GenerateVariationsModel } from '@/types'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,
@@ -89,7 +89,7 @@ export async function getAnalysisById(
 export async function generateVariations(
   clerkId: string,
   analysisId: string,
-  modelIds: string[],
+  models: GenerateVariationsModel[],
   aspectRatio: AspectRatio,
 ): Promise<{ variations: GenerationRecord[]; failed: string[] }> {
   const dbUser = await getUserByClerkId(clerkId)
@@ -104,11 +104,12 @@ export async function generateVariations(
   }
 
   const results = await Promise.allSettled(
-    modelIds.map((modelId) =>
+    models.map((model) =>
       generateImageForUser(clerkId, {
         prompt: analysis.generatedPrompt,
-        modelId,
+        modelId: model.modelId,
         aspectRatio,
+        apiKeyId: model.apiKeyId,
       }),
     ),
   )
@@ -120,7 +121,7 @@ export async function generateVariations(
     if (result.status === 'fulfilled') {
       variations.push(result.value)
     } else {
-      failed.push(modelIds[index])
+      failed.push(models[index].modelId)
     }
   })
 

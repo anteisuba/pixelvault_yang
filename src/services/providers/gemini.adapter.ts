@@ -7,6 +7,7 @@ import {
   AI_PROVIDER_ENDPOINTS,
   IMAGE_SIZES,
 } from '@/constants/config'
+import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
@@ -81,7 +82,7 @@ export const geminiAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
-    const endpoint = `${baseUrl}/${modelId}:generateContent`
+    const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}:generateContent`
     const parts: Array<Record<string, unknown>> = [{ text: prompt }]
 
     if (referenceImage) {

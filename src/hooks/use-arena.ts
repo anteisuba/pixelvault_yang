@@ -97,7 +97,10 @@ export function useArena() {
 
   const vote = useCallback(
     async (winnerEntryId: string) => {
-      if (!state.matchId) return
+      if (!state.matchId || state.step !== 'voting') return
+
+      // Optimistically move to revealed to prevent double-click
+      setState((prev) => ({ ...prev, step: 'revealed' }))
 
       const result = await submitArenaVoteAPI(state.matchId, {
         winnerEntryId,
@@ -116,11 +119,12 @@ export function useArena() {
       } else {
         setState((prev) => ({
           ...prev,
+          step: 'voting',
           error: result.error ?? 'Vote failed',
         }))
       }
     },
-    [state.matchId],
+    [state.matchId, state.step],
   )
 
   const reset = useCallback(() => {

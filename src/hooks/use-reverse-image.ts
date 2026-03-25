@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { AspectRatio } from '@/constants/config'
-import type { GenerationRecord } from '@/types'
+import type { GenerationRecord, GenerateVariationsModel } from '@/types'
 import { analyzeImageAPI, generateVariationsAPI } from '@/lib/api-client'
 
 type ReverseStep =
@@ -72,7 +72,7 @@ export function useReverseImage() {
   }, [])
 
   const generateVariations = useCallback(
-    async (modelIds: string[], aspectRatio: AspectRatio) => {
+    async (models: GenerateVariationsModel[], aspectRatio: AspectRatio) => {
       if (!state.analysisId) return
 
       setState((prev) => ({
@@ -82,7 +82,7 @@ export function useReverseImage() {
       }))
 
       const result = await generateVariationsAPI(state.analysisId, {
-        modelIds,
+        models,
         aspectRatio,
       })
 

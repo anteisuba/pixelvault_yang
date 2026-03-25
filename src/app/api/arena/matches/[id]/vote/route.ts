@@ -53,9 +53,18 @@ export async function POST(
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/arena/matches/[id]/vote] Error:', error)
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
+
+    // Already voted is not a server error — return 409 Conflict
+    if (message === 'Match already voted') {
+      return NextResponse.json<ArenaVoteResponse>(
+        { success: false, error: message },
+        { status: 409 },
+      )
+    }
+
+    console.error('[API /api/arena/matches/[id]/vote] Error:', error)
     return NextResponse.json<ArenaVoteResponse>(
       { success: false, error: message },
       { status: 500 },

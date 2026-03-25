@@ -35,7 +35,9 @@ export async function createArenaMatch(
   if (input.models && input.models.length >= ARENA.MIN_MODELS_FOR_MATCH) {
     selectedModels = input.models
   } else {
-    const available = getAvailableModels()
+    const available = getAvailableModels().filter(
+      (m) => m.outputType === 'IMAGE',
+    )
     if (available.length < ARENA.MIN_MODELS_FOR_MATCH) {
       throw new Error(
         `Arena requires at least ${ARENA.MIN_MODELS_FOR_MATCH} available models`,

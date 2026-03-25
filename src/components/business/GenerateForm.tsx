@@ -523,7 +523,18 @@ export function GenerateForm() {
 
           {/* Reverse Engineer Panel */}
           <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
-            <ReverseEngineerPanel />
+            <ReverseEngineerPanel
+              selectedModels={
+                selectedModel
+                  ? [
+                      {
+                        modelId: selectedModel.modelId,
+                        apiKeyId: selectedModel.keyId,
+                      },
+                    ]
+                  : undefined
+              }
+            />
           </div>
         </section>
       </div>

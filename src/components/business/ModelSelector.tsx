@@ -67,7 +67,7 @@ export function ModelSelector({
   const selectedOption = options.find((option) => option.optionId === value)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-onboarding="model">
       <div className="space-y-1">
         <label className="text-sm font-semibold text-foreground">
           {t('label')}

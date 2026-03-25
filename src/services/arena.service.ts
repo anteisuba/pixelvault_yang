@@ -45,8 +45,9 @@ export async function createArenaMatch(
     selectedModels = available.map((m) => ({ modelId: m.id }))
   }
 
-  // Shuffle model order for blind testing
+  // Pick exactly 2 random models for head-to-head comparison
   const shuffled = [...selectedModels].sort(() => Math.random() - 0.5)
+  const matchModels = shuffled.slice(0, ARENA.MIN_MODELS_FOR_MATCH)
 
   const match = await db.arenaMatch.create({
     data: {
@@ -56,27 +57,17 @@ export async function createArenaMatch(
     },
   })
 
-  // Generate images in parallel with timeout
+  // Generate images in parallel (only 2 models)
   const results = await Promise.allSettled(
-    shuffled.map(async (selection) => {
-      const controller = new AbortController()
-      const timeout = setTimeout(
-        () => controller.abort(),
-        ARENA.PROVIDER_TIMEOUT_MS,
-      )
-
-      try {
-        const generation = await generateImageForUser(clerkId, {
-          prompt: input.prompt,
-          modelId: selection.modelId,
-          aspectRatio: input.aspectRatio,
-          referenceImage: input.referenceImage,
-          apiKeyId: selection.apiKeyId,
-        })
-        return { modelId: selection.modelId, generation }
-      } finally {
-        clearTimeout(timeout)
-      }
+    matchModels.map(async (selection) => {
+      const generation = await generateImageForUser(clerkId, {
+        prompt: input.prompt,
+        modelId: selection.modelId,
+        aspectRatio: input.aspectRatio,
+        referenceImage: input.referenceImage,
+        apiKeyId: selection.apiKeyId,
+      })
+      return { modelId: selection.modelId, generation }
     }),
   )
 
@@ -95,7 +86,7 @@ export async function createArenaMatch(
       slotIndex++
     } else {
       console.error(
-        `[Arena] Generation failed for model ${shuffled[results.indexOf(result)]?.modelId}:`,
+        `[Arena] Generation failed for model ${matchModels[results.indexOf(result)]?.modelId}:`,
         result.reason,
       )
     }

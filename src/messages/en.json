@@ -326,6 +326,7 @@
     "promptHint": "Describe the subject, setting, light, composition, or style as clearly as you can.",
     "promptPlaceholder": "Describe the image you want to generate...",
     "promptCounter": "{current} / {max} characters",
+    "aspectRatioLabel": "Aspect Ratio",
     "referenceTitle": "Reference image",
     "referenceSelectedDescription": "Image selected. The next run will use it as reference guidance.",
     "referenceIdleDescription": "Optional. Upload a reference image when you want the generation to follow an existing composition or mood.",

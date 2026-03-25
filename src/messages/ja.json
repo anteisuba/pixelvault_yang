@@ -326,6 +326,7 @@
     "promptHint": "被写体、場面、ライティング、構図、スタイルなどをできるだけ明確に書いてください。",
     "promptPlaceholder": "生成したい画像を説明してください...",
     "promptCounter": "{current} / {max} 文字",
+    "aspectRatioLabel": "アスペクト比",
     "referenceTitle": "参照画像",
     "referenceSelectedDescription": "画像を選択済みです。次回の生成では参照画像として使われます。",
     "referenceIdleDescription": "任意です。既存の構図や雰囲気をなぞりたいときに参照画像をアップロードしてください。",

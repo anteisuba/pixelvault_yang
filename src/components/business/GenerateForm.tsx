@@ -18,6 +18,8 @@ import {
   API_USAGE,
   DEFAULT_ASPECT_RATIO,
   GENERATION_LIMITS,
+  IMAGE_SIZES,
+  type AspectRatio,
 } from '@/constants/config'
 import {
   AI_MODELS,
@@ -81,6 +83,8 @@ export function GenerateForm() {
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
     `workspace:${AI_MODELS.SDXL}`,
   )
+  const [aspectRatio, setAspectRatio] =
+    useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [referenceImage, setReferenceImage] = useState<string | undefined>()
   const [showReferencePanel, setShowReferencePanel] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -169,7 +173,7 @@ export function GenerateForm() {
     await generate({
       prompt: prompt.trim(),
       modelId: selectedModel.modelId,
-      aspectRatio: DEFAULT_ASPECT_RATIO,
+      aspectRatio,
       referenceImage,
       apiKeyId: selectedModel.keyId,
     })
@@ -521,6 +525,37 @@ export function GenerateForm() {
                 />
               </div>
             ) : null}
+          </div>
+
+          {/* Aspect Ratio Selector */}
+          <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
+            <p
+              className={cn(
+                'mb-3 text-xs font-semibold text-muted-foreground',
+                isDenseLocale
+                  ? 'tracking-normal normal-case'
+                  : 'uppercase tracking-[0.18em]',
+              )}
+            >
+              {t('aspectRatioLabel')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(IMAGE_SIZES) as AspectRatio[]).map((ar) => (
+                <button
+                  key={ar}
+                  type="button"
+                  onClick={() => setAspectRatio(ar)}
+                  className={cn(
+                    'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                    aspectRatio === ar
+                      ? 'bg-foreground text-background'
+                      : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
+                  )}
+                >
+                  {ar}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Reverse Engineer Panel */}

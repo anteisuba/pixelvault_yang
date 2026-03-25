@@ -177,7 +177,7 @@ export default async function ImageDetailPage({
             ) : (
               <img
                 src={generation.url}
-                alt={generation.prompt}
+                alt={generation.isPromptPublic ? generation.prompt : modelLabel}
                 className="h-auto max-h-[70svh] w-full object-contain"
                 style={{ aspectRatio }}
               />

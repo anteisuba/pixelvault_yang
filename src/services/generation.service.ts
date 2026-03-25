@@ -54,6 +54,13 @@ function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
   return undefined
 }
 
+/** Redact prompt fields for generations where isPromptPublic is false. */
+function redactPrompts(generations: GenerationRecord[]): GenerationRecord[] {
+  return generations.map((g) =>
+    g.isPromptPublic ? g : { ...g, prompt: '', negativePrompt: null },
+  )
+}
+
 function buildGalleryWhere(options: {
   search?: string
   model?: string
@@ -69,7 +76,16 @@ function buildGalleryWhere(options: {
   }
 
   if (options.search) {
-    where.prompt = { contains: options.search, mode: 'insensitive' }
+    if (options.userId) {
+      // Owner can search all their own prompts
+      where.prompt = { contains: options.search, mode: 'insensitive' }
+    } else {
+      // Public gallery: only search prompt-public generations
+      where.AND = [
+        { isPromptPublic: true },
+        { prompt: { contains: options.search, mode: 'insensitive' } },
+      ]
+    }
   }
   if (options.model) {
     where.model = options.model
@@ -160,12 +176,14 @@ export async function getPublicGenerations({
   type,
   userId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
-  return db.generation.findMany({
+  const results = await db.generation.findMany({
     where: buildGalleryWhere({ search, model, type, userId }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
   })
+  // Owner sees full data; public viewers get redacted prompts
+  return userId ? results : redactPrompts(results)
 }
 
 /**

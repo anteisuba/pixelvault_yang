@@ -127,7 +127,9 @@ export function ImageDetailModal({
       >
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">
-          {generation.prompt}
+          {showVisibility || generation.isPromptPublic
+            ? generation.prompt
+            : t('title')}
         </DialogDescription>
 
         <div className="overflow-hidden rounded-t-3xl bg-secondary/18">

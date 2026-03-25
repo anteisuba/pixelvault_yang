@@ -326,6 +326,7 @@
     "promptHint": "描述主体、场景、光线、风格。",
     "promptPlaceholder": "描述你想生成的图像...",
     "promptCounter": "{current} / {max} 字符",
+    "aspectRatioLabel": "宽高比",
     "referenceTitle": "参考图像",
     "referenceSelectedDescription": "已选择图像。下一次生成会把它作为参考。",
     "referenceIdleDescription": "可选。上传参考图引导构图。",

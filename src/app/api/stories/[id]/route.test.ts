@@ -22,6 +22,7 @@ import {
   updateStory,
   deleteStory,
 } from '@/services/story.service'
+import type { StoryRecord } from '@/types'
 
 const mockGetStoryById = vi.mocked(getStoryById)
 const mockGetPublicStoryById = vi.mocked(getPublicStoryById)
@@ -39,7 +40,7 @@ const FAKE_STORY = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   panels: [],
-}
+} as unknown as StoryRecord
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -106,7 +107,7 @@ describe('PUT /api/stories/[id]', () => {
     })
     const res = await PUT(req, routeParams)
     expect(res.status).toBe(400)
-    const body = await parseJSON(res)
+    const body = (await parseJSON(res)) as Record<string, unknown>
     expect(body.success).toBe(false)
     expect(body.error).toBeDefined()
   })

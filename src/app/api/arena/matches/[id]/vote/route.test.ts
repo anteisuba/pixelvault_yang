@@ -57,10 +57,11 @@ describe('POST /api/arena/matches/[id]/vote', () => {
   it('returns vote result on success', async () => {
     mockAuthenticated()
     const voteResult = {
-      matchId: MATCH_ID,
-      winnerEntryId: 'entry_1',
-      winnerModel: 'sdxl',
-      loserModel: 'dall-e-3',
+      winnerId: 'entry_1',
+      eloUpdates: [
+        { modelId: 'sdxl', oldRating: 1200, newRating: 1216, change: 16 },
+        { modelId: 'dall-e-3', oldRating: 1200, newRating: 1184, change: -16 },
+      ],
     }
     vi.mocked(submitArenaVote).mockResolvedValue(voteResult)
 

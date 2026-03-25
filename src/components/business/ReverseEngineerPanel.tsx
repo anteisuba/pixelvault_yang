@@ -84,9 +84,9 @@ export function ReverseEngineerPanel({
       if (!file.type.startsWith('image/')) return
       const base64 = await resizeImageToBase64(file)
       setPreviewUrl(base64)
-      analyzeImage(base64)
+      analyzeImage(base64, selectedModels?.[0]?.apiKeyId)
     },
-    [analyzeImage],
+    [analyzeImage, selectedModels],
   )
 
   const handleDrop = useCallback(

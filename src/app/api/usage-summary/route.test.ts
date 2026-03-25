@@ -15,7 +15,10 @@ vi.mock('@/services/usage.service', () => ({
 }))
 
 import { ensureUser } from '@/services/user.service'
-import { getUserUsageSummary } from '@/services/usage.service'
+import {
+  getUserUsageSummary,
+  type UserUsageSummary,
+} from '@/services/usage.service'
 import { GET } from './route'
 
 const mockEnsureUser = vi.mocked(ensureUser)
@@ -90,7 +93,9 @@ describe('GET /api/usage-summary', () => {
   it('returns zero stats when usage summary is null', async () => {
     mockAuthenticated()
     mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
-    vi.mocked(getUserUsageSummary).mockResolvedValue(null)
+    vi.mocked(getUserUsageSummary).mockResolvedValue(
+      null as unknown as UserUsageSummary,
+    )
 
     const res = await GET()
 

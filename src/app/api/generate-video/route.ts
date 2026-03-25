@@ -6,7 +6,7 @@ import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { submitVideoGeneration } from '@/services/generate-video.service'
 import { rateLimit } from '@/lib/rate-limit'
 
-export const maxDuration = 30
+export const maxDuration = 240
 
 // ─── POST /api/generate-video ────────────────────────────────────
 

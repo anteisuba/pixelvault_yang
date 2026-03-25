@@ -437,7 +437,9 @@ export default function VideoGenerateForm() {
               prompt={prompt}
               isEnhancing={isEnhancing}
               disabled={isGenerating}
-              onEnhance={(style) => enhancePrompt(prompt, style)}
+              onEnhance={(style) =>
+                enhancePrompt(prompt, style, selectedApiKeyId)
+              }
             />
             <span className="text-xs tabular-nums text-muted-foreground">
               {prompt.length}/{GENERATION_LIMITS.PROMPT_MAX_LENGTH}

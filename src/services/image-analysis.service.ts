@@ -16,6 +16,7 @@ const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images f
 export async function analyzeImage(
   clerkId: string,
   imageData: string,
+  apiKeyId?: string,
 ): Promise<{ id: string; generatedPrompt: string; sourceImageUrl: string }> {
   const dbUser = await ensureUser(clerkId)
 
@@ -33,7 +34,7 @@ export async function analyzeImage(
   })
 
   // Analyze with LLM
-  const route = await resolveLlmTextRoute(dbUser.id)
+  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
   const generatedPrompt = await llmTextCompletion({
     systemPrompt: REVERSE_ENGINEER_SYSTEM_PROMPT,
     userPrompt: 'Describe this image as a detailed AI image generation prompt.',

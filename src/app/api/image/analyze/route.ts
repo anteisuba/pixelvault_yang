@@ -61,7 +61,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await analyzeImage(clerkId, parseResult.data.imageData)
+    const result = await analyzeImage(
+      clerkId,
+      parseResult.data.imageData,
+      parseResult.data.apiKeyId,
+    )
 
     return NextResponse.json<AnalyzeImageResponse>({
       success: true,

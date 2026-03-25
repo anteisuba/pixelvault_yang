@@ -80,6 +80,9 @@ model Generation {
   // 視頻專用（圖片留 null）
   duration Float? // 秒數，例如 5.0
 
+  // ── 參考圖片 ────────────────────────────────────────────────────
+  referenceImageUrl String? // R2 永久 URL（用戶上傳的參考圖）
+
   // ── Prompt ────────────────────────────────────────────────────
   prompt         String  @db.Text
   negativePrompt String? @db.Text
@@ -92,7 +95,8 @@ model Generation {
   requestCount Int @default(1)
 
   // ── 可見性 ────────────────────────────────────────────────────
-  isPublic Boolean @default(true)
+  isPublic       Boolean @default(false)
+  isPromptPublic Boolean @default(false)
 
   // ── 關聯 ──────────────────────────────────────────────────────
   userId         String?

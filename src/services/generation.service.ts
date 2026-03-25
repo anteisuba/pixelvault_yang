@@ -18,6 +18,7 @@ export interface CreateGenerationInput {
   width: number
   height: number
   duration?: number
+  referenceImageUrl?: string
   prompt: string
   negativePrompt?: string
   model: string
@@ -96,13 +97,14 @@ export async function createGeneration(
       width: input.width,
       height: input.height,
       duration: input.duration,
+      referenceImageUrl: input.referenceImageUrl,
       prompt: input.prompt,
       negativePrompt: input.negativePrompt,
       model: input.model,
       provider: input.provider,
       requestCount: input.requestCount,
       outputType: input.outputType ?? 'IMAGE',
-      isPublic: input.isPublic ?? true,
+      isPublic: input.isPublic ?? false,
       userId: input.userId,
     },
   })

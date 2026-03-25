@@ -234,6 +234,20 @@ export async function generateImageForUser(
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
 
   try {
+    // Upload reference image to R2 if provided
+    let referenceImageUrl: string | undefined
+    if (input.referenceImage) {
+      const refKey = generateStorageKey('IMAGE', dbUser.id)
+      const { buffer: refBuffer, mimeType: refMimeType } = await fetchAsBuffer(
+        input.referenceImage,
+      )
+      referenceImageUrl = await uploadToR2({
+        data: refBuffer,
+        key: refKey,
+        mimeType: refMimeType,
+      })
+    }
+
     const { buffer, mimeType } = await fetchAsBuffer(generatedAsset.imageUrl)
     const permanentUrl = await uploadToR2({
       data: buffer,
@@ -247,6 +261,7 @@ export async function generateImageForUser(
       mimeType,
       width: generatedAsset.width,
       height: generatedAsset.height,
+      referenceImageUrl,
       prompt: input.prompt,
       model: executionRoute.modelId,
       provider,

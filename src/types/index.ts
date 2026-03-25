@@ -137,6 +137,7 @@ export interface GenerationRecord {
   width: number
   height: number
   duration?: number | null
+  referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
   model: string

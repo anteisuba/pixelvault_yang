@@ -12,7 +12,12 @@ import type {
 } from '@/types'
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
-import { generateStorageKey, streamUploadToR2 } from '@/services/storage/r2'
+import {
+  fetchAsBuffer,
+  generateStorageKey,
+  streamUploadToR2,
+  uploadToR2,
+} from '@/services/storage/r2'
 import {
   attachUsageEntryToGeneration,
   completeGenerationJob,
@@ -64,6 +69,20 @@ export async function submitVideoGeneration(
     videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
   })
 
+  // Upload reference image to R2 if provided
+  let referenceImageUrl: string | undefined
+  if (input.referenceImage) {
+    const refKey = generateStorageKey('IMAGE', dbUser.id)
+    const { buffer: refBuffer, mimeType: refMimeType } = await fetchAsBuffer(
+      input.referenceImage,
+    )
+    referenceImageUrl = await uploadToR2({
+      data: refBuffer,
+      key: refKey,
+      mimeType: refMimeType,
+    })
+  }
+
   const generationJob = await createGenerationJob({
     userId: dbUser.id,
     adapterType: executionRoute.adapterType,
@@ -76,6 +95,7 @@ export async function submitVideoGeneration(
     requestId: queueResult.requestId,
     statusUrl: queueResult.statusUrl,
     responseUrl: queueResult.responseUrl,
+    referenceImageUrl,
   })
 
   await db.generationJob.update({
@@ -133,7 +153,12 @@ export async function checkVideoGenerationStatus(
   }
 
   // Parse stored queue metadata
-  let queueMeta: { requestId: string; statusUrl: string; responseUrl: string }
+  let queueMeta: {
+    requestId: string
+    statusUrl: string
+    responseUrl: string
+    referenceImageUrl?: string
+  }
   try {
     queueMeta = JSON.parse(job.externalRequestId)
   } catch {
@@ -234,6 +259,7 @@ export async function checkVideoGenerationStatus(
       width: videoResult.width,
       height: videoResult.height,
       duration: videoResult.duration,
+      referenceImageUrl: queueMeta.referenceImageUrl,
       prompt: job.prompt ?? '',
       model: job.modelId,
       provider,

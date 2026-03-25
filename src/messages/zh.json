@@ -491,12 +491,14 @@
     "deleteConfirmTitle": "确定删除此作品？",
     "deleteConfirmDescription": "此作品及其存储文件将被永久删除，此操作不可恢复。",
     "deleteCancel": "取消",
-    "deleteConfirm": "永久删除"
+    "deleteConfirm": "永久删除",
+    "referenceImageLabel": "参考图"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",
     "openLabel": "查看",
     "modelLabel": "模型",
+    "referenceImageLabel": "参考",
     "providerLabel": "提供商",
     "requestsLabel": "请求数",
     "visibilityLabel": "可见性",

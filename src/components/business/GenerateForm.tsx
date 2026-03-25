@@ -196,14 +196,14 @@ export function GenerateForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <section className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
           <ModelSelector
             value={selectedModel.optionId}
             onChange={setSelectedOptionId}
             options={modelOptions}
           />
 
-          <div className="mt-6 rounded-3xl border border-border/70 bg-background/50 p-5">
+          <div className="mt-6 min-w-0 overflow-hidden rounded-3xl border border-border/70 bg-background/50 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-2">
                 <p
@@ -302,8 +302,8 @@ export function GenerateForm() {
                 )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -319,7 +319,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
+                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -335,7 +335,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2">
+                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -351,7 +351,7 @@ export function GenerateForm() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2 xl:col-span-4">
+                <div className="min-w-0 space-y-2 rounded-2xl border border-border/70 bg-secondary/18 px-3 py-3 sm:col-span-2 xl:col-span-4">
                   <p
                     className={cn(
                       'text-[11px] font-semibold text-muted-foreground',
@@ -371,7 +371,7 @@ export function GenerateForm() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <label

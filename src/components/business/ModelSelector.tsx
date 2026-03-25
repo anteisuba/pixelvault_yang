@@ -78,7 +78,7 @@ export function ModelSelector({
       </div>
 
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-16 w-full rounded-3xl border-border/75 bg-background/72 px-4 text-left shadow-none">
+        <SelectTrigger className="h-16 w-full overflow-hidden rounded-3xl border-border/75 bg-background/72 px-4 text-left shadow-none">
           <SelectValue
             placeholder={t('placeholder')}
             aria-label={selectedOption?.modelId ?? t('placeholder')}
@@ -94,7 +94,7 @@ export function ModelSelector({
                     {t(`routeSources.${selectedOption.sourceType}`)}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden items-center gap-2 sm:flex">
                   <Badge
                     variant={
                       selectedOption.sourceType === 'saved'

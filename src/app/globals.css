@@ -304,6 +304,7 @@ html:lang(zh) {
   .editorial-panel {
     position: relative;
     overflow: hidden;
+    min-width: 0;
     padding: clamp(1.3rem, 2.5vw, 1.8rem);
     border: 1px solid var(--page-border);
     border-radius: var(--radius-3xl);

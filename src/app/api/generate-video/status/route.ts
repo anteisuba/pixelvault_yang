@@ -5,7 +5,7 @@ import type { VideoStatusResponse } from '@/types'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { checkVideoGenerationStatus } from '@/services/generate-video.service'
 
-export const maxDuration = 55
+export const maxDuration = 120
 
 // ─── GET /api/generate-video/status?jobId=xxx ────────────────────
 

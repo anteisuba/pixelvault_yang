@@ -47,11 +47,13 @@ const OPENAI_VIDEO_SIZES: Record<string, string> = {
   '3:4': '768x1024',
 }
 
-/** Map our duration values to Sora's allowed seconds (4, 8, 12) — must be string */
+/** Map our duration values to Sora's allowed seconds (4, 8, 12, 16, 20) — must be string */
 function toSoraDuration(duration?: number): string {
   if (!duration || duration <= 4) return '4'
   if (duration <= 8) return '8'
-  return '12'
+  if (duration <= 12) return '12'
+  if (duration <= 16) return '16'
+  return '20'
 }
 
 const OPENAI_IMAGE_SIZES = {

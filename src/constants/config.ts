@@ -108,11 +108,11 @@ export const AI_PROVIDER_ENDPOINTS = {
 
 /** Video generation configuration */
 export const VIDEO_GENERATION = {
-  MAX_DURATION: 10,
+  MAX_DURATION: 20,
   DEFAULT_DURATION: 5,
-  DURATION_OPTIONS: [3, 5, 10] as const,
+  DURATION_OPTIONS: [3, 5, 10, 15, 20] as const,
   POLL_INTERVAL_MS: 3000,
-  MAX_POLL_ATTEMPTS: 120,
+  MAX_POLL_ATTEMPTS: 200,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
 } as const
 

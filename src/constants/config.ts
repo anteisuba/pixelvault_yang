@@ -100,7 +100,6 @@ export const AI_PROVIDER_ENDPOINTS = {
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
-  OPENAI_VIDEO: 'https://api.openai.com/v1/videos',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',

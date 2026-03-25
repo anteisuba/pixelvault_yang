@@ -122,13 +122,25 @@ export function ImageCard({
                 : t('openImage')
             }
           >
-            <img
-              src={generation.url}
-              alt={generation.prompt}
-              loading="lazy"
-              className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-              style={{ aspectRatio }}
-            />
+            {generation.outputType === 'VIDEO' ? (
+              <video
+                src={`${generation.url}#t=0.1`}
+                muted
+                playsInline
+                preload="metadata"
+                className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                style={{ aspectRatio }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={generation.url}
+                alt={generation.prompt}
+                loading="lazy"
+                className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                style={{ aspectRatio }}
+              />
+            )}
           </button>
           {generation.referenceImageUrl && (
             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">

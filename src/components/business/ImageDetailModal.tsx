@@ -8,6 +8,7 @@ import {
   Coins,
   Download,
   Globe2,
+  ImageIcon,
   LockKeyhole,
   Trash2,
 } from 'lucide-react'
@@ -193,6 +194,27 @@ export function ImageDetailModal({
               <p className="font-serif text-sm leading-6 text-muted-foreground">
                 {generation.negativePrompt}
               </p>
+            </div>
+          ) : null}
+
+          {generation.referenceImageUrl ? (
+            <div className="space-y-2">
+              <p className={cn(labelClass, 'flex items-center gap-1.5')}>
+                <ImageIcon className="size-3" />
+                {t('referenceImageLabel')}
+              </p>
+              <a
+                href={generation.referenceImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block w-fit"
+              >
+                <img
+                  src={generation.referenceImageUrl}
+                  alt={t('referenceImageLabel')}
+                  className="h-auto max-h-40 rounded-xl border border-border/70 object-contain"
+                />
+              </a>
             </div>
           ) : null}
 

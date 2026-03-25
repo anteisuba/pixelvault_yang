@@ -3,7 +3,14 @@
 
 import { useState } from 'react'
 
-import { ArrowUpRight, Coins, Globe2, LockKeyhole, Play } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Coins,
+  Globe2,
+  ImageIcon,
+  LockKeyhole,
+  Play,
+} from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
@@ -114,6 +121,12 @@ export function ImageCard({
               style={{ aspectRatio }}
             />
           </button>
+          {generation.referenceImageUrl && (
+            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-foreground/60 px-2 py-1 text-xs text-background backdrop-blur-sm">
+              <ImageIcon className="size-3" />
+              {t('referenceImageLabel')}
+            </span>
+          )}
           {generation.outputType === 'VIDEO' && (
             <>
               <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur-sm">

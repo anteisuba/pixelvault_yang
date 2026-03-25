@@ -491,12 +491,14 @@
     "deleteConfirmTitle": "この作品を削除しますか？",
     "deleteConfirmDescription": "この作品とストレージファイルが完全に削除されます。この操作は元に戻せません。",
     "deleteCancel": "キャンセル",
-    "deleteConfirm": "完全に削除"
+    "deleteConfirm": "完全に削除",
+    "referenceImageLabel": "参照画像"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",
     "openLabel": "開く",
     "modelLabel": "モデル",
+    "referenceImageLabel": "参照",
     "providerLabel": "プロバイダー",
     "requestsLabel": "リクエスト",
     "visibilityLabel": "公開設定",

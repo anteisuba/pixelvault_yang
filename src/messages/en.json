@@ -491,12 +491,14 @@
     "deleteConfirmTitle": "Delete this generation?",
     "deleteConfirmDescription": "This will permanently delete this generation and its stored file. This action cannot be undone.",
     "deleteCancel": "Cancel",
-    "deleteConfirm": "Delete permanently"
+    "deleteConfirm": "Delete permanently",
+    "referenceImageLabel": "Reference Image"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",
     "openLabel": "Open",
     "modelLabel": "Model",
+    "referenceImageLabel": "Ref",
     "providerLabel": "Provider",
     "requestsLabel": "Requests",
     "visibilityLabel": "Visibility",

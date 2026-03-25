@@ -389,7 +389,9 @@ export function GenerateForm() {
                 prompt={prompt}
                 isEnhancing={isEnhancing}
                 disabled={isGenerating}
-                onEnhance={(style) => enhancePrompt(prompt, style)}
+                onEnhance={(style) =>
+                  enhancePrompt(prompt, style, selectedModel?.keyId)
+                }
               />
               <p className="text-xs font-medium text-muted-foreground">
                 {t('promptCounter', {

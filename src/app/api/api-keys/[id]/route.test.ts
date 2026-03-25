@@ -7,6 +7,8 @@ import {
   parseJSON,
   FAKE_DB_USER,
 } from '@/test/api-helpers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { UserApiKeyRecord } from '@/types'
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
@@ -31,13 +33,13 @@ const routeParams = { params: Promise.resolve({ id: KEY_ID }) }
 const FAKE_API_KEY = {
   id: KEY_ID,
   modelId: 'gpt-4',
-  adapterType: 'openai' as const,
+  adapterType: 'openai' as AI_ADAPTER_TYPES,
   providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
   label: 'My Key',
   maskedKey: 'sk-****abcd',
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
-}
+} as unknown as UserApiKeyRecord
 
 beforeEach(() => {
   vi.clearAllMocks()

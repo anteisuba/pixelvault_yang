@@ -103,6 +103,7 @@ describe('POST /api/image/analyze', () => {
     expect(analyzeImage).toHaveBeenCalledWith(
       'clerk_test_user',
       'data:image/png;base64,validbase64data',
+      undefined,
     )
   })
 

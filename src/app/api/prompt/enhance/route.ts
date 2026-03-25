@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       clerkId,
       parseResult.data.prompt,
       parseResult.data.style,
+      parseResult.data.apiKeyId,
     )
 
     return NextResponse.json<EnhancePromptResponse>({

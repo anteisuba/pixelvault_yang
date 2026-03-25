@@ -277,6 +277,7 @@ export const EnhancePromptRequestSchema = z.object({
     .min(1, 'Prompt is required')
     .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
   style: z.enum(PROMPT_ENHANCE.STYLES),
+  apiKeyId: z.string().optional(),
 })
 
 export type EnhancePromptRequest = z.infer<typeof EnhancePromptRequestSchema>
@@ -308,6 +309,7 @@ export const AnalyzeImageRequestSchema = z.object({
         data.startsWith('https://'),
       'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTPS URL',
     ),
+  apiKeyId: z.string().optional(),
 })
 
 export type AnalyzeImageRequest = z.infer<typeof AnalyzeImageRequestSchema>

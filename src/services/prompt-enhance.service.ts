@@ -21,10 +21,11 @@ export async function enhancePrompt(
   clerkId: string,
   prompt: string,
   style: PromptEnhanceStyle,
+  apiKeyId?: string,
 ): Promise<{ original: string; enhanced: string; style: string }> {
   const dbUser = await ensureUser(clerkId)
 
-  const route = await resolveLlmTextRoute(dbUser.id)
+  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
   const systemPrompt = STYLE_SYSTEM_PROMPTS[style]
 
   const enhanced = await llmTextCompletion({

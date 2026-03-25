@@ -65,14 +65,42 @@ const LLM_TEXT_MODELS = {
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: user Gemini key → user OpenAI key → env Gemini key → env OpenAI key
+ * Priority: specified apiKeyId → user Gemini key → user OpenAI key
  */
 export async function resolveLlmTextRoute(
   userId: string,
+  apiKeyId?: string,
 ): Promise<ResolvedLlmTextRoute> {
-  const preferenceOrder = [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI]
+  // If a specific key is requested, use it directly
+  if (apiKeyId) {
+    const specificKey = await db.userApiKey.findFirst({
+      where: { id: apiKeyId, userId, isActive: true },
+    })
+    if (specificKey) {
+      const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
+      if (
+        adapterType === AI_ADAPTER_TYPES.GEMINI ||
+        adapterType === AI_ADAPTER_TYPES.OPENAI
+      ) {
+        const keyValue = decryptApiKey(specificKey.encryptedKey)
+        const label =
+          adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
+        return {
+          adapterType,
+          providerConfig: {
+            label,
+            baseUrl:
+              adapterType === AI_ADAPTER_TYPES.GEMINI
+                ? AI_PROVIDER_ENDPOINTS.GEMINI
+                : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
+          },
+          apiKey: keyValue,
+        }
+      }
+    }
+  }
 
-  // Check user API keys first
+  const preferenceOrder = [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI]
   const triedProviders: string[] = []
 
   for (const adapterType of preferenceOrder) {

@@ -10,6 +10,7 @@ vi.mock('@/services/arena.service', () => ({
   getArenaMatch: vi.fn(),
 }))
 
+import type { ArenaMatchRecord } from '@/types'
 import { getArenaMatch } from '@/services/arena.service'
 import { GET } from './route'
 
@@ -36,9 +37,12 @@ describe('GET /api/arena/matches/[id]', () => {
     const matchData = {
       id: MATCH_ID,
       prompt: 'a sunset',
-      status: 'completed',
+      aspectRatio: '1:1',
+      winnerId: null,
+      votedAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
       entries: [],
-    }
+    } as unknown as ArenaMatchRecord
     vi.mocked(getArenaMatch).mockResolvedValue(matchData)
 
     const req = createGET(`/api/arena/matches/${MATCH_ID}`)

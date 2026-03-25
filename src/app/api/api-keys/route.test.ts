@@ -7,6 +7,8 @@ import {
   parseJSON,
   FAKE_DB_USER,
 } from '@/test/api-helpers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { UserApiKeyRecord } from '@/types'
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
@@ -28,13 +30,13 @@ const mockCreateApiKey = vi.mocked(createApiKey)
 const FAKE_API_KEY = {
   id: 'key_1',
   modelId: 'gpt-4',
-  adapterType: 'openai' as const,
+  adapterType: 'openai' as AI_ADAPTER_TYPES,
   providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
   label: 'My Key',
   maskedKey: 'sk-****abcd',
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
-}
+} as unknown as UserApiKeyRecord
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -85,7 +87,7 @@ describe('POST /api/api-keys', () => {
     const req = createPOST('/api/api-keys', { label: 'incomplete' })
     const res = await POST(req)
     expect(res.status).toBe(400)
-    const body = await parseJSON(res)
+    const body = (await parseJSON(res)) as Record<string, unknown>
     expect(body.success).toBe(false)
     expect(body.error).toBeDefined()
   })

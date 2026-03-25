@@ -36,33 +36,36 @@ const INITIAL_STATE: ReverseImageState = {
 export function useReverseImage() {
   const [state, setState] = useState<ReverseImageState>(INITIAL_STATE)
 
-  const analyzeImage = useCallback(async (imageData: string) => {
-    setState((prev) => ({
-      ...prev,
-      step: 'analyzing',
-      error: null,
-    }))
-
-    const result = await analyzeImageAPI({ imageData })
-
-    if (result.success && result.data) {
+  const analyzeImage = useCallback(
+    async (imageData: string, apiKeyId?: string) => {
       setState((prev) => ({
         ...prev,
-        step: 'prompt-ready',
-        analysisId: result.data!.id,
-        sourceImageUrl: result.data!.sourceImageUrl,
-        generatedPrompt: result.data!.generatedPrompt,
+        step: 'analyzing',
+        error: null,
       }))
-    } else {
-      setState((prev) => ({
-        ...prev,
-        step: 'idle',
-        error: result.error ?? 'Analysis failed',
-      }))
-    }
 
-    return result
-  }, [])
+      const result = await analyzeImageAPI({ imageData, apiKeyId })
+
+      if (result.success && result.data) {
+        setState((prev) => ({
+          ...prev,
+          step: 'prompt-ready',
+          analysisId: result.data!.id,
+          sourceImageUrl: result.data!.sourceImageUrl,
+          generatedPrompt: result.data!.generatedPrompt,
+        }))
+      } else {
+        setState((prev) => ({
+          ...prev,
+          step: 'idle',
+          error: result.error ?? 'Analysis failed',
+        }))
+      }
+
+      return result
+    },
+    [],
+  )
 
   const updatePrompt = useCallback((prompt: string) => {
     setState((prev) => ({

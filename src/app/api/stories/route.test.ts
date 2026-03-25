@@ -14,6 +14,7 @@ vi.mock('@/services/story.service', () => ({
 
 import { GET, POST } from '@/app/api/stories/route'
 import { listStories, createStory } from '@/services/story.service'
+import type { StoryListItem, StoryRecord } from '@/types'
 
 const mockListStories = vi.mocked(listStories)
 const mockCreateStory = vi.mocked(createStory)
@@ -26,7 +27,7 @@ const FAKE_STORY_LIST_ITEM = {
   panelCount: 3,
   coverImageUrl: 'https://example.com/cover.png',
   createdAt: '2026-01-01T00:00:00.000Z',
-}
+} as unknown as StoryListItem
 
 const FAKE_STORY = {
   id: 'story_1',
@@ -36,7 +37,7 @@ const FAKE_STORY = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   panels: [],
-}
+} as unknown as StoryRecord
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -84,7 +85,7 @@ describe('POST /api/stories', () => {
     const req = createPOST('/api/stories', { title: '' })
     const res = await POST(req)
     expect(res.status).toBe(400)
-    const body = await parseJSON(res)
+    const body = (await parseJSON(res)) as Record<string, unknown>
     expect(body.success).toBe(false)
     expect(body.error).toBeDefined()
   })

@@ -15,13 +15,19 @@ beforeEach(() => {
 describe('GET /api/arena/leaderboard', () => {
   it('returns leaderboard data (no auth required)', async () => {
     const leaderboardData = [
-      { modelId: 'sdxl', modelName: 'SDXL', wins: 42, losses: 10, elo: 1250 },
+      {
+        modelId: 'sdxl',
+        rating: 1250,
+        matchCount: 52,
+        winCount: 42,
+        winRate: 0.808,
+      },
       {
         modelId: 'dall-e-3',
-        modelName: 'DALL-E 3',
-        wins: 30,
-        losses: 20,
-        elo: 1180,
+        rating: 1180,
+        matchCount: 50,
+        winCount: 30,
+        winRate: 0.6,
       },
     ]
     vi.mocked(getArenaLeaderboard).mockResolvedValue(leaderboardData)

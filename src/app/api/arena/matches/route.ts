@@ -3,6 +3,9 @@ import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
 
 export const maxDuration = 55
+
+// Allow large reference images (base64): 10MB image ≈ ~14MB JSON string
+export const bodySizeLimit = '15mb'
 import type { CreateArenaMatchResponse, ArenaMatchResponse } from '@/types'
 import { createArenaMatch, getArenaMatch } from '@/services/arena.service'
 import { rateLimit } from '@/lib/rate-limit'

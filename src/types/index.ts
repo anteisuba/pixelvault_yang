@@ -332,8 +332,17 @@ export interface AnalyzeImageResponse {
   error?: string
 }
 
+export const GenerateVariationsModelSchema = z.object({
+  modelId: z.string().trim().min(1),
+  apiKeyId: z.string().trim().min(1).optional(),
+})
+
+export type GenerateVariationsModel = z.infer<
+  typeof GenerateVariationsModelSchema
+>
+
 export const GenerateVariationsRequestSchema = z.object({
-  modelIds: z.array(z.string().trim().min(1)).min(1).max(9),
+  models: z.array(GenerateVariationsModelSchema).min(1).max(9),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
 })
 

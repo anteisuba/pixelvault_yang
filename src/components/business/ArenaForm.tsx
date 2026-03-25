@@ -19,6 +19,7 @@ import {
   type AspectRatio,
 } from '@/constants/config'
 import {
+  getModelById,
   getModelMessageKey,
   isBuiltInModel,
   MODEL_OPTIONS,
@@ -105,7 +106,13 @@ function buildModelOptions(
     }
   })
 
-  const savedOptions: ArenaModelOption[] = activeApiKeys.map((key) => ({
+  // Only include saved keys for image models in arena
+  const imageApiKeys = activeApiKeys.filter((key) => {
+    const model = getModelById(key.modelId)
+    return !model || model.outputType === 'IMAGE'
+  })
+
+  const savedOptions: ArenaModelOption[] = imageApiKeys.map((key) => ({
     optionId: `key:${key.id}`,
     modelId: key.modelId,
     adapterType: key.adapterType as StudioModelOption['adapterType'],
@@ -120,7 +127,17 @@ function buildModelOptions(
     keyStatus: healthToKeyStatus(healthMap[key.id]),
   }))
 
-  return [...builtInOptions, ...savedOptions]
+  // Sort: ready first, then nokey, then unavailable
+  const STATUS_SORT_ORDER: Record<ModelKeyStatus, number> = {
+    ready: 0,
+    nokey: 1,
+    unavailable: 2,
+  }
+  const all = [...builtInOptions, ...savedOptions]
+  all.sort(
+    (a, b) => STATUS_SORT_ORDER[a.keyStatus] - STATUS_SORT_ORDER[b.keyStatus],
+  )
+  return all
 }
 
 const STATUS_DOT_CLASSES: Record<ModelKeyStatus, string> = {
@@ -159,21 +176,19 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
     [apiKeys, healthMap],
   )
 
-  // Deselect models whose key verification failed
+  // Deselect models that are not ready (only green/ready models can be selected)
   useEffect(() => {
     setSelectedOptionIds((prev) => {
-      const unavailableIds = new Set(
+      const notReadyIds = new Set(
         modelOptions
-          .filter(
-            (opt) => opt.keyStatus !== 'ready' && opt.keyStatus !== 'nokey',
-          )
+          .filter((opt) => opt.keyStatus !== 'ready')
           .map((opt) => opt.optionId),
       )
-      if (unavailableIds.size === 0) return prev
+      if (notReadyIds.size === 0) return prev
 
       const next = new Set<string>()
       for (const id of prev) {
-        if (!unavailableIds.has(id)) {
+        if (!notReadyIds.has(id)) {
           next.add(id)
         }
       }
@@ -185,12 +200,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   const [aspectRatio, setAspectRatio] =
     useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(
-    () =>
-      new Set(
-        MODEL_OPTIONS.filter(
-          (m) => m.available && m.outputType === 'IMAGE',
-        ).map((m) => `workspace:${m.id}`),
-      ),
+    () => new Set(),
   )
   const [showModelPanel, setShowModelPanel] = useState(false)
   const [referenceImage, setReferenceImage] = useState<string | undefined>()
@@ -305,10 +315,10 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
                   key={option.optionId}
                   type="button"
                   onClick={() => toggleModel(option.optionId)}
-                  disabled={isCreating || option.keyStatus === 'unavailable'}
+                  disabled={isCreating || option.keyStatus !== 'ready'}
                   className={cn(
                     'flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
-                    option.keyStatus === 'unavailable' &&
+                    option.keyStatus !== 'ready' &&
                       'cursor-not-allowed opacity-50',
                     isSelected
                       ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/20'
@@ -543,6 +553,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           <div className="mt-4 border-t border-border/70 pt-4">
             <ReverseEngineerPanel
               onUsePrompt={(generatedPrompt) => setPrompt(generatedPrompt)}
+              selectedModels={selectedModels}
             />
           </div>
         )}

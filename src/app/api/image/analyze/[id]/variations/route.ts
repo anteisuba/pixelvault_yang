@@ -58,7 +58,7 @@ export async function POST(
     const result = await generateVariations(
       clerkId,
       id,
-      parseResult.data.modelIds,
+      parseResult.data.models,
       parseResult.data.aspectRatio,
     )
 

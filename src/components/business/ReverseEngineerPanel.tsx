@@ -12,7 +12,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
-import { getAvailableModels } from '@/constants/models'
+import type { GenerateVariationsModel } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VariationGrid } from '@/components/business/VariationGrid'
@@ -51,10 +51,13 @@ function resizeImageToBase64(file: File): Promise<string> {
 
 interface ReverseEngineerPanelProps {
   onUsePrompt?: (prompt: string) => void
+  /** Selected models with their bound API keys from the parent page */
+  selectedModels?: GenerateVariationsModel[]
 }
 
 export function ReverseEngineerPanel({
   onUsePrompt,
+  selectedModels,
 }: ReverseEngineerPanelProps = {}) {
   const t = useTranslations('ReverseEngineer')
   const {
@@ -105,12 +108,9 @@ export function ReverseEngineerPanel({
   )
 
   const handleGenerateAll = useCallback(() => {
-    const models = getAvailableModels()
-    generateVariations(
-      models.map((m) => m.id),
-      aspectRatio,
-    )
-  }, [generateVariations, aspectRatio])
+    if (!selectedModels || selectedModels.length === 0) return
+    generateVariations(selectedModels, aspectRatio)
+  }, [generateVariations, aspectRatio, selectedModels])
 
   const handleReset = useCallback(() => {
     setPreviewUrl(null)

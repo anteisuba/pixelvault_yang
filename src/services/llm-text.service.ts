@@ -76,27 +76,35 @@ export async function resolveLlmTextRoute(
     const specificKey = await db.userApiKey.findFirst({
       where: { id: apiKeyId, userId, isActive: true },
     })
-    if (specificKey) {
-      const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
-      if (
-        adapterType === AI_ADAPTER_TYPES.GEMINI ||
-        adapterType === AI_ADAPTER_TYPES.OPENAI
-      ) {
-        const keyValue = decryptApiKey(specificKey.encryptedKey)
-        const label =
-          adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
-        return {
-          adapterType,
-          providerConfig: {
-            label,
-            baseUrl:
-              adapterType === AI_ADAPTER_TYPES.GEMINI
-                ? AI_PROVIDER_ENDPOINTS.GEMINI
-                : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
-          },
-          apiKey: keyValue,
-        }
-      }
+
+    if (!specificKey) {
+      throw new Error(
+        'The selected API key is unavailable. Please choose a different key in Settings > API Keys.',
+      )
+    }
+
+    const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
+    if (
+      adapterType !== AI_ADAPTER_TYPES.GEMINI &&
+      adapterType !== AI_ADAPTER_TYPES.OPENAI
+    ) {
+      throw new Error(
+        'The selected API key does not support text completion (requires Gemini or OpenAI). Please bind a Gemini or OpenAI key.',
+      )
+    }
+
+    const keyValue = decryptApiKey(specificKey.encryptedKey)
+    const label = adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
+    return {
+      adapterType,
+      providerConfig: {
+        label,
+        baseUrl:
+          adapterType === AI_ADAPTER_TYPES.GEMINI
+            ? AI_PROVIDER_ENDPOINTS.GEMINI
+            : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
+      },
+      apiKey: keyValue,
     }
   }
 

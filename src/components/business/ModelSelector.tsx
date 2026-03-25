@@ -49,7 +49,7 @@ function getModelLabel(
 }
 
 /** Max visible items before scrolling kicks in */
-const MAX_VISIBLE_ITEMS = 4
+const MAX_VISIBLE_ITEMS = 6
 
 export function ModelSelector({
   value,
@@ -95,10 +95,9 @@ export function ModelSelector({
         ) : null}
       </div>
 
-      {/* max-h ≈ 4 items × 3.25rem + gaps; thin scrollbar via global CSS */}
       <div
         ref={listRef}
-        className={cn('grid gap-2', needsScroll && 'max-h-56 overflow-y-auto')}
+        className={cn('grid gap-2', needsScroll && 'max-h-80 overflow-y-auto')}
       >
         {options.map((option) => {
           const isSelected = option.optionId === value

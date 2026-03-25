@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
     const matchId = await createArenaMatch(clerkId, {
       prompt: parseResult.data.prompt,
       aspectRatio: parseResult.data.aspectRatio,
-      models: parseResult.data.models,
       referenceImage: parseResult.data.referenceImage,
     })
 

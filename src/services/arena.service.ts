@@ -6,48 +6,29 @@ import type { AspectRatio } from '@/constants/config'
 import type {
   ArenaMatchRecord,
   ArenaEntryRecord,
-  ArenaModelSelection,
   EloUpdate,
   LeaderboardEntry,
 } from '@/types'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { ensureUser } from '@/services/user.service'
-import { getAvailableModels } from '@/constants/models'
 
 // ─── Match Creation ──────────────────────────────────────────────
 
 export interface CreateArenaMatchInput {
   prompt: string
   aspectRatio: AspectRatio
-  models?: ArenaModelSelection[]
   referenceImage?: string
 }
 
+/**
+ * Creates a match record only — no image generation.
+ * Frontend will call generateArenaEntry() for each model in parallel.
+ */
 export async function createArenaMatch(
   clerkId: string,
   input: CreateArenaMatchInput,
 ): Promise<string> {
   const dbUser = await ensureUser(clerkId)
-
-  // Resolve which models to use: user-selected or all available
-  let selectedModels: ArenaModelSelection[]
-  if (input.models && input.models.length >= ARENA.MIN_MODELS_FOR_MATCH) {
-    selectedModels = input.models
-  } else {
-    const available = getAvailableModels().filter(
-      (m) => m.outputType === 'IMAGE',
-    )
-    if (available.length < ARENA.MIN_MODELS_FOR_MATCH) {
-      throw new Error(
-        `Arena requires at least ${ARENA.MIN_MODELS_FOR_MATCH} available models`,
-      )
-    }
-    selectedModels = available.map((m) => ({ modelId: m.id }))
-  }
-
-  // Pick exactly 2 random models for head-to-head comparison
-  const shuffled = [...selectedModels].sort(() => Math.random() - 0.5)
-  const matchModels = shuffled.slice(0, ARENA.MIN_MODELS_FOR_MATCH)
 
   const match = await db.arenaMatch.create({
     data: {
@@ -57,50 +38,65 @@ export async function createArenaMatch(
     },
   })
 
-  // Generate images in parallel (only 2 models)
-  const results = await Promise.allSettled(
-    matchModels.map(async (selection) => {
-      const generation = await generateImageForUser(clerkId, {
-        prompt: input.prompt,
-        modelId: selection.modelId,
-        aspectRatio: input.aspectRatio,
-        referenceImage: input.referenceImage,
-        apiKeyId: selection.apiKeyId,
-      })
-      return { modelId: selection.modelId, generation }
-    }),
-  )
-
-  // Create entries for successful generations
-  let slotIndex = 0
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      await db.arenaEntry.create({
-        data: {
-          matchId: match.id,
-          generationId: result.value.generation.id,
-          modelId: result.value.modelId,
-          slotIndex,
-        },
-      })
-      slotIndex++
-    } else {
-      console.error(
-        `[Arena] Generation failed for model ${matchModels[results.indexOf(result)]?.modelId}:`,
-        result.reason,
-      )
-    }
-  }
-
-  // Require at least 2 successful entries for a valid match
-  if (slotIndex < ARENA.MIN_MODELS_FOR_MATCH) {
-    await db.arenaMatch.delete({ where: { id: match.id } })
-    throw new Error(
-      `Arena match requires at least ${ARENA.MIN_MODELS_FOR_MATCH} successful generations, but only ${slotIndex} succeeded`,
-    )
-  }
-
   return match.id
+}
+
+// ─── Entry Generation (one model per request) ───────────────────
+
+export interface GenerateArenaEntryInput {
+  modelId: string
+  apiKeyId?: string
+  slotIndex: number
+}
+
+/**
+ * Generates one image for a match and creates an ArenaEntry.
+ * Each call has its own serverless timeout (240s), so N models
+ * can be generated in parallel without cumulative timeout risk.
+ */
+export async function generateArenaEntry(
+  matchId: string,
+  clerkId: string,
+  input: GenerateArenaEntryInput,
+): Promise<ArenaEntryRecord> {
+  const dbUser = await ensureUser(clerkId)
+
+  const match = await db.arenaMatch.findUnique({
+    where: { id: matchId },
+  })
+
+  if (!match || match.userId !== dbUser.id) {
+    throw new Error('Match not found')
+  }
+
+  if (match.votedAt) {
+    throw new Error('Match already voted')
+  }
+
+  const generation = await generateImageForUser(clerkId, {
+    prompt: match.prompt,
+    modelId: input.modelId,
+    aspectRatio: match.aspectRatio as AspectRatio,
+    apiKeyId: input.apiKeyId,
+  })
+
+  const entry = await db.arenaEntry.create({
+    data: {
+      matchId,
+      generationId: generation.id,
+      modelId: input.modelId,
+      slotIndex: input.slotIndex,
+    },
+  })
+
+  return {
+    id: entry.id,
+    slotIndex: entry.slotIndex,
+    modelId: '', // Always hide model before voting
+    status: 'completed',
+    imageUrl: generation.url,
+    wasVoted: false,
+  }
 }
 
 // ─── Match Retrieval ─────────────────────────────────────────────

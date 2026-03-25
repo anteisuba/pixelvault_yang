@@ -27,7 +27,7 @@ export function Navbar() {
   const signedOutLinks = [{ href: ROUTES.GALLERY, label: t('links.gallery') }]
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/75 bg-background/88 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex h-14 max-w-content items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-5 lg:gap-8">
           <SignedIn>
@@ -55,7 +55,7 @@ export function Navbar() {
                   href={link.href}
                   className={cn(
                     'relative py-1 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors hover:text-foreground',
-                    'after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:after:scale-x-100',
+                    'after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform hover:after:scale-x-100',
                     pathname === link.href &&
                       'text-foreground after:scale-x-100',
                   )}
@@ -74,7 +74,7 @@ export function Navbar() {
                   href={link.href}
                   className={cn(
                     'relative py-1 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors hover:text-foreground',
-                    'after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:after:scale-x-100',
+                    'after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform hover:after:scale-x-100',
                     pathname === link.href &&
                       'text-foreground after:scale-x-100',
                   )}
@@ -90,7 +90,7 @@ export function Navbar() {
           <LocaleSwitcher />
 
           <SignedIn>
-            <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/84 px-3 py-1.5 text-nav font-semibold uppercase tracking-nav-dense text-foreground">
+            <div className="flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-nav font-semibold uppercase tracking-nav-dense text-foreground">
               <Coins className="size-3.5 shrink-0 text-primary" />
               <span className="hidden sm:inline">
                 {isLoading
@@ -100,7 +100,7 @@ export function Navbar() {
             </div>
             <Link
               href={ROUTES.PROFILE}
-              className="flex size-8 items-center justify-center rounded-full border border-border/80 bg-card/84 text-muted-foreground transition-colors hover:text-foreground"
+              className="flex size-8 items-center justify-center rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
               aria-label={t('links.library')}
             >
               <UserCircle className="size-4.5" />
@@ -112,7 +112,7 @@ export function Navbar() {
               asChild
               size="sm"
               variant="outline"
-              className="rounded-full border-border/80 bg-card/72 px-4 text-nav font-semibold uppercase tracking-nav"
+              className="rounded-full border-primary/20 bg-primary/5 px-4 text-nav font-semibold uppercase tracking-nav hover:bg-primary/10"
             >
               <Link href={ROUTES.SIGN_IN}>{t('signIn')}</Link>
             </Button>

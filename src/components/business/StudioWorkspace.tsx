@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ImageIcon, Film } from 'lucide-react'
+import { Gift, ImageIcon, Film } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { GenerateForm } from '@/components/business/GenerateForm'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import VideoGenerateForm from '@/components/business/VideoGenerateForm'
 import { useOnboarding } from '@/hooks/use-onboarding'
+import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 type StudioMode = 'image' | 'video'
@@ -16,10 +17,33 @@ export function StudioWorkspace() {
   const [mode, setMode] = useState<StudioMode>('image')
   const t = useTranslations('StudioPage')
   const onboarding = useOnboarding()
+  const { summary } = useUsageSummary()
+  const freeRemaining =
+    summary.freeGenerationLimit - summary.freeGenerationsToday
 
   return (
     <div className="space-y-6">
-      {/* Mode switch — pill button group */}
+      {/* Mode switch + free quota */}
+      <div className="flex items-center justify-between">
+        {/* Free tier quota indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Gift className="size-3.5 text-chart-3" />
+          <span className="font-serif">
+            {t('freeQuota', {
+              remaining: Math.max(0, freeRemaining),
+              limit: summary.freeGenerationLimit,
+            })}
+          </span>
+          {freeRemaining <= 1 && freeRemaining >= 0 && (
+            <span className="text-primary">·</span>
+          )}
+          {freeRemaining <= 1 && freeRemaining >= 0 && (
+            <span className="font-serif text-primary/80">
+              {t('freeQuotaLow')}
+            </span>
+          )}
+        </div>
+      </div>
       <div className="flex gap-2">
         <button
           type="button"
@@ -27,8 +51,8 @@ export function StudioWorkspace() {
           className={cn(
             'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors',
             mode === 'image'
-              ? 'bg-foreground text-background'
-              : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+              : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
           )}
         >
           <ImageIcon className="size-4" />
@@ -40,8 +64,8 @@ export function StudioWorkspace() {
           className={cn(
             'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors',
             mode === 'video'
-              ? 'bg-foreground text-background'
-              : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+              : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
           )}
         >
           <Film className="size-4" />

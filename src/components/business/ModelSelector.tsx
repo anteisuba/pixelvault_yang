@@ -1,6 +1,6 @@
 'use client'
 
-import { KeyRound, Sparkles } from 'lucide-react'
+import { Gift, KeyRound, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
@@ -29,6 +29,7 @@ export interface StudioModelOption {
   providerConfig: ProviderConfig
   requestCount: number
   isBuiltIn: boolean
+  freeTier?: boolean
   sourceType: 'workspace' | 'saved'
   keyId?: string
   keyLabel?: string
@@ -95,23 +96,34 @@ export function ModelSelector({
                   </p>
                 </div>
                 <div className="hidden items-center gap-2 sm:flex">
-                  <Badge
-                    variant={
-                      selectedOption.sourceType === 'saved'
-                        ? 'secondary'
-                        : 'outline'
-                    }
-                    className="rounded-full px-2 py-0 text-[11px]"
-                  >
-                    {selectedOption.sourceType === 'saved' ? (
-                      <KeyRound className="size-3" />
-                    ) : (
-                      <Sparkles className="size-3" />
-                    )}
-                    {selectedOption.sourceType === 'saved'
-                      ? t('savedRouteBadge')
-                      : t('workspaceRouteBadge')}
-                  </Badge>
+                  {selectedOption.freeTier &&
+                  selectedOption.sourceType === 'workspace' ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
+                    >
+                      <Gift className="size-3" />
+                      {t('freeBadge')}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant={
+                        selectedOption.sourceType === 'saved'
+                          ? 'secondary'
+                          : 'outline'
+                      }
+                      className="rounded-full px-2 py-0 text-[11px]"
+                    >
+                      {selectedOption.sourceType === 'saved' ? (
+                        <KeyRound className="size-3" />
+                      ) : (
+                        <Sparkles className="size-3" />
+                      )}
+                      {selectedOption.sourceType === 'saved'
+                        ? t('savedRouteBadge')
+                        : t('workspaceRouteBadge')}
+                    </Badge>
+                  )}
                   {!selectedOption.isBuiltIn ? (
                     <Badge
                       variant="outline"
@@ -151,13 +163,23 @@ export function ModelSelector({
                     </span>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                    <span className="text-xs font-medium text-foreground">
-                      {tCommon('creditCount', {
-                        count:
-                          option.requestCount ??
-                          API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                      })}
-                    </span>
+                    {option.freeTier && option.sourceType === 'workspace' ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
+                      >
+                        <Gift className="size-3" />
+                        {t('freeBadge')}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs font-medium text-foreground">
+                        {tCommon('creditCount', {
+                          count:
+                            option.requestCount ??
+                            API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                        })}
+                      </span>
+                    )}
                     <div className="flex flex-wrap items-center justify-end gap-1">
                       <Badge
                         variant={

@@ -125,6 +125,7 @@ export const GenerationScalarFieldEnum = {
   model: 'model',
   provider: 'provider',
   requestCount: 'requestCount',
+  isFreeGeneration: 'isFreeGeneration',
   isPublic: 'isPublic',
   isPromptPublic: 'isPromptPublic',
   userId: 'userId'

@@ -179,6 +179,8 @@
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
     "modeImage": "画像",
     "modeVideo": "動画",
+    "freeQuota": "本日の無料回数 {remaining}/{limit}",
+    "freeQuotaLow": "残りわずか",
     "metrics": {
       "modelCoverageLabel": "モデル",
       "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
@@ -343,6 +345,11 @@
     "errorTitle": "生成エラー",
     "errorFallback": "画像生成に失敗しました",
     "errorUnexpected": "予期しないエラーが発生しました",
+    "freeQuotaGuide": {
+      "title": "自分のAPIキーで無制限に使えます：",
+      "step1": "Google AI Studioで無料のGemini APIキーを取得",
+      "step2": "上の「APIルート」に貼り付け"
+    },
     "toastSuccess": "画像が生成されました！",
     "resultLabel": "最新の結果",
     "resultDescription": "このワークスペースで最新に生成した画像がここに表示されます。",
@@ -353,6 +360,7 @@
     "resultProviderLabel": "プロバイダー",
     "resultCreditLabel": "記録済みリクエスト",
     "resultStorageNote": "プロンプトとルートの文脈を添えて保存されます。",
+    "upgradeHint": "もっと高画質に？GPT Image や FLUX Pro を自分の API キーで試してみましょう。",
     "modelSelector": {
       "label": "AIモデル",
       "hint": "組み込みモデル、または現在有効な保存済みルートから選んでください。",
@@ -364,7 +372,8 @@
         "workspace": "ワークスペース既定",
         "saved": "保存済みルート"
       },
-      "customDescription": "保存済みルートを使うカスタム {provider} モデルです。"
+      "customDescription": "保存済みルートを使うカスタム {provider} モデルです。",
+      "freeBadge": "無料"
     }
   },
   "StudioApiKeys": {
@@ -677,7 +686,7 @@
       },
       "model": {
         "title": "モデルを選択",
-        "description": "リアル、アニメ、クリエイティブなど、目的に合った AI モデルを選びましょう。"
+        "description": "「無料」マーク付きモデルは API キー不要で1日5回まで使えます。全モデルを使うには自分のキーを追加してください。"
       },
       "prompt": {
         "title": "プロンプトを入力",

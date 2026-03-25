@@ -57,6 +57,7 @@ export type GenerationMinAggregateOutputType = {
   model: string | null
   provider: string | null
   requestCount: number | null
+  isFreeGeneration: boolean | null
   isPublic: boolean | null
   isPromptPublic: boolean | null
   userId: string | null
@@ -79,6 +80,7 @@ export type GenerationMaxAggregateOutputType = {
   model: string | null
   provider: string | null
   requestCount: number | null
+  isFreeGeneration: boolean | null
   isPublic: boolean | null
   isPromptPublic: boolean | null
   userId: string | null
@@ -101,6 +103,7 @@ export type GenerationCountAggregateOutputType = {
   model: number
   provider: number
   requestCount: number
+  isFreeGeneration: number
   isPublic: number
   isPromptPublic: number
   userId: number
@@ -139,6 +142,7 @@ export type GenerationMinAggregateInputType = {
   model?: true
   provider?: true
   requestCount?: true
+  isFreeGeneration?: true
   isPublic?: true
   isPromptPublic?: true
   userId?: true
@@ -161,6 +165,7 @@ export type GenerationMaxAggregateInputType = {
   model?: true
   provider?: true
   requestCount?: true
+  isFreeGeneration?: true
   isPublic?: true
   isPromptPublic?: true
   userId?: true
@@ -183,6 +188,7 @@ export type GenerationCountAggregateInputType = {
   model?: true
   provider?: true
   requestCount?: true
+  isFreeGeneration?: true
   isPublic?: true
   isPromptPublic?: true
   userId?: true
@@ -292,6 +298,7 @@ export type GenerationGroupByOutputType = {
   model: string
   provider: string
   requestCount: number
+  isFreeGeneration: boolean
   isPublic: boolean
   isPromptPublic: boolean
   userId: string | null
@@ -337,6 +344,7 @@ export type GenerationWhereInput = {
   model?: Prisma.StringFilter<"Generation"> | string
   provider?: Prisma.StringFilter<"Generation"> | string
   requestCount?: Prisma.IntFilter<"Generation"> | number
+  isFreeGeneration?: Prisma.BoolFilter<"Generation"> | boolean
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -364,6 +372,7 @@ export type GenerationOrderByWithRelationInput = {
   model?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  isFreeGeneration?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -394,6 +403,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   model?: Prisma.StringFilter<"Generation"> | string
   provider?: Prisma.StringFilter<"Generation"> | string
   requestCount?: Prisma.IntFilter<"Generation"> | number
+  isFreeGeneration?: Prisma.BoolFilter<"Generation"> | boolean
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -421,6 +431,7 @@ export type GenerationOrderByWithAggregationInput = {
   model?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  isFreeGeneration?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -451,6 +462,7 @@ export type GenerationScalarWhereWithAggregatesInput = {
   model?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   provider?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   requestCount?: Prisma.IntWithAggregatesFilter<"Generation"> | number
+  isFreeGeneration?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   isPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
@@ -473,6 +485,7 @@ export type GenerationCreateInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
@@ -499,6 +512,7 @@ export type GenerationUncheckedCreateInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -525,6 +539,7 @@ export type GenerationUpdateInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
@@ -551,6 +566,7 @@ export type GenerationUncheckedUpdateInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -577,6 +593,7 @@ export type GenerationCreateManyInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -599,6 +616,7 @@ export type GenerationUpdateManyMutationInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
@@ -620,6 +638,7 @@ export type GenerationUncheckedUpdateManyInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -652,6 +671,7 @@ export type GenerationCountOrderByAggregateInput = {
   model?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  isFreeGeneration?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -681,6 +701,7 @@ export type GenerationMaxOrderByAggregateInput = {
   model?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  isFreeGeneration?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -703,6 +724,7 @@ export type GenerationMinOrderByAggregateInput = {
   model?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   requestCount?: Prisma.SortOrder
+  isFreeGeneration?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -874,6 +896,7 @@ export type GenerationCreateWithoutUserInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
@@ -899,6 +922,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
@@ -953,6 +977,7 @@ export type GenerationScalarWhereInput = {
   model?: Prisma.StringFilter<"Generation"> | string
   provider?: Prisma.StringFilter<"Generation"> | string
   requestCount?: Prisma.IntFilter<"Generation"> | number
+  isFreeGeneration?: Prisma.BoolFilter<"Generation"> | boolean
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -975,6 +1000,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
@@ -1000,6 +1026,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -1041,6 +1068,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
@@ -1066,6 +1094,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1091,6 +1120,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
@@ -1116,6 +1146,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -1157,6 +1188,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
@@ -1182,6 +1214,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1207,6 +1240,7 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
@@ -1232,6 +1266,7 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -1273,6 +1308,7 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
@@ -1298,6 +1334,7 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1323,6 +1360,7 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
@@ -1348,6 +1386,7 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
@@ -1389,6 +1428,7 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
@@ -1414,6 +1454,7 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1439,6 +1480,7 @@ export type GenerationCreateManyUserInput = {
   model: string
   provider: string
   requestCount?: number
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
 }
@@ -1460,6 +1502,7 @@ export type GenerationUpdateWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
@@ -1485,6 +1528,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
@@ -1510,6 +1554,7 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
@@ -1580,6 +1625,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   model?: boolean
   provider?: boolean
   requestCount?: boolean
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
@@ -1608,6 +1654,7 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   model?: boolean
   provider?: boolean
   requestCount?: boolean
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
@@ -1631,6 +1678,7 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   model?: boolean
   provider?: boolean
   requestCount?: boolean
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
@@ -1654,12 +1702,13 @@ export type GenerationSelectScalar = {
   model?: boolean
   provider?: boolean
   requestCount?: boolean
+  isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isPublic" | "isPromptPublic" | "userId", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "userId", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
@@ -1701,6 +1750,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     model: string
     provider: string
     requestCount: number
+    isFreeGeneration: boolean
     isPublic: boolean
     isPromptPublic: boolean
     userId: string | null
@@ -2148,6 +2198,7 @@ export interface GenerationFieldRefs {
   readonly model: Prisma.FieldRef<"Generation", 'String'>
   readonly provider: Prisma.FieldRef<"Generation", 'String'>
   readonly requestCount: Prisma.FieldRef<"Generation", 'Int'>
+  readonly isFreeGeneration: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly isPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly isPromptPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly userId: Prisma.FieldRef<"Generation", 'String'>

@@ -1,30 +1,12 @@
 import 'server-only'
 
 import { HEALTH_CHECK } from '@/constants/config'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { type AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { updateModelHealthStatus } from '@/services/model-config.service'
+import { getSystemApiKey } from '@/lib/platform-keys'
 
 import type { ModelHealthRecord, ModelHealthStatus } from '@/types'
-
-// ─── System API keys (server env) ────────────────────────────────
-
-function getSystemApiKey(adapterType: string): string | null {
-  switch (adapterType) {
-    case AI_ADAPTER_TYPES.HUGGINGFACE:
-      return process.env.HF_API_TOKEN ?? null
-    case AI_ADAPTER_TYPES.GEMINI:
-      return process.env.GEMINI_API_KEY ?? null
-    case AI_ADAPTER_TYPES.OPENAI:
-      return process.env.OPENAI_API_KEY ?? null
-    case AI_ADAPTER_TYPES.FAL:
-      return process.env.FAL_API_KEY ?? null
-    case AI_ADAPTER_TYPES.REPLICATE:
-      return process.env.REPLICATE_API_TOKEN ?? null
-    default:
-      return null
-  }
-}
 
 // ─── In-memory cache ──────────────────────────────────────────────
 

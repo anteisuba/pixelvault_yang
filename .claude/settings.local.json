@@ -60,7 +60,21 @@
       "Bash(head -20 echo --- find ~/.claude/ -name *.md -path *web*)",
       "Bash(bash ~/.claude/skills/web-access/scripts/check-deps.sh)",
       "Bash(bash ~/.claude/web-access/check-deps.sh)",
-      "Bash(bash /c/Users/yang.jian.p/.claude/web-access/scripts/check-deps.sh)"
+      "Bash(bash /c/Users/yang.jian.p/.claude/web-access/scripts/check-deps.sh)",
+      "Bash(pnpm test:*)",
+      "Bash(gh pr:*)",
+      "Bash(find /Users/fulina/Desktop/workspace/pixelvault_yang -name *.prisma -type f)",
+      "Bash(find /Users/fulina/Desktop/workspace/pixelvault_yang/src/app/[locale]/\\\\\\(main\\\\\\) -type f -name \"*.tsx\")",
+      "Bash(find /Users/fulina/Desktop/workspace/pixelvault_yang/src/app/[locale]/\\\\\\(main\\\\\\) -type f -name \"page.tsx\")",
+      "Bash(ls -la \"/Users/fulina/Desktop/workspace/pixelvault_yang/src/app/[locale]/\\(main\\)/\")",
+      "Bash(ls -la \"/Users/fulina/Desktop/workspace/pixelvault_yang/src/app/[locale]/\\(main\\)/profile/\")",
+      "Bash(head -150 \"/Users/fulina/Desktop/workspace/pixelvault_yang/src/app/[locale]/\\(main\\)/profile/page.tsx\")",
+      "Skill(plan-eng-review)",
+      "Skill(plan-eng-review:*)",
+      "Skill(plan-design-review)",
+      "Skill(plan-design-review:*)",
+      "Bash(git status:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"执行reset\" ./node_modules/.bin/prisma migrate reset --force)"
     ]
   },
   "hooks": {

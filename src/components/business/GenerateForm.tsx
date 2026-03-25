@@ -114,6 +114,7 @@ export function GenerateForm() {
     providerConfig: model.providerConfig,
     requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     isBuiltIn: true,
+    freeTier: model.freeTier,
     sourceType: 'workspace',
   }))
   const savedOptions: StudioModelOption[] = activeApiKeys.map((key) => ({
@@ -200,14 +201,14 @@ export function GenerateForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card/82 p-5 shadow-sm sm:p-6">
           <ModelSelector
             value={selectedModel.optionId}
             onChange={setSelectedOptionId}
             options={modelOptions}
           />
 
-          <div className="mt-6 min-w-0 overflow-hidden rounded-3xl border border-border/70 bg-background/50 p-5">
+          <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-border/50 bg-background/40 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-2">
                 <p
@@ -375,7 +376,7 @@ export function GenerateForm() {
           </div>
         </section>
 
-        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card/82 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <label
@@ -501,8 +502,8 @@ export function GenerateForm() {
                     className={cn(
                       'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
                       isDragging
-                        ? 'border-primary/60 bg-primary/5'
-                        : 'border-border/80 bg-background/72 hover:border-primary/40 hover:bg-secondary/18',
+                        ? 'border-primary/50 bg-primary/5'
+                        : 'border-border/60 bg-background/60 hover:border-primary/30 hover:bg-primary/3',
                     )}
                   >
                     <Upload className="size-5 text-muted-foreground" />
@@ -530,7 +531,7 @@ export function GenerateForm() {
           </div>
 
           {/* Aspect Ratio Selector */}
-          <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
+          <div className="mt-5 rounded-2xl border border-border/50 bg-background/40 p-4">
             <p
               className={cn(
                 'mb-3 text-xs font-semibold text-muted-foreground',
@@ -550,8 +551,8 @@ export function GenerateForm() {
                   className={cn(
                     'rounded-full px-4 py-2 text-sm font-medium transition-colors',
                     aspectRatio === ar
-                      ? 'bg-foreground text-background'
-                      : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+                      : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
                   )}
                 >
                   {ar}
@@ -561,7 +562,7 @@ export function GenerateForm() {
           </div>
 
           {/* Reverse Engineer Panel */}
-          <div className="mt-5 rounded-3xl border border-border/70 bg-background/46 p-4">
+          <div className="mt-5 rounded-2xl border border-border/50 bg-background/40 p-4">
             <ReverseEngineerPanel
               selectedModels={
                 selectedModel
@@ -578,7 +579,7 @@ export function GenerateForm() {
         </section>
       </div>
 
-      <section className="rounded-3xl border border-border/75 bg-primary/6 p-5 sm:p-6">
+      <section className="rounded-3xl border border-primary/15 bg-primary/5 p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <p
@@ -619,11 +620,33 @@ export function GenerateForm() {
       </section>
 
       {error ? (
-        <div className="flex items-start gap-3 rounded-3xl border border-destructive/35 bg-destructive/8 p-4 text-sm text-destructive">
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <div className="space-y-1">
             <p className="font-medium">{t('errorTitle')}</p>
             <p>{error}</p>
+            {(error.includes('Free tier limit') ||
+              error.includes('bind your own API key') ||
+              error.includes('API key')) && (
+              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  {t('freeQuotaGuide.title')}
+                </p>
+                <ol className="list-inside list-decimal space-y-0.5">
+                  <li>
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      {t('freeQuotaGuide.step1')}
+                    </a>
+                  </li>
+                  <li>{t('freeQuotaGuide.step2')}</li>
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
@@ -646,7 +669,7 @@ export function GenerateForm() {
         </div>
 
         {generatedGeneration ? (
-          <div className="animate-in fade-in-0 zoom-in-95 overflow-hidden rounded-3xl border border-border/75 bg-card/86 duration-500">
+          <div className="animate-in fade-in-0 zoom-in-95 overflow-hidden rounded-3xl border border-border/60 bg-card/86 shadow-sm duration-500">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={generatedGeneration.url}
@@ -698,12 +721,19 @@ export function GenerateForm() {
               <p className="font-serif text-sm text-muted-foreground">
                 {t('resultStorageNote')}
               </p>
+
+              {selectedModel?.freeTier &&
+                selectedModel.sourceType === 'workspace' && (
+                  <p className="font-serif text-xs text-muted-foreground/70">
+                    {t('upgradeHint')}
+                  </p>
+                )}
             </div>
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-border/75 bg-card/72 p-6">
+          <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 p-6">
             <div className="flex items-start gap-4">
-              <span className="rounded-2xl bg-primary/10 p-3 text-foreground">
+              <span className="rounded-2xl bg-primary/10 p-3 text-primary">
                 <ImageIcon className="size-5" />
               </span>
               <div className="space-y-1">

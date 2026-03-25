@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { API_USAGE } from '@/constants/config'
+import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import {
   getDefaultProviderConfig,
@@ -13,7 +13,10 @@ import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
-import { createGeneration } from '@/services/generation.service'
+import {
+  createGeneration,
+  getFreeGenerationCountToday,
+} from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import type { ProviderGenerationResult } from '@/services/providers/types'
 import {
@@ -29,20 +32,24 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { getSystemApiKey } from '@/lib/platform-keys'
 
 export interface ResolvedGenerationRoute {
   modelId: string
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
+  isFreeGeneration?: boolean
 }
 
 type GenerateImageServiceErrorCode =
   | 'CUSTOM_MODEL_REQUIRES_ROUTE'
+  | 'FREE_LIMIT_EXCEEDED'
   | 'INVALID_JOB'
   | 'INVALID_ROUTE_SELECTION'
   | 'JOB_NOT_FOUND'
   | 'MISSING_API_KEY'
+  | 'PLATFORM_KEY_MISSING'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'
 
@@ -120,6 +127,35 @@ export async function resolveGenerationRoute(
       adapterType: autoKey.adapterType,
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
+    }
+  }
+
+  // Free tier: use platform API key for eligible models
+  if (FREE_TIER.ENABLED && builtInModel.freeTier) {
+    const freeCount = await getFreeGenerationCountToday(userId)
+    if (freeCount >= FREE_TIER.DAILY_LIMIT) {
+      throw new GenerateImageServiceError(
+        'FREE_LIMIT_EXCEEDED',
+        `Free tier limit reached (${FREE_TIER.DAILY_LIMIT}/day). Bind your own API key to continue.`,
+        429,
+      )
+    }
+
+    const platformKey = getSystemApiKey(builtInModel.adapterType)
+    if (!platformKey) {
+      throw new GenerateImageServiceError(
+        'PLATFORM_KEY_MISSING',
+        'Free tier is temporarily unavailable. Please bind your own API key.',
+        503,
+      )
+    }
+
+    return {
+      modelId,
+      adapterType: builtInModel.adapterType,
+      providerConfig: builtInModel.providerConfig,
+      apiKey: platformKey,
+      isFreeGeneration: true,
     }
   }
 
@@ -266,6 +302,7 @@ export async function generateImageForUser(
       model: executionRoute.modelId,
       provider,
       requestCount: generatedAsset.requestCount,
+      isFreeGeneration: executionRoute.isFreeGeneration,
       userId: dbUser.id,
     })
 

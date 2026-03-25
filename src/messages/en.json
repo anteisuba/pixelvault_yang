@@ -748,6 +748,10 @@
       "label": "Seedream 4.5",
       "description": "ByteDance's unified generation and editing model with up to 4MP output."
     },
+    "sd35Large": {
+      "label": "Stable Diffusion 3.5 Large",
+      "description": "Open-source flagship with 8B MMDiT architecture, strong composition and detail."
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"
@@ -783,6 +787,10 @@
     "hunyuanVideo": {
       "label": "Hunyuan Video",
       "description": "Tencent open-source, 8.3B params, 720p, I2V support"
+    },
+    "runwayGen3": {
+      "label": "Runway Gen-3 Turbo",
+      "description": "Industry-standard cinematic video, image-to-video on fal.ai"
     }
   }
 }

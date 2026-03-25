@@ -748,6 +748,10 @@
       "label": "Seedream 4.5",
       "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
     },
+    "sd35Large": {
+      "label": "Stable Diffusion 3.5 Large",
+      "description": "オープンソースの旗艦モデル。80億パラメータMMDiTアーキテクチャ、構図とディテールに優れる。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
@@ -783,6 +787,10 @@
     "hunyuanVideo": {
       "label": "Hunyuan Video",
       "description": "テンセントオープンソース、8.3Bパラメータ、I2V対応"
+    },
+    "runwayGen3": {
+      "label": "Runway Gen-3 Turbo",
+      "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
     }
   }
 }

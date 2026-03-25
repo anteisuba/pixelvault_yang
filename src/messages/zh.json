@@ -748,6 +748,10 @@
       "label": "Seedream 4.5",
       "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
     },
+    "sd35Large": {
+      "label": "Stable Diffusion 3.5 Large",
+      "description": "开源旗舰，80亿参数 MMDiT 架构，构图与细节出色。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"
@@ -783,6 +787,10 @@
     "hunyuanVideo": {
       "label": "混元视频",
       "description": "腾讯开源，83亿参数，支持图生视频"
+    },
+    "runwayGen3": {
+      "label": "Runway Gen-3 Turbo",
+      "description": "行业标杆级电影视频，fal.ai 图生视频"
     }
   }
 }

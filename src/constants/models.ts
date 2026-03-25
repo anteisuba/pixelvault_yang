@@ -23,6 +23,7 @@ export enum AI_MODELS {
   IDEOGRAM_3 = 'ideogram-3',
   RECRAFT_V3 = 'recraft-v3',
   SEEDREAM_45 = 'seedream-4.5',
+  SD_35_LARGE = 'sd-3.5-large',
   // Video models
   KLING_VIDEO = 'kling-video',
   KLING_V3_PRO = 'kling-v3-pro',
@@ -33,6 +34,7 @@ export enum AI_MODELS {
   SEEDANCE_PRO = 'seedance-pro',
   VEO_3 = 'veo-3',
   PIKA_V22 = 'pika-v2.2',
+  RUNWAY_GEN3 = 'runway-gen3',
 }
 
 export const MODEL_MESSAGE_KEYS = {
@@ -47,6 +49,7 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.IDEOGRAM_3]: 'ideogram3',
   [AI_MODELS.RECRAFT_V3]: 'recraftV3',
   [AI_MODELS.SEEDREAM_45]: 'seedream45',
+  [AI_MODELS.SD_35_LARGE]: 'sd35Large',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
@@ -56,6 +59,7 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
   [AI_MODELS.VEO_3]: 'veo3',
   [AI_MODELS.PIKA_V22]: 'pikaV22',
+  [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
 } as const
 
 /** Quality tier for video models */
@@ -204,7 +208,18 @@ export const MODEL_OPTIONS: ModelOption[] = [
     available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/flux/schnell',
   },
-  // #10 — Anime specialist, best for anime/manga art
+  // #10 — Open-source flagship, MMDiT architecture, 8B params
+  {
+    id: AI_MODELS.SD_35_LARGE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/stable-diffusion-v35-large',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/stable-diffusion-v35-large',
+  },
+  // #11 — Anime specialist, best for anime/manga art
   {
     id: AI_MODELS.ANIMAGINE_XL_4,
     cost: 1,
@@ -215,7 +230,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     available: true,
     officialUrl: 'https://huggingface.co/cagliostrolab/animagine-xl-4.0',
   },
-  // #11 — Classic open-source baseline
+  // #12 — Classic open-source baseline
   {
     id: AI_MODELS.SDXL,
     cost: 1,
@@ -352,6 +367,20 @@ export const MODEL_OPTIONS: ModelOption[] = [
       negativePrompt: 'blur, distort, and low quality',
       cfgScale: 0.5,
     },
+  },
+  // #9 — Runway Gen-3, industry-standard cinematic video (I2V only on fal)
+  {
+    id: AI_MODELS.RUNWAY_GEN3,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/runway-gen3/turbo/image-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/runway-gen3/turbo/image-to-video',
+    timeoutMs: 180_000,
+    qualityTier: 'standard',
   },
 
   // ═══ Video Models — Budget Tier ══════════════════════════════════

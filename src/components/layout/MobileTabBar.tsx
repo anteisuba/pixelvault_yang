@@ -66,7 +66,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="fixed bottom-0 inset-x-0 z-50 h-14 border-t border-border/75 bg-background/92 backdrop-blur-md md:hidden"
+      className="fixed bottom-0 inset-x-0 z-50 h-14 border-t border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150 md:hidden"
     >
       <SignedIn>
         <TabList tabs={signedInTabs} pathname={pathname} />

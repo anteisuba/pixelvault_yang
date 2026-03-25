@@ -110,7 +110,7 @@ export function ImageCard({
 
   return (
     <>
-      <article className="group overflow-hidden rounded-3xl border border-border/75 bg-card/84 transition-colors hover:border-foreground/15">
+      <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
         <div className="relative overflow-hidden bg-secondary/18">
           <button
             type="button"
@@ -126,23 +126,23 @@ export function ImageCard({
               src={generation.url}
               alt={generation.prompt}
               loading="lazy"
-              className="h-auto w-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
+              className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               style={{ aspectRatio }}
             />
           </button>
           {generation.referenceImageUrl && (
-            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-foreground/60 px-2 py-1 text-xs text-background backdrop-blur-sm">
+            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">
               <ImageIcon className="size-3" />
               {t('referenceImageLabel')}
             </span>
           )}
           {generation.outputType === 'VIDEO' && (
             <>
-              <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur-sm">
+              <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md">
                 <Play className="ml-0.5 size-3.5" fill="currentColor" />
               </span>
               {generation.duration != null && (
-                <span className="absolute bottom-3 right-3 rounded-full bg-foreground/60 px-2 py-0.5 font-mono text-xs text-background backdrop-blur-sm">
+                <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-xs text-white backdrop-blur-md">
                   0:{String(Math.round(generation.duration)).padStart(2, '0')}
                 </span>
               )}

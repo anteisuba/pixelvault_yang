@@ -32,9 +32,9 @@ export function GalleryGrid({
 }: GalleryGridProps) {
   if (generations.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-border/75 bg-secondary/14 px-6 py-12 text-center sm:px-10">
+      <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 px-6 py-16 text-center sm:px-10">
         <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-          <span className="inline-flex size-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-primary">
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Sparkles className="size-5" />
           </span>
           <div className="space-y-2">
@@ -56,9 +56,9 @@ export function GalleryGrid({
   }
 
   return (
-    <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
+    <div className="columns-1 gap-5 sm:columns-2 xl:columns-3">
       {generations.map((generation) => (
-        <div key={generation.id} className="mb-4 break-inside-avoid">
+        <div key={generation.id} className="mb-5 break-inside-avoid">
           <ImageCard
             generation={generation}
             showVisibility={showVisibility}

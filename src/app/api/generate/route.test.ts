@@ -127,6 +127,60 @@ describe('POST /api/generate', () => {
     expect(json.error).toBe('Insufficient credits')
   })
 
+  it('passes advancedParams to service when provided', async () => {
+    const bodyWithAdvanced = {
+      ...VALID_BODY,
+      advancedParams: {
+        negativePrompt: 'blurry, low quality',
+        guidanceScale: 7.5,
+        steps: 30,
+        seed: 42,
+      },
+    }
+    const req = createPOST('/api/generate', bodyWithAdvanced)
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(mockGenerate).toHaveBeenCalledWith(
+      'clerk_test_user',
+      expect.objectContaining({
+        prompt: VALID_BODY.prompt,
+        advancedParams: expect.objectContaining({
+          negativePrompt: 'blurry, low quality',
+          guidanceScale: 7.5,
+          steps: 30,
+          seed: 42,
+        }),
+      }),
+    )
+  })
+
+  it('succeeds without advancedParams (optional field)', async () => {
+    const req = createPOST('/api/generate', VALID_BODY)
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(mockGenerate).toHaveBeenCalledWith(
+      'clerk_test_user',
+      expect.not.objectContaining({ advancedParams: expect.anything() }),
+    )
+  })
+
+  it('returns 400 for invalid advancedParams values', async () => {
+    const bodyWithBadAdvanced = {
+      ...VALID_BODY,
+      advancedParams: {
+        guidanceScale: 999, // exceeds max of 30
+      },
+    }
+    const req = createPOST('/api/generate', bodyWithBadAdvanced)
+    const res = await POST(req)
+    const json = await parseJSON<{ success: boolean; error: string }>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.success).toBe(false)
+  })
+
   it('returns 500 on unexpected error', async () => {
     mockGenerate.mockRejectedValue(new Error('unexpected'))
     mockIsServiceError.mockReturnValue(false)

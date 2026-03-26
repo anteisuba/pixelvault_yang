@@ -15,6 +15,7 @@ import { getModelById, isBuiltInModel, MODEL_OPTIONS } from '@/constants/models'
 import { hasCapability } from '@/constants/provider-capabilities'
 import { getProviderLabel } from '@/constants/providers'
 import type {
+  AdvancedParams,
   ApiKeyHealthStatus,
   ArenaModelSelection,
   UserApiKeyRecord,
@@ -41,7 +42,6 @@ import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import type { AdvancedParams } from '@/types'
 import type { StartBattleInput } from '@/hooks/use-arena'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { getTranslatedModelLabel } from '@/lib/model-options'

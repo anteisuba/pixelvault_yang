@@ -62,6 +62,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       modelId: parseResult.data.modelId,
       apiKeyId: parseResult.data.apiKeyId,
       slotIndex: parseResult.data.slotIndex,
+      advancedParams: parseResult.data.advancedParams,
     })
 
     return NextResponse.json<{ success: true; data: ArenaEntryRecord }>({

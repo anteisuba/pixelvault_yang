@@ -103,6 +103,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',
+  NOVELAI: 'https://api.novelai.net',
 } as const
 
 /** Video generation configuration */

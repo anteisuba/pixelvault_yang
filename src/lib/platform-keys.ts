@@ -18,6 +18,8 @@ export function getSystemApiKey(adapterType: string): string | null {
       return process.env.FAL_API_KEY ?? null
     case AI_ADAPTER_TYPES.REPLICATE:
       return process.env.REPLICATE_API_TOKEN ?? null
+    case AI_ADAPTER_TYPES.NOVELAI:
+      return process.env.NOVELAI_API_TOKEN ?? null
     default:
       return null
   }

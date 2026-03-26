@@ -593,7 +593,7 @@
     "upscaling": "Upscaling...",
     "removeBackground": "Remove BG",
     "removingBackground": "Removing...",
-    "editSuccess": "Done! Open the result in a new tab.",
+    "editSuccess": "Done! Downloading the result.",
     "editFailed": "Editing failed"
   },
   "GalleryCard": {

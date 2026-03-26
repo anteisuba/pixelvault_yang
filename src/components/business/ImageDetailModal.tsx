@@ -342,7 +342,14 @@ export function ImageDetailModal({
                     const result = await editImageAPI('upscale', generation.url)
                     setEditingAction(null)
                     if (result.success && result.data) {
-                      window.open(result.data.imageUrl, '_blank')
+                      const res = await fetch(result.data.imageUrl)
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `pixelvault-${generation.id.slice(0, 8)}-upscaled.png`
+                      a.click()
+                      URL.revokeObjectURL(url)
                       toast.success(t('editSuccess'))
                     } else {
                       toast.error(result.error ?? t('editFailed'))
@@ -369,7 +376,14 @@ export function ImageDetailModal({
                     )
                     setEditingAction(null)
                     if (result.success && result.data) {
-                      window.open(result.data.imageUrl, '_blank')
+                      const res = await fetch(result.data.imageUrl)
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `pixelvault-${generation.id.slice(0, 8)}-nobg.png`
+                      a.click()
+                      URL.revokeObjectURL(url)
                       toast.success(t('editSuccess'))
                     } else {
                       toast.error(result.error ?? t('editFailed'))

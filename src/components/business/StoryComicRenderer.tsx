@@ -62,7 +62,7 @@ export function StoryComicRenderer({ panels }: StoryComicRendererProps) {
             )}
 
             {/* Panel number */}
-            <div className="absolute bottom-2 right-2 flex size-5 items-center justify-center rounded-full bg-foreground/70 text-[10px] font-bold text-background">
+            <div className="absolute bottom-2 right-2 flex size-5 items-center justify-center rounded-full bg-foreground/70 text-3xs font-bold text-background">
               {index + 1}
             </div>
           </div>

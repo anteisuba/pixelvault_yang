@@ -680,6 +680,43 @@
     "matches": "対戦数",
     "winRate": "勝率"
   },
+  "AdvancedSettings": {
+    "title": "詳細設定",
+    "description": "生成パラメータの微調整",
+    "negativePrompt": "ネガティブプロンプト",
+    "negativePromptHint": "ぼかし、ノイズ、不要なオブジェクトなど、生成画像から除外したい要素を記述します。",
+    "negativePromptPlaceholder": "生成画像に含めたくない要素...",
+    "guidanceScale": "ガイダンススケール（CFG）",
+    "guidanceScaleHint": "画像がプロンプトにどれだけ忠実に従うかを制御します。値が高いほど正確ですが、創造性は低下します。",
+    "steps": "推論ステップ数",
+    "stepsHint": "ノイズ除去の反復回数。ステップ数が多いほど品質は向上しますが、生成時間が長くなります。",
+    "referenceStrength": "参照強度",
+    "referenceStrengthHint": "参照画像が結果に与える影響の度合い。値が低いほどAIの創造的自由度が高まります。",
+    "seed": "シード",
+    "seedHint": "再現性のある結果を得るためにランダムシードを固定します。空欄にすると毎回ランダムになります。",
+    "seedRandom": "ランダム",
+    "quality": "品質",
+    "qualityHint": "出力品質レベル。高品質ほど詳細な画像が得られますが、生成に時間がかかる場合があります。",
+    "qualityOption": {
+      "auto": "自動",
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
+    "background": "背景",
+    "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
+    "backgroundOption": {
+      "auto": "自動",
+      "transparent": "透明",
+      "opaque": "不透明"
+    },
+    "style": "スタイル",
+    "styleHint": "ビビッドはドラマチックで鮮やかな画像を生成します。ナチュラルはより落ち着いたリアルな結果を生成します。",
+    "styleOption": {
+      "vivid": "ビビッド",
+      "natural": "ナチュラル"
+    }
+  },
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",
     "uploadTitle": "画像をドロップまたはクリックしてアップロード",
@@ -831,5 +868,11 @@
       "label": "Runway Gen-3 Turbo",
       "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
     }
+  },
+  "ErrorBoundary": {
+    "title": "エラーが発生しました",
+    "description": "予期しないエラーが発生しました。もう一度お試しください。",
+    "retry": "再試行",
+    "home": "ホームに戻る"
   }
 }

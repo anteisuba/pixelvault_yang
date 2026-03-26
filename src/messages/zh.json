@@ -680,6 +680,43 @@
     "matches": "对战数",
     "winRate": "胜率"
   },
+  "AdvancedSettings": {
+    "title": "高级设置",
+    "description": "微调生成参数",
+    "negativePrompt": "反向提示词",
+    "negativePromptHint": "描述希望在生成图像中排除的元素，例如模糊、噪点或不想要的物体。",
+    "negativePromptPlaceholder": "希望在生成图像中避免的元素...",
+    "guidanceScale": "引导系数（CFG）",
+    "guidanceScaleHint": "控制图像对提示词的遵循程度。数值越高结果越精确，但创意空间越小。",
+    "steps": "推理步数",
+    "stepsHint": "去噪迭代次数。步数越多通常质量越好，但生成时间也越长。",
+    "referenceStrength": "参照强度",
+    "referenceStrengthHint": "参考图片对结果的影响程度。数值越低，AI 的创作自由度越高。",
+    "seed": "种子",
+    "seedHint": "固定随机种子可获得可重复的结果。留空则每次随机生成。",
+    "seedRandom": "随机",
+    "quality": "质量",
+    "qualityHint": "输出质量等级。质量越高，图像越精细，但生成时间可能更长。",
+    "qualityOption": {
+      "auto": "自动",
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
+    "background": "背景",
+    "backgroundHint": "选择生成图像的背景为透明或不透明。",
+    "backgroundOption": {
+      "auto": "自动",
+      "transparent": "透明",
+      "opaque": "不透明"
+    },
+    "style": "风格",
+    "styleHint": "生动模式产生戏剧化、鲜明的图像。自然模式产生更柔和、写实的结果。",
+    "styleOption": {
+      "vivid": "生动",
+      "natural": "自然"
+    }
+  },
   "ReverseEngineer": {
     "title": "图片反向工程",
     "uploadTitle": "拖拽图片或点击上传",
@@ -831,5 +868,11 @@
       "label": "Runway Gen-3 Turbo",
       "description": "行业标杆级电影视频，fal.ai 图生视频"
     }
+  },
+  "ErrorBoundary": {
+    "title": "出了点问题",
+    "description": "发生了意外错误，请重试。",
+    "retry": "重试",
+    "home": "返回首页"
   }
 }

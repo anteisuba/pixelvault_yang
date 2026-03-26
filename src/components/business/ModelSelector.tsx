@@ -127,7 +127,7 @@ export function ModelSelector({
           <div key={group} className="grid gap-2">
             {hasMultipleGroups ? (
               <div className="mt-1 flex items-center gap-2 px-1 first:mt-0">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-primary/70">
+                <span className="text-2xs font-semibold uppercase tracking-widest text-primary/70">
                   {tCommon(`providerGroups.${group}`)}
                 </span>
                 <div className="h-px flex-1 bg-border/40" />
@@ -174,7 +174,7 @@ export function ModelSelector({
                       {isFree ? (
                         <Badge
                           variant="outline"
-                          className="shrink-0 rounded-full border-chart-3/40 px-2 py-0 text-[11px] text-chart-3"
+                          className="shrink-0 rounded-full border-chart-3/40 px-2 py-0 text-2xs text-chart-3"
                         >
                           <Gift className="size-3" />
                           {t('freeBadge')}
@@ -183,7 +183,7 @@ export function ModelSelector({
                       {isSaved ? (
                         <Badge
                           variant="secondary"
-                          className="shrink-0 rounded-full px-2 py-0 text-[11px]"
+                          className="shrink-0 rounded-full px-2 py-0 text-2xs"
                         >
                           <KeyRound className="size-3" />
                           {t('savedRouteBadge')}

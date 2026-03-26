@@ -680,6 +680,43 @@
     "matches": "Matches",
     "winRate": "Win Rate"
   },
+  "AdvancedSettings": {
+    "title": "Advanced Settings",
+    "description": "Fine-tune generation parameters",
+    "negativePrompt": "Negative Prompt",
+    "negativePromptHint": "Describe elements you want to exclude from the generated image, such as blur, noise, or unwanted objects.",
+    "negativePromptPlaceholder": "Elements to avoid in the generated image...",
+    "guidanceScale": "Guidance Scale (CFG)",
+    "guidanceScaleHint": "Controls how closely the image follows the prompt. Higher values produce more accurate but less creative results.",
+    "steps": "Inference Steps",
+    "stepsHint": "Number of denoising iterations. More steps generally improve quality but increase generation time.",
+    "referenceStrength": "Reference Strength",
+    "referenceStrengthHint": "How much the reference image influences the result. Lower values give AI more creative freedom.",
+    "seed": "Seed",
+    "seedHint": "Fix the random seed for reproducible results. Leave empty for a random seed each time.",
+    "seedRandom": "Random",
+    "quality": "Quality",
+    "qualityHint": "Output quality level. Higher quality produces more detailed images but may take longer.",
+    "qualityOption": {
+      "auto": "Auto",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "background": "Background",
+    "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
+    "backgroundOption": {
+      "auto": "Auto",
+      "transparent": "Transparent",
+      "opaque": "Opaque"
+    },
+    "style": "Style",
+    "styleHint": "Vivid produces dramatic, vibrant images. Natural generates more subdued, realistic results.",
+    "styleOption": {
+      "vivid": "Vivid",
+      "natural": "Natural"
+    }
+  },
   "ReverseEngineer": {
     "title": "Reverse Engineer",
     "uploadTitle": "Drop an image or click to upload",
@@ -831,5 +868,11 @@
       "label": "Runway Gen-3 Turbo",
       "description": "Industry-standard cinematic video, image-to-video on fal.ai"
     }
+  },
+  "ErrorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again.",
+    "retry": "Try again",
+    "home": "Back to home"
   }
 }

@@ -4,9 +4,14 @@ import { useState } from 'react'
 import { Gift, ImageIcon, Film } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import dynamic from 'next/dynamic'
+
 import { GenerateForm } from '@/components/business/GenerateForm'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
-import VideoGenerateForm from '@/components/business/VideoGenerateForm'
+
+const VideoGenerateForm = dynamic(
+  () => import('@/components/business/VideoGenerateForm'),
+)
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'

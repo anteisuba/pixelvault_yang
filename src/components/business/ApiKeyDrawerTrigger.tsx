@@ -39,7 +39,7 @@ export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
           <span>{t('triggerLabel')}</span>
           <Badge
             variant="secondary"
-            className="rounded-full px-2 py-0 text-[11px]"
+            className="rounded-full px-2 py-0 text-2xs"
           >
             {isLoading
               ? t('triggerLoading')

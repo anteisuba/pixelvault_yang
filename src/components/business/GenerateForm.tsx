@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ImageIcon, Loader2, Sparkles, X } from 'lucide-react'
+import { ImageIcon, Loader2, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
@@ -19,18 +19,35 @@ import {
 import { getProviderLabel } from '@/constants/providers'
 import { isCjkLocale } from '@/i18n/routing'
 
+import dynamic from 'next/dynamic'
+
+import { hasCapability } from '@/constants/provider-capabilities'
 import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
-import { PromptEnhancer } from '@/components/business/PromptEnhancer'
-import { ReverseEngineerPanel } from '@/components/business/ReverseEngineerPanel'
+
+const AdvancedSettings = dynamic(() =>
+  import('@/components/business/AdvancedSettings').then(
+    (mod) => mod.AdvancedSettings,
+  ),
+)
+const PromptEnhancer = dynamic(() =>
+  import('@/components/business/PromptEnhancer').then(
+    (mod) => mod.PromptEnhancer,
+  ),
+)
+const ReverseEngineerPanel = dynamic(() =>
+  import('@/components/business/ReverseEngineerPanel').then(
+    (mod) => mod.ReverseEngineerPanel,
+  ),
+)
 import { AspectRatioSelector } from '@/components/ui/aspect-ratio-selector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ErrorAlert } from '@/components/ui/error-alert'
-import { ImageDropZone } from '@/components/ui/image-drop-zone'
+import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateImage } from '@/hooks/use-generate'
@@ -65,6 +82,8 @@ export function GenerateForm() {
     aspectRatio,
     setAspectRatio,
     referenceImage,
+    advancedParams,
+    setAdvancedParams,
     isDragging,
     fileInputRef,
     handleDrop,
@@ -123,12 +142,16 @@ export function GenerateForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!prompt.trim() || isGenerating || !selectedModel) return
+    const hasAdvanced = Object.values(advancedParams).some(
+      (v) => v !== undefined,
+    )
     await generate({
       prompt: prompt.trim(),
       modelId: selectedModel.modelId,
       aspectRatio,
       referenceImage,
       apiKeyId: selectedModel.keyId,
+      advancedParams: hasAdvanced ? advancedParams : undefined,
     })
   }
 
@@ -251,41 +274,21 @@ export function GenerateForm() {
                 ) : undefined
               }
             >
-              {referenceImage ? (
-                <div className="relative inline-flex overflow-hidden rounded-2xl border border-border/75 bg-background">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={referenceImage}
-                    alt={t('referencePreviewAlt')}
-                    className="h-36 w-auto object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearImage}
-                    className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
-                    aria-label={t('referenceRemoveLabel')}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <ImageDropZone
-                  isDragging={isDragging}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onClick={openFilePicker}
-                  uploadLabel={t('referenceUploadAction')}
-                  formatsLabel={t('referenceUploadFormats')}
-                />
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                aria-label={t('referenceImageLabel')}
-                className="hidden"
-                onChange={handleInputChange}
+              <ReferenceImageSection
+                referenceImage={referenceImage}
+                isDragging={isDragging}
+                fileInputRef={fileInputRef}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onOpenFilePicker={openFilePicker}
+                onInputChange={handleInputChange}
+                onClear={clearImage}
+                previewAlt={t('referencePreviewAlt')}
+                removeLabel={t('referenceRemoveLabel')}
+                uploadLabel={t('referenceUploadAction')}
+                formatsLabel={t('referenceUploadFormats')}
+                inputAriaLabel={t('referenceImageLabel')}
               />
             </CollapsiblePanel>
           </div>
@@ -308,20 +311,32 @@ export function GenerateForm() {
             />
           </div>
 
-          <div className="mt-5 rounded-2xl border border-border/50 bg-background/40 p-4">
-            <ReverseEngineerPanel
-              selectedModels={
-                selectedModel
-                  ? [
-                      {
-                        modelId: selectedModel.modelId,
-                        apiKeyId: selectedModel.keyId,
-                      },
-                    ]
-                  : undefined
-              }
+          <div className="mt-5">
+            <AdvancedSettings
+              adapterType={selectedModel.adapterType}
+              params={advancedParams}
+              onChange={setAdvancedParams}
+              hasReferenceImage={Boolean(referenceImage)}
+              disabled={isGenerating}
             />
           </div>
+
+          {hasCapability(selectedModel.adapterType, 'imageAnalysis') && (
+            <div className="mt-5 rounded-2xl border border-border/50 bg-background/40 p-4">
+              <ReverseEngineerPanel
+                selectedModels={
+                  selectedModel
+                    ? [
+                        {
+                          modelId: selectedModel.modelId,
+                          apiKeyId: selectedModel.keyId,
+                        },
+                      ]
+                    : undefined
+                }
+              />
+            </div>
+          )}
         </section>
       </div>
 

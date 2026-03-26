@@ -229,20 +229,30 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
       apiKeyId: opt.keyId,
     }))
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!prompt.trim() || selectedModels.length < 2) return
-    const hasAdvanced = Object.values(advancedParams).some(
-      (v) => v !== undefined,
-    )
-    onBattle({
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!prompt.trim() || selectedModels.length < 2) return
+      const hasAdvanced = Object.values(advancedParams).some(
+        (v) => v !== undefined,
+      )
+      onBattle({
+        prompt,
+        aspectRatio,
+        models: selectedModels,
+        referenceImage,
+        advancedParams: hasAdvanced ? advancedParams : undefined,
+      })
+    },
+    [
       prompt,
+      selectedModels,
+      advancedParams,
+      onBattle,
       aspectRatio,
-      models: selectedModels,
       referenceImage,
-      advancedParams: hasAdvanced ? advancedParams : undefined,
-    })
-  }
+    ],
+  )
 
   const canBattle = prompt.trim().length > 0 && selectedModels.length >= 2
 

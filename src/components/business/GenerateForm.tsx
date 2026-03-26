@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import Image from 'next/image'
 import { ImageIcon, Loader2, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -141,21 +142,32 @@ export function GenerateForm() {
     ? getTranslatedModelLabel(tModels, generatedGeneration.model)
     : null
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!prompt.trim() || isGenerating || !selectedModel) return
-    const hasAdvanced = Object.values(advancedParams).some(
-      (v) => v !== undefined,
-    )
-    await generate({
-      prompt: prompt.trim(),
-      modelId: selectedModel.modelId,
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!prompt.trim() || isGenerating || !selectedModel) return
+      const hasAdvanced = Object.values(advancedParams).some(
+        (v) => v !== undefined,
+      )
+      await generate({
+        prompt: prompt.trim(),
+        modelId: selectedModel.modelId,
+        aspectRatio,
+        referenceImage,
+        apiKeyId: selectedModel.keyId,
+        advancedParams: hasAdvanced ? advancedParams : undefined,
+      })
+    },
+    [
+      prompt,
+      isGenerating,
+      selectedModel,
+      advancedParams,
+      generate,
       aspectRatio,
       referenceImage,
-      apiKeyId: selectedModel.keyId,
-      advancedParams: hasAdvanced ? advancedParams : undefined,
-    })
-  }
+    ],
+  )
 
   if (!selectedModel) return null
 
@@ -460,10 +472,12 @@ export function GenerateForm() {
 
         {generatedGeneration ? (
           <div className="animate-in fade-in-0 zoom-in-95 overflow-hidden rounded-3xl border border-border/60 bg-card/86 shadow-sm duration-500">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={generatedGeneration.url}
               alt={generatedGeneration.prompt}
+              width={generatedGeneration.width}
+              height={generatedGeneration.height}
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="h-auto w-full object-cover"
             />
             <div className="space-y-4 border-t border-border/75 p-5 sm:p-6">

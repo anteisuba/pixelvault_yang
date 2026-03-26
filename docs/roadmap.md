@@ -92,23 +92,23 @@ Items ordered by execution priority. Work top-down.
 
 ## Phase C — 性能优化
 
-### C1. 渲染优化
-- [ ] ImageCard 加 `React.memo`
-- [ ] 大型表单 handler 加 `useCallback`
+### C1. 渲染优化 ✅
+- [x] ImageCard 加 `React.memo`
+- [x] 大型表单 handler 加 `useCallback`（GenerateForm、ArenaForm）
 
-### C2. 图片优化
-- [ ] 关键位置 `<img>` → Next.js `<Image>`（ImageCard、ArenaGrid、GenerateForm）
+### C2. 图片优化 ✅
+- [x] 关键位置 `<img>` → Next.js `<Image>`（ImageCard、ArenaGrid、GenerateForm）
 - [ ] Image blur placeholder (blurhash)
 - [ ] Video 加 poster 图
 
-### C3. 加载优化
-- [ ] Gallery skeleton loading grid
-- [ ] ISR for gallery pages
-- [ ] Image CDN optimization (WebP/AVIF auto-conversion)
+### C3. 加载优化 ✅
+- [x] Gallery skeleton loading grid（loading.tsx）
+- [x] ISR for gallery pages（revalidate = 60s）
+- [x] Image CDN optimization（WebP/AVIF 已在 next.config.ts 配置）
 
-### C4. 免费额度剩余显示
-- [ ] Navbar 或 Studio 页显示 "今天还能免费生成 X 次"
-- [ ] 复用已有的 `getFreeGenerationCountToday()` API
+### C4. 免费额度剩余显示 ✅
+- [x] Studio 页显示 "今天还能免费生成 X 次"（StudioWorkspace 已实现）
+- [x] 复用已有的 `useUsageSummary()` hook
 
 ---
 

@@ -16,6 +16,8 @@ import {
   getPublicGenerations,
 } from '@/services/generation.service'
 
+export const revalidate = 60
+
 interface GalleryPageProps {
   params: Promise<{ locale: AppLocale }>
   searchParams: Promise<{ model?: string }>

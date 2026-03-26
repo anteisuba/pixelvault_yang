@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import type { ArenaEntryRecord, EloUpdate } from '@/types'
@@ -55,12 +56,13 @@ export function ArenaGrid({
           >
             {/* Image */}
             {entry.imageUrl && (
-              <div className="aspect-square overflow-hidden">
-                <img
+              <div className="relative aspect-square overflow-hidden">
+                <Image
                   src={entry.imageUrl}
                   alt={`Model ${SLOT_LABELS[entry.slotIndex]}`}
-                  className="size-full object-cover"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 640px) 100vw, 50vw"
+                  className="object-cover"
                 />
               </div>
             )}

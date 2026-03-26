@@ -1,7 +1,15 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} リクエスト"
+    "creditCount": "{count} リクエスト",
+    "providerGroups": {
+      "openai": "OpenAI",
+      "google": "Google",
+      "novelai": "NovelAI",
+      "fal": "fal.ai",
+      "opensource": "オープンソース",
+      "replicate": "Replicate"
+    }
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
@@ -145,8 +153,8 @@
     },
     "models": {
       "eyebrow": "モデル一覧",
-      "title": "4つの画像モデル、1つの静かな作業場。",
-      "description": "リアル表現、アニメ調、OpenAI 画像生成、Gemini の高速探索を、ツールを変えずに切り替えられます。"
+      "title": "マルチプロバイダーモデル、ひとつの静かな作業場。",
+      "description": "OpenAI、Google、NovelAI、オープンソースモデルを、ツールを変えずに切り替えられます。"
     },
     "scenes": {
       "items": {
@@ -337,6 +345,7 @@
     "referencePreviewAlt": "参照画像のプレビュー",
     "referenceRemoveLabel": "参照画像を削除",
     "referenceUploadAction": "ドラッグ＆ドロップ、またはクリックしてアップロード",
+    "referenceImageLabel": "参照画像",
     "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "生成の準備完了",
     "ctaSectionDescription": "ルートとプロンプトを確認して、準備ができたら生成します。",
@@ -411,6 +420,10 @@
       "replicate": {
         "label": "Replicate",
         "description": "Replicate プラットフォームで Ideogram などのモデルを使用。"
+      },
+      "novelai": {
+        "label": "NovelAI",
+        "description": "NovelAI のアニメ特化拡散モデルを使用。タグベースのプロンプトに対応。"
       }
     },
     "summary": {
@@ -450,6 +463,10 @@
       "showAll": "全モデルを表示（{count}）",
       "hideAll": "折りたたむ"
     },
+    "tutorial": {
+      "title": "{provider} API キーの取得方法",
+      "goToProvider": "{provider} に移動 →"
+    },
     "deleteDialog": {
       "title": "保存済みルートを削除",
       "description": "「{label}」を削除しますか？ この操作は取り消せません。",
@@ -474,6 +491,8 @@
       "showKey": "API キーを表示",
       "hideKey": "API キーを非表示",
       "getKeyLink": "APIキーを取得 →",
+      "keyFormatValid": "キー形式は正しいです",
+      "keyFormatInvalid": "キーは {hint} で始まる必要があります",
       "saveAction": "ルートを保存",
       "savingAction": "保存中...",
       "cancelAction": "キャンセル",
@@ -685,6 +704,10 @@
         "title": "PixelVault へようこそ",
         "description": "基本操作を確認して、すぐに画像生成を始めましょう。"
       },
+      "quickStart": {
+        "title": "無料で始めよう — API キー不要",
+        "description": "Gemini Flash Image は1日5回まで無料で生成できます。まず試してみて、全モデルと無制限利用には自分の API キーを追加してください。"
+      },
       "model": {
         "title": "モデルを選択",
         "description": "「無料」マーク付きモデルは API キー不要で1日5回まで使えます。全モデルを使うには自分のキーを追加してください。"
@@ -751,6 +774,22 @@
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
       "description": "オープンソースの旗艦モデル。80億パラメータMMDiTアーキテクチャ、構図とディテールに優れる。"
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "最新のNovelAIモデル。生成忠実度向上、複数キャラクター対応、テキスト描画対応。"
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "厳選データセットで訓練されたバリアント。制御しやすく、安定した品質を実現。"
+    },
+    "novelaiV4Full": {
+      "label": "NovelAI Diffusion V4 Full",
+      "description": "前世代のNovelAIオリジナルモデル。幅広いデータセットをカバー。"
+    },
+    "novelaiV3": {
+      "label": "NovelAI Diffusion Anime V3",
+      "description": "SDXLベースのアニメ特化モデル。タグ優先プロンプトシステム搭載。"
     },
     "veo3": {
       "label": "Veo 3.1",

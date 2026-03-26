@@ -9,6 +9,7 @@ export const HOMEPAGE_METADATA = {
 
 export const HOMEPAGE_ROUTES = {
   home: ROUTES.HOME,
+  gallery: ROUTES.GALLERY,
   signIn: ROUTES.SIGN_IN,
   signUp: ROUTES.SIGN_UP,
   studio: ROUTES.STUDIO,

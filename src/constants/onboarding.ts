@@ -1,5 +1,6 @@
 export const ONBOARDING_STEPS = [
   'welcome',
+  'quickStart',
   'model',
   'prompt',
   'apiKey',

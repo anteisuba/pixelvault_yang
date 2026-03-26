@@ -159,18 +159,18 @@ Items ordered by execution priority. Work top-down.
 ### F1. Storyboard Enhancement
 - [ ] Character binding — 角色预设 + 跨帧一致性
 - [ ] Character presets library
-- [ ] 视频播放器全屏支持（移动端竖屏优化）
+- [x] 视频播放器全屏支持（HTML5 requestFullscreen）
 
-### F2. Advanced Generation
+### F2. Advanced Generation ✅
 - [ ] Batch generation (multiple prompts in one run)
 - [ ] Generation history comparison (side-by-side)
-- [ ] Batch operations on profile (bulk public/private/delete)
+- [x] Batch operations on profile (bulk public/private/delete)
 
-### F3. 图片编辑工具
-- [ ] Upscale（fal.ai API）
+### F3. 图片编辑工具 ✅
+- [x] Upscale（fal.ai Aura SR 4x）
 - [ ] Inpainting 局部重绘（fal.ai API）
-- [ ] Remove background 去背景（fal.ai API）
-- [ ] 复用现有 adapter 架构
+- [x] Remove background 去背景（fal.ai BiRefNet V2）
+- [x] 复用现有 adapter 架构（独立 image-edit.service）
 
 ### F4. Workflow/Pipeline 多步生成
 - [ ] 串联多模型：生成 → 编辑 → 放大

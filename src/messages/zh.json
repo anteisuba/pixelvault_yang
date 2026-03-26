@@ -359,7 +359,17 @@
     "endOfArchive": "已经到达存档末尾。",
     "syncPendingTitle": "你的档案还在同步中",
     "syncPendingDescription": "当前还没有找到这个账号对应的档案资料。等待 Clerk 同步完成后，返回工作台再刷新一次。",
-    "syncPendingAction": "返回工作台"
+    "syncPendingAction": "返回工作台",
+    "selectMode": "选择",
+    "cancelSelect": "取消",
+    "selectedCount": "已选 {count} 项",
+    "batchMakePublic": "设为公开",
+    "batchMakePrivate": "设为私密",
+    "batchDelete": "删除",
+    "batchDeleteConfirmTitle": "删除 {count} 项？",
+    "batchDeleteConfirmDescription": "将永久删除所选的生成内容及其存储文件。",
+    "batchSuccess": "批量操作完成",
+    "batchFailed": "批量操作失败"
   },
   "StudioForm": {
     "formLabel": "图片生成",
@@ -578,7 +588,13 @@
     "promptCopied": "已复制！",
     "shareLink": "分享",
     "linkCopied": "链接已复制！",
-    "generateWithPrompt": "用此提示词生成"
+    "generateWithPrompt": "用此提示词生成",
+    "upscale": "超分辨率",
+    "upscaling": "处理中...",
+    "removeBackground": "去背景",
+    "removingBackground": "处理中...",
+    "editSuccess": "完成！在新标签页中查看结果。",
+    "editFailed": "编辑失败"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

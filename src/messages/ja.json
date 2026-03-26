@@ -359,7 +359,17 @@
     "endOfArchive": "これがアーカイブの最後です。",
     "syncPendingTitle": "アーカイブを同期しています",
     "syncPendingDescription": "このアカウントに対応するアーカイブプロフィールがまだ見つかりません。Clerk の同期完了後に Studio に戻って再読み込みしてください。",
-    "syncPendingAction": "スタジオに戻る"
+    "syncPendingAction": "スタジオに戻る",
+    "selectMode": "選択",
+    "cancelSelect": "キャンセル",
+    "selectedCount": "{count}件選択中",
+    "batchMakePublic": "公開にする",
+    "batchMakePrivate": "非公開にする",
+    "batchDelete": "削除",
+    "batchDeleteConfirmTitle": "{count}件を削除しますか？",
+    "batchDeleteConfirmDescription": "選択した生成結果とそのファイルが完全に削除されます。",
+    "batchSuccess": "一括操作が完了しました",
+    "batchFailed": "一括操作に失敗しました"
   },
   "StudioForm": {
     "formLabel": "画像生成",
@@ -578,7 +588,13 @@
     "promptCopied": "コピーしました！",
     "shareLink": "共有",
     "linkCopied": "リンクをコピーしました！",
-    "generateWithPrompt": "このプロンプトで生成"
+    "generateWithPrompt": "このプロンプトで生成",
+    "upscale": "高解像度化",
+    "upscaling": "処理中...",
+    "removeBackground": "背景除去",
+    "removingBackground": "除去中...",
+    "editSuccess": "完了！新しいタブで結果を開きます。",
+    "editFailed": "編集に失敗しました"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

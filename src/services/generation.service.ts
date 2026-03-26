@@ -344,3 +344,43 @@ export async function deleteGeneration(
 
   return { storageKey: generation.storageKey }
 }
+
+/**
+ * Batch delete generations owned by the user.
+ * Returns storage keys for R2 cleanup.
+ */
+export async function batchDeleteGenerations(
+  ids: string[],
+  userId: string,
+): Promise<{ deletedCount: number; storageKeys: string[] }> {
+  const generations = await db.generation.findMany({
+    where: { id: { in: ids }, userId },
+    select: { id: true, storageKey: true },
+  })
+
+  if (generations.length === 0) return { deletedCount: 0, storageKeys: [] }
+
+  const ownedIds = generations.map((g) => g.id)
+  await db.generation.deleteMany({ where: { id: { in: ownedIds } } })
+
+  return {
+    deletedCount: generations.length,
+    storageKeys: generations.map((g) => g.storageKey),
+  }
+}
+
+/**
+ * Batch update visibility for generations owned by the user.
+ */
+export async function batchUpdateVisibility(
+  ids: string[],
+  userId: string,
+  field: 'isPublic' | 'isPromptPublic',
+  value: boolean,
+): Promise<number> {
+  const result = await db.generation.updateMany({
+    where: { id: { in: ids }, userId },
+    data: { [field]: value },
+  })
+  return result.count
+}

@@ -359,7 +359,17 @@
     "endOfArchive": "That is the end of your archive.",
     "syncPendingTitle": "Your archive is still syncing",
     "syncPendingDescription": "We could not find an archive profile for this account yet. Return to the studio and refresh after Clerk sync completes.",
-    "syncPendingAction": "Return to studio"
+    "syncPendingAction": "Return to studio",
+    "selectMode": "Select",
+    "cancelSelect": "Cancel",
+    "selectedCount": "{count} selected",
+    "batchMakePublic": "Make public",
+    "batchMakePrivate": "Make private",
+    "batchDelete": "Delete",
+    "batchDeleteConfirmTitle": "Delete {count} generations?",
+    "batchDeleteConfirmDescription": "This will permanently delete the selected generations and their stored files.",
+    "batchSuccess": "Batch operation completed",
+    "batchFailed": "Batch operation failed"
   },
   "StudioForm": {
     "formLabel": "Image generation",
@@ -578,7 +588,13 @@
     "promptCopied": "Copied!",
     "shareLink": "Share",
     "linkCopied": "Link copied!",
-    "generateWithPrompt": "Generate with this"
+    "generateWithPrompt": "Generate with this",
+    "upscale": "Upscale",
+    "upscaling": "Upscaling...",
+    "removeBackground": "Remove BG",
+    "removingBackground": "Removing...",
+    "editSuccess": "Done! Open the result in a new tab.",
+    "editFailed": "Editing failed"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

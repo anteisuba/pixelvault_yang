@@ -9,19 +9,24 @@ import {
   Coins,
   Copy,
   Download,
+  Eraser,
   Globe2,
   ImageIcon,
   Link2,
+  Loader2,
   LockKeyhole,
   Sparkles,
   Trash2,
+  ZoomIn,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
+import { editImageAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -55,6 +60,9 @@ export function ImageDetailModal({
 }: ImageDetailModalProps) {
   const [isDownloading, setIsDownloading] = useState(false)
   const [copied, setCopied] = useState<'prompt' | 'link' | null>(null)
+  const [editingAction, setEditingAction] = useState<
+    'upscale' | 'remove-background' | null
+  >(null)
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -320,6 +328,64 @@ export function ImageDetailModal({
                   {t('generateWithPrompt')}
                 </Link>
               </Button>
+            )}
+
+            {generation.outputType === 'IMAGE' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={editingAction !== null}
+                  onClick={async () => {
+                    setEditingAction('upscale')
+                    const result = await editImageAPI('upscale', generation.url)
+                    setEditingAction(null)
+                    if (result.success && result.data) {
+                      window.open(result.data.imageUrl, '_blank')
+                      toast.success(t('editSuccess'))
+                    } else {
+                      toast.error(result.error ?? t('editFailed'))
+                    }
+                  }}
+                >
+                  {editingAction === 'upscale' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <ZoomIn className="size-3.5" />
+                  )}
+                  {editingAction === 'upscale' ? t('upscaling') : t('upscale')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={editingAction !== null}
+                  onClick={async () => {
+                    setEditingAction('remove-background')
+                    const result = await editImageAPI(
+                      'remove-background',
+                      generation.url,
+                    )
+                    setEditingAction(null)
+                    if (result.success && result.data) {
+                      window.open(result.data.imageUrl, '_blank')
+                      toast.success(t('editSuccess'))
+                    } else {
+                      toast.error(result.error ?? t('editFailed'))
+                    }
+                  }}
+                >
+                  {editingAction === 'remove-background' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Eraser className="size-3.5" />
+                  )}
+                  {editingAction === 'remove-background'
+                    ? t('removingBackground')
+                    : t('removeBackground')}
+                </Button>
+              </>
             )}
 
             {showDelete && onDelete ? (

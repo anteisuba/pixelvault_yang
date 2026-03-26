@@ -53,6 +53,8 @@ export const API_ENDPOINTS = {
 
   /** Image reverse engineering */
   ANALYZE_IMAGE: '/api/image/analyze',
+  /** Image editing (upscale, remove background) */
+  IMAGE_EDIT: '/api/image/edit',
 
   /** Arena */
   ARENA_MATCHES: '/api/arena/matches',

@@ -743,3 +743,76 @@ export async function deleteGenerationAPI(
     return { success: false, error: message }
   }
 }
+
+/**
+ * Batch delete generations.
+ */
+export async function batchDeleteGenerationsAPI(ids: string[]): Promise<{
+  success: boolean
+  data?: { deletedCount: number }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', ids }),
+    })
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Batch update visibility for generations.
+ */
+export async function batchUpdateVisibilityAPI(
+  ids: string[],
+  field: 'isPublic' | 'isPromptPublic',
+  value: boolean,
+): Promise<{
+  success: boolean
+  data?: { updatedCount: number }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'visibility', ids, field, value }),
+    })
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Edit an image (upscale or remove background).
+ */
+export async function editImageAPI(
+  action: 'upscale' | 'remove-background',
+  imageUrl: string,
+): Promise<{
+  success: boolean
+  data?: { imageUrl: string; width: number; height: number }
+  error?: string
+}> {
+  try {
+    const response = await fetch(API_ENDPOINTS.IMAGE_EDIT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, imageUrl }),
+    })
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}

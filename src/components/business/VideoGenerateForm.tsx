@@ -1,22 +1,10 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
-  Film,
-  Loader2,
-  Upload,
-  X,
-} from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Film, Loader2, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import {
-  API_USAGE,
-  GENERATION_LIMITS,
-  VIDEO_GENERATION,
-} from '@/constants/config'
+import { GENERATION_LIMITS, VIDEO_GENERATION } from '@/constants/config'
 import { getAvailableVideoModels, getModelById } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
 
@@ -24,15 +12,19 @@ import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
-import { PromptComparisonPanel } from '@/components/business/PromptComparisonPanel'
-import { PromptEnhanceButton } from '@/components/business/PromptEnhanceButton'
+import { PromptEnhancer } from '@/components/business/PromptEnhancer'
 import VideoPlayer from '@/components/business/VideoPlayer'
+import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
+import { ErrorAlert } from '@/components/ui/error-alert'
+import { ImageDropZone } from '@/components/ui/image-drop-zone'
+import { OptionGroup } from '@/components/ui/option-group'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
-import { usePromptEnhance } from '@/hooks/use-prompt-enhance'
+import { useGenerationForm } from '@/hooks/use-generation-form'
+import { buildSavedModelOptions, findSelectedModel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 function formatDuration(seconds: number): string {
@@ -50,15 +42,6 @@ const VIDEO_SIZES: Record<string, { width: number; height: number }> = {
   '9:16': { width: 720, height: 1280 },
   '4:3': { width: 1024, height: 768 },
   '3:4': { width: 768, height: 1024 },
-}
-
-function loadImageAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 /** Resize a base64 data-URL image to exact dimensions using Canvas */
@@ -87,7 +70,6 @@ export default function VideoGenerateForm() {
   const locale = useLocale()
   const cjk = isCjkLocale(locale)
   const t = useTranslations('VideoGenerate')
-  const tModels = useTranslations('Models')
 
   const { keys } = useApiKeysContext()
   const {
@@ -98,29 +80,38 @@ export default function VideoGenerateForm() {
     generatedGeneration,
     generate,
   } = useGenerateVideo()
+
   const {
+    prompt,
+    setPrompt,
+    aspectRatio,
+    setAspectRatio,
+    referenceImage,
+    isDragging,
+    fileInputRef,
+    handleDrop,
+    handleDragOver,
+    handleDragLeave,
+    openFilePicker,
+    handleInputChange,
+    clearImage,
     isEnhancing,
     enhanced,
-    original: enhancedOriginal,
-    style: enhancedStyle,
-    enhance: enhancePrompt,
+    enhancedOriginal,
+    enhancedStyle,
+    enhancePrompt,
     clearEnhancement,
-  } = usePromptEnhance()
+    applyEnhancedPrompt,
+  } = useGenerationForm({
+    defaultAspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
+  })
 
   const [selectedOptionId, setSelectedOptionId] = useState('')
-  const [prompt, setPrompt] = useState('')
   const [duration, setDuration] = useState<number>(
     VIDEO_GENERATION.DEFAULT_DURATION,
   )
-  const [aspectRatio, setAspectRatio] = useState<string>(
-    VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
-  )
-  const [referenceImage, setReferenceImage] = useState<string | undefined>()
   const [resolution, setResolution] = useState<string | undefined>()
-  const [showAdvanced, setShowAdvanced] = useState(false)
   const [negativePrompt, setNegativePrompt] = useState('')
-  const [isDragging, setIsDragging] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const videoModels = getAvailableVideoModels()
 
@@ -133,53 +124,23 @@ export default function VideoGenerateForm() {
     isBuiltIn: true,
     sourceType: 'workspace',
   }))
-  const savedOptions: StudioModelOption[] = keys
-    .filter(
-      (key) => key.isActive && videoModels.some((m) => m.id === key.modelId),
-    )
-    .map((key) => ({
-      optionId: `key:${key.id}`,
-      modelId: key.modelId,
-      adapterType: key.adapterType,
-      providerConfig: key.providerConfig,
-      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-      isBuiltIn: false,
-      sourceType: 'saved',
-      keyId: key.id,
-      keyLabel: key.label,
-      maskedKey: key.maskedKey,
-    }))
+  const savedOptions = buildSavedModelOptions(
+    keys.filter((key) => key.isActive),
+    (key) => videoModels.some((m) => m.id === key.modelId),
+  )
   const modelOptions = [...builtInOptions, ...savedOptions]
-  const selectedModel =
-    modelOptions.find((o) => o.optionId === selectedOptionId) ?? modelOptions[0]
+  const selectedModel = findSelectedModel(modelOptions, selectedOptionId)
 
   const selectedApiKeyId = selectedModel?.keyId
   const selectedModelConfig = selectedModel
     ? getModelById(selectedModel.modelId)
     : undefined
 
-  const handleFileChange = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) return
-    const base64 = await loadImageAsBase64(file)
-    setReferenceImage(base64)
-  }, [])
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      setIsDragging(false)
-      const file = e.dataTransfer.files[0]
-      if (file) await handleFileChange(file)
-    },
-    [handleFileChange],
-  )
-
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!selectedModel || !prompt.trim()) return
 
-      // For OpenAI Sora: resize reference image to match video dimensions
       let processedImage = referenceImage
       if (referenceImage && selectedModel.adapterType === 'openai') {
         const dims = VIDEO_SIZES[aspectRatio] ?? VIDEO_SIZES['16:9']
@@ -267,23 +228,15 @@ export default function VideoGenerateForm() {
           >
             {t('durationLabel')}
           </label>
-          <div className="flex gap-2">
-            {VIDEO_GENERATION.DURATION_OPTIONS.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDuration(d)}
-                className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  duration === d
-                    ? 'bg-foreground text-background'
-                    : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
-                )}
-              >
-                {d}s
-              </button>
-            ))}
-          </div>
+          <OptionGroup
+            options={VIDEO_GENERATION.DURATION_OPTIONS.map((d) => ({
+              value: String(d),
+              label: `${d}s`,
+            }))}
+            value={String(duration)}
+            onChange={(v) => setDuration(Number(v))}
+            variant="neutral"
+          />
         </div>
 
         <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
@@ -295,23 +248,12 @@ export default function VideoGenerateForm() {
           >
             {t('aspectRatioLabel')}
           </label>
-          <div className="flex flex-wrap gap-2">
-            {(['16:9', '9:16', '1:1'] as const).map((ar) => (
-              <button
-                key={ar}
-                type="button"
-                onClick={() => setAspectRatio(ar)}
-                className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  aspectRatio === ar
-                    ? 'bg-foreground text-background'
-                    : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
-                )}
-              >
-                {ar}
-              </button>
-            ))}
-          </div>
+          <OptionGroup
+            options={['16:9', '9:16', '1:1']}
+            value={aspectRatio}
+            onChange={setAspectRatio}
+            variant="neutral"
+          />
         </div>
 
         <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
@@ -323,23 +265,13 @@ export default function VideoGenerateForm() {
           >
             {t('resolutionLabel')}
           </label>
-          <div className="flex flex-wrap gap-2">
-            {RESOLUTION_OPTIONS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setResolution(resolution === r ? undefined : r)}
-                className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                  resolution === r
-                    ? 'bg-foreground text-background'
-                    : 'border border-border/75 bg-background/50 text-foreground hover:bg-muted/30',
-                )}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+          <OptionGroup
+            options={RESOLUTION_OPTIONS.map((r) => r)}
+            value={resolution ?? ''}
+            onChange={(v) => setResolution(v || undefined)}
+            allowDeselect
+            variant="neutral"
+          />
         </div>
       </div>
 
@@ -372,43 +304,22 @@ export default function VideoGenerateForm() {
             <button
               type="button"
               aria-label={t('referenceRemoveLabel')}
-              onClick={() => setReferenceImage(undefined)}
+              onClick={clearImage}
               className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
             >
               <X className="size-3.5" />
             </button>
           </div>
         ) : (
-          <div
-            role="button"
-            tabIndex={0}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setIsDragging(true)
-            }}
-            onDragLeave={() => setIsDragging(false)}
+          <ImageDropZone
+            isDragging={isDragging}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                fileInputRef.current?.click()
-              }
-            }}
-            className={cn(
-              'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors',
-              isDragging
-                ? 'border-primary/60 bg-primary/5'
-                : 'border-border/80 bg-background/72 hover:border-primary/40 hover:bg-secondary/18',
-            )}
-          >
-            <Upload className="size-5 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">
-              {t('referenceImageUpload')}
-            </p>
-            <p className="font-serif text-xs text-muted-foreground">
-              {t('referenceImageHint')}
-            </p>
-          </div>
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={openFilePicker}
+            uploadLabel={t('referenceImageUpload')}
+            formatsLabel={t('referenceImageHint')}
+          />
         )}
         <input
           ref={fileInputRef}
@@ -416,10 +327,7 @@ export default function VideoGenerateForm() {
           accept="image/*"
           aria-label={t('referenceImageLabel')}
           className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0]
-            if (file) await handleFileChange(file)
-          }}
+          onChange={handleInputChange}
         />
       </div>
 
@@ -435,13 +343,18 @@ export default function VideoGenerateForm() {
             {t('promptLabel')}
           </label>
           <div className="flex items-center gap-2">
-            <PromptEnhanceButton
+            <PromptEnhancer
               prompt={prompt}
               isEnhancing={isEnhancing}
               disabled={isGenerating}
+              enhanced={enhanced}
+              enhancedOriginal={enhancedOriginal}
+              enhancedStyle={enhancedStyle}
               onEnhance={(style) =>
                 enhancePrompt(prompt, style, selectedApiKeyId)
               }
+              onUseEnhanced={applyEnhancedPrompt}
+              onDismiss={clearEnhancement}
             />
             <span className="text-xs tabular-nums text-muted-foreground">
               {prompt.length}/{GENERATION_LIMITS.PROMPT_MAX_LENGTH}
@@ -456,60 +369,24 @@ export default function VideoGenerateForm() {
           rows={4}
           className="min-h-28 rounded-3xl border-border/75 bg-background/72"
         />
-
-        {enhanced && (
-          <div className="mt-3">
-            <PromptComparisonPanel
-              original={enhancedOriginal ?? ''}
-              enhanced={enhanced}
-              style={enhancedStyle ?? ''}
-              onUseEnhanced={(text) => {
-                setPrompt(text)
-                clearEnhancement()
-              }}
-              onDismiss={clearEnhancement}
-            />
-          </div>
-        )}
       </div>
 
       {/* Advanced Settings */}
-      <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex w-full items-center justify-between"
-        >
-          <span
-            className={cn(
-              'text-xs font-semibold text-muted-foreground',
-              !cjk && 'uppercase tracking-nav',
-            )}
-          >
-            {t('advancedSettings')}
-          </span>
-          {showAdvanced ? (
-            <ChevronUp className="size-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-4 text-muted-foreground" />
-          )}
-        </button>
-
-        {showAdvanced && (
-          <div className="mt-4 border-t border-border/70 pt-4">
-            <label className="mb-2 block text-xs text-muted-foreground">
-              {t('negativePromptLabel')}
-            </label>
-            <Textarea
-              value={negativePrompt}
-              onChange={(e) => setNegativePrompt(e.target.value)}
-              placeholder={t('negativePromptPlaceholder')}
-              rows={2}
-              className="min-h-16 rounded-2xl border-border/75 bg-background/72 text-sm"
-            />
-          </div>
-        )}
-      </div>
+      <CollapsiblePanel
+        title={t('advancedSettings')}
+        className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6"
+      >
+        <label className="mb-2 block text-xs text-muted-foreground">
+          {t('negativePromptLabel')}
+        </label>
+        <Textarea
+          value={negativePrompt}
+          onChange={(e) => setNegativePrompt(e.target.value)}
+          placeholder={t('negativePromptPlaceholder')}
+          rows={2}
+          className="min-h-16 rounded-2xl border-border/75 bg-background/72 text-sm"
+        />
+      </CollapsiblePanel>
 
       {/* Submit */}
       <div className="rounded-3xl border border-border/75 bg-primary/6 p-5 sm:p-6">
@@ -576,12 +453,7 @@ export default function VideoGenerateForm() {
       )}
 
       {/* Error */}
-      {error && (
-        <div className="flex items-start gap-3 rounded-3xl border border-destructive/35 bg-destructive/8 p-4">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-          <p className="font-serif text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <ErrorAlert message={error} />}
 
       {/* Result */}
       {generatedGeneration && (

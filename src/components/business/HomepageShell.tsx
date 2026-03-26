@@ -1,82 +1,23 @@
-import type { LucideIcon } from 'lucide-react'
-import { Archive, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { API_USAGE } from '@/constants/config'
-import type { AI_MODELS } from '@/constants/models'
 import {
-  HOMEPAGE_FEATURES,
   HOMEPAGE_NAVIGATION,
   HOMEPAGE_ROUTES,
   HOMEPAGE_SCENES,
-  HOMEPAGE_WORKFLOW,
-  type HomepageFeatureIcon,
-  type HomepageSceneTone,
 } from '@/constants/homepage'
-import { getModelMessageKey, MODEL_OPTIONS } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
+import { HomepageFeatures } from './HomepageFeatures'
+import { HomepageHero } from './HomepageHero'
+import { HomepageModels } from './HomepageModels'
+import { HomepageSceneCard } from './HomepageSceneCard'
+import { HomepageWorkflow } from './HomepageWorkflow'
 import styles from './HomepageShell.module.css'
-
-const featureIcons: Record<HomepageFeatureIcon, LucideIcon> = {
-  sparkles: Sparkles,
-  archive: Archive,
-  shield: ShieldCheck,
-}
-
-const sceneToneClasses: Record<HomepageSceneTone, string> = {
-  dawn: styles.sceneDawn,
-  forest: styles.sceneForest,
-  ink: styles.sceneInk,
-}
-
-const providerCount = new Set(MODEL_OPTIONS.map((model) => model.adapterType))
-  .size
-
-const HERO_SCENE_COUNT = 2
-
-interface SceneCardProps {
-  sceneId: string
-  modelId: AI_MODELS
-  tone: HomepageSceneTone
-  isDenseLocale: boolean
-  className?: string
-}
-
-function SceneCard({
-  sceneId,
-  modelId,
-  tone,
-  isDenseLocale,
-  className,
-}: SceneCardProps) {
-  const t = useTranslations('Homepage')
-  const tModels = useTranslations('Models')
-
-  return (
-    <article
-      className={cn(styles.sceneCard, sceneToneClasses[tone], className)}
-    >
-      <span
-        className={cn(styles.sceneTag, isDenseLocale && styles.denseCopy)}
-      >
-        {tModels(`${getModelMessageKey(modelId)}.label`)}
-      </span>
-      <p className={styles.scenePrompt}>
-        {t(`scenes.items.${sceneId}.prompt`)}
-      </p>
-      <div className={styles.sceneMeta}>
-        <span>{t(`scenes.items.${sceneId}.note`)}</span>
-        <span>{t('stage.savedLabel')}</span>
-      </div>
-    </article>
-  )
-}
 
 interface HomepageShellProps {
   eyebrow: string
@@ -105,63 +46,13 @@ export function HomepageShell({
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
-  const tModels = useTranslations('Models')
-
-  const signalItems = (
-    <>
-      <div className={styles.signalItem}>
-        <span
-          className={cn(
-            styles.signalLabel,
-            isDenseLocale && styles.denseCopy,
-          )}
-        >
-          {t('signals.modelCoverageLabel')}
-        </span>
-        <span className={styles.signalValue}>
-          {t('signals.modelCoverageValue', {
-            modelCount: MODEL_OPTIONS.length,
-            providerCount,
-          })}
-        </span>
-      </div>
-      <div className={styles.signalItem}>
-        <span
-          className={cn(
-            styles.signalLabel,
-            isDenseLocale && styles.denseCopy,
-          )}
-        >
-          {t('signals.creditLabel')}
-        </span>
-        <span className={styles.signalValue}>
-          {t('signals.creditValue', {
-            creditCount: tCommon('creditCount', {
-              count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-            }),
-          })}
-        </span>
-      </div>
-      <div className={styles.signalItem}>
-        <span
-          className={cn(
-            styles.signalLabel,
-            isDenseLocale && styles.denseCopy,
-          )}
-        >
-          {t('signals.archiveLabel')}
-        </span>
-        <span className={styles.signalValue}>
-          {t('signals.archiveValue')}
-        </span>
-      </div>
-    </>
-  )
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div className={`mx-auto max-w-content px-4 sm:px-6 lg:px-8 ${styles.headerInner}`}>
+        <div
+          className={`mx-auto max-w-content px-4 sm:px-6 lg:px-8 ${styles.headerInner}`}
+        >
           <Link href={HOMEPAGE_ROUTES.home} className={styles.brandBlock}>
             <span
               className={cn(
@@ -202,230 +93,62 @@ export function HomepageShell({
         className={`mx-auto max-w-content px-4 sm:px-6 lg:px-8 ${styles.shell}`}
       >
         <main className={styles.main}>
-          <section className={styles.hero}>
-            <div className={styles.heroGrid}>
-              <div className={styles.heroCopy}>
-                <p
-                  className={cn(
-                    styles.eyebrow,
-                    isDenseLocale && styles.denseCopy,
-                  )}
-                >
-                  {eyebrow}
-                </p>
-                <h1 className={styles.title}>{title}</h1>
-                <p className={styles.description}>{description}</p>
+          <HomepageHero
+            eyebrow={eyebrow}
+            title={title}
+            description={description}
+            primaryActionHref={primaryActionHref}
+            primaryActionLabel={primaryActionLabel}
+            secondaryActionHref={secondaryActionHref}
+            secondaryActionLabel={secondaryActionLabel}
+          />
 
-                <div className={styles.actions}>
-                  <Button asChild size="lg" className={styles.primaryButton}>
-                    <Link href={primaryActionHref}>
-                      {primaryActionLabel}
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className={styles.secondaryButton}
-                  >
-                    <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className={styles.heroVisual}>
-                <div className={styles.heroVisualInner}>
-                  {HOMEPAGE_SCENES.slice(0, HERO_SCENE_COUNT).map((scene) => (
-                    <SceneCard
-                      key={scene.id}
-                      sceneId={scene.id}
-                      modelId={scene.modelId}
-                      tone={scene.tone}
-                      isDenseLocale={isDenseLocale}
-                      className={styles.heroVisualCard}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.heroMetrics}>
-              {signalItems}
-            </div>
-          </section>
-
+          {/* Gallery Preview */}
           <section id="gallery" className={styles.galleryPreview}>
-              <div className={styles.galleryPreviewHead}>
-                <p
-                  className={cn(
-                    styles.sectionLabel,
-                    isDenseLocale && styles.denseCopy,
-                  )}
-                >
-                  {t('stage.label')}
-                </p>
-                <h2 className={styles.galleryPreviewTitle}>
-                  {t('stage.title')}
-                </h2>
-                <p className={styles.galleryPreviewDesc}>
-                  {t('stage.value')}
-                </p>
-              </div>
-
-              <div className={styles.sceneGrid}>
-                {HOMEPAGE_SCENES.map((scene) => (
-                  <SceneCard
-                    key={scene.id}
-                    sceneId={scene.id}
-                    modelId={scene.modelId}
-                    tone={scene.tone}
-                    isDenseLocale={isDenseLocale}
-                  />
-                ))}
-              </div>
-
-              <div className={styles.galleryPreviewActions}>
-                <Button asChild variant="outline" size="lg" className={styles.secondaryButton}>
-                  <Link href={HOMEPAGE_ROUTES.signUp}>
-                    {t('stage.cta')}
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionIntro}>
+            <div className={styles.galleryPreviewHead}>
               <p
                 className={cn(
                   styles.sectionLabel,
                   isDenseLocale && styles.denseCopy,
                 )}
               >
-                {t('features.eyebrow')}
+                {t('stage.label')}
               </p>
-              <h2 className={styles.sectionTitle}>{t('features.title')}</h2>
-              <p className={styles.sectionDescription}>
-                {t('features.description')}
-              </p>
+              <h2 className={styles.galleryPreviewTitle}>{t('stage.title')}</h2>
+              <p className={styles.galleryPreviewDesc}>{t('stage.value')}</p>
             </div>
 
-            <div className={styles.featureGrid}>
-              {HOMEPAGE_FEATURES.map((feature) => {
-                const FeatureIcon = featureIcons[feature.icon]
-
-                return (
-                  <article key={feature.id} className={styles.featureItem}>
-                    <div className={styles.featureHeader}>
-                      <span className={styles.featureIcon}>
-                        <FeatureIcon className="size-5" />
-                      </span>
-                      <h3 className={styles.featureTitle}>
-                        {t(`features.items.${feature.id}.title`)}
-                      </h3>
-                    </div>
-                    <p className={styles.featureDescription}>
-                      {t(`features.items.${feature.id}.description`)}
-                    </p>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-
-          <section id="workflow" className={styles.section}>
-            <div className={styles.sectionIntro}>
-              <p
-                className={cn(
-                  styles.sectionLabel,
-                  isDenseLocale && styles.denseCopy,
-                )}
-              >
-                {t('workflow.eyebrow')}
-              </p>
-              <h2 className={styles.sectionTitle}>{t('workflow.title')}</h2>
-              <p className={styles.sectionDescription}>
-                {t('workflow.description')}
-              </p>
-            </div>
-
-            <div className={styles.workflowGrid}>
-              {HOMEPAGE_WORKFLOW.map((item) => (
-                <article key={item.step} className={styles.workflowItem}>
-                  <span
-                    className={cn(
-                      styles.workflowStep,
-                      isDenseLocale && styles.denseCopy,
-                    )}
-                  >
-                    {item.step}
-                  </span>
-                  <h3 className={styles.workflowTitle}>
-                    {t(`workflow.items.${item.id}.title`)}
-                  </h3>
-                  <p className={styles.workflowDescription}>
-                    {t(`workflow.items.${item.id}.description`)}
-                  </p>
-                </article>
+            <div className={styles.sceneGrid}>
+              {HOMEPAGE_SCENES.map((scene) => (
+                <HomepageSceneCard
+                  key={scene.id}
+                  sceneId={scene.id}
+                  modelId={scene.modelId}
+                  tone={scene.tone}
+                />
               ))}
             </div>
-          </section>
 
-          <section id="models" className={styles.section}>
-            <div className={styles.sectionIntro}>
-              <p
-                className={cn(
-                  styles.sectionLabel,
-                  isDenseLocale && styles.denseCopy,
-                )}
+            <div className={styles.galleryPreviewActions}>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className={styles.secondaryButton}
               >
-                {t('models.eyebrow')}
-              </p>
-              <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
-              <p className={styles.sectionDescription}>
-                {t('models.description')}
-              </p>
-            </div>
-
-            <div className={styles.modelRail}>
-              {MODEL_OPTIONS.map((model) => (
-                <article key={model.id} className={styles.modelCard}>
-                  <div>
-                    <div className={styles.modelMeta}>
-                      <span
-                        className={cn(
-                          styles.providerTag,
-                          isDenseLocale && styles.denseCopy,
-                        )}
-                      >
-                        {getProviderLabel(model.providerConfig)}
-                      </span>
-                      <span
-                        className={cn(
-                          styles.costTag,
-                          isDenseLocale && styles.denseCopy,
-                        )}
-                      >
-                        {tCommon('creditCount', {
-                          count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                        })}
-                      </span>
-                    </div>
-                    <h3 className={styles.modelTitle}>
-                      {tModels(`${getModelMessageKey(model.id)}.label`)}
-                    </h3>
-                  </div>
-
-                  <p className={styles.modelDescription}>
-                    {tModels(`${getModelMessageKey(model.id)}.description`)}
-                  </p>
-                </article>
-              ))}
+                <Link href={HOMEPAGE_ROUTES.signUp}>
+                  {t('stage.cta')}
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
             </div>
           </section>
 
+          <HomepageFeatures />
+          <HomepageWorkflow />
+          <HomepageModels />
+
+          {/* Footer CTA */}
           <section className={styles.footerBand}>
             <p
               className={cn(

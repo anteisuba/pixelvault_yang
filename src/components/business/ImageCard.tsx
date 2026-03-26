@@ -13,14 +13,14 @@ import {
 } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
-import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
-import { useRouter } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
-import { toggleGenerationVisibility } from '@/lib/api-client'
 
 import type { GenerationRecord } from '@/types'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
-import { cn } from '@/lib/utils'
+import { MetadataList } from '@/components/ui/metadata-list'
+import { useGenerationVisibility } from '@/hooks/use-generation-visibility'
+import { getTranslatedModelLabel } from '@/lib/model-options'
+import { cn, getLabelClassName } from '@/lib/utils'
 
 interface ImageCardProps {
   generation: GenerationRecord
@@ -35,13 +35,13 @@ export function ImageCard({
   showDelete = false,
   onDelete,
 }: ImageCardProps) {
-  const [isPublic, setIsPublic] = useState(generation.isPublic)
-  const [isPromptPublic, setIsPromptPublic] = useState(
-    generation.isPromptPublic,
-  )
-  const [togglingField, setTogglingField] = useState<string | null>(null)
+  const { isPublic, isPromptPublic, togglingField, handleToggle } =
+    useGenerationVisibility({
+      generationId: generation.id,
+      initialIsPublic: generation.isPublic,
+      initialIsPromptPublic: generation.isPromptPublic,
+    })
   const [detailOpen, setDetailOpen] = useState(false)
-  const router = useRouter()
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -49,33 +49,13 @@ export function ImageCard({
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
 
-  const handleToggle = async (field: 'isPublic' | 'isPromptPublic') => {
-    if (togglingField) return
-    setTogglingField(field)
-    const setter = field === 'isPublic' ? setIsPublic : setIsPromptPublic
-    const prev = field === 'isPublic' ? isPublic : isPromptPublic
-    setter(!prev)
-    const result = await toggleGenerationVisibility(generation.id, field)
-    if (!result.success) {
-      setter(prev)
-    } else {
-      if (result.data) {
-        setIsPublic(result.data.isPublic)
-        setIsPromptPublic(result.data.isPromptPublic)
-      }
-      router.refresh()
-    }
-    setTogglingField(null)
-  }
-
   const createdAt = new Date(generation.createdAt)
-  const modelLabel = isBuiltInModel(generation.model)
-    ? tModels(`${getModelMessageKey(generation.model)}.label`)
-    : generation.model
+  const modelLabel = getTranslatedModelLabel(tModels, generation.model)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(
     generation.height,
     1,
   )}`
+
   const metadata = [
     {
       label: t('modelLabel'),
@@ -95,12 +75,7 @@ export function ImageCard({
     },
   ]
 
-  const labelClass = cn(
-    'text-nav font-semibold text-muted-foreground',
-    isDenseLocale
-      ? 'tracking-normal normal-case'
-      : 'uppercase tracking-nav-dense',
-  )
+  const labelClass = getLabelClassName(isDenseLocale)
 
   const detailGeneration = {
     ...generation,
@@ -132,7 +107,6 @@ export function ImageCard({
                 style={{ aspectRatio }}
               />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={generation.url}
                 alt={generation.prompt}
@@ -201,83 +175,68 @@ export function ImageCard({
             </p>
           )}
 
-          <dl className="grid gap-2 border-t border-border/70 pt-3">
-            {metadata.map((item) => (
-              <div
-                key={item.key}
-                className="flex items-start justify-between gap-3"
-              >
-                <dt className={labelClass}>{item.label}</dt>
-                <dd className="flex items-center gap-1.5 text-right text-sm text-foreground">
-                  {item.icon}
-                  <span>{item.value}</span>
+          <MetadataList items={metadata} labelClassName={labelClass} />
+
+          {showVisibility ? (
+            <dl className="grid gap-2">
+              <div className="flex items-start justify-between gap-3 pt-0.5">
+                <dt className={labelClass}>{t('imageVisibilityLabel')}</dt>
+                <dd className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-sm text-foreground">
+                    {isPublic ? (
+                      <Globe2 className="size-3 text-chart-2" />
+                    ) : (
+                      <LockKeyhole className="size-3 text-muted-foreground" />
+                    )}
+                    {isPublic ? t('publicLabel') : t('privateLabel')}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={togglingField !== null}
+                    onClick={() => void handleToggle('isPublic')}
+                    className={cn(
+                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+                      isDenseLocale
+                        ? 'tracking-normal normal-case'
+                        : 'uppercase tracking-nav-dense',
+                      togglingField !== null && 'opacity-50',
+                    )}
+                  >
+                    {isPublic ? t('makePrivateAction') : t('makePublicAction')}
+                  </button>
                 </dd>
               </div>
-            ))}
-
-            {showVisibility ? (
-              <>
-                <div className="flex items-start justify-between gap-3 pt-0.5">
-                  <dt className={labelClass}>{t('imageVisibilityLabel')}</dt>
-                  <dd className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-sm text-foreground">
-                      {isPublic ? (
-                        <Globe2 className="size-3 text-chart-2" />
-                      ) : (
-                        <LockKeyhole className="size-3 text-muted-foreground" />
-                      )}
-                      {isPublic ? t('publicLabel') : t('privateLabel')}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={togglingField !== null}
-                      onClick={() => void handleToggle('isPublic')}
-                      className={cn(
-                        'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                        isDenseLocale
-                          ? 'tracking-normal normal-case'
-                          : 'uppercase tracking-nav-dense',
-                        togglingField !== null && 'opacity-50',
-                      )}
-                    >
-                      {isPublic
-                        ? t('makePrivateAction')
-                        : t('makePublicAction')}
-                    </button>
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                  <dt className={labelClass}>{t('promptVisibilityLabel')}</dt>
-                  <dd className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-sm text-foreground">
-                      {isPromptPublic ? (
-                        <Globe2 className="size-3 text-chart-2" />
-                      ) : (
-                        <LockKeyhole className="size-3 text-muted-foreground" />
-                      )}
-                      {isPromptPublic ? t('publicLabel') : t('privateLabel')}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={togglingField !== null}
-                      onClick={() => void handleToggle('isPromptPublic')}
-                      className={cn(
-                        'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                        isDenseLocale
-                          ? 'tracking-normal normal-case'
-                          : 'uppercase tracking-nav-dense',
-                        togglingField !== null && 'opacity-50',
-                      )}
-                    >
-                      {isPromptPublic
-                        ? t('makePrivateAction')
-                        : t('makePublicAction')}
-                    </button>
-                  </dd>
-                </div>
-              </>
-            ) : null}
-          </dl>
+              <div className="flex items-start justify-between gap-3">
+                <dt className={labelClass}>{t('promptVisibilityLabel')}</dt>
+                <dd className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-sm text-foreground">
+                    {isPromptPublic ? (
+                      <Globe2 className="size-3 text-chart-2" />
+                    ) : (
+                      <LockKeyhole className="size-3 text-muted-foreground" />
+                    )}
+                    {isPromptPublic ? t('publicLabel') : t('privateLabel')}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={togglingField !== null}
+                    onClick={() => void handleToggle('isPromptPublic')}
+                    className={cn(
+                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+                      isDenseLocale
+                        ? 'tracking-normal normal-case'
+                        : 'uppercase tracking-nav-dense',
+                      togglingField !== null && 'opacity-50',
+                    )}
+                  >
+                    {isPromptPublic
+                      ? t('makePrivateAction')
+                      : t('makePublicAction')}
+                  </button>
+                </dd>
+              </div>
+            </dl>
+          ) : null}
         </div>
       </article>
 

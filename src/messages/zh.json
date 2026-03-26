@@ -11,6 +11,21 @@
       "replicate": "Replicate"
     }
   },
+  "Toasts": {
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "visibilityUpdated": "可见性已更新",
+    "visibilityFailed": "更新可见性失败",
+    "apiKeyCreated": "API 密钥添加成功",
+    "apiKeyCreateFailed": "添加 API 密钥失败",
+    "apiKeyUpdated": "API 密钥已更新",
+    "apiKeyUpdateFailed": "更新 API 密钥失败",
+    "apiKeyDeleted": "API 密钥已删除",
+    "apiKeyDeleteFailed": "删除 API 密钥失败",
+    "storyDeleted": "故事已删除",
+    "storyDeleteFailed": "删除故事失败",
+    "storyCreated": "故事创建成功"
+  },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
     "description": "使用多个 AI 图像模型生成图像，并将每次结果归档到同一个个人画廊中。",
@@ -315,6 +330,7 @@
     "syncPendingAction": "返回工作台"
   },
   "StudioForm": {
+    "formLabel": "图片生成",
     "selectedModelLabel": "当前路由",
     "providerLabel": "提供商",
     "creditCostLabel": "单次生成",
@@ -540,7 +556,8 @@
     "makePublicAction": "设为公开",
     "makePrivateAction": "设为私有",
     "toggleError": "更新可见性失败",
-    "openVideo": "打开视频"
+    "openVideo": "打开视频",
+    "promptPrivateHint": "创作者已隐藏提示词"
   },
   "PromptEnhance": {
     "button": "增强",
@@ -665,7 +682,8 @@
     "modelSlot": "模型 {index}",
     "winner": "胜者",
     "voteButton": "投票",
-    "newBattle": "新对战"
+    "newBattle": "新对战",
+    "arenaComparison": "模型对比"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "排行榜",

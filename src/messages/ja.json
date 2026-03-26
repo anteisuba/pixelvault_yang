@@ -11,6 +11,21 @@
       "replicate": "Replicate"
     }
   },
+  "Toasts": {
+    "deleteSuccess": "削除しました",
+    "deleteFailed": "削除に失敗しました",
+    "visibilityUpdated": "公開設定を更新しました",
+    "visibilityFailed": "公開設定の更新に失敗しました",
+    "apiKeyCreated": "APIキーを追加しました",
+    "apiKeyCreateFailed": "APIキーの追加に失敗しました",
+    "apiKeyUpdated": "APIキーを更新しました",
+    "apiKeyUpdateFailed": "APIキーの更新に失敗しました",
+    "apiKeyDeleted": "APIキーを削除しました",
+    "apiKeyDeleteFailed": "APIキーの削除に失敗しました",
+    "storyDeleted": "ストーリーを削除しました",
+    "storyDeleteFailed": "ストーリーの削除に失敗しました",
+    "storyCreated": "ストーリーを作成しました"
+  },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
     "description": "複数の AI 画像モデルで生成し、すべての結果をひとつの個人ギャラリーに保存できます。",
@@ -315,6 +330,7 @@
     "syncPendingAction": "スタジオに戻る"
   },
   "StudioForm": {
+    "formLabel": "画像生成",
     "selectedModelLabel": "選択中のルート",
     "providerLabel": "プロバイダー",
     "creditCostLabel": "1回ごと",
@@ -540,7 +556,8 @@
     "makePublicAction": "公開にする",
     "makePrivateAction": "非公開にする",
     "toggleError": "公開設定の更新に失敗しました",
-    "openVideo": "動画を開く"
+    "openVideo": "動画を開く",
+    "promptPrivateHint": "作成者がプロンプトを非公開にしています"
   },
   "PromptEnhance": {
     "button": "強化",
@@ -665,7 +682,8 @@
     "modelSlot": "モデル {index}",
     "winner": "勝者",
     "voteButton": "投票",
-    "newBattle": "新しいバトル"
+    "newBattle": "新しいバトル",
+    "arenaComparison": "モデル比較"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "ランキング",

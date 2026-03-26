@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
+
 import type { StoryListItem, StoryRecord, NarrativeTone } from '@/types'
 import {
   listStoriesAPI,
@@ -15,6 +18,7 @@ import {
 export function useStoryList() {
   const [stories, setStories] = useState<StoryListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const t = useTranslations('Toasts')
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -34,19 +38,26 @@ export function useStoryList() {
       const result = await createStoryAPI({ title, generationIds })
       if (result.success) {
         await refresh()
+        toast.success(t('storyCreated'))
       }
       return result
     },
-    [refresh],
+    [refresh, t],
   )
 
-  const removeStory = useCallback(async (id: string) => {
-    const result = await deleteStoryAPI(id)
-    if (result.success) {
-      setStories((prev) => prev.filter((s) => s.id !== id))
-    }
-    return result
-  }, [])
+  const removeStory = useCallback(
+    async (id: string) => {
+      const result = await deleteStoryAPI(id)
+      if (result.success) {
+        setStories((prev) => prev.filter((s) => s.id !== id))
+        toast.success(t('storyDeleted'))
+      } else {
+        toast.error(t('storyDeleteFailed'))
+      }
+      return result
+    },
+    [t],
+  )
 
   return { stories, loading, refresh, createStory, removeStory }
 }

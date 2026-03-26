@@ -56,9 +56,19 @@ export function GalleryGrid({
   }
 
   return (
-    <div className="columns-1 gap-5 sm:columns-2 xl:columns-3">
-      {generations.map((generation) => (
-        <div key={generation.id} className="mb-5 break-inside-avoid">
+    <section
+      role="feed"
+      aria-label="Gallery"
+      className="columns-1 gap-5 sm:columns-2 xl:columns-3"
+    >
+      {generations.map((generation, index) => (
+        <div
+          key={generation.id}
+          className="mb-5 break-inside-avoid"
+          role="article"
+          aria-posinset={index + 1}
+          aria-setsize={generations.length}
+        >
           <ImageCard
             generation={generation}
             showVisibility={showVisibility}
@@ -67,6 +77,6 @@ export function GalleryGrid({
           />
         </div>
       ))}
-    </div>
+    </section>
   )
 }

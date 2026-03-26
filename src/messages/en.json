@@ -11,6 +11,21 @@
       "replicate": "Replicate"
     }
   },
+  "Toasts": {
+    "deleteSuccess": "Deleted successfully",
+    "deleteFailed": "Failed to delete",
+    "visibilityUpdated": "Visibility updated",
+    "visibilityFailed": "Failed to update visibility",
+    "apiKeyCreated": "API key added successfully",
+    "apiKeyCreateFailed": "Failed to add API key",
+    "apiKeyUpdated": "API key updated",
+    "apiKeyUpdateFailed": "Failed to update API key",
+    "apiKeyDeleted": "API key deleted",
+    "apiKeyDeleteFailed": "Failed to delete API key",
+    "storyDeleted": "Story deleted",
+    "storyDeleteFailed": "Failed to delete story",
+    "storyCreated": "Story created"
+  },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
     "description": "Generate with multiple AI image models, then archive every result in one personal gallery.",
@@ -315,6 +330,7 @@
     "syncPendingAction": "Return to studio"
   },
   "StudioForm": {
+    "formLabel": "Image generation",
     "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
     "creditCostLabel": "Per run",
@@ -540,7 +556,8 @@
     "makePublicAction": "Make Public",
     "makePrivateAction": "Make Private",
     "toggleError": "Failed to update visibility",
-    "openVideo": "Open video"
+    "openVideo": "Open video",
+    "promptPrivateHint": "Prompt hidden by the creator"
   },
   "PromptEnhance": {
     "button": "Enhance",
@@ -665,7 +682,8 @@
     "modelSlot": "Model {index}",
     "winner": "Winner",
     "voteButton": "Vote",
-    "newBattle": "New Battle"
+    "newBattle": "New Battle",
+    "arenaComparison": "Model comparison"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "Leaderboard",

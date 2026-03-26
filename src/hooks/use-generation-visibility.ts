@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { useRouter } from '@/i18n/navigation'
 import { toggleGenerationVisibility } from '@/lib/api-client'
@@ -31,6 +33,7 @@ export function useGenerationVisibility({
   const [isPromptPublic, setIsPromptPublic] = useState(initialIsPromptPublic)
   const [togglingField, setTogglingField] = useState<string | null>(null)
   const router = useRouter()
+  const t = useTranslations('Toasts')
 
   const handleToggle = useCallback(
     async (field: 'isPublic' | 'isPromptPublic') => {
@@ -47,16 +50,18 @@ export function useGenerationVisibility({
       if (!result.success) {
         // Rollback on failure
         setter(prev)
+        toast.error(t('visibilityFailed'))
       } else {
         if (result.data) {
           setIsPublic(result.data.isPublic)
           setIsPromptPublic(result.data.isPromptPublic)
         }
+        toast.success(t('visibilityUpdated'))
         router.refresh()
       }
       setTogglingField(null)
     },
-    [togglingField, isPublic, isPromptPublic, generationId, router],
+    [togglingField, isPublic, isPromptPublic, generationId, router, t],
   )
 
   return { isPublic, isPromptPublic, togglingField, handleToggle }

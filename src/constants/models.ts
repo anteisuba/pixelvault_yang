@@ -70,8 +70,16 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
 } as const
 
-/** Quality tier for video models */
+/** Quality tier for all models */
 export type QualityTier = 'budget' | 'standard' | 'premium'
+
+/** Style/use-case tag for model grouping */
+export type StyleTag =
+  | 'photorealistic'
+  | 'anime'
+  | 'design'
+  | 'artistic'
+  | 'general'
 
 /** Model-specific default parameters for video generation */
 export interface VideoDefaults {
@@ -104,8 +112,10 @@ export interface ModelOption {
   officialUrl?: string
   /** Provider polling timeout in ms (video models need longer) */
   timeoutMs?: number
-  /** Quality tier (video models) */
+  /** Quality tier */
   qualityTier?: QualityTier
+  /** Style/use-case tag for grouping */
+  styleTag?: StyleTag
   /** Image-to-Video endpoint (when different from T2V endpoint) */
   i2vModelId?: string
   /** Model-specific default parameters for video */
@@ -126,6 +136,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://platform.openai.com/docs/models#gpt-image',
+    qualityTier: 'premium',
+    styleTag: 'general',
   },
   // #2 — Advanced reasoning, up to 14 reference images
   {
@@ -137,6 +149,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/models/gemini-v3',
+    qualityTier: 'premium',
+    styleTag: 'general',
   },
   // #3 — Top FLUX, multi-reference editing, character consistency
   {
@@ -148,6 +162,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-pro',
+    qualityTier: 'premium',
+    styleTag: 'photorealistic',
   },
   // #4 — Cinematic aesthetics, strong spatial understanding
   {
@@ -159,6 +175,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://seed.bytedance.com/en/seedream4_5',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
   },
   // #5 — Best text/typography handling, logos, posters
   {
@@ -170,6 +188,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://developer.ideogram.ai/ideogram-api/api-overview',
+    qualityTier: 'premium',
+    styleTag: 'design',
   },
   // #6 — Designer-focused, superior composition & realism
   {
@@ -181,6 +201,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://www.recraft.ai/docs/api-reference/getting-started',
+    qualityTier: 'premium',
+    styleTag: 'design',
   },
   // #7 — Fast + high quality, great for high-volume generation
   {
@@ -193,6 +215,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     available: true,
     freeTier: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
+    qualityTier: 'standard',
+    styleTag: 'general',
   },
   // #8 — Developer-tier FLUX, good quality/price balance
   {
@@ -204,6 +228,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-dev',
+    qualityTier: 'standard',
+    styleTag: 'photorealistic',
   },
   // #9 — Fastest FLUX, ideal for previews and iteration
   {
@@ -215,6 +241,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/flux/schnell',
+    qualityTier: 'budget',
+    styleTag: 'general',
   },
   // #10 — Open-source flagship, MMDiT architecture, 8B params
   {
@@ -226,6 +254,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/stable-diffusion-v35-large',
+    qualityTier: 'standard',
+    styleTag: 'general',
   },
   // #11 — Anime specialist, best for anime/manga art
   {
@@ -237,6 +267,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://huggingface.co/cagliostrolab/animagine-xl-4.0',
+    qualityTier: 'standard',
+    styleTag: 'anime',
   },
   // #12 — NovelAI V4.5 Full, latest anime-focused diffusion model
   {
@@ -248,6 +280,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'premium',
+    styleTag: 'anime',
   },
   // #13 — NovelAI V4.5 Curated, cleaner dataset, easier to steer
   {
@@ -259,6 +293,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'premium',
+    styleTag: 'anime',
   },
   // #14 — NovelAI V4 Full, previous-gen original model
   {
@@ -270,6 +306,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'standard',
+    styleTag: 'anime',
   },
   // #15 — NovelAI V3, SDXL-based anime model
   {
@@ -281,6 +319,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://docs.novelai.net/en/image/models',
+    qualityTier: 'budget',
+    styleTag: 'anime',
   },
   // #16 — Classic open-source baseline
   {
@@ -293,6 +333,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     available: true,
     officialUrl:
       'https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0',
+    qualityTier: 'budget',
+    styleTag: 'general',
   },
 
   // ═══ Video Models — Premium Tier ═════════════════════════════════
@@ -569,6 +611,31 @@ export function groupModelsByProvider(
     grouped.set(group, list)
   }
   return PROVIDER_GROUP_ORDER.filter((group) => grouped.has(group)).map(
+    (group) => ({ group, models: grouped.get(group)! }),
+  )
+}
+
+/** Display order for style groups */
+export const STYLE_GROUP_ORDER: StyleTag[] = [
+  'photorealistic',
+  'anime',
+  'design',
+  'artistic',
+  'general',
+]
+
+/** Group model options by style tag, preserving order within each group */
+export function groupModelsByStyle(
+  models: ModelOption[],
+): { group: StyleTag; models: ModelOption[] }[] {
+  const grouped = new Map<StyleTag, ModelOption[]>()
+  for (const model of models) {
+    const tag = model.styleTag ?? 'general'
+    const list = grouped.get(tag) ?? []
+    list.push(model)
+    grouped.set(tag, list)
+  }
+  return STYLE_GROUP_ORDER.filter((group) => grouped.has(group)).map(
     (group) => ({ group, models: grouped.get(group)! }),
   )
 }

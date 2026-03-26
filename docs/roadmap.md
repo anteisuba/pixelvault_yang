@@ -72,20 +72,20 @@ Items ordered by execution priority. Work top-down.
 
 > 让用户按"我想做什么"找模型，而非按 Provider 技术分组。
 
-### B1. 模型元数据增强
-- [ ] ModelOption 加 `styleTag`: `'photorealistic' | 'anime' | 'design' | 'artistic' | 'general'`
-- [ ] 图片模型也加 `qualityTier`: `'premium' | 'standard' | 'budget'`
-- [ ] i18n 给每个模型加 `description` 一行描述（en/ja/zh 同步）
+### B1. 模型元数据增强 ✅
+- [x] ModelOption 加 `styleTag`: `'photorealistic' | 'anime' | 'design' | 'artistic' | 'general'`
+- [x] 图片模型也加 `qualityTier`: `'premium' | 'standard' | 'budget'`
+- [x] i18n 给每个模型加 `description` 一行描述（en/ja/zh 同步）
 
-### B2. ModelSelector 分组重构
-- [ ] 默认按用途分组（写实 / 动漫 / 设计 / 通用），保留 Provider 视图作为高级切换
-- [ ] 分组支持折叠/展开，budget tier 默认折叠
+### B2. ModelSelector 分组重构 ✅
+- [x] 默认按用途分组（写实 / 动漫 / 设计 / 通用），保留 Provider 视图作为高级切换
+- [x] 分组支持折叠/展开
 - [ ] Arena ELO 前 3 的模型加"推荐"标签
-- [ ] 加搜索/过滤框
+- [x] 加搜索/过滤框
 
-### B3. Prompt 预设模板
-- [ ] 3-5 个内置模板（人物 / 风景 / Logo / 动漫 / 写实）
-- [ ] 点击自动填入 模型 + Prompt + 参数
+### B3. Prompt 预设模板 ✅
+- [x] 5 个内置模板（人像 / 风景 / 动漫 / Logo / 电影）
+- [x] 点击自动填入 模型 + Prompt + 宽高比
 - [ ] 用户可保存自定义预设
 
 ---

@@ -9,6 +9,18 @@
       "fal": "fal.ai",
       "opensource": "开源",
       "replicate": "Replicate"
+    },
+    "styleGroups": {
+      "photorealistic": "写实摄影",
+      "anime": "动漫插画",
+      "design": "设计排版",
+      "artistic": "艺术电影",
+      "general": "通用"
+    },
+    "qualityTiers": {
+      "premium": "高端",
+      "standard": "标准",
+      "budget": "入门"
     }
   },
   "Toasts": {
@@ -400,7 +412,10 @@
       },
       "customDescription": "使用你保存路由的自定义 {provider} 模型。",
       "freeBadge": "免费",
-      "modelCount": "个模型"
+      "modelCount": "个模型",
+      "viewByProvider": "按提供商",
+      "viewByStyle": "按风格",
+      "searchPlaceholder": "搜索模型..."
     }
   },
   "StudioApiKeys": {
@@ -887,6 +902,14 @@
       "label": "Runway Gen-3 Turbo",
       "description": "行业标杆级电影视频，fal.ai 图生视频"
     }
+  },
+  "PromptPresets": {
+    "title": "快速开始",
+    "portrait": { "label": "人像", "description": "人物肖像" },
+    "landscape": { "label": "风景", "description": "自然风光" },
+    "anime": { "label": "动漫", "description": "动漫插画" },
+    "logo": { "label": "Logo", "description": "标志排版" },
+    "cinematic": { "label": "电影", "description": "电影剧照" }
   },
   "ErrorBoundary": {
     "title": "出了点问题",

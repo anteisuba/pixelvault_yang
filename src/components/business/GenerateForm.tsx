@@ -16,6 +16,7 @@ import {
   isBuiltInModel,
   MODEL_OPTIONS,
 } from '@/constants/models'
+import { PROMPT_PRESETS } from '@/constants/prompt-presets'
 import { getProviderLabel } from '@/constants/providers'
 import { isCjkLocale } from '@/i18n/routing'
 
@@ -108,6 +109,7 @@ export function GenerateForm() {
   const t = useTranslations('StudioForm')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const tPresets = useTranslations('PromptPresets')
   const activeApiKeys = apiKeys.filter((key) => key.isActive)
 
   const verifiedAdapterTypes = new Set(
@@ -247,6 +249,35 @@ export function GenerateForm() {
               </p>
             </div>
           </div>
+
+          {/* Prompt presets */}
+          {!prompt && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {PROMPT_PRESETS.map((preset) => {
+                const workspaceOptionId = `workspace:${preset.suggestedModelId}`
+                const hasModel = modelOptions.some(
+                  (o) => o.optionId === workspaceOptionId,
+                )
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => {
+                      setPrompt(preset.prompt)
+                      setAspectRatio(preset.aspectRatio)
+                      if (hasModel) {
+                        setSelectedOptionId(workspaceOptionId)
+                      }
+                    }}
+                    className="rounded-full border border-border/60 bg-background/50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/20 hover:bg-primary/5 hover:text-foreground disabled:opacity-50"
+                  >
+                    {tPresets(`${preset.messageKey}.label`)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
           <div className="mt-4">
             <Textarea

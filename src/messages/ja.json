@@ -9,6 +9,18 @@
       "fal": "fal.ai",
       "opensource": "オープンソース",
       "replicate": "Replicate"
+    },
+    "styleGroups": {
+      "photorealistic": "フォトリアル",
+      "anime": "アニメ・イラスト",
+      "design": "デザイン・タイポグラフィ",
+      "artistic": "アーティスティック",
+      "general": "汎用"
+    },
+    "qualityTiers": {
+      "premium": "プレミアム",
+      "standard": "スタンダード",
+      "budget": "バジェット"
     }
   },
   "Toasts": {
@@ -400,7 +412,10 @@
       },
       "customDescription": "保存済みルートを使うカスタム {provider} モデルです。",
       "freeBadge": "無料",
-      "modelCount": "モデル"
+      "modelCount": "モデル",
+      "viewByProvider": "プロバイダー別",
+      "viewByStyle": "スタイル別",
+      "searchPlaceholder": "モデルを検索..."
     }
   },
   "StudioApiKeys": {
@@ -887,6 +902,14 @@
       "label": "Runway Gen-3 Turbo",
       "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
     }
+  },
+  "PromptPresets": {
+    "title": "クイックスタート",
+    "portrait": { "label": "ポートレート", "description": "人物・ヘッドショット" },
+    "landscape": { "label": "風景", "description": "自然・景色" },
+    "anime": { "label": "アニメ", "description": "アニメ・イラスト" },
+    "logo": { "label": "ロゴ", "description": "ロゴ・タイポグラフィ" },
+    "cinematic": { "label": "シネマティック", "description": "映画スチル・SF" }
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",

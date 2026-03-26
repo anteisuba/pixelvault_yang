@@ -9,6 +9,18 @@
       "fal": "fal.ai",
       "opensource": "Open Source",
       "replicate": "Replicate"
+    },
+    "styleGroups": {
+      "photorealistic": "Photorealistic",
+      "anime": "Anime & Illustration",
+      "design": "Design & Typography",
+      "artistic": "Artistic & Cinematic",
+      "general": "General Purpose"
+    },
+    "qualityTiers": {
+      "premium": "Premium",
+      "standard": "Standard",
+      "budget": "Budget"
     }
   },
   "Toasts": {
@@ -400,7 +412,10 @@
       },
       "customDescription": "Custom {provider} model using your saved route.",
       "freeBadge": "Free",
-      "modelCount": "models"
+      "modelCount": "models",
+      "viewByProvider": "By provider",
+      "viewByStyle": "By style",
+      "searchPlaceholder": "Search models..."
     }
   },
   "StudioApiKeys": {
@@ -887,6 +902,14 @@
       "label": "Runway Gen-3 Turbo",
       "description": "Industry-standard cinematic video, image-to-video on fal.ai"
     }
+  },
+  "PromptPresets": {
+    "title": "Quick start",
+    "portrait": { "label": "Portrait", "description": "People & headshots" },
+    "landscape": { "label": "Landscape", "description": "Nature & scenery" },
+    "anime": { "label": "Anime", "description": "Anime & illustration" },
+    "logo": { "label": "Logo", "description": "Logos & typography" },
+    "cinematic": { "label": "Cinematic", "description": "Film stills & sci-fi" }
   },
   "ErrorBoundary": {
     "title": "Something went wrong",

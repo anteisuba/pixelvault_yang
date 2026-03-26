@@ -121,6 +121,8 @@ export function ModelSelector({
 
       <div
         ref={listRef}
+        role="radiogroup"
+        aria-label={t('label')}
         className={cn('grid gap-2', needsScroll && 'max-h-96 overflow-y-auto')}
       >
         {groups.map(({ group, options: groupOptions }) => (
@@ -145,6 +147,8 @@ export function ModelSelector({
                   key={option.optionId}
                   ref={isSelected ? selectedRef : undefined}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected ? 'true' : 'false'}
                   onClick={() => onChange(option.optionId)}
                   className={cn(
                     'group relative flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',

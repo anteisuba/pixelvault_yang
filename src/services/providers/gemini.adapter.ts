@@ -11,10 +11,11 @@ import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
-import type {
-  HealthCheckInput,
-  ProviderAdapter,
-  ProviderGenerationInput,
+import {
+  ProviderError,
+  type HealthCheckInput,
+  type ProviderAdapter,
+  type ProviderGenerationInput,
 } from '@/services/providers/types'
 
 const GEMINI_IMAGE_RESPONSE_SCHEMA = z.object({
@@ -108,7 +109,7 @@ export const geminiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`Gemini API error (${response.status}): ${errorBody}`)
+      throw new ProviderError('Gemini', response.status, errorBody)
     }
 
     const responseData = GEMINI_IMAGE_RESPONSE_SCHEMA.parse(
@@ -118,7 +119,7 @@ export const geminiAdapter: ProviderAdapter = {
     const imagePart = responseParts?.find((part) => part.inlineData)
 
     if (!imagePart?.inlineData) {
-      throw new Error('No image data returned from Gemini')
+      throw new ProviderError('Gemini', 502, 'No image data returned')
     }
 
     return {

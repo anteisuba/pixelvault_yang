@@ -74,7 +74,12 @@
       "Skill(plan-design-review)",
       "Skill(plan-design-review:*)",
       "Bash(git status:*)",
-      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"执行reset\" ./node_modules/.bin/prisma migrate reset --force)"
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"执行reset\" ./node_modules/.bin/prisma migrate reset --force)",
+      "WebFetch(domain:www.banana.dev)",
+      "WebFetch(domain:docs.api.banana.dev)",
+      "WebFetch(domain:docs.banana.dev)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ]
   },
   "hooks": {

@@ -13,13 +13,14 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
 
-import type {
-  HealthCheckInput,
-  ProviderAdapter,
-  ProviderGenerationInput,
-  ProviderVideoInput,
-  ProviderQueueSubmitInput,
-  ProviderQueueStatusInput,
+import {
+  ProviderError,
+  type HealthCheckInput,
+  type ProviderAdapter,
+  type ProviderGenerationInput,
+  type ProviderVideoInput,
+  type ProviderQueueSubmitInput,
+  type ProviderQueueStatusInput,
 } from '@/services/providers/types'
 
 const FAL_RESPONSE_SCHEMA = z.object({
@@ -126,14 +127,14 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`fal.ai API error (${response.status}): ${errorBody}`)
+      throw new ProviderError('fal.ai', response.status, errorBody)
     }
 
     const data = FAL_RESPONSE_SCHEMA.parse(await response.json())
     const imageItem = data.images[0]
 
     if (!imageItem) {
-      throw new Error('No image data returned from fal.ai')
+      throw new ProviderError('fal.ai', 502, 'No image data returned')
     }
 
     return {
@@ -185,9 +186,7 @@ export const falAdapter: ProviderAdapter = {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'Unknown error')
-        throw new Error(
-          `fal.ai video API error (${response.status}): ${errorBody}`,
-        )
+        throw new ProviderError('fal.ai', response.status, errorBody)
       }
 
       const data = FAL_VIDEO_RESPONSE_SCHEMA.parse(await response.json())
@@ -272,9 +271,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(
-        `fal.ai queue submit error (${response.status}): ${errorBody}`,
-      )
+      throw new ProviderError('fal.ai', response.status, errorBody)
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -297,9 +294,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!statusResponse.ok) {
       const errorBody = await statusResponse.text().catch(() => 'Unknown error')
-      throw new Error(
-        `fal.ai queue status error (${statusResponse.status}): ${errorBody}`,
-      )
+      throw new ProviderError('fal.ai', statusResponse.status, errorBody)
     }
 
     const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
@@ -318,9 +313,7 @@ export const falAdapter: ProviderAdapter = {
 
     if (!resultResponse.ok) {
       const errorBody = await resultResponse.text().catch(() => 'Unknown error')
-      throw new Error(
-        `fal.ai queue result error (${resultResponse.status}): ${errorBody}`,
-      )
+      throw new ProviderError('fal.ai', resultResponse.status, errorBody)
     }
 
     const resultData = FAL_VIDEO_RESPONSE_SCHEMA.parse(

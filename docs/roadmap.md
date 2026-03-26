@@ -33,38 +33,38 @@ Items ordered by execution priority. Work top-down.
 
 > Cherry-picked from CEO review — 低成本高回报的改善项。
 
-### A+1. Toast 通知补全
-- [ ] 删除生成、切换可见性、API Key CRUD 等操作补全成功/失败 toast
-- [ ] 统一 toast 风格和持续时间
+### A+1. Toast 通知补全 ✅
+- [x] 删除生成、切换可见性、API Key CRUD 等操作补全成功/失败 toast
+- [x] 统一 toast 风格和持续时间
 
-### A+2. Provider 错误类型统一
-- [ ] 各 adapter 统一使用 `GenerateImageServiceError`（或基类），不再抛裸 `Error`
-- [ ] API route 的 catch 能捕获所有 provider 错误，避免 500 白屏
+### A+2. Provider 错误类型统一 ✅
+- [x] 各 adapter 统一使用 `ProviderError`（带 status），不再抛裸 `Error`
+- [x] Service 层 catch 保留 provider 原始状态码，避免 500 白屏
 
-### A+3. Prisma Schema 索引优化
-- [ ] Generation 加 `(userId, isPublic, createdAt)` 复合索引
-- [ ] UserApiKey 加 `(userId, adapterType)` 唯一约束防重复
-- [ ] Story 加 `(userId, isPublic)` 索引
+### A+3. Prisma Schema 索引优化 ✅
+- [x] Generation 加 `(userId, isPublic, createdAt)` 复合索引
+- [x] UserApiKey 加 `(userId, adapterType, modelId)` 唯一约束防重复
+- [x] Story 加 `(userId, isPublic, createdAt)` 索引
 
-### A+4. Prompt 可见性逻辑透明化
-- [ ] 公开图片加 "prompt 可见" 标签
-- [ ] 私密图片加 "prompt 仅自己可见" 提示
-- [ ] ImageCard 和 Modal 逻辑统一
+### A+4. Prompt 可见性逻辑透明化 ✅
+- [x] 公开图片加 "prompt 可见" 标签
+- [x] 私密图片加 "prompt 仅自己可见" 提示
+- [x] ImageCard 和 Modal 逻辑统一
 
-### A+5. API Key 格式错误文字提示
-- [ ] 验证失败时显示帮助文字（如 "OpenAI key 以 sk- 开头"）
-- [ ] 引导用户到正确的 key 获取页面
+### A+5. API Key 格式错误文字提示 ✅
+- [x] 验证失败时显示帮助文字（如 "OpenAI key 以 sk- 开头"）
+- [x] 引导用户到正确的 key 获取页面
 
-### A+6. 移动端语言切换入口
-- [ ] MobileTabBar 或 Settings 页加 LocaleSwitcher
+### A+6. 移动端语言切换入口 ✅
+- [x] MobileTabBar 顶部加 LocaleSwitcher
 
-### A+7. 键盘导航 & 基础无障碍
-- [ ] Gallery/Arena/Studio 关键交互加 ARIA 描述
-- [ ] 模态框焦点管理
-- [ ] 自定义控件加 role 和 aria-describedby
+### A+7. 键盘导航 & 基础无障碍 ✅
+- [x] Gallery/Arena/Studio 关键交互加 ARIA 描述
+- [x] 模态框焦点管理（Radix Dialog 自带焦点捕获）
+- [x] 自定义控件加 role（radiogroup/radio/tablist/tab）
 
-### A+8. Next.js Image 格式优化
-- [ ] next.config.ts 加 `formats: ['image/webp', 'image/avif']`
+### A+8. Next.js Image 格式优化 ✅
+- [x] next.config.ts 加 `formats: ['image/avif', 'image/webp']`
 
 ---
 

@@ -18,7 +18,10 @@ import {
   getFreeGenerationCountToday,
 } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
-import type { ProviderGenerationResult } from '@/services/providers/types'
+import {
+  ProviderError,
+  type ProviderGenerationResult,
+} from '@/services/providers/types'
 import {
   fetchAsBuffer,
   generateStorageKey,
@@ -255,7 +258,8 @@ export async function generateImageForUser(
     if (error instanceof GenerateImageServiceError) {
       throw error
     }
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+    const status = error instanceof ProviderError ? error.status : 502
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
   }
 
   const usageEntry = await createApiUsageEntry({

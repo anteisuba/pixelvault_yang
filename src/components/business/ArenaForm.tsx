@@ -254,7 +254,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} aria-label={t('title')} className="space-y-6">
       {/* Model Selection */}
       <CollapsiblePanel
         title={t('modelSelectLabel')}

@@ -7,10 +7,11 @@ import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
-import type {
-  HealthCheckInput,
-  ProviderAdapter,
-  ProviderGenerationInput,
+import {
+  ProviderError,
+  type HealthCheckInput,
+  type ProviderAdapter,
+  type ProviderGenerationInput,
 } from '@/services/providers/types'
 
 const OPENAI_IMAGE_RESPONSE_SCHEMA = z.object({
@@ -114,7 +115,7 @@ export const openAiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`OpenAI API error (${response.status}): ${errorBody}`)
+      throw new ProviderError('OpenAI', response.status, errorBody)
     }
 
     const responseData = OPENAI_IMAGE_RESPONSE_SCHEMA.parse(
@@ -140,7 +141,7 @@ export const openAiAdapter: ProviderAdapter = {
       }
     }
 
-    throw new Error('No image data returned from OpenAI')
+    throw new ProviderError('OpenAI', 502, 'No image data returned')
   },
 
   async healthCheck({ apiKey, timeoutMs }: HealthCheckInput) {

@@ -85,6 +85,17 @@ export interface HealthCheckResult {
   error?: string
 }
 
+/** Structured error thrown by provider adapters so callers can preserve status codes */
+export class ProviderError extends Error {
+  readonly status: number
+
+  constructor(provider: string, status: number, detail: string) {
+    super(`${provider} API error (${status}): ${detail}`)
+    this.name = 'ProviderError'
+    this.status = status
+  }
+}
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(

@@ -12,10 +12,11 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
 
-import type {
-  HealthCheckInput,
-  ProviderAdapter,
-  ProviderGenerationInput,
+import {
+  ProviderError,
+  type HealthCheckInput,
+  type ProviderAdapter,
+  type ProviderGenerationInput,
 } from '@/services/providers/types'
 
 /** NovelAI image size presets mapped from our aspect ratios */
@@ -204,7 +205,7 @@ export const novelAiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`NovelAI API error (${response.status}): ${errorBody}`)
+      throw new ProviderError('NovelAI', response.status, errorBody)
     }
 
     // NovelAI returns a ZIP file containing the generated image

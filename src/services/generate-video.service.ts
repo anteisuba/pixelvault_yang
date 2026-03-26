@@ -12,6 +12,7 @@ import type {
 } from '@/types'
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
+import { ProviderError } from '@/services/providers/types'
 import {
   fetchAsBuffer,
   generateStorageKey,
@@ -76,7 +77,8 @@ export async function submitVideoGeneration(
     if (error instanceof GenerateImageServiceError) throw error
     const message =
       error instanceof Error ? error.message : 'Video generation failed'
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+    const status = error instanceof ProviderError ? error.status : 502
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
   }
 
   // Upload reference image to R2 if provided
@@ -205,7 +207,8 @@ export async function checkVideoGenerationStatus(
     if (error instanceof GenerateImageServiceError) throw error
     const message =
       error instanceof Error ? error.message : 'Video status check failed'
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+    const status = error instanceof ProviderError ? error.status : 502
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
   }
 
   if (

@@ -200,6 +200,7 @@
     "workspaceLabel": "Workspace",
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
+    "modeLabel": "Generation mode",
     "modeImage": "Image",
     "modeVideo": "Video",
     "freeQuota": "{remaining}/{limit} free today",

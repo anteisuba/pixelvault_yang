@@ -200,6 +200,7 @@
     "workspaceLabel": "ワークスペース",
     "workspaceTitle": "制作開始",
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
+    "modeLabel": "生成モード",
     "modeImage": "画像",
     "modeVideo": "動画",
     "freeQuota": "本日の無料回数 {remaining}/{limit}",

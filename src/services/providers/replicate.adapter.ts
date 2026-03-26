@@ -13,11 +13,12 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
 
-import type {
-  HealthCheckInput,
-  ProviderAdapter,
-  ProviderGenerationInput,
-  ProviderVideoInput,
+import {
+  ProviderError,
+  type HealthCheckInput,
+  type ProviderAdapter,
+  type ProviderGenerationInput,
+  type ProviderVideoInput,
 } from '@/services/providers/types'
 
 const REPLICATE_PREDICTION_SCHEMA = z.object({
@@ -60,7 +61,7 @@ async function pollPrediction(
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`Replicate poll error (${response.status}): ${errorBody}`)
+      throw new ProviderError('Replicate', response.status, errorBody)
     }
 
     const prediction = REPLICATE_PREDICTION_SCHEMA.parse(await response.json())
@@ -70,8 +71,10 @@ async function pollPrediction(
     }
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
-      throw new Error(
-        `Replicate prediction ${prediction.status}: ${prediction.error ?? 'Unknown error'}`,
+      throw new ProviderError(
+        'Replicate',
+        502,
+        `Prediction ${prediction.status}: ${prediction.error ?? 'Unknown error'}`,
       )
     }
 
@@ -79,8 +82,10 @@ async function pollPrediction(
     delay = Math.min(delay * 2, POLL_MAX_DELAY_MS)
   }
 
-  throw new Error(
-    `Replicate prediction timed out after ${Math.round(timeoutMs / 1000)}s`,
+  throw new ProviderError(
+    'Replicate',
+    504,
+    `Prediction timed out after ${Math.round(timeoutMs / 1000)}s`,
   )
 }
 
@@ -100,7 +105,11 @@ function extractImageUrl(output: unknown): string {
     return String((output as { url: unknown }).url)
   }
 
-  throw new Error('Could not extract image URL from Replicate output')
+  throw new ProviderError(
+    'Replicate',
+    502,
+    'Could not extract image URL from output',
+  )
 }
 
 export const replicateAdapter: ProviderAdapter = {
@@ -162,7 +171,7 @@ export const replicateAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(`Replicate API error (${response.status}): ${errorBody}`)
+      throw new ProviderError('Replicate', response.status, errorBody)
     }
 
     const prediction = REPLICATE_PREDICTION_SCHEMA.parse(await response.json())
@@ -228,9 +237,7 @@ export const replicateAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new Error(
-        `Replicate video API error (${response.status}): ${errorBody}`,
-      )
+      throw new ProviderError('Replicate', response.status, errorBody)
     }
 
     const prediction = REPLICATE_PREDICTION_SCHEMA.parse(await response.json())

@@ -49,9 +49,11 @@ export function StudioWorkspace() {
           )}
         </div>
       </div>
-      <div className="flex gap-2">
+      <div role="tablist" aria-label={t('modeLabel')} className="flex gap-2">
         <button
           type="button"
+          role="tab"
+          aria-selected={mode === 'image' ? 'true' : 'false'}
           onClick={() => setMode('image')}
           className={cn(
             'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors',
@@ -65,6 +67,8 @@ export function StudioWorkspace() {
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={mode === 'video' ? 'true' : 'false'}
           onClick={() => setMode('video')}
           className={cn(
             'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors',

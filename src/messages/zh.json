@@ -200,6 +200,7 @@
     "workspaceLabel": "工作台",
     "workspaceTitle": "开始创作",
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
+    "modeLabel": "生成模式",
     "modeImage": "图片",
     "modeVideo": "视频",
     "freeQuota": "今日免费 {remaining}/{limit}",

@@ -14,30 +14,21 @@ import {
 } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
-import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
 
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { MetadataList } from '@/components/ui/metadata-list'
+import { getTranslatedModelLabel } from '@/lib/model-options'
+import { cn, getLabelClassName } from '@/lib/utils'
 
 interface ImageDetailModalProps {
   generation: GenerationRecord
@@ -66,9 +57,7 @@ export function ImageDetailModal({
   const tModels = useTranslations('Models')
 
   const createdAt = new Date(generation.createdAt)
-  const modelLabel = isBuiltInModel(generation.model)
-    ? tModels(`${getModelMessageKey(generation.model)}.label`)
-    : generation.model
+  const modelLabel = getTranslatedModelLabel(tModels, generation.model)
 
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(
     generation.height,
@@ -97,12 +86,7 @@ export function ImageDetailModal({
     }
   }
 
-  const labelClass = cn(
-    'text-nav font-semibold text-muted-foreground',
-    isDenseLocale
-      ? 'tracking-normal normal-case'
-      : 'uppercase tracking-nav-dense',
-  )
+  const labelClass = getLabelClassName(isDenseLocale)
 
   const metadata = [
     { label: tCard('modelLabel'), value: modelLabel, key: 'model' },
@@ -116,6 +100,11 @@ export function ImageDetailModal({
       value: tCommon('creditCount', { count: generation.requestCount }),
       key: 'requests',
       icon: <Coins className="size-3 text-primary" />,
+    },
+    {
+      label: t('dimensionsLabel'),
+      value: `${generation.width} \u00d7 ${generation.height}`,
+      key: 'dimensions',
     },
   ]
 
@@ -240,26 +229,7 @@ export function ImageDetailModal({
             </div>
           ) : null}
 
-          <dl className="grid gap-2 border-t border-border/70 pt-4">
-            {metadata.map((item) => (
-              <div
-                key={item.key}
-                className="flex items-start justify-between gap-3"
-              >
-                <dt className={labelClass}>{item.label}</dt>
-                <dd className="flex items-center gap-1.5 text-right text-sm text-foreground">
-                  {item.icon}
-                  <span>{item.value}</span>
-                </dd>
-              </div>
-            ))}
-            <div className="flex items-start justify-between gap-3">
-              <dt className={labelClass}>{t('dimensionsLabel')}</dt>
-              <dd className="text-right text-sm text-foreground">
-                {generation.width} &times; {generation.height}
-              </dd>
-            </div>
-          </dl>
+          <MetadataList items={metadata} labelClassName={labelClass} />
 
           <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
             <Button
@@ -286,8 +256,8 @@ export function ImageDetailModal({
             </Button>
 
             {showDelete && onDelete ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              <ConfirmDialog
+                trigger={
                   <Button
                     variant="outline"
                     size="sm"
@@ -296,32 +266,16 @@ export function ImageDetailModal({
                     <Trash2 className="size-3.5" />
                     {t('delete')}
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-3xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('deleteConfirmTitle')}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('deleteConfirmDescription')}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-full">
-                      {t('deleteCancel')}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => {
-                        onDelete(generation.id)
-                        onOpenChange(false)
-                      }}
-                    >
-                      {t('deleteConfirm')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                }
+                title={t('deleteConfirmTitle')}
+                description={t('deleteConfirmDescription')}
+                cancelLabel={t('deleteCancel')}
+                confirmLabel={t('deleteConfirm')}
+                onConfirm={() => {
+                  onDelete(generation.id)
+                  onOpenChange(false)
+                }}
+              />
             ) : null}
           </div>
         </div>

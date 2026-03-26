@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "github": {
+    "silent": true
+  },
+  "ignoreCommand": "git diff HEAD~1 --quiet -- src/ prisma/ public/ next.config.ts package.json"
+}

@@ -7,6 +7,7 @@ const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
 
 const nextConfig: NextConfig = {
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       { protocol: 'https', hostname: storageHost },
       { protocol: 'https', hostname: '*.fal.media' },

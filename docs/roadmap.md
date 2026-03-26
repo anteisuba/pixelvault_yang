@@ -29,6 +29,45 @@ Items ordered by execution priority. Work top-down.
 
 ---
 
+## Phase A+ — UX 打磨 & 可靠性加固 (CEO Review 新增)
+
+> Cherry-picked from CEO review — 低成本高回报的改善项。
+
+### A+1. Toast 通知补全
+- [ ] 删除生成、切换可见性、API Key CRUD 等操作补全成功/失败 toast
+- [ ] 统一 toast 风格和持续时间
+
+### A+2. Provider 错误类型统一
+- [ ] 各 adapter 统一使用 `GenerateImageServiceError`（或基类），不再抛裸 `Error`
+- [ ] API route 的 catch 能捕获所有 provider 错误，避免 500 白屏
+
+### A+3. Prisma Schema 索引优化
+- [ ] Generation 加 `(userId, isPublic, createdAt)` 复合索引
+- [ ] UserApiKey 加 `(userId, adapterType)` 唯一约束防重复
+- [ ] Story 加 `(userId, isPublic)` 索引
+
+### A+4. Prompt 可见性逻辑透明化
+- [ ] 公开图片加 "prompt 可见" 标签
+- [ ] 私密图片加 "prompt 仅自己可见" 提示
+- [ ] ImageCard 和 Modal 逻辑统一
+
+### A+5. API Key 格式错误文字提示
+- [ ] 验证失败时显示帮助文字（如 "OpenAI key 以 sk- 开头"）
+- [ ] 引导用户到正确的 key 获取页面
+
+### A+6. 移动端语言切换入口
+- [ ] MobileTabBar 或 Settings 页加 LocaleSwitcher
+
+### A+7. 键盘导航 & 基础无障碍
+- [ ] Gallery/Arena/Studio 关键交互加 ARIA 描述
+- [ ] 模态框焦点管理
+- [ ] 自定义控件加 role 和 aria-describedby
+
+### A+8. Next.js Image 格式优化
+- [ ] next.config.ts 加 `formats: ['image/webp', 'image/avif']`
+
+---
+
 ## Phase B — 模型选择体验升级 (PixAI 分组学习)
 
 > 让用户按"我想做什么"找模型，而非按 Provider 技术分组。
@@ -67,17 +106,28 @@ Items ordered by execution priority. Work top-down.
 - [ ] ISR for gallery pages
 - [ ] Image CDN optimization (WebP/AVIF auto-conversion)
 
+### C4. 免费额度剩余显示
+- [ ] Navbar 或 Studio 页显示 "今天还能免费生成 X 次"
+- [ ] 复用已有的 `getFreeGenerationCountToday()` API
+
 ---
 
 ## Phase D — 社区 & 增长功能
 
 ### D1. Prompt 分享 & 复用 (零成本增长杠杆)
-- [ ] Gallery 图片加 "用这个 Prompt 生成" 按钮
+- [ ] Gallery/Detail 页加 "复制 Prompt" 和 "分享链接" 按钮
+- [ ] Gallery 图片加 "用这个 Prompt 生成" 按钮（一键跳转 Studio 并填入）
 - [ ] 分享链接携带 Prompt 参数
 
 ### D2. Arena 升级
 - [ ] **公共竞技场 vs 个人竞技场** — 区分公共 ELO 排行和个人历史对比记录
 - [ ] Arena 排行展示页 — 精美的模型对比页，适合 SEO 和社交传播
+- [ ] **模型版本追踪对比** — 同一模型不同版本的输出对比（如 FLUX 2 Pro v1.0 vs v1.1）
+
+### D2.5. Landing Page 叙事强化
+- [ ] 突出"你的 Key、你的图、零加价"核心差异化
+- [ ] 增加 BYOK + 永久存档 + Arena 三合一价值主张 section
+- [ ] 对比竞品优势可视化（"为什么不用 Midjourney/OpenArt"）
 
 ### D3. 社交三件套
 - [ ] Like / favorite 公共图片
@@ -109,13 +159,25 @@ Items ordered by execution priority. Work top-down.
 ### F1. Storyboard Enhancement
 - [ ] Character binding — 角色预设 + 跨帧一致性
 - [ ] Character presets library
+- [ ] 视频播放器全屏支持（移动端竖屏优化）
 
 ### F2. Advanced Generation
 - [ ] Batch generation (multiple prompts in one run)
 - [ ] Generation history comparison (side-by-side)
 - [ ] Batch operations on profile (bulk public/private/delete)
 
-### F3. UX — Lower API Key Barrier
+### F3. 图片编辑工具
+- [ ] Upscale（fal.ai API）
+- [ ] Inpainting 局部重绘（fal.ai API）
+- [ ] Remove background 去背景（fal.ai API）
+- [ ] 复用现有 adapter 架构
+
+### F4. Workflow/Pipeline 多步生成
+- [ ] 串联多模型：生成 → 编辑 → 放大
+- [ ] 可视化 pipeline 编辑器
+- [ ] 保存和分享 workflow 模板
+
+### F5. UX — Lower API Key Barrier
 - [ ] OAuth provider login (Google, GitHub)
 - [ ] Guided video tutorials per provider
 - [ ] API key auto-import (browser extension)

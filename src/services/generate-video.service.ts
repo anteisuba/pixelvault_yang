@@ -55,19 +55,29 @@ export async function submitVideoGeneration(
 
   const modelConfig = getModelById(executionRoute.modelId)
 
-  const queueResult = await providerAdapter.submitVideoToQueue({
-    prompt: input.prompt,
-    modelId: executionRoute.modelId,
-    aspectRatio: input.aspectRatio,
-    providerConfig: executionRoute.providerConfig,
-    apiKey: executionRoute.apiKey,
-    duration: input.duration,
-    referenceImage: input.referenceImage,
-    negativePrompt: input.negativePrompt,
-    resolution: input.resolution,
-    i2vModelId: modelConfig?.i2vModelId,
-    videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
-  })
+  let queueResult: Awaited<
+    ReturnType<NonNullable<typeof providerAdapter.submitVideoToQueue>>
+  >
+  try {
+    queueResult = await providerAdapter.submitVideoToQueue({
+      prompt: input.prompt,
+      modelId: executionRoute.modelId,
+      aspectRatio: input.aspectRatio,
+      providerConfig: executionRoute.providerConfig,
+      apiKey: executionRoute.apiKey,
+      duration: input.duration,
+      referenceImage: input.referenceImage,
+      negativePrompt: input.negativePrompt,
+      resolution: input.resolution,
+      i2vModelId: modelConfig?.i2vModelId,
+      videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
+    })
+  } catch (error) {
+    if (error instanceof GenerateImageServiceError) throw error
+    const message =
+      error instanceof Error ? error.message : 'Video generation failed'
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+  }
 
   // Upload reference image to R2 if provided
   let referenceImageUrl: string | undefined
@@ -182,11 +192,21 @@ export async function checkVideoGenerationStatus(
     )
   }
 
-  const queueStatus = await providerAdapter.checkVideoQueueStatus({
-    statusUrl: queueMeta.statusUrl,
-    responseUrl: queueMeta.responseUrl,
-    apiKey: executionRoute.apiKey,
-  })
+  let queueStatus: Awaited<
+    ReturnType<NonNullable<typeof providerAdapter.checkVideoQueueStatus>>
+  >
+  try {
+    queueStatus = await providerAdapter.checkVideoQueueStatus({
+      statusUrl: queueMeta.statusUrl,
+      responseUrl: queueMeta.responseUrl,
+      apiKey: executionRoute.apiKey,
+    })
+  } catch (error) {
+    if (error instanceof GenerateImageServiceError) throw error
+    const message =
+      error instanceof Error ? error.message : 'Video status check failed'
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+  }
 
   if (
     queueStatus.status === 'IN_QUEUE' ||

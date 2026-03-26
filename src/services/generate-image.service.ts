@@ -50,6 +50,7 @@ type GenerateImageServiceErrorCode =
   | 'JOB_NOT_FOUND'
   | 'MISSING_API_KEY'
   | 'PLATFORM_KEY_MISSING'
+  | 'PROVIDER_ERROR'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'
 
@@ -233,6 +234,7 @@ export async function generateImageForUser(
       providerConfig: executionRoute.providerConfig,
       apiKey: executionRoute.apiKey,
       referenceImage: input.referenceImage,
+      advancedParams: input.advancedParams,
     })
   } catch (error) {
     const message =
@@ -249,7 +251,11 @@ export async function generateImageForUser(
       errorMessage: message,
     })
 
-    throw error
+    // Wrap raw provider errors so API routes can return proper status codes
+    if (error instanceof GenerateImageServiceError) {
+      throw error
+    }
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
   }
 
   const usageEntry = await createApiUsageEntry({

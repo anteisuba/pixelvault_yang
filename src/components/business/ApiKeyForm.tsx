@@ -67,8 +67,10 @@ function validateKeyFormat(
     case AI_ADAPTER_TYPES.REPLICATE:
       return trimmed.startsWith('r8_') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.NOVELAI:
-      // NovelAI persistent API tokens are JWT-like (eyJhbGci...)
-      return trimmed.length > 20 ? 'valid' : 'invalid'
+      // NovelAI persistent API tokens start with "pst-" or are JWT-like (eyJhbGci...)
+      return trimmed.startsWith('pst-') || trimmed.startsWith('eyJhbGci')
+        ? 'valid'
+        : 'invalid'
   }
 }
 

@@ -59,7 +59,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'sk-proj-...',
   [AI_ADAPTER_TYPES.FAL]: 'fal_...',
   [AI_ADAPTER_TYPES.REPLICATE]: 'r8_...',
-  [AI_ADAPTER_TYPES.NOVELAI]: 'eyJhbGci...',
+  [AI_ADAPTER_TYPES.NOVELAI]: 'pst-...',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {

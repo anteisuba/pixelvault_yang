@@ -60,6 +60,7 @@ model UserApiKey {
   updatedAt      DateTime @updatedAt
 
   @@index([userId, modelId, adapterType])
+  @@unique([userId, adapterType, modelId])
 }
 
 model Generation {
@@ -110,6 +111,7 @@ model Generation {
   @@index([userId])
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
+  @@index([userId, isPublic, createdAt(sort: Desc)])
 }
 
 model GenerationJob {
@@ -249,6 +251,7 @@ model Story {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([isPublic, createdAt(sort: Desc)])
+  @@index([userId, isPublic, createdAt(sort: Desc)])
 }
 
 model StoryPanel {

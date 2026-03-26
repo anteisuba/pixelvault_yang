@@ -11,6 +11,22 @@ import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
 
+// ─── Advanced Generation Parameters ──────────────────────────────
+
+/** Zod schema for provider-specific advanced parameters */
+export const AdvancedParamsSchema = z.object({
+  negativePrompt: z.string().max(2000).optional(),
+  guidanceScale: z.number().min(0).max(30).optional(),
+  steps: z.number().int().min(1).max(100).optional(),
+  seed: z.number().int().min(-1).max(4294967295).optional(),
+  referenceStrength: z.number().min(0.01).max(0.99).optional(),
+  quality: z.string().optional(),
+  background: z.string().optional(),
+  style: z.string().optional(),
+})
+
+export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
+
 // ─── Generate Request ─────────────────────────────────────────────
 
 /** Zod schema for image generation request validation */
@@ -32,6 +48,8 @@ export const GenerateRequestSchema = z.object({
   referenceImage: z.string().optional(),
   /** Optional specific API key ID to use for this generation */
   apiKeyId: z.string().trim().min(1).optional(),
+  /** Optional provider-specific advanced parameters */
+  advancedParams: AdvancedParamsSchema.optional(),
 })
 
 /** Image generation request type (derived from Zod schema) */
@@ -385,6 +403,7 @@ export const CreateArenaMatchRequestSchema = z.object({
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   models: z.array(ArenaModelSelectionSchema).min(2).optional(),
   referenceImage: z.string().optional(),
+  advancedParams: AdvancedParamsSchema.optional(),
 })
 
 export type CreateArenaMatchRequest = z.infer<
@@ -395,6 +414,7 @@ export const CreateArenaEntryRequestSchema = z.object({
   modelId: z.string().min(1),
   apiKeyId: z.string().optional(),
   slotIndex: z.number().int().min(0),
+  advancedParams: AdvancedParamsSchema.optional(),
 })
 
 export type CreateArenaEntryRequest = z.infer<

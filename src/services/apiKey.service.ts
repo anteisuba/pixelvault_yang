@@ -297,6 +297,15 @@ async function verifyAdapterKey(
         })
         break
       }
+      case AI_ADAPTER_TYPES.NOVELAI: {
+        // User API is on api.novelai.net (image.novelai.net is generation only)
+        response = await fetch('https://api.novelai.net/user/subscription', {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        break
+      }
       default: {
         return { ok: false, latencyMs: 0, error: 'Unknown adapter' }
       }

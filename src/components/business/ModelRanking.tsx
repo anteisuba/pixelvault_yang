@@ -186,19 +186,19 @@ function RankingSection({
                   {model.name}
                 </p>
                 {model.available && (
-                  <span className="rounded-full bg-green-500/10 px-1.5 py-0.5 text-[10px] font-medium text-green-600">
+                  <span className="rounded-full bg-green-500/10 px-1.5 py-0.5 text-3xs font-medium text-green-600">
                     {t('supported')}
                   </span>
                 )}
                 {!model.available && !model.api && (
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-3xs font-medium text-muted-foreground">
                     {t('noApi')}
                   </span>
                 )}
                 {model.tier && (
                   <span
                     className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                      'rounded-full px-1.5 py-0.5 text-3xs font-medium',
                       model.tier === 'premium' &&
                         'bg-amber-500/10 text-amber-600',
                       model.tier === 'standard' &&

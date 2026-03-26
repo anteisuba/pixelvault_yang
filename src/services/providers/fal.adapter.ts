@@ -11,6 +11,8 @@ import {
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+import { invertReferenceStrength } from '@/lib/utils'
+
 import type {
   HealthCheckInput,
   ProviderAdapter,
@@ -75,6 +77,7 @@ export const falAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.FAL
@@ -87,12 +90,28 @@ export const falAdapter: ProviderAdapter = {
       num_images: 1,
     }
 
+    if (advancedParams?.negativePrompt) {
+      body.negative_prompt = advancedParams.negativePrompt
+    }
+    if (advancedParams?.guidanceScale != null) {
+      body.guidance_scale = advancedParams.guidanceScale
+    }
+    if (advancedParams?.steps != null) {
+      body.num_inference_steps = advancedParams.steps
+    }
+    if (advancedParams?.seed != null && advancedParams.seed >= 0) {
+      body.seed = advancedParams.seed
+    }
+
     if (referenceImage) {
-      const dataUrlMatch = referenceImage.match(/^data:([^;]+);base64,(.+)$/)
-      if (dataUrlMatch) {
-        body.image_url = referenceImage
-      } else {
-        body.image_url = referenceImage
+      body.image_url = referenceImage
+      // fal's `strength` = denoising strength (higher = more change, less similarity)
+      // Our `referenceStrength` = how much to reference (higher = more similar)
+      // Invert: denoising = 1 - referenceStrength
+      if (advancedParams?.referenceStrength != null) {
+        body.strength = invertReferenceStrength(
+          advancedParams.referenceStrength,
+        )
       }
     }
 

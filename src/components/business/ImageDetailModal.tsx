@@ -206,7 +206,12 @@ export function ImageDetailModal({
                 </div>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <p className="flex items-center gap-1.5 font-serif text-sm italic text-muted-foreground">
+              <LockKeyhole className="size-3" />
+              {tCard('promptPrivateHint')}
+            </p>
+          )}
 
           {generation.referenceImageUrl ? (
             <div className="space-y-2">

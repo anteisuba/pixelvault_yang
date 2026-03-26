@@ -11,6 +11,8 @@ import {
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+import { invertReferenceStrength } from '@/lib/utils'
+
 import type {
   HealthCheckInput,
   ProviderAdapter,
@@ -110,6 +112,7 @@ export const replicateAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
@@ -121,8 +124,28 @@ export const replicateAdapter: ProviderAdapter = {
       aspect_ratio: REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '1:1',
     }
 
+    if (advancedParams?.negativePrompt) {
+      input.negative_prompt = advancedParams.negativePrompt
+    }
+    if (advancedParams?.guidanceScale != null) {
+      input.guidance_scale = advancedParams.guidanceScale
+    }
+    if (advancedParams?.steps != null) {
+      input.num_inference_steps = advancedParams.steps
+    }
+    if (advancedParams?.seed != null && advancedParams.seed >= 0) {
+      input.seed = advancedParams.seed
+    }
+
     if (referenceImage) {
       input.image = referenceImage
+      // Replicate `strength` = denoising (higher = more change)
+      // Our `referenceStrength` = similarity (higher = more similar)
+      if (advancedParams?.referenceStrength != null) {
+        input.strength = invertReferenceStrength(
+          advancedParams.referenceStrength,
+        )
+      }
     }
 
     const response = await fetch(endpoint, {

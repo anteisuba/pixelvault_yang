@@ -52,6 +52,7 @@ See `docs/design-system.md` for full spec. Key constraints:
 | `docs/architecture.md` | Directory structure, tech stack, data flow |
 | `docs/design-system.md` | Colors, typography, layout, motion rules |
 | `docs/database.md` | Prisma models, relations, migration workflow |
+| `docs/components.md` | Components, hooks & capability system API reference |
 | `docs/phases.md` | Development phase tracking |
 | `docs/roadmap.md` | Future features and priorities |
 

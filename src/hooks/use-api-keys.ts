@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import type {
   UserApiKeyRecord,
@@ -35,6 +37,7 @@ export function useApiKeys(): UseApiKeysReturn {
   const [healthMap, setHealthMap] = useState<
     Record<string, ApiKeyHealthStatus>
   >({})
+  const t = useTranslations('Toasts')
 
   const fetchKeys = useCallback(async () => {
     setIsLoading(true)
@@ -111,12 +114,14 @@ export function useApiKeys(): UseApiKeysReturn {
         setKeys((prev) => [newKey, ...prev])
         // Auto-verify newly created key
         void verifyOne(newKey.id)
+        toast.success(t('apiKeyCreated'))
         return true
       }
       setError(response.error ?? 'Failed to create API key')
+      toast.error(t('apiKeyCreateFailed'))
       return false
     },
-    [verifyOne],
+    [verifyOne, t],
   )
 
   const update = useCallback(
@@ -127,29 +132,36 @@ export function useApiKeys(): UseApiKeysReturn {
         setKeys((prev) =>
           prev.map((key) => (key.id === id ? response.data! : key)),
         )
+        toast.success(t('apiKeyUpdated'))
         return true
       }
       setError(response.error ?? 'Failed to update API key')
+      toast.error(t('apiKeyUpdateFailed'))
       return false
     },
-    [],
+    [t],
   )
 
-  const remove = useCallback(async (id: string): Promise<boolean> => {
-    const response = await deleteApiKey(id)
-    if (response.success) {
-      setError(null)
-      setKeys((prev) => prev.filter((k) => k.id !== id))
-      setHealthMap((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-      return true
-    }
-    setError(response.error ?? 'Failed to delete API key')
-    return false
-  }, [])
+  const remove = useCallback(
+    async (id: string): Promise<boolean> => {
+      const response = await deleteApiKey(id)
+      if (response.success) {
+        setError(null)
+        setKeys((prev) => prev.filter((k) => k.id !== id))
+        setHealthMap((prev) => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        toast.success(t('apiKeyDeleted'))
+        return true
+      }
+      setError(response.error ?? 'Failed to delete API key')
+      toast.error(t('apiKeyDeleteFailed'))
+      return false
+    },
+    [t],
+  )
 
   return {
     keys,

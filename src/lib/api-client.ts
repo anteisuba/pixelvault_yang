@@ -419,7 +419,12 @@ export async function createArenaMatchAPI(
 
 export async function generateArenaEntryAPI(
   matchId: string,
-  params: { modelId: string; apiKeyId?: string; slotIndex: number },
+  params: {
+    modelId: string
+    apiKeyId?: string
+    slotIndex: number
+    advancedParams?: Record<string, unknown>
+  },
 ): Promise<{ success: boolean; data?: ArenaEntryRecord; error?: string }> {
   try {
     const response = await fetch(

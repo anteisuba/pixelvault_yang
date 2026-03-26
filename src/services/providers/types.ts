@@ -1,6 +1,6 @@
 import type { AspectRatio } from '@/constants/config'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
-import type { ModelHealthStatus } from '@/types'
+import type { AdvancedParams, ModelHealthStatus } from '@/types'
 
 export interface ProviderGenerationInput {
   prompt: string
@@ -9,6 +9,7 @@ export interface ProviderGenerationInput {
   providerConfig: ProviderConfig
   apiKey: string
   referenceImage?: string
+  advancedParams?: AdvancedParams
 }
 
 export interface ProviderGenerationResult {

@@ -56,6 +56,7 @@ export const openAiAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    advancedParams,
   }: ProviderGenerationInput) {
     const { width, height, size } =
       OPENAI_IMAGE_SIZES[aspectRatio] ?? OPENAI_IMAGE_SIZES['1:1']
@@ -77,6 +78,12 @@ export const openAiAdapter: ProviderAdapter = {
         `reference.${extension}`,
       )
 
+      if (advancedParams?.quality)
+        formData.append('quality', advancedParams.quality)
+      if (advancedParams?.background)
+        formData.append('background', advancedParams.background)
+      if (advancedParams?.style) formData.append('style', advancedParams.style)
+
       response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -85,17 +92,23 @@ export const openAiAdapter: ProviderAdapter = {
         body: formData,
       })
     } else {
+      const jsonBody: Record<string, unknown> = {
+        model: getExecutionModelId(modelId),
+        prompt,
+        size,
+      }
+      if (advancedParams?.quality) jsonBody.quality = advancedParams.quality
+      if (advancedParams?.background)
+        jsonBody.background = advancedParams.background
+      if (advancedParams?.style) jsonBody.style = advancedParams.style
+
       response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: getExecutionModelId(modelId),
-          prompt,
-          size,
-        }),
+        body: JSON.stringify(jsonBody),
       })
     }
 

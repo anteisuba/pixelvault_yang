@@ -8,6 +8,8 @@ import {
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+import { invertReferenceStrength } from '@/lib/utils'
+
 import type {
   HealthCheckInput,
   ProviderAdapter,
@@ -23,17 +25,40 @@ export const huggingFaceAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.HUGGINGFACE
     const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}`
+    const params: Record<string, unknown> = { width, height }
+
+    if (advancedParams?.negativePrompt) {
+      params.negative_prompt = advancedParams.negativePrompt
+    }
+    if (advancedParams?.guidanceScale != null) {
+      params.guidance_scale = advancedParams.guidanceScale
+    }
+    if (advancedParams?.steps != null) {
+      params.num_inference_steps = advancedParams.steps
+    }
+    if (advancedParams?.seed != null && advancedParams.seed >= 0) {
+      params.seed = advancedParams.seed
+    }
+
     const body: Record<string, unknown> = {
       inputs: prompt,
-      parameters: { width, height },
+      parameters: params,
     }
 
     if (referenceImage) {
       body.image = referenceImage
+      // HuggingFace `strength` = denoising (higher = more change)
+      // Our `referenceStrength` = similarity (higher = more similar)
+      if (advancedParams?.referenceStrength != null) {
+        params.strength = invertReferenceStrength(
+          advancedParams.referenceStrength,
+        )
+      }
     }
 
     const response = await fetch(endpoint, {

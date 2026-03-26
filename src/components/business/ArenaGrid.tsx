@@ -30,6 +30,8 @@ export function ArenaGrid({
 
   return (
     <div
+      role="group"
+      aria-label={t('arenaComparison')}
       className={cn(
         'grid gap-4',
         entries.length <= 2 && 'grid-cols-2',
@@ -109,6 +111,7 @@ export function ArenaGrid({
                   variant={isWinner ? 'default' : 'outline'}
                   onClick={() => onVote(entry.id)}
                   className="w-full rounded-full"
+                  aria-label={`${t('voteButton')} ${SLOT_LABELS[entry.slotIndex]}`}
                 >
                   {t('voteButton')}
                 </Button>

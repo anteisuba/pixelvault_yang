@@ -3,7 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ARENA } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
-import type { ArenaMatchRecord, ArenaModelSelection, EloUpdate } from '@/types'
+import type {
+  AdvancedParams,
+  ArenaMatchRecord,
+  ArenaModelSelection,
+  EloUpdate,
+} from '@/types'
 import {
   createArenaMatchAPI,
   generateArenaEntryAPI,
@@ -42,6 +47,7 @@ export interface StartBattleInput {
   aspectRatio: AspectRatio
   models?: ArenaModelSelection[]
   referenceImage?: string
+  advancedParams?: AdvancedParams
 }
 
 export function useArena() {
@@ -82,6 +88,7 @@ export function useArena() {
       prompt: input.prompt,
       aspectRatio: input.aspectRatio,
       referenceImage: input.referenceImage,
+      advancedParams: input.advancedParams,
     })
 
     if (!matchResult.success || !matchResult.data) {
@@ -108,6 +115,7 @@ export function useArena() {
           modelId: selection.modelId,
           apiKeyId: selection.apiKeyId,
           slotIndex: index,
+          advancedParams: input.advancedParams,
         })
 
         // Update per-entry progress

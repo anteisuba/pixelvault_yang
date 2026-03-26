@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, Swords, X } from 'lucide-react'
+import { Loader2, Swords } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -12,20 +12,34 @@ import {
   type AspectRatio,
 } from '@/constants/config'
 import { getModelById, isBuiltInModel, MODEL_OPTIONS } from '@/constants/models'
+import { hasCapability } from '@/constants/provider-capabilities'
 import { getProviderLabel } from '@/constants/providers'
 import type {
+  AdvancedParams,
   ApiKeyHealthStatus,
   ArenaModelSelection,
   UserApiKeyRecord,
 } from '@/types'
 
+import dynamic from 'next/dynamic'
+
 import type { StudioModelOption } from '@/components/business/ModelSelector'
-import { ReverseEngineerPanel } from '@/components/business/ReverseEngineerPanel'
+
+const AdvancedSettings = dynamic(() =>
+  import('@/components/business/AdvancedSettings').then(
+    (mod) => mod.AdvancedSettings,
+  ),
+)
+const ReverseEngineerPanel = dynamic(() =>
+  import('@/components/business/ReverseEngineerPanel').then(
+    (mod) => mod.ReverseEngineerPanel,
+  ),
+)
 import { AspectRatioSelector } from '@/components/ui/aspect-ratio-selector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
-import { ImageDropZone } from '@/components/ui/image-drop-zone'
+import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import type { StartBattleInput } from '@/hooks/use-arena'
@@ -183,6 +197,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
     return filtered
   }, [modelOptions, selectedOptionIds])
 
+  const [advancedParams, setAdvancedParams] = useState<AdvancedParams>({})
   const {
     referenceImage,
     isDragging,
@@ -217,11 +232,15 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!prompt.trim() || selectedModels.length < 2) return
+    const hasAdvanced = Object.values(advancedParams).some(
+      (v) => v !== undefined,
+    )
     onBattle({
       prompt,
       aspectRatio,
       models: selectedModels,
       referenceImage,
+      advancedParams: hasAdvanced ? advancedParams : undefined,
     })
   }
 
@@ -244,7 +263,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           selectedModels.length < 2 ? (
             <Badge
               variant="destructive"
-              className="rounded-full px-2 py-0 text-[11px]"
+              className="rounded-full px-2 py-0 text-2xs"
             >
               {t('modelSelectMinimum')}
             </Badge>
@@ -321,7 +340,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
                     variant={
                       option.sourceType === 'saved' ? 'secondary' : 'outline'
                     }
-                    className="rounded-full px-2 py-0 text-[11px]"
+                    className="rounded-full px-2 py-0 text-2xs"
                   >
                     {option.sourceType === 'saved'
                       ? t('modelBadgeSaved')
@@ -381,53 +400,56 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           ) : undefined
         }
       >
-        {referenceImage ? (
-          <div className="relative inline-flex overflow-hidden rounded-2xl border border-border/75 bg-background">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={referenceImage}
-              alt={t('referencePreviewAlt')}
-              className="h-36 w-auto object-cover"
-            />
-            <button
-              type="button"
-              onClick={clearImage}
-              className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
-              aria-label={t('referenceRemoveLabel')}
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ) : (
-          <ImageDropZone
-            isDragging={isDragging}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={openFilePicker}
-            uploadLabel={t('referenceUpload')}
-            formatsLabel={t('referenceFormats')}
-          />
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleInputChange}
+        <ReferenceImageSection
+          referenceImage={referenceImage}
+          isDragging={isDragging}
+          fileInputRef={fileInputRef}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onOpenFilePicker={openFilePicker}
+          onInputChange={handleInputChange}
+          onClear={clearImage}
+          previewAlt={t('referencePreviewAlt')}
+          removeLabel={t('referenceRemoveLabel')}
+          uploadLabel={t('referenceUpload')}
+          formatsLabel={t('referenceFormats')}
         />
       </CollapsiblePanel>
 
-      {/* Reverse Engineer */}
-      <CollapsiblePanel
-        title={t('reverseTitle')}
-        description={t('reverseDescription')}
-      >
-        <ReverseEngineerPanel
-          onUsePrompt={(generatedPrompt) => setPrompt(generatedPrompt)}
-          selectedModels={selectedModels}
-        />
-      </CollapsiblePanel>
+      {/* Advanced Settings — use the first selected model's adapter type */}
+      {(() => {
+        const firstSelected = modelOptions.find((opt) =>
+          readyOptionIds.has(opt.optionId),
+        )
+        if (!firstSelected) return null
+        return (
+          <AdvancedSettings
+            adapterType={firstSelected.adapterType}
+            params={advancedParams}
+            onChange={setAdvancedParams}
+            hasReferenceImage={Boolean(referenceImage)}
+            disabled={isCreating}
+          />
+        )
+      })()}
+
+      {/* Reverse Engineer — hidden when no selected model supports image analysis */}
+      {modelOptions.some(
+        (opt) =>
+          readyOptionIds.has(opt.optionId) &&
+          hasCapability(opt.adapterType, 'imageAnalysis'),
+      ) && (
+        <CollapsiblePanel
+          title={t('reverseTitle')}
+          description={t('reverseDescription')}
+        >
+          <ReverseEngineerPanel
+            onUsePrompt={(generatedPrompt) => setPrompt(generatedPrompt)}
+            selectedModels={selectedModels}
+          />
+        </CollapsiblePanel>
+      )}
 
       {/* Submit */}
       <Button

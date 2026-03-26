@@ -1,22 +1,29 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Film, Loader2, X } from 'lucide-react'
+import { Film, Loader2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { GENERATION_LIMITS, VIDEO_GENERATION } from '@/constants/config'
 import { getAvailableVideoModels, getModelById } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
 
+import dynamic from 'next/dynamic'
+
 import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
-import { PromptEnhancer } from '@/components/business/PromptEnhancer'
+
+const PromptEnhancer = dynamic(() =>
+  import('@/components/business/PromptEnhancer').then(
+    (mod) => mod.PromptEnhancer,
+  ),
+)
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ErrorAlert } from '@/components/ui/error-alert'
-import { ImageDropZone } from '@/components/ui/image-drop-zone'
+import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { OptionGroup } from '@/components/ui/option-group'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -204,7 +211,7 @@ export default function VideoGenerateForm() {
           {tierLabel && (
             <Badge
               variant={tierLabel === 'premium' ? 'default' : 'secondary'}
-              className="rounded-full px-2 py-0.5 text-[10px]"
+              className="rounded-full px-2 py-0.5 text-3xs"
             >
               {tierLabel}
             </Badge>
@@ -293,41 +300,21 @@ export default function VideoGenerateForm() {
           )}
         </div>
 
-        {referenceImage ? (
-          <div className="relative inline-flex overflow-hidden rounded-2xl border border-border/75 bg-background">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={referenceImage}
-              alt={t('referenceImageLabel')}
-              className="h-36 w-auto object-cover"
-            />
-            <button
-              type="button"
-              aria-label={t('referenceRemoveLabel')}
-              onClick={clearImage}
-              className="absolute right-3 top-3 rounded-full border border-border/75 bg-background/92 p-1.5 text-muted-foreground transition-colors hover:text-destructive"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ) : (
-          <ImageDropZone
-            isDragging={isDragging}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={openFilePicker}
-            uploadLabel={t('referenceImageUpload')}
-            formatsLabel={t('referenceImageHint')}
-          />
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          aria-label={t('referenceImageLabel')}
-          className="hidden"
-          onChange={handleInputChange}
+        <ReferenceImageSection
+          referenceImage={referenceImage}
+          isDragging={isDragging}
+          fileInputRef={fileInputRef}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onOpenFilePicker={openFilePicker}
+          onInputChange={handleInputChange}
+          onClear={clearImage}
+          previewAlt={t('referenceImageLabel')}
+          removeLabel={t('referenceRemoveLabel')}
+          uploadLabel={t('referenceImageUpload')}
+          formatsLabel={t('referenceImageHint')}
+          inputAriaLabel={t('referenceImageLabel')}
         />
       </div>
 

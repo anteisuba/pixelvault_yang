@@ -77,6 +77,9 @@ export function useImageUpload(): UseImageUploadReturn {
 
   const clearImage = useCallback(() => {
     setReferenceImage(undefined)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }, [])
 
   return {

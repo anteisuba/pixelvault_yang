@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react'
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { usePromptEnhance } from '@/hooks/use-prompt-enhance'
+import type { AdvancedParams } from '@/types'
 
 interface UseGenerationFormOptions {
   defaultAspectRatio?: string
@@ -19,6 +20,7 @@ export function useGenerationForm(options?: UseGenerationFormOptions) {
   const [aspectRatio, setAspectRatio] = useState<string>(
     options?.defaultAspectRatio ?? DEFAULT_ASPECT_RATIO,
   )
+  const [advancedParams, setAdvancedParams] = useState<AdvancedParams>({})
 
   const imageUpload = useImageUpload()
   const promptEnhance = usePromptEnhance()
@@ -26,6 +28,7 @@ export function useGenerationForm(options?: UseGenerationFormOptions) {
   const resetForm = useCallback(() => {
     setPrompt('')
     setAspectRatio(options?.defaultAspectRatio ?? DEFAULT_ASPECT_RATIO)
+    setAdvancedParams({})
     imageUpload.clearImage()
     promptEnhance.clearEnhancement()
   }, [options?.defaultAspectRatio, imageUpload, promptEnhance])
@@ -46,6 +49,10 @@ export function useGenerationForm(options?: UseGenerationFormOptions) {
     // Aspect ratio state
     aspectRatio: aspectRatio as AspectRatio,
     setAspectRatio,
+
+    // Advanced params state
+    advancedParams,
+    setAdvancedParams,
 
     // Image upload (delegated)
     ...imageUpload,

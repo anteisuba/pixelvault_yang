@@ -169,11 +169,16 @@ export function ImageCard({
             </button>
           </div>
 
-          {(showVisibility || generation.isPromptPublic) && (
+          {showVisibility || generation.isPromptPublic ? (
             <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
               {generation.prompt}
             </p>
-          )}
+          ) : !showVisibility && generation.isPublic ? (
+            <p className="flex items-center gap-1.5 font-serif text-sm italic text-muted-foreground">
+              <LockKeyhole className="size-3" />
+              {t('promptPrivateHint')}
+            </p>
+          ) : null}
 
           <MetadataList items={metadata} labelClassName={labelClass} />
 

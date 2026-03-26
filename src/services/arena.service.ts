@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { ARENA } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import type {
+  AdvancedParams,
   ArenaMatchRecord,
   ArenaEntryRecord,
   EloUpdate,
@@ -47,6 +48,7 @@ export interface GenerateArenaEntryInput {
   modelId: string
   apiKeyId?: string
   slotIndex: number
+  advancedParams?: AdvancedParams
 }
 
 /**
@@ -78,6 +80,7 @@ export async function generateArenaEntry(
     modelId: input.modelId,
     aspectRatio: match.aspectRatio as AspectRatio,
     apiKeyId: input.apiKeyId,
+    advancedParams: input.advancedParams,
   })
 
   const entry = await db.arenaEntry.create({

@@ -3,6 +3,7 @@
 import { Loader2, RefreshCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
+import { toast } from 'sonner'
 
 import { ROUTES } from '@/constants/routes'
 import { deleteGenerationAPI } from '@/lib/api-client'
@@ -27,6 +28,7 @@ export function ProfileFeed({
   total,
 }: ProfileFeedProps) {
   const t = useTranslations('LibraryPage')
+  const tToasts = useTranslations('Toasts')
   const {
     generations,
     total: currentTotal,
@@ -53,9 +55,12 @@ export function ProfileFeed({
       const result = await deleteGenerationAPI(id)
       if (result.success) {
         removeGeneration(id)
+        toast.success(tToasts('deleteSuccess'))
+      } else {
+        toast.error(tToasts('deleteFailed'))
       }
     },
-    [removeGeneration],
+    [removeGeneration, tToasts],
   )
 
   return (

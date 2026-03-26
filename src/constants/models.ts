@@ -24,6 +24,10 @@ export enum AI_MODELS {
   RECRAFT_V3 = 'recraft-v3',
   SEEDREAM_45 = 'seedream-4.5',
   SD_35_LARGE = 'sd-3.5-large',
+  NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
+  NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
+  NOVELAI_V4_FULL = 'nai-diffusion-4-full',
+  NOVELAI_V3 = 'nai-diffusion-3',
   // Video models
   KLING_VIDEO = 'kling-video',
   KLING_V3_PRO = 'kling-v3-pro',
@@ -50,6 +54,10 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.RECRAFT_V3]: 'recraftV3',
   [AI_MODELS.SEEDREAM_45]: 'seedream45',
   [AI_MODELS.SD_35_LARGE]: 'sd35Large',
+  [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
+  [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
+  [AI_MODELS.NOVELAI_V4_FULL]: 'novelaiV4Full',
+  [AI_MODELS.NOVELAI_V3]: 'novelaiV3',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
@@ -230,7 +238,51 @@ export const MODEL_OPTIONS: ModelOption[] = [
     available: true,
     officialUrl: 'https://huggingface.co/cagliostrolab/animagine-xl-4.0',
   },
-  // #12 — Classic open-source baseline
+  // #12 — NovelAI V4.5 Full, latest anime-focused diffusion model
+  {
+    id: AI_MODELS.NOVELAI_V45_FULL,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-4-5-full',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.novelai.net/en/image/models',
+  },
+  // #13 — NovelAI V4.5 Curated, cleaner dataset, easier to steer
+  {
+    id: AI_MODELS.NOVELAI_V45_CURATED,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-4-5-curated',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.novelai.net/en/image/models',
+  },
+  // #14 — NovelAI V4 Full, previous-gen original model
+  {
+    id: AI_MODELS.NOVELAI_V4_FULL,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-4-full',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.novelai.net/en/image/models',
+  },
+  // #15 — NovelAI V3, SDXL-based anime model
+  {
+    id: AI_MODELS.NOVELAI_V3,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    externalModelId: 'nai-diffusion-3',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.novelai.net/en/image/models',
+  },
+  // #16 — Classic open-source baseline
   {
     id: AI_MODELS.SDXL,
     cost: 1,
@@ -467,6 +519,59 @@ export const getFreeTierModels = (): ModelOption[] =>
 /** Check if a model is on the free tier */
 export const isFreeTierModel = (modelId: string): boolean =>
   getModelById(modelId)?.freeTier === true
+
+/** Provider group key for grouping models in UI */
+export type ProviderGroup =
+  | 'openai'
+  | 'google'
+  | 'novelai'
+  | 'fal'
+  | 'opensource'
+  | 'replicate'
+
+/** Display order for provider groups */
+export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
+  'openai',
+  'google',
+  'novelai',
+  'fal',
+  'opensource',
+  'replicate',
+]
+
+/** Map adapter type to provider group */
+export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
+  switch (adapterType) {
+    case AI_ADAPTER_TYPES.OPENAI:
+      return 'openai'
+    case AI_ADAPTER_TYPES.GEMINI:
+      return 'google'
+    case AI_ADAPTER_TYPES.NOVELAI:
+      return 'novelai'
+    case AI_ADAPTER_TYPES.FAL:
+      return 'fal'
+    case AI_ADAPTER_TYPES.HUGGINGFACE:
+      return 'opensource'
+    case AI_ADAPTER_TYPES.REPLICATE:
+      return 'replicate'
+  }
+}
+
+/** Group model options by provider, preserving order within each group */
+export function groupModelsByProvider(
+  models: ModelOption[],
+): { group: ProviderGroup; models: ModelOption[] }[] {
+  const grouped = new Map<ProviderGroup, ModelOption[]>()
+  for (const model of models) {
+    const group = getProviderGroup(model.adapterType)
+    const list = grouped.get(group) ?? []
+    list.push(model)
+    grouped.set(group, list)
+  }
+  return PROVIDER_GROUP_ORDER.filter((group) => grouped.has(group)).map(
+    (group) => ({ group, models: grouped.get(group)! }),
+  )
+}
 
 /** Get the provider timeout for a model (defaults to 45s for images) */
 export const getModelTimeout = (modelId: string): number =>

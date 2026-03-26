@@ -6,6 +6,7 @@ export enum AI_ADAPTER_TYPES {
   OPENAI = 'openai',
   FAL = 'fal',
   REPLICATE = 'replicate',
+  NOVELAI = 'novelai',
 }
 
 export interface ProviderConfig {
@@ -19,6 +20,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.OPENAI,
   AI_ADAPTER_TYPES.FAL,
   AI_ADAPTER_TYPES.REPLICATE,
+  AI_ADAPTER_TYPES.NOVELAI,
 ] as const
 
 export const DEFAULT_PROVIDER_CONFIGS: Record<
@@ -45,6 +47,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'Replicate',
     baseUrl: AI_PROVIDER_ENDPOINTS.REPLICATE,
   },
+  [AI_ADAPTER_TYPES.NOVELAI]: {
+    label: 'NovelAI',
+    baseUrl: AI_PROVIDER_ENDPOINTS.NOVELAI,
+  },
 }
 
 export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
@@ -53,6 +59,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'sk-proj-...',
   [AI_ADAPTER_TYPES.FAL]: 'fal_...',
   [AI_ADAPTER_TYPES.REPLICATE]: 'r8_...',
+  [AI_ADAPTER_TYPES.NOVELAI]: 'eyJhbGci...',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
@@ -61,6 +68,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.OPENAI]: 3,
   [AI_ADAPTER_TYPES.FAL]: 2,
   [AI_ADAPTER_TYPES.REPLICATE]: 2,
+  [AI_ADAPTER_TYPES.NOVELAI]: 2,
 }
 
 export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
@@ -69,6 +77,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'gpt-image-1.5',
   [AI_ADAPTER_TYPES.FAL]: 'fal-ai/flux-2-pro',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
+  [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-4-5-full',
 }
 
 export const getDefaultProviderConfig = (
@@ -109,6 +118,10 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.REPLICATE]: {
     url: 'https://replicate.com/account/api-tokens',
     steps: 'Sign in → Account → API tokens → Create token',
+  },
+  [AI_ADAPTER_TYPES.NOVELAI]: {
+    url: 'https://novelai.net/',
+    steps: 'Sign in → User Settings → Account → Get Persistent API Token',
   },
 }
 

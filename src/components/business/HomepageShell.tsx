@@ -136,7 +136,7 @@ export function HomepageShell({
                 size="lg"
                 className={styles.secondaryButton}
               >
-                <Link href={HOMEPAGE_ROUTES.signUp}>
+                <Link href={HOMEPAGE_ROUTES.gallery}>
                   {t('stage.cta')}
                   <ArrowRight className="size-4" />
                 </Link>

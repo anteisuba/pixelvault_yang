@@ -558,6 +558,20 @@
   opacity: 0.8;
 }
 
+/* ── Model group headers ─────────────────────────────────────────────────── */
+
+.modelGroupTitle {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 1.4rem 0 0.4rem;
+  border-top: 1px solid var(--home-border);
+  opacity: 0.85;
+}
+
 /* ── Model cards ─────────────────────────────────────────────────────────── */
 
 .modelCard {

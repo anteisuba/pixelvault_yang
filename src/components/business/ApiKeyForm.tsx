@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { ExternalLink, Eye, EyeOff, Loader2, Plus } from 'lucide-react'
+import {
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Loader2,
+  Plus,
+  XCircle,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
@@ -11,6 +19,7 @@ import {
   getModelMessageKey,
 } from '@/constants/models'
 import {
+  ADAPTER_KEY_HINTS,
   AI_ADAPTER_TYPES,
   getAdapterApiGuide,
   getAdapterCustomModelExample,
@@ -36,6 +45,31 @@ interface ApiKeyFormProps {
   onAdd: (data: CreateApiKeyRequest) => Promise<void>
   onCancel: () => void
   isSubmitting: boolean
+}
+
+/** Validate API key format based on adapter type prefix patterns */
+function validateKeyFormat(
+  adapterType: AI_ADAPTER_TYPES,
+  key: string,
+): 'valid' | 'invalid' | 'empty' {
+  const trimmed = key.trim()
+  if (!trimmed) return 'empty'
+
+  switch (adapterType) {
+    case AI_ADAPTER_TYPES.HUGGINGFACE:
+      return trimmed.startsWith('hf_') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.GEMINI:
+      return trimmed.startsWith('AIza') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.OPENAI:
+      return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.FAL:
+      return trimmed.length > 10 ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.REPLICATE:
+      return trimmed.startsWith('r8_') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.NOVELAI:
+      // NovelAI persistent API tokens are JWT-like (eyJhbGci...)
+      return trimmed.length > 20 ? 'valid' : 'invalid'
+  }
 }
 
 export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
@@ -76,6 +110,9 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
     providerLabel.trim() || defaultProviderConfig.label
   const resolvedProviderBaseUrl =
     providerBaseUrl.trim() || defaultProviderConfig.baseUrl
+
+  const keyValidation = validateKeyFormat(adapterType, keyValue)
+
   const isSubmitDisabled =
     isSubmitting ||
     !resolvedModelId ||
@@ -94,6 +131,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
     setProviderLabel(nextProviderConfig.label)
     setProviderBaseUrl(nextProviderConfig.baseUrl)
     setPresetModelId(nextModels[0]?.id ?? AI_MODELS.SDXL)
+    setKeyValue('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,6 +149,8 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
       keyValue: keyValue.trim(),
     })
   }
+
+  const guide = getAdapterApiGuide(adapterType)
 
   return (
     <form
@@ -152,6 +192,31 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── Provider tutorial card ─────────────────────────────── */}
+      <div className="rounded-2xl border border-primary/15 bg-primary/4 p-4">
+        <p className="mb-2 text-sm font-semibold text-foreground">
+          {t('tutorial.title', {
+            provider: t(`providers.${adapterType}.label`),
+          })}
+        </p>
+        <ol className="mb-3 list-inside list-decimal space-y-1 font-serif text-sm leading-6 text-muted-foreground">
+          {guide.steps.split('→').map((step, i) => (
+            <li key={i}>{step.trim()}</li>
+          ))}
+        </ol>
+        <a
+          href={guide.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          {t('tutorial.goToProvider', {
+            provider: t(`providers.${adapterType}.label`),
+          })}
+          <ExternalLink className="size-3" />
+        </a>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -308,7 +373,13 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
               placeholder={getAdapterKeyHint(adapterType)}
               value={keyValue}
               onChange={(e) => setKeyValue(e.target.value)}
-              className="h-11 rounded-2xl border-border/70 bg-background/80 pr-11 font-mono"
+              className={cn(
+                'h-11 rounded-2xl border-border/70 bg-background/80 pr-11 font-mono',
+                keyValidation === 'valid' &&
+                  'border-chart-3/50 ring-1 ring-chart-3/20',
+                keyValidation === 'invalid' &&
+                  'border-destructive/50 ring-1 ring-destructive/20',
+              )}
               required
             />
             <button
@@ -324,23 +395,21 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
               )}
             </button>
           </div>
-          {(() => {
-            const guide = getAdapterApiGuide(adapterType)
-            return (
-              <div className="mt-1.5 space-y-0.5">
-                <p className="text-xs text-muted-foreground">{guide.steps}</p>
-                <a
-                  href={guide.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  {t('addForm.getKeyLink')}
-                  <ExternalLink className="size-3" />
-                </a>
-              </div>
-            )
-          })()}
+          {/* Instant validation feedback */}
+          {keyValidation === 'valid' && (
+            <p className="flex items-center gap-1 text-xs text-chart-3">
+              <CheckCircle2 className="size-3" />
+              {t('addForm.keyFormatValid')}
+            </p>
+          )}
+          {keyValidation === 'invalid' && (
+            <p className="flex items-center gap-1 text-xs text-destructive">
+              <XCircle className="size-3" />
+              {t('addForm.keyFormatInvalid', {
+                hint: ADAPTER_KEY_HINTS[adapterType],
+              })}
+            </p>
+          )}
         </div>
       </div>
 

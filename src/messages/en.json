@@ -1,7 +1,15 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count, plural, one {# request} other {# requests}}"
+    "creditCount": "{count, plural, one {# request} other {# requests}}",
+    "providerGroups": {
+      "openai": "OpenAI",
+      "google": "Google",
+      "novelai": "NovelAI",
+      "fal": "fal.ai",
+      "opensource": "Open Source",
+      "replicate": "Replicate"
+    }
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
@@ -145,8 +153,8 @@
     },
     "models": {
       "eyebrow": "Model lineup",
-      "title": "Four image models. One calm workspace.",
-      "description": "Switch between realism, anime stylization, OpenAI image generation, and fast Gemini exploration without changing tools."
+      "title": "Multi-provider models. One calm workspace.",
+      "description": "Switch between OpenAI, Google, NovelAI, and open-source models without changing tools."
     },
     "scenes": {
       "items": {
@@ -337,6 +345,7 @@
     "referencePreviewAlt": "Reference image preview",
     "referenceRemoveLabel": "Remove reference image",
     "referenceUploadAction": "Drag and drop or click to upload",
+    "referenceImageLabel": "Reference image",
     "referenceUploadFormats": "PNG, JPG, and WebP",
     "ctaSectionLabel": "Ready to generate",
     "ctaSectionDescription": "Check the route and prompt, then generate when you are ready.",
@@ -411,6 +420,10 @@
       "replicate": {
         "label": "Replicate",
         "description": "Use Replicate platform for Ideogram and other models."
+      },
+      "novelai": {
+        "label": "NovelAI",
+        "description": "Use NovelAI for anime-focused diffusion models with tag-based prompting."
       }
     },
     "summary": {
@@ -450,6 +463,10 @@
       "showAll": "Show all models ({count})",
       "hideAll": "Collapse"
     },
+    "tutorial": {
+      "title": "How to get your {provider} API key",
+      "goToProvider": "Go to {provider} →"
+    },
     "deleteDialog": {
       "title": "Delete saved route",
       "description": "Delete \"{label}\"? This cannot be undone.",
@@ -474,6 +491,8 @@
       "showKey": "Show API key",
       "hideKey": "Hide API key",
       "getKeyLink": "Get your API key →",
+      "keyFormatValid": "Key format looks correct",
+      "keyFormatInvalid": "Key should start with {hint}",
       "saveAction": "Save route",
       "savingAction": "Saving...",
       "cancelAction": "Cancel",
@@ -685,6 +704,10 @@
         "title": "Welcome to PixelVault",
         "description": "Let's walk through the basics so you can start generating images right away."
       },
+      "quickStart": {
+        "title": "Start free — no API key needed",
+        "description": "Gemini Flash Image is free for 5 generations per day. Try it first, then bind your own API keys to unlock all models and unlimited usage."
+      },
       "model": {
         "title": "Choose a model",
         "description": "Models marked \"Free\" can be used without an API key — up to 5 times per day. Bind your own key to unlock all models."
@@ -751,6 +774,22 @@
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
       "description": "Open-source flagship with 8B MMDiT architecture, strong composition and detail."
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "Latest NovelAI model with improved fidelity, multi-character support, and text rendering."
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "Curated variant trained on cleaner data — easier to steer, ideal for consistent quality."
+    },
+    "novelaiV4Full": {
+      "label": "NovelAI Diffusion V4 Full",
+      "description": "Previous-gen NovelAI original model with broad dataset coverage."
+    },
+    "novelaiV3": {
+      "label": "NovelAI Diffusion Anime V3",
+      "description": "SDXL-based anime specialist with tag-priority prompting system."
     },
     "veo3": {
       "label": "Veo 3.1",

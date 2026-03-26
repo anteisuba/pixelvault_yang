@@ -1,7 +1,15 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} 次请求"
+    "creditCount": "{count} 次请求",
+    "providerGroups": {
+      "openai": "OpenAI",
+      "google": "Google",
+      "novelai": "NovelAI",
+      "fal": "fal.ai",
+      "opensource": "开源",
+      "replicate": "Replicate"
+    }
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
@@ -145,8 +153,8 @@
     },
     "models": {
       "eyebrow": "模型阵容",
-      "title": "四个图像模型，一个安静的工作区。",
-      "description": "在写实、动漫风、OpenAI 图像生成和 Gemini 快速探索之间切换，而无需更换工具。"
+      "title": "多供应商模型，一个安静的工作区。",
+      "description": "在 OpenAI、Google、NovelAI 和开源模型之间切换，无需更换工具。"
     },
     "scenes": {
       "items": {
@@ -337,6 +345,7 @@
     "referencePreviewAlt": "参考图预览",
     "referenceRemoveLabel": "移除参考图",
     "referenceUploadAction": "拖放到这里，或点击上传",
+    "referenceImageLabel": "参考图片",
     "referenceUploadFormats": "PNG、JPG、WebP",
     "ctaSectionLabel": "生成",
     "ctaSectionDescription": "",
@@ -411,6 +420,10 @@
       "replicate": {
         "label": "Replicate",
         "description": "使用 Replicate 平台，支持 Ideogram 等模型。"
+      },
+      "novelai": {
+        "label": "NovelAI",
+        "description": "使用 NovelAI 动漫风格扩散模型，支持标签式提示。"
       }
     },
     "summary": {
@@ -450,6 +463,10 @@
       "showAll": "展开全部模型（{count}）",
       "hideAll": "收起"
     },
+    "tutorial": {
+      "title": "如何获取 {provider} API 密钥",
+      "goToProvider": "前往 {provider} →"
+    },
     "deleteDialog": {
       "title": "删除已保存路由",
       "description": "要删除“{label}”吗？此操作无法撤销。",
@@ -474,6 +491,8 @@
       "showKey": "显示 API 密钥",
       "hideKey": "隐藏 API 密钥",
       "getKeyLink": "获取 API Key →",
+      "keyFormatValid": "密钥格式正确",
+      "keyFormatInvalid": "密钥应以 {hint} 开头",
       "saveAction": "保存路由",
       "savingAction": "保存中...",
       "cancelAction": "取消",
@@ -685,6 +704,10 @@
         "title": "欢迎来到 PixelVault",
         "description": "让我们快速了解基本操作，帮助你立即开始生成图像。"
       },
+      "quickStart": {
+        "title": "免费开始 — 无需 API 密钥",
+        "description": "Gemini Flash Image 每天免费 5 次生成。先试用，之后绑定自己的 API 密钥即可解锁全部模型和无限使用。"
+      },
       "model": {
         "title": "选择模型",
         "description": "标有「免费」的模型无需 API key，每天可用 5 次。绑定自己的 key 即可解锁全部模型。"
@@ -751,6 +774,22 @@
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
       "description": "开源旗舰，80亿参数 MMDiT 架构，构图与细节出色。"
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "最新 NovelAI 模型，生成保真度提升，支持多角色和文字渲染。"
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "精选数据集训练的变体，更易控制，适合稳定出图。"
+    },
+    "novelaiV4Full": {
+      "label": "NovelAI Diffusion V4 Full",
+      "description": "上一代 NovelAI 原创模型，数据集覆盖广泛。"
+    },
+    "novelaiV3": {
+      "label": "NovelAI Diffusion Anime V3",
+      "description": "基于 SDXL 的动漫专精模型，支持标签优先提示系统。"
     },
     "veo3": {
       "label": "Veo 3.1",

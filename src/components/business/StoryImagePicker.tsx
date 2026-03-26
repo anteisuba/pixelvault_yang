@@ -1,7 +1,8 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useCallback } from 'react'
-import { GripVertical, X } from 'lucide-react'
+import { GripVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { StoryPanelRecord } from '@/types'

@@ -114,13 +114,12 @@ export function OnboardingTooltip({
   }, [step])
 
   useEffect(() => {
-    if (!active) {
-      setVisible(false)
-      return
-    }
+    if (!active) return
 
-    // Small delay to allow DOM to settle before measuring
+    // Reset visibility then show after DOM settles
+    let cancelled = false
     const timer = setTimeout(() => {
+      if (cancelled) return
       updatePosition()
       setVisible(true)
     }, 150)
@@ -129,7 +128,9 @@ export function OnboardingTooltip({
     window.addEventListener('scroll', updatePosition, true)
 
     return () => {
+      cancelled = true
       clearTimeout(timer)
+      setVisible(false)
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }

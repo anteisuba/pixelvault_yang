@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { useTranslations } from 'next-intl'
 import { AlertCircle } from 'lucide-react'

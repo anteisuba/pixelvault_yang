@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { BookOpen, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'

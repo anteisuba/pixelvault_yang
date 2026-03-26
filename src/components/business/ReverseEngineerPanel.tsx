@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element -- data URL images from file upload */
 
 import { useCallback, useRef, useState } from 'react'
 import {
@@ -75,8 +76,7 @@ export function ReverseEngineerPanel({
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [aspectRatio, setAspectRatio] =
-    useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
+  const [aspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = useCallback(

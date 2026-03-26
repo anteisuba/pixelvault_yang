@@ -126,7 +126,7 @@ export const novelAiAdapter: ProviderAdapter = {
   async healthCheck({ apiKey, baseUrl, timeoutMs }: HealthCheckInput) {
     const start = Date.now()
     try {
-      const endpoint = `${baseUrl}/user/information`
+      const endpoint = `${baseUrl}/user/subscription`
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: { Authorization: `Bearer ${apiKey}` },

@@ -5,16 +5,22 @@ import { useState } from 'react'
 
 import {
   ArrowUpRight,
+  Check,
   Coins,
+  Copy,
   Download,
   Globe2,
   ImageIcon,
+  Link2,
   LockKeyhole,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
+import { ROUTES } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
+import { Link } from '@/i18n/navigation'
 
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
@@ -48,6 +54,7 @@ export function ImageDetailModal({
   onDelete,
 }: ImageDetailModalProps) {
   const [isDownloading, setIsDownloading] = useState(false)
+  const [copied, setCopied] = useState<'prompt' | 'link' | null>(null)
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -259,6 +266,61 @@ export function ImageDetailModal({
                 {t('openOriginal')}
               </a>
             </Button>
+
+            {(showVisibility || generation.isPromptPublic) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(generation.prompt)
+                  setCopied('prompt')
+                  setTimeout(() => setCopied(null), 2000)
+                }}
+              >
+                {copied === 'prompt' ? (
+                  <Check className="size-3.5 text-chart-3" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
+                {copied === 'prompt' ? t('promptCopied') : t('copyPrompt')}
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={async () => {
+                const url = `${window.location.origin}/gallery/${generation.id}`
+                await navigator.clipboard.writeText(url)
+                setCopied('link')
+                setTimeout(() => setCopied(null), 2000)
+              }}
+            >
+              {copied === 'link' ? (
+                <Check className="size-3.5 text-chart-3" />
+              ) : (
+                <Link2 className="size-3.5" />
+              )}
+              {copied === 'link' ? t('linkCopied') : t('shareLink')}
+            </Button>
+
+            {(showVisibility || generation.isPromptPublic) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                asChild
+              >
+                <Link
+                  href={`${ROUTES.STUDIO}?prompt=${encodeURIComponent(generation.prompt)}&model=${encodeURIComponent(generation.model)}`}
+                >
+                  <Sparkles className="size-3.5" />
+                  {t('generateWithPrompt')}
+                </Link>
+              </Button>
+            )}
 
             {showDelete && onDelete ? (
               <ConfirmDialog

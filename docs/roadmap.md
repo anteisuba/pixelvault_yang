@@ -114,20 +114,20 @@ Items ordered by execution priority. Work top-down.
 
 ## Phase D — 社区 & 增长功能
 
-### D1. Prompt 分享 & 复用 (零成本增长杠杆)
-- [ ] Gallery/Detail 页加 "复制 Prompt" 和 "分享链接" 按钮
-- [ ] Gallery 图片加 "用这个 Prompt 生成" 按钮（一键跳转 Studio 并填入）
-- [ ] 分享链接携带 Prompt 参数
+### D1. Prompt 分享 & 复用 (零成本增长杠杆) ✅
+- [x] Gallery/Detail 页加 "复制 Prompt" 和 "分享链接" 按钮
+- [x] Gallery 图片加 "用这个 Prompt 生成" 按钮（一键跳转 Studio 并填入）
+- [x] 分享链接携带 Prompt 参数（Studio 读取 URL ?prompt=&model= 预填）
 
 ### D2. Arena 升级
 - [ ] **公共竞技场 vs 个人竞技场** — 区分公共 ELO 排行和个人历史对比记录
 - [ ] Arena 排行展示页 — 精美的模型对比页，适合 SEO 和社交传播
 - [ ] **模型版本追踪对比** — 同一模型不同版本的输出对比（如 FLUX 2 Pro v1.0 vs v1.1）
 
-### D2.5. Landing Page 叙事强化
-- [ ] 突出"你的 Key、你的图、零加价"核心差异化
-- [ ] 增加 BYOK + 永久存档 + Arena 三合一价值主张 section
-- [ ] 对比竞品优势可视化（"为什么不用 Midjourney/OpenArt"）
+### D2.5. Landing Page 叙事强化 ✅
+- [x] 突出"你的 Key、你的图、零加价"核心差异化
+- [x] 增加 BYOK + 永久存档 + Arena 三合一价值主张 section（HomepageComparison）
+- [x] 对比竞品优势可视化（"为什么不用 Midjourney/OpenArt"）
 
 ### D3. 社交三件套
 - [ ] Like / favorite 公共图片

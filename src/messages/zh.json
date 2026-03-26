@@ -159,6 +159,25 @@
         }
       }
     },
+    "comparison": {
+      "eyebrow": "为什么选择 PixelVault",
+      "title": "你的密钥，你的图片，零加价。",
+      "description": "不同于 Midjourney 或 OpenArt，你使用自己的 API Key — 无订阅、无单图收费、无平台锁定。",
+      "items": {
+        "byok": {
+          "title": "自带密钥",
+          "description": "支持 OpenAI、Google、fal.ai、Replicate、NovelAI、HuggingFace 的 API Key。密钥端到端加密，平台无法查看。"
+        },
+        "archive": {
+          "title": "永久存档",
+          "description": "每次生成结果都存储在 Cloudflare R2 上的个人图库中。没有过期链接，不会消失。"
+        },
+        "arena": {
+          "title": "竞技场 — 找到最强模型",
+          "description": "盲测对比 + ELO 排名。用眼睛判断哪个模型最好，而不是看营销。"
+        }
+      }
+    },
     "workflow": {
       "eyebrow": "从提示词到归档",
       "title": "从提示词到归档，不再杂乱。",
@@ -554,7 +573,12 @@
     "deleteConfirmDescription": "此作品及其存储文件将被永久删除，此操作不可恢复。",
     "deleteCancel": "取消",
     "deleteConfirm": "永久删除",
-    "referenceImageLabel": "参考图"
+    "referenceImageLabel": "参考图",
+    "copyPrompt": "复制提示词",
+    "promptCopied": "已复制！",
+    "shareLink": "分享",
+    "linkCopied": "链接已复制！",
+    "generateWithPrompt": "用此提示词生成"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

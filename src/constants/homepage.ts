@@ -83,3 +83,12 @@ export const HOMEPAGE_SCENES = [
 ] as const
 
 export type HomepageSceneTone = (typeof HOMEPAGE_SCENES)[number]['tone']
+
+export const HOMEPAGE_COMPARISON = [
+  { id: 'byok', icon: 'key' },
+  { id: 'archive', icon: 'archive' },
+  { id: 'arena', icon: 'swords' },
+] as const
+
+export type HomepageComparisonIcon =
+  (typeof HOMEPAGE_COMPARISON)[number]['icon']

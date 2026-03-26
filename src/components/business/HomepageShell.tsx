@@ -12,6 +12,7 @@ import { Link } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
+import { HomepageComparison } from './HomepageComparison'
 import { HomepageFeatures } from './HomepageFeatures'
 import { HomepageHero } from './HomepageHero'
 import { HomepageModels } from './HomepageModels'
@@ -145,6 +146,7 @@ export function HomepageShell({
           </section>
 
           <HomepageFeatures />
+          <HomepageComparison />
           <HomepageWorkflow />
           <HomepageModels />
 

@@ -159,6 +159,25 @@
         }
       }
     },
+    "comparison": {
+      "eyebrow": "PixelVaultの特長",
+      "title": "あなたのキー。あなたの画像。追加料金ゼロ。",
+      "description": "MidjourneyやOpenArtと違い、自分のAPIキーを接続 — サブスク不要、画像ごとの課金なし、ベンダーロックインなし。",
+      "items": {
+        "byok": {
+          "title": "自分のキーを使う",
+          "description": "OpenAI、Google、fal.ai、Replicate、NovelAI、HuggingFaceのAPIキーを使用。キーはエンドツーエンドで暗号化され、私たちには見えません。"
+        },
+        "archive": {
+          "title": "永久アーカイブ",
+          "description": "すべての生成結果がCloudflare R2の個人ギャラリーに保存。期限切れリンクなし、ダウンロード前に消えることなし。"
+        },
+        "arena": {
+          "title": "アリーナ — 最適なモデルを見つける",
+          "description": "ELOランキング付きのブラインドサイドバイサイド比較。マーケティングではなく、自分の目で判断。"
+        }
+      }
+    },
     "workflow": {
       "eyebrow": "プロンプトから保存まで",
       "title": "プロンプトから保存まで、余計な混雑なしに。",
@@ -554,7 +573,12 @@
     "deleteConfirmDescription": "この作品とストレージファイルが完全に削除されます。この操作は元に戻せません。",
     "deleteCancel": "キャンセル",
     "deleteConfirm": "完全に削除",
-    "referenceImageLabel": "参照画像"
+    "referenceImageLabel": "参照画像",
+    "copyPrompt": "プロンプトをコピー",
+    "promptCopied": "コピーしました！",
+    "shareLink": "共有",
+    "linkCopied": "リンクをコピーしました！",
+    "generateWithPrompt": "このプロンプトで生成"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ImageIcon, Loader2, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -104,6 +105,7 @@ export function GenerateForm() {
   } = useGenerationForm()
   const { isGenerating, error, generatedGeneration, generate } =
     useGenerateImage()
+  const searchParams = useSearchParams()
   const { keys: apiKeys, healthMap } = useApiKeysContext()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -137,6 +139,23 @@ export function GenerateForm() {
   )
   const modelOptions = [...builtInOptions, ...savedOptions]
   const selectedModel = findSelectedModel(modelOptions, selectedOptionId)
+
+  // Prefill from URL params (?prompt=...&model=...)
+  useEffect(() => {
+    const urlPrompt = searchParams.get('prompt')
+    const urlModel = searchParams.get('model')
+    if (urlPrompt && !prompt) {
+      setPrompt(urlPrompt)
+    }
+    if (urlModel) {
+      const match = modelOptions.find(
+        (o) => o.modelId === urlModel && o.sourceType === 'workspace',
+      )
+      if (match) setSelectedOptionId(match.optionId)
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const generatedModelLabel = generatedGeneration
     ? getTranslatedModelLabel(tModels, generatedGeneration.model)

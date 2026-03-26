@@ -159,6 +159,25 @@
         }
       }
     },
+    "comparison": {
+      "eyebrow": "Why PixelVault",
+      "title": "Your keys. Your images. Zero markup.",
+      "description": "Unlike Midjourney or OpenArt, you connect your own API keys — no subscription, no per-image fees, no vendor lock-in.",
+      "items": {
+        "byok": {
+          "title": "Bring your own keys",
+          "description": "Use API keys from OpenAI, Google, fal.ai, Replicate, NovelAI, or HuggingFace. We never see your keys — they are encrypted end-to-end."
+        },
+        "archive": {
+          "title": "Permanent archive",
+          "description": "Every generation is stored in your personal gallery on Cloudflare R2. No expiring links, no download-before-it-disappears."
+        },
+        "arena": {
+          "title": "Arena — find the best model",
+          "description": "Blind side-by-side comparison with ELO ranking. Let your eyes decide which model wins, not marketing."
+        }
+      }
+    },
     "workflow": {
       "eyebrow": "From prompt to archive",
       "title": "From prompt to archive, without clutter.",
@@ -554,7 +573,12 @@
     "deleteConfirmDescription": "This will permanently delete this generation and its stored file. This action cannot be undone.",
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete permanently",
-    "referenceImageLabel": "Reference Image"
+    "referenceImageLabel": "Reference Image",
+    "copyPrompt": "Copy prompt",
+    "promptCopied": "Copied!",
+    "shareLink": "Share",
+    "linkCopied": "Link copied!",
+    "generateWithPrompt": "Generate with this"
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

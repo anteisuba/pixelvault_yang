@@ -37,6 +37,12 @@ Items roughly ordered by impact and dependency.
 - Generation history comparison (side-by-side)
 - Batch operations on profile (bulk public/private/delete)
 
+### UX — Lower the API Key Barrier (mid-term)
+- **Platform credits mode** — users pay the platform directly (Stripe/LemonSqueezy), platform calls providers with its own keys. Users never touch API keys. Needs billing, cost accounting, and margin calculation.
+- **OAuth provider login** — for providers that support OAuth (Google, GitHub), allow users to authenticate and authorize directly instead of copying API keys manually.
+- **Guided video tutorials** — short embedded video walkthroughs per provider showing exactly where to find the API key page.
+- **API key auto-import** — browser extension or bookmarklet that auto-fills the key from the provider's dashboard page.
+
 ## Long-term
 
 ### Multi-tenant / Team

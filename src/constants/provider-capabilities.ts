@@ -33,6 +33,8 @@ export interface CapabilityConfig {
   qualityOptions?: readonly string[]
   styleOptions?: readonly string[]
   backgroundOptions?: readonly string[]
+  /** Maximum number of reference images supported (default: 1) */
+  maxReferenceImages?: number
 }
 
 export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
@@ -49,6 +51,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      maxReferenceImages: 1,
     },
 
     [AI_ADAPTER_TYPES.FAL]: {
@@ -63,6 +66,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 3.5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      maxReferenceImages: 1,
     },
 
     [AI_ADAPTER_TYPES.HUGGINGFACE]: {
@@ -75,6 +79,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       ],
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 7.5 },
       steps: { min: 1, max: 50, step: 1, default: 30 },
+      maxReferenceImages: 1,
     },
 
     [AI_ADAPTER_TYPES.REPLICATE]: {
@@ -87,6 +92,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       ],
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 7.5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
+      maxReferenceImages: 1,
     },
 
     [AI_ADAPTER_TYPES.OPENAI]: {
@@ -94,10 +100,17 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       qualityOptions: ['auto', 'low', 'medium', 'high'],
       backgroundOptions: ['auto', 'transparent', 'opaque'],
       styleOptions: ['vivid', 'natural'],
+      maxReferenceImages: 1,
     },
 
     [AI_ADAPTER_TYPES.GEMINI]: {
       capabilities: ['imageAnalysis'],
+      maxReferenceImages: 14,
+    },
+
+    [AI_ADAPTER_TYPES.VOLCENGINE]: {
+      capabilities: ['seed'],
+      maxReferenceImages: 4,
     },
   }
 
@@ -114,4 +127,9 @@ export function getCapabilityConfig(
   adapterType: AI_ADAPTER_TYPES,
 ): CapabilityConfig {
   return ADAPTER_CAPABILITIES[adapterType]
+}
+
+/** Get the maximum number of reference images supported by an adapter (default: 1) */
+export function getMaxReferenceImages(adapterType: AI_ADAPTER_TYPES): number {
+  return ADAPTER_CAPABILITIES[adapterType].maxReferenceImages ?? 1
 }

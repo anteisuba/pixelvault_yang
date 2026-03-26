@@ -218,6 +218,49 @@ Items ordered by execution priority. Work top-down.
 
 ---
 
+## Phase W — 工作台进化 (Workbench Evolution)
+
+> 核心目标：减少随机性、增加可控性。用户从即梦迁移，痛点是"生成像抽盲盒"。
+
+### W0. 火山引擎 Seedance 接入 ✅
+- [x] 新增 `AI_ADAPTER_TYPES.VOLCENGINE` + `volcengine.adapter.ts`
+- [x] Bearer Token 认证，异步轮询模式
+- [x] Seedance 1.5 Pro + 1.0 Pro 两个模型
+- [x] Provider registry 注册 + provider-capabilities 配置
+
+### W1. 多参考图支持 ✅
+- [x] `useImageUpload` hook 改为多图（`referenceImages[]`、逐张删除、批量清除）
+- [x] `GenerateRequestSchema` 新增 `referenceImages` 字段
+- [x] Gemini adapter 支持多图输入
+- [x] `provider-capabilities` 新增 `maxReferenceImages`（Gemini 14 / VolcEngine 4 / 其他 1）
+- [x] `ReferenceImageSection` 重写：缩略图网格 + 内联添加按钮 + 计数器
+- [x] GenerateForm / ArenaForm / VideoGenerateForm 全部适配
+
+### W2. 项目系统 (进行中)
+- [x] Prisma: `Project` model + `Generation.projectId` nullable FK
+- [x] Migration 已部署
+- [x] `project.service.ts` — CRUD + 历史查询 + 软删除
+- [x] Types: `CreateProjectSchema` / `UpdateProjectSchema` / `ProjectRecord`
+- [x] Constants: `API_ENDPOINTS.PROJECTS` / `PROJECT` config
+- [x] API route: `GET/POST /api/projects`（已创建，`/api/projects/[id]` 待完成）
+- [ ] API route: `PUT/DELETE /api/projects/[id]`
+- [ ] `api-client.ts` 客户端函数
+- [ ] `useProjects` hook
+- [ ] ProjectSelector UI（Studio 顶部项目切换器）
+- [ ] HistoryPanel 侧栏（当前项目生成历史缩略图网格）
+
+### W3. 视频风格统一 + 续接（未开始）
+- [ ] 项目级风格参考图锚定
+- [ ] 尾帧提取 + "续接"按钮
+- [ ] Storyboard 自动续接模式
+
+### W4. 成片 + 音频（未开始）
+- [ ] WebCodecs + mp4box.js 视频拼接
+- [ ] ElevenLabs 声音克隆（BYOK）
+- [ ] 台词 TTS + BGM + 音视频合并
+
+---
+
 ## Already Completed (moved from roadmap)
 
 - ~~Video Generation~~ — 5 models via fal.ai (Kling, MiniMax, Luma, WAN, Hunyuan)

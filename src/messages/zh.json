@@ -7,6 +7,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "volcengine": "火山引擎",
       "opensource": "开源",
       "replicate": "Replicate"
     },
@@ -405,6 +406,7 @@
     "referenceUploadAction": "拖放到这里，或点击上传",
     "referenceImageLabel": "参考图片",
     "referenceUploadFormats": "PNG、JPG、WebP",
+    "referenceCounter": "{current} / {max} 张",
     "ctaSectionLabel": "生成",
     "ctaSectionDescription": "",
     "ctaLabel": "生成图像",
@@ -485,6 +487,10 @@
       "novelai": {
         "label": "NovelAI",
         "description": "使用 NovelAI 动漫风格扩散模型，支持标签式提示。"
+      },
+      "volcengine": {
+        "label": "火山引擎",
+        "description": "使用火山方舟的字节跳动 Seedance 视频模型，支持有声视频。"
       }
     },
     "summary": {
@@ -721,6 +727,7 @@
     "referenceBadge": "已附",
     "referenceUpload": "拖拽图片或点击上传",
     "referenceFormats": "JPG, PNG, WebP",
+    "referenceCounter": "{current} / {max} 张",
     "referencePreviewAlt": "参考图片预览",
     "referenceRemoveLabel": "移除参考图片",
     "reverseTitle": "图片反向工程",
@@ -913,6 +920,14 @@
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "字节跳动 — 原生音频、电影级镜头控制"
+    },
+    "seedance15Pro": {
+      "label": "Seedance 1.5 Pro",
+      "description": "火山引擎 — 有声视频、首尾帧控制、样片模式"
+    },
+    "seedance10Pro": {
+      "label": "Seedance 1.0 Pro",
+      "description": "火山引擎 — 首尾帧控制、稳定画质"
     },
     "klingVideo": {
       "label": "可灵 V2.1",

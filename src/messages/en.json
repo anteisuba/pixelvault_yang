@@ -7,6 +7,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "volcengine": "VolcEngine",
       "opensource": "Open Source",
       "replicate": "Replicate"
     },
@@ -405,6 +406,7 @@
     "referenceUploadAction": "Drag and drop or click to upload",
     "referenceImageLabel": "Reference image",
     "referenceUploadFormats": "PNG, JPG, and WebP",
+    "referenceCounter": "{current} / {max} images",
     "ctaSectionLabel": "Ready to generate",
     "ctaSectionDescription": "Check the route and prompt, then generate when you are ready.",
     "ctaLabel": "Generate image",
@@ -485,6 +487,10 @@
       "novelai": {
         "label": "NovelAI",
         "description": "Use NovelAI for anime-focused diffusion models with tag-based prompting."
+      },
+      "volcengine": {
+        "label": "VolcEngine",
+        "description": "Use VolcEngine (火山方舟) for ByteDance Seedance video models with native audio."
       }
     },
     "summary": {
@@ -721,6 +727,7 @@
     "referenceBadge": "Attached",
     "referenceUpload": "Drop an image or click to upload",
     "referenceFormats": "JPG, PNG, WebP",
+    "referenceCounter": "{current} / {max} images",
     "referencePreviewAlt": "Reference preview",
     "referenceRemoveLabel": "Remove reference image",
     "reverseTitle": "Image Reverse Engineer",
@@ -913,6 +920,14 @@
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — native audio, cinematic camera controls"
+    },
+    "seedance15Pro": {
+      "label": "Seedance 1.5 Pro",
+      "description": "VolcEngine — native audio, first/last frame, draft mode"
+    },
+    "seedance10Pro": {
+      "label": "Seedance 1.0 Pro",
+      "description": "VolcEngine — first/last frame control, reliable quality"
     },
     "klingVideo": {
       "label": "Kling V2.1",

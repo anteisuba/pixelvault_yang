@@ -94,6 +94,9 @@ export default function VideoGenerateForm() {
     aspectRatio,
     setAspectRatio,
     referenceImage,
+    referenceImages,
+    removeReferenceImage,
+    clearAllImages,
     isDragging,
     fileInputRef,
     handleDrop,
@@ -101,7 +104,6 @@ export default function VideoGenerateForm() {
     handleDragLeave,
     openFilePicker,
     handleInputChange,
-    clearImage,
     isEnhancing,
     enhanced,
     enhancedOriginal,
@@ -301,7 +303,8 @@ export default function VideoGenerateForm() {
         </div>
 
         <ReferenceImageSection
-          referenceImage={referenceImage}
+          referenceImages={referenceImages}
+          maxImages={1}
           isDragging={isDragging}
           fileInputRef={fileInputRef}
           onDrop={handleDrop}
@@ -309,7 +312,8 @@ export default function VideoGenerateForm() {
           onDragLeave={handleDragLeave}
           onOpenFilePicker={openFilePicker}
           onInputChange={handleInputChange}
-          onClear={clearImage}
+          onRemoveImage={removeReferenceImage}
+          onClearAll={clearAllImages}
           previewAlt={t('referenceImageLabel')}
           removeLabel={t('referenceRemoveLabel')}
           uploadLabel={t('referenceImageUpload')}

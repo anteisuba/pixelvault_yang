@@ -8,6 +8,7 @@ import { huggingFaceAdapter } from '@/services/providers/huggingface.adapter'
 import { novelAiAdapter } from '@/services/providers/novelai.adapter'
 import { openAiAdapter } from '@/services/providers/openai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
+import { volcengineAdapter } from '@/services/providers/volcengine.adapter'
 import type { ProviderAdapter } from '@/services/providers/types'
 
 const PROVIDER_ADAPTERS: Record<AI_ADAPTER_TYPES, ProviderAdapter> = {
@@ -17,6 +18,7 @@ const PROVIDER_ADAPTERS: Record<AI_ADAPTER_TYPES, ProviderAdapter> = {
   [AI_ADAPTER_TYPES.FAL]: falAdapter,
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
+  [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
 }
 
 export function getProviderAdapter(

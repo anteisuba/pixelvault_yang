@@ -69,6 +69,9 @@ export const API_ENDPOINTS = {
   /** Video generation status polling */
   GENERATE_VIDEO_STATUS: '/api/generate-video/status',
 
+  /** Projects */
+  PROJECTS: '/api/projects',
+
   /** Public model list (merged DB + hardcoded) */
   MODELS: '/api/models',
 
@@ -77,6 +80,18 @@ export const API_ENDPOINTS = {
 
   /** Admin model management */
   ADMIN_MODELS: '/api/admin/models',
+} as const
+
+/** Project configuration */
+export const PROJECT = {
+  NAME_MAX_LENGTH: 60,
+  DESCRIPTION_MAX_LENGTH: 500,
+  /** Default project name for new users */
+  DEFAULT_PROJECT_NAME: 'Default',
+  /** Max projects per user */
+  MAX_PROJECTS_PER_USER: 50,
+  /** History panel page size */
+  HISTORY_PAGE_SIZE: 20,
 } as const
 
 /** Arena configuration */
@@ -106,6 +121,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   FAL_QUEUE: 'https://queue.fal.run',
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
+  VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
 } as const
 
 /** Video generation configuration */

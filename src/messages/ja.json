@@ -7,6 +7,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "volcengine": "火山エンジン",
       "opensource": "オープンソース",
       "replicate": "Replicate"
     },
@@ -405,6 +406,7 @@
     "referenceUploadAction": "ドラッグ＆ドロップ、またはクリックしてアップロード",
     "referenceImageLabel": "参照画像",
     "referenceUploadFormats": "PNG、JPG、WebP",
+    "referenceCounter": "{current} / {max} 枚",
     "ctaSectionLabel": "生成の準備完了",
     "ctaSectionDescription": "ルートとプロンプトを確認して、準備ができたら生成します。",
     "ctaLabel": "画像を生成",
@@ -485,6 +487,10 @@
       "novelai": {
         "label": "NovelAI",
         "description": "NovelAI のアニメ特化拡散モデルを使用。タグベースのプロンプトに対応。"
+      },
+      "volcengine": {
+        "label": "VolcEngine",
+        "description": "火山方舟で ByteDance Seedance 動画モデルを使用。ネイティブ音声対応。"
       }
     },
     "summary": {
@@ -721,6 +727,7 @@
     "referenceBadge": "添付済み",
     "referenceUpload": "画像をドロップまたはクリックしてアップロード",
     "referenceFormats": "JPG, PNG, WebP",
+    "referenceCounter": "{current} / {max} 枚",
     "referencePreviewAlt": "参考画像プレビュー",
     "referenceRemoveLabel": "参考画像を削除",
     "reverseTitle": "画像リバースエンジニアリング",
@@ -913,6 +920,14 @@
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — 音声付き、映画的カメラコントロール"
+    },
+    "seedance15Pro": {
+      "label": "Seedance 1.5 Pro",
+      "description": "VolcEngine — 音声付き、先頭/末尾フレーム、ドラフトモード"
+    },
+    "seedance10Pro": {
+      "label": "Seedance 1.0 Pro",
+      "description": "VolcEngine — 先頭/末尾フレーム制御、安定した品質"
     },
     "klingVideo": {
       "label": "Kling V2.1",

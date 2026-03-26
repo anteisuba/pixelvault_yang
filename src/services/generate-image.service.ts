@@ -237,6 +237,7 @@ export async function generateImageForUser(
       providerConfig: executionRoute.providerConfig,
       apiKey: executionRoute.apiKey,
       referenceImage: input.referenceImage,
+      referenceImages: input.referenceImages,
       advancedParams: input.advancedParams,
     })
   } catch (error) {

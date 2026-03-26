@@ -80,14 +80,22 @@ export const geminiAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    referenceImages,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
     const endpoint = `${baseUrl}/${getExecutionModelId(modelId)}:generateContent`
     const parts: Array<Record<string, unknown>> = [{ text: prompt }]
 
-    if (referenceImage) {
-      parts.push(await getGeminiReferencePart(referenceImage))
+    // Multi-reference images: Gemini Pro supports up to 14 reference images
+    const allRefs = referenceImages?.length
+      ? referenceImages
+      : referenceImage
+        ? [referenceImage]
+        : []
+
+    for (const ref of allRefs) {
+      parts.push(await getGeminiReferencePart(ref))
     }
 
     const response = await fetch(endpoint, {

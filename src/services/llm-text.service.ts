@@ -6,6 +6,7 @@ import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
+import { getSystemApiKey } from '@/lib/platform-keys'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -165,6 +166,19 @@ export async function resolveLlmTextRoute(
       }
     } catch {
       triedProviders.push(`${label} (key decryption failed)`)
+    }
+  }
+
+  // Platform fallback: use system Gemini key for users without their own keys
+  const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.GEMINI)
+  if (platformKey) {
+    return {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.GEMINI],
+        baseUrl: getBaseUrlForAdapter(AI_ADAPTER_TYPES.GEMINI),
+      },
+      apiKey: platformKey,
     }
   }
 

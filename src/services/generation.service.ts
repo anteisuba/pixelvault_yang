@@ -31,6 +31,8 @@ export interface CreateGenerationInput {
   userId?: string
   /** Character card IDs to link via join table (multi-card) */
   characterCardIds?: string[]
+  /** Project ID to associate this generation with */
+  projectId?: string
 }
 
 export interface ListGenerationsOptions {
@@ -128,6 +130,7 @@ export async function createGeneration(
       isPublic: input.isPublic ?? false,
       isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
+      projectId: input.projectId,
     },
   })
 

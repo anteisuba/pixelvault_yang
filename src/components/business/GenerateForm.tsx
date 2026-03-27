@@ -103,9 +103,13 @@ function getTranslatedModelDescription(
 
 interface GenerateFormProps {
   activeCharacterCards?: CharacterCardRecord[]
+  activeProjectId?: string | null
 }
 
-export function GenerateForm({ activeCharacterCards = [] }: GenerateFormProps) {
+export function GenerateForm({
+  activeCharacterCards = [],
+  activeProjectId,
+}: GenerateFormProps) {
   const hasCards = activeCharacterCards.length > 0
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
     `workspace:${AI_MODELS.GEMINI_FLASH_IMAGE}`,
@@ -303,11 +307,13 @@ export function GenerateForm({ activeCharacterCards = [] }: GenerateFormProps) {
         advancedParams: hasAdvanced ? advancedParams : undefined,
         characterCardIds:
           appliedCardIds.length > 0 ? appliedCardIds : undefined,
+        projectId: activeProjectId ?? undefined,
       })
     },
     [
       prompt,
       isGenerating,
+      activeProjectId,
       selectedModel,
       isCardApplied,
       appliedCards,

@@ -56,6 +56,8 @@ export const GenerateRequestSchema = z.object({
   advancedParams: AdvancedParamsSchema.optional(),
   /** Optional character card IDs to link to this generation (multi-card) */
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+  /** Optional project ID to associate this generation with */
+  projectId: z.string().trim().min(1).optional(),
 })
 
 /** Image generation request type (derived from Zod schema) */

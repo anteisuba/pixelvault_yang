@@ -316,6 +316,7 @@ export async function generateImageForUser(
       isFreeGeneration: executionRoute.isFreeGeneration,
       userId: dbUser.id,
       characterCardIds: input.characterCardIds,
+      projectId: input.projectId,
     })
 
     await Promise.all([

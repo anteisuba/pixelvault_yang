@@ -145,7 +145,10 @@ export function StudioWorkspace() {
 
       {/* Form area */}
       {mode === 'image' ? (
-        <GenerateForm activeCharacterCards={activeCards} />
+        <GenerateForm
+          activeCharacterCards={activeCards}
+          activeProjectId={activeProjectId}
+        />
       ) : (
         <VideoGenerateForm />
       )}

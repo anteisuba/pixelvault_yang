@@ -63,7 +63,10 @@ export const ModelName = {
   ModelEloRating: 'ModelEloRating',
   ModelConfig: 'ModelConfig',
   Story: 'Story',
-  StoryPanel: 'StoryPanel'
+  StoryPanel: 'StoryPanel',
+  CharacterCard: 'CharacterCard',
+  UserLike: 'UserLike',
+  UserFollow: 'UserFollow'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -86,6 +89,14 @@ export const UserScalarFieldEnum = {
   id: 'id',
   clerkId: 'clerkId',
   email: 'email',
+  username: 'username',
+  displayName: 'displayName',
+  avatarUrl: 'avatarUrl',
+  avatarStorageKey: 'avatarStorageKey',
+  bannerUrl: 'bannerUrl',
+  bannerStorageKey: 'bannerStorageKey',
+  bio: 'bio',
+  isPublic: 'isPublic',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -142,8 +153,10 @@ export const GenerationScalarFieldEnum = {
   isFreeGeneration: 'isFreeGeneration',
   isPublic: 'isPublic',
   isPromptPublic: 'isPromptPublic',
+  isFeatured: 'isFeatured',
   userId: 'userId',
-  projectId: 'projectId'
+  projectId: 'projectId',
+  characterCardId: 'characterCardId'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
@@ -293,6 +306,52 @@ export const StoryPanelScalarFieldEnum = {
 } as const
 
 export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof typeof StoryPanelScalarFieldEnum]
+
+
+export const CharacterCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  sourceImages: 'sourceImages',
+  sourceImageEntries: 'sourceImageEntries',
+  characterPrompt: 'characterPrompt',
+  modelPrompts: 'modelPrompts',
+  referenceImages: 'referenceImages',
+  attributes: 'attributes',
+  tags: 'tags',
+  status: 'status',
+  stabilityScore: 'stabilityScore',
+  isDeleted: 'isDeleted',
+  parentId: 'parentId',
+  variantLabel: 'variantLabel',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
+
+
+export const UserLikeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  createdAt: 'createdAt'
+} as const
+
+export type UserLikeScalarFieldEnum = (typeof UserLikeScalarFieldEnum)[keyof typeof UserLikeScalarFieldEnum]
+
+
+export const UserFollowScalarFieldEnum = {
+  id: 'id',
+  followerId: 'followerId',
+  followingId: 'followingId',
+  createdAt: 'createdAt'
+} as const
+
+export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -10,6 +10,7 @@ import { GenerateForm } from '@/components/business/GenerateForm'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import { ProjectSelector } from '@/components/business/ProjectSelector'
 import { HistoryPanel } from '@/components/business/HistoryPanel'
+import { CharacterCardManager } from '@/components/business/CharacterCardManager'
 
 const VideoGenerateForm = dynamic(
   () => import('@/components/business/VideoGenerateForm'),
@@ -17,6 +18,7 @@ const VideoGenerateForm = dynamic(
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { useProjects } from '@/hooks/use-projects'
+import { useCharacterCards } from '@/hooks/use-character-cards'
 import { cn } from '@/lib/utils'
 
 type StudioMode = 'image' | 'video'
@@ -44,6 +46,17 @@ export function StudioWorkspace() {
     loadMoreHistory,
   } = useProjects()
 
+  const {
+    cards: characterCards,
+    activeCardId,
+    isLoading: isLoadingCards,
+    setActiveCardId,
+    findCard,
+    create: createCard,
+    update: updateCard,
+    remove: removeCard,
+  } = useCharacterCards()
+
   const handleRename = useCallback(
     async (id: string, name: string) => {
       return updateProject(id, { name })
@@ -62,6 +75,17 @@ export function StudioWorkspace() {
         onCreate={createProject}
         onRename={handleRename}
         onDelete={removeProject}
+      />
+
+      {/* Character cards */}
+      <CharacterCardManager
+        cards={characterCards}
+        activeCardId={activeCardId}
+        isLoading={isLoadingCards}
+        onSelect={setActiveCardId}
+        onCreate={createCard}
+        onUpdate={updateCard}
+        onDelete={removeCard}
       />
 
       {/* Mode switch + free quota */}
@@ -119,7 +143,13 @@ export function StudioWorkspace() {
       </div>
 
       {/* Form area */}
-      {mode === 'image' ? <GenerateForm /> : <VideoGenerateForm />}
+      {mode === 'image' ? (
+        <GenerateForm
+          activeCharacterCard={activeCardId ? findCard(activeCardId) : null}
+        />
+      ) : (
+        <VideoGenerateForm />
+      )}
 
       {/* Project history panel */}
       <HistoryPanel

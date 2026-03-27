@@ -35,3 +35,13 @@ export const GenerationJobStatus = {
 } as const
 
 export type GenerationJobStatus = (typeof GenerationJobStatus)[keyof typeof GenerationJobStatus]
+
+
+export const CharacterCardStatus = {
+  DRAFT: 'DRAFT',
+  REFINING: 'REFINING',
+  STABLE: 'STABLE',
+  ARCHIVED: 'ARCHIVED'
+} as const
+
+export type CharacterCardStatus = (typeof CharacterCardStatus)[keyof typeof CharacterCardStatus]

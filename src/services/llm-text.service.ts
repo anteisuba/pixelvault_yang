@@ -12,10 +12,12 @@ import { decryptApiKey } from '@/lib/crypto'
 export interface LlmTextInput {
   systemPrompt: string
   userPrompt: string
-  imageData?: string // base64 data URL for multimodal
+  imageData?: string | string[] // base64 data URL(s) for multimodal (single or multiple images)
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
+  /** Enable web search grounding (Gemini google_search / OpenAI web_search) */
+  useGrounding?: boolean
 }
 
 export interface ResolvedLlmTextRoute {
@@ -56,16 +58,47 @@ const OpenAiChatResponseSchema = z.object({
 
 // ─── LLM Text Models ────────────────────────────────────────────
 
-const LLM_TEXT_MODELS = {
+/** Text-capable LLM adapter types */
+const LLM_TEXT_ADAPTERS = [
+  AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.VOLCENGINE,
+] as const
+
+type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
+
+function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
+  return (LLM_TEXT_ADAPTERS as readonly AI_ADAPTER_TYPES[]).includes(t)
+}
+
+const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'gemini-2.5-flash-lite',
   [AI_ADAPTER_TYPES.OPENAI]: 'gpt-4.1-nano',
-} as const
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-1.5-pro-32k',
+}
+
+const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
+  [AI_ADAPTER_TYPES.GEMINI]: 'Gemini',
+  [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'VolcEngine',
+}
+
+function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
+  switch (adapterType) {
+    case AI_ADAPTER_TYPES.GEMINI:
+      return AI_PROVIDER_ENDPOINTS.GEMINI
+    case AI_ADAPTER_TYPES.OPENAI:
+      return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+    case AI_ADAPTER_TYPES.VOLCENGINE:
+      return AI_PROVIDER_ENDPOINTS.VOLCENGINE
+  }
+}
 
 // ─── Route Resolution ────────────────────────────────────────────
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: specified apiKeyId → user Gemini key → user OpenAI key
+ * Priority: specified apiKeyId → user Gemini key → user OpenAI key → user VolcEngine key
  */
 export async function resolveLlmTextRoute(
   userId: string,
@@ -84,35 +117,27 @@ export async function resolveLlmTextRoute(
     }
 
     const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
-    if (
-      adapterType !== AI_ADAPTER_TYPES.GEMINI &&
-      adapterType !== AI_ADAPTER_TYPES.OPENAI
-    ) {
+    if (!isLlmTextAdapter(adapterType)) {
       throw new Error(
-        'The selected API key does not support text completion (requires Gemini or OpenAI). Please bind a Gemini or OpenAI key.',
+        'The selected API key does not support text completion (requires Gemini, OpenAI, or VolcEngine). Please bind a compatible key.',
       )
     }
 
     const keyValue = decryptApiKey(specificKey.encryptedKey)
-    const label = adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
     return {
       adapterType,
       providerConfig: {
-        label,
-        baseUrl:
-          adapterType === AI_ADAPTER_TYPES.GEMINI
-            ? AI_PROVIDER_ENDPOINTS.GEMINI
-            : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
+        label: LLM_TEXT_LABELS[adapterType],
+        baseUrl: getBaseUrlForAdapter(adapterType),
       },
       apiKey: keyValue,
     }
   }
 
-  const preferenceOrder = [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI]
   const triedProviders: string[] = []
 
-  for (const adapterType of preferenceOrder) {
-    const label = adapterType === AI_ADAPTER_TYPES.GEMINI ? 'Gemini' : 'OpenAI'
+  for (const adapterType of LLM_TEXT_ADAPTERS) {
+    const label = LLM_TEXT_LABELS[adapterType]
 
     const userKey = await db.userApiKey.findFirst({
       where: {
@@ -134,10 +159,7 @@ export async function resolveLlmTextRoute(
         adapterType,
         providerConfig: {
           label,
-          baseUrl:
-            adapterType === AI_ADAPTER_TYPES.GEMINI
-              ? AI_PROVIDER_ENDPOINTS.GEMINI
-              : AI_PROVIDER_ENDPOINTS.OPENAI_CHAT,
+          baseUrl: getBaseUrlForAdapter(adapterType),
         },
         apiKey: keyValue,
       }
@@ -148,7 +170,7 @@ export async function resolveLlmTextRoute(
 
   const tried = triedProviders.join(', ')
   throw new Error(
-    `No API key available. Tried: ${tried}. Please add a Gemini or OpenAI API key in Settings > API Keys.`,
+    `No API key available. Tried: ${tried}. Please add a Gemini, OpenAI, or VolcEngine API key in Settings > API Keys.`,
   )
 }
 
@@ -161,16 +183,21 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   const parts: Array<Record<string, unknown>> = []
 
-  // Add image if multimodal
+  // Add image(s) if multimodal
   if (input.imageData) {
-    const dataUrlMatch = input.imageData.match(/^data:([^;]+);base64,(.+)$/)
-    if (dataUrlMatch) {
-      parts.push({
-        inlineData: {
-          mimeType: dataUrlMatch[1],
-          data: dataUrlMatch[2],
-        },
-      })
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    for (const img of images) {
+      const dataUrlMatch = img.match(/^data:([^;]+);base64,(.+)$/)
+      if (dataUrlMatch) {
+        parts.push({
+          inlineData: {
+            mimeType: dataUrlMatch[1],
+            data: dataUrlMatch[2],
+          },
+        })
+      }
     }
   }
 
@@ -190,6 +217,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       generationConfig: {
         responseModalities: ['TEXT'],
       },
+      ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
     }),
   })
 
@@ -219,16 +247,15 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   ]
 
   if (input.imageData) {
-    messages.push({
-      role: 'user',
-      content: [
-        {
-          type: 'image_url',
-          image_url: { url: input.imageData },
-        },
-        { type: 'text', text: input.userPrompt },
-      ],
-    })
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    const content: Array<Record<string, unknown>> = images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: img },
+    }))
+    content.push({ type: 'text', text: input.userPrompt })
+    messages.push({ role: 'user', content })
   } else {
     messages.push({ role: 'user', content: input.userPrompt })
   }
@@ -243,6 +270,9 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
       model: modelId,
       messages,
       max_tokens: 1024,
+      ...(input.useGrounding
+        ? { tools: [{ type: 'web_search_preview' }] }
+        : {}),
     }),
   })
 
@@ -261,6 +291,76 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
   return content.trim()
 }
 
+/**
+ * VolcEngine (豆包) text completion — OpenAI-compatible chat API.
+ * Supports vision (image_url in content) and web search via plugin.
+ */
+async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
+  const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.VOLCENGINE]
+  const baseUrl =
+    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.VOLCENGINE
+  const endpoint = `${baseUrl}/chat/completions`
+
+  const messages: Array<Record<string, unknown>> = [
+    { role: 'system', content: input.systemPrompt },
+  ]
+
+  if (input.imageData) {
+    const images = Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    const content: Array<Record<string, unknown>> = images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: img },
+    }))
+    content.push({ type: 'text', text: input.userPrompt })
+    messages.push({ role: 'user', content })
+  } else {
+    messages.push({ role: 'user', content: input.userPrompt })
+  }
+
+  const body: Record<string, unknown> = {
+    model: modelId,
+    messages,
+    max_tokens: 1024,
+  }
+
+  // VolcEngine web search: use built-in web_search plugin
+  if (input.useGrounding) {
+    body.tools = [
+      {
+        type: 'web_search',
+        web_search: { enable: true, search_query: input.userPrompt },
+      },
+    ]
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new Error(
+      `VolcEngine text API error (${response.status}): ${errorBody}`,
+    )
+  }
+
+  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const content = data.choices[0]?.message?.content
+
+  if (!content) {
+    throw new Error('No text response from VolcEngine')
+  }
+
+  return content.trim()
+}
+
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
@@ -273,6 +373,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return geminiTextCompletion(input)
     case AI_ADAPTER_TYPES.OPENAI:
       return openAiTextCompletion(input)
+    case AI_ADAPTER_TYPES.VOLCENGINE:
+      return volcengineTextCompletion(input)
     default:
       throw new Error(
         `LLM text completion not supported for adapter: ${input.adapterType}`,

@@ -218,14 +218,22 @@ export function ProjectSelector({
                   </div>
                 ) : (
                   /* Normal item */
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       onSelect(project.id)
                       setIsOpen(false)
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelect(project.id)
+                        setIsOpen(false)
+                      }
+                    }}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                      'flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                       'hover:bg-accent',
                       activeProjectId === project.id &&
                         'bg-primary/10 font-medium text-primary',
@@ -267,7 +275,7 @@ export function ProjectSelector({
                         <Trash2 className="size-3" />
                       </button>
                     </span>
-                  </button>
+                  </div>
                 )}
               </div>
             ))}

@@ -28,14 +28,29 @@ enum GenerationJobStatus {
   FAILED
 }
 
+enum CharacterCardStatus {
+  DRAFT
+  REFINING
+  STABLE
+  ARCHIVED
+}
+
 // ─── Models ───────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  clerkId     String   @unique
+  email       String   @unique
+  username    String?  @unique
+  displayName String?
+  avatarUrl        String?
+  avatarStorageKey String?
+  bannerUrl        String?
+  bannerStorageKey String?
+  bio              String?  @db.Text
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   generations    Generation[]
   userApiKeys    UserApiKey[]
@@ -45,6 +60,12 @@ model User {
   arenaMatches   ArenaMatch[]
   stories        Story[]
   projects       Project[]
+  characterCards CharacterCard[]
+  likesGiven     UserLike[]     @relation("LikesGiven")
+  followsGiven   UserFollow[]   @relation("FollowsGiven")
+  followsReceived UserFollow[]  @relation("FollowsReceived")
+
+  @@index([username])
 }
 
 model Project {
@@ -115,22 +136,28 @@ model Generation {
   // ── 可見性 ────────────────────────────────────────────────────
   isPublic       Boolean @default(false)
   isPromptPublic Boolean @default(false)
+  isFeatured     Boolean @default(false)
 
   // ── 關聯 ──────────────────────────────────────────────────────
   userId         String?
   user           User?            @relation(fields: [userId], references: [id])
   projectId      String?
   project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  characterCardId String?
+  characterCard   CharacterCard?   @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
   arenaEntries   ArenaEntry[]
   storyPanels    StoryPanel[]
+  likes          UserLike[]
 
   @@index([userId])
+  @@index([userId, isFeatured, isPublic, createdAt(sort: Desc)])
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
   @@index([userId, isPublic, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
+  @@index([characterCardId, createdAt(sort: Desc)])
 }
 
 model GenerationJob {
@@ -290,4 +317,65 @@ model StoryPanel {
 
   @@unique([storyId, orderIndex])
   @@index([storyId, orderIndex])
+}
+
+model CharacterCard {
+  id               String              @id @default(uuid())
+  userId           String
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?             @db.Text
+  sourceImageUrl   String              // Primary source image URL (first uploaded)
+  sourceStorageKey String
+  sourceImages     Json?               // string[] — all uploaded source image URLs (legacy flat)
+  sourceImageEntries Json?             // SourceImageEntry[] — structured with viewType
+  characterPrompt  String              @db.Text
+  modelPrompts     Json?               // Record<adapterType, optimizedPrompt>
+  referenceImages  Json?               // string[] — best generation R2 URLs
+  attributes       Json?               // CharacterAttributes structured data
+  tags             String[]            @default([])
+  status           CharacterCardStatus @default(DRAFT)
+  stabilityScore   Float?
+  isDeleted        Boolean             @default(false)
+
+  // ── Variant system (folder-like) ────────────────────────────
+  parentId         String?             // null = root card, set = variant of parent
+  parent           CharacterCard?      @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
+  variants         CharacterCard[]     @relation("CharacterCardVariants")
+  variantLabel     String?             // e.g. "Anime Style", "3D Model", "Chibi"
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  generations Generation[]
+
+  @@index([userId, isDeleted, updatedAt(sort: Desc)])
+  @@index([userId, status, isDeleted])
+  @@index([parentId, isDeleted, updatedAt(sort: Desc)])
+}
+
+model UserLike {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation("LikesGiven", fields: [userId], references: [id], onDelete: Cascade)
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, generationId])
+  @@index([generationId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model UserFollow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("FollowsGiven", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("FollowsReceived", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId, createdAt(sort: Desc)])
 }

@@ -14,6 +14,8 @@ import {
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { isCjkLocale } from '@/i18n/routing'
+import { Link } from '@/i18n/navigation'
+import { creatorProfilePath } from '@/constants/routes'
 
 import type { GenerationRecord } from '@/types'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
@@ -169,6 +171,39 @@ export const ImageCard = memo(function ImageCard({
               <ArrowUpRight className="size-3.5" />
             </button>
           </div>
+
+          {/* Creator attribution */}
+          {generation.creator?.username && !showVisibility && (
+            <Link
+              href={creatorProfilePath(generation.creator.username)}
+              className="flex items-center gap-2 group/creator"
+            >
+              {generation.creator.avatarUrl ? (
+                <Image
+                  src={generation.creator.avatarUrl}
+                  alt={
+                    generation.creator.displayName ??
+                    generation.creator.username
+                  }
+                  width={20}
+                  height={20}
+                  className="size-5 rounded-full object-cover"
+                />
+              ) : (
+                <span className="size-5 rounded-full bg-muted flex items-center justify-center text-3xs font-medium text-muted-foreground">
+                  {(
+                    generation.creator.displayName ??
+                    generation.creator.username
+                  )
+                    .charAt(0)
+                    .toUpperCase()}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground group-hover/creator:text-foreground transition-colors truncate">
+                {generation.creator.displayName ?? generation.creator.username}
+              </span>
+            </Link>
+          )}
 
           {showVisibility || generation.isPromptPublic ? (
             <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">

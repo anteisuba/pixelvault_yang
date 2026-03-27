@@ -51,6 +51,11 @@ export const API_ENDPOINTS = {
   /** Prompt enhancement */
   ENHANCE_PROMPT: '/api/prompt/enhance',
 
+  /** Prompt feedback (AI coaching) */
+  PROMPT_FEEDBACK: '/api/prompt/feedback',
+  /** Generation feedback (iterative refinement) */
+  GENERATION_FEEDBACK: '/api/generation/feedback',
+
   /** Image reverse engineering */
   ANALYZE_IMAGE: '/api/image/analyze',
   /** Image editing (upscale, remove background) */
@@ -74,6 +79,9 @@ export const API_ENDPOINTS = {
   /** Projects */
   PROJECTS: '/api/projects',
 
+  /** Character Cards */
+  CHARACTER_CARDS: '/api/character-cards',
+
   /** Public model list (merged DB + hardcoded) */
   MODELS: '/api/models',
 
@@ -82,6 +90,19 @@ export const API_ENDPOINTS = {
 
   /** Admin model management */
   ADMIN_MODELS: '/api/admin/models',
+
+  /** Creator Profile */
+  USERS: '/api/users',
+  USER_PROFILE: '/api/users/me/profile',
+  AVATAR_SYNC: '/api/users/me/avatar-sync',
+  UPLOAD_AVATAR: '/api/users/me/avatar',
+  UPLOAD_BANNER: '/api/users/me/banner',
+
+  /** Likes */
+  LIKES: '/api/likes',
+
+  /** Follows */
+  FOLLOWS: '/api/follows',
 } as const
 
 /** Project configuration */
@@ -94,6 +115,54 @@ export const PROJECT = {
   MAX_PROJECTS_PER_USER: 50,
   /** History panel page size */
   HISTORY_PAGE_SIZE: 20,
+} as const
+
+/** Creator profile configuration */
+export const PROFILE = {
+  USERNAME_MIN_LENGTH: 3,
+  USERNAME_MAX_LENGTH: 30,
+  USERNAME_PATTERN: /^[a-zA-Z][a-zA-Z0-9-]*$/ as RegExp,
+  BIO_MAX_LENGTH: 200,
+  DISPLAY_NAME_MAX_LENGTH: 50,
+  /** Images per page on public profile Polaroid grid */
+  POLAROID_PAGE_SIZE: 15,
+  /** Max rotation degrees for Polaroid scatter */
+  POLAROID_MAX_ROTATION: 15,
+  /** Max random offset in px for Polaroid scatter */
+  POLAROID_MAX_OFFSET: 8,
+  /** Reduced rotation range for 1-3 images */
+  POLAROID_FEW_ROTATION: 8,
+  /** Polaroid card border color (design system) */
+  POLAROID_BORDER_COLOR: '#e8e6dc',
+  /** Avatar/banner upload limits */
+  AVATAR_MAX_SIZE_BYTES: 5 * 1024 * 1024, // 5 MB
+  BANNER_MAX_SIZE_BYTES: 10 * 1024 * 1024, // 10 MB
+  SUPPORTED_IMAGE_TYPES: [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ] as readonly string[],
+  /** Reserved usernames that cannot be claimed */
+  RESERVED_USERNAMES: [
+    'admin',
+    'api',
+    'settings',
+    'profile',
+    'u',
+    'gallery',
+    'studio',
+    'arena',
+    'feed',
+    'explore',
+    'search',
+    'help',
+    'about',
+    'terms',
+    'privacy',
+    'login',
+    'signup',
+    'register',
+  ] as readonly string[],
 } as const
 
 /** Arena configuration */

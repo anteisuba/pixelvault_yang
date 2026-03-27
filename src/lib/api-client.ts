@@ -13,6 +13,10 @@ import type {
   UsageSummary,
   EnhancePromptRequest,
   EnhancePromptResponse,
+  PromptFeedbackRequest,
+  PromptFeedbackResponse,
+  GenerationFeedbackRequest,
+  GenerationFeedbackResponse,
   AnalyzeImageRequest,
   AnalyzeImageResponse,
   GenerateVariationsRequest,
@@ -39,6 +43,19 @@ import type {
   ProjectsResponse,
   ProjectResponse,
   ProjectHistoryResponse,
+  CreateCharacterCardRequest,
+  UpdateCharacterCardRequest,
+  RefineCharacterCardRequest,
+  CharacterCardResponse,
+  CharacterCardsResponse,
+  CharacterCardRefineResponse,
+  ConsistencyScoreResponse,
+  CreatorProfilePageResponse,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
+  ToggleLikeResponse,
+  ToggleFollowResponse,
+  UploadProfileImageResponse,
 } from '@/types'
 import { UsageSummarySchema } from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
@@ -329,6 +346,62 @@ export async function enhancePromptAPI(
       const message = await getErrorMessage(
         response,
         `Enhancement failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Prompt Feedback ─────────────────────────────────────────────
+
+export async function promptFeedbackAPI(
+  params: PromptFeedbackRequest,
+): Promise<PromptFeedbackResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.PROMPT_FEEDBACK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Feedback failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Generation Feedback (Iterative Refinement) ─────────────────
+
+export async function generationFeedbackAPI(
+  params: GenerationFeedbackRequest,
+): Promise<GenerationFeedbackResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATION_FEEDBACK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Generation feedback failed with status ${response.status}`,
       )
       return { success: false, error: message }
     }
@@ -989,6 +1062,366 @@ export async function editImageAPI(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, imageUrl }),
     })
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Character Cards ────────────────────────────────────────────
+
+export async function listCharacterCardsAPI(): Promise<CharacterCardsResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function createCharacterCardAPI(
+  data: CreateCharacterCardRequest,
+): Promise<CharacterCardResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function getCharacterCardAPI(
+  id: string,
+): Promise<CharacterCardResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function updateCharacterCardAPI(
+  id: string,
+  data: UpdateCharacterCardRequest,
+): Promise<CharacterCardResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function deleteCharacterCardAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
+      method: 'DELETE',
+    })
+    if (response.status === 204) return { success: true }
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return { success: true }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function refineCharacterCardAPI(
+  id: string,
+  params: RefineCharacterCardRequest,
+): Promise<CharacterCardRefineResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/refine`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Refinement failed'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function scoreCharacterCardAPI(
+  id: string,
+  generationId: string,
+): Promise<ConsistencyScoreResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/score`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ generationId }),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Scoring failed'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Creator Profile ────────────────────────────────────────────
+
+export async function getCreatorProfileAPI(
+  username: string,
+  page: number = 1,
+  limit?: number,
+): Promise<CreatorProfilePageResponse> {
+  try {
+    const params = new URLSearchParams({ page: String(page) })
+    if (limit) params.set('limit', String(limit))
+    const response = await fetch(
+      `${API_ENDPOINTS.USERS}/${encodeURIComponent(username)}?${params.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to fetch profile'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function getMyProfileAPI(): Promise<UpdateProfileResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.USER_PROFILE)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to fetch profile'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function updateProfileAPI(
+  data: UpdateProfileRequest,
+): Promise<UpdateProfileResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.USER_PROFILE, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to update profile'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function syncAvatarAPI(): Promise<{
+  success: boolean
+  data?: { avatarUrl: string | null }
+  error?: string
+}> {
+  try {
+    const response = await fetch(API_ENDPOINTS.AVATAR_SYNC, { method: 'POST' })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to sync avatar'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function uploadAvatarAPI(
+  imageData: string,
+): Promise<UploadProfileImageResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.UPLOAD_AVATAR, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to upload avatar'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function uploadBannerAPI(
+  imageData: string,
+): Promise<UploadProfileImageResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.UPLOAD_BANNER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to upload banner'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Likes ──────────────────────────────────────────────────────
+
+export async function toggleLikeAPI(
+  generationId: string,
+): Promise<ToggleLikeResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.LIKES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generationId }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to toggle like'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Follows ────────────────────────────────────────────────────
+
+export async function toggleFollowAPI(
+  targetUserId: string,
+): Promise<ToggleFollowResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.FOLLOWS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to toggle follow'),
+      }
+    }
     return await response.json()
   } catch (error) {
     const message =

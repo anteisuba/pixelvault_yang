@@ -1,18 +1,21 @@
 'use client'
 
 import { SignedIn, SignedOut } from '@clerk/nextjs'
+import Image from 'next/image'
 import { Coins, UserCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
+import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 export function Navbar() {
   const { summary, isLoading } = useUsageSummary()
+  const { profile: myProfile } = useMyProfile()
   const t = useTranslations('Navbar')
   const tCommon = useTranslations('Common')
   const pathname = usePathname()
@@ -99,11 +102,25 @@ export function Navbar() {
               </span>
             </div>
             <Link
-              href={ROUTES.PROFILE}
-              className="flex size-8 items-center justify-center rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
+              href={
+                myProfile?.username
+                  ? creatorProfilePath(myProfile.username)
+                  : ROUTES.PROFILE
+              }
+              className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
               aria-label={t('links.library')}
             >
-              <UserCircle className="size-4.5" />
+              {myProfile?.avatarUrl ? (
+                <Image
+                  src={myProfile.avatarUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-full rounded-full object-cover"
+                />
+              ) : (
+                <UserCircle className="size-4.5" />
+              )}
             </Link>
           </SignedIn>
 

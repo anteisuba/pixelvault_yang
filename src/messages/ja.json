@@ -1176,6 +1176,8 @@
     "unsupportedImageType": "JPEG、PNG、WebP形式を使用してください",
     "avatarTooLarge": "アバターは5MB以下にしてください",
     "bannerTooLarge": "カバー画像は10MB以下にしてください",
+    "privateProfile": "このプロフィールは非公開です",
+    "privateProfileHint": "クリエイターがプロフィールを非公開に設定しています",
     "noPublicImages": "公開画像はまだありません",
     "startCreating": "スタジオで制作を始める",
     "loadMore": "もっと見る",

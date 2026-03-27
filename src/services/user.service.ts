@@ -320,6 +320,12 @@ export async function getCreatorProfile(
       viewerRelation: ViewerRelation
       userId: string
     })
+  | {
+      private: true
+      username: string
+      displayName: string | null
+      avatarUrl: string | null
+    }
   | null
 > {
   const user = await db.user.findUnique({
@@ -336,7 +342,18 @@ export async function getCreatorProfile(
     },
   })
 
-  if (!user || !user.isPublic || !user.username) return null
+  if (!user || !user.username) return null
+
+  // Allow owner to view their own profile even if not public
+  const isOwnProfile = viewerUserId === user.id
+  if (!user.isPublic && !isOwnProfile) {
+    return {
+      private: true as const,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    }
+  }
 
   // Fetch counts in parallel
   const [publicImageCount, likeCount, followerCount, followingCount] =
@@ -375,7 +392,6 @@ export async function getCreatorProfile(
 
   // Viewer relation
   let isFollowing = false
-  const isOwnProfile = viewerUserId === user.id
   if (viewerUserId && !isOwnProfile) {
     const follow = await db.userFollow.findUnique({
       where: {

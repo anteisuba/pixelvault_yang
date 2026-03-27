@@ -12,6 +12,7 @@ const publicLocaleRoutes = LOCALES.flatMap((locale) => [
   `/${locale}${ROUTES.GALLERY}/(.*)`,
   `/${locale}${ROUTES.SIGN_IN}(.*)`,
   `/${locale}${ROUTES.SIGN_UP}(.*)`,
+  `/${locale}${ROUTES.CREATOR_PROFILE}/(.*)`,
 ])
 
 const isPublicRoute = createRouteMatcher([
@@ -26,7 +27,11 @@ export default clerkMiddleware(async (auth, request) => {
 
   // Skip i18n handling for API routes
   if (pathname.startsWith('/api')) {
-    if (!isPublicRoute(request)) {
+    // /api/users/:username is public, but /api/users/me/* requires auth
+    const isPublicUserApi =
+      pathname.startsWith('/api/users/') &&
+      !pathname.startsWith('/api/users/me')
+    if (!isPublicRoute(request) && !isPublicUserApi) {
       await auth.protect()
     }
     return

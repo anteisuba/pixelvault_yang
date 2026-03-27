@@ -249,9 +249,34 @@ export async function getPublicGenerations({
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
+    include: {
+      user: {
+        select: {
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
   })
+
+  // Map creator info onto records
+  const mapped = results.map((r) => {
+    const { user, ...rest } = r
+    return {
+      ...rest,
+      creator: user?.username
+        ? {
+            username: user.username,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+          }
+        : null,
+    }
+  })
+
   // Owner sees full data; public viewers get redacted prompts
-  return userId ? results : redactPrompts(results)
+  return userId ? mapped : redactPrompts(mapped)
 }
 
 /**

@@ -119,10 +119,12 @@ Items ordered by execution priority. Work top-down.
 - [x] Gallery 图片加 "用这个 Prompt 生成" 按钮（一键跳转 Studio 并填入）
 - [x] 分享链接携带 Prompt 参数（Studio 读取 URL ?prompt=&model= 预填）
 
-### D2. Arena 升级
-- [ ] **公共竞技场 vs 个人竞技场** — 区分公共 ELO 排行和个人历史对比记录
-- [ ] Arena 排行展示页 — 精美的模型对比页，适合 SEO 和社交传播
-- [ ] **模型版本追踪对比** — 同一模型不同版本的输出对比（如 FLUX 2 Pro v1.0 vs v1.1）
+### D2. Arena 升级 ✅
+- [x] **个人竞技场** — 对战历史 + 个人模型统计（/arena/history 页面，含 ArenaHistory + ArenaPersonalStats 组件）
+- [x] Arena 排行升级 — 领奖台卡片 Top 3 + 模型系列筛选 + modelFamily 字段
+- [x] **模型系列追踪** — ModelEloRating 新增 modelFamily 字段 + MODEL_FAMILIES 常量映射
+- [x] API 路由：GET /api/arena/history + GET /api/arena/personal-stats（含 8 个新测试）
+- [x] i18n 三语言同步（ArenaHistory / ArenaPersonalStats / ArenaLeaderboard 增强）
 
 ### D2.5. Landing Page 叙事强化 ✅
 - [x] 突出"你的 Key、你的图、零加价"核心差异化
@@ -236,18 +238,18 @@ Items ordered by execution priority. Work top-down.
 - [x] `ReferenceImageSection` 重写：缩略图网格 + 内联添加按钮 + 计数器
 - [x] GenerateForm / ArenaForm / VideoGenerateForm 全部适配
 
-### W2. 项目系统 (进行中)
+### W2. 项目系统 ✅
 - [x] Prisma: `Project` model + `Generation.projectId` nullable FK
 - [x] Migration 已部署
 - [x] `project.service.ts` — CRUD + 历史查询 + 软删除
 - [x] Types: `CreateProjectSchema` / `UpdateProjectSchema` / `ProjectRecord`
 - [x] Constants: `API_ENDPOINTS.PROJECTS` / `PROJECT` config
-- [x] API route: `GET/POST /api/projects`（已创建，`/api/projects/[id]` 待完成）
-- [ ] API route: `PUT/DELETE /api/projects/[id]`
-- [ ] `api-client.ts` 客户端函数
-- [ ] `useProjects` hook
-- [ ] ProjectSelector UI（Studio 顶部项目切换器）
-- [ ] HistoryPanel 侧栏（当前项目生成历史缩略图网格）
+- [x] API route: `GET/POST /api/projects` + `PUT/DELETE /api/projects/[id]` + `GET /api/projects/[id]/history`
+- [x] `api-client.ts` 客户端函数（list / create / update / delete / history）
+- [x] `useProjects` hook（CRUD + 历史分页 + activeProjectId 状态）
+- [x] ProjectSelector UI（Studio 顶部项目切换器，含内联新建/重命名/删除确认）
+- [x] HistoryPanel（当前项目生成历史缩略图网格，支持分页加载）
+- [x] i18n 三语言同步（en/ja/zh）
 
 ### W3. 视频风格统一 + 续接（未开始）
 - [ ] 项目级风格参考图锚定

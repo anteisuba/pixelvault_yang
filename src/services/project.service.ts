@@ -8,6 +8,7 @@ import type {
   ProjectRecord,
   GenerationRecord,
 } from '@/types'
+import { ensureUser } from '@/services/user.service'
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -47,9 +48,10 @@ const projectSelect = {
 
 // ─── CRUD ────────────────────────────────────────────────────────
 
-export async function listProjects(userId: string): Promise<ProjectRecord[]> {
+export async function listProjects(clerkId: string): Promise<ProjectRecord[]> {
+  const dbUser = await ensureUser(clerkId)
   const projects = await db.project.findMany({
-    where: { userId, isDeleted: false },
+    where: { userId: dbUser.id, isDeleted: false },
     select: projectSelect,
     orderBy: { updatedAt: 'desc' },
   })
@@ -57,12 +59,14 @@ export async function listProjects(userId: string): Promise<ProjectRecord[]> {
 }
 
 export async function createProject(
-  userId: string,
+  clerkId: string,
   data: CreateProjectRequest,
 ): Promise<ProjectRecord> {
+  const dbUser = await ensureUser(clerkId)
+
   // Enforce max projects limit
   const count = await db.project.count({
-    where: { userId, isDeleted: false },
+    where: { userId: dbUser.id, isDeleted: false },
   })
   if (count >= PROJECT.MAX_PROJECTS_PER_USER) {
     throw new Error(`Maximum ${PROJECT.MAX_PROJECTS_PER_USER} projects allowed`)
@@ -70,7 +74,7 @@ export async function createProject(
 
   const project = await db.project.create({
     data: {
-      userId,
+      userId: dbUser.id,
       name: data.name,
       description: data.description,
     },
@@ -80,12 +84,13 @@ export async function createProject(
 }
 
 export async function updateProject(
-  userId: string,
+  clerkId: string,
   projectId: string,
   data: UpdateProjectRequest,
 ): Promise<ProjectRecord> {
+  const dbUser = await ensureUser(clerkId)
   const project = await db.project.update({
-    where: { id: projectId, userId, isDeleted: false },
+    where: { id: projectId, userId: dbUser.id, isDeleted: false },
     data: {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.description !== undefined && { description: data.description }),
@@ -96,17 +101,18 @@ export async function updateProject(
 }
 
 export async function deleteProject(
-  userId: string,
+  clerkId: string,
   projectId: string,
 ): Promise<void> {
+  const dbUser = await ensureUser(clerkId)
   // Soft delete — generations are moved back to "no project" (null)
   await db.$transaction([
     db.generation.updateMany({
-      where: { projectId, userId },
+      where: { projectId, userId: dbUser.id },
       data: { projectId: null },
     }),
     db.project.update({
-      where: { id: projectId, userId, isDeleted: false },
+      where: { id: projectId, userId: dbUser.id, isDeleted: false },
       data: { isDeleted: true },
     }),
   ])
@@ -115,7 +121,7 @@ export async function deleteProject(
 // ─── Project History (generations in a project) ──────────────────
 
 export async function getProjectHistory(
-  userId: string,
+  clerkId: string,
   projectId: string | null,
   cursor?: string,
   limit: number = PROJECT.HISTORY_PAGE_SIZE,
@@ -124,8 +130,9 @@ export async function getProjectHistory(
   total: number
   hasMore: boolean
 }> {
+  const dbUser = await ensureUser(clerkId)
   const where = {
-    userId,
+    userId: dbUser.id,
     projectId: projectId,
   }
 
@@ -172,12 +179,13 @@ export async function getProjectHistory(
 // ─── Assign generation to project ────────────────────────────────
 
 export async function assignGenerationToProject(
-  userId: string,
+  clerkId: string,
   generationId: string,
   projectId: string | null,
 ): Promise<void> {
+  const dbUser = await ensureUser(clerkId)
   await db.generation.update({
-    where: { id: generationId, userId },
+    where: { id: generationId, userId: dbUser.id },
     data: { projectId },
   })
 }

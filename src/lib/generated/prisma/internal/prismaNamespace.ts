@@ -396,7 +396,10 @@ export const ModelName = {
   ModelEloRating: 'ModelEloRating',
   ModelConfig: 'ModelConfig',
   Story: 'Story',
-  StoryPanel: 'StoryPanel'
+  StoryPanel: 'StoryPanel',
+  CharacterCard: 'CharacterCard',
+  UserLike: 'UserLike',
+  UserFollow: 'UserFollow'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -412,7 +415,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "userLike" | "userFollow"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1378,6 +1381,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterCard: {
+      payload: Prisma.$CharacterCardPayload<ExtArgs>
+      fields: Prisma.CharacterCardFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterCardFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterCardFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterCardFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterCardFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterCardFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterCardCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterCardCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterCardCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterCardDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        update: {
+          args: Prisma.CharacterCardUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterCardDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterCardUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterCardUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterCardUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterCardAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterCard>
+        }
+        groupBy: {
+          args: Prisma.CharacterCardGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterCardCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardCountAggregateOutputType> | number
+        }
+      }
+    }
+    UserLike: {
+      payload: Prisma.$UserLikePayload<ExtArgs>
+      fields: Prisma.UserLikeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserLikeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserLikeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        findFirst: {
+          args: Prisma.UserLikeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserLikeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        findMany: {
+          args: Prisma.UserLikeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>[]
+        }
+        create: {
+          args: Prisma.UserLikeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        createMany: {
+          args: Prisma.UserLikeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserLikeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>[]
+        }
+        delete: {
+          args: Prisma.UserLikeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        update: {
+          args: Prisma.UserLikeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        deleteMany: {
+          args: Prisma.UserLikeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserLikeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserLikeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>[]
+        }
+        upsert: {
+          args: Prisma.UserLikeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserLikePayload>
+        }
+        aggregate: {
+          args: Prisma.UserLikeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserLike>
+        }
+        groupBy: {
+          args: Prisma.UserLikeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserLikeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserLikeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserLikeCountAggregateOutputType> | number
+        }
+      }
+    }
+    UserFollow: {
+      payload: Prisma.$UserFollowPayload<ExtArgs>
+      fields: Prisma.UserFollowFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserFollowFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserFollowFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        findFirst: {
+          args: Prisma.UserFollowFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserFollowFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        findMany: {
+          args: Prisma.UserFollowFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>[]
+        }
+        create: {
+          args: Prisma.UserFollowCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        createMany: {
+          args: Prisma.UserFollowCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserFollowCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>[]
+        }
+        delete: {
+          args: Prisma.UserFollowDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        update: {
+          args: Prisma.UserFollowUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserFollowDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserFollowUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserFollowUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserFollowUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserFollowPayload>
+        }
+        aggregate: {
+          args: Prisma.UserFollowAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserFollow>
+        }
+        groupBy: {
+          args: Prisma.UserFollowGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserFollowGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserFollowCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserFollowCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1421,6 +1646,14 @@ export const UserScalarFieldEnum = {
   id: 'id',
   clerkId: 'clerkId',
   email: 'email',
+  username: 'username',
+  displayName: 'displayName',
+  avatarUrl: 'avatarUrl',
+  avatarStorageKey: 'avatarStorageKey',
+  bannerUrl: 'bannerUrl',
+  bannerStorageKey: 'bannerStorageKey',
+  bio: 'bio',
+  isPublic: 'isPublic',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1477,8 +1710,10 @@ export const GenerationScalarFieldEnum = {
   isFreeGeneration: 'isFreeGeneration',
   isPublic: 'isPublic',
   isPromptPublic: 'isPromptPublic',
+  isFeatured: 'isFeatured',
   userId: 'userId',
-  projectId: 'projectId'
+  projectId: 'projectId',
+  characterCardId: 'characterCardId'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
@@ -1568,6 +1803,7 @@ export type ArenaEntryScalarFieldEnum = (typeof ArenaEntryScalarFieldEnum)[keyof
 export const ModelEloRatingScalarFieldEnum = {
   id: 'id',
   modelId: 'modelId',
+  modelFamily: 'modelFamily',
   rating: 'rating',
   matchCount: 'matchCount',
   winCount: 'winCount',
@@ -1627,6 +1863,52 @@ export const StoryPanelScalarFieldEnum = {
 } as const
 
 export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof typeof StoryPanelScalarFieldEnum]
+
+
+export const CharacterCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  sourceImages: 'sourceImages',
+  sourceImageEntries: 'sourceImageEntries',
+  characterPrompt: 'characterPrompt',
+  modelPrompts: 'modelPrompts',
+  referenceImages: 'referenceImages',
+  attributes: 'attributes',
+  tags: 'tags',
+  status: 'status',
+  stabilityScore: 'stabilityScore',
+  isDeleted: 'isDeleted',
+  parentId: 'parentId',
+  variantLabel: 'variantLabel',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
+
+
+export const UserLikeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  generationId: 'generationId',
+  createdAt: 'createdAt'
+} as const
+
+export type UserLikeScalarFieldEnum = (typeof UserLikeScalarFieldEnum)[keyof typeof UserLikeScalarFieldEnum]
+
+
+export const UserFollowScalarFieldEnum = {
+  id: 'id',
+  followerId: 'followerId',
+  followingId: 'followingId',
+  createdAt: 'createdAt'
+} as const
+
+export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1698,6 +1980,13 @@ export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaMod
 
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1708,13 +1997,6 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -1799,6 +2081,20 @@ export type EnumGenerationJobStatusFieldRefInput<$PrismaModel> = FieldRefInputTy
  * Reference to a field of type 'GenerationJobStatus[]'
  */
 export type ListEnumGenerationJobStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationJobStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'CharacterCardStatus'
+ */
+export type EnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'CharacterCardStatus[]'
+ */
+export type ListEnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus[]'>
     
 
 /**
@@ -1909,6 +2205,9 @@ export type GlobalOmitConfig = {
   modelConfig?: Prisma.ModelConfigOmit
   story?: Prisma.StoryOmit
   storyPanel?: Prisma.StoryPanelOmit
+  characterCard?: Prisma.CharacterCardOmit
+  userLike?: Prisma.UserLikeOmit
+  userFollow?: Prisma.UserFollowOmit
 }
 
 /* Types for Logging */

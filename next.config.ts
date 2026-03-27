@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: storageHost },
       { protocol: 'https', hostname: '*.fal.media' },
       { protocol: 'https', hostname: 'replicate.delivery' },
+      { protocol: 'https', hostname: 'img.clerk.com' },
     ],
   },
   async headers() {

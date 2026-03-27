@@ -104,3 +104,18 @@ export type Story = Prisma.StoryModel
  * 
  */
 export type StoryPanel = Prisma.StoryPanelModel
+/**
+ * Model CharacterCard
+ * 
+ */
+export type CharacterCard = Prisma.CharacterCardModel
+/**
+ * Model UserLike
+ * 
+ */
+export type UserLike = Prisma.UserLikeModel
+/**
+ * Model UserFollow
+ * 
+ */
+export type UserFollow = Prisma.UserFollowModel

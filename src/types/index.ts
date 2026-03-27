@@ -2,9 +2,11 @@ import { z } from 'zod'
 
 import {
   GENERATION_LIMITS,
+  PROFILE,
   PROMPT_ENHANCE,
   VIDEO_GENERATION,
 } from '@/constants/config'
+import { CHARACTER_CARD } from '@/constants/character-card'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 
@@ -166,6 +168,12 @@ export interface GenerationRecord {
   isPublic: boolean
   isPromptPublic: boolean
   userId?: string | null
+  /** Creator info — present in gallery context */
+  creator?: {
+    username: string
+    displayName: string | null
+    avatarUrl: string | null
+  } | null
 }
 
 // ─── API Key ──────────────────────────────────────────────────────
@@ -315,6 +323,65 @@ export interface EnhancePromptResponseData {
 export interface EnhancePromptResponse {
   success: boolean
   data?: EnhancePromptResponseData
+  error?: string
+}
+
+// ─── Prompt Feedback ─────────────────────────────────────────────
+
+export const PromptFeedbackRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+  context: z.string().max(500).optional(),
+  apiKeyId: z.string().optional(),
+})
+
+export type PromptFeedbackRequest = z.infer<typeof PromptFeedbackRequestSchema>
+
+export interface PromptFeedbackSuggestion {
+  category: string
+  suggestion: string
+  example?: string
+}
+
+export interface PromptFeedbackResponseData {
+  originalPrompt: string
+  overallAssessment: string
+  suggestions: PromptFeedbackSuggestion[]
+  improvedPrompt: string
+}
+
+export interface PromptFeedbackResponse {
+  success: boolean
+  data?: PromptFeedbackResponseData
+  error?: string
+}
+
+// ─── Generation Feedback (Iterative Refinement) ─────────────────
+
+/** Request to refine a prompt based on generated image + user feedback */
+export const GenerationFeedbackRequestSchema = z.object({
+  imageUrl: z.string().min(1),
+  originalPrompt: z.string().min(1),
+  feedback: z.string().min(1).max(1000),
+  apiKeyId: z.string().optional(),
+})
+export type GenerationFeedbackRequest = z.infer<
+  typeof GenerationFeedbackRequestSchema
+>
+
+export interface GenerationFeedbackResult {
+  originalPrompt: string
+  refinedPrompt: string
+  negativeAdditions: string[]
+  explanation: string
+}
+
+export interface GenerationFeedbackResponse {
+  success: boolean
+  data?: GenerationFeedbackResult
   error?: string
 }
 
@@ -477,6 +544,7 @@ export interface EloUpdate {
 
 export interface LeaderboardEntry {
   modelId: string
+  modelFamily: string | null
   rating: number
   matchCount: number
   winCount: number
@@ -486,6 +554,50 @@ export interface LeaderboardEntry {
 export interface ArenaLeaderboardResponse {
   success: boolean
   data?: LeaderboardEntry[]
+  error?: string
+}
+
+// ─── Arena History & Personal Stats ─────────────────────────────
+
+export interface ArenaHistoryEntry {
+  id: string
+  prompt: string
+  aspectRatio: string
+  winnerId: string | null
+  votedAt: string | null
+  createdAt: string
+  entries: {
+    id: string
+    modelId: string
+    slotIndex: number
+    wasVoted: boolean
+    imageUrl: string | null
+  }[]
+}
+
+export interface ArenaHistoryResponse {
+  success: boolean
+  data?: {
+    matches: ArenaHistoryEntry[]
+    total: number
+    hasMore: boolean
+  }
+  error?: string
+}
+
+export interface PersonalModelStat {
+  modelId: string
+  matchCount: number
+  winCount: number
+  winRate: number
+}
+
+export interface ArenaPersonalStatsResponse {
+  success: boolean
+  data?: {
+    totalMatches: number
+    stats: PersonalModelStat[]
+  }
   error?: string
 }
 
@@ -562,6 +674,219 @@ export interface ProjectHistoryResponse {
     total: number
     hasMore: boolean
   }
+  error?: string
+}
+
+// ─── Character Card ─────────────────────────────────────────────
+
+/** Character card status enum */
+export const CharacterCardStatusSchema = z.enum(CHARACTER_CARD.STATUSES)
+export type CharacterCardStatusType = z.infer<typeof CharacterCardStatusSchema>
+
+/** Structured source image entry with view type (for multi-angle references) */
+export const SourceImageEntrySchema = z.object({
+  url: z.string().min(1),
+  viewType: z.enum(CHARACTER_CARD.VIEW_TYPES).default('other'),
+  label: z.string().max(60).optional(),
+})
+export type SourceImageEntry = z.infer<typeof SourceImageEntrySchema>
+
+/** Structured character attributes extracted by LLM */
+export const CharacterAttributesSchema = z.object({
+  hairColor: z.string().max(50).optional(),
+  hairStyle: z.string().max(100).optional(),
+  eyeColor: z.string().max(50).optional(),
+  skinTone: z.string().max(50).optional(),
+  bodyType: z.string().max(100).optional(),
+  outfit: z.string().max(300).optional(),
+  accessories: z.string().max(300).optional(),
+  pose: z.string().max(200).optional(),
+  expression: z.string().max(100).optional(),
+  artStyle: z.string().max(200).optional(),
+  colorPalette: z.string().max(200).optional(),
+  distinguishingFeatures: z.string().max(500).optional(),
+  freeformDescription: z.string().max(2000).optional(),
+})
+
+export type CharacterAttributes = z.infer<typeof CharacterAttributesSchema>
+
+const sourceImageDataValidator = z
+  .string()
+  .min(1)
+  .refine(
+    (data) =>
+      data.startsWith('data:image/png') ||
+      data.startsWith('data:image/jpeg') ||
+      data.startsWith('data:image/webp') ||
+      data.startsWith('data:image/gif') ||
+      data.startsWith('https://'),
+    'Each image must be a valid image data URL or HTTPS URL',
+  )
+
+/** Source image upload with optional view type metadata */
+export const SourceImageUploadSchema = z.object({
+  data: sourceImageDataValidator,
+  viewType: z.enum(CHARACTER_CARD.VIEW_TYPES).default('other'),
+  label: z.string().max(60).optional(),
+})
+export type SourceImageUpload = z.infer<typeof SourceImageUploadSchema>
+
+/** Create character card request */
+export const CreateCharacterCardSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(CHARACTER_CARD.NAME_MAX_LENGTH),
+  sourceImages: z
+    .array(z.union([sourceImageDataValidator, SourceImageUploadSchema]))
+    .min(1, 'At least one source image is required')
+    .max(CHARACTER_CARD.MAX_SOURCE_IMAGES),
+  description: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.DESCRIPTION_MAX_LENGTH)
+    .optional(),
+  tags: z
+    .array(z.string().trim().max(CHARACTER_CARD.TAG_MAX_LENGTH))
+    .max(CHARACTER_CARD.MAX_TAGS)
+    .optional(),
+  /** Parent card ID to create this as a variant */
+  parentId: z.string().trim().min(1).optional(),
+  /** Variant label (e.g. "Anime Style", "Realistic", "Chibi") */
+  variantLabel: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
+    .optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+})
+
+export type CreateCharacterCardRequest = z.infer<
+  typeof CreateCharacterCardSchema
+>
+
+/** Update character card request */
+export const UpdateCharacterCardSchema = z.object({
+  name: z.string().trim().min(1).max(CHARACTER_CARD.NAME_MAX_LENGTH).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.DESCRIPTION_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  tags: z
+    .array(z.string().trim().max(CHARACTER_CARD.TAG_MAX_LENGTH))
+    .max(CHARACTER_CARD.MAX_TAGS)
+    .optional(),
+  status: CharacterCardStatusSchema.optional(),
+  characterPrompt: z.string().trim().max(4000).optional(),
+  attributes: CharacterAttributesSchema.optional(),
+  variantLabel: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  /** Replace source images with structured entries */
+  sourceImageEntries: z.array(SourceImageEntrySchema).optional(),
+})
+
+export type UpdateCharacterCardRequest = z.infer<
+  typeof UpdateCharacterCardSchema
+>
+
+/** Refine character card request */
+export const RefineCharacterCardSchema = z.object({
+  models: z.array(GenerateVariationsModelSchema).min(1).max(9),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+})
+
+export type RefineCharacterCardRequest = z.infer<
+  typeof RefineCharacterCardSchema
+>
+
+/** Score consistency request */
+export const ScoreConsistencySchema = z.object({
+  generationId: z.string().trim().min(1),
+})
+
+export type ScoreConsistencyRequest = z.infer<typeof ScoreConsistencySchema>
+
+/** Character card record returned from API */
+export interface CharacterCardRecord {
+  id: string
+  name: string
+  description: string | null
+  sourceImageUrl: string
+  sourceImages: string[]
+  /** Structured source images with view types (for multi-angle references) */
+  sourceImageEntries: SourceImageEntry[]
+  characterPrompt: string
+  modelPrompts: Record<string, string> | null
+  referenceImages: string[] | null
+  attributes: CharacterAttributes | null
+  tags: string[]
+  status: CharacterCardStatusType
+  stabilityScore: number | null
+  /** Parent card ID (null for root cards) */
+  parentId: string | null
+  /** Variant label (e.g. "Anime Style", "3D Model") */
+  variantLabel: string | null
+  /** Child variant cards */
+  variants: CharacterCardRecord[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+/** Consistency score breakdown */
+export interface ConsistencyScoreBreakdown {
+  face: number
+  hair: number
+  outfit: number
+  pose: number
+  style: number
+}
+
+/** Consistency score result */
+export interface ConsistencyScoreResult {
+  overallScore: number
+  breakdown: ConsistencyScoreBreakdown
+  suggestions: string[]
+}
+
+/** Refine result for a single generation */
+export interface RefineGenerationResult {
+  generation: GenerationRecord
+  score: ConsistencyScoreResult | null
+}
+
+/** Character card API responses */
+export interface CharacterCardResponse {
+  success: boolean
+  data?: CharacterCardRecord
+  error?: string
+}
+
+export interface CharacterCardsResponse {
+  success: boolean
+  data?: CharacterCardRecord[]
+  error?: string
+}
+
+export interface CharacterCardRefineResponse {
+  success: boolean
+  data?: {
+    results: RefineGenerationResult[]
+    improved: boolean
+    newStabilityScore: number | null
+  }
+  error?: string
+}
+
+export interface ConsistencyScoreResponse {
+  success: boolean
+  data?: ConsistencyScoreResult
   error?: string
 }
 
@@ -712,3 +1037,130 @@ export interface ModelHealthResponse {
 export const ModelHealthRefreshSchema = z.object({
   modelId: z.string().trim().min(1).optional(),
 })
+
+// ─── Creator Profile ─────────────────────────────────────────────
+
+export const UpdateProfileSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(PROFILE.USERNAME_MIN_LENGTH)
+    .max(PROFILE.USERNAME_MAX_LENGTH)
+    .regex(
+      PROFILE.USERNAME_PATTERN,
+      'Username must start with a letter and contain only letters, numbers, and hyphens',
+    )
+    .optional(),
+  displayName: z
+    .string()
+    .trim()
+    .max(PROFILE.DISPLAY_NAME_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  bio: z.string().trim().max(PROFILE.BIO_MAX_LENGTH).nullable().optional(),
+  isPublic: z.boolean().optional(),
+})
+
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileSchema>
+
+export interface CreatorProfileRecord {
+  username: string
+  displayName: string | null
+  avatarUrl: string | null
+  bannerUrl: string | null
+  bio: string | null
+  isPublic: boolean
+  createdAt: Date
+  publicImageCount: number
+  likeCount: number
+  followerCount: number
+  followingCount: number
+}
+
+export interface CreatorProfileWithImages extends CreatorProfileRecord {
+  generations: (GenerationRecord & {
+    likeCount: number
+    isLiked: boolean
+    isFeatured: boolean
+    creator?: {
+      username: string
+      displayName: string | null
+      avatarUrl: string | null
+    }
+  })[]
+  total: number
+  hasMore: boolean
+}
+
+export interface CreatorProfileResponse {
+  success: boolean
+  data?: CreatorProfileWithImages
+  error?: string
+}
+
+export interface UpdateProfileResponse {
+  success: boolean
+  data?: Pick<
+    CreatorProfileRecord,
+    'username' | 'displayName' | 'avatarUrl' | 'bio' | 'isPublic'
+  >
+  error?: string
+}
+
+/** Viewer's relation to a profile — for Follow button state */
+export interface ViewerRelation {
+  isFollowing: boolean
+  isOwnProfile: boolean
+}
+
+export interface CreatorProfilePageData extends CreatorProfileWithImages {
+  viewerRelation: ViewerRelation
+}
+
+export interface CreatorProfilePageResponse {
+  success: boolean
+  data?: CreatorProfilePageData
+  error?: string
+}
+
+// ─── Likes ───────────────────────────────────────────────────────
+
+export const ToggleLikeSchema = z.object({
+  generationId: z.string().trim().min(1, 'Generation ID is required'),
+})
+
+export type ToggleLikeRequest = z.infer<typeof ToggleLikeSchema>
+
+export interface ToggleLikeResponse {
+  success: boolean
+  data?: { liked: boolean; likeCount: number }
+  error?: string
+}
+
+// ─── Follows ─────────────────────────────────────────────────────
+
+export const ToggleFollowSchema = z.object({
+  targetUserId: z.string().trim().min(1, 'Target user ID is required'),
+})
+
+export type ToggleFollowRequest = z.infer<typeof ToggleFollowSchema>
+
+export interface ToggleFollowResponse {
+  success: boolean
+  data?: { following: boolean; followerCount: number }
+  error?: string
+}
+
+// ─── Profile Image Upload ───────────────────────────────────────
+
+export const UploadProfileImageSchema = z.object({
+  imageData: z.string().min(1, 'Image data is required'),
+})
+
+export type UploadProfileImageRequest = z.infer<typeof UploadProfileImageSchema>
+
+export interface UploadProfileImageResponse {
+  success: boolean
+  data?: { url: string }
+  error?: string
+}

@@ -48,6 +48,8 @@ export interface UseGalleryReturn {
   sentinelRef: RefObject<HTMLDivElement | null>
   /** Remove a generation from the local list (after successful deletion) */
   removeGeneration: (id: string) => void
+  /** Remove multiple generations from the local list (after batch deletion) */
+  removeGenerations: (ids: Set<string>) => void
 }
 
 const DEFAULT_FILTERS: GalleryFilters = {
@@ -217,6 +219,11 @@ export function useGallery({
     setTotal((prev) => Math.max(prev - 1, 0))
   }, [])
 
+  const removeGenerations = useCallback((ids: Set<string>) => {
+    setGenerations((current) => current.filter((g) => !ids.has(g.id)))
+    setTotal((prev) => Math.max(prev - ids.size, 0))
+  }, [])
+
   return {
     generations,
     total,
@@ -228,5 +235,6 @@ export function useGallery({
     loadMore,
     sentinelRef,
     removeGeneration,
+    removeGenerations,
   }
 }

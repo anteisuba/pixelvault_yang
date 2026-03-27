@@ -61,6 +61,7 @@ export type GenerationMinAggregateOutputType = {
   isPublic: boolean | null
   isPromptPublic: boolean | null
   userId: string | null
+  projectId: string | null
 }
 
 export type GenerationMaxAggregateOutputType = {
@@ -84,6 +85,7 @@ export type GenerationMaxAggregateOutputType = {
   isPublic: boolean | null
   isPromptPublic: boolean | null
   userId: string | null
+  projectId: string | null
 }
 
 export type GenerationCountAggregateOutputType = {
@@ -107,6 +109,7 @@ export type GenerationCountAggregateOutputType = {
   isPublic: number
   isPromptPublic: number
   userId: number
+  projectId: number
   _all: number
 }
 
@@ -146,6 +149,7 @@ export type GenerationMinAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   userId?: true
+  projectId?: true
 }
 
 export type GenerationMaxAggregateInputType = {
@@ -169,6 +173,7 @@ export type GenerationMaxAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   userId?: true
+  projectId?: true
 }
 
 export type GenerationCountAggregateInputType = {
@@ -192,6 +197,7 @@ export type GenerationCountAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   userId?: true
+  projectId?: true
   _all?: true
 }
 
@@ -302,6 +308,7 @@ export type GenerationGroupByOutputType = {
   isPublic: boolean
   isPromptPublic: boolean
   userId: string | null
+  projectId: string | null
   _count: GenerationCountAggregateOutputType | null
   _avg: GenerationAvgAggregateOutputType | null
   _sum: GenerationSumAggregateOutputType | null
@@ -348,7 +355,9 @@ export type GenerationWhereInput = {
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
+  projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   arenaEntries?: Prisma.ArenaEntryListRelationFilter
@@ -376,7 +385,9 @@ export type GenerationOrderByWithRelationInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
+  projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  project?: Prisma.ProjectOrderByWithRelationInput
   generationJob?: Prisma.GenerationJobOrderByWithRelationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
   arenaEntries?: Prisma.ArenaEntryOrderByRelationAggregateInput
@@ -407,7 +418,9 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
+  projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   arenaEntries?: Prisma.ArenaEntryListRelationFilter
@@ -435,6 +448,7 @@ export type GenerationOrderByWithAggregationInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
+  projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.GenerationCountOrderByAggregateInput
   _avg?: Prisma.GenerationAvgOrderByAggregateInput
   _max?: Prisma.GenerationMaxOrderByAggregateInput
@@ -466,6 +480,7 @@ export type GenerationScalarWhereWithAggregatesInput = {
   isPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
+  projectId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
 }
 
 export type GenerationCreateInput = {
@@ -489,6 +504,7 @@ export type GenerationCreateInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
@@ -516,6 +532,7 @@ export type GenerationUncheckedCreateInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
@@ -543,6 +560,7 @@ export type GenerationUpdateInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
@@ -570,6 +588,7 @@ export type GenerationUncheckedUpdateInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
@@ -597,6 +616,7 @@ export type GenerationCreateManyInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
 }
 
 export type GenerationUpdateManyMutationInput = {
@@ -642,6 +662,7 @@ export type GenerationUncheckedUpdateManyInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type GenerationListRelationFilter = {
@@ -675,6 +696,7 @@ export type GenerationCountOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  projectId?: Prisma.SortOrder
 }
 
 export type GenerationAvgOrderByAggregateInput = {
@@ -705,6 +727,7 @@ export type GenerationMaxOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  projectId?: Prisma.SortOrder
 }
 
 export type GenerationMinOrderByAggregateInput = {
@@ -728,6 +751,7 @@ export type GenerationMinOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  projectId?: Prisma.SortOrder
 }
 
 export type GenerationSumOrderByAggregateInput = {
@@ -789,6 +813,48 @@ export type GenerationUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.GenerationScalarWhereInput | Prisma.GenerationScalarWhereInput[]
 }
 
+export type GenerationCreateNestedManyWithoutProjectInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput> | Prisma.GenerationCreateWithoutProjectInput[] | Prisma.GenerationUncheckedCreateWithoutProjectInput[]
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutProjectInput | Prisma.GenerationCreateOrConnectWithoutProjectInput[]
+  createMany?: Prisma.GenerationCreateManyProjectInputEnvelope
+  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+}
+
+export type GenerationUncheckedCreateNestedManyWithoutProjectInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput> | Prisma.GenerationCreateWithoutProjectInput[] | Prisma.GenerationUncheckedCreateWithoutProjectInput[]
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutProjectInput | Prisma.GenerationCreateOrConnectWithoutProjectInput[]
+  createMany?: Prisma.GenerationCreateManyProjectInputEnvelope
+  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+}
+
+export type GenerationUpdateManyWithoutProjectNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput> | Prisma.GenerationCreateWithoutProjectInput[] | Prisma.GenerationUncheckedCreateWithoutProjectInput[]
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutProjectInput | Prisma.GenerationCreateOrConnectWithoutProjectInput[]
+  upsert?: Prisma.GenerationUpsertWithWhereUniqueWithoutProjectInput | Prisma.GenerationUpsertWithWhereUniqueWithoutProjectInput[]
+  createMany?: Prisma.GenerationCreateManyProjectInputEnvelope
+  set?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  disconnect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  delete?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  update?: Prisma.GenerationUpdateWithWhereUniqueWithoutProjectInput | Prisma.GenerationUpdateWithWhereUniqueWithoutProjectInput[]
+  updateMany?: Prisma.GenerationUpdateManyWithWhereWithoutProjectInput | Prisma.GenerationUpdateManyWithWhereWithoutProjectInput[]
+  deleteMany?: Prisma.GenerationScalarWhereInput | Prisma.GenerationScalarWhereInput[]
+}
+
+export type GenerationUncheckedUpdateManyWithoutProjectNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput> | Prisma.GenerationCreateWithoutProjectInput[] | Prisma.GenerationUncheckedCreateWithoutProjectInput[]
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutProjectInput | Prisma.GenerationCreateOrConnectWithoutProjectInput[]
+  upsert?: Prisma.GenerationUpsertWithWhereUniqueWithoutProjectInput | Prisma.GenerationUpsertWithWhereUniqueWithoutProjectInput[]
+  createMany?: Prisma.GenerationCreateManyProjectInputEnvelope
+  set?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  disconnect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  delete?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
+  update?: Prisma.GenerationUpdateWithWhereUniqueWithoutProjectInput | Prisma.GenerationUpdateWithWhereUniqueWithoutProjectInput[]
+  updateMany?: Prisma.GenerationUpdateManyWithWhereWithoutProjectInput | Prisma.GenerationUpdateManyWithWhereWithoutProjectInput[]
+  deleteMany?: Prisma.GenerationScalarWhereInput | Prisma.GenerationScalarWhereInput[]
+}
+
 export type EnumOutputTypeFieldUpdateOperationsInput = {
   set?: $Enums.OutputType
 }
@@ -811,10 +877,6 @@ export type NullableFloatFieldUpdateOperationsInput = {
   decrement?: number
   multiply?: number
   divide?: number
-}
-
-export type NullableStringFieldUpdateOperationsInput = {
-  set?: string | null
 }
 
 export type GenerationCreateNestedOneWithoutGenerationJobInput = {
@@ -899,6 +961,7 @@ export type GenerationCreateWithoutUserInput = {
   isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
@@ -925,6 +988,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
+  projectId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
@@ -981,6 +1045,87 @@ export type GenerationScalarWhereInput = {
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
+  projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
+}
+
+export type GenerationCreateWithoutProjectInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationUncheckedCreateWithoutProjectInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  userId?: string | null
+  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationCreateOrConnectWithoutProjectInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput>
+}
+
+export type GenerationCreateManyProjectInputEnvelope = {
+  data: Prisma.GenerationCreateManyProjectInput | Prisma.GenerationCreateManyProjectInput[]
+  skipDuplicates?: boolean
+}
+
+export type GenerationUpsertWithWhereUniqueWithoutProjectInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  update: Prisma.XOR<Prisma.GenerationUpdateWithoutProjectInput, Prisma.GenerationUncheckedUpdateWithoutProjectInput>
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutProjectInput, Prisma.GenerationUncheckedCreateWithoutProjectInput>
+}
+
+export type GenerationUpdateWithWhereUniqueWithoutProjectInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  data: Prisma.XOR<Prisma.GenerationUpdateWithoutProjectInput, Prisma.GenerationUncheckedUpdateWithoutProjectInput>
+}
+
+export type GenerationUpdateManyWithWhereWithoutProjectInput = {
+  where: Prisma.GenerationScalarWhereInput
+  data: Prisma.XOR<Prisma.GenerationUpdateManyMutationInput, Prisma.GenerationUncheckedUpdateManyWithoutProjectInput>
 }
 
 export type GenerationCreateWithoutGenerationJobInput = {
@@ -1004,6 +1149,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
@@ -1030,6 +1176,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
@@ -1072,6 +1219,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
@@ -1098,6 +1246,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1124,6 +1273,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
@@ -1150,6 +1300,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
@@ -1192,6 +1343,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
@@ -1218,6 +1370,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1244,6 +1397,7 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
@@ -1270,6 +1424,7 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
@@ -1312,6 +1467,7 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
@@ -1338,6 +1494,7 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1364,6 +1521,7 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
@@ -1390,6 +1548,7 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string | null
+  projectId?: string | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
@@ -1432,6 +1591,7 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
@@ -1458,6 +1618,7 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1483,6 +1644,7 @@ export type GenerationCreateManyUserInput = {
   isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
+  projectId?: string | null
 }
 
 export type GenerationUpdateWithoutUserInput = {
@@ -1505,6 +1667,7 @@ export type GenerationUpdateWithoutUserInput = {
   isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
@@ -1531,6 +1694,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1557,6 +1721,107 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type GenerationCreateManyProjectInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  userId?: string | null
+}
+
+export type GenerationUpdateWithoutProjectInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationUncheckedUpdateWithoutProjectInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationUncheckedUpdateManyWithoutProjectInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -1629,7 +1894,9 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
+  projectId?: boolean
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
   arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
@@ -1658,7 +1925,9 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
+  projectId?: boolean
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
 export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1682,7 +1951,9 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
+  projectId?: boolean
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
 export type GenerationSelectScalar = {
@@ -1706,11 +1977,13 @@ export type GenerationSelectScalar = {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: boolean
+  projectId?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "userId", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "userId" | "projectId", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
   arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
@@ -1719,15 +1992,18 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
 }
 export type GenerationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
 }
 export type GenerationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
+  project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
 }
 
 export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Generation"
   objects: {
     user: Prisma.$UserPayload<ExtArgs> | null
+    project: Prisma.$ProjectPayload<ExtArgs> | null
     generationJob: Prisma.$GenerationJobPayload<ExtArgs> | null
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
     arenaEntries: Prisma.$ArenaEntryPayload<ExtArgs>[]
@@ -1754,6 +2030,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     isPublic: boolean
     isPromptPublic: boolean
     userId: string | null
+    projectId: string | null
   }, ExtArgs["result"]["generation"]>
   composites: {}
 }
@@ -2149,6 +2426,7 @@ readonly fields: GenerationFieldRefs;
 export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.Generation$userArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$userArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  project<T extends Prisma.Generation$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$projectArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   generationJob<T extends Prisma.Generation$generationJobArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$generationJobArgs<ExtArgs>>): Prisma.Prisma__GenerationJobClient<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   apiUsageLedger<T extends Prisma.Generation$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   arenaEntries<T extends Prisma.Generation$arenaEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$arenaEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ArenaEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2202,6 +2480,7 @@ export interface GenerationFieldRefs {
   readonly isPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly isPromptPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly userId: Prisma.FieldRef<"Generation", 'String'>
+  readonly projectId: Prisma.FieldRef<"Generation", 'String'>
 }
     
 
@@ -2614,6 +2893,25 @@ export type Generation$userArgs<ExtArgs extends runtime.Types.Extensions.Interna
    */
   include?: Prisma.UserInclude<ExtArgs> | null
   where?: Prisma.UserWhereInput
+}
+
+/**
+ * Generation.project
+ */
+export type Generation$projectArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Project
+   */
+  select?: Prisma.ProjectSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Project
+   */
+  omit?: Prisma.ProjectOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProjectInclude<ExtArgs> | null
+  where?: Prisma.ProjectWhereInput
 }
 
 /**

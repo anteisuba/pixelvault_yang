@@ -9,6 +9,8 @@ export interface ProviderGenerationInput {
   providerConfig: ProviderConfig
   apiKey: string
   referenceImage?: string
+  /** Multiple reference images for character/style consistency */
+  referenceImages?: string[]
   advancedParams?: AdvancedParams
 }
 

@@ -12,7 +12,10 @@ import {
   type AspectRatio,
 } from '@/constants/config'
 import { getModelById, isBuiltInModel, MODEL_OPTIONS } from '@/constants/models'
-import { hasCapability } from '@/constants/provider-capabilities'
+import {
+  hasCapability,
+  getMaxReferenceImages,
+} from '@/constants/provider-capabilities'
 import { getProviderLabel } from '@/constants/providers'
 import type {
   AdvancedParams,
@@ -200,6 +203,9 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   const [advancedParams, setAdvancedParams] = useState<AdvancedParams>({})
   const {
     referenceImage,
+    referenceImages,
+    removeReferenceImage,
+    clearAllImages,
     isDragging,
     fileInputRef,
     handleDrop,
@@ -207,8 +213,16 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
     handleDragLeave,
     openFilePicker,
     handleInputChange,
-    clearImage,
   } = useImageUpload()
+
+  // Use the minimum maxReferenceImages across all selected models
+  const arenaMaxRefImages = useMemo(() => {
+    const selectedAdapters = modelOptions
+      .filter((opt) => readyOptionIds.has(opt.optionId))
+      .map((opt) => opt.adapterType)
+    if (selectedAdapters.length === 0) return 1
+    return Math.min(...selectedAdapters.map(getMaxReferenceImages))
+  }, [modelOptions, readyOptionIds])
 
   const toggleModel = useCallback((optionId: string) => {
     setSelectedOptionIds((prev) => {
@@ -400,10 +414,12 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
       <CollapsiblePanel
         title={t('referenceTitle')}
         description={
-          referenceImage ? t('referenceSelected') : t('referenceIdle')
+          referenceImages.length > 0
+            ? t('referenceSelected')
+            : t('referenceIdle')
         }
         badge={
-          referenceImage ? (
+          referenceImages.length > 0 ? (
             <Badge variant="secondary" className="rounded-full px-3 py-1">
               {t('referenceBadge')}
             </Badge>
@@ -411,7 +427,8 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
         }
       >
         <ReferenceImageSection
-          referenceImage={referenceImage}
+          referenceImages={referenceImages}
+          maxImages={arenaMaxRefImages}
           isDragging={isDragging}
           fileInputRef={fileInputRef}
           onDrop={handleDrop}
@@ -419,11 +436,16 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           onDragLeave={handleDragLeave}
           onOpenFilePicker={openFilePicker}
           onInputChange={handleInputChange}
-          onClear={clearImage}
+          onRemoveImage={removeReferenceImage}
+          onClearAll={clearAllImages}
           previewAlt={t('referencePreviewAlt')}
           removeLabel={t('referenceRemoveLabel')}
           uploadLabel={t('referenceUpload')}
           formatsLabel={t('referenceFormats')}
+          counterLabel={t('referenceCounter', {
+            current: referenceImages.length,
+            max: arenaMaxRefImages,
+          })}
         />
       </CollapsiblePanel>
 
@@ -438,7 +460,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
             adapterType={firstSelected.adapterType}
             params={advancedParams}
             onChange={setAdvancedParams}
-            hasReferenceImage={Boolean(referenceImage)}
+            hasReferenceImage={referenceImages.length > 0}
             disabled={isCreating}
           />
         )

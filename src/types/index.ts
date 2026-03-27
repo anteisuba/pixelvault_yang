@@ -46,6 +46,8 @@ export const GenerateRequestSchema = z.object({
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   /** Optional reference image for img2img (base64 data URL or https URL) */
   referenceImage: z.string().optional(),
+  /** Optional multiple reference images for character/style consistency */
+  referenceImages: z.array(z.string()).optional(),
   /** Optional specific API key ID to use for this generation */
   apiKeyId: z.string().trim().min(1).optional(),
   /** Optional provider-specific advanced parameters */
@@ -514,6 +516,54 @@ export type GenerateNarrativeRequest = z.infer<
   typeof GenerateNarrativeRequestSchema
 >
 export type NarrativeTone = GenerateNarrativeRequest['tone']
+
+// ─── Projects ───────────────────────────────────────────────────
+
+export const CreateProjectSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(60),
+  description: z.string().trim().max(500).optional(),
+})
+
+export type CreateProjectRequest = z.infer<typeof CreateProjectSchema>
+
+export const UpdateProjectSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  description: z.string().trim().max(500).nullable().optional(),
+})
+
+export type UpdateProjectRequest = z.infer<typeof UpdateProjectSchema>
+
+export interface ProjectRecord {
+  id: string
+  name: string
+  description: string | null
+  generationCount: number
+  latestGenerationUrl: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ProjectsResponse {
+  success: boolean
+  data?: ProjectRecord[]
+  error?: string
+}
+
+export interface ProjectResponse {
+  success: boolean
+  data?: ProjectRecord
+  error?: string
+}
+
+export interface ProjectHistoryResponse {
+  success: boolean
+  data?: {
+    generations: GenerationRecord[]
+    total: number
+    hasMore: boolean
+  }
+  error?: string
+}
 
 export interface StoryPanelRecord {
   id: string

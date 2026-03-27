@@ -36,6 +36,8 @@ export enum AI_MODELS {
   WAN_VIDEO = 'wan-video',
   HUNYUAN_VIDEO = 'hunyuan-video',
   SEEDANCE_PRO = 'seedance-pro',
+  SEEDANCE_15_PRO = 'seedance-1.5-pro',
+  SEEDANCE_10_PRO = 'seedance-1.0-pro',
   VEO_3 = 'veo-3',
   PIKA_V22 = 'pika-v2.2',
   RUNWAY_GEN3 = 'runway-gen3',
@@ -65,6 +67,8 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.WAN_VIDEO]: 'wanVideo',
   [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
+  [AI_MODELS.SEEDANCE_15_PRO]: 'seedance15Pro',
+  [AI_MODELS.SEEDANCE_10_PRO]: 'seedance10Pro',
   [AI_MODELS.VEO_3]: 'veo3',
   [AI_MODELS.PIKA_V22]: 'pikaV22',
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
@@ -395,6 +399,39 @@ export const MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     i2vModelId: 'fal-ai/bytedance/seedance/v1/pro/image-to-video',
   },
+  // #4.5 — ByteDance Seedance 1.5 Pro via VolcEngine, native audio + first/last frame
+  {
+    id: AI_MODELS.SEEDANCE_15_PRO,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedance-1-5-pro',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://www.volcengine.com/docs/82379/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '1080p',
+    },
+  },
+  // #4.6 — ByteDance Seedance 1.0 Pro via VolcEngine, first/last frame
+  {
+    id: AI_MODELS.SEEDANCE_10_PRO,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedance-1-0-pro-250528',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://www.volcengine.com/docs/82379/1520757',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    videoDefaults: {
+      resolution: '720p',
+    },
+  },
   // #5 — MiniMax Hailuo 2.3, improved realism & camera control
   {
     id: AI_MODELS.MINIMAX_VIDEO,
@@ -568,6 +605,7 @@ export type ProviderGroup =
   | 'google'
   | 'novelai'
   | 'fal'
+  | 'volcengine'
   | 'opensource'
   | 'replicate'
 
@@ -577,6 +615,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'google',
   'novelai',
   'fal',
+  'volcengine',
   'opensource',
   'replicate',
 ]
@@ -592,6 +631,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'novelai'
     case AI_ADAPTER_TYPES.FAL:
       return 'fal'
+    case AI_ADAPTER_TYPES.VOLCENGINE:
+      return 'volcengine'
     case AI_ADAPTER_TYPES.HUGGINGFACE:
       return 'opensource'
     case AI_ADAPTER_TYPES.REPLICATE:

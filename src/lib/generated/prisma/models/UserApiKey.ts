@@ -237,6 +237,7 @@ export type UserApiKeyOrderByWithRelationInput = {
 
 export type UserApiKeyWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  userId_adapterType_modelId?: Prisma.UserApiKeyUserIdAdapterTypeModelIdCompoundUniqueInput
   AND?: Prisma.UserApiKeyWhereInput | Prisma.UserApiKeyWhereInput[]
   OR?: Prisma.UserApiKeyWhereInput[]
   NOT?: Prisma.UserApiKeyWhereInput | Prisma.UserApiKeyWhereInput[]
@@ -250,7 +251,7 @@ export type UserApiKeyWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id">
+}, "id" | "userId_adapterType_modelId">
 
 export type UserApiKeyOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -384,6 +385,12 @@ export type UserApiKeyOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type UserApiKeyUserIdAdapterTypeModelIdCompoundUniqueInput = {
+  userId: string
+  adapterType: string
+  modelId: string
+}
+
 export type UserApiKeyCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -461,10 +468,6 @@ export type UserApiKeyUncheckedUpdateManyWithoutUserNestedInput = {
   update?: Prisma.UserApiKeyUpdateWithWhereUniqueWithoutUserInput | Prisma.UserApiKeyUpdateWithWhereUniqueWithoutUserInput[]
   updateMany?: Prisma.UserApiKeyUpdateManyWithWhereWithoutUserInput | Prisma.UserApiKeyUpdateManyWithWhereWithoutUserInput[]
   deleteMany?: Prisma.UserApiKeyScalarWhereInput | Prisma.UserApiKeyScalarWhereInput[]
-}
-
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
 }
 
 export type UserApiKeyCreateWithoutUserInput = {

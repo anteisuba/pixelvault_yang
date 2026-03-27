@@ -24,7 +24,10 @@ import { isCjkLocale } from '@/i18n/routing'
 
 import dynamic from 'next/dynamic'
 
-import { hasCapability } from '@/constants/provider-capabilities'
+import {
+  hasCapability,
+  getMaxReferenceImages,
+} from '@/constants/provider-capabilities'
 import {
   ModelSelector,
   type StudioModelOption,
@@ -85,6 +88,9 @@ export function GenerateForm() {
     aspectRatio,
     setAspectRatio,
     referenceImage,
+    referenceImages,
+    removeReferenceImage,
+    clearAllImages,
     advancedParams,
     setAdvancedParams,
     isDragging,
@@ -94,7 +100,6 @@ export function GenerateForm() {
     handleDragLeave,
     openFilePicker,
     handleInputChange,
-    clearImage,
     isEnhancing,
     enhanced,
     enhancedOriginal,
@@ -173,6 +178,8 @@ export function GenerateForm() {
         modelId: selectedModel.modelId,
         aspectRatio,
         referenceImage,
+        referenceImages:
+          referenceImages.length > 1 ? referenceImages : undefined,
         apiKeyId: selectedModel.keyId,
         advancedParams: hasAdvanced ? advancedParams : undefined,
       })
@@ -185,8 +192,13 @@ export function GenerateForm() {
       generate,
       aspectRatio,
       referenceImage,
+      referenceImages,
     ],
   )
+
+  const maxRefImages = selectedModel
+    ? getMaxReferenceImages(selectedModel.adapterType)
+    : 1
 
   if (!selectedModel) return null
 
@@ -328,12 +340,12 @@ export function GenerateForm() {
             <CollapsiblePanel
               title={t('referenceTitle')}
               description={
-                referenceImage
+                referenceImages.length > 0
                   ? t('referenceSelectedDescription')
                   : t('referenceIdleDescription')
               }
               badge={
-                referenceImage ? (
+                referenceImages.length > 0 ? (
                   <Badge variant="secondary" className="rounded-full px-3 py-1">
                     {t('referenceBadge')}
                   </Badge>
@@ -341,7 +353,8 @@ export function GenerateForm() {
               }
             >
               <ReferenceImageSection
-                referenceImage={referenceImage}
+                referenceImages={referenceImages}
+                maxImages={maxRefImages}
                 isDragging={isDragging}
                 fileInputRef={fileInputRef}
                 onDrop={handleDrop}
@@ -349,12 +362,17 @@ export function GenerateForm() {
                 onDragLeave={handleDragLeave}
                 onOpenFilePicker={openFilePicker}
                 onInputChange={handleInputChange}
-                onClear={clearImage}
+                onRemoveImage={removeReferenceImage}
+                onClearAll={clearAllImages}
                 previewAlt={t('referencePreviewAlt')}
                 removeLabel={t('referenceRemoveLabel')}
                 uploadLabel={t('referenceUploadAction')}
                 formatsLabel={t('referenceUploadFormats')}
                 inputAriaLabel={t('referenceImageLabel')}
+                counterLabel={t('referenceCounter', {
+                  current: referenceImages.length,
+                  max: maxRefImages,
+                })}
               />
             </CollapsiblePanel>
           </div>
@@ -382,7 +400,7 @@ export function GenerateForm() {
               adapterType={selectedModel.adapterType}
               params={advancedParams}
               onChange={setAdvancedParams}
-              hasReferenceImage={Boolean(referenceImage)}
+              hasReferenceImage={referenceImages.length > 0}
               disabled={isGenerating}
             />
           </div>

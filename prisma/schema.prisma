@@ -44,6 +44,22 @@ model User {
   imageAnalyses  ImageAnalysis[]
   arenaMatches   ArenaMatch[]
   stories        Story[]
+  projects       Project[]
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  generations Generation[]
+
+  @@index([userId, isDeleted, updatedAt(sort: Desc)])
 }
 
 model UserApiKey {
@@ -103,6 +119,8 @@ model Generation {
   // ── 關聯 ──────────────────────────────────────────────────────
   userId         String?
   user           User?            @relation(fields: [userId], references: [id])
+  projectId      String?
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
   arenaEntries   ArenaEntry[]
@@ -112,6 +130,7 @@ model Generation {
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
   @@index([userId, isPublic, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
 }
 
 model GenerationJob {

@@ -50,6 +50,7 @@ import type {
   CharacterCardsResponse,
   CharacterCardRefineResponse,
   ConsistencyScoreResponse,
+  CharacterCardGalleryResponse,
   CreatorProfilePageResponse,
   UpdateProfileRequest,
   UpdateProfileResponse,
@@ -1238,6 +1239,49 @@ export async function scoreCharacterCardAPI(
         error: await getErrorMessage(response, 'Scoring failed'),
       }
     }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Character Card Gallery ──────────────────────────────────────
+
+export async function getCharacterCardGenerationsAPI(
+  cardId: string,
+  page: number = 1,
+  limit: number = 20,
+): Promise<CharacterCardGalleryResponse> {
+  try {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    })
+    const response = await fetch(
+      `/api/character-cards/${cardId}/generations?${params}`,
+    )
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function getCharacterCombinationGenerationsAPI(
+  cardIds: string[],
+  page: number = 1,
+  limit: number = 20,
+): Promise<CharacterCardGalleryResponse> {
+  try {
+    const params = new URLSearchParams({
+      cardIds: cardIds.join(','),
+      page: String(page),
+      limit: String(limit),
+    })
+    const response = await fetch(`/api/character-cards/generations?${params}`)
     return await response.json()
   } catch (error) {
     const message =

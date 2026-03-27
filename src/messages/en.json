@@ -96,6 +96,8 @@
   "Navbar": {
     "creditsLoading": "...",
     "signIn": "Sign In",
+    "viewProfile": "View Profile",
+    "signOut": "Sign Out",
     "links": {
       "gallery": "Gallery",
       "studio": "Studio",
@@ -459,11 +461,13 @@
     "characterCard": {
       "hint": "Apply this character's prompt and reference images",
       "applied": "Character card applied — base prompt auto-injected",
+      "hintMulti": "Apply {count} characters' prompts and reference images",
+      "appliedMulti": "{count} character cards applied — base prompts auto-injected",
       "applyButton": "Apply",
       "appliedButton": "Applied",
       "basePromptLabel": "Character base prompt (auto-injected)",
       "actionPromptLabel": "Action / Scene",
-      "actionPromptHint": "Describe the pose, expression, background, or scene — the character's appearance is auto-injected.",
+      "actionPromptHint": "Describe the pose, expression, background, or scene — the characters' appearance is auto-injected.",
       "actionPromptPlaceholder": "e.g. standing in a field of flowers, smiling, wind blowing hair..."
     },
     "modelSelector": {
@@ -1072,6 +1076,8 @@
     "improved": "Improved!",
     "needsWork": "Needs more refinement",
     "useInGeneration": "Use in Generation",
+    "selectCard": "Select this character card",
+    "deselectCard": "Deselect this character card",
     "noCards": "No character cards yet",
     "noCardsHint": "Create a character card to start generating consistent characters",
     "deleteConfirm": "Delete this character card?",
@@ -1105,6 +1111,14 @@
       "artStyle": "Art Style",
       "colorPalette": "Color Palette",
       "distinguishingFeatures": "Distinguishing Features"
+    },
+    "relatedWorks": "Related Works",
+    "combinationGallery": "Character Combination",
+    "gallery": {
+      "empty": "No generations yet",
+      "emptyComboHint": "No generations found with {names} together",
+      "count": "{count} generations",
+      "loadMore": "Load More"
     }
   },
   "PromptFeedback": {
@@ -1119,15 +1133,13 @@
     "refinePrompt": "Refine Prompt",
     "saveToCard": "Save to Card",
     "savedToCard": "Saved!",
-    "describeFeedback": "Describe what you don't like",
-    "feedbackPlaceholder": "e.g. The hands look wrong, the background is too dark, the pose is unnatural...",
-    "submit": "Refine",
-    "analyzing": "Analyzing image...",
-    "refinedPrompt": "Refined Prompt",
-    "explanation": "What changed",
-    "apply": "Apply",
+    "thinking": "Thinking...",
+    "inputPlaceholder": "Type your answer...",
+    "send": "Send",
+    "apply": "Apply Prompt",
     "applyAndReference": "Apply & use as reference",
-    "negativeAdditions": "Suggested negative prompt additions"
+    "negativeAdditions": "Suggested negative prompt",
+    "conversationDone": "Refined prompt ready!"
   },
   "ErrorBoundary": {
     "title": "Something went wrong",

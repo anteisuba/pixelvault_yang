@@ -29,6 +29,8 @@ export interface CreateGenerationInput {
   isPublic?: boolean
   isPromptPublic?: boolean
   userId?: string
+  /** Character card IDs to link via join table (multi-card) */
+  characterCardIds?: string[]
 }
 
 export interface ListGenerationsOptions {
@@ -107,7 +109,7 @@ function buildGalleryWhere(options: {
 export async function createGeneration(
   input: CreateGenerationInput,
 ): Promise<GenerationRecord> {
-  return db.generation.create({
+  const generation = await db.generation.create({
     data: {
       url: input.url,
       storageKey: input.storageKey,
@@ -128,6 +130,18 @@ export async function createGeneration(
       userId: input.userId,
     },
   })
+
+  // Link character cards via join table (multi-card support)
+  if (input.characterCardIds && input.characterCardIds.length > 0) {
+    await db.generationCharacterCard.createMany({
+      data: input.characterCardIds.map((cardId) => ({
+        generationId: generation.id,
+        characterCardId: cardId,
+      })),
+    })
+  }
+
+  return generation
 }
 
 /**
@@ -408,4 +422,79 @@ export async function batchUpdateVisibility(
     data: { [field]: value },
   })
   return result.count
+}
+
+// ─── Character Card Gallery Queries ──────────────────────────────
+
+export interface CharacterCardGalleryOptions {
+  page?: number
+  limit?: number
+}
+
+/**
+ * Get all generations linked to a single character card (via join table).
+ */
+export async function getGenerationsByCharacterCard(
+  characterCardId: string,
+  userId: string,
+  { page = 1, limit = 20 }: CharacterCardGalleryOptions = {},
+): Promise<{ generations: GenerationRecord[]; total: number }> {
+  const where = {
+    characterCards: { some: { characterCardId } },
+    userId,
+  }
+
+  const [generations, total] = await Promise.all([
+    db.generation.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    db.generation.count({ where }),
+  ])
+
+  return { generations, total }
+}
+
+/**
+ * Get generations linked to ALL of the given character card IDs (intersection).
+ * Used for "Character A + Character B" combination filtering.
+ */
+export async function getGenerationsByCharacterCombination(
+  characterCardIds: string[],
+  userId: string,
+  { page = 1, limit = 20 }: CharacterCardGalleryOptions = {},
+): Promise<{ generations: GenerationRecord[]; total: number }> {
+  if (characterCardIds.length === 0) {
+    return { generations: [], total: 0 }
+  }
+
+  if (characterCardIds.length === 1) {
+    return getGenerationsByCharacterCard(characterCardIds[0], userId, {
+      page,
+      limit,
+    })
+  }
+
+  // Find generations that have ALL specified character cards
+  // by intersecting: each card must appear in the join table for that generation
+  const where = {
+    userId,
+    AND: characterCardIds.map((cardId) => ({
+      characterCards: { some: { characterCardId: cardId } },
+    })),
+  }
+
+  const [generations, total] = await Promise.all([
+    db.generation.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    db.generation.count({ where }),
+  ])
+
+  return { generations, total }
 }

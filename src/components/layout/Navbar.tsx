@@ -1,8 +1,9 @@
 'use client'
 
-import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { SignedIn, SignedOut, useClerk } from '@clerk/nextjs'
 import Image from 'next/image'
-import { Coins, UserCircle } from 'lucide-react'
+import { Coins, LogOut, User, UserCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
@@ -10,7 +11,7 @@ import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import { Link, usePathname } from '@/i18n/navigation'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 export function Navbar() {
@@ -19,6 +20,41 @@ export function Navbar() {
   const t = useTranslations('Navbar')
   const tCommon = useTranslations('Common')
   const pathname = usePathname()
+  const { signOut } = useClerk()
+  const router = useRouter()
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
+  // Close menu on route change
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  const handleViewProfile = useCallback(() => {
+    setMenuOpen(false)
+    const href = myProfile?.username
+      ? creatorProfilePath(myProfile.username)
+      : ROUTES.PROFILE
+    router.push(href)
+  }, [myProfile, router])
+
+  const handleSignOut = useCallback(() => {
+    setMenuOpen(false)
+    signOut({ redirectUrl: ROUTES.HOME })
+  }, [signOut])
 
   const signedInLinks = [
     { href: ROUTES.GALLERY, label: t('links.gallery') },
@@ -101,27 +137,54 @@ export function Navbar() {
                   : tCommon('creditCount', { count: summary.totalRequests })}
               </span>
             </div>
-            <Link
-              href={
-                myProfile?.username
-                  ? creatorProfilePath(myProfile.username)
-                  : ROUTES.PROFILE
-              }
-              className="flex size-8 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
-              aria-label={t('links.library')}
-            >
-              {myProfile?.avatarUrl ? (
-                <Image
-                  src={myProfile.avatarUrl}
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="size-full rounded-full object-cover"
-                />
-              ) : (
-                <UserCircle className="size-4.5" />
+
+            {/* Avatar dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex size-12 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
+                aria-label={t('viewProfile')}
+                aria-expanded={menuOpen}
+                aria-haspopup="true"
+              >
+                {myProfile?.avatarUrl ? (
+                  <Image
+                    src={myProfile.avatarUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="size-full rounded-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <UserCircle className="size-4.5" />
+                )}
+              </button>
+
+              {/* Dropdown menu */}
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <button
+                    type="button"
+                    onClick={handleViewProfile}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-primary/5 transition-colors"
+                  >
+                    <User className="size-4 text-muted-foreground" />
+                    {t('viewProfile')}
+                  </button>
+                  <div className="mx-2 my-1 border-t border-border/40" />
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-colors"
+                  >
+                    <LogOut className="size-4" />
+                    {t('signOut')}
+                  </button>
+                </div>
               )}
-            </Link>
+            </div>
           </SignedIn>
 
           <SignedOut>

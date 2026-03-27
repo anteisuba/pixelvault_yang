@@ -58,8 +58,6 @@ export function CreatorProfileView({
 
   const handleFollow = useCallback(() => {
     if (data?.viewerRelation.isOwnProfile) return
-    // We need the userId from the profile data
-    // The API uses the DB userId, which we get from the profile response
     if (data) {
       toggleFollow((data as { userId?: string }).userId ?? '')
     }
@@ -93,7 +91,7 @@ export function CreatorProfileView({
   if (!data) return null
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <ProfileHeader
         profile={data}
         onFollow={handleFollow}
@@ -104,17 +102,20 @@ export function CreatorProfileView({
         }}
       />
 
-      <div className="border-t border-border">
-        <PolaroidGrid
-          generations={data.generations}
-          totalImages={data.total}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={loadMore}
-          onLike={handleLike}
-          isEmpty={data.generations.length === 0}
-        />
+      {/* Subtle divider */}
+      <div className="max-w-content mx-auto px-4 sm:px-6">
+        <div className="border-t border-border/40" />
       </div>
+
+      <PolaroidGrid
+        generations={data.generations}
+        totalImages={data.total}
+        hasMore={hasMore}
+        isLoadingMore={isLoadingMore}
+        onLoadMore={loadMore}
+        onLike={handleLike}
+        isEmpty={data.generations.length === 0}
+      />
     </div>
   )
 }

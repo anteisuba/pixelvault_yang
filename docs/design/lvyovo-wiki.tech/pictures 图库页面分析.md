@@ -238,4 +238,4 @@ transition-property: scale;
 | 静态文件存储 | 保持 Cloudflare R2 CDN |
 | 单一堆叠视图 | 可增加网格/瀑布流切换 |
 | Canvas 渐变背景 | 使用设计系统 `#faf9f5` 背景 |
-| 青绿色信息卡 | 使用 accent `#d97757` |  顏色不變
+| 青绿色信息卡 | 使用 accent `#d97757` |  

@@ -16,6 +16,8 @@ export const CHARACTER_CARD = {
   MAX_CARDS_PER_USER: 100,
   /** Maximum variants per parent card */
   MAX_VARIANTS_PER_CARD: 20,
+  /** Maximum character cards selected simultaneously for generation */
+  MAX_ACTIVE_CARDS: 5,
   /** Maximum source images uploaded per card */
   MAX_SOURCE_IMAGES: 10,
   /** Maximum reference images stored per card */

@@ -110,6 +110,11 @@ export type StoryPanel = Prisma.StoryPanelModel
  */
 export type CharacterCard = Prisma.CharacterCardModel
 /**
+ * Model GenerationCharacterCard
+ * 
+ */
+export type GenerationCharacterCard = Prisma.GenerationCharacterCardModel
+/**
  * Model UserLike
  * 
  */

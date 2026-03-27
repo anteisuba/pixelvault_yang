@@ -145,6 +145,7 @@ model Generation {
   project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   characterCardId String?
   characterCard   CharacterCard?   @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  characterCards  GenerationCharacterCard[]
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
   arenaEntries   ArenaEntry[]
@@ -347,11 +348,25 @@ model CharacterCard {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
-  generations Generation[]
+  generations    Generation[]
+  generationLinks GenerationCharacterCard[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, status, isDeleted])
   @@index([parentId, isDeleted, updatedAt(sort: Desc)])
+}
+
+model GenerationCharacterCard {
+  id              String        @id @default(uuid())
+  generationId    String
+  generation      Generation    @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@unique([generationId, characterCardId])
+  @@index([characterCardId, createdAt(sort: Desc)])
+  @@index([generationId])
 }
 
 model UserLike {

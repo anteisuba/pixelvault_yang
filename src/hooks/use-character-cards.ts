@@ -11,6 +11,7 @@ import type {
   RefineCharacterCardRequest,
   RefineGenerationResult,
 } from '@/types'
+import { CHARACTER_CARD } from '@/constants/character-card'
 import {
   listCharacterCardsAPI,
   createCharacterCardAPI,
@@ -23,10 +24,20 @@ export interface UseCharacterCardsReturn {
   cards: CharacterCardRecord[]
   isLoading: boolean
   error: string | null
+  /** @deprecated Use activeCardIds instead */
   activeCardId: string | null
+  /** @deprecated Use toggleCardSelection / setActiveCardIds instead */
   setActiveCardId: (id: string | null) => void
+  /** Currently selected card IDs (multi-select) */
+  activeCardIds: string[]
+  /** Set all active card IDs at once */
+  setActiveCardIds: (ids: string[]) => void
+  /** Toggle a single card's selection state */
+  toggleCardSelection: (id: string) => void
   /** Find a card (root or variant) by ID from the tree */
   findCard: (id: string) => CharacterCardRecord | null
+  /** Get all currently active cards as records */
+  activeCards: CharacterCardRecord[]
   create: (
     data: CreateCharacterCardRequest,
   ) => Promise<CharacterCardRecord | null>
@@ -46,7 +57,7 @@ export interface UseCharacterCardsReturn {
 
 export function useCharacterCards(): UseCharacterCardsReturn {
   const [cards, setCards] = useState<CharacterCardRecord[]>([])
-  const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const [activeCardIds, setActiveCardIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRefining, setIsRefining] = useState(false)
@@ -65,6 +76,34 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     },
     [cards],
   )
+
+  // ─── Active cards resolved ──────────────────────────────────
+
+  const activeCards = activeCardIds
+    .map((id) => findCard(id))
+    .filter((c): c is CharacterCardRecord => c !== null)
+
+  // ─── Toggle selection ───────────────────────────────────────
+
+  const toggleCardSelection = useCallback((id: string) => {
+    setActiveCardIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((cid) => cid !== id)
+      }
+      if (prev.length >= CHARACTER_CARD.MAX_ACTIVE_CARDS) {
+        return prev
+      }
+      return [...prev, id]
+    })
+  }, [])
+
+  // ─── Backward compat: single card setter ────────────────────
+
+  const setActiveCardId = useCallback((id: string | null) => {
+    setActiveCardIds(id ? [id] : [])
+  }, [])
+
+  const activeCardId = activeCardIds[0] ?? null
 
   // ─── Card CRUD ────────────────────────────────────────────────
 
@@ -163,9 +202,8 @@ export function useCharacterCards(): UseCharacterCardsReturn {
             variants: c.variants.filter((v) => v.id !== id),
           }))
         })
-        if (activeCardId === id) {
-          setActiveCardId(null)
-        }
+        // Remove from active selection
+        setActiveCardIds((prev) => prev.filter((cid) => cid !== id))
         toast.success(t('characterCardDeleted'))
         return true
       }
@@ -174,7 +212,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       toast.error(msg)
       return false
     },
-    [activeCardId, t],
+    [t],
   )
 
   // ─── Refine ──────────────────────────────────────────────────
@@ -216,7 +254,11 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     error,
     activeCardId,
     setActiveCardId,
+    activeCardIds,
+    setActiveCardIds,
+    toggleCardSelection,
     findCard,
+    activeCards,
     create,
     update,
     remove,

@@ -79,7 +79,27 @@
       "WebFetch(domain:docs.api.banana.dev)",
       "WebFetch(domain:docs.banana.dev)",
       "Bash(git pull:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(find c:workecpliseyangpersonal-ai-gallery -name *arena* -type f)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|test\\\\.ts\\)$\")",
+      "Bash(npx vitest:*)",
+      "Skill(office-hours)",
+      "Skill(office-hours:*)",
+      "Bash(grep -l \"arena\\\\|Arena\\\\|ARENA\" /c/work/ecplise/yang/personal-ai-gallery/src/constants/*.ts)",
+      "Skill(plan-ceo-review)",
+      "Skill(plan-ceo-review:*)",
+      "Bash(find ~/.gstack/projects/ -name *.md)",
+      "Bash(ls c:/work/ecplise/yang/personal-ai-gallery/src/app/[locale]/\\\\\\(main\\\\\\)/)",
+      "Bash(rm -rf c:/work/ecplise/yang/personal-ai-gallery/src/app/[locale]/u)",
+      "Bash(mkdir -p c:/work/ecplise/yang/personal-ai-gallery/src/app/[locale]/\\\\\\(main\\\\\\)/u/[username])",
+      "Bash(npx eslint:*)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-review-read)",
+      "Bash(find /c/work/ecplise/yang/personal-ai-gallery/src/app/api -name *upload* -o -name *avatar* -o -name *banner*)",
+      "Bash(grep -n \"uploadToR2\\\\|generateStorageKey\\\\|fetchAsBuffer\" /c/work/ecplise/yang/personal-ai-gallery/src/services/*.ts)",
+      "Bash(where gh.exe)",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/work/ecplise/yang/personal-ai-gallery/$LOCALAPPDATA/GitHub CLI/**)",
+      "Read(//c/ProgramData/chocolatey/bin/**)"
     ]
   },
   "hooks": {

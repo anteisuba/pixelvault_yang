@@ -131,11 +131,21 @@ Items ordered by execution priority. Work top-down.
 - [x] 增加 BYOK + 永久存档 + Arena 三合一价值主张 section（HomepageComparison）
 - [x] 对比竞品优势可视化（"为什么不用 Midjourney/OpenArt"）
 
-### D3. 社交三件套
-- [ ] Like / favorite 公共图片
-- [ ] User profile 页（公开画廊 = 创作者 Portfolio）
-- [ ] Follow 创作者
-- [ ] Publish-to-earn — 公开分享返还部分积分
+### D3. 社交层 — Creator Profile + Social Graph ✅
+- [x] User model 扩展 — username, displayName, avatarUrl, bio, isPublic
+- [x] 公开创作者主页 `/u/[username]` — Polaroid 散落布局 + SSR + OG tags
+- [x] PolaroidCard + PolaroidGrid 组件（随机旋转、点击展开、分页加载）
+- [x] ProfileHeader 组件（头像 + 用户名 + bio + 公开统计）
+- [x] Gallery ImageCard 创作者归属 — 头像 + 名字链接到 `/u/[username]`
+- [x] Like / Favorite 公共图片（UserLike model + toggle API + 乐观更新）
+- [x] Follow 创作者（UserFollow model + toggle API + 乐观更新）
+- [x] Prompt 反馈系统（PromptFeedback model + 评分 API）
+- [x] Profile 编辑 — PUT `/api/users/me/profile`（bio/username 可编辑）
+- [x] Clerk webhook 扩展 — user.updated 事件同步 displayName + avatarUrl
+- [x] i18n 三语言同步（en/ja/zh）
+- [ ] Featured/Pinned images（isFeatured 字段，CEO Review 已批准，待实现）
+- [ ] Dynamic OG image generation（Next.js ImageResponse，CEO Review 已批准，待实现）
+- [ ] Publish-to-earn — 公开分享返还部分积分（依赖 Phase E 积分系统）
 
 ### D4. Collections / Albums
 - [ ] 用户创建文件夹组织作品

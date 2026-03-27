@@ -96,6 +96,8 @@
   "Navbar": {
     "creditsLoading": "...",
     "signIn": "サインイン",
+    "viewProfile": "プロフィールを見る",
+    "signOut": "サインアウト",
     "links": {
       "gallery": "ギャラリー",
       "studio": "スタジオ",
@@ -459,8 +461,14 @@
     "characterCard": {
       "hint": "このキャラクターのプロンプトと参照画像を適用",
       "applied": "キャラクターカード適用済み — プロンプトと参照画像を設定しました",
+      "hintMulti": "{count}体のキャラクターのプロンプトと参照画像を適用",
+      "appliedMulti": "{count}枚のカード適用済み — ベースプロンプトを自動挿入",
       "applyButton": "適用",
-      "appliedButton": "適用済み"
+      "appliedButton": "適用済み",
+      "basePromptLabel": "キャラクター基本プロンプト（自動挿入）",
+      "actionPromptLabel": "アクション / シーン",
+      "actionPromptHint": "ポーズ、表情、背景、シーンを入力 — キャラクターの外見は自動挿入されます。",
+      "actionPromptPlaceholder": "例：花畑に立って笑っている、風が髪をなびかせている..."
     },
     "modelSelector": {
       "label": "AIモデル",
@@ -1068,6 +1076,8 @@
     "improved": "改善しました！",
     "needsWork": "さらなる精錬が必要",
     "useInGeneration": "生成に使用",
+    "selectCard": "このカードを選択",
+    "deselectCard": "このカードの選択を解除",
     "noCards": "キャラクターカードがありません",
     "noCardsHint": "キャラクターカードを作成して、一貫したキャラクター生成を始めましょう",
     "deleteConfirm": "このキャラクターカードを削除しますか？",
@@ -1101,6 +1111,14 @@
       "artStyle": "アートスタイル",
       "colorPalette": "カラーパレット",
       "distinguishingFeatures": "特徴"
+    },
+    "relatedWorks": "関連作品",
+    "combinationGallery": "キャラクター組み合わせ",
+    "gallery": {
+      "empty": "まだ生成がありません",
+      "emptyComboHint": "{names} の組み合わせ生成はまだありません",
+      "count": "{count} 件の生成",
+      "loadMore": "もっと見る"
     }
   },
   "PromptFeedback": {
@@ -1115,15 +1133,13 @@
     "refinePrompt": "プロンプトを改善",
     "saveToCard": "カードに保存",
     "savedToCard": "保存しました！",
-    "describeFeedback": "不満な点を説明してください",
-    "feedbackPlaceholder": "例：手がおかしい、背景が暗すぎる、ポーズが不自然...",
-    "submit": "改善",
-    "analyzing": "画像を分析中...",
-    "refinedPrompt": "改善されたプロンプト",
-    "explanation": "変更内容",
-    "apply": "適用",
+    "thinking": "考え中...",
+    "inputPlaceholder": "回答を入力...",
+    "send": "送信",
+    "apply": "プロンプトを適用",
     "applyAndReference": "適用して参考画像にする",
-    "negativeAdditions": "推奨ネガティブプロンプト"
+    "negativeAdditions": "推奨ネガティブプロンプト",
+    "conversationDone": "改善プロンプト完成！"
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",

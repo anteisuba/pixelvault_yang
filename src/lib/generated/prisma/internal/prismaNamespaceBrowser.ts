@@ -65,6 +65,7 @@ export const ModelName = {
   Story: 'Story',
   StoryPanel: 'StoryPanel',
   CharacterCard: 'CharacterCard',
+  GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow'
 } as const
@@ -332,6 +333,16 @@ export const CharacterCardScalarFieldEnum = {
 } as const
 
 export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
+
+
+export const GenerationCharacterCardScalarFieldEnum = {
+  id: 'id',
+  generationId: 'generationId',
+  characterCardId: 'characterCardId',
+  createdAt: 'createdAt'
+} as const
+
+export type GenerationCharacterCardScalarFieldEnum = (typeof GenerationCharacterCardScalarFieldEnum)[keyof typeof GenerationCharacterCardScalarFieldEnum]
 
 
 export const UserLikeScalarFieldEnum = {

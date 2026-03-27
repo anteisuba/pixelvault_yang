@@ -13,7 +13,6 @@ import { useTranslations } from 'next-intl'
 import { SignedIn, SignedOut } from '@clerk/nextjs'
 
 import { ROUTES } from '@/constants/routes'
-import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
@@ -69,9 +68,6 @@ export function MobileTabBar() {
       aria-label="Mobile navigation"
       className="fixed bottom-0 inset-x-0 z-50 border-t border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150 md:hidden"
     >
-      <div className="flex items-center justify-center border-b border-border/40 py-1">
-        <LocaleSwitcher className="border-0 bg-transparent" />
-      </div>
       <div className="h-14">
         <SignedIn>
           <TabList tabs={signedInTabs} pathname={pathname} />

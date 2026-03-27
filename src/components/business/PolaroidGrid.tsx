@@ -31,13 +31,19 @@ export function PolaroidGrid({
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <ImageIcon className="size-12 text-muted-foreground/40 mb-4" />
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="size-16 rounded-full bg-primary/5 flex items-center justify-center mb-5">
+          <ImageIcon className="size-7 text-primary/40" />
+        </div>
         <p className="text-muted-foreground font-serif text-lg">
           {t('noPublicImages')}
         </p>
-        <Link href="/studio" className="mt-4">
-          <Button variant="outline" size="sm">
+        <Link href="/studio" className="mt-5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
+          >
             {t('startCreating')}
           </Button>
         </Link>
@@ -46,14 +52,15 @@ export function PolaroidGrid({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-content mx-auto px-4 sm:px-6">
       {/* Polaroid scatter grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 px-4 py-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 py-8 sm:py-10">
         {generations.map((gen) => (
           <PolaroidCard
             key={gen.id}
             id={gen.id}
             url={gen.url}
+            outputType={gen.outputType}
             prompt={gen.prompt}
             model={gen.model}
             createdAt={gen.createdAt}
@@ -71,11 +78,12 @@ export function PolaroidGrid({
 
       {/* Load more */}
       {hasMore && (
-        <div className="flex justify-center pb-8">
+        <div className="flex justify-center pb-10">
           <Button
             variant="outline"
             onClick={onLoadMore}
             disabled={isLoadingMore}
+            className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
           >
             {isLoadingMore ? (
               <>

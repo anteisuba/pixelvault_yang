@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { getCreatorProfile, getUserByClerkId } from '@/services/user.service'
 import { CreatorProfileView } from '@/components/business/CreatorProfileView'
+import { PrivateProfileView } from '@/components/business/PrivateProfileView'
 import type { AppLocale } from '@/i18n/routing'
 
 interface CreatorProfilePageProps {
@@ -21,6 +22,11 @@ export async function generateMetadata({
 
   if (!profile) {
     return { title: t('notFound') }
+  }
+
+  if ('private' in profile) {
+    const displayName = profile.displayName ?? profile.username
+    return { title: `${displayName} — ${t('metaTitle')}` }
   }
 
   const displayName = profile.displayName ?? profile.username
@@ -68,6 +74,16 @@ export default async function CreatorProfilePage({
 
   if (!profile) {
     notFound()
+  }
+
+  if ('private' in profile) {
+    return (
+      <PrivateProfileView
+        username={profile.username}
+        displayName={profile.displayName}
+        avatarUrl={profile.avatarUrl}
+      />
+    )
   }
 
   return <CreatorProfileView username={username} initialData={profile} />

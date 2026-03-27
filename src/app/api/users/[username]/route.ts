@@ -41,6 +41,21 @@ export async function GET(
       )
     }
 
+    if ('private' in profile) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'private',
+          data: {
+            username: profile.username,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+          },
+        },
+        { status: 403 },
+      )
+    }
+
     return NextResponse.json<CreatorProfilePageResponse>({
       success: true,
       data: profile,

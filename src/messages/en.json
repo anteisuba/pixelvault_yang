@@ -1176,6 +1176,8 @@
     "unsupportedImageType": "Please use JPEG, PNG, or WebP",
     "avatarTooLarge": "Avatar must be under 5 MB",
     "bannerTooLarge": "Cover image must be under 10 MB",
+    "privateProfile": "This profile is private",
+    "privateProfileHint": "The creator has chosen to keep their profile hidden",
     "noPublicImages": "No public images yet",
     "startCreating": "Start creating in Studio",
     "loadMore": "Load more",

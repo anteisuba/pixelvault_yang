@@ -1176,6 +1176,8 @@
     "unsupportedImageType": "请使用 JPEG、PNG 或 WebP 格式",
     "avatarTooLarge": "头像不能超过 5 MB",
     "bannerTooLarge": "封面图片不能超过 10 MB",
+    "privateProfile": "该用户的主页未公开",
+    "privateProfileHint": "创作者选择了隐藏个人主页",
     "noPublicImages": "暂无公开作品",
     "startCreating": "去工作室开始创作",
     "loadMore": "加载更多",

@@ -11,6 +11,7 @@ import { PROFILE } from '@/constants/config'
 interface PolaroidCardProps {
   id: string
   url: string
+  outputType: string
   prompt: string
   model: string
   createdAt: Date | string
@@ -40,6 +41,7 @@ function seededRandom(seed: string): number {
 export function PolaroidCard({
   id,
   url,
+  outputType,
   prompt,
   model,
   createdAt,
@@ -54,6 +56,7 @@ export function PolaroidCard({
   className,
 }: PolaroidCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const isVideo = outputType === 'VIDEO' || url.endsWith('.mp4')
   const t = useTranslations('CreatorProfile')
 
   // Deterministic scatter transforms based on image ID
@@ -122,18 +125,34 @@ export function PolaroidCard({
           }}
         >
           <div className="relative aspect-square overflow-hidden bg-muted">
-            <Image
-              src={url}
-              alt={
-                isPromptPublic
-                  ? prompt.slice(0, 100)
-                  : `${t('imageBy')} ${model}`
-              }
-              fill
-              sizes="200px"
-              className="object-cover"
-              loading="lazy"
-            />
+            {isVideo ? (
+              <video
+                src={url}
+                muted
+                loop
+                playsInline
+                onMouseEnter={(e) => e.currentTarget.play()}
+                onMouseLeave={(e) => {
+                  e.currentTarget.pause()
+                  e.currentTarget.currentTime = 0
+                }}
+                className="absolute inset-0 size-full object-cover"
+              />
+            ) : (
+              <Image
+                src={url}
+                alt={
+                  isPromptPublic
+                    ? prompt.slice(0, 100)
+                    : `${t('imageBy')} ${model}`
+                }
+                fill
+                sizes="200px"
+                className="object-cover"
+                loading="lazy"
+                unoptimized
+              />
+            )}
             {isFeatured && (
               <div className="absolute top-1.5 right-1.5 bg-primary/90 text-primary-foreground rounded-full p-1">
                 <Sparkles className="size-3" />
@@ -188,18 +207,31 @@ export function PolaroidCard({
                 borderBottom: `48px solid ${PROFILE.POLAROID_BORDER_COLOR}`,
               }}
             >
-              <Image
-                src={url}
-                alt={
-                  isPromptPublic
-                    ? prompt.slice(0, 100)
-                    : `${t('imageBy')} ${model}`
-                }
-                width={width}
-                height={height}
-                className="max-w-[80vw] max-h-[65vh] object-contain"
-                priority
-              />
+              {isVideo ? (
+                <video
+                  src={url}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  className="max-w-[80vw] max-h-[65vh] object-contain"
+                />
+              ) : (
+                <Image
+                  src={url}
+                  alt={
+                    isPromptPublic
+                      ? prompt.slice(0, 100)
+                      : `${t('imageBy')} ${model}`
+                  }
+                  width={width}
+                  height={height}
+                  className="max-w-[80vw] max-h-[65vh] object-contain"
+                  unoptimized
+                  priority
+                />
+              )}
             </div>
 
             {/* Info panel */}

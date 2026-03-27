@@ -54,6 +54,8 @@ export const GenerateRequestSchema = z.object({
   apiKeyId: z.string().trim().min(1).optional(),
   /** Optional provider-specific advanced parameters */
   advancedParams: AdvancedParamsSchema.optional(),
+  /** Optional character card IDs to link to this generation (multi-card) */
+  characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
 })
 
 /** Image generation request type (derived from Zod schema) */
@@ -359,24 +361,33 @@ export interface PromptFeedbackResponse {
   error?: string
 }
 
-// ─── Generation Feedback (Iterative Refinement) ─────────────────
+// ─── Generation Feedback (Conversational Refinement) ────────────
 
-/** Request to refine a prompt based on generated image + user feedback */
+/** A single message in the refinement conversation */
+export const ConversationMessageSchema = z.object({
+  role: z.enum(['assistant', 'user']),
+  content: z.string().min(1),
+})
+export type ConversationMessage = z.infer<typeof ConversationMessageSchema>
+
+/** Request for one turn of the refinement conversation */
 export const GenerationFeedbackRequestSchema = z.object({
   imageUrl: z.string().min(1),
   originalPrompt: z.string().min(1),
-  feedback: z.string().min(1).max(1000),
+  messages: z.array(ConversationMessageSchema),
+  locale: z.string().min(2).max(5).default('en'),
   apiKeyId: z.string().optional(),
 })
 export type GenerationFeedbackRequest = z.infer<
   typeof GenerationFeedbackRequestSchema
 >
 
+/** AI response — either asks more questions or delivers a final prompt */
 export interface GenerationFeedbackResult {
-  originalPrompt: string
-  refinedPrompt: string
+  reply: string
+  refinedPrompt: string | null
   negativeAdditions: string[]
-  explanation: string
+  done: boolean
 }
 
 export interface GenerationFeedbackResponse {
@@ -887,6 +898,16 @@ export interface CharacterCardRefineResponse {
 export interface ConsistencyScoreResponse {
   success: boolean
   data?: ConsistencyScoreResult
+  error?: string
+}
+
+export interface CharacterCardGalleryResponse {
+  success: boolean
+  data?: {
+    generations: GenerationRecord[]
+    total: number
+    hasMore: boolean
+  }
   error?: string
 }
 

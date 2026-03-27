@@ -102,10 +102,11 @@ function getTranslatedModelDescription(
 }
 
 interface GenerateFormProps {
-  activeCharacterCard?: CharacterCardRecord | null
+  activeCharacterCards?: CharacterCardRecord[]
 }
 
-export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
+export function GenerateForm({ activeCharacterCards = [] }: GenerateFormProps) {
+  const hasCards = activeCharacterCards.length > 0
   const [selectedOptionId, setSelectedOptionId] = useState<string>(
     `workspace:${AI_MODELS.GEMINI_FLASH_IMAGE}`,
   )
@@ -147,7 +148,7 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
   const tModels = useTranslations('Models')
   const tPresets = useTranslations('PromptPresets')
   const tCard = useTranslations('StudioForm.characterCard')
-  const [appliedCardId, setAppliedCardId] = useState<string | null>(null)
+  const [appliedCardIds, setAppliedCardIds] = useState<string[]>([])
   const {
     isLoading: isFeedbackLoading,
     feedback,
@@ -155,14 +156,18 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
     clearFeedback,
   } = usePromptFeedback()
   const {
-    isLoading: isGenFeedbackLoading,
-    result: genFeedbackResult,
-    requestFeedback: requestGenFeedback,
-    clearResult: clearGenFeedback,
+    isLoading: isConversationLoading,
+    messages: conversationMessages,
+    refinedPrompt: conversationRefinedPrompt,
+    negativeAdditions: conversationNegatives,
+    done: conversationDone,
+    startConversation,
+    sendReply,
+    reset: resetConversation,
   } = useGenerationFeedback()
   const tGenFeedback = useTranslations('GenerationFeedback')
-  const [showGenFeedback, setShowGenFeedback] = useState(false)
-  const [genFeedbackText, setGenFeedbackText] = useState('')
+  const [showConversation, setShowConversation] = useState(false)
+  const [replyInput, setReplyInput] = useState('')
   const [isSavingToCard, setIsSavingToCard] = useState(false)
   const [savedToCard, setSavedToCard] = useState(false)
   const activeApiKeys = apiKeys.filter((key) => key.isActive)
@@ -209,31 +214,45 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Reset applied state when card changes
+  // Reset applied state when selected cards change
   useEffect(() => {
-    if (!activeCharacterCard || activeCharacterCard.id !== appliedCardId) {
-      setAppliedCardId(null)
+    if (!hasCards) {
+      setAppliedCardIds([])
+    } else {
+      // Remove applied IDs that are no longer in activeCharacterCards
+      const activeIds = new Set(activeCharacterCards.map((c) => c.id))
+      setAppliedCardIds((prev) => prev.filter((id) => activeIds.has(id)))
     }
-  }, [activeCharacterCard, appliedCardId])
+  }, [activeCharacterCards, hasCards])
 
-  const handleApplyCharacterCard = useCallback(() => {
-    if (!activeCharacterCard) return
+  const handleApplyCharacterCards = useCallback(() => {
+    if (!hasCards) return
     // Clear user prompt — they will type action/expression only
     setPrompt('')
-    // Add source images as reference images
+    // Add source images from all cards as reference images
     clearAllImages()
-    const images = activeCharacterCard.sourceImages?.length
-      ? activeCharacterCard.sourceImages
-      : [activeCharacterCard.sourceImageUrl]
-    for (const img of images) {
-      addReferenceImage(img)
+    for (const card of activeCharacterCards) {
+      const images = card.sourceImages?.length
+        ? card.sourceImages
+        : [card.sourceImageUrl]
+      for (const img of images) {
+        addReferenceImage(img)
+      }
     }
-    setAppliedCardId(activeCharacterCard.id)
-  }, [activeCharacterCard, setPrompt, clearAllImages, addReferenceImage])
+    setAppliedCardIds(activeCharacterCards.map((c) => c.id))
+  }, [
+    activeCharacterCards,
+    hasCards,
+    setPrompt,
+    clearAllImages,
+    addReferenceImage,
+  ])
 
-  // Whether the character card base prompt is being auto-injected
-  const isCardApplied =
-    appliedCardId !== null && activeCharacterCard?.id === appliedCardId
+  // Whether the character cards' base prompts are being auto-injected
+  const isCardApplied = appliedCardIds.length > 0
+  const appliedCards = activeCharacterCards.filter((c) =>
+    appliedCardIds.includes(c.id),
+  )
 
   const generatedModelLabel = generatedGeneration
     ? getTranslatedModelLabel(tModels, generatedGeneration.model)
@@ -245,15 +264,26 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
       if (isGenerating || !selectedModel) return
 
       // Reset feedback state for new generation
-      setShowGenFeedback(false)
-      clearGenFeedback()
-      setGenFeedbackText('')
+      setShowConversation(false)
+      resetConversation()
+      setReplyInput('')
       setSavedToCard(false)
 
-      // Combine base prompt (from character card) + user action prompt
+      // Combine base prompts (from character cards) + user action prompt
       let finalPrompt = prompt.trim()
-      if (isCardApplied && activeCharacterCard) {
-        const base = activeCharacterCard.characterPrompt.trim()
+      if (isCardApplied && appliedCards.length > 0) {
+        const basePrompts = appliedCards
+          .map((c) => c.characterPrompt.trim())
+          .filter(Boolean)
+        const base =
+          basePrompts.length === 1
+            ? basePrompts[0]
+            : basePrompts
+                .map(
+                  (p, i) =>
+                    `[Character ${i + 1}: ${appliedCards[i].name}]\n${p}`,
+                )
+                .join('\n\n')
         const action = prompt.trim()
         finalPrompt = action ? `${base}\n\n${action}` : base
       }
@@ -271,6 +301,8 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
           referenceImages.length > 1 ? referenceImages : undefined,
         apiKeyId: selectedModel.keyId,
         advancedParams: hasAdvanced ? advancedParams : undefined,
+        characterCardIds:
+          appliedCardIds.length > 0 ? appliedCardIds : undefined,
       })
     },
     [
@@ -278,13 +310,14 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
       isGenerating,
       selectedModel,
       isCardApplied,
-      activeCharacterCard,
+      appliedCards,
+      appliedCardIds,
       advancedParams,
       generate,
       aspectRatio,
       referenceImage,
       referenceImages,
-      clearGenFeedback,
+      resetConversation,
     ],
   )
 
@@ -350,60 +383,72 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
         </section>
 
         <section className="min-w-0 overflow-hidden rounded-3xl border border-border/60 bg-card/82 p-5 shadow-sm sm:p-6">
-          {/* Character card indicator */}
-          {activeCharacterCard && (
+          {/* Character card indicator (multi-card) */}
+          {hasCards && (
             <div
               className={cn(
-                'mb-5 flex items-center gap-3 rounded-2xl border p-3 transition-colors',
-                appliedCardId === activeCharacterCard.id
+                'mb-5 rounded-2xl border p-3 transition-colors',
+                isCardApplied
                   ? 'border-emerald-500/40 bg-emerald-500/5'
                   : 'border-primary/30 bg-primary/5',
               )}
             >
-              <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border/40">
-                <Image
-                  src={activeCharacterCard.sourceImageUrl}
-                  alt={activeCharacterCard.name}
-                  fill
-                  className="object-cover"
-                  sizes="40px"
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {activeCharacterCards.slice(0, 4).map((card) => (
+                    <div
+                      key={card.id}
+                      className="relative size-10 shrink-0 overflow-hidden rounded-lg border-2 border-background"
+                    >
+                      <Image
+                        src={card.sourceImageUrl}
+                        alt={card.name}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                        unoptimized
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {activeCharacterCards.map((c) => c.name).join(' × ')}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {isCardApplied
+                      ? tCard('appliedMulti', {
+                          count: appliedCards.length,
+                        })
+                      : tCard('hintMulti', {
+                          count: activeCharacterCards.length,
+                        })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isGenerating || isCardApplied}
+                  onClick={handleApplyCharacterCards}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                    isCardApplied
+                      ? 'bg-emerald-500/10 text-emerald-600'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
+                  )}
+                >
+                  {isCardApplied ? (
+                    <>
+                      <Check className="size-3" />
+                      {tCard('appliedButton')}
+                    </>
+                  ) : (
+                    <>
+                      <User className="size-3" />
+                      {tCard('applyButton')}
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {activeCharacterCard.name}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {appliedCardId === activeCharacterCard.id
-                    ? tCard('applied')
-                    : tCard('hint')}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={
-                  isGenerating || appliedCardId === activeCharacterCard.id
-                }
-                onClick={handleApplyCharacterCard}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                  appliedCardId === activeCharacterCard.id
-                    ? 'bg-emerald-500/10 text-emerald-600'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
-                )}
-              >
-                {appliedCardId === activeCharacterCard.id ? (
-                  <>
-                    <Check className="size-3" />
-                    {tCard('appliedButton')}
-                  </>
-                ) : (
-                  <>
-                    <User className="size-3" />
-                    {tCard('applyButton')}
-                  </>
-                )}
-              </button>
             </div>
           )}
 
@@ -426,8 +471,8 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                 disabled={isGenerating}
                 onRequest={() => {
                   const context =
-                    isCardApplied && activeCharacterCard
-                      ? `This is an ACTION/SCENE prompt for the character "${activeCharacterCard.name}". The character's base appearance prompt is already auto-injected. Focus feedback on pose, expression, scene composition, lighting, and atmosphere — not on character description.`
+                    isCardApplied && appliedCards.length > 0
+                      ? `This is an ACTION/SCENE prompt for ${appliedCards.length} character(s): ${appliedCards.map((c) => `"${c.name}"`).join(', ')}. The characters' base appearance prompts are already auto-injected. Focus feedback on pose, expression, scene composition, lighting, and atmosphere — not on character description.`
                       : undefined
                   requestFeedback(prompt, context, selectedModel?.keyId)
                 }}
@@ -484,14 +529,23 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
           )}
 
           {/* Base prompt indicator (hidden, auto-injected) */}
-          {isCardApplied && activeCharacterCard && (
-            <div className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                {tCard('basePromptLabel')}
-              </p>
-              <p className="line-clamp-2 text-xs text-foreground/60">
-                {activeCharacterCard.characterPrompt}
-              </p>
+          {isCardApplied && appliedCards.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {appliedCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="rounded-xl border border-border/50 bg-muted/30 p-3"
+                >
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {appliedCards.length > 1
+                      ? `${tCard('basePromptLabel')} — ${card.name}`
+                      : tCard('basePromptLabel')}
+                  </p>
+                  <p className="line-clamp-2 text-xs text-foreground/60">
+                    {card.characterPrompt}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 
@@ -705,6 +759,7 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
               height={generatedGeneration.height}
               sizes="(max-width: 768px) 100vw, 50vw"
               className="h-auto w-full object-cover"
+              unoptimized
             />
             <div className="space-y-4 border-t border-border/75 p-5 sm:p-6">
               <div className="space-y-2">
@@ -774,18 +829,27 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 rounded-full"
+                  disabled={isConversationLoading}
                   onClick={() => {
-                    setShowGenFeedback((prev) => !prev)
-                    if (showGenFeedback) {
-                      clearGenFeedback()
-                      setGenFeedbackText('')
+                    if (showConversation) {
+                      setShowConversation(false)
+                      resetConversation()
+                      setReplyInput('')
+                    } else {
+                      setShowConversation(true)
+                      startConversation(
+                        generatedGeneration.url,
+                        generatedGeneration.prompt,
+                        locale,
+                        selectedModel?.keyId,
+                      )
                     }
                   }}
                 >
                   <Wand2 className="size-3.5" />
                   {tGenFeedback('refinePrompt')}
                 </Button>
-                {activeCharacterCard && appliedCardId && (
+                {appliedCards.length === 1 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -795,9 +859,12 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                     onClick={async () => {
                       setIsSavingToCard(true)
                       setSavedToCard(false)
-                      const res = await updateCharacterCardAPI(appliedCardId, {
-                        characterPrompt: generatedGeneration.prompt,
-                      })
+                      const res = await updateCharacterCardAPI(
+                        appliedCards[0].id,
+                        {
+                          characterPrompt: generatedGeneration.prompt,
+                        },
+                      )
                       setIsSavingToCard(false)
                       if (res.success) setSavedToCard(true)
                     }}
@@ -816,68 +883,57 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                 )}
               </div>
 
-              {/* ── Generation Feedback Panel ── */}
-              {showGenFeedback && (
+              {/* ── Conversational Refinement Panel ── */}
+              {showConversation && (
                 <div className="animate-in fade-in-0 slide-in-from-top-2 space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4 duration-300">
-                  <div className="flex gap-2">
-                    <textarea
-                      className="flex-1 resize-none rounded-xl border border-border/75 bg-background px-3 py-2 font-serif text-sm leading-6 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30"
-                      rows={2}
-                      placeholder={tGenFeedback('feedbackPlaceholder')}
-                      value={genFeedbackText}
-                      onChange={(e) => setGenFeedbackText(e.target.value)}
-                      disabled={isGenFeedbackLoading}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="self-end rounded-full"
-                      disabled={!genFeedbackText.trim() || isGenFeedbackLoading}
-                      onClick={() => {
-                        requestGenFeedback(
-                          generatedGeneration.url,
-                          generatedGeneration.prompt,
-                          genFeedbackText,
-                          selectedModel?.keyId,
-                        )
-                      }}
-                    >
-                      {isGenFeedbackLoading ? (
-                        <>
+                  {/* Chat Messages */}
+                  <div className="max-h-64 space-y-2.5 overflow-y-auto">
+                    {conversationMessages.map((msg, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          'flex',
+                          msg.role === 'user' ? 'justify-end' : 'justify-start',
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'max-w-[85%] rounded-2xl px-3.5 py-2.5 font-serif text-sm leading-6',
+                            msg.role === 'user'
+                              ? 'bg-primary/10 text-foreground'
+                              : 'bg-muted/60 text-foreground',
+                          )}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {isConversationLoading && (
+                      <div className="flex justify-start">
+                        <div className="flex items-center gap-1.5 rounded-2xl bg-muted/60 px-3.5 py-2.5 text-sm text-muted-foreground">
                           <Loader2 className="size-3.5 animate-spin" />
-                          {tGenFeedback('analyzing')}
-                        </>
-                      ) : (
-                        tGenFeedback('submit')
-                      )}
-                    </Button>
+                          {tGenFeedback('thinking')}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {genFeedbackResult && (
-                    <div className="animate-in fade-in-0 space-y-3 duration-300">
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {tGenFeedback('explanation')}
-                        </p>
-                        <p className="font-serif text-sm leading-6 text-foreground">
-                          {genFeedbackResult.explanation}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {tGenFeedback('refinedPrompt')}
-                        </p>
-                        <p className="rounded-xl bg-primary/5 p-3 font-serif text-sm leading-6 text-foreground">
-                          {genFeedbackResult.refinedPrompt}
-                        </p>
-                      </div>
-                      {genFeedbackResult.negativeAdditions.length > 0 && (
+                  {/* Refined Prompt Result */}
+                  {conversationDone && conversationRefinedPrompt && (
+                    <div className="animate-in fade-in-0 space-y-3 border-t border-border/50 pt-3 duration-300">
+                      <p className="text-xs font-semibold text-primary">
+                        {tGenFeedback('conversationDone')}
+                      </p>
+                      <p className="rounded-xl bg-primary/5 p-3 font-serif text-sm leading-6 text-foreground">
+                        {conversationRefinedPrompt}
+                      </p>
+                      {conversationNegatives.length > 0 && (
                         <div className="space-y-1">
                           <p className="text-xs font-semibold text-muted-foreground">
                             {tGenFeedback('negativeAdditions')}
                           </p>
                           <div className="flex flex-wrap gap-1.5">
-                            {genFeedbackResult.negativeAdditions.map((neg) => (
+                            {conversationNegatives.map((neg) => (
                               <Badge
                                 key={neg}
                                 variant="outline"
@@ -889,20 +945,17 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                           </div>
                         </div>
                       )}
-                      <div className="flex flex-wrap gap-2 pt-1">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
                           size="sm"
                           className="gap-1.5 rounded-full"
                           onClick={() => {
-                            setPrompt(genFeedbackResult.refinedPrompt)
-                            if (
-                              genFeedbackResult.negativeAdditions.length > 0
-                            ) {
+                            setPrompt(conversationRefinedPrompt)
+                            if (conversationNegatives.length > 0) {
                               const currentNeg =
                                 advancedParams.negativePrompt || ''
-                              const additions =
-                                genFeedbackResult.negativeAdditions.join(', ')
+                              const additions = conversationNegatives.join(', ')
                               setAdvancedParams({
                                 ...advancedParams,
                                 negativePrompt: currentNeg
@@ -910,9 +963,8 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                                   : additions,
                               })
                             }
-                            setShowGenFeedback(false)
-                            clearGenFeedback()
-                            setGenFeedbackText('')
+                            setShowConversation(false)
+                            resetConversation()
                           }}
                         >
                           <Check className="size-3.5" />
@@ -924,14 +976,11 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                           size="sm"
                           className="gap-1.5 rounded-full"
                           onClick={() => {
-                            setPrompt(genFeedbackResult.refinedPrompt)
-                            if (
-                              genFeedbackResult.negativeAdditions.length > 0
-                            ) {
+                            setPrompt(conversationRefinedPrompt)
+                            if (conversationNegatives.length > 0) {
                               const currentNeg =
                                 advancedParams.negativePrompt || ''
-                              const additions =
-                                genFeedbackResult.negativeAdditions.join(', ')
+                              const additions = conversationNegatives.join(', ')
                               setAdvancedParams({
                                 ...advancedParams,
                                 negativePrompt: currentNeg
@@ -940,15 +989,64 @@ export function GenerateForm({ activeCharacterCard }: GenerateFormProps) {
                               })
                             }
                             addReferenceImage(generatedGeneration.url)
-                            setShowGenFeedback(false)
-                            clearGenFeedback()
-                            setGenFeedbackText('')
+                            setShowConversation(false)
+                            resetConversation()
                           }}
                         >
                           <ImagePlus className="size-3.5" />
                           {tGenFeedback('applyAndReference')}
                         </Button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Reply Input — only show when conversation is not done */}
+                  {!conversationDone && conversationMessages.length > 0 && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 rounded-full border border-border/75 bg-background px-4 py-2 font-serif text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                        placeholder={tGenFeedback('inputPlaceholder')}
+                        value={replyInput}
+                        onChange={(e) => setReplyInput(e.target.value)}
+                        disabled={isConversationLoading}
+                        onKeyDown={(e) => {
+                          if (
+                            e.key === 'Enter' &&
+                            !e.shiftKey &&
+                            replyInput.trim() &&
+                            !isConversationLoading
+                          ) {
+                            e.preventDefault()
+                            sendReply(
+                              generatedGeneration.url,
+                              generatedGeneration.prompt,
+                              replyInput.trim(),
+                              locale,
+                              selectedModel?.keyId,
+                            )
+                            setReplyInput('')
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-full"
+                        disabled={!replyInput.trim() || isConversationLoading}
+                        onClick={() => {
+                          sendReply(
+                            generatedGeneration.url,
+                            generatedGeneration.prompt,
+                            replyInput.trim(),
+                            locale,
+                            selectedModel?.keyId,
+                          )
+                          setReplyInput('')
+                        }}
+                      >
+                        {tGenFeedback('send')}
+                      </Button>
                     </div>
                   )}
                 </div>

@@ -51,6 +51,8 @@ export const ImageCard = memo(function ImageCard({
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
 
+  const isVideo =
+    generation.outputType === 'VIDEO' || generation.url.endsWith('.mp4')
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(
@@ -93,13 +95,9 @@ export const ImageCard = memo(function ImageCard({
             type="button"
             className="block w-full cursor-pointer"
             onClick={() => setDetailOpen(true)}
-            aria-label={
-              generation.outputType === 'VIDEO'
-                ? t('openVideo')
-                : t('openImage')
-            }
+            aria-label={isVideo ? t('openVideo') : t('openImage')}
           >
-            {generation.outputType === 'VIDEO' ? (
+            {isVideo ? (
               <video
                 src={`${generation.url}#t=0.1`}
                 muted
@@ -116,6 +114,7 @@ export const ImageCard = memo(function ImageCard({
                 height={generation.height}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                unoptimized
               />
             )}
           </button>
@@ -125,7 +124,7 @@ export const ImageCard = memo(function ImageCard({
               {t('referenceImageLabel')}
             </span>
           )}
-          {generation.outputType === 'VIDEO' && (
+          {isVideo && (
             <>
               <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md">
                 <Play className="ml-0.5 size-3.5" fill="currentColor" />

@@ -8,43 +8,65 @@ import {
 } from '@/services/llm-text.service'
 import { fetchAsBuffer } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import type { GenerationFeedbackResult } from '@/types'
+import type { ConversationMessage, GenerationFeedbackResult } from '@/types'
 
 // ─── Response Schema (parsed from LLM JSON output) ─────────────
 
-const RefinementOutputSchema = z.object({
-  refinedPrompt: z.string(),
+const ConversationOutputSchema = z.object({
+  reply: z.string(),
+  refinedPrompt: z.string().nullable(),
   negativeAdditions: z.array(z.string()),
-  explanation: z.string(),
+  done: z.boolean(),
 })
+
+// ─── Locale Labels ──────────────────────────────────────────────
+
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'English',
+  zh: 'Chinese (Simplified)',
+  ja: 'Japanese',
+}
 
 // ─── System Prompt ──────────────────────────────────────────────
 
-const REFINEMENT_SYSTEM_PROMPT = `You are an expert AI image generation prompt engineer. The user will show you a generated image, the original prompt used to create it, and their feedback describing what they don't like about the result. Your job is to refine the prompt to fix the issues they described.
+function buildSystemPrompt(locale: string): string {
+  const lang = LOCALE_LABELS[locale] || LOCALE_LABELS.en
+  return `You are an expert AI image generation prompt coach. You help users iteratively refine their image generation prompts through conversation.
+
+You will be shown a generated image and the prompt used to create it. Your job is to ask the user targeted questions to understand what they want to improve, then produce an optimized prompt.
+
+CONVERSATION FLOW:
+1. First turn: Look at the image, analyze it, then ask 2-3 specific questions about what the user wants to change (composition, style, colors, mood, character details, etc.)
+2. Follow-up turns: Based on the user's answers, either ask 1-2 more clarifying questions OR deliver the final refined prompt
+3. When you have enough information, set "done": true and provide the refined prompt
 
 Respond in valid JSON with this exact structure:
 {
-  "refinedPrompt": "The improved prompt that addresses the user's feedback while preserving the original intent.",
-  "negativeAdditions": ["list", "of", "terms", "to", "add", "to", "negative", "prompt"],
-  "explanation": "Brief explanation of what you changed and why, referencing the specific issues the user mentioned."
+  "reply": "Your conversational message to the user (questions or explanation of the refined prompt)",
+  "refinedPrompt": null or "the final optimized prompt when done",
+  "negativeAdditions": [] or ["terms", "to", "avoid"] when done,
+  "done": false or true
 }
 
 Rules:
-- Analyze the image to understand what went wrong
-- The refined prompt should directly address the user's complaints
-- Preserve the original creative intent — only fix the issues mentioned
-- negativeAdditions should list specific visual artifacts or unwanted elements to avoid
-- Keep negativeAdditions concise — single terms or short phrases
-- If the user's feedback is vague, infer specific issues from the image
+- Ask specific, actionable questions — not vague ones
+- Reference what you see in the image when asking questions (e.g. "I notice the lighting is flat — would you prefer dramatic side-lighting or soft diffused light?")
+- Keep questions concise — 2-3 per turn maximum
+- When delivering the final prompt, explain briefly what you changed in "reply"
+- The refined prompt should be a direct upgrade, preserving the user's original intent
+- negativeAdditions: only include when done=true, list specific visual artifacts to avoid
+- You MUST respond in ${lang}
 - Return ONLY the JSON, no markdown fences, no explanation outside the JSON`
+}
 
 // ─── Public API ─────────────────────────────────────────────────
 
-export async function refinePromptFromFeedback(
+export async function conversationalRefine(
   clerkId: string,
   imageUrl: string,
   originalPrompt: string,
-  feedback: string,
+  messages: ConversationMessage[],
+  locale: string,
   apiKeyId?: string,
 ): Promise<GenerationFeedbackResult> {
   const dbUser = await ensureUser(clerkId)
@@ -54,16 +76,22 @@ export async function refinePromptFromFeedback(
   const { buffer, mimeType } = await fetchAsBuffer(imageUrl)
   const base64 = `data:${mimeType};base64,${buffer.toString('base64')}`
 
-  const userPrompt = `Original prompt used to generate this image:
-"${originalPrompt}"
+  // Build the user prompt with conversation history
+  let userPrompt = `Original prompt used to generate this image:\n"${originalPrompt}"\n`
 
-User feedback (what they don't like):
-"${feedback}"
-
-Analyze the image, understand the issues described, and provide a refined prompt.`
+  if (messages.length === 0) {
+    userPrompt += `\nThis is the first turn. Analyze the image and ask the user what they want to improve.`
+  } else {
+    userPrompt += `\nConversation so far:\n`
+    for (const msg of messages) {
+      const label = msg.role === 'assistant' ? 'You' : 'User'
+      userPrompt += `${label}: ${msg.content}\n`
+    }
+    userPrompt += `\nContinue the conversation. Either ask follow-up questions or deliver the final refined prompt if you have enough information.`
+  }
 
   const raw = await llmTextCompletion({
-    systemPrompt: REFINEMENT_SYSTEM_PROMPT,
+    systemPrompt: buildSystemPrompt(locale),
     userPrompt,
     imageData: base64,
     adapterType: route.adapterType,
@@ -77,24 +105,20 @@ Analyze the image, understand the issues described, and provide a refined prompt
     .replace(/\n?```\s*$/i, '')
 
   try {
-    const parsed = RefinementOutputSchema.safeParse(JSON.parse(cleaned))
+    const parsed = ConversationOutputSchema.safeParse(JSON.parse(cleaned))
 
     if (parsed.success) {
-      return {
-        originalPrompt,
-        ...parsed.data,
-      }
+      return parsed.data
     }
   } catch {
     // JSON parse failed — fall through to fallback
   }
 
-  // Fallback: append feedback context to original prompt
+  // Fallback: treat raw text as a reply asking for clarification
   return {
-    originalPrompt,
-    refinedPrompt: `${originalPrompt}, ${feedback}`,
+    reply: raw,
+    refinedPrompt: null,
     negativeAdditions: [],
-    explanation:
-      'AI returned a non-standard response. The feedback was appended to your original prompt.',
+    done: false,
   }
 }

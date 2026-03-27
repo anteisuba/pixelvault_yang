@@ -398,6 +398,7 @@ export const ModelName = {
   Story: 'Story',
   StoryPanel: 'StoryPanel',
   CharacterCard: 'CharacterCard',
+  GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow'
 } as const
@@ -415,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "userLike" | "userFollow"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1455,6 +1456,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GenerationCharacterCard: {
+      payload: Prisma.$GenerationCharacterCardPayload<ExtArgs>
+      fields: Prisma.GenerationCharacterCardFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GenerationCharacterCardFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GenerationCharacterCardFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        findFirst: {
+          args: Prisma.GenerationCharacterCardFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GenerationCharacterCardFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        findMany: {
+          args: Prisma.GenerationCharacterCardFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>[]
+        }
+        create: {
+          args: Prisma.GenerationCharacterCardCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        createMany: {
+          args: Prisma.GenerationCharacterCardCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GenerationCharacterCardCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>[]
+        }
+        delete: {
+          args: Prisma.GenerationCharacterCardDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        update: {
+          args: Prisma.GenerationCharacterCardUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        deleteMany: {
+          args: Prisma.GenerationCharacterCardDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GenerationCharacterCardUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GenerationCharacterCardUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>[]
+        }
+        upsert: {
+          args: Prisma.GenerationCharacterCardUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationCharacterCardPayload>
+        }
+        aggregate: {
+          args: Prisma.GenerationCharacterCardAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGenerationCharacterCard>
+        }
+        groupBy: {
+          args: Prisma.GenerationCharacterCardGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationCharacterCardGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GenerationCharacterCardCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationCharacterCardCountAggregateOutputType> | number
+        }
+      }
+    }
     UserLike: {
       payload: Prisma.$UserLikePayload<ExtArgs>
       fields: Prisma.UserLikeFieldRefs
@@ -1891,6 +1966,16 @@ export const CharacterCardScalarFieldEnum = {
 export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
 
 
+export const GenerationCharacterCardScalarFieldEnum = {
+  id: 'id',
+  generationId: 'generationId',
+  characterCardId: 'characterCardId',
+  createdAt: 'createdAt'
+} as const
+
+export type GenerationCharacterCardScalarFieldEnum = (typeof GenerationCharacterCardScalarFieldEnum)[keyof typeof GenerationCharacterCardScalarFieldEnum]
+
+
 export const UserLikeScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -2206,6 +2291,7 @@ export type GlobalOmitConfig = {
   story?: Prisma.StoryOmit
   storyPanel?: Prisma.StoryPanelOmit
   characterCard?: Prisma.CharacterCardOmit
+  generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit
   userFollow?: Prisma.UserFollowOmit
 }

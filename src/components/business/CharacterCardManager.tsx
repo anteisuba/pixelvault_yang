@@ -6,6 +6,7 @@ import {
   Trash2,
   Edit3,
   Sparkles,
+  Check,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -27,6 +28,7 @@ import type {
 } from '@/types'
 import { CHARACTER_CARD } from '@/constants/character-card'
 import type { SourceImageViewType } from '@/constants/character-card'
+import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
 import { cn } from '@/lib/utils'
 
 // ─── View Type Labels ─────────────────────────────────────────
@@ -248,6 +250,7 @@ function CreateForm({
                 width={96}
                 height={96}
                 className="rounded-md border border-border/60 object-cover"
+                unoptimized
                 style={{ width: 96, height: 96 }}
               />
               {/* View type selector */}
@@ -320,15 +323,17 @@ function CreateForm({
 
 interface CardItemProps {
   card: CharacterCardRecord
-  isActive: boolean
-  onSelect: () => void
+  isSelected: boolean
+  isExpanded: boolean
+  onToggleSelect: () => void
+  onToggleExpand: () => void
   onDelete: () => void
   onUpdate: (data: UpdateCharacterCardRequest) => Promise<boolean>
   onCreate: (
     data: CreateCharacterCardRequest,
   ) => Promise<CharacterCardRecord | null>
-  activeCardId: string | null
-  onSelectCard: (id: string | null) => void
+  activeCardIds: string[]
+  onToggleSelectCard: (id: string) => void
   onDeleteCard: (id: string) => Promise<boolean>
   onUpdateCard: (
     id: string,
@@ -339,13 +344,15 @@ interface CardItemProps {
 
 function CardItem({
   card,
-  isActive,
-  onSelect,
+  isSelected,
+  isExpanded,
+  onToggleSelect,
+  onToggleExpand,
   onDelete,
   onUpdate,
   onCreate,
-  activeCardId,
-  onSelectCard,
+  activeCardIds,
+  onToggleSelectCard,
   onDeleteCard,
   onUpdateCard,
   depth = 0,
@@ -374,7 +381,7 @@ function CardItem({
     if (newCard) {
       setShowVariantForm(false)
       setShowVariants(true)
-      onSelectCard(newCard.id)
+      onToggleSelectCard(newCard.id)
     }
     return newCard
   }
@@ -392,59 +399,77 @@ function CardItem({
     <div
       className={cn(
         'rounded-lg border transition-colors',
-        isActive
+        isSelected
           ? 'border-primary/40 bg-primary/5'
           : 'border-border/60 bg-background/50',
         depth > 0 && 'ml-6 border-l-2 border-l-primary/20',
       )}
     >
       {/* Header */}
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex w-full items-center gap-3 p-3 text-left"
-      >
-        <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border/40">
-          <Image
-            src={card.sourceImageUrl}
-            alt={card.name}
-            fill
-            className="object-cover"
-            sizes="48px"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium">{card.name}</span>
-            {card.variantLabel && (
-              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                {card.variantLabel}
-              </span>
-            )}
-            <StatusBadge status={card.status} />
+      <div className="flex w-full items-center gap-3 p-3">
+        {/* Checkbox for multi-select */}
+        <button
+          type="button"
+          onClick={onToggleSelect}
+          className={cn(
+            'flex size-5 shrink-0 items-center justify-center rounded border transition-colors',
+            isSelected
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border/60 bg-background hover:border-primary/40',
+          )}
+          aria-label={isSelected ? t('deselectCard') : t('selectCard')}
+        >
+          {isSelected && <Check className="size-3" />}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border/40">
+            <Image
+              src={card.sourceImageUrl}
+              alt={card.name}
+              fill
+              className="object-cover"
+              sizes="48px"
+              unoptimized
+            />
           </div>
-          <div className="mt-0.5 flex items-center gap-2">
-            {card.stabilityScore !== null && (
-              <span className="text-xs text-muted-foreground">
-                {t('stabilityScore')}: {Math.round(card.stabilityScore * 100)}%
-              </span>
-            )}
-            {isRoot && hasVariants && (
-              <span className="text-xs text-muted-foreground">
-                · {card.variants.length} {t('variantsCount')}
-              </span>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-medium">{card.name}</span>
+              {card.variantLabel && (
+                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {card.variantLabel}
+                </span>
+              )}
+              <StatusBadge status={card.status} />
+            </div>
+            <div className="mt-0.5 flex items-center gap-2">
+              {card.stabilityScore !== null && (
+                <span className="text-xs text-muted-foreground">
+                  {t('stabilityScore')}: {Math.round(card.stabilityScore * 100)}
+                  %
+                </span>
+              )}
+              {isRoot && hasVariants && (
+                <span className="text-xs text-muted-foreground">
+                  · {card.variants.length} {t('variantsCount')}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        {isActive ? (
-          <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-        )}
-      </button>
+          {isExpanded ? (
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          )}
+        </button>
+      </div>
 
       {/* Expanded content */}
-      {isActive && (
+      {isExpanded && (
         <div className="space-y-3 border-t border-border/40 p-3">
           {/* Source images with view type badges */}
           {sourceEntries.length > 0 && (
@@ -464,6 +489,7 @@ function CardItem({
                       fill
                       className="object-cover"
                       sizes="64px"
+                      unoptimized
                     />
                     {entry.viewType !== 'other' && (
                       <span className="absolute bottom-0 left-0 right-0 bg-background/80 text-center text-[9px] font-medium backdrop-blur-sm">
@@ -552,12 +578,24 @@ function CardItem({
                           fill
                           className="object-cover"
                           sizes="64px"
+                          unoptimized
                         />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Related works gallery */}
+              <div>
+                <span className="mb-2 block text-xs font-medium text-muted-foreground">
+                  {t('relatedWorks')}
+                </span>
+                <CharacterCardGallery
+                  cardIds={[card.id]}
+                  cardNames={[card.name]}
+                />
+              </div>
             </>
           )}
 
@@ -616,17 +654,15 @@ function CardItem({
                 <CardItem
                   key={variant.id}
                   card={variant}
-                  isActive={variant.id === activeCardId}
-                  onSelect={() =>
-                    onSelectCard(
-                      variant.id === activeCardId ? null : variant.id,
-                    )
-                  }
+                  isSelected={activeCardIds.includes(variant.id)}
+                  isExpanded={false}
+                  onToggleSelect={() => onToggleSelectCard(variant.id)}
+                  onToggleExpand={() => {}}
                   onDelete={() => onDeleteCard(variant.id)}
                   onUpdate={(data) => onUpdateCard(variant.id, data)}
                   onCreate={onCreate}
-                  activeCardId={activeCardId}
-                  onSelectCard={onSelectCard}
+                  activeCardIds={activeCardIds}
+                  onToggleSelectCard={onToggleSelectCard}
                   onDeleteCard={onDeleteCard}
                   onUpdateCard={onUpdateCard}
                   depth={1}
@@ -644,9 +680,9 @@ function CardItem({
 
 interface CharacterCardManagerProps {
   cards: CharacterCardRecord[]
-  activeCardId: string | null
+  activeCardIds: string[]
   isLoading: boolean
-  onSelect: (id: string | null) => void
+  onToggleSelect: (id: string) => void
   onCreate: (
     data: CreateCharacterCardRequest,
   ) => Promise<CharacterCardRecord | null>
@@ -656,9 +692,9 @@ interface CharacterCardManagerProps {
 
 export function CharacterCardManager({
   cards,
-  activeCardId,
+  activeCardIds,
   isLoading,
-  onSelect,
+  onToggleSelect,
   onCreate,
   onUpdate,
   onDelete,
@@ -666,6 +702,7 @@ export function CharacterCardManager({
   const t = useTranslations('CharacterCard')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   const handleCreate = async (data: CreateCharacterCardRequest) => {
     setIsCreating(true)
@@ -673,7 +710,7 @@ export function CharacterCardManager({
     setIsCreating(false)
     if (card) {
       setShowCreateForm(false)
-      onSelect(card.id)
+      onToggleSelect(card.id)
     }
     return card
   }
@@ -729,19 +766,36 @@ export function CharacterCardManager({
             <CardItem
               key={card.id}
               card={card}
-              isActive={card.id === activeCardId}
-              onSelect={() =>
-                onSelect(card.id === activeCardId ? null : card.id)
+              isSelected={activeCardIds.includes(card.id)}
+              isExpanded={expandedCardId === card.id}
+              onToggleSelect={() => onToggleSelect(card.id)}
+              onToggleExpand={() =>
+                setExpandedCardId(expandedCardId === card.id ? null : card.id)
               }
               onDelete={() => onDelete(card.id)}
               onUpdate={(data) => onUpdate(card.id, data)}
               onCreate={onCreate}
-              activeCardId={activeCardId}
-              onSelectCard={onSelect}
+              activeCardIds={activeCardIds}
+              onToggleSelectCard={onToggleSelect}
               onDeleteCard={onDelete}
               onUpdateCard={onUpdate}
             />
           ))}
+        </div>
+      )}
+
+      {/* Combination gallery — shown when 2+ cards are selected */}
+      {activeCardIds.length >= 2 && (
+        <div className="space-y-2 rounded-lg border border-border/40 bg-background/60 p-3">
+          <h4 className="text-xs font-medium text-muted-foreground">
+            {t('combinationGallery')}
+          </h4>
+          <CharacterCardGallery
+            cardIds={activeCardIds}
+            cardNames={cards
+              .filter((c) => activeCardIds.includes(c.id))
+              .map((c) => c.name)}
+          />
         </div>
       )}
     </div>

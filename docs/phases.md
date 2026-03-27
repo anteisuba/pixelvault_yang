@@ -87,3 +87,55 @@
 - 97 Vitest tests across 16 API route test files
 - Shared test helpers: `src/test/api-helpers.ts` (Clerk auth mock, rate limit mock, request builders)
 - Coverage: auth, validation, rate limiting, success paths, error handling for all endpoints
+
+## Phase A–C: Code Quality, Model UX, Performance — COMPLETE
+
+> See `docs/roadmap.md` Phase A–C for full breakdown.
+
+- Design system compliance fixes + form deduplication + Error Boundary
+- Dynamic imports & lazy loading (PromptEnhancer, ReverseEngineerPanel, AdvancedSettings)
+- Toast notifications, provider error unification, Prisma index optimization
+- Prompt visibility transparency, API key format hints, mobile locale switcher
+- Keyboard navigation & ARIA, Next.js AVIF/WebP optimization
+- Model metadata enhancement (styleTag, qualityTier, descriptions)
+- ModelSelector purpose-based grouping + prompt preset templates
+- React.memo / useCallback rendering optimization
+- Gallery skeleton loading + ISR (60s revalidate)
+- Free quota display in Studio
+
+## Phase D: Community & Growth — IN PROGRESS
+
+> Branch: `feat/workbench-w2-project-ui`
+
+### D1: Prompt Sharing & Reuse — COMPLETE
+- Copy Prompt + Share Link buttons on Gallery/Detail
+- "Generate with this Prompt" one-click Studio prefill
+- URL parameter sharing (?prompt=&model=)
+
+### D2: Arena Upgrade — COMPLETE
+- Personal arena: match history + model stats (/arena/history)
+- Leaderboard: podium Top 3 + model family filter + modelFamily field
+- API: GET /api/arena/history + GET /api/arena/personal-stats (8 new tests)
+
+### D2.5: Landing Page Narrative — COMPLETE
+- "Your Key, Your Images, Zero Markup" core differentiation
+- BYOK + permanent archive + Arena three-in-one value prop (HomepageComparison)
+
+### D3: Social Layer — COMPLETE
+- User model expansion: username, displayName, avatarUrl, bio, isPublic
+- Public creator profile `/u/[username]` with Polaroid scatter layout (SSR + OG tags)
+- PolaroidCard + PolaroidGrid + ProfileHeader components
+- Gallery ImageCard creator attribution with avatar + link
+- Like/Favorite (UserLike model + toggle API + optimistic update)
+- Follow (UserFollow model + toggle API + optimistic update)
+- Prompt feedback system (PromptFeedback model + rating API)
+- Profile editing: PUT /api/users/me/profile (bio/username)
+- Clerk webhook: user.updated event syncs displayName + avatarUrl
+- i18n: en/ja/zh synchronized
+
+## Phase W: Workbench Evolution — PARTIAL
+
+### W0: VolcEngine Seedance — COMPLETE
+### W1: Multi-Reference Images — COMPLETE
+### W2: Project System — COMPLETE
+- See `docs/roadmap.md` Phase W for details

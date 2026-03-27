@@ -96,6 +96,8 @@
   "Navbar": {
     "creditsLoading": "...",
     "signIn": "登录",
+    "viewProfile": "查看主页",
+    "signOut": "退出登录",
     "links": {
       "gallery": "画廊",
       "studio": "工作台",
@@ -459,6 +461,8 @@
     "characterCard": {
       "hint": "应用此角色的提示词和参考图片",
       "applied": "角色卡已应用 — 基础提示词自动注入",
+      "hintMulti": "应用 {count} 个角色的提示词和参考图片",
+      "appliedMulti": "已应用 {count} 张角色卡 — 基础提示词自动注入",
       "applyButton": "应用",
       "appliedButton": "已应用",
       "basePromptLabel": "角色基础提示词（自动注入）",
@@ -1072,6 +1076,8 @@
     "improved": "已改善！",
     "needsWork": "需要进一步精炼",
     "useInGeneration": "用于生成",
+    "selectCard": "选中此角色卡",
+    "deselectCard": "取消选中此角色卡",
     "noCards": "暂无角色卡",
     "noCardsHint": "创建角色卡，开始生成一致的角色形象",
     "deleteConfirm": "确定删除此角色卡？",
@@ -1105,6 +1111,14 @@
       "artStyle": "画风",
       "colorPalette": "配色",
       "distinguishingFeatures": "特征"
+    },
+    "relatedWorks": "相关作品",
+    "combinationGallery": "角色组合",
+    "gallery": {
+      "empty": "暂无生成记录",
+      "emptyComboHint": "尚未找到 {names} 同时出现的生成",
+      "count": "{count} 条生成",
+      "loadMore": "加载更多"
     }
   },
   "PromptFeedback": {
@@ -1119,15 +1133,13 @@
     "refinePrompt": "优化提示词",
     "saveToCard": "保存到角色卡",
     "savedToCard": "已保存！",
-    "describeFeedback": "描述不满意的地方",
-    "feedbackPlaceholder": "例如：手部看起来不对、背景太暗、姿势不自然...",
-    "submit": "优化",
-    "analyzing": "分析图片中...",
-    "refinedPrompt": "优化后的提示词",
-    "explanation": "修改说明",
-    "apply": "应用",
+    "thinking": "思考中...",
+    "inputPlaceholder": "输入你的回答...",
+    "send": "发送",
+    "apply": "应用提示词",
     "applyAndReference": "应用并用作参考",
-    "negativeAdditions": "建议添加的负面提示词"
+    "negativeAdditions": "建议负面提示词",
+    "conversationDone": "优化后的提示词已就绪！"
   },
   "ErrorBoundary": {
     "title": "出了点问题",

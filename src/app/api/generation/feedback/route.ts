@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 
 import { GenerationFeedbackRequestSchema } from '@/types'
 import type { GenerationFeedbackResponse } from '@/types'
-import { refinePromptFromFeedback } from '@/services/generation-feedback.service'
+import { conversationalRefine } from '@/services/generation-feedback.service'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 30
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { success: allowed } = rateLimit(`gen-feedback:${clerkId}`, {
-      limit: 10,
+      limit: 20,
       windowSeconds: 60,
     })
     if (!allowed) {
@@ -54,11 +54,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await refinePromptFromFeedback(
+    const result = await conversationalRefine(
       clerkId,
       parseResult.data.imageUrl,
       parseResult.data.originalPrompt,
-      parseResult.data.feedback,
+      parseResult.data.messages,
+      parseResult.data.locale,
       parseResult.data.apiKeyId,
     )
 

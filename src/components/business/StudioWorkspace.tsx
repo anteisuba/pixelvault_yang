@@ -48,9 +48,10 @@ export function StudioWorkspace() {
 
   const {
     cards: characterCards,
-    activeCardId,
+    activeCardIds,
     isLoading: isLoadingCards,
-    setActiveCardId,
+    toggleCardSelection,
+    activeCards,
     findCard,
     create: createCard,
     update: updateCard,
@@ -80,9 +81,9 @@ export function StudioWorkspace() {
       {/* Character cards */}
       <CharacterCardManager
         cards={characterCards}
-        activeCardId={activeCardId}
+        activeCardIds={activeCardIds}
         isLoading={isLoadingCards}
-        onSelect={setActiveCardId}
+        onToggleSelect={toggleCardSelection}
         onCreate={createCard}
         onUpdate={updateCard}
         onDelete={removeCard}
@@ -144,9 +145,7 @@ export function StudioWorkspace() {
 
       {/* Form area */}
       {mode === 'image' ? (
-        <GenerateForm
-          activeCharacterCard={activeCardId ? findCard(activeCardId) : null}
-        />
+        <GenerateForm activeCharacterCards={activeCards} />
       ) : (
         <VideoGenerateForm />
       )}

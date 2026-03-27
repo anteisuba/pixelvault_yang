@@ -63,6 +63,7 @@ export function ArenaGrid({
                   fill
                   sizes="(max-width: 640px) 100vw, 50vw"
                   className="object-cover"
+                  unoptimized
                 />
               </div>
             )}

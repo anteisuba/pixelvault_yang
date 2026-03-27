@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, RotateCcw, Trophy } from 'lucide-react'
+import { BarChart3, Clock, Loader2, RotateCcw, Trophy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
@@ -34,11 +34,23 @@ export default function ArenaPage() {
             <p className="editorial-copy max-w-2xl">{t('heroDescription')}</p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link href="/arena/leaderboard">
               <Button variant="outline" className="gap-2 rounded-full">
                 <Trophy className="size-4" />
                 {t('leaderboardLink')}
+              </Button>
+            </Link>
+            <Link href="/arena/history">
+              <Button variant="outline" className="gap-2 rounded-full">
+                <Clock className="size-4" />
+                {t('historyLink')}
+              </Button>
+            </Link>
+            <Link href="/arena/history#stats">
+              <Button variant="outline" className="gap-2 rounded-full">
+                <BarChart3 className="size-4" />
+                {t('personalStatsLink')}
               </Button>
             </Link>
           </div>

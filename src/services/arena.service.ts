@@ -7,9 +7,12 @@ import type {
   AdvancedParams,
   ArenaMatchRecord,
   ArenaEntryRecord,
+  ArenaHistoryEntry,
   EloUpdate,
   LeaderboardEntry,
+  PersonalModelStat,
 } from '@/types'
+import { getModelFamily } from '@/constants/models'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { ensureUser } from '@/services/user.service'
 
@@ -156,10 +159,11 @@ function calculateElo(
 async function getOrCreateEloRating(
   modelId: string,
 ): Promise<{ rating: number }> {
+  const family = getModelFamily(modelId)
   const record = await db.modelEloRating.upsert({
     where: { modelId },
-    create: { modelId, rating: ARENA.INITIAL_ELO },
-    update: {},
+    create: { modelId, modelFamily: family, rating: ARENA.INITIAL_ELO },
+    update: { ...(family ? { modelFamily: family } : {}) },
   })
 
   return { rating: record.rating }
@@ -307,6 +311,7 @@ export async function getArenaLeaderboard(): Promise<LeaderboardEntry[]> {
 
   return ratings.map((r) => ({
     modelId: r.modelId,
+    modelFamily: r.modelFamily ?? getModelFamily(r.modelId),
     rating: Math.round(r.rating * 10) / 10,
     matchCount: r.matchCount,
     winCount: r.winCount,
@@ -315,4 +320,94 @@ export async function getArenaLeaderboard(): Promise<LeaderboardEntry[]> {
         ? Math.round((r.winCount / r.matchCount) * 1000) / 10
         : 0,
   }))
+}
+
+// ─── Arena History ──────────────────────────────────────────────
+
+export async function getArenaHistory(
+  clerkId: string,
+  page: number,
+  limit: number,
+): Promise<{ matches: ArenaHistoryEntry[]; total: number; hasMore: boolean }> {
+  const dbUser = await ensureUser(clerkId)
+
+  const [matches, total] = await Promise.all([
+    db.arenaMatch.findMany({
+      where: { userId: dbUser.id, votedAt: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        entries: {
+          include: { generation: { select: { url: true } } },
+          orderBy: { slotIndex: 'asc' },
+        },
+      },
+    }),
+    db.arenaMatch.count({
+      where: { userId: dbUser.id, votedAt: { not: null } },
+    }),
+  ])
+
+  return {
+    matches: matches.map((m) => ({
+      id: m.id,
+      prompt: m.prompt,
+      aspectRatio: m.aspectRatio,
+      winnerId: m.winnerId,
+      votedAt: m.votedAt?.toISOString() ?? null,
+      createdAt: m.createdAt.toISOString(),
+      entries: m.entries.map((e) => ({
+        id: e.id,
+        modelId: e.modelId,
+        slotIndex: e.slotIndex,
+        wasVoted: e.wasVoted,
+        imageUrl: e.generation?.url ?? null,
+      })),
+    })),
+    total,
+    hasMore: page * limit < total,
+  }
+}
+
+// ─── Personal Arena Stats ───────────────────────────────────────
+
+export async function getPersonalArenaStats(
+  clerkId: string,
+): Promise<{ totalMatches: number; stats: PersonalModelStat[] }> {
+  const dbUser = await ensureUser(clerkId)
+
+  const entries = await db.arenaEntry.findMany({
+    where: {
+      match: { userId: dbUser.id, votedAt: { not: null } },
+    },
+    select: { modelId: true, wasVoted: true },
+  })
+
+  const statsMap = new Map<string, { matchCount: number; winCount: number }>()
+
+  for (const entry of entries) {
+    const stat = statsMap.get(entry.modelId) ?? { matchCount: 0, winCount: 0 }
+    stat.matchCount++
+    if (entry.wasVoted) stat.winCount++
+    statsMap.set(entry.modelId, stat)
+  }
+
+  const stats: PersonalModelStat[] = [...statsMap.entries()]
+    .map(([modelId, s]) => ({
+      modelId,
+      matchCount: s.matchCount,
+      winCount: s.winCount,
+      winRate:
+        s.matchCount > 0
+          ? Math.round((s.winCount / s.matchCount) * 1000) / 10
+          : 0,
+    }))
+    .sort((a, b) => b.winRate - a.winRate || b.matchCount - a.matchCount)
+
+  const totalMatches = await db.arenaMatch.count({
+    where: { userId: dbUser.id, votedAt: { not: null } },
+  })
+
+  return { totalMatches, stats }
 }

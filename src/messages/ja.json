@@ -762,6 +762,8 @@
     "entryPending": "生成中...",
     "entryDone": "完了",
     "entryFailed": "失敗",
+    "historyLink": "対戦履歴",
+    "personalStatsLink": "マイ統計",
     "leaderboardLink": "ランキング",
     "promptUsed": "プロンプト",
     "voteInstruction": "どの画像がプロンプトに最も合っていますか？投票してモデルを明かしましょう。",
@@ -782,7 +784,38 @@
     "model": "モデル",
     "elo": "ELO",
     "matches": "対戦数",
-    "winRate": "勝率"
+    "winRate": "勝率",
+    "family": "ファミリー",
+    "allFamilies": "すべてのファミリー",
+    "podiumFirst": "1位",
+    "podiumSecond": "2位",
+    "podiumThird": "3位"
+  },
+  "ArenaHistory": {
+    "heroEyebrow": "アリーナ",
+    "heroTitle": "対戦履歴",
+    "heroDescription": "過去のアリーナバトルと結果。",
+    "backToArena": "アリーナに戻る",
+    "loading": "履歴を読み込み中...",
+    "empty": "まだ対戦がありません。バトルを始めましょう！",
+    "totalMatches": "{count}件の対戦完了",
+    "loadMore": "もっと見る",
+    "loadingMore": "読み込み中...",
+    "promptUsed": "プロンプト",
+    "winner": "勝者",
+    "matchDate": "日付",
+    "viewDetails": "詳細"
+  },
+  "ArenaPersonalStats": {
+    "title": "マイアリーナ統計",
+    "description": "あなたの投票に基づくモデル別パフォーマンス。",
+    "totalMatches": "総対戦数",
+    "model": "モデル",
+    "matchCount": "対戦数",
+    "winCount": "勝利数",
+    "winRate": "勝率",
+    "empty": "まだ統計がありません。バトルで投票してモデルの傾向を確認しましょう！",
+    "loading": "統計を読み込み中..."
   },
   "AdvancedSettings": {
     "title": "詳細設定",

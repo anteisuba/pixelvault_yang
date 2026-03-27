@@ -41,6 +41,7 @@ export type ModelEloRatingSumAggregateOutputType = {
 export type ModelEloRatingMinAggregateOutputType = {
   id: string | null
   modelId: string | null
+  modelFamily: string | null
   rating: number | null
   matchCount: number | null
   winCount: number | null
@@ -50,6 +51,7 @@ export type ModelEloRatingMinAggregateOutputType = {
 export type ModelEloRatingMaxAggregateOutputType = {
   id: string | null
   modelId: string | null
+  modelFamily: string | null
   rating: number | null
   matchCount: number | null
   winCount: number | null
@@ -59,6 +61,7 @@ export type ModelEloRatingMaxAggregateOutputType = {
 export type ModelEloRatingCountAggregateOutputType = {
   id: number
   modelId: number
+  modelFamily: number
   rating: number
   matchCount: number
   winCount: number
@@ -82,6 +85,7 @@ export type ModelEloRatingSumAggregateInputType = {
 export type ModelEloRatingMinAggregateInputType = {
   id?: true
   modelId?: true
+  modelFamily?: true
   rating?: true
   matchCount?: true
   winCount?: true
@@ -91,6 +95,7 @@ export type ModelEloRatingMinAggregateInputType = {
 export type ModelEloRatingMaxAggregateInputType = {
   id?: true
   modelId?: true
+  modelFamily?: true
   rating?: true
   matchCount?: true
   winCount?: true
@@ -100,6 +105,7 @@ export type ModelEloRatingMaxAggregateInputType = {
 export type ModelEloRatingCountAggregateInputType = {
   id?: true
   modelId?: true
+  modelFamily?: true
   rating?: true
   matchCount?: true
   winCount?: true
@@ -196,6 +202,7 @@ export type ModelEloRatingGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 export type ModelEloRatingGroupByOutputType = {
   id: string
   modelId: string
+  modelFamily: string | null
   rating: number
   matchCount: number
   winCount: number
@@ -228,6 +235,7 @@ export type ModelEloRatingWhereInput = {
   NOT?: Prisma.ModelEloRatingWhereInput | Prisma.ModelEloRatingWhereInput[]
   id?: Prisma.StringFilter<"ModelEloRating"> | string
   modelId?: Prisma.StringFilter<"ModelEloRating"> | string
+  modelFamily?: Prisma.StringNullableFilter<"ModelEloRating"> | string | null
   rating?: Prisma.FloatFilter<"ModelEloRating"> | number
   matchCount?: Prisma.IntFilter<"ModelEloRating"> | number
   winCount?: Prisma.IntFilter<"ModelEloRating"> | number
@@ -237,6 +245,7 @@ export type ModelEloRatingWhereInput = {
 export type ModelEloRatingOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
+  modelFamily?: Prisma.SortOrderInput | Prisma.SortOrder
   rating?: Prisma.SortOrder
   matchCount?: Prisma.SortOrder
   winCount?: Prisma.SortOrder
@@ -249,6 +258,7 @@ export type ModelEloRatingWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.ModelEloRatingWhereInput | Prisma.ModelEloRatingWhereInput[]
   OR?: Prisma.ModelEloRatingWhereInput[]
   NOT?: Prisma.ModelEloRatingWhereInput | Prisma.ModelEloRatingWhereInput[]
+  modelFamily?: Prisma.StringNullableFilter<"ModelEloRating"> | string | null
   rating?: Prisma.FloatFilter<"ModelEloRating"> | number
   matchCount?: Prisma.IntFilter<"ModelEloRating"> | number
   winCount?: Prisma.IntFilter<"ModelEloRating"> | number
@@ -258,6 +268,7 @@ export type ModelEloRatingWhereUniqueInput = Prisma.AtLeast<{
 export type ModelEloRatingOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
+  modelFamily?: Prisma.SortOrderInput | Prisma.SortOrder
   rating?: Prisma.SortOrder
   matchCount?: Prisma.SortOrder
   winCount?: Prisma.SortOrder
@@ -275,6 +286,7 @@ export type ModelEloRatingScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ModelEloRatingScalarWhereWithAggregatesInput | Prisma.ModelEloRatingScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"ModelEloRating"> | string
   modelId?: Prisma.StringWithAggregatesFilter<"ModelEloRating"> | string
+  modelFamily?: Prisma.StringNullableWithAggregatesFilter<"ModelEloRating"> | string | null
   rating?: Prisma.FloatWithAggregatesFilter<"ModelEloRating"> | number
   matchCount?: Prisma.IntWithAggregatesFilter<"ModelEloRating"> | number
   winCount?: Prisma.IntWithAggregatesFilter<"ModelEloRating"> | number
@@ -284,6 +296,7 @@ export type ModelEloRatingScalarWhereWithAggregatesInput = {
 export type ModelEloRatingCreateInput = {
   id?: string
   modelId: string
+  modelFamily?: string | null
   rating?: number
   matchCount?: number
   winCount?: number
@@ -293,6 +306,7 @@ export type ModelEloRatingCreateInput = {
 export type ModelEloRatingUncheckedCreateInput = {
   id?: string
   modelId: string
+  modelFamily?: string | null
   rating?: number
   matchCount?: number
   winCount?: number
@@ -302,6 +316,7 @@ export type ModelEloRatingUncheckedCreateInput = {
 export type ModelEloRatingUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  modelFamily?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rating?: Prisma.FloatFieldUpdateOperationsInput | number
   matchCount?: Prisma.IntFieldUpdateOperationsInput | number
   winCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -311,6 +326,7 @@ export type ModelEloRatingUpdateInput = {
 export type ModelEloRatingUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  modelFamily?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rating?: Prisma.FloatFieldUpdateOperationsInput | number
   matchCount?: Prisma.IntFieldUpdateOperationsInput | number
   winCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -320,6 +336,7 @@ export type ModelEloRatingUncheckedUpdateInput = {
 export type ModelEloRatingCreateManyInput = {
   id?: string
   modelId: string
+  modelFamily?: string | null
   rating?: number
   matchCount?: number
   winCount?: number
@@ -329,6 +346,7 @@ export type ModelEloRatingCreateManyInput = {
 export type ModelEloRatingUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  modelFamily?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rating?: Prisma.FloatFieldUpdateOperationsInput | number
   matchCount?: Prisma.IntFieldUpdateOperationsInput | number
   winCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -338,6 +356,7 @@ export type ModelEloRatingUpdateManyMutationInput = {
 export type ModelEloRatingUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  modelFamily?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rating?: Prisma.FloatFieldUpdateOperationsInput | number
   matchCount?: Prisma.IntFieldUpdateOperationsInput | number
   winCount?: Prisma.IntFieldUpdateOperationsInput | number
@@ -347,6 +366,7 @@ export type ModelEloRatingUncheckedUpdateManyInput = {
 export type ModelEloRatingCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
+  modelFamily?: Prisma.SortOrder
   rating?: Prisma.SortOrder
   matchCount?: Prisma.SortOrder
   winCount?: Prisma.SortOrder
@@ -362,6 +382,7 @@ export type ModelEloRatingAvgOrderByAggregateInput = {
 export type ModelEloRatingMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
+  modelFamily?: Prisma.SortOrder
   rating?: Prisma.SortOrder
   matchCount?: Prisma.SortOrder
   winCount?: Prisma.SortOrder
@@ -371,6 +392,7 @@ export type ModelEloRatingMaxOrderByAggregateInput = {
 export type ModelEloRatingMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   modelId?: Prisma.SortOrder
+  modelFamily?: Prisma.SortOrder
   rating?: Prisma.SortOrder
   matchCount?: Prisma.SortOrder
   winCount?: Prisma.SortOrder
@@ -396,6 +418,7 @@ export type FloatFieldUpdateOperationsInput = {
 export type ModelEloRatingSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   modelId?: boolean
+  modelFamily?: boolean
   rating?: boolean
   matchCount?: boolean
   winCount?: boolean
@@ -405,6 +428,7 @@ export type ModelEloRatingSelect<ExtArgs extends runtime.Types.Extensions.Intern
 export type ModelEloRatingSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   modelId?: boolean
+  modelFamily?: boolean
   rating?: boolean
   matchCount?: boolean
   winCount?: boolean
@@ -414,6 +438,7 @@ export type ModelEloRatingSelectCreateManyAndReturn<ExtArgs extends runtime.Type
 export type ModelEloRatingSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   modelId?: boolean
+  modelFamily?: boolean
   rating?: boolean
   matchCount?: boolean
   winCount?: boolean
@@ -423,13 +448,14 @@ export type ModelEloRatingSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
 export type ModelEloRatingSelectScalar = {
   id?: boolean
   modelId?: boolean
+  modelFamily?: boolean
   rating?: boolean
   matchCount?: boolean
   winCount?: boolean
   updatedAt?: boolean
 }
 
-export type ModelEloRatingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "modelId" | "rating" | "matchCount" | "winCount" | "updatedAt", ExtArgs["result"]["modelEloRating"]>
+export type ModelEloRatingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "modelId" | "modelFamily" | "rating" | "matchCount" | "winCount" | "updatedAt", ExtArgs["result"]["modelEloRating"]>
 
 export type $ModelEloRatingPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ModelEloRating"
@@ -437,6 +463,7 @@ export type $ModelEloRatingPayload<ExtArgs extends runtime.Types.Extensions.Inte
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     modelId: string
+    modelFamily: string | null
     rating: number
     matchCount: number
     winCount: number
@@ -866,6 +893,7 @@ export interface Prisma__ModelEloRatingClient<T, Null = never, ExtArgs extends r
 export interface ModelEloRatingFieldRefs {
   readonly id: Prisma.FieldRef<"ModelEloRating", 'String'>
   readonly modelId: Prisma.FieldRef<"ModelEloRating", 'String'>
+  readonly modelFamily: Prisma.FieldRef<"ModelEloRating", 'String'>
   readonly rating: Prisma.FieldRef<"ModelEloRating", 'Float'>
   readonly matchCount: Prisma.FieldRef<"ModelEloRating", 'Int'>
   readonly winCount: Prisma.FieldRef<"ModelEloRating", 'Int'>

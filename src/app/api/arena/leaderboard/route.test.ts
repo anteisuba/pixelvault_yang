@@ -17,6 +17,7 @@ describe('GET /api/arena/leaderboard', () => {
     const leaderboardData = [
       {
         modelId: 'sdxl',
+        modelFamily: 'Stable Diffusion',
         rating: 1250,
         matchCount: 52,
         winCount: 42,
@@ -24,6 +25,7 @@ describe('GET /api/arena/leaderboard', () => {
       },
       {
         modelId: 'dall-e-3',
+        modelFamily: null,
         rating: 1180,
         matchCount: 50,
         winCount: 30,

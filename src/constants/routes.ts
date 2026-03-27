@@ -18,6 +18,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',
+  ARENA_HISTORY: '/arena/history',
   STORYBOARD: '/storyboard',
 } as const
 

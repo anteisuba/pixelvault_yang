@@ -477,6 +477,7 @@ export interface EloUpdate {
 
 export interface LeaderboardEntry {
   modelId: string
+  modelFamily: string | null
   rating: number
   matchCount: number
   winCount: number
@@ -486,6 +487,50 @@ export interface LeaderboardEntry {
 export interface ArenaLeaderboardResponse {
   success: boolean
   data?: LeaderboardEntry[]
+  error?: string
+}
+
+// ─── Arena History & Personal Stats ─────────────────────────────
+
+export interface ArenaHistoryEntry {
+  id: string
+  prompt: string
+  aspectRatio: string
+  winnerId: string | null
+  votedAt: string | null
+  createdAt: string
+  entries: {
+    id: string
+    modelId: string
+    slotIndex: number
+    wasVoted: boolean
+    imageUrl: string | null
+  }[]
+}
+
+export interface ArenaHistoryResponse {
+  success: boolean
+  data?: {
+    matches: ArenaHistoryEntry[]
+    total: number
+    hasMore: boolean
+  }
+  error?: string
+}
+
+export interface PersonalModelStat {
+  modelId: string
+  matchCount: number
+  winCount: number
+  winRate: number
+}
+
+export interface ArenaPersonalStatsResponse {
+  success: boolean
+  data?: {
+    totalMatches: number
+    stats: PersonalModelStat[]
+  }
   error?: string
 }
 

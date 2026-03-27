@@ -762,6 +762,8 @@
     "entryPending": "Generating...",
     "entryDone": "Done",
     "entryFailed": "Failed",
+    "historyLink": "Match History",
+    "personalStatsLink": "My Stats",
     "leaderboardLink": "Leaderboard",
     "promptUsed": "Prompt",
     "voteInstruction": "Which image best matches your prompt? Vote to reveal the models.",
@@ -782,7 +784,38 @@
     "model": "Model",
     "elo": "ELO",
     "matches": "Matches",
-    "winRate": "Win Rate"
+    "winRate": "Win Rate",
+    "family": "Family",
+    "allFamilies": "All Families",
+    "podiumFirst": "1st",
+    "podiumSecond": "2nd",
+    "podiumThird": "3rd"
+  },
+  "ArenaHistory": {
+    "heroEyebrow": "Arena",
+    "heroTitle": "Match History",
+    "heroDescription": "Your past arena battles and results.",
+    "backToArena": "Back to Arena",
+    "loading": "Loading history...",
+    "empty": "No matches yet. Start a battle!",
+    "totalMatches": "{count, plural, one {# match} other {# matches}} completed",
+    "loadMore": "Load More",
+    "loadingMore": "Loading...",
+    "promptUsed": "Prompt",
+    "winner": "Winner",
+    "matchDate": "Date",
+    "viewDetails": "View"
+  },
+  "ArenaPersonalStats": {
+    "title": "My Arena Stats",
+    "description": "Your personal model performance based on your votes.",
+    "totalMatches": "Total Matches",
+    "model": "Model",
+    "matchCount": "Matches",
+    "winCount": "Wins",
+    "winRate": "Win Rate",
+    "empty": "No stats yet. Vote in battles to see your model preferences!",
+    "loading": "Loading stats..."
   },
   "AdvancedSettings": {
     "title": "Advanced Settings",

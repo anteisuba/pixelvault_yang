@@ -59,6 +59,8 @@ export const API_ENDPOINTS = {
   /** Arena */
   ARENA_MATCHES: '/api/arena/matches',
   ARENA_LEADERBOARD: '/api/arena/leaderboard',
+  ARENA_HISTORY: '/api/arena/history',
+  ARENA_PERSONAL_STATS: '/api/arena/personal-stats',
 
   /** Stories */
   STORIES: '/api/stories',
@@ -101,6 +103,7 @@ export const ARENA = {
   MIN_MODELS_FOR_MATCH: 2,
   POLL_INTERVAL_MS: 2000,
   PROVIDER_TIMEOUT_MS: 45000,
+  HISTORY_PAGE_SIZE: 20,
 } as const
 
 /** Prompt enhancement configuration */

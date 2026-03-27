@@ -552,6 +552,52 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
 ]
 
+/**
+ * Model family grouping — maps each model to its product family.
+ * Used for leaderboard grouping and cross-version comparison.
+ */
+export const MODEL_FAMILIES: Record<string, string> = {
+  // Image families
+  [AI_MODELS.OPENAI_GPT_IMAGE_15]: 'GPT Image',
+  [AI_MODELS.GEMINI_PRO_IMAGE]: 'Gemini',
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: 'Gemini',
+  [AI_MODELS.FLUX_2_PRO]: 'FLUX',
+  [AI_MODELS.FLUX_2_DEV]: 'FLUX',
+  [AI_MODELS.FLUX_2_SCHNELL]: 'FLUX',
+  [AI_MODELS.SEEDREAM_45]: 'Seedream',
+  [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
+  [AI_MODELS.RECRAFT_V3]: 'Recraft',
+  [AI_MODELS.SD_35_LARGE]: 'Stable Diffusion',
+  [AI_MODELS.SDXL]: 'Stable Diffusion',
+  [AI_MODELS.ANIMAGINE_XL_4]: 'Stable Diffusion',
+  [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',
+  [AI_MODELS.NOVELAI_V45_CURATED]: 'NovelAI',
+  [AI_MODELS.NOVELAI_V4_FULL]: 'NovelAI',
+  [AI_MODELS.NOVELAI_V3]: 'NovelAI',
+  // Video families
+  [AI_MODELS.KLING_V3_PRO]: 'Kling',
+  [AI_MODELS.KLING_VIDEO]: 'Kling',
+  [AI_MODELS.VEO_3]: 'Veo',
+  [AI_MODELS.SEEDANCE_PRO]: 'Seedance',
+  [AI_MODELS.SEEDANCE_15_PRO]: 'Seedance',
+  [AI_MODELS.SEEDANCE_10_PRO]: 'Seedance',
+  [AI_MODELS.MINIMAX_VIDEO]: 'MiniMax',
+  [AI_MODELS.LUMA_RAY_2]: 'Luma',
+  [AI_MODELS.PIKA_V22]: 'Pika',
+  [AI_MODELS.WAN_VIDEO]: 'Wan',
+  [AI_MODELS.HUNYUAN_VIDEO]: 'Hunyuan',
+  [AI_MODELS.RUNWAY_GEN3]: 'Runway',
+}
+
+/** Get the model family for a model ID */
+export const getModelFamily = (modelId: string): string | null =>
+  MODEL_FAMILIES[modelId] ?? null
+
+/** Get unique model family names (ordered by first appearance) */
+export const getModelFamilyList = (): string[] => [
+  ...new Set(Object.values(MODEL_FAMILIES)),
+]
+
 /** Get only the currently available models */
 export const getAvailableModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter((model) => model.available)

@@ -233,6 +233,7 @@ export type ArenaEntryScalarFieldEnum = (typeof ArenaEntryScalarFieldEnum)[keyof
 export const ModelEloRatingScalarFieldEnum = {
   id: 'id',
   modelId: 'modelId',
+  modelFamily: 'modelFamily',
   rating: 'rating',
   matchCount: 'matchCount',
   winCount: 'winCount',

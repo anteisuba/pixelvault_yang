@@ -225,12 +225,15 @@ model ArenaEntry {
 }
 
 model ModelEloRating {
-  id         String   @id @default(uuid())
-  modelId    String   @unique
-  rating     Float    @default(1500)
-  matchCount Int      @default(0)
-  winCount   Int      @default(0)
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(uuid())
+  modelId     String   @unique
+  modelFamily String?
+  rating      Float    @default(1500)
+  matchCount  Int      @default(0)
+  winCount    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@index([modelFamily, rating(sort: Desc)])
 }
 
 model ModelConfig {

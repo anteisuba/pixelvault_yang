@@ -762,6 +762,8 @@
     "entryPending": "生成中...",
     "entryDone": "完成",
     "entryFailed": "失败",
+    "historyLink": "对战记录",
+    "personalStatsLink": "我的统计",
     "leaderboardLink": "排行榜",
     "promptUsed": "提示词",
     "voteInstruction": "哪张图片最符合你的提示词？投票揭晓模型身份。",
@@ -782,7 +784,38 @@
     "model": "模型",
     "elo": "ELO",
     "matches": "对战数",
-    "winRate": "胜率"
+    "winRate": "胜率",
+    "family": "系列",
+    "allFamilies": "全部系列",
+    "podiumFirst": "第1名",
+    "podiumSecond": "第2名",
+    "podiumThird": "第3名"
+  },
+  "ArenaHistory": {
+    "heroEyebrow": "竞技场",
+    "heroTitle": "对战记录",
+    "heroDescription": "你的历史竞技场对战和结果。",
+    "backToArena": "返回竞技场",
+    "loading": "加载记录中...",
+    "empty": "还没有对战记录，开始一场对战吧！",
+    "totalMatches": "已完成 {count} 场对战",
+    "loadMore": "加载更多",
+    "loadingMore": "加载中...",
+    "promptUsed": "提示词",
+    "winner": "胜者",
+    "matchDate": "日期",
+    "viewDetails": "查看"
+  },
+  "ArenaPersonalStats": {
+    "title": "我的竞技场统计",
+    "description": "基于你的投票的模型表现统计。",
+    "totalMatches": "总对战数",
+    "model": "模型",
+    "matchCount": "对战数",
+    "winCount": "胜利数",
+    "winRate": "胜率",
+    "empty": "暂无统计数据。在对战中投票来查看你的模型偏好！",
+    "loading": "加载统计中..."
   },
   "AdvancedSettings": {
     "title": "高级设置",

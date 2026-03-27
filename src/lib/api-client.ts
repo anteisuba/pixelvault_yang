@@ -24,6 +24,8 @@ import type {
   ArenaVoteRequest,
   ArenaVoteResponse,
   ArenaLeaderboardResponse,
+  ArenaHistoryResponse,
+  ArenaPersonalStatsResponse,
   CreateStoryRequest,
   CreateStoryResponse,
   StoryResponse,
@@ -507,6 +509,50 @@ export async function getArenaLeaderboardAPI(): Promise<ArenaLeaderboardResponse
       return {
         success: false,
         error: await getErrorMessage(response, `Failed to fetch leaderboard`),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function getArenaHistoryAPI(
+  page: number = 1,
+  limit?: number,
+): Promise<ArenaHistoryResponse> {
+  try {
+    const params = new URLSearchParams({ page: String(page) })
+    if (limit) params.set('limit', String(limit))
+    const response = await fetch(
+      `${API_ENDPOINTS.ARENA_HISTORY}?${params.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(response, 'Failed to fetch arena history'),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function getArenaPersonalStatsAPI(): Promise<ArenaPersonalStatsResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ARENA_PERSONAL_STATS)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          'Failed to fetch personal stats',
+        ),
       }
     }
     return await response.json()

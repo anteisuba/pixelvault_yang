@@ -37,7 +37,29 @@
     "apiKeyDeleteFailed": "Failed to delete API key",
     "storyDeleted": "Story deleted",
     "storyDeleteFailed": "Failed to delete story",
-    "storyCreated": "Story created"
+    "storyCreated": "Story created",
+    "projectCreated": "Project created",
+    "projectUpdated": "Project updated",
+    "projectDeleted": "Project deleted"
+  },
+  "Projects": {
+    "title": "Projects",
+    "allGenerations": "All Generations",
+    "newProject": "New Project",
+    "newProjectPlaceholder": "Project name",
+    "descriptionPlaceholder": "Description (optional)",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{name}\"? Generations will be moved to All Generations.",
+    "empty": "No projects yet",
+    "emptyHint": "Create a project to organize your generations",
+    "generationCount": "{count, plural, one {# generation} other {# generations}}",
+    "history": "History",
+    "historyEmpty": "No generations in this project",
+    "historyLoadMore": "Load more",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create"
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
@@ -705,6 +727,7 @@
     "makePrivate": "Make Private"
   },
   "ArenaPage": {
+    "title": "Arena",
     "heroEyebrow": "Arena",
     "heroTitle": "Blind Model Battle",
     "heroDescription": "One prompt, all models, blind vote, ELO ranking.",

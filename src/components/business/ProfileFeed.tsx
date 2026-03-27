@@ -58,6 +58,7 @@ export function ProfileFeed({
     loadMore,
     sentinelRef,
     removeGeneration,
+    removeGenerations,
   } = useGallery({
     initialGenerations,
     initialPage,
@@ -104,9 +105,9 @@ export function ProfileFeed({
     const result = await batchDeleteGenerationsAPI(Array.from(selectedIds))
     setIsBatchProcessing(false)
     if (result.success) {
+      removeGenerations(selectedIds)
       toast.success(t('batchSuccess'))
       exitSelectMode()
-      router.refresh()
     } else {
       toast.error(t('batchFailed'))
     }

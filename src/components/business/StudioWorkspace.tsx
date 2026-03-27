@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Gift, ImageIcon, Film } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -8,12 +8,15 @@ import dynamic from 'next/dynamic'
 
 import { GenerateForm } from '@/components/business/GenerateForm'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
+import { ProjectSelector } from '@/components/business/ProjectSelector'
+import { HistoryPanel } from '@/components/business/HistoryPanel'
 
 const VideoGenerateForm = dynamic(
   () => import('@/components/business/VideoGenerateForm'),
 )
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
+import { useProjects } from '@/hooks/use-projects'
 import { cn } from '@/lib/utils'
 
 type StudioMode = 'image' | 'video'
@@ -26,8 +29,41 @@ export function StudioWorkspace() {
   const freeRemaining =
     summary.freeGenerationLimit - summary.freeGenerationsToday
 
+  const {
+    projects,
+    activeProjectId,
+    isLoading: isLoadingProjects,
+    setActiveProjectId,
+    create: createProject,
+    update: updateProject,
+    remove: removeProject,
+    history,
+    historyTotal,
+    historyHasMore,
+    isLoadingHistory,
+    loadMoreHistory,
+  } = useProjects()
+
+  const handleRename = useCallback(
+    async (id: string, name: string) => {
+      return updateProject(id, { name })
+    },
+    [updateProject],
+  )
+
   return (
     <div className="space-y-6">
+      {/* Project selector */}
+      <ProjectSelector
+        projects={projects}
+        activeProjectId={activeProjectId}
+        isLoading={isLoadingProjects}
+        onSelect={setActiveProjectId}
+        onCreate={createProject}
+        onRename={handleRename}
+        onDelete={removeProject}
+      />
+
       {/* Mode switch + free quota */}
       <div className="flex items-center justify-between">
         {/* Free tier quota indicator */}
@@ -84,6 +120,15 @@ export function StudioWorkspace() {
 
       {/* Form area */}
       {mode === 'image' ? <GenerateForm /> : <VideoGenerateForm />}
+
+      {/* Project history panel */}
+      <HistoryPanel
+        generations={history}
+        total={historyTotal}
+        hasMore={historyHasMore}
+        isLoading={isLoadingHistory}
+        onLoadMore={loadMoreHistory}
+      />
 
       {/* Onboarding tooltip */}
       <OnboardingTooltip

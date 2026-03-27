@@ -37,7 +37,29 @@
     "apiKeyDeleteFailed": "APIキーの削除に失敗しました",
     "storyDeleted": "ストーリーを削除しました",
     "storyDeleteFailed": "ストーリーの削除に失敗しました",
-    "storyCreated": "ストーリーを作成しました"
+    "storyCreated": "ストーリーを作成しました",
+    "projectCreated": "プロジェクトを作成しました",
+    "projectUpdated": "プロジェクトを更新しました",
+    "projectDeleted": "プロジェクトを削除しました"
+  },
+  "Projects": {
+    "title": "プロジェクト",
+    "allGenerations": "すべての生成",
+    "newProject": "新規プロジェクト",
+    "newProjectPlaceholder": "プロジェクト名",
+    "descriptionPlaceholder": "説明（任意）",
+    "rename": "名前変更",
+    "delete": "削除",
+    "deleteConfirm": "「{name}」を削除しますか？生成物は「すべての生成」に移動します。",
+    "empty": "プロジェクトがありません",
+    "emptyHint": "プロジェクトを作成して生成物を整理しましょう",
+    "generationCount": "{count}件の生成",
+    "history": "履歴",
+    "historyEmpty": "このプロジェクトに生成物はありません",
+    "historyLoadMore": "もっと読み込む",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "create": "作成"
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
@@ -705,6 +727,7 @@
     "makePrivate": "非公開にする"
   },
   "ArenaPage": {
+    "title": "アリーナ",
     "heroEyebrow": "アリーナ",
     "heroTitle": "ブラインドモデルバトル",
     "heroDescription": "1プロンプト、全モデル生成、ブラインド投票、ELOランキング。",

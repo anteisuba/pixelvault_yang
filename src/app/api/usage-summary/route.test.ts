@@ -6,6 +6,8 @@ import {
   FAKE_DB_USER,
 } from '@/test/api-helpers'
 
+vi.mock('server-only', () => ({}))
+
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
@@ -14,17 +16,25 @@ vi.mock('@/services/usage.service', () => ({
   getUserUsageSummary: vi.fn(),
 }))
 
+vi.mock('@/services/generation.service', () => ({
+  getFreeGenerationCountToday: vi.fn(),
+}))
+
 import { ensureUser } from '@/services/user.service'
 import {
   getUserUsageSummary,
   type UserUsageSummary,
 } from '@/services/usage.service'
+import { getFreeGenerationCountToday } from '@/services/generation.service'
 import { GET } from './route'
+import { FREE_TIER } from '@/constants/config'
 
 const mockEnsureUser = vi.mocked(ensureUser)
+const mockFreeCount = vi.mocked(getFreeGenerationCountToday)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockFreeCount.mockResolvedValue(2)
 })
 
 describe('GET /api/usage-summary', () => {
@@ -61,6 +71,8 @@ describe('GET /api/usage-summary', () => {
       failedRequests: 5,
       last30DaysRequests: 30,
       lastRequestAt: lastReqDate.toISOString(),
+      freeGenerationsToday: 2,
+      freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
     })
     expect(mockEnsureUser).toHaveBeenCalledWith('clerk_test_user')
     expect(getUserUsageSummary).toHaveBeenCalledWith(FAKE_DB_USER.id)
@@ -87,6 +99,8 @@ describe('GET /api/usage-summary', () => {
       failedRequests: 0,
       last30DaysRequests: 5,
       lastRequestAt: null,
+      freeGenerationsToday: 2,
+      freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
     })
   })
 
@@ -107,6 +121,8 @@ describe('GET /api/usage-summary', () => {
       failedRequests: 0,
       last30DaysRequests: 0,
       lastRequestAt: null,
+      freeGenerationsToday: 2,
+      freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
     })
   })
 })

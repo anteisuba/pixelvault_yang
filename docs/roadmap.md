@@ -236,18 +236,18 @@ Items ordered by execution priority. Work top-down.
 - [x] `ReferenceImageSection` 重写：缩略图网格 + 内联添加按钮 + 计数器
 - [x] GenerateForm / ArenaForm / VideoGenerateForm 全部适配
 
-### W2. 项目系统 (进行中)
+### W2. 项目系统 ✅
 - [x] Prisma: `Project` model + `Generation.projectId` nullable FK
 - [x] Migration 已部署
 - [x] `project.service.ts` — CRUD + 历史查询 + 软删除
 - [x] Types: `CreateProjectSchema` / `UpdateProjectSchema` / `ProjectRecord`
 - [x] Constants: `API_ENDPOINTS.PROJECTS` / `PROJECT` config
-- [x] API route: `GET/POST /api/projects`（已创建，`/api/projects/[id]` 待完成）
-- [ ] API route: `PUT/DELETE /api/projects/[id]`
-- [ ] `api-client.ts` 客户端函数
-- [ ] `useProjects` hook
-- [ ] ProjectSelector UI（Studio 顶部项目切换器）
-- [ ] HistoryPanel 侧栏（当前项目生成历史缩略图网格）
+- [x] API route: `GET/POST /api/projects` + `PUT/DELETE /api/projects/[id]` + `GET /api/projects/[id]/history`
+- [x] `api-client.ts` 客户端函数（list / create / update / delete / history）
+- [x] `useProjects` hook（CRUD + 历史分页 + activeProjectId 状态）
+- [x] ProjectSelector UI（Studio 顶部项目切换器，含内联新建/重命名/删除确认）
+- [x] HistoryPanel（当前项目生成历史缩略图网格，支持分页加载）
+- [x] i18n 三语言同步（en/ja/zh）
 
 ### W3. 视频风格统一 + 续接（未开始）
 - [ ] 项目级风格参考图锚定

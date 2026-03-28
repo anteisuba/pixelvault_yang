@@ -5,6 +5,7 @@ import { ARENA } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import type {
   AdvancedParams,
+  ArenaEntryRecord,
   ArenaMatchRecord,
   ArenaModelSelection,
   EloUpdate,
@@ -108,37 +109,51 @@ export function useArena() {
       matchId,
     }))
 
-    // Step 2: Fan out — generate all entries in parallel (each has own 240s timeout)
-    const entryResults = await Promise.allSettled(
-      shuffled.map(async (selection, index) => {
-        const result = await generateArenaEntryAPI(matchId, {
-          modelId: selection.modelId,
-          apiKeyId: selection.apiKeyId,
-          slotIndex: index,
-          advancedParams: input.advancedParams,
-        })
+    // Step 2: Generate entries with limited concurrency to avoid stack overflow
+    // in dev mode (single Node.js process handles all requests)
+    const CONCURRENCY = 4
+    const generateEntry = async (
+      selection: ArenaModelSelection,
+      index: number,
+    ) => {
+      const result = await generateArenaEntryAPI(matchId, {
+        modelId: selection.modelId,
+        apiKeyId: selection.apiKeyId,
+        slotIndex: index,
+        advancedParams: input.advancedParams,
+      })
 
-        // Update per-entry progress
-        setState((prev) => ({
-          ...prev,
-          entryProgress: prev.entryProgress.map((ep) =>
-            ep.modelId === selection.modelId
-              ? {
-                  ...ep,
-                  status: result.success ? 'completed' : 'failed',
-                  error: result.error,
-                }
-              : ep,
-          ),
-        }))
+      setState((prev) => ({
+        ...prev,
+        entryProgress: prev.entryProgress.map((ep, i) =>
+          i === index
+            ? {
+                ...ep,
+                status: result.success ? 'completed' : 'failed',
+                error: result.error,
+              }
+            : ep,
+        ),
+      }))
 
-        if (!result.success) {
-          throw new Error(result.error ?? 'Entry generation failed')
-        }
+      if (!result.success) {
+        throw new Error(result.error ?? 'Entry generation failed')
+      }
 
-        return result.data!
-      }),
-    )
+      return result.data!
+    }
+
+    // Process in batches of CONCURRENCY
+    const entryResults: PromiseSettledResult<ArenaEntryRecord>[] = []
+    for (let i = 0; i < shuffled.length; i += CONCURRENCY) {
+      const batch = shuffled.slice(i, i + CONCURRENCY)
+      const batchResults = await Promise.allSettled(
+        batch.map((selection, batchIdx) =>
+          generateEntry(selection, i + batchIdx),
+        ),
+      )
+      entryResults.push(...batchResults)
+    }
 
     // Count successes
     const successCount = entryResults.filter(

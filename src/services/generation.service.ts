@@ -307,31 +307,63 @@ export async function getGenerationById(
   })
 }
 
+/** Fields that can be toggled on a generation */
+export type ToggleableField = 'isPublic' | 'isPromptPublic' | 'isFeatured'
+
+/** Maximum number of featured generations per user */
+const MAX_FEATURED_PER_USER = 9
+
 /**
- * Toggle the isPublic flag on a generation that belongs to the given user.
+ * Toggle a boolean flag on a generation that belongs to the given user.
+ * Supports isPublic, isPromptPublic, and isFeatured.
  * Returns the updated record, or null if not found / not owned.
+ * Returns an error string if the featured limit is exceeded.
  */
 export async function toggleGenerationVisibility(
   id: string,
   userId: string,
-  field: 'isPublic' | 'isPromptPublic' = 'isPublic',
-): Promise<Pick<
-  GenerationRecord,
-  'id' | 'isPublic' | 'isPromptPublic'
-> | null> {
+  field: ToggleableField = 'isPublic',
+): Promise<
+  | (Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'> & {
+      isFeatured?: boolean
+    })
+  | { error: string }
+  | null
+> {
   const generation = await db.generation.findUnique({
     where: { id },
-    select: { id: true, userId: true, isPublic: true, isPromptPublic: true },
+    select: {
+      id: true,
+      userId: true,
+      isPublic: true,
+      isPromptPublic: true,
+      isFeatured: true,
+    },
   })
 
   if (!generation || generation.userId !== userId) {
     return null
   }
 
+  // Enforce featured limit when turning ON
+  if (field === 'isFeatured' && !generation.isFeatured) {
+    const featuredCount = await db.generation.count({
+      where: { userId, isFeatured: true },
+    })
+    if (featuredCount >= MAX_FEATURED_PER_USER) {
+      return { error: `MAX_FEATURED_EXCEEDED` }
+    }
+  }
+
   const updated = await db.generation.update({
     where: { id },
     data: { [field]: !generation[field] },
-    select: { id: true, isPublic: true, isPromptPublic: true },
+    select: {
+      id: true,
+      isPublic: true,
+      isPromptPublic: true,
+      isFeatured: true,
+    },
   })
 
   return updated

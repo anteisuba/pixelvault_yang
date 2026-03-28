@@ -21,14 +21,15 @@ import {
   type ProviderVideoInput,
   type ProviderQueueSubmitInput,
   type ProviderQueueStatusInput,
+  type ProviderExtendVideoInput,
 } from '@/services/providers/types'
 
 const FAL_RESPONSE_SCHEMA = z.object({
   images: z.array(
     z.object({
       url: z.string().url(),
-      width: z.number().int().positive().optional(),
-      height: z.number().int().positive().optional(),
+      width: z.number().int().positive().nullable().optional(),
+      height: z.number().int().positive().nullable().optional(),
       content_type: z.string().optional(),
     }),
   ),
@@ -102,6 +103,14 @@ export const falAdapter: ProviderAdapter = {
     }
     if (advancedParams?.seed != null && advancedParams.seed >= 0) {
       body.seed = advancedParams.seed
+    }
+
+    // LoRA models: pass loras array to fal.ai
+    if (advancedParams?.loras?.length) {
+      body.loras = advancedParams.loras.map((lora) => ({
+        path: lora.url,
+        scale: lora.scale ?? 1,
+      }))
     }
 
     if (referenceImage) {
@@ -258,6 +267,47 @@ export const falAdapter: ProviderAdapter = {
     }
     if (resolution) {
       body.resolution = resolution
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw new ProviderError('fal.ai', response.status, errorBody)
+    }
+
+    const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+    return {
+      requestId: data.request_id,
+      statusUrl: data.status_url,
+      responseUrl: data.response_url,
+    }
+  },
+
+  async submitExtendVideoToQueue({
+    videoUrl,
+    prompt,
+    aspectRatio,
+    apiKey,
+    extendEndpointId,
+    duration,
+  }: ProviderExtendVideoInput) {
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${extendEndpointId}`
+
+    const body: Record<string, unknown> = {
+      video_url: videoUrl,
+      prompt,
+      aspect_ratio: aspectRatio,
+    }
+    if (duration) {
+      body.duration = String(duration)
     }
 
     const response = await fetch(endpoint, {

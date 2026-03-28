@@ -45,7 +45,11 @@ export function useGenerateImage(): UseGenerateImageReturn {
           setGeneratedGeneration(response.data.generation)
           toast.success(t('toastSuccess'))
         } else {
-          const msg = response.error ?? t('errorFallback')
+          const code = response.errorCode
+          const msg =
+            code && t.has(`errorCodes.${code}`)
+              ? t(`errorCodes.${code}`)
+              : (response.error ?? t('errorFallback'))
           setError(msg)
           toast.error(msg)
         }

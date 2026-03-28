@@ -143,13 +143,19 @@ Items ordered by execution priority. Work top-down.
 - [x] Profile 编辑 — PUT `/api/users/me/profile`（bio/username 可编辑）
 - [x] Clerk webhook 扩展 — user.updated 事件同步 displayName + avatarUrl
 - [x] i18n 三语言同步（en/ja/zh）
-- [ ] Featured/Pinned images（isFeatured 字段，CEO Review 已批准，待实现）
-- [ ] Dynamic OG image generation（Next.js ImageResponse，CEO Review 已批准，待实现）
+- [x] Featured/Pinned images（isFeatured toggle + API + Profile UI + i18n）
+- [x] Dynamic OG image generation（/api/og route with ImageResponse — generation + profile cards）
 - [ ] Publish-to-earn — 公开分享返还部分积分（依赖 Phase E 积分系统）
 
-### D4. Collections / Albums
-- [ ] 用户创建文件夹组织作品
-- [ ] 公开集合分享 permalink
+### D4. Collections / Albums ✅
+- [x] `Collection` + `CollectionItem` Prisma models (soft delete, cover auto-update)
+- [x] `collection.service.ts` CRUD + add/remove items + ownership checks
+- [x] API routes: GET/POST `/api/collections`, GET/PUT/DELETE `/api/collections/[id]`, POST/DELETE `/api/collections/[id]/items`
+- [x] `api-client.ts` 客户端函数 (list, create, get, update, delete, addItems, removeItem)
+- [x] `useCollections` hook (CRUD + toast 通知)
+- [x] Constants: `API_ENDPOINTS.COLLECTIONS`, `COLLECTION` config, `ROUTES.COLLECTIONS`
+- [x] Types: Zod schemas + record types
+- [x] i18n 三语言同步 (en/ja/zh)
 
 ---
 

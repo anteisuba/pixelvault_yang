@@ -125,25 +125,62 @@ export const replicateAdapter: ProviderAdapter = {
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
-    const endpoint = `${baseUrl}/predictions`
     const externalModelId = getExecutionModelId(modelId)
+    // Use model-specific endpoint (works for both official and community models)
+    const endpoint = `${baseUrl}/models/${externalModelId}/predictions`
 
-    const input: Record<string, unknown> = {
-      prompt,
-      aspect_ratio: REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '1:1',
+    const isNoobAI = externalModelId.includes('noobai')
+
+    const input: Record<string, unknown> = { prompt }
+
+    if (isNoobAI) {
+      // NoobAI/Illustrious XL uses width/height, cfg_scale, steps
+      input.width = width
+      input.height = height
+      if (advancedParams?.negativePrompt) {
+        input.negative_prompt = advancedParams.negativePrompt
+      }
+      if (advancedParams?.guidanceScale != null) {
+        input.cfg_scale = advancedParams.guidanceScale
+      }
+      if (advancedParams?.steps != null) {
+        input.steps = advancedParams.steps
+      }
+    } else {
+      // Default Replicate FLUX format
+      input.aspect_ratio = REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '1:1'
+      if (advancedParams?.negativePrompt) {
+        input.negative_prompt = advancedParams.negativePrompt
+      }
+      if (advancedParams?.guidanceScale != null) {
+        input.guidance_scale = advancedParams.guidanceScale
+      }
+      if (advancedParams?.steps != null) {
+        input.num_inference_steps = advancedParams.steps
+      }
     }
 
-    if (advancedParams?.negativePrompt) {
-      input.negative_prompt = advancedParams.negativePrompt
-    }
-    if (advancedParams?.guidanceScale != null) {
-      input.guidance_scale = advancedParams.guidanceScale
-    }
-    if (advancedParams?.steps != null) {
-      input.num_inference_steps = advancedParams.steps
-    }
     if (advancedParams?.seed != null && advancedParams.seed >= 0) {
       input.seed = advancedParams.seed
+    }
+
+    // LoRA support: format depends on the model endpoint
+    if (advancedParams?.loras?.length) {
+      if (isNoobAI) {
+        // NoobAI/Illustrious XL: `loras` as JSON list [{url, strength}]
+        input.loras = JSON.stringify(
+          advancedParams.loras.map((lora) => ({
+            url: lora.url,
+            strength: lora.scale ?? 1.0,
+          })),
+        )
+      } else {
+        // Default Replicate FLUX: hf_lora (single LoRA)
+        input.hf_lora = advancedParams.loras[0].url
+        if (advancedParams.loras[0].scale != null) {
+          input.lora_scale = advancedParams.loras[0].scale
+        }
+      }
     }
 
     if (referenceImage) {
@@ -163,10 +200,7 @@ export const replicateAdapter: ProviderAdapter = {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: externalModelId,
-        input,
-      }),
+      body: JSON.stringify({ input }),
     })
 
     if (!response.ok) {

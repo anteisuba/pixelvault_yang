@@ -45,3 +45,25 @@ export const CharacterCardStatus = {
 } as const
 
 export type CharacterCardStatus = (typeof CharacterCardStatus)[keyof typeof CharacterCardStatus]
+
+
+export const VideoPipelineStatus = {
+  RUNNING: 'RUNNING',
+  PAUSED: 'PAUSED',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+export type VideoPipelineStatus = (typeof VideoPipelineStatus)[keyof typeof VideoPipelineStatus]
+
+
+export const PipelineClipStatus = {
+  PENDING: 'PENDING',
+  QUEUED: 'QUEUED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type PipelineClipStatus = (typeof PipelineClipStatus)[keyof typeof PipelineClipStatus]

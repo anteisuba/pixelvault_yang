@@ -73,9 +73,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     console.error('[API /api/arena/matches/entries] Error:', error)
     const message =
       error instanceof Error ? error.message : 'Entry generation failed'
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    )
+    const status =
+      error && typeof error === 'object' && 'status' in error
+        ? (error as { status: number }).status
+        : 500
+    return NextResponse.json({ success: false, error: message }, { status })
   }
 }

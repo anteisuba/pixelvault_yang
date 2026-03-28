@@ -2,11 +2,6 @@
  * Application-wide configuration constants
  */
 
-/** Limits for image generation */
-export const GENERATION_LIMITS = {
-  PROMPT_MAX_LENGTH: 4000,
-} as const
-
 /** API usage tracking defaults */
 export const API_USAGE = {
   DEFAULT_REQUESTS_PER_GENERATION: 1,
@@ -76,6 +71,12 @@ export const API_ENDPOINTS = {
   /** Video generation status polling */
   GENERATE_VIDEO_STATUS: '/api/generate-video/status',
 
+  /** Long video pipeline */
+  GENERATE_LONG_VIDEO: '/api/generate-long-video',
+  GENERATE_LONG_VIDEO_STATUS: '/api/generate-long-video/status',
+  GENERATE_LONG_VIDEO_RETRY: '/api/generate-long-video/retry',
+  GENERATE_LONG_VIDEO_CANCEL: '/api/generate-long-video/cancel',
+
   /** Projects */
   PROJECTS: '/api/projects',
 
@@ -103,6 +104,15 @@ export const API_ENDPOINTS = {
 
   /** Follows */
   FOLLOWS: '/api/follows',
+
+  /** Collections */
+  COLLECTIONS: '/api/collections',
+
+  /** Composable Card System */
+  BACKGROUND_CARDS: '/api/background-cards',
+  STYLE_CARDS: '/api/style-cards',
+  MODEL_CARDS: '/api/model-cards',
+  CARD_RECIPES: '/api/card-recipes',
 } as const
 
 /** Project configuration */
@@ -202,8 +212,13 @@ export const VIDEO_GENERATION = {
   DEFAULT_DURATION: 5,
   DURATION_OPTIONS: [3, 5, 10] as const,
   POLL_INTERVAL_MS: 3000,
-  MAX_POLL_ATTEMPTS: 120,
+  MAX_POLL_ATTEMPTS: 200,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
+  /** Long video pipeline */
+  LONG_VIDEO_DURATION_OPTIONS: [10, 30, 60, 120] as const,
+  MAX_LONG_VIDEO_DURATION: 120,
+  PIPELINE_POLL_INTERVAL_MS: 5000,
+  MAX_PIPELINE_POLL_ATTEMPTS: 600,
 } as const
 
 /** Health check configuration */
@@ -218,6 +233,18 @@ export const FREE_TIER = {
   DAILY_LIMIT: 5,
   /** Whether the free tier is enabled */
   ENABLED: true,
+} as const
+
+/** Collection configuration */
+export const COLLECTION = {
+  NAME_MAX_LENGTH: 60,
+  DESCRIPTION_MAX_LENGTH: 500,
+  /** Max collections per user */
+  MAX_COLLECTIONS_PER_USER: 50,
+  /** Max items per collection */
+  MAX_ITEMS_PER_COLLECTION: 200,
+  /** Items per page when listing collection contents */
+  PAGE_SIZE: 20,
 } as const
 
 /** Pagination defaults */

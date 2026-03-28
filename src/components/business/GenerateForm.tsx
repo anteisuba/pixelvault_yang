@@ -15,12 +15,7 @@ import {
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import {
-  API_USAGE,
-  GENERATION_LIMITS,
-  IMAGE_SIZES,
-  type AspectRatio,
-} from '@/constants/config'
+import { API_USAGE, IMAGE_SIZES, type AspectRatio } from '@/constants/config'
 import {
   AI_MODELS,
   getModelMessageKey,
@@ -183,7 +178,9 @@ export function GenerateForm({
   )
 
   const builtInOptions: StudioModelOption[] = MODEL_OPTIONS.filter(
-    (model) => model.freeTier || verifiedAdapterTypes.has(model.adapterType),
+    (model) =>
+      model.outputType === 'IMAGE' &&
+      (model.freeTier || verifiedAdapterTypes.has(model.adapterType)),
   ).map((model) => ({
     optionId: `workspace:${model.id}`,
     modelId: model.id,
@@ -302,7 +299,10 @@ export function GenerateForm({
         aspectRatio,
         referenceImage,
         referenceImages:
-          referenceImages.length > 1 ? referenceImages : undefined,
+          (appliedCardIds.length > 0 && referenceImages.length > 0) ||
+          referenceImages.length > 1
+            ? referenceImages
+            : undefined,
         apiKeyId: selectedModel.keyId,
         advancedParams: hasAdvanced ? advancedParams : undefined,
         characterCardIds:
@@ -496,11 +496,8 @@ export function GenerateForm({
                 onUseEnhanced={applyEnhancedPrompt}
                 onDismiss={clearEnhancement}
               />
-              <p className="text-xs font-medium text-muted-foreground">
-                {t('promptCounter', {
-                  current: prompt.length,
-                  max: GENERATION_LIMITS.PROMPT_MAX_LENGTH,
-                })}
+              <p className="text-xs font-medium tabular-nums text-muted-foreground">
+                {prompt.length}
               </p>
             </div>
           </div>
@@ -567,7 +564,6 @@ export function GenerateForm({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={isCardApplied ? 3 : 5}
-              maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
               disabled={isGenerating}
               className="min-h-32 resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 font-serif"
             />

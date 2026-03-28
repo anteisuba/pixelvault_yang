@@ -23,6 +23,9 @@ export const ROUTES = {
 
   /** Creator profile (public) */
   CREATOR_PROFILE: '/u',
+
+  /** Collections */
+  COLLECTIONS: '/collections',
 } as const
 
 /** Build a creator profile URL from username */

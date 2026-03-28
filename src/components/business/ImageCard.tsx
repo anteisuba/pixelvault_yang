@@ -9,6 +9,7 @@ import {
   Globe2,
   ImageIcon,
   LockKeyhole,
+  Pin,
   Play,
 } from 'lucide-react'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
@@ -37,11 +38,12 @@ export const ImageCard = memo(function ImageCard({
   showDelete = false,
   onDelete,
 }: ImageCardProps) {
-  const { isPublic, isPromptPublic, togglingField, handleToggle } =
+  const { isPublic, isPromptPublic, isFeatured, togglingField, handleToggle } =
     useGenerationVisibility({
       generationId: generation.id,
       initialIsPublic: generation.isPublic,
       initialIsPromptPublic: generation.isPromptPublic,
+      initialIsFeatured: generation.isFeatured,
     })
   const [detailOpen, setDetailOpen] = useState(false)
   const format = useFormatter()
@@ -85,6 +87,7 @@ export const ImageCard = memo(function ImageCard({
     ...generation,
     isPublic,
     isPromptPublic,
+    isFeatured,
   }
 
   return (
@@ -272,6 +275,34 @@ export const ImageCard = memo(function ImageCard({
                     {isPromptPublic
                       ? t('makePrivateAction')
                       : t('makePublicAction')}
+                  </button>
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <dt className={labelClass}>{t('featuredLabel')}</dt>
+                <dd className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-sm text-foreground">
+                    <Pin
+                      className={cn(
+                        'size-3',
+                        isFeatured ? 'text-primary' : 'text-muted-foreground',
+                      )}
+                    />
+                    {isFeatured ? t('featuredOn') : t('featuredOff')}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={togglingField !== null}
+                    onClick={() => void handleToggle('isFeatured')}
+                    className={cn(
+                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+                      isDenseLocale
+                        ? 'tracking-normal normal-case'
+                        : 'uppercase tracking-nav-dense',
+                      togglingField !== null && 'opacity-50',
+                    )}
+                  >
+                    {isFeatured ? t('unpinAction') : t('pinAction')}
                   </button>
                 </dd>
               </div>

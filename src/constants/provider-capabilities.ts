@@ -15,6 +15,15 @@ export type ProviderCapability =
   | 'background'
   | 'style'
   | 'imageAnalysis'
+  | 'lora'
+
+/**
+ * How the adapter handles reference images:
+ * - 'native': Model natively understands "keep this character, change the scene" (OpenAI, Gemini)
+ * - 'img2img': Model treats reference as base image to modify / style transfer (fal.ai Flux, Recraft, SD)
+ * - 'director': Specialized character reference system with high reference weight (NovelAI)
+ */
+export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
 /** Range constraints for numeric parameters */
 export interface NumericRange {
@@ -30,11 +39,16 @@ export interface CapabilityConfig {
   guidanceScale?: NumericRange
   steps?: NumericRange
   referenceStrength?: NumericRange
+  loraScale?: NumericRange
   qualityOptions?: readonly string[]
   styleOptions?: readonly string[]
   backgroundOptions?: readonly string[]
+  /** Maximum number of LoRAs that can be applied simultaneously */
+  maxLoras?: number
   /** Maximum number of reference images supported (default: 1) */
   maxReferenceImages?: number
+  /** How this adapter handles reference images (default: 'img2img') */
+  referenceImageMode?: ReferenceImageMode
 }
 
 export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
@@ -52,6 +66,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
       maxReferenceImages: 1,
+      referenceImageMode: 'director',
     },
 
     [AI_ADAPTER_TYPES.FAL]: {
@@ -62,11 +77,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'seed',
         'referenceStrength',
         'imageAnalysis',
+        'lora',
       ],
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 3.5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      loraScale: { min: 0.1, max: 2, step: 0.05, default: 1 },
+      maxLoras: 5,
       maxReferenceImages: 1,
+      referenceImageMode: 'img2img',
     },
 
     [AI_ADAPTER_TYPES.HUGGINGFACE]: {
@@ -89,9 +108,12 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'steps',
         'seed',
         'imageAnalysis',
+        'lora',
       ],
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 7.5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
+      loraScale: { min: 0.1, max: 2, step: 0.05, default: 1 },
+      maxLoras: 2,
       maxReferenceImages: 1,
     },
 
@@ -101,16 +123,20 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       backgroundOptions: ['auto', 'transparent', 'opaque'],
       styleOptions: ['vivid', 'natural'],
       maxReferenceImages: 1,
+      referenceImageMode: 'native',
     },
 
     [AI_ADAPTER_TYPES.GEMINI]: {
       capabilities: ['imageAnalysis'],
       maxReferenceImages: 14,
+      referenceImageMode: 'native',
     },
 
     [AI_ADAPTER_TYPES.VOLCENGINE]: {
-      capabilities: ['seed'],
-      maxReferenceImages: 4,
+      capabilities: ['seed', 'guidanceScale', 'imageAnalysis'],
+      guidanceScale: { min: 1, max: 10, step: 0.5, default: 8.0 },
+      maxReferenceImages: 10,
+      referenceImageMode: 'native',
     },
   }
 
@@ -132,4 +158,11 @@ export function getCapabilityConfig(
 /** Get the maximum number of reference images supported by an adapter (default: 1) */
 export function getMaxReferenceImages(adapterType: AI_ADAPTER_TYPES): number {
   return ADAPTER_CAPABILITIES[adapterType].maxReferenceImages ?? 1
+}
+
+/** Get how this adapter handles reference images (default: 'img2img') */
+export function getReferenceImageMode(
+  adapterType: AI_ADAPTER_TYPES,
+): ReferenceImageMode {
+  return ADAPTER_CAPABILITIES[adapterType].referenceImageMode ?? 'img2img'
 }

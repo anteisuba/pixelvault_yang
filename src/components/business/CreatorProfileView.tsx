@@ -3,6 +3,10 @@
 import { useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 
+import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
+
+import { toggleGenerationVisibility } from '@/lib/api-client'
 import { useCreatorProfile } from '@/hooks/use-creator-profile'
 import { useLike } from '@/hooks/use-like'
 import { useFollow } from '@/hooks/use-follow'
@@ -21,6 +25,8 @@ export function CreatorProfileView({
   username,
   initialData,
 }: CreatorProfileViewProps) {
+  const tToasts = useTranslations('Toasts')
+
   const {
     profile,
     isLoading,
@@ -72,6 +78,30 @@ export function CreatorProfileView({
     [toggleLike, isLikePending],
   )
 
+  const handlePin = useCallback(
+    async (generationId: string) => {
+      const result = await toggleGenerationVisibility(
+        generationId,
+        'isFeatured',
+      )
+      if (!result.success) {
+        const msg =
+          result.error === 'MAX_FEATURED_EXCEEDED'
+            ? tToasts('featuredLimitReached')
+            : tToasts('featuredFailed')
+        toast.error(msg)
+      } else {
+        toast.success(
+          tToasts(
+            result.data?.isFeatured ? 'featuredAdded' : 'featuredRemoved',
+          ),
+        )
+      }
+      refresh()
+    },
+    [refresh, tToasts],
+  )
+
   if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -114,6 +144,8 @@ export function CreatorProfileView({
         isLoadingMore={isLoadingMore}
         onLoadMore={loadMore}
         onLike={handleLike}
+        isOwnProfile={data.viewerRelation.isOwnProfile}
+        onPin={data.viewerRelation.isOwnProfile ? handlePin : undefined}
         isEmpty={data.generations.length === 0}
       />
     </div>

@@ -103,6 +103,8 @@ export function useGenerateVideo(): UseGenerateVideoReturn {
             const statusResponse = await checkVideoStatusAPI(jobId)
 
             if (!statusResponse.success || !statusResponse.data) {
+              // Tolerate early 404s — the job may not be in DB yet
+              if (pollCountRef.current <= 5) return
               finish(statusResponse.error ?? t('errorFallback'))
               return
             }

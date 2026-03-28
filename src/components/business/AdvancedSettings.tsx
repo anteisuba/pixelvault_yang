@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { Plus, X } from 'lucide-react'
 
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -10,7 +11,9 @@ import {
 } from '@/constants/provider-capabilities'
 import type { AdvancedParams } from '@/types'
 
+import { Button } from '@/components/ui/button'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
+import { Input } from '@/components/ui/input'
 import { OptionGroup } from '@/components/ui/option-group'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { SeedInput } from '@/components/ui/seed-input'
@@ -52,6 +55,7 @@ export function AdvancedSettings({
     'quality',
     'background',
     'style',
+    'lora',
   ]
   const hasConfigurableCapability = config.capabilities.some((cap) =>
     USER_CONFIGURABLE.includes(cap),
@@ -202,6 +206,96 @@ export function AdvancedSettings({
               onChange={(v) => update({ style: v })}
               disabled={disabled}
             />
+          </div>
+        )}
+
+        {/* ─── LoRA Models ─────────────────────────────────── */}
+        {has('lora') && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-foreground">
+                  {t('lora')}
+                </span>
+                <p className="text-xs text-muted-foreground">{t('loraHint')}</p>
+              </div>
+              {(params.loras?.length ?? 0) < (config.maxLoras ?? 1) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    update({
+                      loras: [
+                        ...(params.loras ?? []),
+                        { url: '', scale: config.loraScale?.default ?? 1 },
+                      ],
+                    })
+                  }
+                  disabled={disabled}
+                  className="h-7 gap-1 rounded-lg px-2 text-xs"
+                >
+                  <Plus className="size-3" />
+                  {t('loraAdd')}
+                </Button>
+              )}
+            </div>
+
+            {params.loras?.map((lora, index) => (
+              <div
+                key={index}
+                className="space-y-2 rounded-xl border border-border/60 bg-background/50 p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder={t('loraUrlPlaceholder')}
+                    value={lora.url}
+                    onChange={(e) => {
+                      const updated = [...(params.loras ?? [])]
+                      updated[index] = {
+                        ...updated[index],
+                        url: e.target.value,
+                      }
+                      update({ loras: updated })
+                    }}
+                    disabled={disabled}
+                    className="h-8 rounded-lg border-border/75 bg-background/72 font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const updated = (params.loras ?? []).filter(
+                        (_, i) => i !== index,
+                      )
+                      update({
+                        loras: updated.length > 0 ? updated : undefined,
+                      })
+                    }}
+                    disabled={disabled}
+                    className="size-8 shrink-0 rounded-lg p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+                {config.loraScale && (
+                  <ParamSlider
+                    label={t('loraScale')}
+                    value={lora.scale ?? config.loraScale.default}
+                    onChange={(v) => {
+                      const updated = [...(params.loras ?? [])]
+                      updated[index] = { ...updated[index], scale: v }
+                      update({ loras: updated })
+                    }}
+                    min={config.loraScale.min}
+                    max={config.loraScale.max}
+                    step={config.loraScale.step}
+                    disabled={disabled}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

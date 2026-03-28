@@ -15,6 +15,8 @@ interface PolaroidGridProps {
   isLoadingMore: boolean
   onLoadMore: () => void
   onLike: (generationId: string) => void
+  isOwnProfile?: boolean
+  onPin?: (generationId: string) => void
   isEmpty: boolean
 }
 
@@ -25,6 +27,8 @@ export function PolaroidGrid({
   isLoadingMore,
   onLoadMore,
   onLike,
+  isOwnProfile,
+  onPin,
   isEmpty,
 }: PolaroidGridProps) {
   const t = useTranslations('CreatorProfile')
@@ -71,7 +75,9 @@ export function PolaroidGrid({
             isFeatured={gen.isFeatured}
             isPromptPublic={gen.isPromptPublic}
             totalImages={totalImages}
+            isOwnProfile={isOwnProfile}
             onLike={onLike}
+            onPin={onPin}
           />
         ))}
       </div>

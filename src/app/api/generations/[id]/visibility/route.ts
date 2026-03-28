@@ -1,9 +1,18 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-import { toggleGenerationVisibility } from '@/services/generation.service'
+import {
+  toggleGenerationVisibility,
+  type ToggleableField,
+} from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import type { ToggleVisibilityResponse } from '@/types'
+
+const ALLOWED_FIELDS: ToggleableField[] = [
+  'isPublic',
+  'isPromptPublic',
+  'isFeatured',
+]
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -26,13 +35,23 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
-  const field = body.field === 'isPromptPublic' ? 'isPromptPublic' : 'isPublic'
+  const field: ToggleableField = ALLOWED_FIELDS.includes(body.field)
+    ? body.field
+    : 'isPublic'
   const result = await toggleGenerationVisibility(id, user.id, field)
 
   if (!result) {
     return NextResponse.json(
       { success: false, error: 'Generation not found or access denied' },
       { status: 404 },
+    )
+  }
+
+  // Handle service-level errors (e.g. featured limit exceeded)
+  if ('error' in result) {
+    return NextResponse.json(
+      { success: false, error: result.error },
+      { status: 422 },
     )
   }
 

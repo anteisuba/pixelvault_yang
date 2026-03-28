@@ -7,7 +7,6 @@ import { useTranslations } from 'next-intl'
 import {
   API_USAGE,
   DEFAULT_ASPECT_RATIO,
-  GENERATION_LIMITS,
   IMAGE_SIZES,
   type AspectRatio,
 } from '@/constants/config'
@@ -404,7 +403,6 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={3}
-          maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
           disabled={isCreating}
           className="resize-none rounded-2xl border-border/75 bg-background/72 px-4 py-3 font-serif"
         />

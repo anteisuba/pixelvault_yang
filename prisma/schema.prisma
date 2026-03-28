@@ -64,6 +64,7 @@ model User {
   likesGiven     UserLike[]     @relation("LikesGiven")
   followsGiven   UserFollow[]   @relation("FollowsGiven")
   followsReceived UserFollow[]  @relation("FollowsReceived")
+  collections    Collection[]
 
   @@index([username])
 }
@@ -151,6 +152,7 @@ model Generation {
   arenaEntries   ArenaEntry[]
   storyPanels    StoryPanel[]
   likes          UserLike[]
+  collectionItems CollectionItem[]
 
   @@index([userId])
   @@index([userId, isFeatured, isPublic, createdAt(sort: Desc)])
@@ -226,15 +228,16 @@ model ImageAnalysis {
 }
 
 model ArenaMatch {
-  id          String       @id @default(uuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  prompt      String       @db.Text
-  aspectRatio String
-  winnerId    String?
-  votedAt     DateTime?
-  createdAt   DateTime     @default(now())
-  entries     ArenaEntry[]
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String       @db.Text
+  aspectRatio    String
+  referenceImage String?      @db.Text
+  winnerId       String?
+  votedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  entries        ArenaEntry[]
 
   @@index([userId, createdAt(sort: Desc)])
 }
@@ -393,4 +396,36 @@ model UserFollow {
   @@unique([followerId, followingId])
   @@index([followingId])
   @@index([followerId, createdAt(sort: Desc)])
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  coverUrl    String?
+  isPublic    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items CollectionItem[]
+
+  @@index([userId, isDeleted, updatedAt(sort: Desc)])
+  @@index([isPublic, isDeleted, updatedAt(sort: Desc)])
+}
+
+model CollectionItem {
+  id           String     @id @default(uuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  orderIndex   Int        @default(0)
+  addedAt      DateTime   @default(now())
+
+  @@unique([collectionId, generationId])
+  @@index([collectionId, orderIndex])
+  @@index([generationId])
 }

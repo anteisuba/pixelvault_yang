@@ -44,7 +44,17 @@
     "characterCardCreated": "Character card created",
     "characterCardUpdated": "Character card updated",
     "characterCardDeleted": "Character card deleted",
-    "characterCardStable": "Character card is now stable!"
+    "characterCardStable": "Character card is now stable!",
+    "featuredAdded": "Pinned to profile",
+    "featuredRemoved": "Unpinned from profile",
+    "featuredFailed": "Failed to update pin status",
+    "featuredLimitReached": "You can pin up to 9 works",
+    "collectionCreated": "Collection created",
+    "collectionCreateFailed": "Failed to create collection",
+    "collectionUpdated": "Collection updated",
+    "collectionUpdateFailed": "Failed to update collection",
+    "collectionDeleted": "Collection deleted",
+    "collectionDeleteFailed": "Failed to delete collection"
   },
   "Projects": {
     "title": "Projects",
@@ -301,7 +311,17 @@
     "errorUnexpected": "An unexpected error occurred.",
     "errorTimeout": "Video generation timed out. Please try again.",
     "toastSuccess": "Video generated successfully!",
-    "referenceRemoveLabel": "Remove reference image"
+    "referenceRemoveLabel": "Remove reference image",
+    "characterCard": {
+      "hintMulti": "Apply {count} characters' prompts and reference image",
+      "appliedMulti": "{count} character cards applied — base prompts auto-injected",
+      "applyButton": "Apply",
+      "appliedButton": "Applied",
+      "actionPromptLabel": "Action / Scene",
+      "actionPromptHint": "Describe the video scene — the characters' appearance is auto-injected.",
+      "actionPromptPlaceholder": "e.g. walking in a forest, smiling, wind blowing hair...",
+      "imageWarning": "Only 1st card's image used for video"
+    }
   },
   "VideoPlayer": {
     "play": "Play",
@@ -400,6 +420,31 @@
     "batchSuccess": "Batch operation completed",
     "batchFailed": "Batch operation failed"
   },
+  "Collections": {
+    "title": "Collections",
+    "newCollection": "New Collection",
+    "namePlaceholder": "Collection name",
+    "descriptionPlaceholder": "Description (optional)",
+    "emptyTitle": "No collections yet",
+    "emptyDescription": "Create a collection to organize your works.",
+    "emptyAction": "Create Collection",
+    "itemCount": "{count, plural, =0 {Empty} one {# item} other {# items}}",
+    "publicLabel": "Public",
+    "privateLabel": "Private",
+    "editAction": "Edit",
+    "deleteAction": "Delete",
+    "deleteConfirmTitle": "Delete collection?",
+    "deleteConfirmDescription": "This will delete the collection but not the images inside it.",
+    "deleteCancel": "Cancel",
+    "deleteConfirm": "Delete",
+    "addToCollection": "Add to Collection",
+    "removeFromCollection": "Remove",
+    "shareLink": "Share Link",
+    "collectionBy": "Collection by {name}",
+    "makePublicAction": "Make Public",
+    "makePrivateAction": "Make Private",
+    "rename": "Rename"
+  },
   "StudioForm": {
     "formLabel": "Image generation",
     "selectedModelLabel": "Selected route",
@@ -448,6 +493,11 @@
       "step2": "Paste it in \"API Routes\" above"
     },
     "toastSuccess": "Image generated successfully!",
+    "errorCodes": {
+      "NOVELAI_TIER_LIMIT": "Your NovelAI subscription only supports 1 reference image. Please select a single character card, or upgrade to Opus for multi-reference support.",
+      "FREE_LIMIT_EXCEEDED": "Free tier limit reached for today. Bind your own API key to continue.",
+      "MISSING_API_KEY": "Please bind your own API key for this model in API Routes settings."
+    },
     "resultLabel": "Latest result",
     "resultDescription": "The newest image from this workspace appears here.",
     "resultEmptyTitle": "No generation yet",
@@ -530,7 +580,7 @@
       },
       "volcengine": {
         "label": "VolcEngine",
-        "description": "Use VolcEngine (火山方舟) for ByteDance Seedance video models with native audio."
+        "description": "Use VolcEngine (火山方舟) for ByteDance Seedream image and Seedance video models."
       }
     },
     "summary": {
@@ -659,7 +709,12 @@
     "makePrivateAction": "Make Private",
     "toggleError": "Failed to update visibility",
     "openVideo": "Open video",
-    "promptPrivateHint": "Prompt hidden by the creator"
+    "promptPrivateHint": "Prompt hidden by the creator",
+    "featuredLabel": "Pin",
+    "featuredOn": "Pinned",
+    "featuredOff": "Not pinned",
+    "pinAction": "Pin to Top",
+    "unpinAction": "Unpin"
   },
   "PromptEnhance": {
     "button": "Enhance",
@@ -789,7 +844,8 @@
     "winner": "Winner",
     "voteButton": "Vote",
     "newBattle": "New Battle",
-    "arenaComparison": "Model comparison"
+    "arenaComparison": "Model comparison",
+    "referenceImage": "Reference Image"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "Leaderboard",
@@ -962,6 +1018,18 @@
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "ByteDance's unified generation and editing model with up to 4MP output."
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "ByteDance's latest lightweight model via VolcEngine. Best quality-to-speed ratio."
+    },
+    "seedream40": {
+      "label": "Seedream 4.0",
+      "description": "ByteDance's mid-tier model via VolcEngine with improved quality and 4K support."
+    },
+    "seedream30": {
+      "label": "Seedream 3.0",
+      "description": "ByteDance's entry-level model via VolcEngine. Fast and cost-effective."
     },
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -1186,6 +1254,8 @@
     "expandedImage": "Expanded image view",
     "close": "Close",
     "like": "Like",
-    "unlike": "Unlike"
+    "unlike": "Unlike",
+    "pin": "Pin to profile",
+    "unpin": "Unpin from profile"
   }
 }

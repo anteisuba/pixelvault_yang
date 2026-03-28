@@ -9,10 +9,12 @@ import { ArenaForm } from '@/components/business/ArenaForm'
 import { ArenaGrid } from '@/components/business/ArenaGrid'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { useArena } from '@/hooks/use-arena'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 export default function ArenaPage() {
   const t = useTranslations('ArenaPage')
+  const tModels = useTranslations('Models')
   const {
     step,
     match,
@@ -83,27 +85,40 @@ export default function ArenaPage() {
               </div>
 
               <div className="mx-auto max-w-md space-y-2">
-                {entryProgress.map((ep) => (
+                {entryProgress.map((ep, idx) => (
                   <div
-                    key={ep.modelId}
-                    className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/72 px-4 py-2.5"
+                    key={`${ep.modelId}-${idx}`}
+                    className={cn(
+                      'flex flex-col gap-1 rounded-xl border px-4 py-2.5',
+                      ep.status === 'failed'
+                        ? 'border-red-200 bg-red-50/50'
+                        : 'border-border/50 bg-background/72',
+                    )}
                   >
-                    <span
-                      className={cn(
-                        'size-2.5 shrink-0 rounded-full',
-                        ep.status === 'pending' && 'animate-pulse bg-amber-400',
-                        ep.status === 'completed' && 'bg-emerald-500',
-                        ep.status === 'failed' && 'bg-red-500',
-                      )}
-                    />
-                    <span className="flex-1 truncate text-sm text-foreground">
-                      {t('modelSlot', { index: entryProgress.indexOf(ep) + 1 })}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {ep.status === 'pending' && t('entryPending')}
-                      {ep.status === 'completed' && t('entryDone')}
-                      {ep.status === 'failed' && t('entryFailed')}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          'size-2.5 shrink-0 rounded-full',
+                          ep.status === 'pending' &&
+                            'animate-pulse bg-amber-400',
+                          ep.status === 'completed' && 'bg-emerald-500',
+                          ep.status === 'failed' && 'bg-red-500',
+                        )}
+                      />
+                      <span className="flex-1 truncate text-sm text-foreground">
+                        {getTranslatedModelLabel(tModels, ep.modelId)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {ep.status === 'pending' && t('entryPending')}
+                        {ep.status === 'completed' && t('entryDone')}
+                        {ep.status === 'failed' && t('entryFailed')}
+                      </span>
+                    </div>
+                    {ep.status === 'failed' && ep.error && (
+                      <p className="truncate pl-5 text-2xs text-red-500">
+                        {ep.error}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -134,6 +149,7 @@ export default function ArenaPage() {
                 winnerId={match.winnerId}
                 eloUpdates={eloUpdates}
                 onVote={vote}
+                referenceImage={match.referenceImage ?? undefined}
               />
 
               {step === 'revealed' && (

@@ -381,6 +381,7 @@ export type GenerationWhereInput = {
   arenaEntries?: Prisma.ArenaEntryListRelationFilter
   storyPanels?: Prisma.StoryPanelListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
+  collectionItems?: Prisma.CollectionItemListRelationFilter
 }
 
 export type GenerationOrderByWithRelationInput = {
@@ -416,6 +417,7 @@ export type GenerationOrderByWithRelationInput = {
   arenaEntries?: Prisma.ArenaEntryOrderByRelationAggregateInput
   storyPanels?: Prisma.StoryPanelOrderByRelationAggregateInput
   likes?: Prisma.UserLikeOrderByRelationAggregateInput
+  collectionItems?: Prisma.CollectionItemOrderByRelationAggregateInput
 }
 
 export type GenerationWhereUniqueInput = Prisma.AtLeast<{
@@ -454,6 +456,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   arenaEntries?: Prisma.ArenaEntryListRelationFilter
   storyPanels?: Prisma.StoryPanelListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
+  collectionItems?: Prisma.CollectionItemListRelationFilter
 }, "id">
 
 export type GenerationOrderByWithAggregationInput = {
@@ -546,6 +549,7 @@ export type GenerationCreateInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateInput = {
@@ -578,6 +582,7 @@ export type GenerationUncheckedCreateInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUpdateInput = {
@@ -610,6 +615,7 @@ export type GenerationUpdateInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateInput = {
@@ -642,6 +648,7 @@ export type GenerationUncheckedUpdateInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateManyInput = {
@@ -1071,6 +1078,20 @@ export type GenerationUpdateOneRequiredWithoutLikesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutLikesInput, Prisma.GenerationUpdateWithoutLikesInput>, Prisma.GenerationUncheckedUpdateWithoutLikesInput>
 }
 
+export type GenerationCreateNestedOneWithoutCollectionItemsInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCollectionItemsInput
+  connect?: Prisma.GenerationWhereUniqueInput
+}
+
+export type GenerationUpdateOneRequiredWithoutCollectionItemsNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCollectionItemsInput
+  upsert?: Prisma.GenerationUpsertWithoutCollectionItemsInput
+  connect?: Prisma.GenerationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutCollectionItemsInput, Prisma.GenerationUpdateWithoutCollectionItemsInput>, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
+}
+
 export type GenerationCreateWithoutUserInput = {
   id?: string
   createdAt?: Date | string
@@ -1100,6 +1121,7 @@ export type GenerationCreateWithoutUserInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutUserInput = {
@@ -1131,6 +1153,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutUserInput = {
@@ -1217,6 +1240,7 @@ export type GenerationCreateWithoutProjectInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutProjectInput = {
@@ -1248,6 +1272,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutProjectInput = {
@@ -1305,6 +1330,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutGenerationJobInput = {
@@ -1336,6 +1362,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutGenerationJobInput = {
@@ -1383,6 +1410,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
@@ -1414,6 +1442,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutApiUsageLedgerInput = {
@@ -1445,6 +1474,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -1476,6 +1506,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -1523,6 +1554,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -1554,6 +1586,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutArenaEntriesInput = {
@@ -1585,6 +1618,7 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
@@ -1616,6 +1650,7 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutArenaEntriesInput = {
@@ -1663,6 +1698,7 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
@@ -1694,6 +1730,7 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutStoryPanelsInput = {
@@ -1725,6 +1762,7 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
@@ -1756,6 +1794,7 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutStoryPanelsInput = {
@@ -1803,6 +1842,7 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
@@ -1834,6 +1874,7 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutCharacterCardInput = {
@@ -1865,6 +1906,7 @@ export type GenerationCreateWithoutCharacterCardInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCharacterCardInput = {
@@ -1896,6 +1938,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCharacterCardInput = {
@@ -1953,6 +1996,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
@@ -1984,6 +2028,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCharacterCardsInput = {
@@ -2031,6 +2076,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
@@ -2062,6 +2108,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutLikesInput = {
@@ -2093,6 +2140,7 @@ export type GenerationCreateWithoutLikesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutLikesInput = {
@@ -2124,6 +2172,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
   storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutLikesInput = {
@@ -2171,6 +2220,7 @@ export type GenerationUpdateWithoutLikesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutLikesInput = {
@@ -2202,6 +2252,151 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationCreateWithoutCollectionItemsInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  isFeatured?: boolean
+  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
+  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
+  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
+  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  width?: number
+  height?: number
+  duration?: number | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  isFeatured?: boolean
+  userId?: string | null
+  projectId?: string | null
+  characterCardId?: string | null
+  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
+  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
+  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+}
+
+export type GenerationCreateOrConnectWithoutCollectionItemsInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
+}
+
+export type GenerationUpsertWithoutCollectionItemsInput = {
+  update: Prisma.XOR<Prisma.GenerationUpdateWithoutCollectionItemsInput, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
+  where?: Prisma.GenerationWhereInput
+}
+
+export type GenerationUpdateToOneWithWhereWithoutCollectionItemsInput = {
+  where?: Prisma.GenerationWhereInput
+  data: Prisma.XOR<Prisma.GenerationUpdateWithoutCollectionItemsInput, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
+}
+
+export type GenerationUpdateWithoutCollectionItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
+  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
+  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
+  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
+  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
+  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateManyUserInput = {
@@ -2258,6 +2453,7 @@ export type GenerationUpdateWithoutUserInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutUserInput = {
@@ -2289,6 +2485,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutUserInput = {
@@ -2370,6 +2567,7 @@ export type GenerationUpdateWithoutProjectInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutProjectInput = {
@@ -2401,6 +2599,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutProjectInput = {
@@ -2482,6 +2681,7 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   arenaEntries?: Prisma.ArenaEntryUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
@@ -2513,6 +2713,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   arenaEntries?: Prisma.ArenaEntryUncheckedUpdateManyWithoutGenerationNestedInput
   storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
@@ -2551,6 +2752,7 @@ export type GenerationCountOutputType = {
   arenaEntries: number
   storyPanels: number
   likes: number
+  collectionItems: number
 }
 
 export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2559,6 +2761,7 @@ export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   arenaEntries?: boolean | GenerationCountOutputTypeCountArenaEntriesArgs
   storyPanels?: boolean | GenerationCountOutputTypeCountStoryPanelsArgs
   likes?: boolean | GenerationCountOutputTypeCountLikesArgs
+  collectionItems?: boolean | GenerationCountOutputTypeCountCollectionItemsArgs
 }
 
 /**
@@ -2606,6 +2809,13 @@ export type GenerationCountOutputTypeCountLikesArgs<ExtArgs extends runtime.Type
   where?: Prisma.UserLikeWhereInput
 }
 
+/**
+ * GenerationCountOutputType without action
+ */
+export type GenerationCountOutputTypeCountCollectionItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CollectionItemWhereInput
+}
+
 
 export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2640,6 +2850,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
   storyPanels?: boolean | Prisma.Generation$storyPanelsArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
+  collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
@@ -2738,6 +2949,7 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   arenaEntries?: boolean | Prisma.Generation$arenaEntriesArgs<ExtArgs>
   storyPanels?: boolean | Prisma.Generation$storyPanelsArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
+  collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type GenerationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2763,6 +2975,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     arenaEntries: Prisma.$ArenaEntryPayload<ExtArgs>[]
     storyPanels: Prisma.$StoryPanelPayload<ExtArgs>[]
     likes: Prisma.$UserLikePayload<ExtArgs>[]
+    collectionItems: Prisma.$CollectionItemPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3191,6 +3404,7 @@ export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runti
   arenaEntries<T extends Prisma.Generation$arenaEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$arenaEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ArenaEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   storyPanels<T extends Prisma.Generation$storyPanelsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$storyPanelsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StoryPanelPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   likes<T extends Prisma.Generation$likesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$likesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  collectionItems<T extends Prisma.Generation$collectionItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$collectionItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3439,6 +3653,11 @@ export type GenerationFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` Generations.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of Generations.
+   */
   distinct?: Prisma.GenerationScalarFieldEnum | Prisma.GenerationScalarFieldEnum[]
 }
 
@@ -3832,6 +4051,30 @@ export type Generation$likesArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.UserLikeScalarFieldEnum | Prisma.UserLikeScalarFieldEnum[]
+}
+
+/**
+ * Generation.collectionItems
+ */
+export type Generation$collectionItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CollectionItem
+   */
+  select?: Prisma.CollectionItemSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CollectionItem
+   */
+  omit?: Prisma.CollectionItemOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CollectionItemInclude<ExtArgs> | null
+  where?: Prisma.CollectionItemWhereInput
+  orderBy?: Prisma.CollectionItemOrderByWithRelationInput | Prisma.CollectionItemOrderByWithRelationInput[]
+  cursor?: Prisma.CollectionItemWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CollectionItemScalarFieldEnum | Prisma.CollectionItemScalarFieldEnum[]
 }
 
 /**

@@ -67,7 +67,9 @@ export const ModelName = {
   CharacterCard: 'CharacterCard',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
-  UserFollow: 'UserFollow'
+  UserFollow: 'UserFollow',
+  Collection: 'Collection',
+  CollectionItem: 'CollectionItem'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -224,6 +226,7 @@ export const ArenaMatchScalarFieldEnum = {
   userId: 'userId',
   prompt: 'prompt',
   aspectRatio: 'aspectRatio',
+  referenceImage: 'referenceImage',
   winnerId: 'winnerId',
   votedAt: 'votedAt',
   createdAt: 'createdAt'
@@ -363,6 +366,32 @@ export const UserFollowScalarFieldEnum = {
 } as const
 
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
+
+
+export const CollectionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  coverUrl: 'coverUrl',
+  isPublic: 'isPublic',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CollectionScalarFieldEnum = (typeof CollectionScalarFieldEnum)[keyof typeof CollectionScalarFieldEnum]
+
+
+export const CollectionItemScalarFieldEnum = {
+  id: 'id',
+  collectionId: 'collectionId',
+  generationId: 'generationId',
+  orderIndex: 'orderIndex',
+  addedAt: 'addedAt'
+} as const
+
+export type CollectionItemScalarFieldEnum = (typeof CollectionItemScalarFieldEnum)[keyof typeof CollectionItemScalarFieldEnum]
 
 
 export const SortOrder = {

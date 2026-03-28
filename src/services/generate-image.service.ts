@@ -3,9 +3,9 @@ import 'server-only'
 import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import {
+  AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
   getProviderLabel,
-  type AI_ADAPTER_TYPES,
   type ProviderConfig,
 } from '@/constants/providers'
 import type { GenerateRequest, GenerationRecord } from '@/types'
@@ -52,6 +52,7 @@ type GenerateImageServiceErrorCode =
   | 'INVALID_ROUTE_SELECTION'
   | 'JOB_NOT_FOUND'
   | 'MISSING_API_KEY'
+  | 'NOVELAI_TIER_LIMIT'
   | 'PLATFORM_KEY_MISSING'
   | 'PROVIDER_ERROR'
   | 'UNSUPPORTED_MODEL'
@@ -126,8 +127,16 @@ export async function resolveGenerationRoute(
     builtInModel.adapterType,
   )
   if (autoKey) {
+    // VolcEngine requires endpoint IDs (ep-xxx), not model names.
+    // If the user's key stores an endpoint ID, use it; otherwise fall through
+    // to the built-in model name (works for pay-per-use models).
+    const effectiveModelId =
+      autoKey.adapterType === AI_ADAPTER_TYPES.VOLCENGINE &&
+      autoKey.modelId.startsWith('ep-')
+        ? autoKey.modelId
+        : modelId
     return {
-      modelId,
+      modelId: effectiveModelId,
       adapterType: autoKey.adapterType,
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
@@ -260,7 +269,12 @@ export async function generateImageForUser(
       throw error
     }
     const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
+    // Map known provider error patterns to specific service error codes
+    const code =
+      error instanceof ProviderError && error.status === 403
+        ? 'NOVELAI_TIER_LIMIT'
+        : 'PROVIDER_ERROR'
+    throw new GenerateImageServiceError(code, message, status)
   }
 
   const usageEntry = await createApiUsageEntry({

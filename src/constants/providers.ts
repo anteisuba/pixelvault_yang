@@ -86,7 +86,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.FAL]: 'fal-ai/flux-2-pro',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
   [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-4-5-full',
-  [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedance-1-5-pro',
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
 }
 
 export const getDefaultProviderConfig = (
@@ -134,7 +134,8 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
-    steps: 'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key',
+    steps:
+      'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key. 模型需要创建推理接入点 (endpoint), 将 endpoint ID (ep-xxx) 作为自定义模型 ID 使用。',
   },
 }
 

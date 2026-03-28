@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import { Heart, X, Sparkles } from 'lucide-react'
+import { Heart, Pin, X, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -22,7 +22,9 @@ interface PolaroidCardProps {
   isFeatured: boolean
   isPromptPublic?: boolean
   totalImages: number
+  isOwnProfile?: boolean
   onLike?: (id: string) => void
+  onPin?: (id: string) => void
   className?: string
 }
 
@@ -52,7 +54,9 @@ export function PolaroidCard({
   isFeatured,
   isPromptPublic = false,
   totalImages,
+  isOwnProfile,
   onLike,
+  onPin,
   className,
 }: PolaroidCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -243,22 +247,41 @@ export function PolaroidCard({
                 <span className="font-serif">{dateStr}</span>
                 <span className="font-medium">{model}</span>
               </div>
-              <button
-                className="flex items-center gap-1 hover:text-primary transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onLike?.(id)
-                }}
-                aria-label={isLiked ? t('unlike') : t('like')}
-              >
-                <Heart
-                  className={cn(
-                    'size-4',
-                    isLiked && 'fill-primary text-primary',
-                  )}
-                />
-                {likeCount > 0 && <span>{likeCount}</span>}
-              </button>
+              <div className="flex items-center gap-3">
+                {isOwnProfile && onPin && (
+                  <button
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPin(id)
+                    }}
+                    aria-label={isFeatured ? t('unpin') : t('pin')}
+                  >
+                    <Pin
+                      className={cn(
+                        'size-4',
+                        isFeatured && 'fill-primary text-primary',
+                      )}
+                    />
+                  </button>
+                )}
+                <button
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onLike?.(id)
+                  }}
+                  aria-label={isLiked ? t('unlike') : t('like')}
+                >
+                  <Heart
+                    className={cn(
+                      'size-4',
+                      isLiked && 'fill-primary text-primary',
+                    )}
+                  />
+                  {likeCount > 0 && <span>{likeCount}</span>}
+                </button>
+              </div>
             </div>
 
             {/* Prompt preview */}

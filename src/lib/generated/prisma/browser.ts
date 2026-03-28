@@ -102,3 +102,13 @@ export type UserLike = Prisma.UserLikeModel
  * 
  */
 export type UserFollow = Prisma.UserFollowModel
+/**
+ * Model Collection
+ * 
+ */
+export type Collection = Prisma.CollectionModel
+/**
+ * Model CollectionItem
+ * 
+ */
+export type CollectionItem = Prisma.CollectionItemModel

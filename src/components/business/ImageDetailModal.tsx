@@ -15,6 +15,7 @@ import {
   Link2,
   Loader2,
   LockKeyhole,
+  Pin,
   Sparkles,
   Trash2,
   ZoomIn,
@@ -26,7 +27,7 @@ import { ROUTES } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
-import { editImageAPI } from '@/lib/api-client'
+import { editImageAPI, toggleGenerationVisibility } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -63,6 +64,8 @@ export function ImageDetailModal({
   const [editingAction, setEditingAction] = useState<
     'upscale' | 'remove-background' | null
   >(null)
+  const [isPinned, setIsPinned] = useState(generation.isFeatured ?? false)
+  const [isPinning, setIsPinning] = useState(false)
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -70,6 +73,7 @@ export function ImageDetailModal({
   const tCard = useTranslations('GalleryCard')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const tToasts = useTranslations('Toasts')
 
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
@@ -198,6 +202,12 @@ export function ImageDetailModal({
                         : tCard('privateLabel'),
                     })}
                   </span>
+                  {isPinned && (
+                    <span className="flex items-center gap-1.5 text-sm text-primary">
+                      <Pin className="size-3" />
+                      {tCard('featuredOn')}
+                    </span>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -400,6 +410,44 @@ export function ImageDetailModal({
                     : t('removeBackground')}
                 </Button>
               </>
+            )}
+
+            {showVisibility && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'rounded-full',
+                  isPinned &&
+                    'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
+                )}
+                disabled={isPinning}
+                onClick={async () => {
+                  setIsPinning(true)
+                  const prev = isPinned
+                  setIsPinned(!prev)
+                  const result = await toggleGenerationVisibility(
+                    generation.id,
+                    'isFeatured',
+                  )
+                  if (!result.success) {
+                    setIsPinned(prev)
+                    const msg =
+                      result.error === 'MAX_FEATURED_EXCEEDED'
+                        ? tToasts('featuredLimitReached')
+                        : tToasts('featuredFailed')
+                    toast.error(msg)
+                  } else {
+                    toast.success(
+                      tToasts(!prev ? 'featuredAdded' : 'featuredRemoved'),
+                    )
+                  }
+                  setIsPinning(false)
+                }}
+              >
+                <Pin className={cn('size-3.5', isPinned && 'fill-current')} />
+                {isPinned ? tCard('unpinAction') : tCard('pinAction')}
+              </Button>
             )}
 
             {showDelete && onDelete ? (

@@ -1,15 +1,18 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { Film, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import Image from 'next/image'
+import { Check, Film, Loader2, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { GENERATION_LIMITS, VIDEO_GENERATION } from '@/constants/config'
+import { VIDEO_GENERATION } from '@/constants/config'
 import { getAvailableVideoModels, getModelById } from '@/constants/models'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { isCjkLocale } from '@/i18n/routing'
 
 import dynamic from 'next/dynamic'
 
+import type { CharacterCardRecord } from '@/types'
 import {
   ModelSelector,
   type StudioModelOption,
@@ -58,7 +61,7 @@ function resizeImageToDataUrl(
   height: number,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
+    const img = document.createElement('img')
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = width
@@ -73,10 +76,17 @@ function resizeImageToDataUrl(
   })
 }
 
-export default function VideoGenerateForm() {
+interface VideoGenerateFormProps {
+  activeCharacterCards?: CharacterCardRecord[]
+}
+
+export default function VideoGenerateForm({
+  activeCharacterCards = [],
+}: VideoGenerateFormProps) {
   const locale = useLocale()
   const cjk = isCjkLocale(locale)
   const t = useTranslations('VideoGenerate')
+  const tCard = useTranslations('VideoGenerate.characterCard')
 
   const { keys } = useApiKeysContext()
   const {
@@ -111,6 +121,7 @@ export default function VideoGenerateForm() {
     enhancePrompt,
     clearEnhancement,
     applyEnhancedPrompt,
+    addReferenceImage,
   } = useGenerationForm({
     defaultAspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
   })
@@ -121,6 +132,7 @@ export default function VideoGenerateForm() {
   )
   const [resolution, setResolution] = useState<string | undefined>()
   const [negativePrompt, setNegativePrompt] = useState('')
+  const [appliedCardIds, setAppliedCardIds] = useState<string[]>([])
 
   const videoModels = getAvailableVideoModels()
 
@@ -145,10 +157,71 @@ export default function VideoGenerateForm() {
     ? getModelById(selectedModel.modelId)
     : undefined
 
+  const hasCards = activeCharacterCards.length > 0
+  const isCardApplied = appliedCardIds.length > 0
+  const appliedCards = activeCharacterCards.filter((c) =>
+    appliedCardIds.includes(c.id),
+  )
+
+  // Video only supports 1 reference image — show warning when multiple cards selected
+  const maxRefImages = selectedModel
+    ? getMaxReferenceImages(selectedModel.adapterType)
+    : 1
+  const showMultiCardWarning = hasCards && activeCharacterCards.length > 1
+
+  // Reset applied state when selected cards change
+  useEffect(() => {
+    if (!hasCards) {
+      setAppliedCardIds([])
+    } else {
+      const activeIds = new Set(activeCharacterCards.map((c) => c.id))
+      setAppliedCardIds((prev) => prev.filter((id) => activeIds.has(id)))
+    }
+  }, [activeCharacterCards, hasCards])
+
+  const handleApplyCharacterCards = useCallback(() => {
+    if (!hasCards) return
+    setPrompt('')
+    clearAllImages()
+    // Video supports 1 reference image — use first source image from first card
+    const firstCard = activeCharacterCards[0]
+    const firstImage = firstCard.sourceImages?.length
+      ? firstCard.sourceImages[0]
+      : firstCard.sourceImageUrl
+    if (firstImage) addReferenceImage(firstImage)
+    setAppliedCardIds(activeCharacterCards.map((c) => c.id))
+  }, [
+    activeCharacterCards,
+    hasCards,
+    setPrompt,
+    clearAllImages,
+    addReferenceImage,
+  ])
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!selectedModel || !prompt.trim()) return
+
+      // Combine character card base prompts + user action prompt
+      let finalPrompt = prompt.trim()
+      if (isCardApplied && appliedCards.length > 0) {
+        const basePrompts = appliedCards
+          .map((c) => c.characterPrompt.trim())
+          .filter(Boolean)
+        const base =
+          basePrompts.length === 1
+            ? basePrompts[0]
+            : basePrompts
+                .map(
+                  (p, i) =>
+                    `[Character ${i + 1}: ${appliedCards[i].name}]\n${p}`,
+                )
+                .join('\n\n')
+        const action = prompt.trim()
+        finalPrompt = action ? `${base}\n\n${action}` : base
+      }
+      if (!finalPrompt) return
 
       let processedImage = referenceImage
       if (referenceImage && selectedModel.adapterType === 'openai') {
@@ -161,7 +234,7 @@ export default function VideoGenerateForm() {
       }
 
       await generate({
-        prompt: prompt.trim(),
+        prompt: finalPrompt,
         modelId: selectedModel.modelId,
         aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
         duration,
@@ -174,6 +247,8 @@ export default function VideoGenerateForm() {
           | '1080p'
           | undefined,
         apiKeyId: selectedApiKeyId,
+        characterCardIds:
+          appliedCardIds.length > 0 ? appliedCardIds : undefined,
       })
     },
     [
@@ -185,6 +260,9 @@ export default function VideoGenerateForm() {
       negativePrompt,
       resolution,
       selectedApiKeyId,
+      isCardApplied,
+      appliedCards,
+      appliedCardIds,
       generate,
     ],
   )
@@ -324,6 +402,78 @@ export default function VideoGenerateForm() {
 
       {/* Prompt */}
       <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+        {/* Character card apply panel */}
+        {hasCards && (
+          <div
+            className={cn(
+              'mb-5 rounded-2xl border p-3 transition-colors',
+              isCardApplied
+                ? 'border-emerald-500/40 bg-emerald-500/5'
+                : 'border-primary/30 bg-primary/5',
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {activeCharacterCards.slice(0, 4).map((card) => (
+                  <div
+                    key={card.id}
+                    className="relative size-10 shrink-0 overflow-hidden rounded-lg border-2 border-background"
+                  >
+                    <Image
+                      src={card.sourceImageUrl}
+                      alt={card.name}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {activeCharacterCards.map((c) => c.name).join(' × ')}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {isCardApplied
+                    ? tCard('appliedMulti', { count: appliedCards.length })
+                    : tCard('hintMulti', {
+                        count: activeCharacterCards.length,
+                      })}
+                </p>
+                {showMultiCardWarning && maxRefImages < 2 && (
+                  <p className="mt-0.5 text-xs text-amber-600">
+                    {tCard('imageWarning')}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                disabled={isGenerating || isCardApplied}
+                onClick={handleApplyCharacterCards}
+                className={cn(
+                  'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                  isCardApplied
+                    ? 'bg-emerald-500/10 text-emerald-600'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50',
+                )}
+              >
+                {isCardApplied ? (
+                  <>
+                    <Check className="size-3" />
+                    {tCard('appliedButton')}
+                  </>
+                ) : (
+                  <>
+                    <User className="size-3" />
+                    {tCard('applyButton')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mb-3 flex items-center justify-between">
           <label
             className={cn(
@@ -331,7 +481,7 @@ export default function VideoGenerateForm() {
               !cjk && 'uppercase tracking-nav',
             )}
           >
-            {t('promptLabel')}
+            {isCardApplied ? tCard('actionPromptLabel') : t('promptLabel')}
           </label>
           <div className="flex items-center gap-2">
             <PromptEnhancer
@@ -348,18 +498,26 @@ export default function VideoGenerateForm() {
               onDismiss={clearEnhancement}
             />
             <span className="text-xs tabular-nums text-muted-foreground">
-              {prompt.length}/{GENERATION_LIMITS.PROMPT_MAX_LENGTH}
+              {prompt.length}
             </span>
           </div>
         </div>
         <Textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={t('promptPlaceholder')}
-          maxLength={GENERATION_LIMITS.PROMPT_MAX_LENGTH}
+          placeholder={
+            isCardApplied
+              ? tCard('actionPromptPlaceholder')
+              : t('promptPlaceholder')
+          }
           rows={4}
           className="min-h-28 rounded-3xl border-border/75 bg-background/72"
         />
+        {isCardApplied && (
+          <p className="mt-2 font-serif text-xs text-muted-foreground">
+            {tCard('actionPromptHint')}
+          </p>
+        )}
       </div>
 
       {/* Advanced Settings */}

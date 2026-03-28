@@ -41,6 +41,8 @@ export async function generateMetadata({
     : `AI-generated ${generation.outputType === 'VIDEO' ? 'video' : 'image'} by ${modelLabel}`
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+  const ogImageUrl = `${appUrl}/api/og?type=generation&id=${id}`
+
   return {
     title,
     description,
@@ -51,9 +53,9 @@ export async function generateMetadata({
       url: `${appUrl}/${locale}/gallery/${id}`,
       images: [
         {
-          url: generation.url,
-          width: generation.width,
-          height: generation.height,
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
           alt: description,
         },
       ],
@@ -62,7 +64,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: [generation.url],
+      images: [ogImageUrl],
     },
   }
 }

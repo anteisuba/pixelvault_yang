@@ -108,6 +108,7 @@ export async function submitVideoGeneration(
     statusUrl: queueResult.statusUrl,
     responseUrl: queueResult.responseUrl,
     referenceImageUrl,
+    characterCardIds: input.characterCardIds,
   })
 
   await db.generationJob.update({
@@ -170,6 +171,7 @@ export async function checkVideoGenerationStatus(
     statusUrl: string
     responseUrl: string
     referenceImageUrl?: string
+    characterCardIds?: string[]
   }
   try {
     queueMeta = JSON.parse(job.externalRequestId)
@@ -233,18 +235,30 @@ export async function checkVideoGenerationStatus(
     return { jobId: job.id, status: 'FAILED' }
   }
 
-  // Optimistic lock: ensure job is still not completed
-  const freshJob = await db.generationJob.findUnique({
-    where: { id: jobId },
-    include: { generation: true },
+  // Optimistic lock: atomically claim this job for finalization
+  // updateMany with status filter ensures only one request wins the race
+  const claimed = await db.generationJob.updateMany({
+    where: { id: jobId, status: 'RUNNING' },
+    data: { status: 'QUEUED' }, // Reuse QUEUED as "finalizing" marker
   })
 
-  if (freshJob?.status === 'COMPLETED' && freshJob.generation) {
-    return {
-      jobId: job.id,
-      status: 'COMPLETED',
-      generation: mapGenerationToRecord(freshJob.generation),
+  if (claimed.count === 0) {
+    // Another request already claimed it — return cached or wait
+    const freshJob = await db.generationJob.findUnique({
+      where: { id: jobId },
+      include: { generation: true },
+    })
+
+    if (freshJob?.status === 'COMPLETED' && freshJob.generation) {
+      return {
+        jobId: job.id,
+        status: 'COMPLETED',
+        generation: mapGenerationToRecord(freshJob.generation),
+      }
     }
+
+    // Still being finalized by another request
+    return { jobId: job.id, status: 'IN_PROGRESS' }
   }
 
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -289,6 +303,7 @@ export async function checkVideoGenerationStatus(
       requestCount: videoResult.requestCount,
       outputType: 'VIDEO',
       userId: dbUser.id,
+      characterCardIds: queueMeta.characterCardIds,
     })
 
     await Promise.all([

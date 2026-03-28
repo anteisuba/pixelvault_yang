@@ -12,8 +12,14 @@ import type {
   LeaderboardEntry,
   PersonalModelStat,
 } from '@/types'
-import { getModelFamily } from '@/constants/models'
+import { getModelFamily, resolveAdapterType } from '@/constants/models'
+import { getReferenceImageMode } from '@/constants/provider-capabilities'
 import { generateImageForUser } from '@/services/generate-image.service'
+import {
+  fetchAsBuffer,
+  generateStorageKey,
+  uploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 
 // ─── Match Creation ──────────────────────────────────────────────
@@ -34,11 +40,21 @@ export async function createArenaMatch(
 ): Promise<string> {
   const dbUser = await ensureUser(clerkId)
 
+  // Upload base64 reference image to R2 so the DB stores a small URL
+  // instead of a multi-MB base64 string (prevents stack overflow in adapters)
+  let referenceImage = input.referenceImage
+  if (referenceImage?.startsWith('data:')) {
+    const { buffer, mimeType } = await fetchAsBuffer(referenceImage)
+    const key = generateStorageKey('IMAGE', dbUser.id)
+    referenceImage = await uploadToR2({ key, data: buffer, mimeType })
+  }
+
   const match = await db.arenaMatch.create({
     data: {
       userId: dbUser.id,
       prompt: input.prompt,
       aspectRatio: input.aspectRatio,
+      referenceImage,
     },
   })
 
@@ -78,12 +94,35 @@ export async function generateArenaEntry(
     throw new Error('Match already voted')
   }
 
+  // Decide whether to pass the reference image based on adapter's reference mode
+  const adapterType = resolveAdapterType(input.modelId)
+  const refMode = adapterType ? getReferenceImageMode(adapterType) : 'img2img'
+  let referenceImage = match.referenceImage ?? undefined
+  let advancedParams = input.advancedParams
+
+  if (referenceImage) {
+    if (refMode === 'img2img') {
+      // img2img models (Flux, Recraft, SD) can't do character reference —
+      // they'd produce weird blends. Skip the reference image entirely.
+      referenceImage = undefined
+    } else if (refMode === 'director') {
+      // NovelAI Director Reference is too strong by default (0.7) —
+      // scenes all look identical. Lower the strength for more prompt influence.
+      advancedParams = {
+        ...advancedParams,
+        referenceStrength: advancedParams?.referenceStrength ?? 0.4,
+      }
+    }
+    // 'native' mode (OpenAI, Gemini, VolcEngine): pass as-is
+  }
+
   const generation = await generateImageForUser(clerkId, {
     prompt: match.prompt,
     modelId: input.modelId,
     aspectRatio: match.aspectRatio as AspectRatio,
+    referenceImage,
     apiKeyId: input.apiKeyId,
-    advancedParams: input.advancedParams,
+    advancedParams,
   })
 
   const entry = await db.arenaEntry.create({
@@ -138,6 +177,7 @@ export async function getArenaMatch(
     id: match.id,
     prompt: match.prompt,
     aspectRatio: match.aspectRatio,
+    referenceImage: match.referenceImage,
     winnerId: match.winnerId,
     votedAt: match.votedAt,
     createdAt: match.createdAt,

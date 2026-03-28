@@ -33,10 +33,8 @@ export async function generateMetadata({
   const title = `${displayName} — ${t('metaTitle')}`
   const description = profile.bio ?? t('metaDescription', { name: displayName })
 
-  // OG image: use latest creation if available, else avatar
-  const ogImage = profile.generations[0]?.url ?? profile.avatarUrl ?? undefined
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixelvault.app'
+  const ogImageUrl = `${appUrl}/api/og?type=profile&username=${encodeURIComponent(username)}`
 
   return {
     title,
@@ -46,13 +44,13 @@ export async function generateMetadata({
       description,
       url: `${appUrl}/${locale}/u/${username}`,
       type: 'profile',
-      images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : [],
+      images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },
     twitter: {
-      card: ogImage ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title,
       description,
-      images: ogImage ? [ogImage] : [],
+      images: [ogImageUrl],
     },
   }
 }

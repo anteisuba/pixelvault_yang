@@ -86,6 +86,14 @@ src/
 | POST | `/api/stories/[id]/narrative` | Yes | 5/min | Generate AI narrative |
 | PATCH | `/api/stories/[id]/reorder` | Yes | — | Reorder panels |
 | GET | `/api/usage-summary` | Yes | — | User usage stats (30-day lookback) |
+| GET | `/api/collections` | Yes | — | List user's collections |
+| POST | `/api/collections` | Yes | — | Create collection |
+| GET | `/api/collections/[id]` | Optional | — | Get collection (public or owner) |
+| PUT | `/api/collections/[id]` | Yes | — | Update collection |
+| DELETE | `/api/collections/[id]` | Yes | — | Soft-delete collection |
+| POST | `/api/collections/[id]/items` | Yes | — | Add generations to collection |
+| DELETE | `/api/collections/[id]/items` | Yes | — | Remove generation from collection |
+| GET | `/api/og` | No | — | Dynamic OG image generation |
 | POST | `/api/webhooks/clerk` | Svix | — | Clerk user.created sync |
 
 ## Data Flow

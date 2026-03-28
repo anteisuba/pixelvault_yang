@@ -150,7 +150,7 @@ export function StudioWorkspace() {
           activeProjectId={activeProjectId}
         />
       ) : (
-        <VideoGenerateForm />
+        <VideoGenerateForm activeCharacterCards={activeCards} />
       )}
 
       {/* Project history panel */}

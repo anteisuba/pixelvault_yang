@@ -44,7 +44,17 @@
     "characterCardCreated": "角色卡已创建",
     "characterCardUpdated": "角色卡已更新",
     "characterCardDeleted": "角色卡已删除",
-    "characterCardStable": "角色卡已达到稳定状态！"
+    "characterCardStable": "角色卡已达到稳定状态！",
+    "featuredAdded": "已置顶到主页",
+    "featuredRemoved": "已取消置顶",
+    "featuredFailed": "置顶状态更新失败",
+    "featuredLimitReached": "最多可置顶 9 个作品",
+    "collectionCreated": "合集已创建",
+    "collectionCreateFailed": "创建合集失败",
+    "collectionUpdated": "合集已更新",
+    "collectionUpdateFailed": "更新合集失败",
+    "collectionDeleted": "合集已删除",
+    "collectionDeleteFailed": "删除合集失败"
   },
   "Projects": {
     "title": "项目",
@@ -301,7 +311,17 @@
     "errorUnexpected": "发生了意外错误。",
     "errorTimeout": "视频生成超时，请重试。",
     "toastSuccess": "视频生成成功！",
-    "referenceRemoveLabel": "移除参考图片"
+    "referenceRemoveLabel": "移除参考图片",
+    "characterCard": {
+      "hintMulti": "应用 {count} 个角色的提示词和参考图",
+      "appliedMulti": "已应用 {count} 个角色卡 — 基础提示词已自动注入",
+      "applyButton": "应用",
+      "appliedButton": "已应用",
+      "actionPromptLabel": "动作 / 场景",
+      "actionPromptHint": "描述视频场景 — 角色外貌已自动注入。",
+      "actionPromptPlaceholder": "例如：在森林中行走，微笑，风吹动头发……",
+      "imageWarning": "视频仅使用第一个角色卡的图片"
+    }
   },
   "VideoPlayer": {
     "play": "播放",
@@ -400,6 +420,31 @@
     "batchSuccess": "批量操作完成",
     "batchFailed": "批量操作失败"
   },
+  "Collections": {
+    "title": "合集",
+    "newCollection": "新建合集",
+    "namePlaceholder": "合集名称",
+    "descriptionPlaceholder": "描述（可选）",
+    "emptyTitle": "暂无合集",
+    "emptyDescription": "创建合集来整理你的作品。",
+    "emptyAction": "创建合集",
+    "itemCount": "{count, plural, =0 {空} other {#个}}",
+    "publicLabel": "公开",
+    "privateLabel": "私密",
+    "editAction": "编辑",
+    "deleteAction": "删除",
+    "deleteConfirmTitle": "删除合集？",
+    "deleteConfirmDescription": "只删除合集，不会删除其中的图片。",
+    "deleteCancel": "取消",
+    "deleteConfirm": "删除",
+    "addToCollection": "添加到合集",
+    "removeFromCollection": "移除",
+    "shareLink": "分享链接",
+    "collectionBy": "{name}的合集",
+    "makePublicAction": "设为公开",
+    "makePrivateAction": "设为私密",
+    "rename": "重命名"
+  },
   "StudioForm": {
     "formLabel": "图片生成",
     "selectedModelLabel": "当前路由",
@@ -448,6 +493,11 @@
       "step2": "粘贴到上方「API 路由」中"
     },
     "toastSuccess": "图片生成成功！",
+    "errorCodes": {
+      "NOVELAI_TIER_LIMIT": "你的 NovelAI 订阅仅支持 1 张参考图。请选择单个角色卡，或升级到 Opus 以使用多参考图功能。",
+      "FREE_LIMIT_EXCEEDED": "今日免费额度已用完，请绑定自己的 API Key 继续使用。",
+      "MISSING_API_KEY": "请在 API 路由设置中绑定此模型的 API Key。"
+    },
     "resultLabel": "最新结果",
     "resultDescription": "这个工作区最新生成的图像会显示在这里。",
     "resultEmptyTitle": "还没有生成结果",
@@ -530,7 +580,7 @@
       },
       "volcengine": {
         "label": "火山引擎",
-        "description": "使用火山方舟的字节跳动 Seedance 视频模型，支持有声视频。"
+        "description": "使用火山方舟的字节跳动 Seedream 图像和 Seedance 视频模型。"
       }
     },
     "summary": {
@@ -659,7 +709,12 @@
     "makePrivateAction": "设为私有",
     "toggleError": "更新可见性失败",
     "openVideo": "打开视频",
-    "promptPrivateHint": "创作者已隐藏提示词"
+    "promptPrivateHint": "创作者已隐藏提示词",
+    "featuredLabel": "置顶",
+    "featuredOn": "已置顶",
+    "featuredOff": "未置顶",
+    "pinAction": "置顶到首页",
+    "unpinAction": "取消置顶"
   },
   "PromptEnhance": {
     "button": "增强",
@@ -789,7 +844,8 @@
     "winner": "胜者",
     "voteButton": "投票",
     "newBattle": "新对战",
-    "arenaComparison": "模型对比"
+    "arenaComparison": "模型对比",
+    "referenceImage": "参考图片"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "排行榜",
@@ -962,6 +1018,18 @@
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "字节跳动最新轻量级模型，通过火山引擎直连。质量与速度最优平衡。"
+    },
+    "seedream40": {
+      "label": "Seedream 4.0",
+      "description": "字节跳动中端生成模型，通过火山引擎直连。画质更优，支持 4K。"
+    },
+    "seedream30": {
+      "label": "Seedream 3.0",
+      "description": "字节跳动入门级生成模型，通过火山引擎直连。快速且经济。"
     },
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -1186,6 +1254,8 @@
     "expandedImage": "图片放大查看",
     "close": "关闭",
     "like": "喜欢",
-    "unlike": "取消喜欢"
+    "unlike": "取消喜欢",
+    "pin": "置顶到主页",
+    "unpin": "取消置顶"
   }
 }

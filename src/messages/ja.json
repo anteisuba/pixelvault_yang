@@ -44,7 +44,17 @@
     "characterCardCreated": "キャラクターカードを作成しました",
     "characterCardUpdated": "キャラクターカードを更新しました",
     "characterCardDeleted": "キャラクターカードを削除しました",
-    "characterCardStable": "キャラクターカードが安定しました！"
+    "characterCardStable": "キャラクターカードが安定しました！",
+    "featuredAdded": "プロフィールにピン留めしました",
+    "featuredRemoved": "ピン留めを解除しました",
+    "featuredFailed": "ピン留めの更新に失敗しました",
+    "featuredLimitReached": "ピン留めは最大9件までです",
+    "collectionCreated": "コレクションを作成しました",
+    "collectionCreateFailed": "コレクションの作成に失敗しました",
+    "collectionUpdated": "コレクションを更新しました",
+    "collectionUpdateFailed": "コレクションの更新に失敗しました",
+    "collectionDeleted": "コレクションを削除しました",
+    "collectionDeleteFailed": "コレクションの削除に失敗しました"
   },
   "Projects": {
     "title": "プロジェクト",
@@ -301,7 +311,17 @@
     "errorUnexpected": "予期しないエラーが発生しました。",
     "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。",
     "toastSuccess": "動画が生成されました！",
-    "referenceRemoveLabel": "参照画像を削除"
+    "referenceRemoveLabel": "参照画像を削除",
+    "characterCard": {
+      "hintMulti": "{count}人のキャラクターのプロンプトと参照画像を適用",
+      "appliedMulti": "{count}枚のキャラクターカードを適用済み — ベースプロンプト自動注入",
+      "applyButton": "適用",
+      "appliedButton": "適用済み",
+      "actionPromptLabel": "アクション / シーン",
+      "actionPromptHint": "動画のシーンを説明してください — キャラクターの外見は自動注入されます。",
+      "actionPromptPlaceholder": "例：森の中を歩いている、微笑んでいる、風に髪がなびく...",
+      "imageWarning": "動画では最初のカードの画像のみ使用されます"
+    }
   },
   "VideoPlayer": {
     "play": "再生",
@@ -400,6 +420,31 @@
     "batchSuccess": "一括操作が完了しました",
     "batchFailed": "一括操作に失敗しました"
   },
+  "Collections": {
+    "title": "コレクション",
+    "newCollection": "新規コレクション",
+    "namePlaceholder": "コレクション名",
+    "descriptionPlaceholder": "説明（任意）",
+    "emptyTitle": "コレクションはまだありません",
+    "emptyDescription": "コレクションを作成して作品を整理しましょう。",
+    "emptyAction": "コレクションを作成",
+    "itemCount": "{count, plural, =0 {空} other {#件}}",
+    "publicLabel": "公開",
+    "privateLabel": "非公開",
+    "editAction": "編集",
+    "deleteAction": "削除",
+    "deleteConfirmTitle": "コレクションを削除しますか？",
+    "deleteConfirmDescription": "コレクションのみ削除され、中の画像は削除されません。",
+    "deleteCancel": "キャンセル",
+    "deleteConfirm": "削除",
+    "addToCollection": "コレクションに追加",
+    "removeFromCollection": "削除",
+    "shareLink": "リンクを共有",
+    "collectionBy": "{name}のコレクション",
+    "makePublicAction": "公開する",
+    "makePrivateAction": "非公開にする",
+    "rename": "名前を変更"
+  },
   "StudioForm": {
     "formLabel": "画像生成",
     "selectedModelLabel": "選択中のルート",
@@ -448,6 +493,11 @@
       "step2": "上の「APIルート」に貼り付け"
     },
     "toastSuccess": "画像が生成されました！",
+    "errorCodes": {
+      "NOVELAI_TIER_LIMIT": "ご利用のNovelAIプランでは参照画像は1枚までです。キャラクターカードを1枚に絞るか、Opusにアップグレードしてください。",
+      "FREE_LIMIT_EXCEEDED": "本日の無料枠を使い切りました。APIキーを設定して続行してください。",
+      "MISSING_API_KEY": "APIルート設定でこのモデルのAPIキーを設定してください。"
+    },
     "resultLabel": "最新の結果",
     "resultDescription": "このワークスペースで最新に生成した画像がここに表示されます。",
     "resultEmptyTitle": "まだ生成結果がありません",
@@ -530,7 +580,7 @@
       },
       "volcengine": {
         "label": "VolcEngine",
-        "description": "火山方舟で ByteDance Seedance 動画モデルを使用。ネイティブ音声対応。"
+        "description": "火山方舟で ByteDance Seedream 画像モデルと Seedance 動画モデルを使用。"
       }
     },
     "summary": {
@@ -659,7 +709,12 @@
     "makePrivateAction": "非公開にする",
     "toggleError": "公開設定の更新に失敗しました",
     "openVideo": "動画を開く",
-    "promptPrivateHint": "作成者がプロンプトを非公開にしています"
+    "promptPrivateHint": "作成者がプロンプトを非公開にしています",
+    "featuredLabel": "ピン留め",
+    "featuredOn": "ピン留め中",
+    "featuredOff": "未ピン留め",
+    "pinAction": "トップにピン留め",
+    "unpinAction": "ピン留め解除"
   },
   "PromptEnhance": {
     "button": "強化",
@@ -789,7 +844,8 @@
     "winner": "勝者",
     "voteButton": "投票",
     "newBattle": "新しいバトル",
-    "arenaComparison": "モデル比較"
+    "arenaComparison": "モデル比較",
+    "referenceImage": "参照画像"
   },
   "ArenaLeaderboard": {
     "heroEyebrow": "ランキング",
@@ -962,6 +1018,18 @@
     "seedream45": {
       "label": "Seedream 4.5",
       "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "ByteDanceの最新軽量モデル。VolcEngine経由で品質と速度の最適バランス。"
+    },
+    "seedream40": {
+      "label": "Seedream 4.0",
+      "description": "ByteDanceの中位モデル。VolcEngine経由で品質向上、4K対応。"
+    },
+    "seedream30": {
+      "label": "Seedream 3.0",
+      "description": "ByteDanceのエントリーモデル。VolcEngine経由で高速かつ低コスト。"
     },
     "sd35Large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -1186,6 +1254,8 @@
     "expandedImage": "画像の拡大表示",
     "close": "閉じる",
     "like": "いいね",
-    "unlike": "いいね取消"
+    "unlike": "いいね取消",
+    "pin": "プロフィールに固定",
+    "unpin": "固定を解除"
   }
 }

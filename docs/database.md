@@ -87,6 +87,36 @@ User-managed API routes for custom model endpoints.
 | encryptedKey | String | Encrypted API key |
 | isActive | Boolean | Default: true |
 
+### Collection
+
+User-created folders to organize generations.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | Primary key |
+| userId | String | FK → User |
+| name | String | Collection name (max 60) |
+| description | Text? | Optional |
+| coverUrl | String? | Auto-set to first item's URL |
+| isPublic | Boolean | Default: false |
+| isDeleted | Boolean | Soft delete, default: false |
+
+Relations: `items[]` (CollectionItem)
+
+### CollectionItem
+
+Join table linking generations to collections.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | Primary key |
+| collectionId | String | FK → Collection |
+| generationId | String | FK → Generation |
+| orderIndex | Int | Sort order within collection |
+| addedAt | DateTime | Auto |
+
+Unique: `[collectionId, generationId]`
+
 ## Migration Workflow
 
 ```bash

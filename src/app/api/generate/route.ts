@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (isGenerateImageServiceError(error)) {
       return NextResponse.json<GenerateResponse>(
-        { success: false, error: error.message },
+        { success: false, error: error.message, errorCode: error.code },
         { status: error.status },
       )
     }

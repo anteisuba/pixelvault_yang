@@ -1,11 +1,6 @@
 import { z } from 'zod'
 
-import {
-  GENERATION_LIMITS,
-  PROFILE,
-  PROMPT_ENHANCE,
-  VIDEO_GENERATION,
-} from '@/constants/config'
+import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
 import { CHARACTER_CARD } from '@/constants/character-card'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
@@ -34,14 +29,7 @@ export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 /** Zod schema for image generation request validation */
 export const GenerateRequestSchema = z.object({
   /** User's text prompt describing the desired image */
-  prompt: z
-    .string()
-    .trim()
-    .min(1, 'Prompt is required')
-    .max(
-      GENERATION_LIMITS.PROMPT_MAX_LENGTH,
-      `Prompt must be less than ${GENERATION_LIMITS.PROMPT_MAX_LENGTH} characters`,
-    ),
+  prompt: z.string().trim().min(1, 'Prompt is required'),
   /** Selected AI model identifier */
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   /** Aspect ratio for the generated image */
@@ -78,19 +66,14 @@ export interface GenerateResponse {
   data?: GenerateResponseData
   /** Error message (present when success is false) */
   error?: string
+  /** Machine-readable error code for i18n translation on the client */
+  errorCode?: string
 }
 
 // ─── Video Generate Request ───────────────────────────────────────
 
 export const GenerateVideoRequestSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1, 'Prompt is required')
-    .max(
-      GENERATION_LIMITS.PROMPT_MAX_LENGTH,
-      `Prompt must be less than ${GENERATION_LIMITS.PROMPT_MAX_LENGTH} characters`,
-    ),
+  prompt: z.string().trim().min(1, 'Prompt is required'),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
@@ -104,6 +87,7 @@ export const GenerateVideoRequestSchema = z.object({
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
+  characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
 })
 
 export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
@@ -171,6 +155,7 @@ export interface GenerationRecord {
   requestCount: number
   isPublic: boolean
   isPromptPublic: boolean
+  isFeatured?: boolean
   userId?: string | null
   /** Creator info — present in gallery context */
   creator?: {
@@ -246,7 +231,9 @@ export interface ApiKeyVerifyResponse {
 
 export interface ToggleVisibilityResponse {
   success: boolean
-  data?: Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'>
+  data?: Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'> & {
+    isFeatured?: boolean
+  }
   error?: string
 }
 
@@ -477,11 +464,7 @@ export const ArenaModelSelectionSchema = z.object({
 export type ArenaModelSelection = z.infer<typeof ArenaModelSelectionSchema>
 
 export const CreateArenaMatchRequestSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1, 'Prompt is required')
-    .max(GENERATION_LIMITS.PROMPT_MAX_LENGTH),
+  prompt: z.string().trim().min(1, 'Prompt is required'),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   models: z.array(ArenaModelSelectionSchema).min(2).optional(),
   referenceImage: z.string().optional(),
@@ -524,6 +507,7 @@ export interface ArenaMatchRecord {
   id: string
   prompt: string
   aspectRatio: string
+  referenceImage: string | null
   winnerId: string | null
   votedAt: Date | null
   createdAt: Date
@@ -1185,5 +1169,76 @@ export type UploadProfileImageRequest = z.infer<typeof UploadProfileImageSchema>
 export interface UploadProfileImageResponse {
   success: boolean
   data?: { url: string }
+  error?: string
+}
+
+// ─── Collections ────────────────────────────────────────────────
+
+export const CreateCollectionSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(60),
+  description: z.string().trim().max(500).optional(),
+  isPublic: z.boolean().default(false),
+})
+
+export type CreateCollectionRequest = z.infer<typeof CreateCollectionSchema>
+
+export const UpdateCollectionSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  description: z.string().trim().max(500).nullable().optional(),
+  isPublic: z.boolean().optional(),
+})
+
+export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionSchema>
+
+export const AddToCollectionSchema = z.object({
+  generationIds: z.array(z.string().trim().min(1)).min(1).max(50),
+})
+
+export type AddToCollectionRequest = z.infer<typeof AddToCollectionSchema>
+
+export interface CollectionRecord {
+  id: string
+  name: string
+  description: string | null
+  coverUrl: string | null
+  isPublic: boolean
+  itemCount: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CollectionDetailRecord extends CollectionRecord {
+  generations: GenerationRecord[]
+  total: number
+  hasMore: boolean
+  /** Owner info — present in public context */
+  owner?: {
+    username: string
+    displayName: string | null
+    avatarUrl: string | null
+  }
+}
+
+export interface CollectionsResponse {
+  success: boolean
+  data?: CollectionRecord[]
+  error?: string
+}
+
+export interface CollectionResponse {
+  success: boolean
+  data?: CollectionRecord
+  error?: string
+}
+
+export interface CollectionDetailResponse {
+  success: boolean
+  data?: CollectionDetailRecord
+  error?: string
+}
+
+export interface CollectionItemsResponse {
+  success: boolean
+  data?: { added: number }
   error?: string
 }

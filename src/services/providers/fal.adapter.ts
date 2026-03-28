@@ -27,8 +27,8 @@ const FAL_RESPONSE_SCHEMA = z.object({
   images: z.array(
     z.object({
       url: z.string().url(),
-      width: z.number().int().positive().optional(),
-      height: z.number().int().positive().optional(),
+      width: z.number().int().positive().nullable().optional(),
+      height: z.number().int().positive().nullable().optional(),
       content_type: z.string().optional(),
     }),
   ),

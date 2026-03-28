@@ -6,7 +6,11 @@ import { Check, Film, Loader2, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { VIDEO_GENERATION } from '@/constants/config'
-import { getAvailableVideoModels, getModelById } from '@/constants/models'
+import {
+  getAvailableVideoModels,
+  getModelById,
+  supportsLongVideo,
+} from '@/constants/models'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { isCjkLocale } from '@/i18n/routing'
 
@@ -24,6 +28,7 @@ const PromptEnhancer = dynamic(() =>
   ),
 )
 import VideoPlayer from '@/components/business/VideoPlayer'
+import { PipelineProgress } from '@/components/business/PipelineProgress'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ErrorAlert } from '@/components/ui/error-alert'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
@@ -33,6 +38,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
+import { useGenerateLongVideo } from '@/hooks/use-generate-long-video'
 import { useGenerationForm } from '@/hooks/use-generation-form'
 import { buildSavedModelOptions, findSelectedModel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
@@ -88,6 +94,7 @@ export default function VideoGenerateForm({
   const t = useTranslations('VideoGenerate')
   const tCard = useTranslations('VideoGenerate.characterCard')
 
+  const tLong = useTranslations('LongVideo')
   const { keys } = useApiKeysContext()
   const {
     isGenerating,
@@ -97,6 +104,8 @@ export default function VideoGenerateForm({
     generatedGeneration,
     generate,
   } = useGenerateVideo()
+
+  const longVideo = useGenerateLongVideo()
 
   const {
     prompt,
@@ -133,6 +142,8 @@ export default function VideoGenerateForm({
   const [resolution, setResolution] = useState<string | undefined>()
   const [negativePrompt, setNegativePrompt] = useState('')
   const [appliedCardIds, setAppliedCardIds] = useState<string[]>([])
+  const [longVideoMode, setLongVideoMode] = useState(false)
+  const [targetDuration, setTargetDuration] = useState(30)
 
   const videoModels = getAvailableVideoModels()
 
@@ -156,6 +167,16 @@ export default function VideoGenerateForm({
   const selectedModelConfig = selectedModel
     ? getModelById(selectedModel.modelId)
     : undefined
+  const modelSupportsLongVideo = selectedModel
+    ? supportsLongVideo(selectedModel.modelId)
+    : false
+
+  // Determine which generation state to use
+  const isAnyGenerating = longVideoMode ? longVideo.isGenerating : isGenerating
+  const currentError = longVideoMode ? longVideo.error : error
+  const currentGeneration = longVideoMode
+    ? longVideo.generatedGeneration
+    : generatedGeneration
 
   const hasCards = activeCharacterCards.length > 0
   const isCardApplied = appliedCardIds.length > 0
@@ -233,11 +254,10 @@ export default function VideoGenerateForm({
         )
       }
 
-      await generate({
+      const commonParams = {
         prompt: finalPrompt,
         modelId: selectedModel.modelId,
         aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
-        duration,
         referenceImage: processedImage,
         negativePrompt: negativePrompt.trim() || undefined,
         resolution: resolution as
@@ -249,13 +269,27 @@ export default function VideoGenerateForm({
         apiKeyId: selectedApiKeyId,
         characterCardIds:
           appliedCardIds.length > 0 ? appliedCardIds : undefined,
-      })
+      }
+
+      if (longVideoMode) {
+        await longVideo.generate({
+          ...commonParams,
+          targetDuration,
+        })
+      } else {
+        await generate({
+          ...commonParams,
+          duration,
+        })
+      }
     },
     [
       selectedModel,
       prompt,
       aspectRatio,
       duration,
+      targetDuration,
+      longVideoMode,
       referenceImage,
       negativePrompt,
       resolution,
@@ -264,6 +298,7 @@ export default function VideoGenerateForm({
       appliedCards,
       appliedCardIds,
       generate,
+      longVideo,
     ],
   )
 
@@ -304,6 +339,51 @@ export default function VideoGenerateForm({
         />
       </div>
 
+      {/* Long Video Toggle */}
+      {modelSupportsLongVideo && (
+        <div className="flex items-center gap-3 rounded-3xl border border-border/75 bg-card/82 px-5 py-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={longVideoMode}
+            onClick={() => setLongVideoMode(!longVideoMode)}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
+              longVideoMode ? 'bg-[#d97757]' : 'bg-[#e8e6dc]',
+            )}
+          >
+            <span
+              className={cn(
+                'pointer-events-none inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform',
+                longVideoMode ? 'translate-x-4' : 'translate-x-0.5',
+              )}
+            />
+          </button>
+          <span className="text-sm font-medium">{tLong('toggle')}</span>
+          {longVideoMode && selectedModelConfig?.videoExtension && (
+            <Badge
+              variant="secondary"
+              className="ml-auto rounded-full px-2 py-0.5 text-3xs"
+            >
+              {tLong('costEstimate', {
+                clips: Math.ceil(
+                  targetDuration /
+                    (selectedModelConfig.videoExtension.extensionClipDuration ||
+                      5),
+                ),
+                cost: selectedModelConfig.cost,
+                total:
+                  Math.ceil(
+                    targetDuration /
+                      (selectedModelConfig.videoExtension
+                        .extensionClipDuration || 5),
+                  ) * selectedModelConfig.cost,
+              })}
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Duration + Aspect Ratio + Resolution */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
@@ -313,17 +393,31 @@ export default function VideoGenerateForm({
               !cjk && 'uppercase tracking-nav',
             )}
           >
-            {t('durationLabel')}
+            {longVideoMode ? tLong('targetDuration') : t('durationLabel')}
           </label>
-          <OptionGroup
-            options={VIDEO_GENERATION.DURATION_OPTIONS.map((d) => ({
-              value: String(d),
-              label: `${d}s`,
-            }))}
-            value={String(duration)}
-            onChange={(v) => setDuration(Number(v))}
-            variant="neutral"
-          />
+          {longVideoMode ? (
+            <OptionGroup
+              options={VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS.map(
+                (d) => ({
+                  value: String(d),
+                  label: `${d}s`,
+                }),
+              )}
+              value={String(targetDuration)}
+              onChange={(v) => setTargetDuration(Number(v))}
+              variant="neutral"
+            />
+          ) : (
+            <OptionGroup
+              options={VIDEO_GENERATION.DURATION_OPTIONS.map((d) => ({
+                value: String(d),
+                label: `${d}s`,
+              }))}
+              value={String(duration)}
+              onChange={(v) => setDuration(Number(v))}
+              variant="neutral"
+            />
+          )}
         </div>
 
         <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
@@ -545,13 +639,17 @@ export default function VideoGenerateForm({
           </p>
           <Button
             type="submit"
-            disabled={isGenerating || !selectedModel || !prompt.trim()}
+            disabled={isAnyGenerating || !selectedModel || !prompt.trim()}
             className="w-full rounded-full lg:w-auto"
           >
-            {isGenerating ? (
+            {isAnyGenerating ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                {stageLabels[stage] ?? t('generating')}
+                {longVideoMode
+                  ? tLong('clipGenerating', {
+                      index: longVideo.currentClipIndex + 1,
+                    })
+                  : (stageLabels[stage] ?? t('generating'))}
               </>
             ) : (
               <>
@@ -563,8 +661,27 @@ export default function VideoGenerateForm({
         </div>
       </div>
 
-      {/* Generation progress */}
-      {isGenerating && stage !== 'idle' && (
+      {/* Long Video Pipeline Progress */}
+      {longVideoMode && longVideo.isGenerating && longVideo.pipelineStatus && (
+        <div className="rounded-3xl border border-border/75 bg-card/82 p-6">
+          <p className="mb-4 text-center font-display text-lg font-medium">
+            {tLong('clipGenerating', { index: longVideo.currentClipIndex + 1 })}
+          </p>
+          <PipelineProgress
+            status={longVideo.pipelineStatus}
+            onRetryClip={longVideo.retryClip}
+            onCancel={longVideo.cancel}
+          />
+          <p className="mt-3 text-center font-serif text-sm text-muted-foreground">
+            {t('elapsed', {
+              seconds: formatDuration(longVideo.elapsedSeconds),
+            })}
+          </p>
+        </div>
+      )}
+
+      {/* Normal video generation progress */}
+      {!longVideoMode && isGenerating && stage !== 'idle' && (
         <div className="rounded-3xl border border-border/75 bg-card/82 p-6">
           <p className="mb-4 text-center font-display text-lg font-medium">
             {t('generatingTitle')}
@@ -602,10 +719,10 @@ export default function VideoGenerateForm({
       )}
 
       {/* Error */}
-      {error && <ErrorAlert message={error} />}
+      {currentError && <ErrorAlert message={currentError} />}
 
       {/* Result */}
-      {generatedGeneration && (
+      {currentGeneration && (
         <div className="animate-in fade-in-0 zoom-in-95 space-y-4 rounded-3xl border border-border/75 bg-card/86 p-5 duration-500 sm:p-6">
           <label
             className={cn(
@@ -615,17 +732,17 @@ export default function VideoGenerateForm({
           >
             {t('resultLabel')}
           </label>
-          <VideoPlayer src={generatedGeneration.url} />
+          <VideoPlayer src={currentGeneration.url} />
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{generatedGeneration.model}</Badge>
+            <Badge variant="outline">{currentGeneration.model}</Badge>
             <Badge variant="secondary">
-              {generatedGeneration.duration
-                ? `${generatedGeneration.duration}s`
+              {currentGeneration.duration
+                ? `${currentGeneration.duration}s`
                 : ''}
             </Badge>
           </div>
           <p className="line-clamp-3 font-serif text-sm text-muted-foreground">
-            {generatedGeneration.prompt}
+            {currentGeneration.prompt}
           </p>
         </div>
       )}

@@ -25,6 +25,10 @@
     }
   },
   "Toasts": {
+    "createSuccess": "作成しました",
+    "createFailed": "作成に失敗しました",
+    "updateSuccess": "更新しました",
+    "updateFailed": "更新に失敗しました",
     "deleteSuccess": "削除しました",
     "deleteFailed": "削除に失敗しました",
     "visibilityUpdated": "公開設定を更新しました",
@@ -322,6 +326,20 @@
       "actionPromptPlaceholder": "例：森の中を歩いている、微笑んでいる、風に髪がなびく...",
       "imageWarning": "動画では最初のカードの画像のみ使用されます"
     }
+  },
+  "LongVideo": {
+    "toggle": "ロング動画",
+    "targetDuration": "目標時間",
+    "costEstimate": "約{clips}クリップ x {cost} = 約{total}クレジット",
+    "clipProgress": "{current}/{total}クリップ",
+    "clipGenerating": "クリップ{index}を生成中...",
+    "clipPending": "待機中",
+    "clipFailed": "クリップ{index}が失敗",
+    "retryClip": "{index}を再試行",
+    "cancel": "キャンセル",
+    "pipelineComplete": "ロング動画完成（{duration}秒）",
+    "errorTimeout": "パイプラインがタイムアウトしました",
+    "errorFallback": "ロング動画の生成に失敗しました"
   },
   "VideoPlayer": {
     "play": "再生",
@@ -926,7 +944,12 @@
     "styleOption": {
       "vivid": "ビビッド",
       "natural": "ナチュラル"
-    }
+    },
+    "lora": "LoRA モデル",
+    "loraHint": "カスタムLoRAモデルを適用して、スタイル・キャラクター・コンセプトを制御。CivitaiまたはHuggingFaceのURLを貼り付けてください。",
+    "loraAdd": "追加",
+    "loraUrlPlaceholder": "https://civitai.com/api/download/models/... または HuggingFace URL",
+    "loraScale": "重み"
   },
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",
@@ -1003,6 +1026,10 @@
       "label": "Flux 2 Schnell",
       "description": "Flux 2 の最速バリアント。素早いプロトタイピングに最適。"
     },
+    "fluxLora": {
+      "label": "FLUX LoRA",
+      "description": "LoRA対応のFLUX。アニメ、3D、キャラクター一貫性など、カスタムLoRAモデルを適用可能。"
+    },
     "geminiProImage": {
       "label": "Gemini 3.1 Pro Image",
       "description": "Google のプレミアム画像モデル。スタジオ品質の4Kビジュアル。"
@@ -1050,6 +1077,10 @@
     "novelaiV3": {
       "label": "NovelAI Diffusion Anime V3",
       "description": "SDXLベースのアニメ特化モデル。タグ優先プロンプトシステム搭載。"
+    },
+    "illustriousXl": {
+      "label": "Illustrious XL",
+      "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
     },
     "veo3": {
       "label": "Veo 3.1",
@@ -1257,5 +1288,72 @@
     "unlike": "いいね取消",
     "pin": "プロフィールに固定",
     "unpin": "固定を解除"
+  },
+  "BackgroundCard": {
+    "title": "背景カード",
+    "create": "新しい背景カード",
+    "edit": "背景カードを編集",
+    "delete": "背景カードを削除",
+    "deleteConfirm": "この背景カードを削除しますか？",
+    "extracting": "背景属性を抽出中...",
+    "prompt": "背景の説明",
+    "promptPlaceholder": "環境、シーン、設定を説明してください...",
+    "sourceImage": "ソース画像",
+    "sourceImageHint": "画像をアップロードして背景属性を自動抽出",
+    "empty": "背景カードがありません",
+    "emptyHint": "背景カードを作成して、生成間で環境を再利用しましょう"
+  },
+  "StyleCard": {
+    "title": "画風カード",
+    "create": "新しい画風カード",
+    "edit": "画風カードを編集",
+    "delete": "画風カードを削除",
+    "deleteConfirm": "この画風カードを削除しますか？",
+    "extracting": "画風属性を抽出中...",
+    "prompt": "画風の説明",
+    "promptPlaceholder": "アートスタイル、メディア、美学を説明してください...",
+    "sourceImage": "ソース画像",
+    "sourceImageHint": "画像をアップロードして画風属性を自動抽出",
+    "empty": "画風カードがありません",
+    "emptyHint": "画風カードを作成して、生成間でアートスタイルを再利用しましょう"
+  },
+  "ModelCard": {
+    "title": "モデルカード",
+    "create": "新しいモデルカード",
+    "edit": "モデルカードを編集",
+    "delete": "モデルカードを削除",
+    "deleteConfirm": "このモデルカードを削除しますか？",
+    "selectModel": "モデルを選択",
+    "configureParams": "パラメータ設定",
+    "loraCount": "{count}個のLoRA適用中",
+    "empty": "モデルカードがありません",
+    "emptyHint": "モデル+パラメータの組み合わせを保存して素早く再利用"
+  },
+  "CardRecipe": {
+    "title": "レシピ",
+    "create": "新しいレシピ",
+    "edit": "レシピを編集",
+    "delete": "レシピを削除",
+    "deleteConfirm": "このレシピを削除しますか？",
+    "compile": "コンパイル",
+    "compiling": "レシピをコンパイル中...",
+    "preview": "プレビュー",
+    "freePrompt": "アクション / シーン",
+    "freePromptPlaceholder": "キャラクターは何をしていますか？（例：雨の中を歩く、戦闘する）",
+    "compiledPrompt": "コンパイル済みプロンプト",
+    "generate": "レシピから生成",
+    "empty": "レシピがありません",
+    "emptyHint": "キャラクター、背景、画風、モデルカードを組み合わせてレシピを作成",
+    "savedRecipes": "保存済みレシピ"
+  },
+  "CardSlot": {
+    "empty": "未選択",
+    "select": "選択",
+    "change": "変更",
+    "character": "キャラクター",
+    "background": "背景",
+    "style": "画風",
+    "model": "モデル",
+    "deleted": "削除済み"
   }
 }

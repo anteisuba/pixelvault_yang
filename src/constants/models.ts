@@ -19,6 +19,7 @@ export enum AI_MODELS {
   FLUX_2_PRO = 'flux-2-pro',
   FLUX_2_DEV = 'flux-2-dev',
   FLUX_2_SCHNELL = 'flux-2-schnell',
+  FLUX_LORA = 'flux-lora',
   GEMINI_PRO_IMAGE = 'gemini-3.1-pro-image-preview',
   IDEOGRAM_3 = 'ideogram-3',
   RECRAFT_V3 = 'recraft-v3',
@@ -29,6 +30,7 @@ export enum AI_MODELS {
   SD_35_LARGE = 'sd-3.5-large',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
+  ILLUSTRIOUS_XL = 'illustrious-xl',
   NOVELAI_V4_FULL = 'nai-diffusion-4-full',
   NOVELAI_V3 = 'nai-diffusion-3',
   // Video models
@@ -54,6 +56,7 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.FLUX_2_PRO]: 'flux2Pro',
   [AI_MODELS.FLUX_2_DEV]: 'flux2Dev',
   [AI_MODELS.FLUX_2_SCHNELL]: 'flux2Schnell',
+  [AI_MODELS.FLUX_LORA]: 'fluxLora',
   [AI_MODELS.GEMINI_PRO_IMAGE]: 'geminiProImage',
   [AI_MODELS.IDEOGRAM_3]: 'ideogram3',
   [AI_MODELS.RECRAFT_V3]: 'recraftV3',
@@ -64,6 +67,7 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.SD_35_LARGE]: 'sd35Large',
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
+  [AI_MODELS.ILLUSTRIOUS_XL]: 'illustriousXl',
   [AI_MODELS.NOVELAI_V4_FULL]: 'novelaiV4Full',
   [AI_MODELS.NOVELAI_V3]: 'novelaiV3',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
@@ -100,6 +104,18 @@ export interface VideoDefaults {
   generateAudio?: boolean
 }
 
+/** Video extension configuration for long video pipeline */
+export interface VideoExtensionConfig {
+  /** FAL extend endpoint ID (for native_extend method) */
+  extendEndpointId?: string
+  /** Extension method */
+  extensionMethod: 'native_extend' | 'last_frame_chain'
+  /** Duration per extension clip in seconds */
+  extensionClipDuration: number
+  /** Maximum total achievable duration in seconds */
+  maxTotalDuration: number
+}
+
 /** Model option configuration */
 export interface ModelOption {
   /** Unique model identifier (matches AI_MODELS enum) */
@@ -130,6 +146,10 @@ export interface ModelOption {
   i2vModelId?: string
   /** Model-specific default parameters for video */
   videoDefaults?: VideoDefaults
+  /** Whether this model supports LoRA adapters */
+  supportsLora?: boolean
+  /** Video extension capability for long video generation */
+  videoExtension?: VideoExtensionConfig
 }
 
 /** All model options with their configuration — ordered by quality ranking */
@@ -276,6 +296,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-dev',
     qualityTier: 'standard',
     styleTag: 'photorealistic',
+    supportsLora: true,
   },
   // #9 — Fastest FLUX, ideal for previews and iteration
   {
@@ -289,6 +310,34 @@ export const MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux/schnell',
     qualityTier: 'budget',
     styleTag: 'general',
+  },
+  // #9b — FLUX with LoRA support, use custom LoRAs for style/character control
+  {
+    id: AI_MODELS.FLUX_LORA,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/flux-lora',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/flux-lora',
+    qualityTier: 'standard',
+    styleTag: 'general',
+    supportsLora: true,
+  },
+  // #9c — Illustrious XL: anime/illustration-specialized, huge LoRA ecosystem on Civitai
+  {
+    id: AI_MODELS.ILLUSTRIOUS_XL,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.REPLICATE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
+    externalModelId: 'delta-lock/noobai-xl',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://civitai.com/models/795765/illustrious-xl',
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
   },
   // #10 — Open-source flagship, MMDiT architecture, 8B params
   {
@@ -404,6 +453,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
       cfgScale: 0.5,
       generateAudio: true,
     },
+    videoExtension: {
+      extendEndpointId: 'fal-ai/kling-video/v3/pro/extend-video',
+      extensionMethod: 'native_extend',
+      extensionClipDuration: 5,
+      maxTotalDuration: 180,
+    },
   },
   // #2 — Veo 3.1, Google's latest, 4K native audio
   {
@@ -421,6 +476,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
     videoDefaults: {
       resolution: '1080p',
       generateAudio: true,
+    },
+    videoExtension: {
+      extendEndpointId: 'fal-ai/veo3.1/extend-video',
+      extensionMethod: 'native_extend',
+      extensionClipDuration: 7,
+      maxTotalDuration: 148,
     },
   },
 
@@ -457,6 +518,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
       generateAudio: true,
       resolution: '1080p',
     },
+    videoExtension: {
+      extensionMethod: 'last_frame_chain',
+      extensionClipDuration: 10,
+      maxTotalDuration: 120,
+    },
   },
   // #4.6 — ByteDance Seedance 1.0 Pro via VolcEngine, first/last frame
   {
@@ -472,6 +538,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     videoDefaults: {
       resolution: '720p',
+    },
+    videoExtension: {
+      extensionMethod: 'last_frame_chain',
+      extensionClipDuration: 8,
+      maxTotalDuration: 80,
     },
   },
   // #5 — MiniMax Hailuo 2.3, improved realism & camera control
@@ -617,6 +688,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.ANIMAGINE_XL_4]: 'Stable Diffusion',
   [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'NovelAI',
+  [AI_MODELS.ILLUSTRIOUS_XL]: 'Illustrious',
   [AI_MODELS.NOVELAI_V4_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V3]: 'NovelAI',
   // Video families
@@ -775,3 +847,18 @@ export function groupModelsByStyle(
 /** Get the provider timeout for a model (defaults to 45s for images) */
 export const getModelTimeout = (modelId: string): number =>
   getModelById(modelId)?.timeoutMs ?? 45_000
+
+/** Check if a model supports LoRA adapters */
+export const modelSupportsLora = (modelId: string): boolean =>
+  getModelById(modelId)?.supportsLora === true
+
+/** Check if a model supports long video extension */
+export const supportsLongVideo = (modelId: string): boolean =>
+  getModelById(modelId)?.videoExtension != null
+
+/** Get only the video models that support long video extension */
+export const getLongVideoModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter(
+    (model) =>
+      model.available && model.outputType === 'VIDEO' && model.videoExtension,
+  )

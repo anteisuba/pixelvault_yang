@@ -25,6 +25,10 @@
     }
   },
   "Toasts": {
+    "createSuccess": "创建成功",
+    "createFailed": "创建失败",
+    "updateSuccess": "更新成功",
+    "updateFailed": "更新失败",
     "deleteSuccess": "删除成功",
     "deleteFailed": "删除失败",
     "visibilityUpdated": "可见性已更新",
@@ -322,6 +326,20 @@
       "actionPromptPlaceholder": "例如：在森林中行走，微笑，风吹动头发……",
       "imageWarning": "视频仅使用第一个角色卡的图片"
     }
+  },
+  "LongVideo": {
+    "toggle": "长视频",
+    "targetDuration": "目标时长",
+    "costEstimate": "约{clips}段 x {cost} = 约{total}积分",
+    "clipProgress": "{current}/{total}段",
+    "clipGenerating": "正在生成第{index}段...",
+    "clipPending": "等待中",
+    "clipFailed": "第{index}段失败",
+    "retryClip": "重试第{index}段",
+    "cancel": "取消",
+    "pipelineComplete": "长视频完成（{duration}秒）",
+    "errorTimeout": "管线超时",
+    "errorFallback": "长视频生成失败"
   },
   "VideoPlayer": {
     "play": "播放",
@@ -926,7 +944,12 @@
     "styleOption": {
       "vivid": "生动",
       "natural": "自然"
-    }
+    },
+    "lora": "LoRA 模型",
+    "loraHint": "加载自定义 LoRA 模型来控制风格、角色或概念。粘贴 Civitai 或 HuggingFace 链接即可。",
+    "loraAdd": "添加",
+    "loraUrlPlaceholder": "https://civitai.com/api/download/models/... 或 HuggingFace 链接",
+    "loraScale": "权重"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -1003,6 +1026,10 @@
       "label": "Flux 2 Schnell",
       "description": "Flux 2 的极速版本，适合快速原型和即时生成。"
     },
+    "fluxLora": {
+      "label": "FLUX LoRA",
+      "description": "支持 LoRA 的 FLUX 模型。可加载自定义 LoRA 实现动漫、3D、角色一致性等风格控制。"
+    },
     "geminiProImage": {
       "label": "Gemini 3.1 Pro Image",
       "description": "Google 旗舰级图像模型，工作室品质 4K 视觉效果。"
@@ -1050,6 +1077,10 @@
     "novelaiV3": {
       "label": "NovelAI Diffusion Anime V3",
       "description": "基于 SDXL 的动漫专精模型，支持标签优先提示系统。"
+    },
+    "illustriousXl": {
+      "label": "Illustrious XL",
+      "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
     },
     "veo3": {
       "label": "Veo 3.1",
@@ -1257,5 +1288,72 @@
     "unlike": "取消喜欢",
     "pin": "置顶到主页",
     "unpin": "取消置顶"
+  },
+  "BackgroundCard": {
+    "title": "背景卡",
+    "create": "新建背景卡",
+    "edit": "编辑背景卡",
+    "delete": "删除背景卡",
+    "deleteConfirm": "确定要删除这张背景卡吗？",
+    "extracting": "正在提取背景属性...",
+    "prompt": "背景描述",
+    "promptPlaceholder": "描述环境、场景或设定...",
+    "sourceImage": "源图片",
+    "sourceImageHint": "上传图片自动提取背景属性",
+    "empty": "还没有背景卡",
+    "emptyHint": "创建背景卡，在多次生成中复用环境设定"
+  },
+  "StyleCard": {
+    "title": "画风卡",
+    "create": "新建画风卡",
+    "edit": "编辑画风卡",
+    "delete": "删除画风卡",
+    "deleteConfirm": "确定要删除这张画风卡吗？",
+    "extracting": "正在提取画风属性...",
+    "prompt": "画风描述",
+    "promptPlaceholder": "描述艺术风格、介质或美学...",
+    "sourceImage": "源图片",
+    "sourceImageHint": "上传图片自动提取画风属性",
+    "empty": "还没有画风卡",
+    "emptyHint": "创建画风卡，在多次生成中复用艺术风格"
+  },
+  "ModelCard": {
+    "title": "模型卡",
+    "create": "新建模型卡",
+    "edit": "编辑模型卡",
+    "delete": "删除模型卡",
+    "deleteConfirm": "确定要删除这张模型卡吗？",
+    "selectModel": "选择模型",
+    "configureParams": "配置参数",
+    "loraCount": "已应用 {count} 个 LoRA",
+    "empty": "还没有模型卡",
+    "emptyHint": "保存模型+参数组合，快速复用"
+  },
+  "CardRecipe": {
+    "title": "配方",
+    "create": "新建配方",
+    "edit": "编辑配方",
+    "delete": "删除配方",
+    "deleteConfirm": "确定要删除这个配方吗？",
+    "compile": "编译",
+    "compiling": "正在编译配方...",
+    "preview": "预览",
+    "freePrompt": "动作 / 场景",
+    "freePromptPlaceholder": "角色在做什么？（如：在雨中行走、战斗）",
+    "compiledPrompt": "编译后的提示词",
+    "generate": "从配方生成",
+    "empty": "还没有配方",
+    "emptyHint": "组合角色、背景、画风和模型卡创建配方",
+    "savedRecipes": "已保存的配方"
+  },
+  "CardSlot": {
+    "empty": "未选择",
+    "select": "选择",
+    "change": "更换",
+    "character": "角色",
+    "background": "背景",
+    "style": "画风",
+    "model": "模型",
+    "deleted": "已删除"
   }
 }

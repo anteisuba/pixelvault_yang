@@ -2,13 +2,28 @@ import { z } from 'zod'
 
 import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
 import { CHARACTER_CARD } from '@/constants/character-card'
+import {
+  BACKGROUND_CARD,
+  STYLE_CARD,
+  MODEL_CARD,
+  CARD_RECIPE,
+} from '@/constants/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
-import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
 
 // ─── Advanced Generation Parameters ──────────────────────────────
+
+/** Zod schema for a single LoRA configuration */
+export const LoraSchema = z.object({
+  /** LoRA model URL (HuggingFace, Civitai, or direct HTTPS link) */
+  url: z.string().url().max(500),
+  /** LoRA weight/scale (0.1–2.0, default 1.0) */
+  scale: z.number().min(0.1).max(2).optional(),
+})
 
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
@@ -20,6 +35,8 @@ export const AdvancedParamsSchema = z.object({
   quality: z.string().optional(),
   background: z.string().optional(),
   style: z.string().optional(),
+  /** LoRA models to apply (up to 5, FAL/Replicate only) */
+  loras: z.array(LoraSchema).max(5).optional(),
 })
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
@@ -128,6 +145,80 @@ export interface VideoStatusResponseData {
 export interface VideoStatusResponse {
   success: boolean
   data?: VideoStatusResponseData
+  error?: string
+}
+
+// ─── Long Video Pipeline ──────────────────────────────────────────
+
+export const LongVideoRequestSchema = z.object({
+  prompt: z.string().trim().min(1, 'Prompt is required'),
+  modelId: z.string().trim().min(1, 'Model is required').max(160),
+  aspectRatio: z
+    .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
+    .default(VIDEO_GENERATION.DEFAULT_ASPECT_RATIO),
+  targetDuration: z
+    .number()
+    .int()
+    .min(10)
+    .max(VIDEO_GENERATION.MAX_LONG_VIDEO_DURATION),
+  referenceImage: z.string().optional(),
+  negativePrompt: z.string().trim().max(2000).optional(),
+  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+})
+
+export type LongVideoRequest = z.infer<typeof LongVideoRequestSchema>
+
+export type PipelineClipStatus =
+  | 'PENDING'
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+
+export type VideoPipelineStatus =
+  | 'RUNNING'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED'
+
+export interface PipelineClipRecord {
+  clipIndex: number
+  status: PipelineClipStatus
+  videoUrl?: string | null
+  durationSec?: number | null
+  errorMessage?: string | null
+}
+
+export interface PipelineStatusRecord {
+  pipelineId: string
+  status: VideoPipelineStatus
+  totalClips: number
+  completedClips: number
+  currentDurationSec: number
+  targetDurationSec: number
+  clips: PipelineClipRecord[]
+  generation?: GenerationRecord
+  errorMessage?: string | null
+}
+
+export interface LongVideoSubmitResponseData {
+  pipelineId: string
+  totalClips: number
+  estimatedDurationSec: number
+}
+
+export interface LongVideoSubmitResponse {
+  success: boolean
+  data?: LongVideoSubmitResponseData
+  error?: string
+}
+
+export interface LongVideoStatusResponse {
+  success: boolean
+  data?: PipelineStatusRecord
   error?: string
 }
 
@@ -787,6 +878,8 @@ export const UpdateCharacterCardSchema = z.object({
     .optional(),
   /** Replace source images with structured entries */
   sourceImageEntries: z.array(SourceImageEntrySchema).optional(),
+  /** Character-specific LoRA models */
+  loras: z.array(LoraSchema).max(5).nullable().optional(),
 })
 
 export type UpdateCharacterCardRequest = z.infer<
@@ -823,6 +916,7 @@ export interface CharacterCardRecord {
   modelPrompts: Record<string, string> | null
   referenceImages: string[] | null
   attributes: CharacterAttributes | null
+  loras: z.infer<typeof LoraSchema>[] | null
   tags: string[]
   status: CharacterCardStatusType
   stabilityScore: number | null
@@ -1240,5 +1334,380 @@ export interface CollectionDetailResponse {
 export interface CollectionItemsResponse {
   success: boolean
   data?: { added: number }
+  error?: string
+}
+
+// ─── Composable Card System ─────────────────────────────────────
+
+// ── Background Card ─────────────────────────────────────────────
+
+export const BackgroundAttributesSchema = z.object({
+  setting: z.string().optional(),
+  lighting: z.string().optional(),
+  timeOfDay: z.string().optional(),
+  weather: z.string().optional(),
+  architectureStyle: z.string().optional(),
+  colorPalette: z.string().optional(),
+  mood: z.string().optional(),
+  perspective: z.string().optional(),
+  depth: z.string().optional(),
+  materialTexture: z.string().optional(),
+  freeformDescription: z.string().optional(),
+})
+
+export type BackgroundAttributes = z.infer<typeof BackgroundAttributesSchema>
+
+export const CreateBackgroundCardSchema = z.object({
+  name: z.string().trim().min(1).max(BACKGROUND_CARD.NAME_MAX_LENGTH),
+  description: z
+    .string()
+    .trim()
+    .max(BACKGROUND_CARD.DESCRIPTION_MAX_LENGTH)
+    .optional(),
+  backgroundPrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(BACKGROUND_CARD.PROMPT_MAX_LENGTH),
+  sourceImageData: z.string().optional(),
+  attributes: BackgroundAttributesSchema.optional(),
+  tags: z
+    .array(z.string().trim().max(BACKGROUND_CARD.TAG_MAX_LENGTH))
+    .max(BACKGROUND_CARD.MAX_TAGS)
+    .default([]),
+  projectId: z.string().optional(),
+})
+
+export type CreateBackgroundCardRequest = z.infer<
+  typeof CreateBackgroundCardSchema
+>
+
+export const UpdateBackgroundCardSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(BACKGROUND_CARD.NAME_MAX_LENGTH)
+    .optional(),
+  description: z
+    .string()
+    .trim()
+    .max(BACKGROUND_CARD.DESCRIPTION_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  backgroundPrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(BACKGROUND_CARD.PROMPT_MAX_LENGTH)
+    .optional(),
+  attributes: BackgroundAttributesSchema.optional(),
+  loras: z.array(LoraSchema).max(5).nullable().optional(),
+  tags: z
+    .array(z.string().trim().max(BACKGROUND_CARD.TAG_MAX_LENGTH))
+    .max(BACKGROUND_CARD.MAX_TAGS)
+    .optional(),
+  projectId: z.string().nullable().optional(),
+})
+
+export type UpdateBackgroundCardRequest = z.infer<
+  typeof UpdateBackgroundCardSchema
+>
+
+export interface BackgroundCardRecord {
+  id: string
+  name: string
+  description: string | null
+  sourceImageUrl: string | null
+  backgroundPrompt: string
+  attributes: BackgroundAttributes | null
+  loras: z.infer<typeof LoraSchema>[] | null
+  tags: string[]
+  projectId: string | null
+  isDeleted: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface BackgroundCardResponse {
+  success: boolean
+  data?: BackgroundCardRecord
+  error?: string
+}
+
+export interface BackgroundCardsResponse {
+  success: boolean
+  data?: BackgroundCardRecord[]
+  error?: string
+}
+
+// ── Style Card ──────────────────────────────────────────────────
+
+export const StyleAttributesSchema = z.object({
+  artStyle: z.string().optional(),
+  medium: z.string().optional(),
+  colorPalette: z.string().optional(),
+  brushwork: z.string().optional(),
+  composition: z.string().optional(),
+  mood: z.string().optional(),
+  era: z.string().optional(),
+  influences: z.string().optional(),
+  detailLevel: z.string().optional(),
+  lineWeight: z.string().optional(),
+  contrast: z.string().optional(),
+  freeformDescription: z.string().optional(),
+})
+
+export type StyleAttributes = z.infer<typeof StyleAttributesSchema>
+
+export const CreateStyleCardSchema = z.object({
+  name: z.string().trim().min(1).max(STYLE_CARD.NAME_MAX_LENGTH),
+  description: z
+    .string()
+    .trim()
+    .max(STYLE_CARD.DESCRIPTION_MAX_LENGTH)
+    .optional(),
+  stylePrompt: z.string().trim().min(1).max(STYLE_CARD.PROMPT_MAX_LENGTH),
+  sourceImageData: z.string().optional(),
+  attributes: StyleAttributesSchema.optional(),
+  tags: z
+    .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
+    .max(STYLE_CARD.MAX_TAGS)
+    .default([]),
+  projectId: z.string().optional(),
+})
+
+export type CreateStyleCardRequest = z.infer<typeof CreateStyleCardSchema>
+
+export const UpdateStyleCardSchema = z.object({
+  name: z.string().trim().min(1).max(STYLE_CARD.NAME_MAX_LENGTH).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(STYLE_CARD.DESCRIPTION_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  stylePrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(STYLE_CARD.PROMPT_MAX_LENGTH)
+    .optional(),
+  attributes: StyleAttributesSchema.optional(),
+  loras: z.array(LoraSchema).max(5).nullable().optional(),
+  tags: z
+    .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
+    .max(STYLE_CARD.MAX_TAGS)
+    .optional(),
+  projectId: z.string().nullable().optional(),
+})
+
+export type UpdateStyleCardRequest = z.infer<typeof UpdateStyleCardSchema>
+
+export interface StyleCardRecord {
+  id: string
+  name: string
+  description: string | null
+  sourceImageUrl: string | null
+  stylePrompt: string
+  attributes: StyleAttributes | null
+  loras: z.infer<typeof LoraSchema>[] | null
+  tags: string[]
+  projectId: string | null
+  isDeleted: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface StyleCardResponse {
+  success: boolean
+  data?: StyleCardRecord
+  error?: string
+}
+
+export interface StyleCardsResponse {
+  success: boolean
+  data?: StyleCardRecord[]
+  error?: string
+}
+
+// ── Model Card ──────────────────────────────────────────────────
+
+export const CreateModelCardSchema = z.object({
+  name: z.string().trim().min(1).max(MODEL_CARD.NAME_MAX_LENGTH),
+  description: z
+    .string()
+    .trim()
+    .max(MODEL_CARD.DESCRIPTION_MAX_LENGTH)
+    .optional(),
+  modelId: z.nativeEnum(AI_MODELS),
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES),
+  advancedParams: AdvancedParamsSchema.optional(),
+  tags: z
+    .array(z.string().trim().max(MODEL_CARD.TAG_MAX_LENGTH))
+    .max(MODEL_CARD.MAX_TAGS)
+    .default([]),
+  projectId: z.string().optional(),
+})
+
+export type CreateModelCardRequest = z.infer<typeof CreateModelCardSchema>
+
+export const UpdateModelCardSchema = z.object({
+  name: z.string().trim().min(1).max(MODEL_CARD.NAME_MAX_LENGTH).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(MODEL_CARD.DESCRIPTION_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  modelId: z.nativeEnum(AI_MODELS).optional(),
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).optional(),
+  advancedParams: AdvancedParamsSchema.nullable().optional(),
+  tags: z
+    .array(z.string().trim().max(MODEL_CARD.TAG_MAX_LENGTH))
+    .max(MODEL_CARD.MAX_TAGS)
+    .optional(),
+  projectId: z.string().nullable().optional(),
+})
+
+export type UpdateModelCardRequest = z.infer<typeof UpdateModelCardSchema>
+
+export interface ModelCardRecord {
+  id: string
+  name: string
+  description: string | null
+  modelId: string
+  adapterType: string
+  advancedParams: AdvancedParams | null
+  tags: string[]
+  projectId: string | null
+  isDeleted: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ModelCardResponse {
+  success: boolean
+  data?: ModelCardRecord
+  error?: string
+}
+
+export interface ModelCardsResponse {
+  success: boolean
+  data?: ModelCardRecord[]
+  error?: string
+}
+
+// ── Card Recipe ─────────────────────────────────────────────────
+
+export const CreateCardRecipeSchema = z.object({
+  name: z.string().trim().min(1).max(CARD_RECIPE.NAME_MAX_LENGTH),
+  characterCardId: z.string().optional(),
+  backgroundCardId: z.string().optional(),
+  styleCardId: z.string().optional(),
+  modelCardId: z.string().optional(),
+  freePrompt: z
+    .string()
+    .trim()
+    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+    .optional(),
+  projectId: z.string().optional(),
+})
+
+export type CreateCardRecipeRequest = z.infer<typeof CreateCardRecipeSchema>
+
+export const UpdateCardRecipeSchema = z.object({
+  name: z.string().trim().min(1).max(CARD_RECIPE.NAME_MAX_LENGTH).optional(),
+  characterCardId: z.string().nullable().optional(),
+  backgroundCardId: z.string().nullable().optional(),
+  styleCardId: z.string().nullable().optional(),
+  modelCardId: z.string().nullable().optional(),
+  freePrompt: z
+    .string()
+    .trim()
+    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  projectId: z.string().nullable().optional(),
+})
+
+export type UpdateCardRecipeRequest = z.infer<typeof UpdateCardRecipeSchema>
+
+export const RecipeSnapshotSchema = z.object({
+  characterCard: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      characterPrompt: z.string(),
+    })
+    .optional(),
+  backgroundCard: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      backgroundPrompt: z.string(),
+    })
+    .optional(),
+  styleCard: z
+    .object({ id: z.string(), name: z.string(), stylePrompt: z.string() })
+    .optional(),
+  modelCard: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      modelId: z.string(),
+      adapterType: z.string(),
+    })
+    .optional(),
+  freePrompt: z.string().optional(),
+  compiledPrompt: z.string(),
+  compiledAt: z.string().datetime(),
+})
+
+export type RecipeSnapshot = z.infer<typeof RecipeSnapshotSchema>
+
+export interface CardRecipeRecord {
+  id: string
+  name: string
+  characterCardId: string | null
+  backgroundCardId: string | null
+  styleCardId: string | null
+  modelCardId: string | null
+  freePrompt: string | null
+  projectId: string | null
+  isDeleted: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CardRecipeDetailRecord extends CardRecipeRecord {
+  characterCard: { id: string; name: string } | null
+  backgroundCard: { id: string; name: string } | null
+  styleCard: { id: string; name: string } | null
+  modelCard: { id: string; name: string; modelId: string } | null
+}
+
+export interface CardRecipeResponse {
+  success: boolean
+  data?: CardRecipeDetailRecord
+  error?: string
+}
+
+export interface CardRecipesResponse {
+  success: boolean
+  data?: CardRecipeDetailRecord[]
+  error?: string
+}
+
+export interface CompileRecipeResponse {
+  success: boolean
+  data?: {
+    compiledPrompt: string
+    modelId: string
+    adapterType: string
+    advancedParams: AdvancedParams | null
+    referenceImages: string[]
+    snapshot: RecipeSnapshot
+  }
   error?: string
 }

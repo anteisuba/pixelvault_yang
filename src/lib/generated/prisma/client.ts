@@ -136,3 +136,33 @@ export type Collection = Prisma.CollectionModel
  * 
  */
 export type CollectionItem = Prisma.CollectionItemModel
+/**
+ * Model BackgroundCard
+ * 
+ */
+export type BackgroundCard = Prisma.BackgroundCardModel
+/**
+ * Model StyleCard
+ * 
+ */
+export type StyleCard = Prisma.StyleCardModel
+/**
+ * Model ModelCard
+ * 
+ */
+export type ModelCard = Prisma.ModelCardModel
+/**
+ * Model CardRecipe
+ * 
+ */
+export type CardRecipe = Prisma.CardRecipeModel
+/**
+ * Model VideoPipeline
+ * 
+ */
+export type VideoPipeline = Prisma.VideoPipelineModel
+/**
+ * Model VideoPipelineClip
+ * 
+ */
+export type VideoPipelineClip = Prisma.VideoPipelineClipModel

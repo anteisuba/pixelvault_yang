@@ -71,6 +71,12 @@ export const API_ENDPOINTS = {
   /** Video generation status polling */
   GENERATE_VIDEO_STATUS: '/api/generate-video/status',
 
+  /** Long video pipeline */
+  GENERATE_LONG_VIDEO: '/api/generate-long-video',
+  GENERATE_LONG_VIDEO_STATUS: '/api/generate-long-video/status',
+  GENERATE_LONG_VIDEO_RETRY: '/api/generate-long-video/retry',
+  GENERATE_LONG_VIDEO_CANCEL: '/api/generate-long-video/cancel',
+
   /** Projects */
   PROJECTS: '/api/projects',
 
@@ -101,6 +107,12 @@ export const API_ENDPOINTS = {
 
   /** Collections */
   COLLECTIONS: '/api/collections',
+
+  /** Composable Card System */
+  BACKGROUND_CARDS: '/api/background-cards',
+  STYLE_CARDS: '/api/style-cards',
+  MODEL_CARDS: '/api/model-cards',
+  CARD_RECIPES: '/api/card-recipes',
 } as const
 
 /** Project configuration */
@@ -202,6 +214,11 @@ export const VIDEO_GENERATION = {
   POLL_INTERVAL_MS: 3000,
   MAX_POLL_ATTEMPTS: 200,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
+  /** Long video pipeline */
+  LONG_VIDEO_DURATION_OPTIONS: [10, 30, 60, 120] as const,
+  MAX_LONG_VIDEO_DURATION: 120,
+  PIPELINE_POLL_INTERVAL_MS: 5000,
+  MAX_PIPELINE_POLL_ATTEMPTS: 600,
 } as const
 
 /** Health check configuration */

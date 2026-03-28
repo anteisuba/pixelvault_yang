@@ -63,6 +63,26 @@ import type {
   CollectionResponse,
   CollectionDetailResponse,
   CollectionItemsResponse,
+  CreateBackgroundCardRequest,
+  UpdateBackgroundCardRequest,
+  BackgroundCardResponse,
+  BackgroundCardsResponse,
+  CreateStyleCardRequest,
+  UpdateStyleCardRequest,
+  StyleCardResponse,
+  StyleCardsResponse,
+  CreateModelCardRequest,
+  UpdateModelCardRequest,
+  ModelCardResponse,
+  ModelCardsResponse,
+  CreateCardRecipeRequest,
+  UpdateCardRecipeRequest,
+  CardRecipeResponse,
+  CardRecipesResponse,
+  CompileRecipeResponse,
+  LongVideoRequest,
+  LongVideoSubmitResponse,
+  LongVideoStatusResponse,
 } from '@/types'
 import { UsageSummarySchema } from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
@@ -1670,6 +1690,561 @@ export async function removeFromCollectionAPI(
         ),
       }
     }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+// ─── Background Cards ───────────────────────────────────────────
+
+export async function listBackgroundCardsAPI(
+  projectId?: string | null,
+): Promise<BackgroundCardsResponse> {
+  try {
+    const params = projectId ? `?projectId=${projectId}` : ''
+    const response = await fetch(`${API_ENDPOINTS.BACKGROUND_CARDS}${params}`)
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function createBackgroundCardAPI(
+  data: CreateBackgroundCardRequest,
+): Promise<BackgroundCardResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.BACKGROUND_CARDS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function updateBackgroundCardAPI(
+  id: string,
+  data: UpdateBackgroundCardRequest,
+): Promise<BackgroundCardResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.BACKGROUND_CARDS}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function deleteBackgroundCardAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.BACKGROUND_CARDS}/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+// ─── Style Cards ────────────────────────────────────────────────
+
+export async function listStyleCardsAPI(
+  projectId?: string | null,
+): Promise<StyleCardsResponse> {
+  try {
+    const params = projectId ? `?projectId=${projectId}` : ''
+    const response = await fetch(`${API_ENDPOINTS.STYLE_CARDS}${params}`)
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function createStyleCardAPI(
+  data: CreateStyleCardRequest,
+): Promise<StyleCardResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.STYLE_CARDS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function updateStyleCardAPI(
+  id: string,
+  data: UpdateStyleCardRequest,
+): Promise<StyleCardResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.STYLE_CARDS}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function deleteStyleCardAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.STYLE_CARDS}/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+// ─── Model Cards ────────────────────────────────────────────────
+
+export async function listModelCardsAPI(
+  projectId?: string | null,
+): Promise<ModelCardsResponse> {
+  try {
+    const params = projectId ? `?projectId=${projectId}` : ''
+    const response = await fetch(`${API_ENDPOINTS.MODEL_CARDS}${params}`)
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function createModelCardAPI(
+  data: CreateModelCardRequest,
+): Promise<ModelCardResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.MODEL_CARDS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function updateModelCardAPI(
+  id: string,
+  data: UpdateModelCardRequest,
+): Promise<ModelCardResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.MODEL_CARDS}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function deleteModelCardAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.MODEL_CARDS}/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+// ─── Card Recipes ───────────────────────────────────────────────
+
+export async function listCardRecipesAPI(
+  projectId?: string | null,
+): Promise<CardRecipesResponse> {
+  try {
+    const params = projectId ? `?projectId=${projectId}` : ''
+    const response = await fetch(`${API_ENDPOINTS.CARD_RECIPES}${params}`)
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function createCardRecipeAPI(
+  data: CreateCardRecipeRequest,
+): Promise<CardRecipeResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.CARD_RECIPES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function updateCardRecipeAPI(
+  id: string,
+  data: UpdateCardRecipeRequest,
+): Promise<CardRecipeResponse> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CARD_RECIPES}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function deleteCardRecipeAPI(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CARD_RECIPES}/${id}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function compileCardRecipeAPI(
+  id: string,
+): Promise<CompileRecipeResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CARD_RECIPES}/${id}/compile`,
+      { method: 'POST' },
+    )
+    if (!response.ok)
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+// ─── Long Video Pipeline API ────────────────────────────────────
+
+export async function submitLongVideoAPI(
+  params: LongVideoRequest,
+): Promise<LongVideoSubmitResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Long video generation failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function checkLongVideoStatusAPI(
+  pipelineId: string,
+): Promise<LongVideoStatusResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATE_LONG_VIDEO_STATUS}?pipelineId=${encodeURIComponent(pipelineId)}`,
+    )
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Status check failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function retryLongVideoClipAPI(
+  pipelineId: string,
+  clipIndex: number,
+): Promise<LongVideoStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO_RETRY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipelineId, clipIndex }),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Retry failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+export async function cancelLongVideoAPI(
+  pipelineId: string,
+): Promise<LongVideoStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO_CANCEL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipelineId }),
+    })
+
+    if (!response.ok) {
+      const message = await getErrorMessage(
+        response,
+        `Cancel failed with status ${response.status}`,
+      )
+      return { success: false, error: message }
+    }
+
     return await response.json()
   } catch (error) {
     const message =

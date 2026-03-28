@@ -69,7 +69,13 @@ export const ModelName = {
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
   Collection: 'Collection',
-  CollectionItem: 'CollectionItem'
+  CollectionItem: 'CollectionItem',
+  BackgroundCard: 'BackgroundCard',
+  StyleCard: 'StyleCard',
+  ModelCard: 'ModelCard',
+  CardRecipe: 'CardRecipe',
+  VideoPipeline: 'VideoPipeline',
+  VideoPipelineClip: 'VideoPipelineClip'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -159,7 +165,9 @@ export const GenerationScalarFieldEnum = {
   isFeatured: 'isFeatured',
   userId: 'userId',
   projectId: 'projectId',
-  characterCardId: 'characterCardId'
+  characterCardId: 'characterCardId',
+  cardRecipeId: 'cardRecipeId',
+  recipeSnapshot: 'recipeSnapshot'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
@@ -315,6 +323,7 @@ export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof
 export const CharacterCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  projectId: 'projectId',
   name: 'name',
   description: 'description',
   sourceImageUrl: 'sourceImageUrl',
@@ -325,6 +334,7 @@ export const CharacterCardScalarFieldEnum = {
   modelPrompts: 'modelPrompts',
   referenceImages: 'referenceImages',
   attributes: 'attributes',
+  loras: 'loras',
   tags: 'tags',
   status: 'status',
   stabilityScore: 'stabilityScore',
@@ -392,6 +402,134 @@ export const CollectionItemScalarFieldEnum = {
 } as const
 
 export type CollectionItemScalarFieldEnum = (typeof CollectionItemScalarFieldEnum)[keyof typeof CollectionItemScalarFieldEnum]
+
+
+export const BackgroundCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  projectId: 'projectId',
+  name: 'name',
+  description: 'description',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  backgroundPrompt: 'backgroundPrompt',
+  attributes: 'attributes',
+  loras: 'loras',
+  tags: 'tags',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BackgroundCardScalarFieldEnum = (typeof BackgroundCardScalarFieldEnum)[keyof typeof BackgroundCardScalarFieldEnum]
+
+
+export const StyleCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  projectId: 'projectId',
+  name: 'name',
+  description: 'description',
+  sourceImageUrl: 'sourceImageUrl',
+  sourceStorageKey: 'sourceStorageKey',
+  stylePrompt: 'stylePrompt',
+  attributes: 'attributes',
+  loras: 'loras',
+  tags: 'tags',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
+
+
+export const ModelCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  projectId: 'projectId',
+  name: 'name',
+  description: 'description',
+  modelId: 'modelId',
+  adapterType: 'adapterType',
+  advancedParams: 'advancedParams',
+  tags: 'tags',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ModelCardScalarFieldEnum = (typeof ModelCardScalarFieldEnum)[keyof typeof ModelCardScalarFieldEnum]
+
+
+export const CardRecipeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  projectId: 'projectId',
+  name: 'name',
+  characterCardId: 'characterCardId',
+  backgroundCardId: 'backgroundCardId',
+  styleCardId: 'styleCardId',
+  modelCardId: 'modelCardId',
+  freePrompt: 'freePrompt',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CardRecipeScalarFieldEnum = (typeof CardRecipeScalarFieldEnum)[keyof typeof CardRecipeScalarFieldEnum]
+
+
+export const VideoPipelineScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  status: 'status',
+  prompt: 'prompt',
+  modelId: 'modelId',
+  adapterType: 'adapterType',
+  aspectRatio: 'aspectRatio',
+  resolution: 'resolution',
+  negativePrompt: 'negativePrompt',
+  extensionMethod: 'extensionMethod',
+  targetDurationSec: 'targetDurationSec',
+  currentDurationSec: 'currentDurationSec',
+  totalClips: 'totalClips',
+  completedClips: 'completedClips',
+  finalVideoUrl: 'finalVideoUrl',
+  finalStorageKey: 'finalStorageKey',
+  generationId: 'generationId',
+  characterCardIds: 'characterCardIds',
+  referenceImageUrl: 'referenceImageUrl',
+  apiKeyId: 'apiKeyId',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoPipelineScalarFieldEnum = (typeof VideoPipelineScalarFieldEnum)[keyof typeof VideoPipelineScalarFieldEnum]
+
+
+export const VideoPipelineClipScalarFieldEnum = {
+  id: 'id',
+  pipelineId: 'pipelineId',
+  clipIndex: 'clipIndex',
+  status: 'status',
+  generationJobId: 'generationJobId',
+  externalRequestId: 'externalRequestId',
+  videoUrl: 'videoUrl',
+  storageKey: 'storageKey',
+  lastFrameUrl: 'lastFrameUrl',
+  durationSec: 'durationSec',
+  inputVideoUrl: 'inputVideoUrl',
+  inputFrameUrl: 'inputFrameUrl',
+  errorMessage: 'errorMessage',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoPipelineClipScalarFieldEnum = (typeof VideoPipelineClipScalarFieldEnum)[keyof typeof VideoPipelineClipScalarFieldEnum]
 
 
 export const SortOrder = {

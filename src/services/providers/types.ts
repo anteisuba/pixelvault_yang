@@ -98,6 +98,18 @@ export class ProviderError extends Error {
   }
 }
 
+export interface ProviderExtendVideoInput {
+  /** URL of the video to extend */
+  videoUrl: string
+  prompt: string
+  aspectRatio: AspectRatio
+  providerConfig: ProviderConfig
+  apiKey: string
+  /** FAL extend endpoint ID, e.g. 'fal-ai/veo3.1/extend-video' */
+  extendEndpointId: string
+  duration?: number
+}
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(
@@ -106,6 +118,9 @@ export interface ProviderAdapter {
   generateVideo?(input: ProviderVideoInput): Promise<ProviderVideoResult>
   submitVideoToQueue?(
     input: ProviderQueueSubmitInput,
+  ): Promise<ProviderQueueSubmitResult>
+  submitExtendVideoToQueue?(
+    input: ProviderExtendVideoInput,
   ): Promise<ProviderQueueSubmitResult>
   checkVideoQueueStatus?(
     input: ProviderQueueStatusInput,

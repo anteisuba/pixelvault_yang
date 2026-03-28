@@ -61,6 +61,7 @@ interface DbCharacterCardRow {
   modelPrompts: unknown
   referenceImages: unknown
   attributes: unknown
+  loras: unknown
   tags: string[]
   status: string
   stabilityScore: number | null
@@ -84,6 +85,7 @@ function toRecord(row: DbCharacterCardRow): CharacterCardRecord {
     modelPrompts: (row.modelPrompts as Record<string, string>) ?? null,
     referenceImages: (row.referenceImages as string[]) ?? null,
     attributes: (row.attributes as CharacterAttributes) ?? null,
+    loras: (row.loras as CharacterCardRecord['loras']) ?? null,
     tags: row.tags,
     status: row.status as CharacterCardRecord['status'],
     stabilityScore: row.stabilityScore,
@@ -505,6 +507,10 @@ export async function updateCharacterCard(
     updateData.sourceImageEntries = JSON.parse(
       JSON.stringify(data.sourceImageEntries),
     )
+  if (data.loras !== undefined)
+    updateData.loras = data.loras
+      ? JSON.parse(JSON.stringify(data.loras))
+      : null
 
   const card = await db.characterCard.update({
     where: { id: cardId },

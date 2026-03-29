@@ -203,7 +203,6 @@ export type ProjectWhereInput = {
   characterCards?: Prisma.CharacterCardListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
-  modelCards?: Prisma.ModelCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
 }
 
@@ -220,7 +219,6 @@ export type ProjectOrderByWithRelationInput = {
   characterCards?: Prisma.CharacterCardOrderByRelationAggregateInput
   backgroundCards?: Prisma.BackgroundCardOrderByRelationAggregateInput
   styleCards?: Prisma.StyleCardOrderByRelationAggregateInput
-  modelCards?: Prisma.ModelCardOrderByRelationAggregateInput
   cardRecipes?: Prisma.CardRecipeOrderByRelationAggregateInput
 }
 
@@ -240,7 +238,6 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   characterCards?: Prisma.CharacterCardListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
-  modelCards?: Prisma.ModelCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
 }, "id">
 
@@ -282,7 +279,6 @@ export type ProjectCreateInput = {
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -298,7 +294,6 @@ export type ProjectUncheckedCreateInput = {
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -314,7 +309,6 @@ export type ProjectUpdateInput = {
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -330,7 +324,6 @@ export type ProjectUncheckedUpdateInput = {
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -514,22 +507,6 @@ export type ProjectUpdateOneWithoutStyleCardsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutStyleCardsInput, Prisma.ProjectUpdateWithoutStyleCardsInput>, Prisma.ProjectUncheckedUpdateWithoutStyleCardsInput>
 }
 
-export type ProjectCreateNestedOneWithoutModelCardsInput = {
-  create?: Prisma.XOR<Prisma.ProjectCreateWithoutModelCardsInput, Prisma.ProjectUncheckedCreateWithoutModelCardsInput>
-  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutModelCardsInput
-  connect?: Prisma.ProjectWhereUniqueInput
-}
-
-export type ProjectUpdateOneWithoutModelCardsNestedInput = {
-  create?: Prisma.XOR<Prisma.ProjectCreateWithoutModelCardsInput, Prisma.ProjectUncheckedCreateWithoutModelCardsInput>
-  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutModelCardsInput
-  upsert?: Prisma.ProjectUpsertWithoutModelCardsInput
-  disconnect?: Prisma.ProjectWhereInput | boolean
-  delete?: Prisma.ProjectWhereInput | boolean
-  connect?: Prisma.ProjectWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutModelCardsInput, Prisma.ProjectUpdateWithoutModelCardsInput>, Prisma.ProjectUncheckedUpdateWithoutModelCardsInput>
-}
-
 export type ProjectCreateNestedOneWithoutCardRecipesInput = {
   create?: Prisma.XOR<Prisma.ProjectCreateWithoutCardRecipesInput, Prisma.ProjectUncheckedCreateWithoutCardRecipesInput>
   connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutCardRecipesInput
@@ -557,7 +534,6 @@ export type ProjectCreateWithoutUserInput = {
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -572,7 +548,6 @@ export type ProjectUncheckedCreateWithoutUserInput = {
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -626,7 +601,6 @@ export type ProjectCreateWithoutGenerationsInput = {
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -641,7 +615,6 @@ export type ProjectUncheckedCreateWithoutGenerationsInput = {
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -672,7 +645,6 @@ export type ProjectUpdateWithoutGenerationsInput = {
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -687,7 +659,6 @@ export type ProjectUncheckedUpdateWithoutGenerationsInput = {
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -702,7 +673,6 @@ export type ProjectCreateWithoutCharacterCardsInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -717,7 +687,6 @@ export type ProjectUncheckedCreateWithoutCharacterCardsInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -748,7 +717,6 @@ export type ProjectUpdateWithoutCharacterCardsInput = {
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -763,7 +731,6 @@ export type ProjectUncheckedUpdateWithoutCharacterCardsInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -778,7 +745,6 @@ export type ProjectCreateWithoutBackgroundCardsInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -793,7 +759,6 @@ export type ProjectUncheckedCreateWithoutBackgroundCardsInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -824,7 +789,6 @@ export type ProjectUpdateWithoutBackgroundCardsInput = {
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -839,7 +803,6 @@ export type ProjectUncheckedUpdateWithoutBackgroundCardsInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -854,7 +817,6 @@ export type ProjectCreateWithoutStyleCardsInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
 }
 
@@ -869,7 +831,6 @@ export type ProjectUncheckedCreateWithoutStyleCardsInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
 }
 
@@ -900,7 +861,6 @@ export type ProjectUpdateWithoutStyleCardsInput = {
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -915,83 +875,6 @@ export type ProjectUncheckedUpdateWithoutStyleCardsInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
-}
-
-export type ProjectCreateWithoutModelCardsInput = {
-  id?: string
-  name: string
-  description?: string | null
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutProjectsInput
-  generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
-}
-
-export type ProjectUncheckedCreateWithoutModelCardsInput = {
-  id?: string
-  userId: string
-  name: string
-  description?: string | null
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
-}
-
-export type ProjectCreateOrConnectWithoutModelCardsInput = {
-  where: Prisma.ProjectWhereUniqueInput
-  create: Prisma.XOR<Prisma.ProjectCreateWithoutModelCardsInput, Prisma.ProjectUncheckedCreateWithoutModelCardsInput>
-}
-
-export type ProjectUpsertWithoutModelCardsInput = {
-  update: Prisma.XOR<Prisma.ProjectUpdateWithoutModelCardsInput, Prisma.ProjectUncheckedUpdateWithoutModelCardsInput>
-  create: Prisma.XOR<Prisma.ProjectCreateWithoutModelCardsInput, Prisma.ProjectUncheckedCreateWithoutModelCardsInput>
-  where?: Prisma.ProjectWhereInput
-}
-
-export type ProjectUpdateToOneWithWhereWithoutModelCardsInput = {
-  where?: Prisma.ProjectWhereInput
-  data: Prisma.XOR<Prisma.ProjectUpdateWithoutModelCardsInput, Prisma.ProjectUncheckedUpdateWithoutModelCardsInput>
-}
-
-export type ProjectUpdateWithoutModelCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
-  generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
-}
-
-export type ProjectUncheckedUpdateWithoutModelCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -1007,7 +890,6 @@ export type ProjectCreateWithoutCardRecipesInput = {
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectUncheckedCreateWithoutCardRecipesInput = {
@@ -1022,7 +904,6 @@ export type ProjectUncheckedCreateWithoutCardRecipesInput = {
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type ProjectCreateOrConnectWithoutCardRecipesInput = {
@@ -1053,7 +934,6 @@ export type ProjectUpdateWithoutCardRecipesInput = {
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectUncheckedUpdateWithoutCardRecipesInput = {
@@ -1068,7 +948,6 @@ export type ProjectUncheckedUpdateWithoutCardRecipesInput = {
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type ProjectCreateManyUserInput = {
@@ -1091,7 +970,6 @@ export type ProjectUpdateWithoutUserInput = {
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
 }
 
@@ -1106,7 +984,6 @@ export type ProjectUncheckedUpdateWithoutUserInput = {
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
 }
 
@@ -1129,7 +1006,6 @@ export type ProjectCountOutputType = {
   characterCards: number
   backgroundCards: number
   styleCards: number
-  modelCards: number
   cardRecipes: number
 }
 
@@ -1138,7 +1014,6 @@ export type ProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   characterCards?: boolean | ProjectCountOutputTypeCountCharacterCardsArgs
   backgroundCards?: boolean | ProjectCountOutputTypeCountBackgroundCardsArgs
   styleCards?: boolean | ProjectCountOutputTypeCountStyleCardsArgs
-  modelCards?: boolean | ProjectCountOutputTypeCountModelCardsArgs
   cardRecipes?: boolean | ProjectCountOutputTypeCountCardRecipesArgs
 }
 
@@ -1183,13 +1058,6 @@ export type ProjectCountOutputTypeCountStyleCardsArgs<ExtArgs extends runtime.Ty
 /**
  * ProjectCountOutputType without action
  */
-export type ProjectCountOutputTypeCountModelCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ModelCardWhereInput
-}
-
-/**
- * ProjectCountOutputType without action
- */
 export type ProjectCountOutputTypeCountCardRecipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.CardRecipeWhereInput
 }
@@ -1208,7 +1076,6 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   characterCards?: boolean | Prisma.Project$characterCardsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.Project$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.Project$styleCardsArgs<ExtArgs>
-  modelCards?: boolean | Prisma.Project$modelCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.Project$cardRecipesArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["project"]>
@@ -1252,7 +1119,6 @@ export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   characterCards?: boolean | Prisma.Project$characterCardsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.Project$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.Project$styleCardsArgs<ExtArgs>
-  modelCards?: boolean | Prisma.Project$modelCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.Project$cardRecipesArgs<ExtArgs>
   _count?: boolean | Prisma.ProjectCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -1271,7 +1137,6 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     characterCards: Prisma.$CharacterCardPayload<ExtArgs>[]
     backgroundCards: Prisma.$BackgroundCardPayload<ExtArgs>[]
     styleCards: Prisma.$StyleCardPayload<ExtArgs>[]
-    modelCards: Prisma.$ModelCardPayload<ExtArgs>[]
     cardRecipes: Prisma.$CardRecipePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1681,7 +1546,6 @@ export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.
   characterCards<T extends Prisma.Project$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   backgroundCards<T extends Prisma.Project$backgroundCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$backgroundCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BackgroundCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   styleCards<T extends Prisma.Project$styleCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$styleCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  modelCards<T extends Prisma.Project$modelCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$modelCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ModelCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   cardRecipes<T extends Prisma.Project$cardRecipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$cardRecipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1915,11 +1779,6 @@ export type ProjectFindManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Skip the first `n` Projects.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of Projects.
-   */
   distinct?: Prisma.ProjectScalarFieldEnum | Prisma.ProjectScalarFieldEnum[]
 }
 
@@ -2213,30 +2072,6 @@ export type Project$styleCardsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.StyleCardScalarFieldEnum | Prisma.StyleCardScalarFieldEnum[]
-}
-
-/**
- * Project.modelCards
- */
-export type Project$modelCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the ModelCard
-   */
-  select?: Prisma.ModelCardSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the ModelCard
-   */
-  omit?: Prisma.ModelCardOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ModelCardInclude<ExtArgs> | null
-  where?: Prisma.ModelCardWhereInput
-  orderBy?: Prisma.ModelCardOrderByWithRelationInput | Prisma.ModelCardOrderByWithRelationInput[]
-  cursor?: Prisma.ModelCardWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ModelCardScalarFieldEnum | Prisma.ModelCardScalarFieldEnum[]
 }
 
 /**

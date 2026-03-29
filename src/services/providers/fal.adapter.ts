@@ -12,6 +12,7 @@ import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
+import { logger } from '@/lib/logger'
 
 import {
   ProviderError,
@@ -136,6 +137,12 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('fal.ai generateImage failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('fal.ai', response.status, errorBody)
     }
 

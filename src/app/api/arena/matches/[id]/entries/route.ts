@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const { success: allowed } = rateLimit(`arena-entry:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`arena-entry:${clerkId}`, {
       limit: 20,
       windowSeconds: 60,
     })

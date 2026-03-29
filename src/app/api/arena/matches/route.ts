@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`arena:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`arena:${clerkId}`, {
       limit: 5,
       windowSeconds: 60,
     })

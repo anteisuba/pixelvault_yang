@@ -1809,11 +1809,6 @@ export type GenerationJobFindManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * Skip the first `n` GenerationJobs.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of GenerationJobs.
-   */
   distinct?: Prisma.GenerationJobScalarFieldEnum | Prisma.GenerationJobScalarFieldEnum[]
 }
 

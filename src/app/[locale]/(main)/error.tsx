@@ -1,5 +1,6 @@
 'use client'
 
+import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 import { AlertTriangle, Home, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -16,7 +17,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   const t = useTranslations('ErrorBoundary')
 
   useEffect(() => {
-    console.error('[ErrorBoundary]', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

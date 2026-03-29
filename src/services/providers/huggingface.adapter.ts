@@ -17,6 +17,8 @@ import {
   type ProviderGenerationInput,
 } from '@/services/providers/types'
 
+import { logger } from '@/lib/logger'
+
 export const huggingFaceAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.HUGGINGFACE,
   async generateImage({
@@ -73,6 +75,12 @@ export const huggingFaceAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('HuggingFace generateImage failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('HuggingFace', response.status, errorBody)
     }
 

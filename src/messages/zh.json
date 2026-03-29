@@ -1133,11 +1133,26 @@
   },
   "PromptPresets": {
     "title": "快速开始",
-    "portrait": { "label": "人像", "description": "人物肖像" },
-    "landscape": { "label": "风景", "description": "自然风光" },
-    "anime": { "label": "动漫", "description": "动漫插画" },
-    "logo": { "label": "Logo", "description": "标志排版" },
-    "cinematic": { "label": "电影", "description": "电影剧照" }
+    "portrait": {
+      "label": "人像",
+      "description": "人物肖像"
+    },
+    "landscape": {
+      "label": "风景",
+      "description": "自然风光"
+    },
+    "anime": {
+      "label": "动漫",
+      "description": "动漫插画"
+    },
+    "logo": {
+      "label": "Logo",
+      "description": "标志排版"
+    },
+    "cinematic": {
+      "label": "电影",
+      "description": "电影剧照"
+    }
   },
   "CharacterCard": {
     "title": "角色卡",
@@ -1315,19 +1330,15 @@
     "sourceImage": "源图片",
     "sourceImageHint": "上传图片自动提取画风属性",
     "empty": "还没有画风卡",
-    "emptyHint": "创建画风卡，在多次生成中复用艺术风格"
-  },
-  "ModelCard": {
-    "title": "模型卡",
-    "create": "新建模型卡",
-    "edit": "编辑模型卡",
-    "delete": "删除模型卡",
-    "deleteConfirm": "确定要删除这张模型卡吗？",
+    "emptyHint": "创建画风卡，在多次生成中复用艺术风格",
+    "name": "名称",
+    "namePlaceholder": "画风卡名称",
     "selectModel": "选择模型",
-    "configureParams": "配置参数",
-    "loraCount": "已应用 {count} 个 LoRA",
-    "empty": "还没有模型卡",
-    "emptyHint": "保存模型+参数组合，快速复用"
+    "selectModelPlaceholder": "— 不指定模型 —",
+    "generateMethod": "生成方式",
+    "loraMode": "LoRA 模式",
+    "referenceMode": "参考图模式",
+    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
   },
   "CardRecipe": {
     "title": "配方",
@@ -1355,5 +1366,39 @@
     "style": "画风",
     "model": "模型",
     "deleted": "已删除"
+  },
+  "CivitaiToken": {
+    "saveSuccess": "Civitai Token 已保存",
+    "saveFailed": "保存 Token 失败",
+    "removeSuccess": "Token 已删除",
+    "removeFailed": "删除 Token 失败"
+  },
+  "StudioV2": {
+    "none": "不选择",
+    "new": "新建",
+    "manage": "管理",
+    "character": "角色",
+    "background": "背景",
+    "style": "画风",
+    "noModel": "未设置模型 — 请在卡片管理中为画风卡添加模型",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "generate": "生成",
+    "generating": "生成中...",
+    "generateSuccess": "图片已生成！",
+    "generateFailed": "生成失败",
+    "freePromptPlaceholder": "描述动作、场景或表情...",
+    "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
+    "enhance": "增强",
+    "reverse": "反推",
+    "advanced": "高级",
+    "referenceImage": "参考图",
+    "civitaiToken": "Civitai Token",
+    "tokenSaved": "Token 已保存",
+    "tokenPlaceholder": "输入 Civitai API Token",
+    "removeToken": "删除",
+    "cardManagement": "卡片管理",
+    "projectHistory": "项目与历史"
   }
 }

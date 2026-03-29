@@ -13,6 +13,7 @@ import {
   type ProviderAdapter,
   type ProviderGenerationInput,
 } from '@/services/providers/types'
+import { logger } from '@/lib/logger'
 
 const OPENAI_IMAGE_RESPONSE_SCHEMA = z.object({
   data: z.array(
@@ -115,6 +116,11 @@ export const openAiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('OpenAI generateImage failed', {
+        status: response.status,
+        modelId,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('OpenAI', response.status, errorBody)
     }
 

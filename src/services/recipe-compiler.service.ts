@@ -18,6 +18,12 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
+import { logger } from '@/lib/logger'
+import { validateRecipeFusion } from '@/lib/llm-output-validator'
+import {
+  getCivitaiTokenByInternalUserId,
+  injectCivitaiToken,
+} from '@/services/civitai-token.service'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -26,7 +32,6 @@ export interface CompileRecipeInput {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
 }
 
@@ -148,7 +153,6 @@ function getCacheKey(input: CompileRecipeInput): string {
     input.characterCardId ?? '',
     input.backgroundCardId ?? '',
     input.styleCardId ?? '',
-    input.modelCardId ?? '',
     input.freePrompt ?? '',
   ].join('|')
   return crypto.createHash('sha256').update(parts).digest('hex')
@@ -208,16 +212,6 @@ async function loadStyleCard(id: string, userId: string) {
       name: true,
       stylePrompt: true,
       loras: true,
-    },
-  })
-}
-
-async function loadModelCard(id: string, userId: string) {
-  return db.modelCard.findFirst({
-    where: { id, userId, isDeleted: false },
-    select: {
-      id: true,
-      name: true,
       modelId: true,
       adapterType: true,
       advancedParams: true,
@@ -300,7 +294,22 @@ async function compileWithLlm(
       ),
     ])
 
-    return result.trim()
+    const trimmed = result.trim()
+
+    // Validate LLM fusion output
+    const validation = validateRecipeFusion(trimmed, parts)
+    if (!validation.usable) {
+      logger.warn('LLM fusion output rejected', {
+        reason: validation.reason,
+        adapterType,
+      })
+      return null
+    }
+    if (validation.warnings.length > 0) {
+      logger.info('LLM fusion warnings', { warnings: validation.warnings })
+    }
+
+    return validation.output
   } catch {
     // LLM fusion failed — caller should fall back to template
     return null
@@ -315,7 +324,7 @@ export async function compileRecipe(
   const { userId } = input
 
   // Load all referenced cards in parallel
-  const [charCard, bgCard, styleCard, modelCard] = await Promise.all([
+  const [charCard, bgCard, styleCard] = await Promise.all([
     input.characterCardId
       ? loadCharacterCard(input.characterCardId, userId)
       : null,
@@ -323,16 +332,13 @@ export async function compileRecipe(
       ? loadBackgroundCard(input.backgroundCardId, userId)
       : null,
     input.styleCardId ? loadStyleCard(input.styleCardId, userId) : null,
-    input.modelCardId ? loadModelCard(input.modelCardId, userId) : null,
   ])
 
-  // Determine model/adapter — ModelCard overrides, else need fallback
-  const modelId = modelCard?.modelId
-  const adapterType = modelCard?.adapterType
+  // Determine model/adapter from StyleCard
+  const modelId = styleCard?.modelId
+  const adapterType = styleCard?.adapterType
   if (!modelId || !adapterType) {
-    throw new Error(
-      'MISSING_MODEL_CARD: A model card is required to compile a recipe.',
-    )
+    throw new Error('MISSING_MODEL_IN_STYLE: 请在画风卡中选择一个模型')
   }
 
   // Collect prompt parts
@@ -404,14 +410,8 @@ export async function compileRecipe(
           id: styleCard.id,
           name: styleCard.name,
           stylePrompt: styleCard.stylePrompt,
-        }
-      : undefined,
-    modelCard: modelCard
-      ? {
-          id: modelCard.id,
-          name: modelCard.name,
-          modelId: modelCard.modelId,
-          adapterType: modelCard.adapterType,
+          modelId: styleCard.modelId ?? undefined,
+          adapterType: styleCard.adapterType ?? undefined,
         }
       : undefined,
     freePrompt: input.freePrompt ?? undefined,
@@ -419,20 +419,24 @@ export async function compileRecipe(
     compiledAt: new Date().toISOString(),
   }
 
-  // Merge LoRAs from ALL card types:
-  //   character LoRAs (highest priority) → style LoRAs → background LoRAs → model LoRAs
+  // Merge LoRAs from all card types (character → style → background)
   // Deduplicate by URL, trim to provider maxLoras limit
   type Lora = z.infer<typeof LoraSchema>
-  const modelAdvancedParams =
-    (modelCard?.advancedParams as AdvancedParams) ?? null
+  const baseAdvancedParams =
+    (styleCard?.advancedParams as AdvancedParams) ?? null
   const charLoras = (charCard?.loras as Lora[] | null) ?? []
   const bgLoras = (bgCard?.loras as Lora[] | null) ?? []
   const styleLoras = (styleCard?.loras as Lora[] | null) ?? []
-  const modelLoras = modelAdvancedParams?.loras ?? []
+  const styleParamLoras = baseAdvancedParams?.loras ?? []
 
   const seenUrls = new Set<string>()
   const mergedLoras: Lora[] = []
-  for (const lora of [...charLoras, ...styleLoras, ...bgLoras, ...modelLoras]) {
+  for (const lora of [
+    ...charLoras,
+    ...styleLoras,
+    ...styleParamLoras,
+    ...bgLoras,
+  ]) {
     if (!seenUrls.has(lora.url)) {
       seenUrls.add(lora.url)
       mergedLoras.push(lora)
@@ -442,10 +446,24 @@ export async function compileRecipe(
   const maxLoras = adapterType === AI_ADAPTER_TYPES.REPLICATE ? 1 : 5
   const trimmedLoras = mergedLoras.slice(0, maxLoras)
 
+  // Inject Civitai token into LoRA URLs that need it
+  let lorasWithToken = trimmedLoras
+  if (trimmedLoras.some((l) => l.url.includes('civitai.com'))) {
+    const civitaiToken = await getCivitaiTokenByInternalUserId(userId).catch(
+      () => null,
+    )
+    if (civitaiToken) {
+      lorasWithToken = trimmedLoras.map((l) => ({
+        ...l,
+        url: injectCivitaiToken(l.url, civitaiToken),
+      }))
+    }
+  }
+
   const finalAdvancedParams: AdvancedParams | null =
-    trimmedLoras.length > 0
-      ? { ...modelAdvancedParams, loras: trimmedLoras }
-      : modelAdvancedParams
+    lorasWithToken.length > 0
+      ? { ...baseAdvancedParams, loras: lorasWithToken }
+      : baseAdvancedParams
 
   return {
     compiledPrompt,

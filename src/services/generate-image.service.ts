@@ -6,6 +6,7 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
   getProviderLabel,
+  PROVIDER_FALLBACK_MAP,
   type ProviderConfig,
 } from '@/constants/providers'
 import type { GenerateRequest, GenerationRecord } from '@/types'
@@ -36,6 +37,10 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
+import { logger } from '@/lib/logger'
+import { withRetry } from '@/lib/with-retry'
+import { getCircuitBreaker } from '@/lib/circuit-breaker'
+import { validatePrompt } from '@/lib/prompt-guard'
 
 export interface ResolvedGenerationRoute {
   modelId: string
@@ -216,6 +221,16 @@ export async function generateImageForUser(
 ): Promise<GenerationRecord> {
   const dbUser = await ensureUser(clerkId)
 
+  // Validate prompt before processing
+  const promptCheck = validatePrompt(input.prompt)
+  if (!promptCheck.valid) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      promptCheck.reason ?? 'Invalid prompt',
+      400,
+    )
+  }
+
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
@@ -238,16 +253,34 @@ export async function generateImageForUser(
   const providerCallStartedAt = Date.now()
   let generatedAsset: ProviderGenerationResult
 
+  const breaker = getCircuitBreaker(executionRoute.adapterType)
+
   try {
-    generatedAsset = await providerAdapter.generateImage({
-      prompt: input.prompt,
+    generatedAsset = await breaker.call(() =>
+      withRetry(
+        () =>
+          providerAdapter.generateImage({
+            prompt: input.prompt,
+            modelId: executionRoute.modelId,
+            aspectRatio: input.aspectRatio,
+            providerConfig: executionRoute.providerConfig,
+            apiKey: executionRoute.apiKey,
+            referenceImage: input.referenceImage,
+            referenceImages: input.referenceImages,
+            advancedParams: input.advancedParams,
+          }),
+        {
+          maxAttempts: 2,
+          baseDelayMs: 1500,
+          label: `${executionRoute.adapterType}.generateImage`,
+        },
+      ),
+    )
+
+    logger.info('Image generated successfully', {
+      adapter: executionRoute.adapterType,
       modelId: executionRoute.modelId,
-      aspectRatio: input.aspectRatio,
-      providerConfig: executionRoute.providerConfig,
-      apiKey: executionRoute.apiKey,
-      referenceImage: input.referenceImage,
-      referenceImages: input.referenceImages,
-      advancedParams: input.advancedParams,
+      durationMs: Date.now() - providerCallStartedAt,
     })
   } catch (error) {
     const message =
@@ -268,6 +301,40 @@ export async function generateImageForUser(
     if (error instanceof GenerateImageServiceError) {
       throw error
     }
+
+    // Attempt provider fallback (only for free-tier / platform-key generation)
+    const isTransient =
+      (error instanceof ProviderError && error.status >= 500) ||
+      (error instanceof Error &&
+        /timeout|econnreset|fetch failed/i.test(error.message))
+
+    if (isTransient && executionRoute.isFreeGeneration) {
+      const fallbackModelId = PROVIDER_FALLBACK_MAP[executionRoute.modelId]
+      if (fallbackModelId) {
+        logger.warn('Primary provider failed, attempting fallback', {
+          failedModel: executionRoute.modelId,
+          fallbackModel: fallbackModelId,
+          error: message,
+        })
+        try {
+          // Recursive call with fallback model — will resolve a new route
+          return await generateImageForUser(clerkId, {
+            ...input,
+            modelId: fallbackModelId,
+          })
+        } catch (fallbackError) {
+          logger.error('Fallback provider also failed', {
+            fallbackModel: fallbackModelId,
+            error:
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : String(fallbackError),
+          })
+          // Fall through to throw original error
+        }
+      }
+    }
+
     const status = error instanceof ProviderError ? error.status : 502
     // Map known provider error patterns to specific service error codes
     const code =

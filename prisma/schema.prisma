@@ -64,6 +64,7 @@ model User {
   bannerUrl        String?
   bannerStorageKey String?
   bio              String?  @db.Text
+  civitaiToken     String?             // AES-256-GCM encrypted Civitai API token
   isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -83,7 +84,6 @@ model User {
   collections    Collection[]
   backgroundCards BackgroundCard[]
   styleCards      StyleCard[]
-  modelCards      ModelCard[]
   cardRecipes     CardRecipe[]
   videoPipelines  VideoPipeline[]
 
@@ -104,7 +104,6 @@ model Project {
   characterCards  CharacterCard[]
   backgroundCards BackgroundCard[]
   styleCards      StyleCard[]
-  modelCards      ModelCard[]
   cardRecipes     CardRecipe[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
@@ -503,33 +502,15 @@ model StyleCard {
   stylePrompt      String   @db.Text
   attributes       Json?
   loras            Json?               // Lora[] — style-specific LoRA models
+  modelId          String?             // AI_MODELS enum value (replaces ModelCard)
+  adapterType      String?             // AI_ADAPTER_TYPES value
+  advancedParams   Json?               // AdvancedParams (guidance, steps, seed, loras)
   tags             String[] @default([])
   isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   recipesAsStyle CardRecipe[] @relation("RecipeStyle")
-
-  @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
-}
-
-model ModelCard {
-  id             String   @id @default(uuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId      String?
-  project        Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name           String
-  description    String?  @db.Text
-  modelId        String
-  adapterType    String
-  advancedParams Json?
-  tags           String[] @default([])
-  isDeleted      Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  recipesAsModel CardRecipe[] @relation("RecipeModel")
 
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
 }
@@ -547,8 +528,6 @@ model CardRecipe {
   backgroundCard   BackgroundCard? @relation("RecipeBackground", fields: [backgroundCardId], references: [id], onDelete: SetNull)
   styleCardId      String?
   styleCard        StyleCard?      @relation("RecipeStyle", fields: [styleCardId], references: [id], onDelete: SetNull)
-  modelCardId      String?
-  modelCard        ModelCard?      @relation("RecipeModel", fields: [modelCardId], references: [id], onDelete: SetNull)
   freePrompt       String?         @db.Text
   isDeleted        Boolean         @default(false)
   createdAt        DateTime        @default(now())

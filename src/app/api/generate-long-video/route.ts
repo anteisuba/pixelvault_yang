@@ -20,10 +20,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`generate-long-video:${clerkId}`, {
-      limit: 3,
-      windowSeconds: 60,
-    })
+    const { success: allowed } = await rateLimit(
+      `generate-long-video:${clerkId}`,
+      {
+        limit: 3,
+        windowSeconds: 60,
+      },
+    )
     if (!allowed) {
       return NextResponse.json<LongVideoSubmitResponse>(
         { success: false, error: 'Too many requests. Please wait a moment.' },

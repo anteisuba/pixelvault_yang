@@ -1391,11 +1391,6 @@ export type CollectionFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` Collections.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of Collections.
-   */
   distinct?: Prisma.CollectionScalarFieldEnum | Prisma.CollectionScalarFieldEnum[]
 }
 

@@ -72,7 +72,6 @@ export const ModelName = {
   CollectionItem: 'CollectionItem',
   BackgroundCard: 'BackgroundCard',
   StyleCard: 'StyleCard',
-  ModelCard: 'ModelCard',
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip'
@@ -105,6 +104,7 @@ export const UserScalarFieldEnum = {
   bannerUrl: 'bannerUrl',
   bannerStorageKey: 'bannerStorageKey',
   bio: 'bio',
+  civitaiToken: 'civitaiToken',
   isPublic: 'isPublic',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -435,21 +435,6 @@ export const StyleCardScalarFieldEnum = {
   stylePrompt: 'stylePrompt',
   attributes: 'attributes',
   loras: 'loras',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
-export const ModelCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
   modelId: 'modelId',
   adapterType: 'adapterType',
   advancedParams: 'advancedParams',
@@ -459,7 +444,7 @@ export const ModelCardScalarFieldEnum = {
   updatedAt: 'updatedAt'
 } as const
 
-export type ModelCardScalarFieldEnum = (typeof ModelCardScalarFieldEnum)[keyof typeof ModelCardScalarFieldEnum]
+export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
 
 
 export const CardRecipeScalarFieldEnum = {
@@ -470,7 +455,6 @@ export const CardRecipeScalarFieldEnum = {
   characterCardId: 'characterCardId',
   backgroundCardId: 'backgroundCardId',
   styleCardId: 'styleCardId',
-  modelCardId: 'modelCardId',
   freePrompt: 'freePrompt',
   isDeleted: 'isDeleted',
   createdAt: 'createdAt',

@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs'
 import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
 
@@ -45,4 +46,18 @@ const nextConfig: NextConfig = {
 
 const withNextIntl = createNextIntlPlugin()
 
-export default withNextIntl(nextConfig)
+export default withSentryConfig(withNextIntl(nextConfig), {
+  // Suppress source map upload logs in CI
+  silent: !process.env.CI,
+
+  // Upload source maps for better stack traces
+  widenClientFileUpload: true,
+
+  // Automatically tree-shake Sentry logger statements
+  disableLogger: true,
+
+  // Hide source maps from browser devtools in production
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+})

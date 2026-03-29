@@ -93,6 +93,7 @@ export const FAKE_DB_USER = {
   bannerUrl: null,
   bannerStorageKey: null,
   bio: null,
+  civitaiToken: null,
   isPublic: true,
   createdAt: new Date(),
   updatedAt: new Date(),

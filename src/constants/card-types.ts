@@ -1,10 +1,10 @@
 /**
  * Card system configuration constants
- * Shared limits for BackgroundCard, StyleCard, ModelCard, and CardRecipe
+ * Shared limits for BackgroundCard, StyleCard, and CardRecipe
  */
 
 /** Card types in the composable generation system */
-export const CARD_TYPES = ['CHARACTER', 'BACKGROUND', 'STYLE', 'MODEL'] as const
+export const CARD_TYPES = ['CHARACTER', 'BACKGROUND', 'STYLE'] as const
 export type CardType = (typeof CARD_TYPES)[number]
 
 /** Background card configuration */
@@ -27,15 +27,6 @@ export const STYLE_CARD = {
   MAX_CARDS_PER_USER: 100,
   /** Prompt max length for style description */
   PROMPT_MAX_LENGTH: 2000,
-} as const
-
-/** Model card configuration */
-export const MODEL_CARD = {
-  NAME_MAX_LENGTH: 60,
-  DESCRIPTION_MAX_LENGTH: 500,
-  MAX_TAGS: 20,
-  TAG_MAX_LENGTH: 30,
-  MAX_CARDS_PER_USER: 50,
 } as const
 
 /** Card recipe configuration */

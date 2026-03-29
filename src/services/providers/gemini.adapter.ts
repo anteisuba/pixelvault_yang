@@ -17,6 +17,7 @@ import {
   type ProviderAdapter,
   type ProviderGenerationInput,
 } from '@/services/providers/types'
+import { logger } from '@/lib/logger'
 
 const GEMINI_IMAGE_RESPONSE_SCHEMA = z.object({
   candidates: z
@@ -117,6 +118,11 @@ export const geminiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('Gemini generateImage failed', {
+        status: response.status,
+        modelId,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('Gemini', response.status, errorBody)
     }
 

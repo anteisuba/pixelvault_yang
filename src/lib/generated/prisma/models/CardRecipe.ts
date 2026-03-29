@@ -32,7 +32,6 @@ export type CardRecipeMinAggregateOutputType = {
   characterCardId: string | null
   backgroundCardId: string | null
   styleCardId: string | null
-  modelCardId: string | null
   freePrompt: string | null
   isDeleted: boolean | null
   createdAt: Date | null
@@ -47,7 +46,6 @@ export type CardRecipeMaxAggregateOutputType = {
   characterCardId: string | null
   backgroundCardId: string | null
   styleCardId: string | null
-  modelCardId: string | null
   freePrompt: string | null
   isDeleted: boolean | null
   createdAt: Date | null
@@ -62,7 +60,6 @@ export type CardRecipeCountAggregateOutputType = {
   characterCardId: number
   backgroundCardId: number
   styleCardId: number
-  modelCardId: number
   freePrompt: number
   isDeleted: number
   createdAt: number
@@ -79,7 +76,6 @@ export type CardRecipeMinAggregateInputType = {
   characterCardId?: true
   backgroundCardId?: true
   styleCardId?: true
-  modelCardId?: true
   freePrompt?: true
   isDeleted?: true
   createdAt?: true
@@ -94,7 +90,6 @@ export type CardRecipeMaxAggregateInputType = {
   characterCardId?: true
   backgroundCardId?: true
   styleCardId?: true
-  modelCardId?: true
   freePrompt?: true
   isDeleted?: true
   createdAt?: true
@@ -109,7 +104,6 @@ export type CardRecipeCountAggregateInputType = {
   characterCardId?: true
   backgroundCardId?: true
   styleCardId?: true
-  modelCardId?: true
   freePrompt?: true
   isDeleted?: true
   createdAt?: true
@@ -197,7 +191,6 @@ export type CardRecipeGroupByOutputType = {
   characterCardId: string | null
   backgroundCardId: string | null
   styleCardId: string | null
-  modelCardId: string | null
   freePrompt: string | null
   isDeleted: boolean
   createdAt: Date
@@ -233,7 +226,6 @@ export type CardRecipeWhereInput = {
   characterCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   backgroundCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   styleCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
-  modelCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   freePrompt?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   isDeleted?: Prisma.BoolFilter<"CardRecipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"CardRecipe"> | Date | string
@@ -243,7 +235,6 @@ export type CardRecipeWhereInput = {
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
   backgroundCard?: Prisma.XOR<Prisma.BackgroundCardNullableScalarRelationFilter, Prisma.BackgroundCardWhereInput> | null
   styleCard?: Prisma.XOR<Prisma.StyleCardNullableScalarRelationFilter, Prisma.StyleCardWhereInput> | null
-  modelCard?: Prisma.XOR<Prisma.ModelCardNullableScalarRelationFilter, Prisma.ModelCardWhereInput> | null
   generations?: Prisma.GenerationListRelationFilter
 }
 
@@ -255,7 +246,6 @@ export type CardRecipeOrderByWithRelationInput = {
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   backgroundCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   styleCardId?: Prisma.SortOrderInput | Prisma.SortOrder
-  modelCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   freePrompt?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -265,7 +255,6 @@ export type CardRecipeOrderByWithRelationInput = {
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
   backgroundCard?: Prisma.BackgroundCardOrderByWithRelationInput
   styleCard?: Prisma.StyleCardOrderByWithRelationInput
-  modelCard?: Prisma.ModelCardOrderByWithRelationInput
   generations?: Prisma.GenerationOrderByRelationAggregateInput
 }
 
@@ -280,7 +269,6 @@ export type CardRecipeWhereUniqueInput = Prisma.AtLeast<{
   characterCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   backgroundCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   styleCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
-  modelCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   freePrompt?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   isDeleted?: Prisma.BoolFilter<"CardRecipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"CardRecipe"> | Date | string
@@ -290,7 +278,6 @@ export type CardRecipeWhereUniqueInput = Prisma.AtLeast<{
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
   backgroundCard?: Prisma.XOR<Prisma.BackgroundCardNullableScalarRelationFilter, Prisma.BackgroundCardWhereInput> | null
   styleCard?: Prisma.XOR<Prisma.StyleCardNullableScalarRelationFilter, Prisma.StyleCardWhereInput> | null
-  modelCard?: Prisma.XOR<Prisma.ModelCardNullableScalarRelationFilter, Prisma.ModelCardWhereInput> | null
   generations?: Prisma.GenerationListRelationFilter
 }, "id">
 
@@ -302,7 +289,6 @@ export type CardRecipeOrderByWithAggregationInput = {
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   backgroundCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   styleCardId?: Prisma.SortOrderInput | Prisma.SortOrder
-  modelCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   freePrompt?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -323,7 +309,6 @@ export type CardRecipeScalarWhereWithAggregatesInput = {
   characterCardId?: Prisma.StringNullableWithAggregatesFilter<"CardRecipe"> | string | null
   backgroundCardId?: Prisma.StringNullableWithAggregatesFilter<"CardRecipe"> | string | null
   styleCardId?: Prisma.StringNullableWithAggregatesFilter<"CardRecipe"> | string | null
-  modelCardId?: Prisma.StringNullableWithAggregatesFilter<"CardRecipe"> | string | null
   freePrompt?: Prisma.StringNullableWithAggregatesFilter<"CardRecipe"> | string | null
   isDeleted?: Prisma.BoolWithAggregatesFilter<"CardRecipe"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CardRecipe"> | Date | string
@@ -342,7 +327,6 @@ export type CardRecipeCreateInput = {
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -354,7 +338,6 @@ export type CardRecipeUncheckedCreateInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -374,7 +357,6 @@ export type CardRecipeUpdateInput = {
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -386,7 +368,6 @@ export type CardRecipeUncheckedUpdateInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -402,7 +383,6 @@ export type CardRecipeCreateManyInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -426,7 +406,6 @@ export type CardRecipeUncheckedUpdateManyInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -456,7 +435,6 @@ export type CardRecipeCountOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   backgroundCardId?: Prisma.SortOrder
   styleCardId?: Prisma.SortOrder
-  modelCardId?: Prisma.SortOrder
   freePrompt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -471,7 +449,6 @@ export type CardRecipeMaxOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   backgroundCardId?: Prisma.SortOrder
   styleCardId?: Prisma.SortOrder
-  modelCardId?: Prisma.SortOrder
   freePrompt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -486,7 +463,6 @@ export type CardRecipeMinOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   backgroundCardId?: Prisma.SortOrder
   styleCardId?: Prisma.SortOrder
-  modelCardId?: Prisma.SortOrder
   freePrompt?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -719,48 +695,6 @@ export type CardRecipeUncheckedUpdateManyWithoutStyleCardNestedInput = {
   deleteMany?: Prisma.CardRecipeScalarWhereInput | Prisma.CardRecipeScalarWhereInput[]
 }
 
-export type CardRecipeCreateNestedManyWithoutModelCardInput = {
-  create?: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput> | Prisma.CardRecipeCreateWithoutModelCardInput[] | Prisma.CardRecipeUncheckedCreateWithoutModelCardInput[]
-  connectOrCreate?: Prisma.CardRecipeCreateOrConnectWithoutModelCardInput | Prisma.CardRecipeCreateOrConnectWithoutModelCardInput[]
-  createMany?: Prisma.CardRecipeCreateManyModelCardInputEnvelope
-  connect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-}
-
-export type CardRecipeUncheckedCreateNestedManyWithoutModelCardInput = {
-  create?: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput> | Prisma.CardRecipeCreateWithoutModelCardInput[] | Prisma.CardRecipeUncheckedCreateWithoutModelCardInput[]
-  connectOrCreate?: Prisma.CardRecipeCreateOrConnectWithoutModelCardInput | Prisma.CardRecipeCreateOrConnectWithoutModelCardInput[]
-  createMany?: Prisma.CardRecipeCreateManyModelCardInputEnvelope
-  connect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-}
-
-export type CardRecipeUpdateManyWithoutModelCardNestedInput = {
-  create?: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput> | Prisma.CardRecipeCreateWithoutModelCardInput[] | Prisma.CardRecipeUncheckedCreateWithoutModelCardInput[]
-  connectOrCreate?: Prisma.CardRecipeCreateOrConnectWithoutModelCardInput | Prisma.CardRecipeCreateOrConnectWithoutModelCardInput[]
-  upsert?: Prisma.CardRecipeUpsertWithWhereUniqueWithoutModelCardInput | Prisma.CardRecipeUpsertWithWhereUniqueWithoutModelCardInput[]
-  createMany?: Prisma.CardRecipeCreateManyModelCardInputEnvelope
-  set?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  disconnect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  delete?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  connect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  update?: Prisma.CardRecipeUpdateWithWhereUniqueWithoutModelCardInput | Prisma.CardRecipeUpdateWithWhereUniqueWithoutModelCardInput[]
-  updateMany?: Prisma.CardRecipeUpdateManyWithWhereWithoutModelCardInput | Prisma.CardRecipeUpdateManyWithWhereWithoutModelCardInput[]
-  deleteMany?: Prisma.CardRecipeScalarWhereInput | Prisma.CardRecipeScalarWhereInput[]
-}
-
-export type CardRecipeUncheckedUpdateManyWithoutModelCardNestedInput = {
-  create?: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput> | Prisma.CardRecipeCreateWithoutModelCardInput[] | Prisma.CardRecipeUncheckedCreateWithoutModelCardInput[]
-  connectOrCreate?: Prisma.CardRecipeCreateOrConnectWithoutModelCardInput | Prisma.CardRecipeCreateOrConnectWithoutModelCardInput[]
-  upsert?: Prisma.CardRecipeUpsertWithWhereUniqueWithoutModelCardInput | Prisma.CardRecipeUpsertWithWhereUniqueWithoutModelCardInput[]
-  createMany?: Prisma.CardRecipeCreateManyModelCardInputEnvelope
-  set?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  disconnect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  delete?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  connect?: Prisma.CardRecipeWhereUniqueInput | Prisma.CardRecipeWhereUniqueInput[]
-  update?: Prisma.CardRecipeUpdateWithWhereUniqueWithoutModelCardInput | Prisma.CardRecipeUpdateWithWhereUniqueWithoutModelCardInput[]
-  updateMany?: Prisma.CardRecipeUpdateManyWithWhereWithoutModelCardInput | Prisma.CardRecipeUpdateManyWithWhereWithoutModelCardInput[]
-  deleteMany?: Prisma.CardRecipeScalarWhereInput | Prisma.CardRecipeScalarWhereInput[]
-}
-
 export type CardRecipeCreateWithoutUserInput = {
   id?: string
   name: string
@@ -772,7 +706,6 @@ export type CardRecipeCreateWithoutUserInput = {
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -783,7 +716,6 @@ export type CardRecipeUncheckedCreateWithoutUserInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -828,7 +760,6 @@ export type CardRecipeScalarWhereInput = {
   characterCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   backgroundCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   styleCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
-  modelCardId?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   freePrompt?: Prisma.StringNullableFilter<"CardRecipe"> | string | null
   isDeleted?: Prisma.BoolFilter<"CardRecipe"> | boolean
   createdAt?: Prisma.DateTimeFilter<"CardRecipe"> | Date | string
@@ -846,7 +777,6 @@ export type CardRecipeCreateWithoutProjectInput = {
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -857,7 +787,6 @@ export type CardRecipeUncheckedCreateWithoutProjectInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -903,7 +832,6 @@ export type CardRecipeCreateWithoutGenerationsInput = {
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
 }
 
 export type CardRecipeUncheckedCreateWithoutGenerationsInput = {
@@ -914,7 +842,6 @@ export type CardRecipeUncheckedCreateWithoutGenerationsInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -949,7 +876,6 @@ export type CardRecipeUpdateWithoutGenerationsInput = {
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
 }
 
 export type CardRecipeUncheckedUpdateWithoutGenerationsInput = {
@@ -960,7 +886,6 @@ export type CardRecipeUncheckedUpdateWithoutGenerationsInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -978,7 +903,6 @@ export type CardRecipeCreateWithoutCharacterCardInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutCardRecipesInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -989,7 +913,6 @@ export type CardRecipeUncheckedCreateWithoutCharacterCardInput = {
   name: string
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1034,7 +957,6 @@ export type CardRecipeCreateWithoutBackgroundCardInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutCardRecipesInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -1045,7 +967,6 @@ export type CardRecipeUncheckedCreateWithoutBackgroundCardInput = {
   name: string
   characterCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1090,7 +1011,6 @@ export type CardRecipeCreateWithoutStyleCardInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutCardRecipesInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
   backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
-  modelCard?: Prisma.ModelCardCreateNestedOneWithoutRecipesAsModelInput
   generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
 }
 
@@ -1101,7 +1021,6 @@ export type CardRecipeUncheckedCreateWithoutStyleCardInput = {
   name: string
   characterCardId?: string | null
   backgroundCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1135,62 +1054,6 @@ export type CardRecipeUpdateManyWithWhereWithoutStyleCardInput = {
   data: Prisma.XOR<Prisma.CardRecipeUpdateManyMutationInput, Prisma.CardRecipeUncheckedUpdateManyWithoutStyleCardInput>
 }
 
-export type CardRecipeCreateWithoutModelCardInput = {
-  id?: string
-  name: string
-  freePrompt?: string | null
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutCardRecipesInput
-  project?: Prisma.ProjectCreateNestedOneWithoutCardRecipesInput
-  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutRecipesAsCharInput
-  backgroundCard?: Prisma.BackgroundCardCreateNestedOneWithoutRecipesAsBgInput
-  styleCard?: Prisma.StyleCardCreateNestedOneWithoutRecipesAsStyleInput
-  generations?: Prisma.GenerationCreateNestedManyWithoutCardRecipeInput
-}
-
-export type CardRecipeUncheckedCreateWithoutModelCardInput = {
-  id?: string
-  userId: string
-  projectId?: string | null
-  name: string
-  characterCardId?: string | null
-  backgroundCardId?: string | null
-  styleCardId?: string | null
-  freePrompt?: string | null
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutCardRecipeInput
-}
-
-export type CardRecipeCreateOrConnectWithoutModelCardInput = {
-  where: Prisma.CardRecipeWhereUniqueInput
-  create: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput>
-}
-
-export type CardRecipeCreateManyModelCardInputEnvelope = {
-  data: Prisma.CardRecipeCreateManyModelCardInput | Prisma.CardRecipeCreateManyModelCardInput[]
-  skipDuplicates?: boolean
-}
-
-export type CardRecipeUpsertWithWhereUniqueWithoutModelCardInput = {
-  where: Prisma.CardRecipeWhereUniqueInput
-  update: Prisma.XOR<Prisma.CardRecipeUpdateWithoutModelCardInput, Prisma.CardRecipeUncheckedUpdateWithoutModelCardInput>
-  create: Prisma.XOR<Prisma.CardRecipeCreateWithoutModelCardInput, Prisma.CardRecipeUncheckedCreateWithoutModelCardInput>
-}
-
-export type CardRecipeUpdateWithWhereUniqueWithoutModelCardInput = {
-  where: Prisma.CardRecipeWhereUniqueInput
-  data: Prisma.XOR<Prisma.CardRecipeUpdateWithoutModelCardInput, Prisma.CardRecipeUncheckedUpdateWithoutModelCardInput>
-}
-
-export type CardRecipeUpdateManyWithWhereWithoutModelCardInput = {
-  where: Prisma.CardRecipeScalarWhereInput
-  data: Prisma.XOR<Prisma.CardRecipeUpdateManyMutationInput, Prisma.CardRecipeUncheckedUpdateManyWithoutModelCardInput>
-}
-
 export type CardRecipeCreateManyUserInput = {
   id?: string
   projectId?: string | null
@@ -1198,7 +1061,6 @@ export type CardRecipeCreateManyUserInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1216,7 +1078,6 @@ export type CardRecipeUpdateWithoutUserInput = {
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -1227,7 +1088,6 @@ export type CardRecipeUncheckedUpdateWithoutUserInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1242,7 +1102,6 @@ export type CardRecipeUncheckedUpdateManyWithoutUserInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1256,7 +1115,6 @@ export type CardRecipeCreateManyProjectInput = {
   characterCardId?: string | null
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1274,7 +1132,6 @@ export type CardRecipeUpdateWithoutProjectInput = {
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -1285,7 +1142,6 @@ export type CardRecipeUncheckedUpdateWithoutProjectInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1300,7 +1156,6 @@ export type CardRecipeUncheckedUpdateManyWithoutProjectInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1314,7 +1169,6 @@ export type CardRecipeCreateManyCharacterCardInput = {
   name: string
   backgroundCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1332,7 +1186,6 @@ export type CardRecipeUpdateWithoutCharacterCardInput = {
   project?: Prisma.ProjectUpdateOneWithoutCardRecipesNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -1343,7 +1196,6 @@ export type CardRecipeUncheckedUpdateWithoutCharacterCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1358,7 +1210,6 @@ export type CardRecipeUncheckedUpdateManyWithoutCharacterCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1372,7 +1223,6 @@ export type CardRecipeCreateManyBackgroundCardInput = {
   name: string
   characterCardId?: string | null
   styleCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1390,7 +1240,6 @@ export type CardRecipeUpdateWithoutBackgroundCardInput = {
   project?: Prisma.ProjectUpdateOneWithoutCardRecipesNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -1401,7 +1250,6 @@ export type CardRecipeUncheckedUpdateWithoutBackgroundCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1416,7 +1264,6 @@ export type CardRecipeUncheckedUpdateManyWithoutBackgroundCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1430,7 +1277,6 @@ export type CardRecipeCreateManyStyleCardInput = {
   name: string
   characterCardId?: string | null
   backgroundCardId?: string | null
-  modelCardId?: string | null
   freePrompt?: string | null
   isDeleted?: boolean
   createdAt?: Date | string
@@ -1448,7 +1294,6 @@ export type CardRecipeUpdateWithoutStyleCardInput = {
   project?: Prisma.ProjectUpdateOneWithoutCardRecipesNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
   backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
-  modelCard?: Prisma.ModelCardUpdateOneWithoutRecipesAsModelNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
 }
 
@@ -1459,7 +1304,6 @@ export type CardRecipeUncheckedUpdateWithoutStyleCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1474,65 +1318,6 @@ export type CardRecipeUncheckedUpdateManyWithoutStyleCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type CardRecipeCreateManyModelCardInput = {
-  id?: string
-  userId: string
-  projectId?: string | null
-  name: string
-  characterCardId?: string | null
-  backgroundCardId?: string | null
-  styleCardId?: string | null
-  freePrompt?: string | null
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-}
-
-export type CardRecipeUpdateWithoutModelCardInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutCardRecipesNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutCardRecipesNestedInput
-  characterCard?: Prisma.CharacterCardUpdateOneWithoutRecipesAsCharNestedInput
-  backgroundCard?: Prisma.BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput
-  styleCard?: Prisma.StyleCardUpdateOneWithoutRecipesAsStyleNestedInput
-  generations?: Prisma.GenerationUpdateManyWithoutCardRecipeNestedInput
-}
-
-export type CardRecipeUncheckedUpdateWithoutModelCardInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutCardRecipeNestedInput
-}
-
-export type CardRecipeUncheckedUpdateManyWithoutModelCardInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  backgroundCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  styleCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   freePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1578,7 +1363,6 @@ export type CardRecipeSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   characterCardId?: boolean
   backgroundCardId?: boolean
   styleCardId?: boolean
-  modelCardId?: boolean
   freePrompt?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1588,7 +1372,6 @@ export type CardRecipeSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
   generations?: boolean | Prisma.CardRecipe$generationsArgs<ExtArgs>
   _count?: boolean | Prisma.CardRecipeCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["cardRecipe"]>
@@ -1601,7 +1384,6 @@ export type CardRecipeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   characterCardId?: boolean
   backgroundCardId?: boolean
   styleCardId?: boolean
-  modelCardId?: boolean
   freePrompt?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1611,7 +1393,6 @@ export type CardRecipeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
 }, ExtArgs["result"]["cardRecipe"]>
 
 export type CardRecipeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1622,7 +1403,6 @@ export type CardRecipeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   characterCardId?: boolean
   backgroundCardId?: boolean
   styleCardId?: boolean
-  modelCardId?: boolean
   freePrompt?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1632,7 +1412,6 @@ export type CardRecipeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
 }, ExtArgs["result"]["cardRecipe"]>
 
 export type CardRecipeSelectScalar = {
@@ -1643,21 +1422,19 @@ export type CardRecipeSelectScalar = {
   characterCardId?: boolean
   backgroundCardId?: boolean
   styleCardId?: boolean
-  modelCardId?: boolean
   freePrompt?: boolean
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CardRecipeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "characterCardId" | "backgroundCardId" | "styleCardId" | "modelCardId" | "freePrompt" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["cardRecipe"]>
+export type CardRecipeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "characterCardId" | "backgroundCardId" | "styleCardId" | "freePrompt" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["cardRecipe"]>
 export type CardRecipeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.CardRecipe$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
   generations?: boolean | Prisma.CardRecipe$generationsArgs<ExtArgs>
   _count?: boolean | Prisma.CardRecipeCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -1667,7 +1444,6 @@ export type CardRecipeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.E
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
 }
 export type CardRecipeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1675,7 +1451,6 @@ export type CardRecipeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   characterCard?: boolean | Prisma.CardRecipe$characterCardArgs<ExtArgs>
   backgroundCard?: boolean | Prisma.CardRecipe$backgroundCardArgs<ExtArgs>
   styleCard?: boolean | Prisma.CardRecipe$styleCardArgs<ExtArgs>
-  modelCard?: boolean | Prisma.CardRecipe$modelCardArgs<ExtArgs>
 }
 
 export type $CardRecipePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1686,7 +1461,6 @@ export type $CardRecipePayload<ExtArgs extends runtime.Types.Extensions.Internal
     characterCard: Prisma.$CharacterCardPayload<ExtArgs> | null
     backgroundCard: Prisma.$BackgroundCardPayload<ExtArgs> | null
     styleCard: Prisma.$StyleCardPayload<ExtArgs> | null
-    modelCard: Prisma.$ModelCardPayload<ExtArgs> | null
     generations: Prisma.$GenerationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1697,7 +1471,6 @@ export type $CardRecipePayload<ExtArgs extends runtime.Types.Extensions.Internal
     characterCardId: string | null
     backgroundCardId: string | null
     styleCardId: string | null
-    modelCardId: string | null
     freePrompt: string | null
     isDeleted: boolean
     createdAt: Date
@@ -2101,7 +1874,6 @@ export interface Prisma__CardRecipeClient<T, Null = never, ExtArgs extends runti
   characterCard<T extends Prisma.CardRecipe$characterCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CardRecipe$characterCardArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   backgroundCard<T extends Prisma.CardRecipe$backgroundCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CardRecipe$backgroundCardArgs<ExtArgs>>): Prisma.Prisma__BackgroundCardClient<runtime.Types.Result.GetResult<Prisma.$BackgroundCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   styleCard<T extends Prisma.CardRecipe$styleCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CardRecipe$styleCardArgs<ExtArgs>>): Prisma.Prisma__StyleCardClient<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  modelCard<T extends Prisma.CardRecipe$modelCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CardRecipe$modelCardArgs<ExtArgs>>): Prisma.Prisma__ModelCardClient<runtime.Types.Result.GetResult<Prisma.$ModelCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   generations<T extends Prisma.CardRecipe$generationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CardRecipe$generationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -2139,7 +1911,6 @@ export interface CardRecipeFieldRefs {
   readonly characterCardId: Prisma.FieldRef<"CardRecipe", 'String'>
   readonly backgroundCardId: Prisma.FieldRef<"CardRecipe", 'String'>
   readonly styleCardId: Prisma.FieldRef<"CardRecipe", 'String'>
-  readonly modelCardId: Prisma.FieldRef<"CardRecipe", 'String'>
   readonly freePrompt: Prisma.FieldRef<"CardRecipe", 'String'>
   readonly isDeleted: Prisma.FieldRef<"CardRecipe", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"CardRecipe", 'DateTime'>
@@ -2340,11 +2111,6 @@ export type CardRecipeFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` CardRecipes.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of CardRecipes.
-   */
   distinct?: Prisma.CardRecipeScalarFieldEnum | Prisma.CardRecipeScalarFieldEnum[]
 }
 
@@ -2618,25 +2384,6 @@ export type CardRecipe$styleCardArgs<ExtArgs extends runtime.Types.Extensions.In
    */
   include?: Prisma.StyleCardInclude<ExtArgs> | null
   where?: Prisma.StyleCardWhereInput
-}
-
-/**
- * CardRecipe.modelCard
- */
-export type CardRecipe$modelCardArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the ModelCard
-   */
-  select?: Prisma.ModelCardSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the ModelCard
-   */
-  omit?: Prisma.ModelCardOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ModelCardInclude<ExtArgs> | null
-  where?: Prisma.ModelCardWhereInput
 }
 
 /**

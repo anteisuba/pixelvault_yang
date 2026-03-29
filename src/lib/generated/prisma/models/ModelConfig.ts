@@ -1362,11 +1362,6 @@ export type ModelConfigFindManyArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Skip the first `n` ModelConfigs.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of ModelConfigs.
-   */
   distinct?: Prisma.ModelConfigScalarFieldEnum | Prisma.ModelConfigScalarFieldEnum[]
 }
 

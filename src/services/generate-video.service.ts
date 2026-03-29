@@ -33,6 +33,10 @@ import {
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import { withRetry } from '@/lib/with-retry'
+import { getCircuitBreaker } from '@/lib/circuit-breaker'
+import { validatePrompt } from '@/lib/prompt-guard'
 
 // ─── Submit video to fal.ai queue ────────────────────────────────
 
@@ -41,6 +45,16 @@ export async function submitVideoGeneration(
   input: GenerateVideoRequest,
 ): Promise<VideoSubmitResponseData> {
   const dbUser = await ensureUser(clerkId)
+
+  // Validate prompt
+  const promptCheck = validatePrompt(input.prompt)
+  if (!promptCheck.valid) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      promptCheck.reason ?? 'Invalid prompt',
+      400,
+    )
+  }
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -55,23 +69,43 @@ export async function submitVideoGeneration(
   }
 
   const modelConfig = getModelById(executionRoute.modelId)
+  const breaker = getCircuitBreaker(executionRoute.adapterType)
 
   let queueResult: Awaited<
     ReturnType<NonNullable<typeof providerAdapter.submitVideoToQueue>>
   >
   try {
-    queueResult = await providerAdapter.submitVideoToQueue({
-      prompt: input.prompt,
+    queueResult = await breaker.call(() =>
+      withRetry(
+        () =>
+          providerAdapter.submitVideoToQueue!({
+            prompt: input.prompt,
+            modelId: executionRoute.modelId,
+            aspectRatio: input.aspectRatio,
+            providerConfig: executionRoute.providerConfig,
+            apiKey: executionRoute.apiKey,
+            duration: input.duration,
+            referenceImage: input.referenceImage,
+            negativePrompt: input.negativePrompt,
+            resolution: input.resolution,
+            i2vModelId: modelConfig?.i2vModelId,
+            videoDefaults: modelConfig?.videoDefaults as Record<
+              string,
+              unknown
+            >,
+          }),
+        {
+          maxAttempts: 2,
+          baseDelayMs: 2000,
+          label: `${executionRoute.adapterType}.submitVideo`,
+        },
+      ),
+    )
+
+    logger.info('Video submitted to queue', {
+      adapter: executionRoute.adapterType,
       modelId: executionRoute.modelId,
-      aspectRatio: input.aspectRatio,
-      providerConfig: executionRoute.providerConfig,
-      apiKey: executionRoute.apiKey,
-      duration: input.duration,
-      referenceImage: input.referenceImage,
-      negativePrompt: input.negativePrompt,
-      resolution: input.resolution,
-      i2vModelId: modelConfig?.i2vModelId,
-      videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
+      requestId: queueResult.requestId,
     })
   } catch (error) {
     if (error instanceof GenerateImageServiceError) throw error

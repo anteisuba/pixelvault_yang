@@ -35,6 +35,7 @@ export type UserMinAggregateOutputType = {
   bannerUrl: string | null
   bannerStorageKey: string | null
   bio: string | null
+  civitaiToken: string | null
   isPublic: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -51,6 +52,7 @@ export type UserMaxAggregateOutputType = {
   bannerUrl: string | null
   bannerStorageKey: string | null
   bio: string | null
+  civitaiToken: string | null
   isPublic: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -67,6 +69,7 @@ export type UserCountAggregateOutputType = {
   bannerUrl: number
   bannerStorageKey: number
   bio: number
+  civitaiToken: number
   isPublic: number
   createdAt: number
   updatedAt: number
@@ -85,6 +88,7 @@ export type UserMinAggregateInputType = {
   bannerUrl?: true
   bannerStorageKey?: true
   bio?: true
+  civitaiToken?: true
   isPublic?: true
   createdAt?: true
   updatedAt?: true
@@ -101,6 +105,7 @@ export type UserMaxAggregateInputType = {
   bannerUrl?: true
   bannerStorageKey?: true
   bio?: true
+  civitaiToken?: true
   isPublic?: true
   createdAt?: true
   updatedAt?: true
@@ -117,6 +122,7 @@ export type UserCountAggregateInputType = {
   bannerUrl?: true
   bannerStorageKey?: true
   bio?: true
+  civitaiToken?: true
   isPublic?: true
   createdAt?: true
   updatedAt?: true
@@ -206,6 +212,7 @@ export type UserGroupByOutputType = {
   bannerUrl: string | null
   bannerStorageKey: string | null
   bio: string | null
+  civitaiToken: string | null
   isPublic: boolean
   createdAt: Date
   updatedAt: Date
@@ -243,6 +250,7 @@ export type UserWhereInput = {
   bannerUrl?: Prisma.StringNullableFilter<"User"> | string | null
   bannerStorageKey?: Prisma.StringNullableFilter<"User"> | string | null
   bio?: Prisma.StringNullableFilter<"User"> | string | null
+  civitaiToken?: Prisma.StringNullableFilter<"User"> | string | null
   isPublic?: Prisma.BoolFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -261,7 +269,6 @@ export type UserWhereInput = {
   collections?: Prisma.CollectionListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
-  modelCards?: Prisma.ModelCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
   videoPipelines?: Prisma.VideoPipelineListRelationFilter
 }
@@ -277,6 +284,7 @@ export type UserOrderByWithRelationInput = {
   bannerUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   bannerStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
+  civitaiToken?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -295,7 +303,6 @@ export type UserOrderByWithRelationInput = {
   collections?: Prisma.CollectionOrderByRelationAggregateInput
   backgroundCards?: Prisma.BackgroundCardOrderByRelationAggregateInput
   styleCards?: Prisma.StyleCardOrderByRelationAggregateInput
-  modelCards?: Prisma.ModelCardOrderByRelationAggregateInput
   cardRecipes?: Prisma.CardRecipeOrderByRelationAggregateInput
   videoPipelines?: Prisma.VideoPipelineOrderByRelationAggregateInput
 }
@@ -314,6 +321,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   bannerUrl?: Prisma.StringNullableFilter<"User"> | string | null
   bannerStorageKey?: Prisma.StringNullableFilter<"User"> | string | null
   bio?: Prisma.StringNullableFilter<"User"> | string | null
+  civitaiToken?: Prisma.StringNullableFilter<"User"> | string | null
   isPublic?: Prisma.BoolFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
@@ -332,7 +340,6 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   collections?: Prisma.CollectionListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
-  modelCards?: Prisma.ModelCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
   videoPipelines?: Prisma.VideoPipelineListRelationFilter
 }, "id" | "clerkId" | "email" | "username">
@@ -348,6 +355,7 @@ export type UserOrderByWithAggregationInput = {
   bannerUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   bannerStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
+  civitaiToken?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -370,6 +378,7 @@ export type UserScalarWhereWithAggregatesInput = {
   bannerUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   bannerStorageKey?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  civitaiToken?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isPublic?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -386,6 +395,7 @@ export type UserCreateInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -404,7 +414,6 @@ export type UserCreateInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -420,6 +429,7 @@ export type UserUncheckedCreateInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -438,7 +448,6 @@ export type UserUncheckedCreateInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -454,6 +463,7 @@ export type UserUpdateInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -472,7 +482,6 @@ export type UserUpdateInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -488,6 +497,7 @@ export type UserUncheckedUpdateInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -506,7 +516,6 @@ export type UserUncheckedUpdateInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -522,6 +531,7 @@ export type UserCreateManyInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -538,6 +548,7 @@ export type UserUpdateManyMutationInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -554,6 +565,7 @@ export type UserUncheckedUpdateManyInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -570,6 +582,7 @@ export type UserCountOrderByAggregateInput = {
   bannerUrl?: Prisma.SortOrder
   bannerStorageKey?: Prisma.SortOrder
   bio?: Prisma.SortOrder
+  civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -586,6 +599,7 @@ export type UserMaxOrderByAggregateInput = {
   bannerUrl?: Prisma.SortOrder
   bannerStorageKey?: Prisma.SortOrder
   bio?: Prisma.SortOrder
+  civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -602,6 +616,7 @@ export type UserMinOrderByAggregateInput = {
   bannerUrl?: Prisma.SortOrder
   bannerStorageKey?: Prisma.SortOrder
   bio?: Prisma.SortOrder
+  civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -845,20 +860,6 @@ export type UserUpdateOneRequiredWithoutStyleCardsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStyleCardsInput, Prisma.UserUpdateWithoutStyleCardsInput>, Prisma.UserUncheckedUpdateWithoutStyleCardsInput>
 }
 
-export type UserCreateNestedOneWithoutModelCardsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutModelCardsInput, Prisma.UserUncheckedCreateWithoutModelCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutModelCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutModelCardsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutModelCardsInput, Prisma.UserUncheckedCreateWithoutModelCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutModelCardsInput
-  upsert?: Prisma.UserUpsertWithoutModelCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutModelCardsInput, Prisma.UserUpdateWithoutModelCardsInput>, Prisma.UserUncheckedUpdateWithoutModelCardsInput>
-}
-
 export type UserCreateNestedOneWithoutCardRecipesInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutCardRecipesInput, Prisma.UserUncheckedCreateWithoutCardRecipesInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutCardRecipesInput
@@ -898,6 +899,7 @@ export type UserCreateWithoutProjectsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -915,7 +917,6 @@ export type UserCreateWithoutProjectsInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -931,6 +932,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -948,7 +950,6 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -980,6 +981,7 @@ export type UserUpdateWithoutProjectsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -997,7 +999,6 @@ export type UserUpdateWithoutProjectsInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1013,6 +1014,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1030,7 +1032,6 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1046,6 +1047,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1063,7 +1065,6 @@ export type UserCreateWithoutUserApiKeysInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1079,6 +1080,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1096,7 +1098,6 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1128,6 +1129,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1145,7 +1147,6 @@ export type UserUpdateWithoutUserApiKeysInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1161,6 +1162,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1178,7 +1180,6 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1194,6 +1195,7 @@ export type UserCreateWithoutGenerationsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1211,7 +1213,6 @@ export type UserCreateWithoutGenerationsInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1227,6 +1228,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1244,7 +1246,6 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1276,6 +1277,7 @@ export type UserUpdateWithoutGenerationsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1293,7 +1295,6 @@ export type UserUpdateWithoutGenerationsInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1309,6 +1310,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1326,7 +1328,6 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1342,6 +1343,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1359,7 +1361,6 @@ export type UserCreateWithoutGenerationJobsInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1375,6 +1376,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1392,7 +1394,6 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1424,6 +1425,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1441,7 +1443,6 @@ export type UserUpdateWithoutGenerationJobsInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1457,6 +1458,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1474,7 +1476,6 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1490,6 +1491,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1507,7 +1509,6 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1523,6 +1524,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1540,7 +1542,6 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1572,6 +1573,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1589,7 +1591,6 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1605,6 +1606,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1622,7 +1624,6 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1638,6 +1639,7 @@ export type UserCreateWithoutImageAnalysesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1655,7 +1657,6 @@ export type UserCreateWithoutImageAnalysesInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1671,6 +1672,7 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1688,7 +1690,6 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1720,6 +1721,7 @@ export type UserUpdateWithoutImageAnalysesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1737,7 +1739,6 @@ export type UserUpdateWithoutImageAnalysesInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1753,6 +1754,7 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1770,7 +1772,6 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1786,6 +1787,7 @@ export type UserCreateWithoutArenaMatchesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1803,7 +1805,6 @@ export type UserCreateWithoutArenaMatchesInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1819,6 +1820,7 @@ export type UserUncheckedCreateWithoutArenaMatchesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1836,7 +1838,6 @@ export type UserUncheckedCreateWithoutArenaMatchesInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1868,6 +1869,7 @@ export type UserUpdateWithoutArenaMatchesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1885,7 +1887,6 @@ export type UserUpdateWithoutArenaMatchesInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -1901,6 +1902,7 @@ export type UserUncheckedUpdateWithoutArenaMatchesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1918,7 +1920,6 @@ export type UserUncheckedUpdateWithoutArenaMatchesInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1934,6 +1935,7 @@ export type UserCreateWithoutStoriesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1951,7 +1953,6 @@ export type UserCreateWithoutStoriesInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -1967,6 +1968,7 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1984,7 +1986,6 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2016,6 +2017,7 @@ export type UserUpdateWithoutStoriesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2033,7 +2035,6 @@ export type UserUpdateWithoutStoriesInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2049,6 +2050,7 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2066,7 +2068,6 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2082,6 +2083,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2099,7 +2101,6 @@ export type UserCreateWithoutCharacterCardsInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2115,6 +2116,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2132,7 +2134,6 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2164,6 +2165,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2181,7 +2183,6 @@ export type UserUpdateWithoutCharacterCardsInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2197,6 +2198,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2214,7 +2216,6 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2230,6 +2231,7 @@ export type UserCreateWithoutLikesGivenInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2247,7 +2249,6 @@ export type UserCreateWithoutLikesGivenInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2263,6 +2264,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2280,7 +2282,6 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2312,6 +2313,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2329,7 +2331,6 @@ export type UserUpdateWithoutLikesGivenInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2345,6 +2346,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2362,7 +2364,6 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2378,6 +2379,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2395,7 +2397,6 @@ export type UserCreateWithoutFollowsGivenInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2411,6 +2412,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2428,7 +2430,6 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2449,6 +2450,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2466,7 +2468,6 @@ export type UserCreateWithoutFollowsReceivedInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2482,6 +2483,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2499,7 +2501,6 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2531,6 +2532,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2548,7 +2550,6 @@ export type UserUpdateWithoutFollowsGivenInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2564,6 +2565,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2581,7 +2583,6 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2608,6 +2609,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2625,7 +2627,6 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2641,6 +2642,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2658,7 +2660,6 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2674,6 +2675,7 @@ export type UserCreateWithoutCollectionsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2691,7 +2693,6 @@ export type UserCreateWithoutCollectionsInput = {
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2707,6 +2708,7 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2724,7 +2726,6 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2756,6 +2757,7 @@ export type UserUpdateWithoutCollectionsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2773,7 +2775,6 @@ export type UserUpdateWithoutCollectionsInput = {
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2789,6 +2790,7 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2806,7 +2808,6 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2822,6 +2823,7 @@ export type UserCreateWithoutBackgroundCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2839,7 +2841,6 @@ export type UserCreateWithoutBackgroundCardsInput = {
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -2855,6 +2856,7 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2872,7 +2874,6 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -2904,6 +2905,7 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2921,7 +2923,6 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -2937,6 +2938,7 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2954,7 +2956,6 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -2970,6 +2971,7 @@ export type UserCreateWithoutStyleCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2987,7 +2989,6 @@ export type UserCreateWithoutStyleCardsInput = {
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
@@ -3003,6 +3004,7 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -3020,7 +3022,6 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
@@ -3052,6 +3053,7 @@ export type UserUpdateWithoutStyleCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3069,7 +3071,6 @@ export type UserUpdateWithoutStyleCardsInput = {
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
@@ -3085,6 +3086,7 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3102,155 +3104,6 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutModelCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  isPublic?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  arenaMatches?: Prisma.ArenaMatchCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutModelCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  isPublic?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  arenaMatches?: Prisma.ArenaMatchUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutModelCardsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutModelCardsInput, Prisma.UserUncheckedCreateWithoutModelCardsInput>
-}
-
-export type UserUpsertWithoutModelCardsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutModelCardsInput, Prisma.UserUncheckedUpdateWithoutModelCardsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutModelCardsInput, Prisma.UserUncheckedCreateWithoutModelCardsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutModelCardsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutModelCardsInput, Prisma.UserUncheckedUpdateWithoutModelCardsInput>
-}
-
-export type UserUpdateWithoutModelCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  arenaMatches?: Prisma.ArenaMatchUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutModelCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  arenaMatches?: Prisma.ArenaMatchUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -3266,6 +3119,7 @@ export type UserCreateWithoutCardRecipesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -3284,7 +3138,6 @@ export type UserCreateWithoutCardRecipesInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
 }
 
@@ -3299,6 +3152,7 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -3317,7 +3171,6 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3348,6 +3201,7 @@ export type UserUpdateWithoutCardRecipesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3366,7 +3220,6 @@ export type UserUpdateWithoutCardRecipesInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
 }
 
@@ -3381,6 +3234,7 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3399,7 +3253,6 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3414,6 +3267,7 @@ export type UserCreateWithoutVideoPipelinesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -3432,7 +3286,6 @@ export type UserCreateWithoutVideoPipelinesInput = {
   collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
 }
 
@@ -3447,6 +3300,7 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   bannerUrl?: string | null
   bannerStorageKey?: string | null
   bio?: string | null
+  civitaiToken?: string | null
   isPublic?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -3465,7 +3319,6 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  modelCards?: Prisma.ModelCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3496,6 +3349,7 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3514,7 +3368,6 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
 }
 
@@ -3529,6 +3382,7 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3547,7 +3401,6 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  modelCards?: Prisma.ModelCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3572,7 +3425,6 @@ export type UserCountOutputType = {
   collections: number
   backgroundCards: number
   styleCards: number
-  modelCards: number
   cardRecipes: number
   videoPipelines: number
 }
@@ -3593,7 +3445,6 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   collections?: boolean | UserCountOutputTypeCountCollectionsArgs
   backgroundCards?: boolean | UserCountOutputTypeCountBackgroundCardsArgs
   styleCards?: boolean | UserCountOutputTypeCountStyleCardsArgs
-  modelCards?: boolean | UserCountOutputTypeCountModelCardsArgs
   cardRecipes?: boolean | UserCountOutputTypeCountCardRecipesArgs
   videoPipelines?: boolean | UserCountOutputTypeCountVideoPipelinesArgs
 }
@@ -3716,13 +3567,6 @@ export type UserCountOutputTypeCountStyleCardsArgs<ExtArgs extends runtime.Types
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountModelCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ModelCardWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
 export type UserCountOutputTypeCountCardRecipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.CardRecipeWhereInput
 }
@@ -3746,6 +3590,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   bannerUrl?: boolean
   bannerStorageKey?: boolean
   bio?: boolean
+  civitaiToken?: boolean
   isPublic?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -3764,7 +3609,6 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   collections?: boolean | Prisma.User$collectionsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.User$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
-  modelCards?: boolean | Prisma.User$modelCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -3781,6 +3625,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bannerUrl?: boolean
   bannerStorageKey?: boolean
   bio?: boolean
+  civitaiToken?: boolean
   isPublic?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -3797,6 +3642,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bannerUrl?: boolean
   bannerStorageKey?: boolean
   bio?: boolean
+  civitaiToken?: boolean
   isPublic?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -3813,12 +3659,13 @@ export type UserSelectScalar = {
   bannerUrl?: boolean
   bannerStorageKey?: boolean
   bio?: boolean
+  civitaiToken?: boolean
   isPublic?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "username" | "displayName" | "avatarUrl" | "avatarStorageKey" | "bannerUrl" | "bannerStorageKey" | "bio" | "isPublic" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "username" | "displayName" | "avatarUrl" | "avatarStorageKey" | "bannerUrl" | "bannerStorageKey" | "bio" | "civitaiToken" | "isPublic" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   generations?: boolean | Prisma.User$generationsArgs<ExtArgs>
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
@@ -3835,7 +3682,6 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   collections?: boolean | Prisma.User$collectionsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.User$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
-  modelCards?: boolean | Prisma.User$modelCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -3861,7 +3707,6 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     collections: Prisma.$CollectionPayload<ExtArgs>[]
     backgroundCards: Prisma.$BackgroundCardPayload<ExtArgs>[]
     styleCards: Prisma.$StyleCardPayload<ExtArgs>[]
-    modelCards: Prisma.$ModelCardPayload<ExtArgs>[]
     cardRecipes: Prisma.$CardRecipePayload<ExtArgs>[]
     videoPipelines: Prisma.$VideoPipelinePayload<ExtArgs>[]
   }
@@ -3876,6 +3721,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     bannerUrl: string | null
     bannerStorageKey: string | null
     bio: string | null
+    civitaiToken: string | null
     isPublic: boolean
     createdAt: Date
     updatedAt: Date
@@ -4288,7 +4134,6 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   collections<T extends Prisma.User$collectionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$collectionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   backgroundCards<T extends Prisma.User$backgroundCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$backgroundCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BackgroundCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   styleCards<T extends Prisma.User$styleCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$styleCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  modelCards<T extends Prisma.User$modelCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$modelCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ModelCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   cardRecipes<T extends Prisma.User$cardRecipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$cardRecipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   videoPipelines<T extends Prisma.User$videoPipelinesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoPipelinesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoPipelinePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -4330,6 +4175,7 @@ export interface UserFieldRefs {
   readonly bannerUrl: Prisma.FieldRef<"User", 'String'>
   readonly bannerStorageKey: Prisma.FieldRef<"User", 'String'>
   readonly bio: Prisma.FieldRef<"User", 'String'>
+  readonly civitaiToken: Prisma.FieldRef<"User", 'String'>
   readonly isPublic: Prisma.FieldRef<"User", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
@@ -4529,11 +4375,6 @@ export type UserFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
    * Skip the first `n` Users.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of Users.
-   */
   distinct?: Prisma.UserScalarFieldEnum | Prisma.UserScalarFieldEnum[]
 }
 
@@ -5083,30 +4924,6 @@ export type User$styleCardsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.StyleCardScalarFieldEnum | Prisma.StyleCardScalarFieldEnum[]
-}
-
-/**
- * User.modelCards
- */
-export type User$modelCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the ModelCard
-   */
-  select?: Prisma.ModelCardSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the ModelCard
-   */
-  omit?: Prisma.ModelCardOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ModelCardInclude<ExtArgs> | null
-  where?: Prisma.ModelCardWhereInput
-  orderBy?: Prisma.ModelCardOrderByWithRelationInput | Prisma.ModelCardOrderByWithRelationInput[]
-  cursor?: Prisma.ModelCardWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ModelCardScalarFieldEnum | Prisma.ModelCardScalarFieldEnum[]
 }
 
 /**

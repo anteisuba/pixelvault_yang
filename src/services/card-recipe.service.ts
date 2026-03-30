@@ -13,7 +13,6 @@ import { ensureUser } from '@/services/user.service'
 // ─── Helpers ────────────────────────────────────────────────────
 
 const CARD_NAME_SELECT = { id: true, name: true } as const
-const MODEL_CARD_NAME_SELECT = { id: true, name: true, modelId: true } as const
 
 function toRecord(row: {
   id: string
@@ -21,7 +20,6 @@ function toRecord(row: {
   characterCardId: string | null
   backgroundCardId: string | null
   styleCardId: string | null
-  modelCardId: string | null
   freePrompt: string | null
   projectId: string | null
   isDeleted: boolean
@@ -34,7 +32,6 @@ function toRecord(row: {
     characterCardId: row.characterCardId,
     backgroundCardId: row.backgroundCardId,
     styleCardId: row.styleCardId,
-    modelCardId: row.modelCardId,
     freePrompt: row.freePrompt,
     projectId: row.projectId,
     isDeleted: row.isDeleted,
@@ -43,11 +40,10 @@ function toRecord(row: {
   }
 }
 
-type DetailRow = CardRecipeRecord & {
+type DetailRow = ReturnType<typeof toRecord> & {
   characterCard: { id: string; name: string } | null
   backgroundCard: { id: string; name: string } | null
   styleCard: { id: string; name: string } | null
-  modelCard: { id: string; name: string; modelId: string } | null
 }
 
 function toDetailRecord(row: DetailRow): CardRecipeDetailRecord {
@@ -56,7 +52,6 @@ function toDetailRecord(row: DetailRow): CardRecipeDetailRecord {
     characterCard: row.characterCard,
     backgroundCard: row.backgroundCard,
     styleCard: row.styleCard,
-    modelCard: row.modelCard,
   }
 }
 
@@ -78,10 +73,16 @@ export async function listCardRecipes(
       characterCard: { select: CARD_NAME_SELECT },
       backgroundCard: { select: CARD_NAME_SELECT },
       styleCard: { select: CARD_NAME_SELECT },
-      modelCard: { select: MODEL_CARD_NAME_SELECT },
     },
   })
-  return rows.map(toDetailRecord as (row: (typeof rows)[number]) => CardRecipeDetailRecord)
+  return rows.map((row) =>
+    toDetailRecord({
+      ...toRecord(row),
+      characterCard: row.characterCard,
+      backgroundCard: row.backgroundCard,
+      styleCard: row.styleCard,
+    }),
+  )
 }
 
 export async function getCardRecipe(
@@ -95,10 +96,15 @@ export async function getCardRecipe(
       characterCard: { select: CARD_NAME_SELECT },
       backgroundCard: { select: CARD_NAME_SELECT },
       styleCard: { select: CARD_NAME_SELECT },
-      modelCard: { select: MODEL_CARD_NAME_SELECT },
     },
   })
-  return row ? toDetailRecord(row as DetailRow) : null
+  if (!row) return null
+  return toDetailRecord({
+    ...toRecord(row),
+    characterCard: row.characterCard,
+    backgroundCard: row.backgroundCard,
+    styleCard: row.styleCard,
+  })
 }
 
 export async function createCardRecipe(
@@ -124,18 +130,21 @@ export async function createCardRecipe(
       characterCardId: input.characterCardId ?? null,
       backgroundCardId: input.backgroundCardId ?? null,
       styleCardId: input.styleCardId ?? null,
-      modelCardId: input.modelCardId ?? null,
       freePrompt: input.freePrompt ?? null,
     },
     include: {
       characterCard: { select: CARD_NAME_SELECT },
       backgroundCard: { select: CARD_NAME_SELECT },
       styleCard: { select: CARD_NAME_SELECT },
-      modelCard: { select: MODEL_CARD_NAME_SELECT },
     },
   })
 
-  return toDetailRecord(row as DetailRow)
+  return toDetailRecord({
+    ...toRecord(row),
+    characterCard: row.characterCard,
+    backgroundCard: row.backgroundCard,
+    styleCard: row.styleCard,
+  })
 }
 
 export async function updateCardRecipe(
@@ -157,7 +166,6 @@ export async function updateCardRecipe(
   if (input.backgroundCardId !== undefined)
     data.backgroundCardId = input.backgroundCardId
   if (input.styleCardId !== undefined) data.styleCardId = input.styleCardId
-  if (input.modelCardId !== undefined) data.modelCardId = input.modelCardId
   if (input.freePrompt !== undefined) data.freePrompt = input.freePrompt
   if (input.projectId !== undefined) data.projectId = input.projectId
 
@@ -168,11 +176,15 @@ export async function updateCardRecipe(
       characterCard: { select: CARD_NAME_SELECT },
       backgroundCard: { select: CARD_NAME_SELECT },
       styleCard: { select: CARD_NAME_SELECT },
-      modelCard: { select: MODEL_CARD_NAME_SELECT },
     },
   })
 
-  return toDetailRecord(row as DetailRow)
+  return toDetailRecord({
+    ...toRecord(row),
+    characterCard: row.characterCard,
+    backgroundCard: row.backgroundCard,
+    styleCard: row.styleCard,
+  })
 }
 
 export async function deleteCardRecipe(

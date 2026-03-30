@@ -74,14 +74,12 @@ const CARD_ICONS: Record<CardType, typeof ImageIcon> = {
   CHARACTER: ImageIcon,
   BACKGROUND: ImageIcon,
   STYLE: Palette,
-  MODEL: Cpu,
 }
 
 const CARD_COLORS: Record<CardType, string> = {
   CHARACTER: 'text-chart-3',
   BACKGROUND: 'text-secondary',
   STYLE: 'text-primary',
-  MODEL: 'text-chart-5',
 }
 
 // ─── Component ──────────────────────────────────────────────────

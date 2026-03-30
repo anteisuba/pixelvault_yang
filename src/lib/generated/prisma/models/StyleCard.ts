@@ -33,6 +33,8 @@ export type StyleCardMinAggregateOutputType = {
   sourceImageUrl: string | null
   sourceStorageKey: string | null
   stylePrompt: string | null
+  modelId: string | null
+  adapterType: string | null
   isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -47,6 +49,8 @@ export type StyleCardMaxAggregateOutputType = {
   sourceImageUrl: string | null
   sourceStorageKey: string | null
   stylePrompt: string | null
+  modelId: string | null
+  adapterType: string | null
   isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -63,6 +67,9 @@ export type StyleCardCountAggregateOutputType = {
   stylePrompt: number
   attributes: number
   loras: number
+  modelId: number
+  adapterType: number
+  advancedParams: number
   tags: number
   isDeleted: number
   createdAt: number
@@ -80,6 +87,8 @@ export type StyleCardMinAggregateInputType = {
   sourceImageUrl?: true
   sourceStorageKey?: true
   stylePrompt?: true
+  modelId?: true
+  adapterType?: true
   isDeleted?: true
   createdAt?: true
   updatedAt?: true
@@ -94,6 +103,8 @@ export type StyleCardMaxAggregateInputType = {
   sourceImageUrl?: true
   sourceStorageKey?: true
   stylePrompt?: true
+  modelId?: true
+  adapterType?: true
   isDeleted?: true
   createdAt?: true
   updatedAt?: true
@@ -110,6 +121,9 @@ export type StyleCardCountAggregateInputType = {
   stylePrompt?: true
   attributes?: true
   loras?: true
+  modelId?: true
+  adapterType?: true
+  advancedParams?: true
   tags?: true
   isDeleted?: true
   createdAt?: true
@@ -200,6 +214,9 @@ export type StyleCardGroupByOutputType = {
   stylePrompt: string
   attributes: runtime.JsonValue | null
   loras: runtime.JsonValue | null
+  modelId: string | null
+  adapterType: string | null
+  advancedParams: runtime.JsonValue | null
   tags: string[]
   isDeleted: boolean
   createdAt: Date
@@ -238,6 +255,9 @@ export type StyleCardWhereInput = {
   stylePrompt?: Prisma.StringFilter<"StyleCard"> | string
   attributes?: Prisma.JsonNullableFilter<"StyleCard">
   loras?: Prisma.JsonNullableFilter<"StyleCard">
+  modelId?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  adapterType?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  advancedParams?: Prisma.JsonNullableFilter<"StyleCard">
   tags?: Prisma.StringNullableListFilter<"StyleCard">
   isDeleted?: Prisma.BoolFilter<"StyleCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"StyleCard"> | Date | string
@@ -258,6 +278,9 @@ export type StyleCardOrderByWithRelationInput = {
   stylePrompt?: Prisma.SortOrder
   attributes?: Prisma.SortOrderInput | Prisma.SortOrder
   loras?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelId?: Prisma.SortOrderInput | Prisma.SortOrder
+  adapterType?: Prisma.SortOrderInput | Prisma.SortOrder
+  advancedParams?: Prisma.SortOrderInput | Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -281,6 +304,9 @@ export type StyleCardWhereUniqueInput = Prisma.AtLeast<{
   stylePrompt?: Prisma.StringFilter<"StyleCard"> | string
   attributes?: Prisma.JsonNullableFilter<"StyleCard">
   loras?: Prisma.JsonNullableFilter<"StyleCard">
+  modelId?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  adapterType?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  advancedParams?: Prisma.JsonNullableFilter<"StyleCard">
   tags?: Prisma.StringNullableListFilter<"StyleCard">
   isDeleted?: Prisma.BoolFilter<"StyleCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"StyleCard"> | Date | string
@@ -301,6 +327,9 @@ export type StyleCardOrderByWithAggregationInput = {
   stylePrompt?: Prisma.SortOrder
   attributes?: Prisma.SortOrderInput | Prisma.SortOrder
   loras?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelId?: Prisma.SortOrderInput | Prisma.SortOrder
+  adapterType?: Prisma.SortOrderInput | Prisma.SortOrder
+  advancedParams?: Prisma.SortOrderInput | Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -324,6 +353,9 @@ export type StyleCardScalarWhereWithAggregatesInput = {
   stylePrompt?: Prisma.StringWithAggregatesFilter<"StyleCard"> | string
   attributes?: Prisma.JsonNullableWithAggregatesFilter<"StyleCard">
   loras?: Prisma.JsonNullableWithAggregatesFilter<"StyleCard">
+  modelId?: Prisma.StringNullableWithAggregatesFilter<"StyleCard"> | string | null
+  adapterType?: Prisma.StringNullableWithAggregatesFilter<"StyleCard"> | string | null
+  advancedParams?: Prisma.JsonNullableWithAggregatesFilter<"StyleCard">
   tags?: Prisma.StringNullableListFilter<"StyleCard">
   isDeleted?: Prisma.BoolWithAggregatesFilter<"StyleCard"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"StyleCard"> | Date | string
@@ -339,6 +371,9 @@ export type StyleCardCreateInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -359,6 +394,9 @@ export type StyleCardUncheckedCreateInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -375,6 +413,9 @@ export type StyleCardUpdateInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -395,6 +436,9 @@ export type StyleCardUncheckedUpdateInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -413,6 +457,9 @@ export type StyleCardCreateManyInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -428,6 +475,9 @@ export type StyleCardUpdateManyMutationInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -445,6 +495,9 @@ export type StyleCardUncheckedUpdateManyInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -472,6 +525,9 @@ export type StyleCardCountOrderByAggregateInput = {
   stylePrompt?: Prisma.SortOrder
   attributes?: Prisma.SortOrder
   loras?: Prisma.SortOrder
+  modelId?: Prisma.SortOrder
+  adapterType?: Prisma.SortOrder
+  advancedParams?: Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -487,6 +543,8 @@ export type StyleCardMaxOrderByAggregateInput = {
   sourceImageUrl?: Prisma.SortOrder
   sourceStorageKey?: Prisma.SortOrder
   stylePrompt?: Prisma.SortOrder
+  modelId?: Prisma.SortOrder
+  adapterType?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -501,6 +559,8 @@ export type StyleCardMinOrderByAggregateInput = {
   sourceImageUrl?: Prisma.SortOrder
   sourceStorageKey?: Prisma.SortOrder
   stylePrompt?: Prisma.SortOrder
+  modelId?: Prisma.SortOrder
+  adapterType?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -629,6 +689,9 @@ export type StyleCardCreateWithoutUserInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -647,6 +710,9 @@ export type StyleCardUncheckedCreateWithoutUserInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -694,6 +760,9 @@ export type StyleCardScalarWhereInput = {
   stylePrompt?: Prisma.StringFilter<"StyleCard"> | string
   attributes?: Prisma.JsonNullableFilter<"StyleCard">
   loras?: Prisma.JsonNullableFilter<"StyleCard">
+  modelId?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  adapterType?: Prisma.StringNullableFilter<"StyleCard"> | string | null
+  advancedParams?: Prisma.JsonNullableFilter<"StyleCard">
   tags?: Prisma.StringNullableListFilter<"StyleCard">
   isDeleted?: Prisma.BoolFilter<"StyleCard"> | boolean
   createdAt?: Prisma.DateTimeFilter<"StyleCard"> | Date | string
@@ -709,6 +778,9 @@ export type StyleCardCreateWithoutProjectInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -727,6 +799,9 @@ export type StyleCardUncheckedCreateWithoutProjectInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -769,6 +844,9 @@ export type StyleCardCreateWithoutRecipesAsStyleInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -788,6 +866,9 @@ export type StyleCardUncheckedCreateWithoutRecipesAsStyleInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -819,6 +900,9 @@ export type StyleCardUpdateWithoutRecipesAsStyleInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -838,6 +922,9 @@ export type StyleCardUncheckedUpdateWithoutRecipesAsStyleInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -854,6 +941,9 @@ export type StyleCardCreateManyUserInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -869,6 +959,9 @@ export type StyleCardUpdateWithoutUserInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -887,6 +980,9 @@ export type StyleCardUncheckedUpdateWithoutUserInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -904,6 +1000,9 @@ export type StyleCardUncheckedUpdateManyWithoutUserInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -920,6 +1019,9 @@ export type StyleCardCreateManyProjectInput = {
   stylePrompt: string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardCreatetagsInput | string[]
   isDeleted?: boolean
   createdAt?: Date | string
@@ -935,6 +1037,9 @@ export type StyleCardUpdateWithoutProjectInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -953,6 +1058,9 @@ export type StyleCardUncheckedUpdateWithoutProjectInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -970,6 +1078,9 @@ export type StyleCardUncheckedUpdateManyWithoutProjectInput = {
   stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   tags?: Prisma.StyleCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1018,6 +1129,9 @@ export type StyleCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   stylePrompt?: boolean
   attributes?: boolean
   loras?: boolean
+  modelId?: boolean
+  adapterType?: boolean
+  advancedParams?: boolean
   tags?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1039,6 +1153,9 @@ export type StyleCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   stylePrompt?: boolean
   attributes?: boolean
   loras?: boolean
+  modelId?: boolean
+  adapterType?: boolean
+  advancedParams?: boolean
   tags?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1058,6 +1175,9 @@ export type StyleCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   stylePrompt?: boolean
   attributes?: boolean
   loras?: boolean
+  modelId?: boolean
+  adapterType?: boolean
+  advancedParams?: boolean
   tags?: boolean
   isDeleted?: boolean
   createdAt?: boolean
@@ -1077,13 +1197,16 @@ export type StyleCardSelectScalar = {
   stylePrompt?: boolean
   attributes?: boolean
   loras?: boolean
+  modelId?: boolean
+  adapterType?: boolean
+  advancedParams?: boolean
   tags?: boolean
   isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type StyleCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "description" | "sourceImageUrl" | "sourceStorageKey" | "stylePrompt" | "attributes" | "loras" | "tags" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["styleCard"]>
+export type StyleCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "description" | "sourceImageUrl" | "sourceStorageKey" | "stylePrompt" | "attributes" | "loras" | "modelId" | "adapterType" | "advancedParams" | "tags" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["styleCard"]>
 export type StyleCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.StyleCard$projectArgs<ExtArgs>
@@ -1117,6 +1240,9 @@ export type $StyleCardPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     stylePrompt: string
     attributes: runtime.JsonValue | null
     loras: runtime.JsonValue | null
+    modelId: string | null
+    adapterType: string | null
+    advancedParams: runtime.JsonValue | null
     tags: string[]
     isDeleted: boolean
     createdAt: Date
@@ -1557,6 +1683,9 @@ export interface StyleCardFieldRefs {
   readonly stylePrompt: Prisma.FieldRef<"StyleCard", 'String'>
   readonly attributes: Prisma.FieldRef<"StyleCard", 'Json'>
   readonly loras: Prisma.FieldRef<"StyleCard", 'Json'>
+  readonly modelId: Prisma.FieldRef<"StyleCard", 'String'>
+  readonly adapterType: Prisma.FieldRef<"StyleCard", 'String'>
+  readonly advancedParams: Prisma.FieldRef<"StyleCard", 'Json'>
   readonly tags: Prisma.FieldRef<"StyleCard", 'String[]'>
   readonly isDeleted: Prisma.FieldRef<"StyleCard", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"StyleCard", 'DateTime'>
@@ -1757,11 +1886,6 @@ export type StyleCardFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` StyleCards.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of StyleCards.
-   */
   distinct?: Prisma.StyleCardScalarFieldEnum | Prisma.StyleCardScalarFieldEnum[]
 }
 

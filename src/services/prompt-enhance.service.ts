@@ -6,6 +6,8 @@ import {
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
+import { logger } from '@/lib/logger'
+import { validateLlmPromptOutput } from '@/lib/llm-output-validator'
 
 const STYLE_SYSTEM_PROMPTS: Record<PromptEnhanceStyle, string> = {
   detailed: `You are an expert AI image prompt engineer. Enhance the given prompt by adding rich details about environment, lighting, composition, materials, textures, and mood. Keep the core subject unchanged. Return ONLY the enhanced prompt text, no explanation.`,
@@ -28,7 +30,7 @@ export async function enhancePrompt(
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
   const systemPrompt = STYLE_SYSTEM_PROMPTS[style]
 
-  const enhanced = await llmTextCompletion({
+  const rawEnhanced = await llmTextCompletion({
     systemPrompt,
     userPrompt: prompt,
     adapterType: route.adapterType,
@@ -36,9 +38,24 @@ export async function enhancePrompt(
     apiKey: route.apiKey,
   })
 
+  // Validate LLM output — fall back to original if enhancement is unusable
+  const validation = validateLlmPromptOutput(rawEnhanced, prompt)
+  if (!validation.usable) {
+    logger.warn('Prompt enhancement rejected, using original', {
+      reason: validation.reason,
+      style,
+    })
+    return { original: prompt, enhanced: prompt, style }
+  }
+  if (validation.warnings.length > 0) {
+    logger.info('Prompt enhancement warnings', {
+      warnings: validation.warnings,
+    })
+  }
+
   return {
     original: prompt,
-    enhanced,
+    enhanced: validation.output,
     style,
   }
 }

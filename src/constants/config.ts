@@ -111,8 +111,11 @@ export const API_ENDPOINTS = {
   /** Composable Card System */
   BACKGROUND_CARDS: '/api/background-cards',
   STYLE_CARDS: '/api/style-cards',
-  MODEL_CARDS: '/api/model-cards',
   CARD_RECIPES: '/api/card-recipes',
+
+  /** Studio V2 */
+  STUDIO_GENERATE: '/api/studio/generate',
+  CIVITAI_TOKEN: '/api/civitai-token',
 } as const
 
 /** Project configuration */

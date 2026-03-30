@@ -5,7 +5,6 @@ import { CHARACTER_CARD } from '@/constants/character-card'
 import {
   BACKGROUND_CARD,
   STYLE_CARD,
-  MODEL_CARD,
   CARD_RECIPE,
 } from '@/constants/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
@@ -46,7 +45,11 @@ export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 /** Zod schema for image generation request validation */
 export const GenerateRequestSchema = z.object({
   /** User's text prompt describing the desired image */
-  prompt: z.string().trim().min(1, 'Prompt is required'),
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(4000, 'Prompt is too long (max 4000 characters)'),
   /** Selected AI model identifier */
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   /** Aspect ratio for the generated image */
@@ -90,7 +93,11 @@ export interface GenerateResponse {
 // ─── Video Generate Request ───────────────────────────────────────
 
 export const GenerateVideoRequestSchema = z.object({
-  prompt: z.string().trim().min(1, 'Prompt is required'),
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(4000, 'Prompt is too long (max 4000 characters)'),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
@@ -151,7 +158,11 @@ export interface VideoStatusResponse {
 // ─── Long Video Pipeline ──────────────────────────────────────────
 
 export const LongVideoRequestSchema = z.object({
-  prompt: z.string().trim().min(1, 'Prompt is required'),
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(4000, 'Prompt is too long (max 4000 characters)'),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
@@ -555,7 +566,11 @@ export const ArenaModelSelectionSchema = z.object({
 export type ArenaModelSelection = z.infer<typeof ArenaModelSelectionSchema>
 
 export const CreateArenaMatchRequestSchema = z.object({
-  prompt: z.string().trim().min(1, 'Prompt is required'),
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(4000, 'Prompt is too long (max 4000 characters)'),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   models: z.array(ArenaModelSelectionSchema).min(2).optional(),
   referenceImage: z.string().optional(),
@@ -1470,6 +1485,9 @@ export const CreateStyleCardSchema = z.object({
   stylePrompt: z.string().trim().min(1).max(STYLE_CARD.PROMPT_MAX_LENGTH),
   sourceImageData: z.string().optional(),
   attributes: StyleAttributesSchema.optional(),
+  modelId: z.nativeEnum(AI_MODELS).optional(),
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).optional(),
+  advancedParams: AdvancedParamsSchema.optional(),
   tags: z
     .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
     .max(STYLE_CARD.MAX_TAGS)
@@ -1495,6 +1513,9 @@ export const UpdateStyleCardSchema = z.object({
     .optional(),
   attributes: StyleAttributesSchema.optional(),
   loras: z.array(LoraSchema).max(5).nullable().optional(),
+  modelId: z.nativeEnum(AI_MODELS).nullable().optional(),
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).nullable().optional(),
+  advancedParams: AdvancedParamsSchema.nullable().optional(),
   tags: z
     .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
     .max(STYLE_CARD.MAX_TAGS)
@@ -1512,6 +1533,9 @@ export interface StyleCardRecord {
   stylePrompt: string
   attributes: StyleAttributes | null
   loras: z.infer<typeof LoraSchema>[] | null
+  modelId: string | null
+  adapterType: string | null
+  advancedParams: AdvancedParams | null
   tags: string[]
   projectId: string | null
   isDeleted: boolean
@@ -1531,73 +1555,6 @@ export interface StyleCardsResponse {
   error?: string
 }
 
-// ── Model Card ──────────────────────────────────────────────────
-
-export const CreateModelCardSchema = z.object({
-  name: z.string().trim().min(1).max(MODEL_CARD.NAME_MAX_LENGTH),
-  description: z
-    .string()
-    .trim()
-    .max(MODEL_CARD.DESCRIPTION_MAX_LENGTH)
-    .optional(),
-  modelId: z.nativeEnum(AI_MODELS),
-  adapterType: z.nativeEnum(AI_ADAPTER_TYPES),
-  advancedParams: AdvancedParamsSchema.optional(),
-  tags: z
-    .array(z.string().trim().max(MODEL_CARD.TAG_MAX_LENGTH))
-    .max(MODEL_CARD.MAX_TAGS)
-    .default([]),
-  projectId: z.string().optional(),
-})
-
-export type CreateModelCardRequest = z.infer<typeof CreateModelCardSchema>
-
-export const UpdateModelCardSchema = z.object({
-  name: z.string().trim().min(1).max(MODEL_CARD.NAME_MAX_LENGTH).optional(),
-  description: z
-    .string()
-    .trim()
-    .max(MODEL_CARD.DESCRIPTION_MAX_LENGTH)
-    .nullable()
-    .optional(),
-  modelId: z.nativeEnum(AI_MODELS).optional(),
-  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).optional(),
-  advancedParams: AdvancedParamsSchema.nullable().optional(),
-  tags: z
-    .array(z.string().trim().max(MODEL_CARD.TAG_MAX_LENGTH))
-    .max(MODEL_CARD.MAX_TAGS)
-    .optional(),
-  projectId: z.string().nullable().optional(),
-})
-
-export type UpdateModelCardRequest = z.infer<typeof UpdateModelCardSchema>
-
-export interface ModelCardRecord {
-  id: string
-  name: string
-  description: string | null
-  modelId: string
-  adapterType: string
-  advancedParams: AdvancedParams | null
-  tags: string[]
-  projectId: string | null
-  isDeleted: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface ModelCardResponse {
-  success: boolean
-  data?: ModelCardRecord
-  error?: string
-}
-
-export interface ModelCardsResponse {
-  success: boolean
-  data?: ModelCardRecord[]
-  error?: string
-}
-
 // ── Card Recipe ─────────────────────────────────────────────────
 
 export const CreateCardRecipeSchema = z.object({
@@ -1605,7 +1562,6 @@ export const CreateCardRecipeSchema = z.object({
   characterCardId: z.string().optional(),
   backgroundCardId: z.string().optional(),
   styleCardId: z.string().optional(),
-  modelCardId: z.string().optional(),
   freePrompt: z
     .string()
     .trim()
@@ -1621,7 +1577,6 @@ export const UpdateCardRecipeSchema = z.object({
   characterCardId: z.string().nullable().optional(),
   backgroundCardId: z.string().nullable().optional(),
   styleCardId: z.string().nullable().optional(),
-  modelCardId: z.string().nullable().optional(),
   freePrompt: z
     .string()
     .trim()
@@ -1649,14 +1604,12 @@ export const RecipeSnapshotSchema = z.object({
     })
     .optional(),
   styleCard: z
-    .object({ id: z.string(), name: z.string(), stylePrompt: z.string() })
-    .optional(),
-  modelCard: z
     .object({
       id: z.string(),
       name: z.string(),
-      modelId: z.string(),
-      adapterType: z.string(),
+      stylePrompt: z.string(),
+      modelId: z.string().optional(),
+      adapterType: z.string().optional(),
     })
     .optional(),
   freePrompt: z.string().optional(),
@@ -1672,7 +1625,6 @@ export interface CardRecipeRecord {
   characterCardId: string | null
   backgroundCardId: string | null
   styleCardId: string | null
-  modelCardId: string | null
   freePrompt: string | null
   projectId: string | null
   isDeleted: boolean
@@ -1684,7 +1636,6 @@ export interface CardRecipeDetailRecord extends CardRecipeRecord {
   characterCard: { id: string; name: string } | null
   backgroundCard: { id: string; name: string } | null
   styleCard: { id: string; name: string } | null
-  modelCard: { id: string; name: string; modelId: string } | null
 }
 
 export interface CardRecipeResponse {
@@ -1711,3 +1662,38 @@ export interface CompileRecipeResponse {
   }
   error?: string
 }
+
+// ── Civitai Token ────────────────────────────────────────────────
+
+export const CivitaiTokenSchema = z.object({
+  token: z.string().trim().min(1).max(200),
+})
+
+export type CivitaiTokenRequest = z.infer<typeof CivitaiTokenSchema>
+
+export interface CivitaiTokenStatusResponse {
+  success: boolean
+  data?: { hasToken: boolean }
+  error?: string
+}
+
+// ── Studio V2 Generate ──────────────────────────────────────────
+
+export const StudioGenerateSchema = z.object({
+  characterCardId: z.string().optional(),
+  backgroundCardId: z.string().optional(),
+  styleCardId: z.string().optional(),
+  freePrompt: z
+    .string()
+    .trim()
+    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+    .optional(),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+  projectId: z.string().optional(),
+  /** User-uploaded reference images (base64 or URL) from toolbar */
+  referenceImages: z.array(z.string()).optional(),
+  /** Advanced params override from toolbar Advanced Settings panel */
+  advancedParams: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type StudioGenerateRequest = z.infer<typeof StudioGenerateSchema>

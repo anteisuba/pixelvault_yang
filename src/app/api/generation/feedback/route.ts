@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`gen-feedback:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`gen-feedback:${clerkId}`, {
       limit: 20,
       windowSeconds: 60,
     })

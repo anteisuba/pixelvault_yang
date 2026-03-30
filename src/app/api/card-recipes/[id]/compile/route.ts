@@ -39,7 +39,6 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       characterCardId: recipe.characterCardId,
       backgroundCardId: recipe.backgroundCardId,
       styleCardId: recipe.styleCardId,
-      modelCardId: recipe.modelCardId,
       freePrompt: recipe.freePrompt,
     })
 

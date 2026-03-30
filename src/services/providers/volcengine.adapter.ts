@@ -19,6 +19,8 @@ import {
   type HealthCheckInput,
 } from '@/services/providers/types'
 
+import { logger } from '@/lib/logger'
+
 // ─── Image Generation Constants ─────────────────────────────────
 
 /** VolcEngine Seedream 2K-tier resolution mapping */
@@ -164,6 +166,12 @@ export const volcengineAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('VolcEngine generateImage failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError(
         'VolcEngine',
         response.status,
@@ -276,6 +284,12 @@ export const volcengineAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('VolcEngine submitVideoToQueue failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError(
         'VolcEngine',
         response.status,
@@ -307,6 +321,11 @@ export const volcengineAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('VolcEngine checkVideoQueueStatus failed', {
+        status: response.status,
+        statusUrl,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('VolcEngine', response.status, errorBody)
     }
 

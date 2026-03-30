@@ -72,6 +72,26 @@ See `docs/design-system.md` for full spec. Key constraints:
 | Constant | SCREAMING_SNAKE | `AI_MODELS`, `ROUTES` |
 | Type/Interface | PascalCase | `GenerateRequest` |
 
+## Resilience & Quality Utilities
+
+| Utility | Path | When to use |
+|---------|------|-------------|
+| Logger | `src/lib/logger.ts` | ALL logging — never use `console.log` in services |
+| Retry | `src/lib/with-retry.ts` | Wrap ALL external API calls (AI providers, R2) |
+| Circuit Breaker | `src/lib/circuit-breaker.ts` | Per-provider protection against cascading failures |
+| Prompt Guard | `src/lib/prompt-guard.ts` | Validate user prompts before sending to AI |
+| LLM Validator | `src/lib/llm-output-validator.ts` | Validate LLM outputs (prompt enhance, recipe fusion) |
+| Invariants | `src/lib/invariants.ts` | Runtime assertions for programmer errors |
+
+## Common Pitfalls
+
+1. **Adding a model** — must update: `AI_MODELS` enum + model config + i18n (3 files) + provider adapter
+2. **Service files** — must start with `import 'server-only'`
+3. **Prompt length** — always validate with `prompt-guard.ts` before AI calls
+4. **LLM outputs** — always validate with `llm-output-validator.ts` before using
+5. **External calls** — always wrap with `withRetry()` from `with-retry.ts`
+6. **Zod in routes** — use `.safeParse()` not `.parse()` (latter throws unhandled)
+
 ## When Unsure
 
 1. Check `src/constants/` for existing variables

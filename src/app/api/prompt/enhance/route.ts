@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`enhance:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`enhance:${clerkId}`, {
       limit: 10,
       windowSeconds: 60,
     })

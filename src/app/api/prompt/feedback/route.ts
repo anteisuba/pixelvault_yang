@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`prompt-feedback:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`prompt-feedback:${clerkId}`, {
       limit: 10,
       windowSeconds: 60,
     })

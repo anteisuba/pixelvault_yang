@@ -80,12 +80,12 @@ export type PrismaVersion = {
 }
 
 /**
- * Prisma Client JS version: 7.5.0
- * Query Engine version: 280c870be64f457428992c43c1f6d557fab6e29e
+ * Prisma Client JS version: 7.4.0
+ * Query Engine version: ab56fe763f921d033a6c195e7ddeb3e255bdbb57
  */
 export const prismaVersion: PrismaVersion = {
-  client: "7.5.0",
-  engine: "280c870be64f457428992c43c1f6d557fab6e29e"
+  client: "7.4.0",
+  engine: "ab56fe763f921d033a6c195e7ddeb3e255bdbb57"
 }
 
 /**
@@ -405,7 +405,6 @@ export const ModelName = {
   CollectionItem: 'CollectionItem',
   BackgroundCard: 'BackgroundCard',
   StyleCard: 'StyleCard',
-  ModelCard: 'ModelCard',
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip'
@@ -424,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "modelCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1982,80 +1981,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ModelCard: {
-      payload: Prisma.$ModelCardPayload<ExtArgs>
-      fields: Prisma.ModelCardFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ModelCardFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ModelCardFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        findFirst: {
-          args: Prisma.ModelCardFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ModelCardFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        findMany: {
-          args: Prisma.ModelCardFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>[]
-        }
-        create: {
-          args: Prisma.ModelCardCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        createMany: {
-          args: Prisma.ModelCardCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ModelCardCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>[]
-        }
-        delete: {
-          args: Prisma.ModelCardDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        update: {
-          args: Prisma.ModelCardUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        deleteMany: {
-          args: Prisma.ModelCardDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ModelCardUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ModelCardUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>[]
-        }
-        upsert: {
-          args: Prisma.ModelCardUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ModelCardPayload>
-        }
-        aggregate: {
-          args: Prisma.ModelCardAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateModelCard>
-        }
-        groupBy: {
-          args: Prisma.ModelCardGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ModelCardGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ModelCardCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ModelCardCountAggregateOutputType> | number
-        }
-      }
-    }
     CardRecipe: {
       payload: Prisma.$CardRecipePayload<ExtArgs>
       fields: Prisma.CardRecipeFieldRefs
@@ -2328,6 +2253,7 @@ export const UserScalarFieldEnum = {
   bannerUrl: 'bannerUrl',
   bannerStorageKey: 'bannerStorageKey',
   bio: 'bio',
+  civitaiToken: 'civitaiToken',
   isPublic: 'isPublic',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -2658,21 +2584,6 @@ export const StyleCardScalarFieldEnum = {
   stylePrompt: 'stylePrompt',
   attributes: 'attributes',
   loras: 'loras',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
-export const ModelCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
   modelId: 'modelId',
   adapterType: 'adapterType',
   advancedParams: 'advancedParams',
@@ -2682,7 +2593,7 @@ export const ModelCardScalarFieldEnum = {
   updatedAt: 'updatedAt'
 } as const
 
-export type ModelCardScalarFieldEnum = (typeof ModelCardScalarFieldEnum)[keyof typeof ModelCardScalarFieldEnum]
+export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
 
 
 export const CardRecipeScalarFieldEnum = {
@@ -2693,7 +2604,6 @@ export const CardRecipeScalarFieldEnum = {
   characterCardId: 'characterCardId',
   backgroundCardId: 'backgroundCardId',
   styleCardId: 'styleCardId',
-  modelCardId: 'modelCardId',
   freePrompt: 'freePrompt',
   isDeleted: 'isDeleted',
   createdAt: 'createdAt',
@@ -3085,7 +2995,6 @@ export type GlobalOmitConfig = {
   collectionItem?: Prisma.CollectionItemOmit
   backgroundCard?: Prisma.BackgroundCardOmit
   styleCard?: Prisma.StyleCardOmit
-  modelCard?: Prisma.ModelCardOmit
   cardRecipe?: Prisma.CardRecipeOmit
   videoPipeline?: Prisma.VideoPipelineOmit
   videoPipelineClip?: Prisma.VideoPipelineClipOmit

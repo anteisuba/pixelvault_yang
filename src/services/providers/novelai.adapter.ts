@@ -20,6 +20,8 @@ import {
   type ProviderGenerationInput,
 } from '@/services/providers/types'
 
+import { logger } from '@/lib/logger'
+
 /** NovelAI image size presets mapped from our aspect ratios */
 const NOVELAI_SIZES: Record<string, { width: number; height: number }> = {
   '1:1': { width: 1024, height: 1024 },
@@ -180,6 +182,12 @@ async function encodeVibe(
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
+    logger.error('NovelAI encode-vibe failed', {
+      status: response.status,
+      modelId,
+      endpoint,
+      errorBody: errorBody.slice(0, 500),
+    })
     throw new ProviderError(
       'NovelAI',
       response.status,
@@ -247,6 +255,162 @@ function extractFirstFileFromZip(buffer: Buffer): Buffer {
   )
 }
 
+// ─── Private helpers ────────────────────────────────────────────
+
+/** Extract scene-only prompt from multi-character / single-character format */
+function extractScenePrompt(prompt: string, hasMultiRef: boolean): string {
+  if (!hasMultiRef) return prompt
+  const parsed = parseCharacterPrompt(prompt)
+  if (parsed.characters.length > 0) return parsed.scenePrompt || prompt
+  const lastSep = prompt.lastIndexOf('\n\n')
+  if (lastSep !== -1) {
+    const scene = prompt.slice(lastSep + 2).trim()
+    if (scene) return scene
+  }
+  return prompt
+}
+
+/**
+ * Convert a reference image to raw base64 and add img2img parameters.
+ * NovelAI's `strength` = denoising (higher = more change).
+ * Our `referenceStrength` = similarity (higher = more similar), so we invert.
+ */
+async function buildImg2ImgParams(
+  referenceImage: string,
+  referenceStrength: number,
+  seed: number,
+): Promise<Record<string, unknown>> {
+  let rawBase64: string
+  const base64Match = referenceImage.match(/^data:[^;]+;base64,(.+)$/)
+  if (base64Match) {
+    rawBase64 = base64Match[1]
+  } else if (
+    referenceImage.startsWith('http://') ||
+    referenceImage.startsWith('https://')
+  ) {
+    const imgResponse = await fetch(referenceImage)
+    if (!imgResponse.ok) {
+      throw new ProviderError(
+        'NovelAI',
+        imgResponse.status,
+        `Failed to fetch reference image: ${imgResponse.statusText}`,
+      )
+    }
+    rawBase64 = Buffer.from(await imgResponse.arrayBuffer()).toString('base64')
+  } else {
+    rawBase64 = referenceImage
+  }
+  return {
+    image: rawBase64,
+    strength: invertReferenceStrength(referenceStrength),
+    noise: 0.0,
+    extra_noise_seed: seed,
+  }
+}
+
+/** Determine how many reference images the user's subscription allows */
+async function getSubscriptionRefLimit(
+  referenceImages: string[],
+  apiKey: string,
+): Promise<number> {
+  if (referenceImages.length <= 1) return referenceImages.length
+  try {
+    const subRes = await fetch('https://api.novelai.net/user/subscription', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    })
+    if (subRes.ok) {
+      const sub = (await subRes.json()) as { tier: number }
+      if (sub.tier < 3) return 1
+    }
+  } catch {
+    /* network error — proceed and let NovelAI reject if needed */
+  }
+  return referenceImages.length
+}
+
+/**
+ * Build multi-reference parameters.
+ * V4.5: Director Reference (precise character consistency).
+ * V3: Vibe transfer (style/mood reference).
+ */
+async function buildMultiRefParams(
+  referenceImages: string[],
+  useV4: boolean,
+  refStrength: number,
+  apiKey: string,
+): Promise<Record<string, unknown>> {
+  const maxImages = await getSubscriptionRefLimit(referenceImages, apiKey)
+  const base64Images = await Promise.all(
+    referenceImages.slice(0, maxImages).map(toRawBase64),
+  )
+
+  if (useV4) {
+    const paddedImages = await Promise.all(
+      base64Images.map(padForDirectorReference),
+    )
+    return {
+      director_reference_images: paddedImages,
+      director_reference_descriptions: base64Images.map(() => ({
+        caption: { base_caption: 'character', char_captions: [] },
+        use_coords: false,
+        use_order: false,
+      })),
+      director_reference_information_extracted: base64Images.map(() => 1.0),
+      director_reference_strength_values: base64Images.map(() =>
+        Math.max(refStrength, 0.8),
+      ),
+      director_reference_secondary_strength_values: base64Images.map(() => 0.5),
+    }
+  }
+
+  return {
+    reference_image_multiple: base64Images,
+    reference_information_extracted_multiple: base64Images.map(() => 1.0),
+    reference_strength_multiple: base64Images.map(() => refStrength),
+  }
+}
+
+/** Build V4/V4.5 structured prompt objects */
+function buildV4Prompt(
+  effectivePrompt: string,
+  negative: string,
+  prompt: string,
+  hasMultiRef: boolean,
+): Record<string, unknown> {
+  const parsed = hasMultiRef
+    ? parseCharacterPrompt(prompt)
+    : { characters: [], scenePrompt: prompt }
+
+  const charCaptions = parsed.characters.map((c) => ({
+    char_caption: c.description,
+    centers: [{ x: 0.5, y: 0.5 }],
+  }))
+
+  const result: Record<string, unknown> = {
+    v4_prompt: {
+      caption: { base_caption: effectivePrompt, char_captions: charCaptions },
+      use_coords: false,
+      use_order: true,
+    },
+    v4_negative_prompt: {
+      caption: { base_caption: negative, char_captions: [] },
+      legacy_uc: false,
+    },
+  }
+
+  if (hasMultiRef && parsed.characters.length > 0) {
+    result.characterPrompts = parsed.characters.map((c) => ({
+      prompt: c.description,
+      uc: negative,
+    }))
+    result.use_coords = false
+  }
+
+  return result
+}
+
+// ─── Adapter ────────────────────────────────────────────────────
+
 export const novelAiAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.NOVELAI,
 
@@ -272,11 +436,10 @@ export const novelAiAdapter: ProviderAdapter = {
         ? advancedParams.seed
         : Math.floor(Math.random() * 4294967295)
 
-    // Multi-reference: multiple character/style images → reference_image_multiple
-    // img2img: single base image with denoising
     const hasMultiRef = referenceImages && referenceImages.length > 0
     const isImg2Img = !hasMultiRef && Boolean(referenceImage)
     const useV4 = isV4Model(externalModelId)
+    const refStrength = advancedParams?.referenceStrength ?? 0.6
 
     const parameters: Record<string, unknown> = {
       params_version: useV4 ? 3 : 1,
@@ -309,168 +472,37 @@ export const novelAiAdapter: ProviderAdapter = {
       reference_strength_multiple: [],
     }
 
-    // img2img: pass reference image as bare base64
-    // NovelAI's `strength` = denoising strength (higher = more change, less similarity)
-    // Our `referenceStrength` = how much to reference the original (higher = more similar)
-    // So we invert: denoising = 1 - referenceStrength
     if (isImg2Img && referenceImage) {
-      let rawBase64: string
-      const base64Match = referenceImage.match(/^data:[^;]+;base64,(.+)$/)
-      if (base64Match) {
-        rawBase64 = base64Match[1]
-      } else if (
-        referenceImage.startsWith('http://') ||
-        referenceImage.startsWith('https://')
-      ) {
-        // NovelAI requires raw base64, not URLs — download and convert
-        const imgResponse = await fetch(referenceImage)
-        if (!imgResponse.ok) {
-          throw new ProviderError(
-            'NovelAI',
-            imgResponse.status,
-            `Failed to fetch reference image: ${imgResponse.statusText}`,
-          )
-        }
-        const imgBuffer = Buffer.from(await imgResponse.arrayBuffer())
-        rawBase64 = imgBuffer.toString('base64')
-      } else {
-        rawBase64 = referenceImage
-      }
-      parameters.image = rawBase64
-      const userStrength = advancedParams?.referenceStrength ?? 0.7
-      parameters.strength = invertReferenceStrength(userStrength)
-      parameters.noise = 0.0
-      parameters.extra_noise_seed = seed
-    }
-
-    // Character reference images — use Director Reference for V4.5 (precise character
-    // consistency) and vibe transfer for V3 (style/mood reference).
-    if (hasMultiRef) {
-      const refStrength = advancedParams?.referenceStrength ?? 0.6
-      // Cap to 1 image for non-Opus tiers
-      let maxRefImages = referenceImages.length
-      if (referenceImages.length > 1) {
-        try {
-          const subRes = await fetch(
-            'https://api.novelai.net/user/subscription',
-            { headers: { Authorization: `Bearer ${apiKey}` } },
-          )
-          if (subRes.ok) {
-            const sub = (await subRes.json()) as { tier: number }
-            if (sub.tier < 3) maxRefImages = 1
-          }
-        } catch {
-          /* network error — proceed and let NovelAI reject if needed */
-        }
-      }
-
-      const imagesToUse = referenceImages.slice(0, maxRefImages)
-      const base64Images = await Promise.all(
-        imagesToUse.map((img) => toRawBase64(img)),
+      const img2imgParams = await buildImg2ImgParams(
+        referenceImage,
+        advancedParams?.referenceStrength ?? 0.7,
+        seed,
       )
-
-      if (useV4) {
-        // V4.5 Director Reference (Precise Reference / Character Reference)
-        // Sends raw base64 images — no encode-vibe needed.
-        // Each image gets a description caption of "character" to indicate
-        // the model should extract character identity from the reference.
-        // Pad images to required Director Reference dimensions
-        const paddedImages = await Promise.all(
-          base64Images.map((img) => padForDirectorReference(img)),
-        )
-        parameters.director_reference_images = paddedImages
-        parameters.director_reference_descriptions = base64Images.map(() => ({
-          caption: { base_caption: 'character', char_captions: [] },
-          use_coords: false,
-          use_order: false,
-        }))
-        parameters.director_reference_information_extracted = base64Images.map(
-          () => 1.0,
-        )
-        // strength: character similarity (high for consistency)
-        // secondary_strength (fidelity): fine detail matching (medium to allow pose changes)
-        parameters.director_reference_strength_values = base64Images.map(() =>
-          Math.max(refStrength, 0.8),
-        )
-        parameters.director_reference_secondary_strength_values =
-          base64Images.map(() => 0.5)
-      } else {
-        // V3: vibe transfer with raw base64
-        parameters.reference_image_multiple = base64Images
-        parameters.reference_information_extracted_multiple = base64Images.map(
-          () => 1.0,
-        )
-        parameters.reference_strength_multiple = base64Images.map(
-          () => refStrength,
-        )
-      }
+      Object.assign(parameters, img2imgParams)
     }
 
-    // When using vibe transfer, the reference image already captures the character's
-    // appearance. Strip the character description tags and keep only the scene/action
-    // prompt so the model focuses on what the user actually wants to generate.
-    // The form separates character description from user prompt with "\n\n".
-    let effectivePrompt = prompt
     if (hasMultiRef) {
-      const parsed = parseCharacterPrompt(prompt)
-      if (parsed.characters.length > 0) {
-        // Multi-character markers: use parsed scene prompt
-        effectivePrompt = parsed.scenePrompt || prompt
-      } else {
-        // Single character card: character tags + "\n\n" + user scene
-        const lastSep = prompt.lastIndexOf('\n\n')
-        if (lastSep !== -1) {
-          const scene = prompt.slice(lastSep + 2).trim()
-          if (scene) effectivePrompt = scene
-        }
-      }
+      const multiRefParams = await buildMultiRefParams(
+        referenceImages,
+        useV4,
+        refStrength,
+        apiKey,
+      )
+      Object.assign(parameters, multiRefParams)
     }
 
-    // Update parameters.prompt to use the effective (scene-only) prompt
+    const effectivePrompt = extractScenePrompt(prompt, !!hasMultiRef)
     parameters.prompt = effectivePrompt
 
-    // V4/V4.5 models require structured prompt objects
     if (useV4) {
-      const parsed = hasMultiRef
-        ? parseCharacterPrompt(prompt)
-        : { characters: [], scenePrompt: prompt }
-
-      const charCaptions = parsed.characters.map((c) => ({
-        char_caption: c.description,
-        centers: [{ x: 0.5, y: 0.5 }],
-      }))
-
-      // Build per-character prompt entries for the parameters
-      if (hasMultiRef && parsed.characters.length > 0) {
-        parameters.characterPrompts = parsed.characters.map((c) => ({
-          prompt: c.description,
-          uc: negative,
-        }))
-        parameters.use_coords = false
-      }
-
-      parameters.v4_prompt = {
-        caption: {
-          base_caption: effectivePrompt,
-          char_captions: charCaptions,
-        },
-        use_coords: false,
-        use_order: true,
-      }
-      parameters.v4_negative_prompt = {
-        caption: {
-          base_caption: negative,
-          char_captions: [],
-        },
-        legacy_uc: false,
-      }
+      Object.assign(
+        parameters,
+        buildV4Prompt(effectivePrompt, negative, prompt, !!hasMultiRef),
+      )
     }
 
-    // Use the effective prompt (scene-only for vibe transfer) as the input
-    const inputPrompt = effectivePrompt
-
     const body = {
-      input: inputPrompt,
+      input: effectivePrompt,
       model: externalModelId,
       action: isImg2Img ? 'img2img' : 'generate',
       parameters,
@@ -487,6 +519,12 @@ export const novelAiAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('NovelAI generateImage failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('NovelAI', response.status, errorBody)
     }
 

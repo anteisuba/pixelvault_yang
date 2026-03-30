@@ -21,6 +21,8 @@ import {
   type ProviderVideoInput,
 } from '@/services/providers/types'
 
+import { logger } from '@/lib/logger'
+
 const REPLICATE_PREDICTION_SCHEMA = z.object({
   id: z.string(),
   status: z.enum(['starting', 'processing', 'succeeded', 'failed', 'canceled']),
@@ -44,6 +46,32 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** Classify raw Replicate errors into user-friendly messages */
+function classifyReplicateError(raw: string): string {
+  // LoRA incompatible with model
+  if (raw.includes('not in the list of present adapters')) {
+    return 'LoRA incompatible: This LoRA was trained for a different model. On Civitai, filter by Base Model = "Illustrious" or "SDXL" to find compatible LoRAs.'
+  }
+  // LoRA URL extension not recognized
+  if (raw.includes("isn't supported for LoRA")) {
+    return 'LoRA URL format error: The download URL needs a .safetensors file extension. Use a direct download link from Civitai or HuggingFace.'
+  }
+  // Civitai auth failed
+  if (raw.includes('status code: 401') || raw.includes('status code: 403')) {
+    return 'LoRA download failed: Authentication error. Make sure your Civitai API token is valid and included in the LoRA URL (?token=your_token).'
+  }
+  // NSFW content filter
+  if (raw.includes('NSFW') || raw.includes('safety')) {
+    return 'Content filtered: The generated image was blocked by the safety filter. Try adjusting your prompt.'
+  }
+  // Out of memory
+  if (raw.includes('out of memory') || raw.includes('OOM')) {
+    return 'Out of memory: Image size too large or too many LoRAs. Try reducing resolution or removing a LoRA.'
+  }
+  // Generic with original message
+  return `Generation failed: ${raw}`
+}
+
 async function pollPrediction(
   predictionUrl: string,
   apiKey: string,
@@ -61,6 +89,11 @@ async function pollPrediction(
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('Replicate pollPrediction failed', {
+        status: response.status,
+        predictionUrl,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('Replicate', response.status, errorBody)
     }
 
@@ -71,10 +104,11 @@ async function pollPrediction(
     }
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
+      const rawError = prediction.error ?? 'Unknown error'
       throw new ProviderError(
         'Replicate',
         502,
-        `Prediction ${prediction.status}: ${prediction.error ?? 'Unknown error'}`,
+        classifyReplicateError(rawError),
       )
     }
 
@@ -112,6 +146,120 @@ function extractImageUrl(output: unknown): string {
   )
 }
 
+// ─── Private helpers ────────────────────────────────────────────
+
+/** Build input payload for NoobAI/Illustrious XL models */
+function buildNoobAIInput(
+  prompt: string,
+  width: number,
+  height: number,
+  advancedParams: ProviderGenerationInput['advancedParams'],
+): Record<string, unknown> {
+  const input: Record<string, unknown> = { prompt, width, height }
+  if (advancedParams?.negativePrompt)
+    input.negative_prompt = advancedParams.negativePrompt
+  if (advancedParams?.guidanceScale != null)
+    input.cfg_scale = advancedParams.guidanceScale
+  if (advancedParams?.steps != null) input.steps = advancedParams.steps
+  return input
+}
+
+/** Build input payload for FLUX and other standard Replicate models */
+function buildFluxInput(
+  prompt: string,
+  aspectRatio: string,
+  advancedParams: ProviderGenerationInput['advancedParams'],
+): Record<string, unknown> {
+  const input: Record<string, unknown> = {
+    prompt,
+    aspect_ratio: REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '1:1',
+  }
+  if (advancedParams?.negativePrompt)
+    input.negative_prompt = advancedParams.negativePrompt
+  if (advancedParams?.guidanceScale != null)
+    input.guidance_scale = advancedParams.guidanceScale
+  if (advancedParams?.steps != null)
+    input.num_inference_steps = advancedParams.steps
+  return input
+}
+
+/**
+ * Resolve Civitai download URLs to CDN URLs with .safetensors extension.
+ * NoobAI requires the file extension in the URL.
+ */
+async function resolveCivitaiUrl(url: string): Promise<string> {
+  if (!url.includes('civitai.com/api/download')) return url
+  try {
+    const res = await fetch(url, { method: 'HEAD', redirect: 'manual' })
+    const cdnUrl = res.headers.get('location')
+    if (cdnUrl?.includes('.safetensors')) return cdnUrl
+  } catch {
+    /* fallback to original URL */
+  }
+  return url
+}
+
+/** Apply LoRA parameters to the input object (mutates in place) */
+async function applyLoraParams(
+  input: Record<string, unknown>,
+  loras: Array<{ url: string; scale?: number | null }>,
+  isNoobAI: boolean,
+): Promise<void> {
+  if (isNoobAI) {
+    // NoobAI: JSON array of {url, strength}. Resolve Civitai URLs first.
+    const resolved = await Promise.all(
+      loras.map(async (lora) => ({
+        url: await resolveCivitaiUrl(lora.url),
+        strength: lora.scale ?? 1.0,
+      })),
+    )
+    input.loras = JSON.stringify(resolved)
+  } else {
+    // FLUX: single hf_lora field
+    input.hf_lora = loras[0].url
+    if (loras[0].scale != null) input.lora_scale = loras[0].scale
+  }
+}
+
+/**
+ * Resolve the prediction request body.
+ * Official models use `model`, community models need `version` hash.
+ */
+async function resolveModelBody(
+  externalModelId: string,
+  isNoobAI: boolean,
+  input: Record<string, unknown>,
+  apiKey: string,
+  baseUrl: string,
+): Promise<Record<string, unknown>> {
+  if (!isNoobAI) return { model: externalModelId, input }
+
+  const modelRes = await fetch(`${baseUrl}/models/${externalModelId}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+  if (!modelRes.ok) {
+    throw new ProviderError(
+      'Replicate',
+      modelRes.status,
+      `Model ${externalModelId} not found`,
+    )
+  }
+  const modelData = (await modelRes.json()) as {
+    latest_version?: { id: string }
+  }
+  const versionHash = modelData.latest_version?.id
+  if (!versionHash) {
+    throw new ProviderError(
+      'Replicate',
+      404,
+      `No version found for ${externalModelId}`,
+    )
+  }
+  return { version: versionHash, input }
+}
+
+// ─── Adapter ────────────────────────────────────────────────────
+
 export const replicateAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.REPLICATE,
   async generateImage({
@@ -126,67 +274,23 @@ export const replicateAdapter: ProviderAdapter = {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
     const externalModelId = getExecutionModelId(modelId)
-    // Use model-specific endpoint (works for both official and community models)
-    const endpoint = `${baseUrl}/models/${externalModelId}/predictions`
-
+    const endpoint = `${baseUrl}/predictions`
     const isNoobAI = externalModelId.includes('noobai')
 
-    const input: Record<string, unknown> = { prompt }
-
-    if (isNoobAI) {
-      // NoobAI/Illustrious XL uses width/height, cfg_scale, steps
-      input.width = width
-      input.height = height
-      if (advancedParams?.negativePrompt) {
-        input.negative_prompt = advancedParams.negativePrompt
-      }
-      if (advancedParams?.guidanceScale != null) {
-        input.cfg_scale = advancedParams.guidanceScale
-      }
-      if (advancedParams?.steps != null) {
-        input.steps = advancedParams.steps
-      }
-    } else {
-      // Default Replicate FLUX format
-      input.aspect_ratio = REPLICATE_ASPECT_RATIOS[aspectRatio] ?? '1:1'
-      if (advancedParams?.negativePrompt) {
-        input.negative_prompt = advancedParams.negativePrompt
-      }
-      if (advancedParams?.guidanceScale != null) {
-        input.guidance_scale = advancedParams.guidanceScale
-      }
-      if (advancedParams?.steps != null) {
-        input.num_inference_steps = advancedParams.steps
-      }
-    }
+    const input: Record<string, unknown> = isNoobAI
+      ? buildNoobAIInput(prompt, width, height, advancedParams)
+      : buildFluxInput(prompt, aspectRatio, advancedParams)
 
     if (advancedParams?.seed != null && advancedParams.seed >= 0) {
       input.seed = advancedParams.seed
     }
 
-    // LoRA support: format depends on the model endpoint
     if (advancedParams?.loras?.length) {
-      if (isNoobAI) {
-        // NoobAI/Illustrious XL: `loras` as JSON list [{url, strength}]
-        input.loras = JSON.stringify(
-          advancedParams.loras.map((lora) => ({
-            url: lora.url,
-            strength: lora.scale ?? 1.0,
-          })),
-        )
-      } else {
-        // Default Replicate FLUX: hf_lora (single LoRA)
-        input.hf_lora = advancedParams.loras[0].url
-        if (advancedParams.loras[0].scale != null) {
-          input.lora_scale = advancedParams.loras[0].scale
-        }
-      }
+      await applyLoraParams(input, advancedParams.loras, isNoobAI)
     }
 
     if (referenceImage) {
       input.image = referenceImage
-      // Replicate `strength` = denoising (higher = more change)
-      // Our `referenceStrength` = similarity (higher = more similar)
       if (advancedParams?.referenceStrength != null) {
         input.strength = invertReferenceStrength(
           advancedParams.referenceStrength,
@@ -194,17 +298,37 @@ export const replicateAdapter: ProviderAdapter = {
       }
     }
 
+    const predBody = await resolveModelBody(
+      externalModelId,
+      isNoobAI,
+      input,
+      apiKey,
+      baseUrl,
+    )
+
+    logger.debug('[Replicate] generateImage request', {
+      endpoint,
+      modelId: externalModelId,
+      isNoobAI,
+    })
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify(predBody),
     })
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('Replicate generateImage failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('Replicate', response.status, errorBody)
     }
 
@@ -271,6 +395,12 @@ export const replicateAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('Replicate generateVideo failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
       throw new ProviderError('Replicate', response.status, errorBody)
     }
 

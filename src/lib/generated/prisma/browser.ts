@@ -123,11 +123,6 @@ export type BackgroundCard = Prisma.BackgroundCardModel
  */
 export type StyleCard = Prisma.StyleCardModel
 /**
- * Model ModelCard
- * 
- */
-export type ModelCard = Prisma.ModelCardModel
-/**
  * Model CardRecipe
  * 
  */

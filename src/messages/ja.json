@@ -1133,11 +1133,26 @@
   },
   "PromptPresets": {
     "title": "クイックスタート",
-    "portrait": { "label": "ポートレート", "description": "人物・ヘッドショット" },
-    "landscape": { "label": "風景", "description": "自然・景色" },
-    "anime": { "label": "アニメ", "description": "アニメ・イラスト" },
-    "logo": { "label": "ロゴ", "description": "ロゴ・タイポグラフィ" },
-    "cinematic": { "label": "シネマティック", "description": "映画スチル・SF" }
+    "portrait": {
+      "label": "ポートレート",
+      "description": "人物・ヘッドショット"
+    },
+    "landscape": {
+      "label": "風景",
+      "description": "自然・景色"
+    },
+    "anime": {
+      "label": "アニメ",
+      "description": "アニメ・イラスト"
+    },
+    "logo": {
+      "label": "ロゴ",
+      "description": "ロゴ・タイポグラフィ"
+    },
+    "cinematic": {
+      "label": "シネマティック",
+      "description": "映画スチル・SF"
+    }
   },
   "CharacterCard": {
     "title": "キャラクターカード",
@@ -1315,19 +1330,15 @@
     "sourceImage": "ソース画像",
     "sourceImageHint": "画像をアップロードして画風属性を自動抽出",
     "empty": "画風カードがありません",
-    "emptyHint": "画風カードを作成して、生成間でアートスタイルを再利用しましょう"
-  },
-  "ModelCard": {
-    "title": "モデルカード",
-    "create": "新しいモデルカード",
-    "edit": "モデルカードを編集",
-    "delete": "モデルカードを削除",
-    "deleteConfirm": "このモデルカードを削除しますか？",
-    "selectModel": "モデルを選択",
-    "configureParams": "パラメータ設定",
-    "loraCount": "{count}個のLoRA適用中",
-    "empty": "モデルカードがありません",
-    "emptyHint": "モデル+パラメータの組み合わせを保存して素早く再利用"
+    "emptyHint": "画風カードを作成して、生成間でアートスタイルを再利用しましょう",
+    "name": "名前",
+    "namePlaceholder": "スタイルカード名",
+    "selectModel": "モデル選択",
+    "selectModelPlaceholder": "— モデル指定なし —",
+    "generateMethod": "生成方式",
+    "loraMode": "LoRAモード",
+    "referenceMode": "参照画像モード",
+    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
   },
   "CardRecipe": {
     "title": "レシピ",
@@ -1355,5 +1366,39 @@
     "style": "画風",
     "model": "モデル",
     "deleted": "削除済み"
+  },
+  "CivitaiToken": {
+    "saveSuccess": "Civitai Tokenを保存しました",
+    "saveFailed": "Token保存に失敗しました",
+    "removeSuccess": "Tokenを削除しました",
+    "removeFailed": "Token削除に失敗しました"
+  },
+  "StudioV2": {
+    "none": "未選択",
+    "new": "新規",
+    "manage": "管理",
+    "edit": "編集",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "generate": "生成",
+    "generating": "生成中...",
+    "generateSuccess": "画像が生成されました！",
+    "generateFailed": "生成失敗",
+    "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
+    "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
+    "enhance": "強化",
+    "reverse": "リバース",
+    "advanced": "詳細",
+    "referenceImage": "参照画像",
+    "civitaiToken": "Civitai Token",
+    "tokenSaved": "Token保存済み",
+    "tokenPlaceholder": "Civitai API Tokenを入力",
+    "removeToken": "削除",
+    "cardManagement": "カード管理",
+    "projectHistory": "プロジェクトと履歴",
+    "character": "キャラクター",
+    "background": "背景",
+    "style": "スタイル",
+    "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
   }
 }

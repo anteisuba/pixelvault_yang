@@ -1133,11 +1133,26 @@
   },
   "PromptPresets": {
     "title": "Quick start",
-    "portrait": { "label": "Portrait", "description": "People & headshots" },
-    "landscape": { "label": "Landscape", "description": "Nature & scenery" },
-    "anime": { "label": "Anime", "description": "Anime & illustration" },
-    "logo": { "label": "Logo", "description": "Logos & typography" },
-    "cinematic": { "label": "Cinematic", "description": "Film stills & sci-fi" }
+    "portrait": {
+      "label": "Portrait",
+      "description": "People & headshots"
+    },
+    "landscape": {
+      "label": "Landscape",
+      "description": "Nature & scenery"
+    },
+    "anime": {
+      "label": "Anime",
+      "description": "Anime & illustration"
+    },
+    "logo": {
+      "label": "Logo",
+      "description": "Logos & typography"
+    },
+    "cinematic": {
+      "label": "Cinematic",
+      "description": "Film stills & sci-fi"
+    }
   },
   "CharacterCard": {
     "title": "Character Cards",
@@ -1315,19 +1330,15 @@
     "sourceImage": "Source Image",
     "sourceImageHint": "Upload an image to automatically extract style attributes",
     "empty": "No style cards yet",
-    "emptyHint": "Create a style card to reuse art styles across generations"
-  },
-  "ModelCard": {
-    "title": "Model Cards",
-    "create": "New Model Card",
-    "edit": "Edit Model Card",
-    "delete": "Delete Model Card",
-    "deleteConfirm": "Are you sure you want to delete this model card?",
-    "selectModel": "Select Model",
-    "configureParams": "Configure Parameters",
-    "loraCount": "{count} LoRA applied",
-    "empty": "No model cards yet",
-    "emptyHint": "Save model + parameter combinations for quick reuse"
+    "emptyHint": "Create a style card to reuse art styles across generations",
+    "name": "Name",
+    "namePlaceholder": "Style card name",
+    "selectModel": "Select model",
+    "selectModelPlaceholder": "— No model —",
+    "generateMethod": "Generate method",
+    "loraMode": "LoRA Mode",
+    "referenceMode": "Reference Mode",
+    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
   },
   "CardRecipe": {
     "title": "Recipes",
@@ -1355,5 +1366,39 @@
     "style": "Style",
     "model": "Model",
     "deleted": "Deleted"
+  },
+  "CivitaiToken": {
+    "saveSuccess": "Civitai token saved",
+    "saveFailed": "Failed to save token",
+    "removeSuccess": "Token removed",
+    "removeFailed": "Failed to remove token"
+  },
+  "StudioV2": {
+    "none": "None",
+    "new": "New",
+    "manage": "Manage",
+    "character": "Character",
+    "background": "Background",
+    "style": "Style",
+    "noModel": "No model set — open Style card management to add a model",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "generateSuccess": "Image generated!",
+    "generateFailed": "Generation failed",
+    "freePromptPlaceholder": "Describe the action, scene, or expression...",
+    "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
+    "enhance": "Enhance",
+    "reverse": "Reverse",
+    "advanced": "Advanced",
+    "referenceImage": "Reference",
+    "civitaiToken": "Civitai Token",
+    "tokenSaved": "Token saved",
+    "tokenPlaceholder": "Enter Civitai API token",
+    "removeToken": "Remove",
+    "cardManagement": "Card Management",
+    "projectHistory": "Project & History"
   }
 }

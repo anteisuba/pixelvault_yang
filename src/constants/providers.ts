@@ -149,3 +149,21 @@ export const getAdapterCustomModelExample = (
 
 export const isAiAdapterType = (value: string): value is AI_ADAPTER_TYPES =>
   Object.values(AI_ADAPTER_TYPES).includes(value as AI_ADAPTER_TYPES)
+
+/**
+ * Provider fallback mapping for platform-key (free tier) generation.
+ * Only used when the primary provider fails with a transient error (5xx/timeout)
+ * and the user is on free tier (not BYOK — can't fallback without their key).
+ *
+ * Maps: failed model → fallback model that uses a different provider.
+ * Fallback should be same output type and similar quality tier.
+ */
+export const PROVIDER_FALLBACK_MAP: Partial<Record<string, string>> = {
+  // Image model fallbacks (cross-provider)
+  'gemini-3.1-flash-image-preview': 'gpt-image-1.5',
+  'gpt-image-1.5': 'gemini-3.1-flash-image-preview',
+  'flux-2-pro': 'gemini-3.1-flash-image-preview',
+  'flux-2-dev': 'flux-2-schnell',
+  'ideogram-3': 'gemini-3.1-flash-image-preview',
+  'recraft-v3': 'gemini-3.1-flash-image-preview',
+}

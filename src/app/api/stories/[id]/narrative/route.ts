@@ -20,7 +20,7 @@ export async function POST(
       )
     }
 
-    const { success: allowed } = rateLimit(`narrative:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`narrative:${clerkId}`, {
       limit: 5,
       windowSeconds: 60,
     })

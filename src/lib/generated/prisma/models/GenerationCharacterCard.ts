@@ -1207,11 +1207,6 @@ export type GenerationCharacterCardFindManyArgs<ExtArgs extends runtime.Types.Ex
    * Skip the first `n` GenerationCharacterCards.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of GenerationCharacterCards.
-   */
   distinct?: Prisma.GenerationCharacterCardScalarFieldEnum | Prisma.GenerationCharacterCardScalarFieldEnum[]
 }
 

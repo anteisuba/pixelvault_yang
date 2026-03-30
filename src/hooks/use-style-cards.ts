@@ -21,6 +21,7 @@ export interface UseStyleCardsReturn {
   isLoading: boolean
   activeCardId: string | null
   setActiveCardId: (id: string | null) => void
+  activeCard: StyleCardRecord | null
   create: (data: CreateStyleCardRequest) => Promise<StyleCardRecord | null>
   update: (id: string, data: UpdateStyleCardRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
@@ -89,11 +90,14 @@ export function useStyleCards(projectId?: string | null): UseStyleCardsReturn {
     [activeCardId, t],
   )
 
+  const activeCard = cards.find((c) => c.id === activeCardId) ?? null
+
   return {
     cards,
     isLoading,
     activeCardId,
     setActiveCardId,
+    activeCard,
     create,
     update,
     remove,

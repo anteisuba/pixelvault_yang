@@ -7,10 +7,12 @@ import type {
   CreateStyleCardRequest,
   UpdateStyleCardRequest,
   StyleAttributes,
+  AdvancedParams,
 } from '@/types'
 import { ensureUser } from '@/services/user.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { extractStyleAttributes } from '@/services/recipe-compiler.service'
+import { logger } from '@/lib/logger'
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -22,6 +24,9 @@ function toRecord(row: {
   stylePrompt: string
   attributes: unknown
   loras?: unknown
+  modelId?: string | null
+  adapterType?: string | null
+  advancedParams?: unknown
   tags: string[]
   projectId: string | null
   isDeleted: boolean
@@ -36,6 +41,9 @@ function toRecord(row: {
     stylePrompt: row.stylePrompt,
     attributes: (row.attributes as StyleAttributes) ?? null,
     loras: (row.loras as StyleCardRecord['loras']) ?? null,
+    modelId: row.modelId ?? null,
+    adapterType: row.adapterType ?? null,
+    advancedParams: (row.advancedParams as AdvancedParams) ?? null,
     tags: row.tags,
     projectId: row.projectId,
     isDeleted: row.isDeleted,
@@ -114,7 +122,7 @@ export async function createStyleCard(
         attributes = extracted.attributes
         stylePrompt = extracted.prompt
       } catch {
-        console.warn(
+        logger.warn(
           '[StyleCard] Attribute extraction failed, using manual prompt',
         )
       }
@@ -131,6 +139,9 @@ export async function createStyleCard(
       sourceStorageKey,
       stylePrompt,
       attributes: attributes ?? undefined,
+      modelId: input.modelId ?? null,
+      adapterType: input.adapterType ?? null,
+      advancedParams: input.advancedParams ?? undefined,
       tags: input.tags ?? [],
     },
   })
@@ -155,6 +166,11 @@ export async function updateStyleCard(
   if (input.description !== undefined) data.description = input.description
   if (input.stylePrompt !== undefined) data.stylePrompt = input.stylePrompt
   if (input.attributes !== undefined) data.attributes = input.attributes
+  if (input.loras !== undefined) data.loras = input.loras
+  if (input.modelId !== undefined) data.modelId = input.modelId
+  if (input.adapterType !== undefined) data.adapterType = input.adapterType
+  if (input.advancedParams !== undefined)
+    data.advancedParams = input.advancedParams
   if (input.tags !== undefined) data.tags = input.tags
   if (input.projectId !== undefined) data.projectId = input.projectId
 

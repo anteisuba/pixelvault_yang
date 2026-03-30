@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { success: allowed } = rateLimit(`generate-video:${clerkId}`, {
+    const { success: allowed } = await rateLimit(`generate-video:${clerkId}`, {
       limit: 5,
       windowSeconds: 60,
     })

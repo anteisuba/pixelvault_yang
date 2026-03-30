@@ -1192,11 +1192,6 @@ export type ImageAnalysisFindManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * Skip the first `n` ImageAnalyses.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of ImageAnalyses.
-   */
   distinct?: Prisma.ImageAnalysisScalarFieldEnum | Prisma.ImageAnalysisScalarFieldEnum[]
 }
 

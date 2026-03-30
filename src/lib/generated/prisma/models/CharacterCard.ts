@@ -2918,6 +2918,11 @@ export type CharacterCardFindManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * Skip the first `n` CharacterCards.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of CharacterCards.
+   */
   distinct?: Prisma.CharacterCardScalarFieldEnum | Prisma.CharacterCardScalarFieldEnum[]
 }
 

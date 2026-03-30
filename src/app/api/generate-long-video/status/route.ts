@@ -8,9 +8,10 @@ import { rateLimit } from '@/lib/rate-limit'
 import { AuthError, isGenerationError } from '@/lib/errors'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { checkPipelineStatus } from '@/services/video-pipeline.service'
-import { RATE_LIMIT_CONFIGS, MAX_DURATION_CONFIGS } from '@/constants/config'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
-export const maxDuration = MAX_DURATION_CONFIGS.generateLongVideo
+// Next.js segment config exports must stay statically analyzable.
+export const maxDuration = 240
 
 // ─── GET /api/generate-long-video/status?pipelineId=xxx ──────────
 

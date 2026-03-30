@@ -8,9 +8,9 @@ import { AuthError, isGenerationError } from '@/lib/errors'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { checkVideoGenerationStatus } from '@/services/generate-video.service'
 import { VideoStatusRequestSchema } from '@/types'
-import { MAX_DURATION_CONFIGS } from '@/constants/config'
 
-export const maxDuration = MAX_DURATION_CONFIGS.generateVideo
+// Next.js segment config exports must stay statically analyzable.
+export const maxDuration = 240
 
 // ─── GET /api/generate-video/status?jobId=xxx ────────────────────
 

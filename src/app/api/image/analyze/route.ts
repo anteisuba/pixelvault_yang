@@ -1,10 +1,11 @@
 import { AnalyzeImageRequestSchema } from '@/types'
 import { analyzeImage } from '@/services/image-analysis.service'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { RATE_LIMIT_CONFIGS, MAX_DURATION_CONFIGS } from '@/constants/config'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { GenerationValidationError } from '@/lib/errors'
 
-export const maxDuration = MAX_DURATION_CONFIGS.imageAnalyze
+// Next.js segment config exports must stay statically analyzable.
+export const maxDuration = 30
 
 // Max image upload size: 10MB base64 ≈ ~14MB string
 const MAX_IMAGE_DATA_LENGTH = 14 * 1024 * 1024

@@ -123,7 +123,11 @@
       "Bash(find src/app/api -name *.ts)",
       "Bash(xargs grep:*)",
       "Bash(sed -n '301,308p' src/messages/ja.json)",
-      "Bash(sed -n '301,308p' src/messages/zh.json)"
+      "Bash(sed -n '301,308p' src/messages/zh.json)",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "Bash(find src/app/api -name \"*.ts\" -exec grep -l \"console\\\\.error\" {})",
+      "Bash(sed -i \"s/logger.error\\(''\\\\[API DELETE \\\\/api\\\\/generations\\\\] R2 cleanup failed:'', error\\)/logger.error\\(''[API DELETE \\\\/api\\\\/generations] R2 cleanup failed'', { error: error instanceof Error ? error.message : String\\(error\\) }\\)/g\" src/app/api/generations/\\\\[id\\\\]/route.ts)",
+      "Bash(sed -i \"s/logger.error\\(''\\\\[API \\\\/api\\\\/images\\\\] ERROR:'', error\\)/logger.error\\(''[API \\\\/api\\\\/images] ERROR'', { error: error instanceof Error ? error.message : String\\(error\\) }\\)/g\" src/app/api/images/route.ts)"
     ]
   },
   "hooks": {

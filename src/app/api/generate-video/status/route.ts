@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { VideoStatusRequestSchema } from '@/types'
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.error('[API /api/generate-video/status] Error:', error)
+    logger.error('[API /api/generate-video/status] Error', { error: error instanceof Error ? error.message : String(error) })
 
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'

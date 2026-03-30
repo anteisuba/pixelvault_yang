@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -27,7 +28,7 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('[API /api/users/me/profile GET] Error:', error)
+    logger.error('[API /api/users/me/profile GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<UpdateProfileResponse>(
@@ -82,7 +83,7 @@ export async function PUT(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[API /api/users/me/profile PUT] Error:', error)
+    logger.error('[API /api/users/me/profile PUT] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
 

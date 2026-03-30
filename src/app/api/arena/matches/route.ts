@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       data: { matchId },
     })
   } catch (error) {
-    console.error('[API /api/arena/matches] Error:', error)
+    logger.error('[API /api/arena/matches] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<CreateArenaMatchResponse>(
       { success: false, error: 'Match creation failed. Please try again.' },
       { status: 500 },

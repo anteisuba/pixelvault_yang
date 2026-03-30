@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateNarrativeRequestSchema } from '@/types'
@@ -60,7 +61,7 @@ export async function POST(
       data: { panels },
     })
   } catch (error) {
-    console.error('[API /api/stories/[id]/narrative] Error:', error)
+    logger.error('[API /api/stories/[id]/narrative] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<GenerateNarrativeResponse>(
       {
         success: false,

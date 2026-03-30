@@ -1388,6 +1388,7 @@
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
     "generateFailed": "Generation failed",
+    "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
     "enhance": "Enhance",

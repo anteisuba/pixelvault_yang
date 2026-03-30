@@ -1384,6 +1384,7 @@
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
     "generateFailed": "生成失敗",
+    "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
     "enhance": "強化",

@@ -1388,6 +1388,7 @@
     "generating": "生成中...",
     "generateSuccess": "图片已生成！",
     "generateFailed": "生成失败",
+    "aspectRatioLabel": "宽高比",
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
     "enhance": "增强",

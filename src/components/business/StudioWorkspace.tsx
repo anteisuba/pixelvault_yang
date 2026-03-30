@@ -7,7 +7,6 @@ import {
   Film,
   Sparkles,
   ChevronDown,
-  ChevronUp,
   Key,
   KeyRound,
   Loader2,
@@ -78,6 +77,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import type { AdvancedParams } from '@/types'
 import { cn } from '@/lib/utils'
+import { AnimatedCollapse } from '@/components/ui/animated-collapse'
 
 type StudioMode = 'image' | 'video'
 type AspectRatio = '1:1' | '16:9' | '9:16'
@@ -283,7 +283,9 @@ export function StudioWorkspace() {
           <button
             type="button"
             role="tab"
+            id="studio-tab-image"
             aria-selected={mode === 'image'}
+            aria-controls="studio-panel-image"
             onClick={() => setMode('image')}
             className={cn(
               'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
@@ -298,7 +300,9 @@ export function StudioWorkspace() {
           <button
             type="button"
             role="tab"
+            id="studio-tab-video"
             aria-selected={mode === 'video'}
+            aria-controls="studio-panel-video"
             onClick={() => setMode('video')}
             className={cn(
               'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
@@ -325,7 +329,12 @@ export function StudioWorkspace() {
       </div>
 
       {mode === 'image' ? (
-        <>
+        <div
+          role="tabpanel"
+          id="studio-panel-image"
+          aria-labelledby="studio-tab-image"
+          className="space-y-4"
+        >
           {/* ── Layer 1: Card dropdowns + API Keys ────────────── */}
           <div className="flex flex-wrap items-center gap-2">
             <CardDropdown
@@ -373,7 +382,7 @@ export function StudioWorkspace() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 gap-1.5 px-2.5 text-xs text-[#7a7872] hover:bg-[#f0ede6] hover:text-[#141413]"
+                  className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                   title={tApiKeys('triggerLabel')}
                 >
                   <KeyRound className="size-3.5" />
@@ -422,12 +431,18 @@ export function StudioWorkspace() {
           />
 
           {/* ── Aspect ratio + Generate ───────────────────────── */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1.5">
+          <div className="flex items-center justify-between gap-3 sm:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none py-2 sm:py-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+            <div
+              role="radiogroup"
+              aria-label={t('aspectRatioLabel')}
+              className="flex gap-1.5"
+            >
               {ASPECT_RATIOS.map((r) => (
                 <button
                   key={r}
                   type="button"
+                  role="radio"
+                  aria-checked={aspectRatio === r}
                   onClick={() => setAspectRatio(r)}
                   className={cn(
                     'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
@@ -615,19 +630,25 @@ export function StudioWorkspace() {
           <div className="rounded-xl border border-border/40 overflow-hidden">
             <button
               type="button"
+              aria-expanded={showCardManagement}
+              aria-controls="studio-card-management"
               onClick={() => setShowCardManagement((v) => !v)}
               className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/20 transition-colors"
             >
               <span className="font-display">{t('cardManagement')}</span>
-              {showCardManagement ? (
-                <ChevronUp className="size-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="size-4 text-muted-foreground" />
-              )}
+              <ChevronDown
+                className={cn(
+                  'size-4 text-muted-foreground transition-transform duration-300',
+                  showCardManagement && 'rotate-180',
+                )}
+              />
             </button>
 
-            {showCardManagement && (
-              <div className="border-t border-border/40 p-4 space-y-6">
+            <AnimatedCollapse open={showCardManagement}>
+              <div
+                id="studio-card-management"
+                className="border-t border-border/40 p-4 space-y-6"
+              >
                 <CharacterCardManager
                   cards={characterCards}
                   activeCardIds={activeCardIds}
@@ -690,26 +711,32 @@ export function StudioWorkspace() {
                   onDelete={removeStyleCard}
                 />
               </div>
-            )}
+            </AnimatedCollapse>
           </div>
 
           {/* ── Layer 3: Project & History ────────────────────── */}
           <div className="rounded-xl border border-border/40 overflow-hidden">
             <button
               type="button"
+              aria-expanded={showProjectHistory}
+              aria-controls="studio-project-history"
               onClick={() => setShowProjectHistory((v) => !v)}
               className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/20 transition-colors"
             >
               <span className="font-display">{t('projectHistory')}</span>
-              {showProjectHistory ? (
-                <ChevronUp className="size-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="size-4 text-muted-foreground" />
-              )}
+              <ChevronDown
+                className={cn(
+                  'size-4 text-muted-foreground transition-transform duration-300',
+                  showProjectHistory && 'rotate-180',
+                )}
+              />
             </button>
 
-            {showProjectHistory && (
-              <div className="border-t border-border/40 p-4 space-y-4">
+            <AnimatedCollapse open={showProjectHistory}>
+              <div
+                id="studio-project-history"
+                className="border-t border-border/40 p-4 space-y-4"
+              >
                 <ProjectSelector
                   projects={projects}
                   activeProjectId={activeProjectId}
@@ -727,11 +754,16 @@ export function StudioWorkspace() {
                   onLoadMore={loadMoreHistory}
                 />
               </div>
-            )}
+            </AnimatedCollapse>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div
+          role="tabpanel"
+          id="studio-panel-video"
+          aria-labelledby="studio-tab-video"
+          className="space-y-4"
+        >
           <VideoGenerateForm activeCharacterCards={activeCards} />
           <HistoryPanel
             generations={history}
@@ -740,7 +772,7 @@ export function StudioWorkspace() {
             isLoading={isLoadingHistory}
             onLoadMore={loadMoreHistory}
           />
-        </>
+        </div>
       )}
 
       <OnboardingTooltip

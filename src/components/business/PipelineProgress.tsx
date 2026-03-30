@@ -26,7 +26,7 @@ export function PipelineProgress({
     <div className="space-y-3">
       {/* Overall progress bar */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs text-[#706f6c]">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
             {t('clipProgress', {
               current: status.completedClips,
@@ -38,9 +38,9 @@ export function PipelineProgress({
             {status.targetDurationSec}s
           </span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-[#e8e6dc]">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-[#d97757] transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -65,7 +65,7 @@ export function PipelineProgress({
       {status.status === 'RUNNING' && onCancel && (
         <button
           onClick={onCancel}
-          className="text-xs text-[#706f6c] underline underline-offset-2 hover:text-[#141413] transition-colors"
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
         >
           {t('cancel')}
         </button>
@@ -92,7 +92,7 @@ function ClipStep({
           clip.status === 'RUNNING' &&
             'bg-amber-100 text-amber-700 animate-pulse',
           clip.status === 'QUEUED' && 'bg-blue-100 text-blue-700 animate-pulse',
-          clip.status === 'PENDING' && 'bg-[#f0efe9] text-[#706f6c]',
+          clip.status === 'PENDING' && 'bg-muted/50 text-muted-foreground',
           clip.status === 'FAILED' && 'bg-red-100 text-red-700',
         )}
         title={

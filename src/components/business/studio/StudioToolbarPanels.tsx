@@ -17,9 +17,9 @@ const ReverseEngineerPanel = dynamic(() =>
     (mod) => mod.ReverseEngineerPanel,
   ),
 )
-const AdvancedSettings = dynamic(() =>
-  import('@/components/business/AdvancedSettings').then(
-    (mod) => mod.AdvancedSettings,
+const CapabilityForm = dynamic(() =>
+  import('@/components/business/CapabilityForm').then(
+    (mod) => mod.CapabilityForm,
   ),
 )
 const ReferenceImageSection = dynamic(() =>
@@ -124,7 +124,7 @@ export function StudioToolbarPanels() {
           aria-live="polite"
           className="rounded-lg border border-border/60 bg-background/60 p-3"
         >
-          <AdvancedSettings
+          <CapabilityForm
             adapterType={adapterType}
             params={state.advancedParams}
             onChange={(params) =>

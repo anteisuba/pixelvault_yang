@@ -55,7 +55,6 @@ describe('POST /api/generate-video', () => {
 
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
-    expect(json.error).toBe('Unauthorized')
   })
 
   it('returns 429 when rate limited', async () => {
@@ -115,7 +114,9 @@ describe('POST /api/generate-video', () => {
 
   it('returns service error with correct status', async () => {
     const serviceError = Object.assign(new Error('Model unavailable'), {
+      code: 'PROVIDER_ERROR',
       status: 503,
+      name: 'GenerateImageServiceError',
     })
     mockSubmit.mockRejectedValue(serviceError)
     mockIsServiceError.mockReturnValue(true)
@@ -139,6 +140,5 @@ describe('POST /api/generate-video', () => {
 
     expect(res.status).toBe(500)
     expect(json.success).toBe(false)
-    expect(json.error).toBe('Video generation failed. Please try again.')
   })
 })

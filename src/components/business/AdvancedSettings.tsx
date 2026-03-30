@@ -163,7 +163,11 @@ export function AdvancedSettings({
                 label: t(`qualityOption.${v}`),
               }))}
               value={params.quality ?? 'auto'}
-              onChange={(v) => update({ quality: v })}
+              onChange={(v) =>
+                update({
+                  quality: v as 'auto' | 'low' | 'medium' | 'high',
+                })
+              }
               disabled={disabled}
             />
           </div>

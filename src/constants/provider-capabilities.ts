@@ -140,6 +140,36 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
   }
 
+// ─── Capability → UI Field Type Mapping ──────────────────────────
+
+/** UI field types that each capability maps to in the CapabilityForm */
+export type CapabilityFieldType =
+  | 'slider'
+  | 'select'
+  | 'textarea'
+  | 'seed'
+  | 'lora'
+
+const CAPABILITY_FIELD_MAP: Record<ProviderCapability, CapabilityFieldType> = {
+  negativePrompt: 'textarea',
+  guidanceScale: 'slider',
+  steps: 'slider',
+  seed: 'seed',
+  referenceStrength: 'slider',
+  quality: 'select',
+  background: 'select',
+  style: 'select',
+  imageAnalysis: 'select',
+  lora: 'lora',
+}
+
+/** Get the UI field type for a given capability (used by CapabilityForm) */
+export function getCapabilityFieldType(
+  cap: ProviderCapability,
+): CapabilityFieldType {
+  return CAPABILITY_FIELD_MAP[cap]
+}
+
 /** Check whether a given adapter supports a specific capability */
 export function hasCapability(
   adapterType: AI_ADAPTER_TYPES,

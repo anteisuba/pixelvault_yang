@@ -31,7 +31,7 @@ export const AdvancedParamsSchema = z.object({
   steps: z.number().int().min(1).max(100).optional(),
   seed: z.number().int().min(-1).max(4294967295).optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
-  quality: z.string().optional(),
+  quality: z.enum(['auto', 'low', 'medium', 'high']).optional(),
   background: z.string().optional(),
   style: z.string().optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
@@ -89,6 +89,33 @@ export interface GenerateResponse {
   /** Machine-readable error code for i18n translation on the client */
   errorCode?: string
 }
+
+// ─── Unified Generation Config (image + video) ──────────────────
+
+/** Unified generation config schema covering both image and video modes */
+export const GenerationConfigSchema = z.object({
+  outputType: z.enum(['image', 'video']),
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(4000, 'Prompt is too long (max 4000 characters)'),
+  modelId: z.string().trim().min(1, 'Model is required').max(160),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+  referenceImage: z.string().optional(),
+  referenceImages: z.array(z.string()).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  advancedParams: AdvancedParamsSchema.optional(),
+  characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+  projectId: z.string().trim().min(1).optional(),
+  // video-specific fields (ignored when outputType === 'image')
+  duration: z.number().min(1).max(10).optional(),
+  negativePrompt: z.string().max(2000).optional(),
+  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
+})
+
+/** Unified generation config type */
+export type GenerationConfig = z.infer<typeof GenerationConfigSchema>
 
 // ─── Video Generate Request ───────────────────────────────────────
 

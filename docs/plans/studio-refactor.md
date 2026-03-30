@@ -428,3 +428,51 @@ try {                             rateLimit: RATE_LIMIT_CONFIGS.generate,
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
 **VERDICT:** CEO CLEARED — eng review recommended before implementation but not blocking given time constraints.
+
+---
+
+## Implementation Progress
+
+### Phase 1: Foundation ✅ COMPLETE
+- [x] 1.1 统一错误类层次 (`src/lib/errors.ts`) — 6 concrete error classes + tests
+- [x] 1.2 API 路由工厂 (`src/lib/api-route-factory.ts`) — factory + tests
+- [x] 1.3 常量补充 — `STUDIO_MODES`, `RATE_LIMIT_CONFIGS`, `MAX_DURATION_CONFIGS`, `getCapabilityFieldType()`
+- [x] 1.4 类型增强 — `GenerationConfigSchema`, tighten `quality` to enum
+- [x] 1.5 i18n 错误键 — all `errors.*` keys in en/ja/zh
+
+### Phase 2: Hooks 层 ✅ COMPLETE
+- [x] 2.1 `useCardManager` — generic hook with single/multi selection, CRUD
+- [x] 2.2 `useBackgroundCards` / `useStyleCards` — thin wrappers via useCardManager
+- [x] 2.3 `useCharacterCards` — hand-written with tree structure + refine (as planned)
+- [x] 2.4 `useUnifiedGenerate` — merges image + video with polling state machine
+
+### Phase 3: Context 层 ✅ COMPLETE
+- [x] 3.1 `StudioProvider` — split into 3 contexts (Form/Data/Gen) per eng review
+- [x] 3.2 `useStudioForm` / `useStudioData` / `useStudioGen` consumer hooks
+- [x] 3.3 `useStudioContext` convenience hook
+
+### Phase 4: 组件分解 ✅ COMPLETE
+- [x] 4.1 StudioWorkspace → ~75 行薄编排器
+- [x] 4.2 `StudioModeSelector` — image/video 切换
+- [x] 4.3 `StudioCardSelectors` — 三卡片下拉 + API Key Sheet
+- [x] 4.4 `StudioPromptArea` — 提示词输入
+- [x] 4.5 `StudioGenerateBar` — 宽高比 + 生成按钮
+- [x] 4.6 `StudioPreview` — 生成预览 + loading
+- [x] 4.7 `StudioToolbarPanels` — 工具栏 + 所有可折叠面板
+- [x] 4.8 `StudioCardManagement` — 卡片 CRUD 管理
+- [x] 4.9 `StudioProjectHistory` — 项目 + 历史
+- [x] 4.10 `StudioVideoMode` — 视频模式
+- [ ] 4.11 `CapabilityForm` — capability-driven 表单（替代 AdvancedSettings）
+- [ ] 4.12 CharacterCardManager 拆分（CreateForm / EditForm / VariantGrid）
+
+### Phase 5: API 路由迁移 ⏳ PENDING
+- [ ] 5.1 `/api/generate` → createApiRoute
+- [ ] 5.2 `/api/studio/generate` → createApiRoute
+- [ ] 5.3 `/api/image/analyze` → createApiRoute
+- [ ] 5.4 `/api/prompt/enhance` → createApiRoute
+- [ ] 5.5 其他手动路由迁移
+
+### Phase 6: 清理 ⏳ PENDING
+- [ ] 6.1 删除 `GenerateImageServiceError`
+- [ ] 6.2 删除已提取的魔法数字
+- [ ] 6.3 替换硬编码颜色为设计令牌

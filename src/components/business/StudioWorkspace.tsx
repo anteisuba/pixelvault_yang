@@ -146,7 +146,6 @@ function StudioWorkspaceInner() {
     const ok = await civitai.save(state.tokenInput.trim())
     if (ok) {
       dispatch({ type: 'SET_TOKEN_INPUT', payload: '' })
-      dispatch({ type: 'CLOSE_PANEL', payload: 'civitai' })
     }
   }, [state.tokenInput, civitai, dispatch])
 

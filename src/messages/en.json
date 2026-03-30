@@ -258,6 +258,18 @@
         "geminiConcept": {
           "note": "Fast concepting",
           "prompt": "Editorial still life of camera parts, metal tools, and pressed flowers"
+        },
+        "dalleCreative": {
+          "note": "Creative illustration",
+          "prompt": "A cozy reading nook with rain streaking down a tall window"
+        },
+        "fluxPro": {
+          "note": "Photorealistic detail",
+          "prompt": "Morning light catching dewdrops on a spider web between fence posts"
+        },
+        "novelaiIllust": {
+          "note": "Stylized illustration",
+          "prompt": "Alchemist's workshop filled with glowing bottles and scattered notes"
         }
       }
     },

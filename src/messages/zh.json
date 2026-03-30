@@ -258,6 +258,18 @@
         "geminiConcept": {
           "note": "快速概念探索",
           "prompt": "由相机零件、金属工具和压花组成的编辑风静物"
+        },
+        "dalleCreative": {
+          "note": "创意插画",
+          "prompt": "雨水沿着高窗流淌的温馨阅读角落"
+        },
+        "fluxPro": {
+          "note": "照片级细节",
+          "prompt": "晨光照在栅栏间蜘蛛网上的露珠"
+        },
+        "novelaiIllust": {
+          "note": "风格化插画",
+          "prompt": "摆满发光瓶子和散落笔记的炼金术士工坊"
         }
       }
     },

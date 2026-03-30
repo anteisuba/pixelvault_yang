@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { toast } from 'sonner'
-import { useTranslations } from 'next-intl'
+import { useMemo } from 'react'
 
 import type {
   BackgroundCardRecord,
@@ -15,94 +13,61 @@ import {
   updateBackgroundCardAPI,
   deleteBackgroundCardAPI,
 } from '@/lib/api-client'
+import {
+  useCardManager,
+  type UseCardManagerReturn,
+} from '@/hooks/use-card-manager'
 
-export interface UseBackgroundCardsReturn {
-  cards: BackgroundCardRecord[]
-  isLoading: boolean
-  activeCardId: string | null
-  setActiveCardId: (id: string | null) => void
-  create: (
-    data: CreateBackgroundCardRequest,
-  ) => Promise<BackgroundCardRecord | null>
-  update: (id: string, data: UpdateBackgroundCardRequest) => Promise<boolean>
-  remove: (id: string) => Promise<boolean>
-  refresh: () => Promise<void>
+export type UseBackgroundCardsReturn = Pick<
+  UseCardManagerReturn<
+    BackgroundCardRecord,
+    CreateBackgroundCardRequest,
+    UpdateBackgroundCardRequest
+  >,
+  | 'cards'
+  | 'isLoading'
+  | 'activeCardId'
+  | 'setActiveCardId'
+  | 'create'
+  | 'update'
+  | 'remove'
+  | 'refresh'
+>
+
+const api = {
+  list: listBackgroundCardsAPI,
+  create: createBackgroundCardAPI,
+  update: updateBackgroundCardAPI,
+  delete: deleteBackgroundCardAPI,
 }
 
 export function useBackgroundCards(
   projectId?: string | null,
 ): UseBackgroundCardsReturn {
-  const [cards, setCards] = useState<BackgroundCardRecord[]>([])
-  const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const t = useTranslations('Toasts')
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true)
-    const result = await listBackgroundCardsAPI(projectId)
-    if (result.success && result.data) {
-      setCards(result.data)
-    }
-    setIsLoading(false)
-  }, [projectId])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  const create = useCallback(
-    async (
-      data: CreateBackgroundCardRequest,
-    ): Promise<BackgroundCardRecord | null> => {
-      const result = await createBackgroundCardAPI(data)
-      if (result.success && result.data) {
-        setCards((prev) => [result.data!, ...prev])
-        toast.success(t('createSuccess'))
-        return result.data
-      }
-      toast.error(result.error ?? t('createFailed'))
-      return null
-    },
-    [t],
-  )
-
-  const update = useCallback(
-    async (id: string, data: UpdateBackgroundCardRequest): Promise<boolean> => {
-      const result = await updateBackgroundCardAPI(id, data)
-      if (result.success && result.data) {
-        setCards((prev) => prev.map((c) => (c.id === id ? result.data! : c)))
-        toast.success(t('updateSuccess'))
-        return true
-      }
-      toast.error(result.error ?? t('updateFailed'))
-      return false
-    },
-    [t],
-  )
-
-  const remove = useCallback(
-    async (id: string): Promise<boolean> => {
-      const result = await deleteBackgroundCardAPI(id)
-      if (result.success) {
-        setCards((prev) => prev.filter((c) => c.id !== id))
-        if (activeCardId === id) setActiveCardId(null)
-        toast.success(t('deleteSuccess'))
-        return true
-      }
-      toast.error(result.error ?? t('deleteFailed'))
-      return false
-    },
-    [activeCardId, t],
+  const manager = useCardManager<
+    BackgroundCardRecord,
+    CreateBackgroundCardRequest,
+    UpdateBackgroundCardRequest
+  >(
+    useMemo(
+      () => ({
+        cardType: 'background',
+        api,
+        selectionMode: 'single' as const,
+        projectId,
+      }),
+      [projectId],
+    ),
   )
 
   return {
-    cards,
-    isLoading,
-    activeCardId,
-    setActiveCardId,
-    create,
-    update,
-    remove,
-    refresh,
+    cards: manager.cards,
+    isLoading: manager.isLoading,
+    activeCardId: manager.activeCardId,
+    setActiveCardId: manager.setActiveCardId,
+    create: manager.create,
+    update: manager.update,
+    remove: manager.remove,
+    refresh: manager.refresh,
   }
 }

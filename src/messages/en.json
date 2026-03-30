@@ -1400,5 +1400,25 @@
     "removeToken": "Remove",
     "cardManagement": "Card Management",
     "projectHistory": "Project & History"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AI provider error. Please try again.",
+      "timeout": "AI provider timed out. Please try again."
+    },
+    "validation": {
+      "invalidInput": "Invalid input. Please check your parameters."
+    },
+    "rateLimit": "Too many requests. Please wait a moment.",
+    "auth": {
+      "unauthorized": "Please sign in to continue."
+    },
+    "credits": {
+      "exceeded": "Free generation limit reached for today."
+    },
+    "apiKey": {
+      "missing": "API key is required for this model.",
+      "invalid": "Invalid API key. Please check and try again."
+    }
   }
 }

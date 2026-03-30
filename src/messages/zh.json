@@ -1400,5 +1400,25 @@
     "removeToken": "删除",
     "cardManagement": "卡片管理",
     "projectHistory": "项目与历史"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AI 提供商错误，请重试。",
+      "timeout": "AI 提供商超时，请重试。"
+    },
+    "validation": {
+      "invalidInput": "输入无效，请检查参数。"
+    },
+    "rateLimit": "请求过于频繁，请稍候再试。",
+    "auth": {
+      "unauthorized": "请登录后继续。"
+    },
+    "credits": {
+      "exceeded": "今日免费生成次数已用完。"
+    },
+    "apiKey": {
+      "missing": "此模型需要 API Key。",
+      "invalid": "API Key 无效，请检查后重试。"
+    }
   }
 }

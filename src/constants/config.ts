@@ -222,6 +222,8 @@ export const VIDEO_GENERATION = {
   MAX_LONG_VIDEO_DURATION: 120,
   PIPELINE_POLL_INTERVAL_MS: 5000,
   MAX_PIPELINE_POLL_ATTEMPTS: 600,
+  /** Number of early 404 responses to tolerate before treating as error */
+  EARLY_POLL_TOLERANCE: 5,
 } as const
 
 /** Health check configuration */
@@ -254,4 +256,39 @@ export const COLLECTION = {
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,
+} as const
+
+// ─── Studio Refactoring Constants ────────────────────────────────
+
+/** Studio generation modes */
+export const STUDIO_MODES = ['image', 'video'] as const
+export type StudioMode = (typeof STUDIO_MODES)[number]
+
+/** Centralized rate limit configs (previously scattered across route files) */
+export const RATE_LIMIT_CONFIGS = {
+  generate: { limit: 10, windowSeconds: 60 },
+  studioGenerate: { limit: 10, windowSeconds: 60 },
+  generateVideo: { limit: 5, windowSeconds: 60 },
+  generateLongVideo: { limit: 3, windowSeconds: 60 },
+  imageEdit: { limit: 10, windowSeconds: 60 },
+  imageAnalyze: { limit: 10, windowSeconds: 60 },
+  promptEnhance: { limit: 20, windowSeconds: 60 },
+} as const
+
+/** Centralized maxDuration configs for serverless functions */
+export const MAX_DURATION_CONFIGS = {
+  /** Image generation — 4 min (some models are slow) */
+  generate: 240,
+  /** Studio generation — same as generate */
+  studioGenerate: 240,
+  /** Video submission — 4 min (queue submission + initial processing) */
+  generateVideo: 240,
+  /** Long video pipeline — 4 min */
+  generateLongVideo: 240,
+  /** Image analysis/reverse engineering — 30s (single LLM call) */
+  imageAnalyze: 30,
+  /** Image edit (upscale/remove-bg) — 2 min */
+  imageEdit: 120,
+  /** Image analysis variations — 55s (multi-model parallel) */
+  imageAnalyzeVariations: 55,
 } as const

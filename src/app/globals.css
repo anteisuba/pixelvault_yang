@@ -365,6 +365,24 @@ html:lang(zh) {
     max-width: 40rem;
   }
 
+  .editorial-panel-head {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .editorial-panel-meta {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+  }
+
+  .editorial-panel-divider {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--page-border);
+  }
+
   .editorial-section-title {
     font-family: var(--font-display);
     font-size: clamp(1.5rem, 3vw, 2.2rem);
@@ -395,6 +413,39 @@ html:lang(zh) {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  }
+
+  .editorial-summary-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  }
+
+  .editorial-summary-card {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.95rem 1rem;
+    border: 1px solid color-mix(in oklab, var(--page-border) 88%, transparent);
+    border-radius: var(--radius-2xl);
+    background: color-mix(in oklab, var(--background) 84%, var(--card));
+  }
+
+  .editorial-summary-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    opacity: 0.82;
+  }
+
+  .editorial-summary-value {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+    text-wrap: pretty;
   }
 
   /* ── Clerk overrides ───────────────────────────────────────────────────── */
@@ -522,6 +573,10 @@ html:lang(zh) {
   @media (min-width: 1024px) {
     .editorial-hero {
       grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+    }
+
+    .editorial-panel-head {
+      grid-template-columns: minmax(0, 1.2fr) minmax(17rem, 0.8fr);
     }
   }
 }

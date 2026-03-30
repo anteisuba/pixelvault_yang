@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
-  createGET,
   createPOST,
   parseJSON,
 } from '@/test/api-helpers'

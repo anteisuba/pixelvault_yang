@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ARENA } from '@/constants/config'
 import { getArenaHistoryAPI } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { ArenaHistoryEntry } from '@/types'
 
 interface UseArenaHistoryReturn {
@@ -48,7 +49,9 @@ export function useArenaHistory(): UseArenaHistoryReturn {
   }, [])
 
   useEffect(() => {
-    void fetchPage(1)
+    return deferEffectTask(() => {
+      void fetchPage(1)
+    })
   }, [fetchPage])
 
   const loadMore = useCallback(() => {

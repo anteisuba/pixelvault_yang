@@ -227,7 +227,6 @@ export const falAdapter: ProviderAdapter = {
     prompt,
     modelId,
     aspectRatio,
-    providerConfig,
     apiKey,
     duration,
     referenceImage,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import {
   ONBOARDING_STEPS,
@@ -10,19 +10,18 @@ import {
 } from '@/constants/onboarding'
 
 export function useOnboarding() {
-  const [active, setActive] = useState(false)
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  useEffect(() => {
-    try {
-      const completed = localStorage.getItem(ONBOARDING_STORAGE_KEY)
-      if (!completed) {
-        setActive(true)
-      }
-    } catch {
-      // localStorage unavailable — skip onboarding silently
+  const [active, setActive] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false
     }
-  }, [])
+
+    try {
+      return !window.localStorage.getItem(ONBOARDING_STORAGE_KEY)
+    } catch {
+      return false
+    }
+  })
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   const currentStep: OnboardingStep = ONBOARDING_STEPS[currentIndex]
   const isLastStep = currentIndex === ONBOARDING_STEPS.length - 1

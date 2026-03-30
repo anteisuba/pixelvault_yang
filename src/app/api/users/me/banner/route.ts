@@ -1,54 +1,51 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-
 import { UploadProfileImageSchema } from '@/types'
 import type { UploadProfileImageResponse } from '@/types'
+import { createApiRoute } from '@/lib/api-route-factory'
+import { ApiRequestError } from '@/lib/errors'
 import { ensureUser, uploadBanner } from '@/services/user.service'
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<UploadProfileImageResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
+function mapBannerUploadError(error: unknown): ApiRequestError {
+  const message =
+    error instanceof Error ? error.message : 'Failed to upload banner'
 
-    const body = await request.json().catch(() => null)
-    if (!body) {
-      return NextResponse.json<UploadProfileImageResponse>(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
-
-    const parsed = UploadProfileImageSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json<UploadProfileImageResponse>(
-        {
-          success: false,
-          error: parsed.error.issues[0]?.message ?? 'Invalid input',
-        },
-        { status: 400 },
-      )
-    }
-
-    const user = await ensureUser(clerkId)
-    const result = await uploadBanner(user.id, parsed.data.imageData)
-
-    return NextResponse.json<UploadProfileImageResponse>({
-      success: true,
-      data: result,
-    })
-  } catch (error) {
-    logger.error('[API /api/users/me/banner] Error', { error: error instanceof Error ? error.message : String(error) })
-    const message =
-      error instanceof Error ? error.message : 'Failed to upload banner'
-    return NextResponse.json<UploadProfileImageResponse>(
-      { success: false, error: message },
-      { status: 500 },
+  if (message.includes('Unsupported image type')) {
+    return new ApiRequestError(
+      'UNSUPPORTED_IMAGE_TYPE',
+      400,
+      'errors.profile.unsupportedImageType',
+      message,
     )
   }
+
+  if (message.includes('under 10 MB')) {
+    return new ApiRequestError(
+      'BANNER_TOO_LARGE',
+      400,
+      'errors.profile.bannerTooLarge',
+      message,
+    )
+  }
+
+  return new ApiRequestError(
+    'BANNER_UPLOAD_FAILED',
+    500,
+    'errors.profile.bannerUploadFailed',
+    'Failed to upload banner',
+  )
 }
+
+export const POST = createApiRoute<
+  typeof UploadProfileImageSchema,
+  NonNullable<UploadProfileImageResponse['data']>
+>({
+  schema: UploadProfileImageSchema,
+  routeName: 'POST /api/users/me/banner',
+  handler: async (clerkId, data) => {
+    try {
+      const user = await ensureUser(clerkId)
+      return await uploadBanner(user.id, data.imageData)
+    } catch (error) {
+      throw mapBannerUploadError(error)
+    }
+  },
+})

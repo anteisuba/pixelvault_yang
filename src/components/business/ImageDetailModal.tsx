@@ -23,11 +23,16 @@ import {
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, galleryGenerationPath } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
-import { editImageAPI, toggleGenerationVisibility } from '@/lib/api-client'
+import {
+  downloadRemoteAsset,
+  editImageAPI,
+  toggleGenerationVisibility,
+} from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -74,6 +79,8 @@ export function ImageDetailModal({
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
   const tToasts = useTranslations('Toasts')
+  const tErrors = useTranslations('Errors')
+  const closeLabel = tCommon.has('close') ? tCommon('close') : t('close')
 
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
@@ -87,22 +94,48 @@ export function ImageDetailModal({
     if (isDownloading) return
     setIsDownloading(true)
     try {
-      const response = await fetch(generation.url)
-      const blob = await response.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = blobUrl
       const ext = generation.mimeType.split('/')[1] || 'png'
-      link.download = `pixelvault-${generation.id.slice(0, 8)}.${ext}`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(blobUrl)
-    } catch {
-      window.open(generation.url, '_blank')
+      const result = await downloadRemoteAsset(
+        generation.url,
+        `pixelvault-${generation.id.slice(0, 8)}.${ext}`,
+      )
+
+      if (!result.success) {
+        toast.error(getApiErrorMessage(tErrors, result, t('downloadFailed')))
+        window.open(generation.url, '_blank', 'noopener,noreferrer')
+      }
     } finally {
       setIsDownloading(false)
     }
+  }
+
+  const handleEditDownload = async (
+    action: 'upscale' | 'remove-background',
+    fileName: string,
+  ) => {
+    setEditingAction(action)
+    const result = await editImageAPI(action, generation.url)
+    setEditingAction(null)
+
+    if (!result.success || !result.data) {
+      toast.error(getApiErrorMessage(tErrors, result, t('editFailed')))
+      return
+    }
+
+    const downloadResult = await downloadRemoteAsset(
+      result.data.imageUrl,
+      fileName,
+    )
+
+    if (!downloadResult.success) {
+      toast.error(
+        getApiErrorMessage(tErrors, downloadResult, t('downloadFailed')),
+      )
+      window.open(result.data.imageUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    toast.success(t('editSuccess'))
   }
 
   const labelClass = getLabelClassName(isDenseLocale)
@@ -132,6 +165,7 @@ export function ImageDetailModal({
       <DialogContent
         className="max-h-[90svh] max-w-4xl gap-0 overflow-y-auto rounded-3xl border-border/75 bg-card p-0"
         showCloseButton
+        closeLabel={closeLabel}
       >
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">
@@ -310,10 +344,14 @@ export function ImageDetailModal({
               size="sm"
               className="rounded-full"
               onClick={async () => {
-                const url = `${window.location.origin}/gallery/${generation.id}`
-                await navigator.clipboard.writeText(url)
-                setCopied('link')
-                setTimeout(() => setCopied(null), 2000)
+                try {
+                  const url = `${window.location.origin}/${locale}${galleryGenerationPath(generation.id)}`
+                  await navigator.clipboard.writeText(url)
+                  setCopied('link')
+                  setTimeout(() => setCopied(null), 2000)
+                } catch {
+                  toast.error(t('shareFailed'))
+                }
               }}
             >
               {copied === 'link' ? (
@@ -347,24 +385,12 @@ export function ImageDetailModal({
                   size="sm"
                   className="rounded-full"
                   disabled={editingAction !== null}
-                  onClick={async () => {
-                    setEditingAction('upscale')
-                    const result = await editImageAPI('upscale', generation.url)
-                    setEditingAction(null)
-                    if (result.success && result.data) {
-                      const res = await fetch(result.data.imageUrl)
-                      const blob = await res.blob()
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `pixelvault-${generation.id.slice(0, 8)}-upscaled.png`
-                      a.click()
-                      URL.revokeObjectURL(url)
-                      toast.success(t('editSuccess'))
-                    } else {
-                      toast.error(result.error ?? t('editFailed'))
-                    }
-                  }}
+                  onClick={() =>
+                    void handleEditDownload(
+                      'upscale',
+                      `pixelvault-${generation.id.slice(0, 8)}-upscaled.png`,
+                    )
+                  }
                 >
                   {editingAction === 'upscale' ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -378,27 +404,12 @@ export function ImageDetailModal({
                   size="sm"
                   className="rounded-full"
                   disabled={editingAction !== null}
-                  onClick={async () => {
-                    setEditingAction('remove-background')
-                    const result = await editImageAPI(
+                  onClick={() =>
+                    void handleEditDownload(
                       'remove-background',
-                      generation.url,
+                      `pixelvault-${generation.id.slice(0, 8)}-nobg.png`,
                     )
-                    setEditingAction(null)
-                    if (result.success && result.data) {
-                      const res = await fetch(result.data.imageUrl)
-                      const blob = await res.blob()
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `pixelvault-${generation.id.slice(0, 8)}-nobg.png`
-                      a.click()
-                      URL.revokeObjectURL(url)
-                      toast.success(t('editSuccess'))
-                    } else {
-                      toast.error(result.error ?? t('editFailed'))
-                    }
-                  }}
+                  }
                 >
                   {editingAction === 'remove-background' ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -433,9 +444,14 @@ export function ImageDetailModal({
                   if (!result.success) {
                     setIsPinned(prev)
                     const msg =
+                      result.errorCode === 'MAX_FEATURED_EXCEEDED' ||
                       result.error === 'MAX_FEATURED_EXCEEDED'
                         ? tToasts('featuredLimitReached')
-                        : tToasts('featuredFailed')
+                        : getApiErrorMessage(
+                            tErrors,
+                            result,
+                            tToasts('featuredFailed'),
+                          )
                     toast.error(msg)
                   } else {
                     toast.success(

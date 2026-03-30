@@ -1,0 +1,16 @@
+# PixelVault architectural constraints for Sentrux
+# Only enforce genuine quality constraints; layer ordering reflects
+# the actual Next.js App Router dependency flow.
+
+[constraints]
+max_cycles   = 0      # zero circular dependencies (generated Prisma files excluded below)
+max_coupling = "C"
+max_cc       = 25     # cyclomatic complexity cap per function
+no_god_files = true
+
+[ignore]
+paths = [
+  "src/lib/generated/**",   # Prisma generated — cycles are expected
+  "**/*.test.ts",
+  "**/*.spec.ts",
+]

@@ -4,7 +4,6 @@ import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
-  getDefaultProviderConfig,
   getProviderLabel,
   PROVIDER_FALLBACK_MAP,
   type ProviderConfig,

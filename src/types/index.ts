@@ -88,6 +88,8 @@ export interface GenerateResponse {
   error?: string
   /** Machine-readable error code for i18n translation on the client */
   errorCode?: string
+  /** Stable translation key for client-side localization */
+  i18nKey?: string
 }
 
 // ─── Video Generate Request ───────────────────────────────────────
@@ -347,6 +349,8 @@ export interface ToggleVisibilityResponse {
     isFeatured?: boolean
   }
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 // ─── Gallery Search & Filter ──────────────────────────────────────
@@ -382,6 +386,8 @@ export interface GalleryResponse {
   success: boolean
   data?: GalleryResponseData
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 export const UsageSummarySchema = z.object({
@@ -1231,6 +1237,8 @@ export interface UpdateProfileResponse {
     'username' | 'displayName' | 'avatarUrl' | 'bio' | 'isPublic'
   >
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 /** Viewer's relation to a profile — for Follow button state */
@@ -1289,6 +1297,8 @@ export interface UploadProfileImageResponse {
   success: boolean
   data?: { url: string }
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 // ─── Collections ────────────────────────────────────────────────

@@ -152,7 +152,7 @@ export function StudioToolbarPanels() {
           previewAlt={t('referenceImage')}
           removeLabel={t('cancel')}
           uploadLabel={t('referenceImage')}
-          formatsLabel="JPG · PNG · WEBP"
+          formatsLabel={t('referenceFormats')}
           counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
         />
       )}

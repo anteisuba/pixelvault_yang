@@ -17,6 +17,7 @@ import {
   deleteProjectAPI,
   getProjectHistoryAPI,
 } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 export interface UseProjectsReturn {
   projects: ProjectRecord[]
@@ -65,7 +66,9 @@ export function useProjects(): UseProjectsReturn {
   }, [])
 
   useEffect(() => {
-    void fetchProjects()
+    return deferEffectTask(() => {
+      void fetchProjects()
+    })
   }, [fetchProjects])
 
   const create = useCallback(
@@ -154,7 +157,9 @@ export function useProjects(): UseProjectsReturn {
 
   // Reload history when active project changes
   useEffect(() => {
-    void loadHistory()
+    return deferEffectTask(() => {
+      void loadHistory()
+    })
   }, [loadHistory])
 
   return {

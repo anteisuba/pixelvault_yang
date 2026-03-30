@@ -12,7 +12,6 @@ import {
   StudioCardManagement,
   StudioProjectHistory,
   StudioVideoMode,
-  StudioErrorBoundary,
 } from '@/components/business/studio'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 

@@ -21,7 +21,7 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { modelSupportsLora } from '@/constants/models'
 
 export function StudioCardSelectors() {
-  const { state, dispatch } = useStudioForm()
+  const { dispatch } = useStudioForm()
   const { characters, backgrounds, styles } = useStudioData()
   const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
   const t = useTranslations('StudioV2')

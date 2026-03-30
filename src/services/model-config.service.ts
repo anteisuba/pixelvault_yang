@@ -120,7 +120,6 @@ export async function deleteModelConfig(modelId: string): Promise<void> {
  */
 export async function getResolvedModelOptions(): Promise<ModelOption[]> {
   const dbConfigs = await getAllModelConfigs()
-  const dbMap = new Map(dbConfigs.map((c) => [c.modelId, c]))
 
   const merged: ModelOption[] = []
   const seen = new Set<string>()

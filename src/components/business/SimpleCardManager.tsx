@@ -560,8 +560,11 @@ export function SimpleCardManager({
 
           {/* Empty state */}
           {!isLoading && cards.length === 0 && !showCreateForm && (
-            <div className="py-4 text-center text-xs text-muted-foreground/60">
-              No cards yet
+            <div className="flex flex-col items-center gap-1.5 py-6 text-center">
+              <Palette className="size-5 text-muted-foreground/30" />
+              <p className="text-xs text-muted-foreground/60 font-serif">
+                {t('emptyState')}
+              </p>
             </div>
           )}
         </div>

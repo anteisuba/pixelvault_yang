@@ -1365,7 +1365,8 @@
     "background": "Background",
     "style": "Style",
     "model": "Model",
-    "deleted": "Deleted"
+    "deleted": "Deleted",
+    "emptyState": "No cards yet — click + to create one"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",
@@ -1375,6 +1376,7 @@
   },
   "StudioV2": {
     "none": "None",
+    "noCards": "No cards yet. Create one to get started.",
     "new": "New",
     "manage": "Manage",
     "character": "Character",

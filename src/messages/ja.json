@@ -1365,7 +1365,8 @@
     "background": "背景",
     "style": "画風",
     "model": "モデル",
-    "deleted": "削除済み"
+    "deleted": "削除済み",
+    "emptyState": "カードがまだありません — + をクリックして作成"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Tokenを保存しました",
@@ -1375,6 +1376,7 @@
   },
   "StudioV2": {
     "none": "未選択",
+    "noCards": "カードがまだありません。作成して始めましょう。",
     "new": "新規",
     "manage": "管理",
     "edit": "編集",

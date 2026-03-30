@@ -1365,7 +1365,8 @@
     "background": "背景",
     "style": "画风",
     "model": "模型",
-    "deleted": "已删除"
+    "deleted": "已删除",
+    "emptyState": "还没有卡片 — 点击 + 创建一张"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",
@@ -1375,6 +1376,7 @@
   },
   "StudioV2": {
     "none": "不选择",
+    "noCards": "还没有卡片，创建一张开始吧。",
     "new": "新建",
     "manage": "管理",
     "character": "角色",

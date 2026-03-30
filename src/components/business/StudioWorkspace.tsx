@@ -78,6 +78,7 @@ import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import type { AdvancedParams } from '@/types'
 import { cn } from '@/lib/utils'
 import { AnimatedCollapse } from '@/components/ui/animated-collapse'
+import { StudioErrorBoundary } from '@/components/business/studio/StudioErrorBoundary'
 
 type StudioMode = 'image' | 'video'
 type AspectRatio = '1:1' | '16:9' | '9:16'
@@ -489,6 +490,18 @@ export function StudioWorkspace() {
           )}
 
           {/* ── Latest generation preview ─────────────────────── */}
+          {isGenerating && !lastGeneration && (
+            <div className="rounded-xl overflow-hidden border border-border/40 bg-muted/20">
+              <div className="flex flex-col items-center justify-center gap-3 py-12">
+                <div className="relative">
+                  <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                </div>
+                <p className="text-sm text-muted-foreground font-serif animate-pulse">
+                  {t('generating')}
+                </p>
+              </div>
+            </div>
+          )}
           {lastGeneration && (
             <div className="rounded-xl overflow-hidden border border-border/40">
               <ImageCard generation={lastGeneration} />
@@ -645,72 +658,76 @@ export function StudioWorkspace() {
             </button>
 
             <AnimatedCollapse open={showCardManagement}>
-              <div
-                id="studio-card-management"
-                className="border-t border-border/40 p-4 space-y-6"
-              >
-                <CharacterCardManager
-                  cards={characterCards}
-                  activeCardIds={activeCardIds}
-                  isLoading={isLoadingCharCards}
-                  onToggleSelect={toggleCardSelection}
-                  onCreate={createCharCard}
-                  onUpdate={updateCharCard}
-                  onDelete={removeCharCard}
-                />
+              <StudioErrorBoundary section="Card Management">
+                <div
+                  id="studio-card-management"
+                  className="border-t border-border/40 p-4 space-y-6"
+                >
+                  <CharacterCardManager
+                    cards={characterCards}
+                    activeCardIds={activeCardIds}
+                    isLoading={isLoadingCharCards}
+                    onToggleSelect={toggleCardSelection}
+                    onCreate={createCharCard}
+                    onUpdate={updateCharCard}
+                    onDelete={removeCharCard}
+                  />
 
-                <SimpleCardManager
-                  cardType="BACKGROUND"
-                  title={tBg('title')}
-                  cards={backgroundCards.map((c) => ({
-                    id: c.id,
-                    name: c.name,
-                    description: c.description,
-                    sourceImageUrl: c.sourceImageUrl ?? null,
-                    prompt: c.backgroundPrompt,
-                    tags: c.tags,
-                  }))}
-                  activeCardId={selectedBgId}
-                  isLoading={isLoadingBgCards}
-                  onSelect={setSelectedBgId}
-                  onCreate={async (data) => {
-                    await createBgCard({
-                      name: data.name,
-                      description: data.description,
-                      backgroundPrompt: data.prompt,
-                      sourceImageData: data.sourceImageData,
-                      tags: data.tags ?? [],
-                      projectId: activeProjectId ?? undefined,
-                    })
-                  }}
-                  onUpdate={async (id, data) =>
-                    updateBgCard(id, {
-                      ...(data.name ? { name: data.name } : {}),
-                      ...(data.prompt ? { backgroundPrompt: data.prompt } : {}),
-                    })
-                  }
-                  onDelete={removeBgCard}
-                  supportsImageExtraction
-                  showLoraConfig
-                  promptLabel={tBg('prompt')}
-                  promptPlaceholder={tBg('promptPlaceholder')}
-                />
+                  <SimpleCardManager
+                    cardType="BACKGROUND"
+                    title={tBg('title')}
+                    cards={backgroundCards.map((c) => ({
+                      id: c.id,
+                      name: c.name,
+                      description: c.description,
+                      sourceImageUrl: c.sourceImageUrl ?? null,
+                      prompt: c.backgroundPrompt,
+                      tags: c.tags,
+                    }))}
+                    activeCardId={selectedBgId}
+                    isLoading={isLoadingBgCards}
+                    onSelect={setSelectedBgId}
+                    onCreate={async (data) => {
+                      await createBgCard({
+                        name: data.name,
+                        description: data.description,
+                        backgroundPrompt: data.prompt,
+                        sourceImageData: data.sourceImageData,
+                        tags: data.tags ?? [],
+                        projectId: activeProjectId ?? undefined,
+                      })
+                    }}
+                    onUpdate={async (id, data) =>
+                      updateBgCard(id, {
+                        ...(data.name ? { name: data.name } : {}),
+                        ...(data.prompt
+                          ? { backgroundPrompt: data.prompt }
+                          : {}),
+                      })
+                    }
+                    onDelete={removeBgCard}
+                    supportsImageExtraction
+                    showLoraConfig
+                    promptLabel={tBg('prompt')}
+                    promptPlaceholder={tBg('promptPlaceholder')}
+                  />
 
-                <StyleCardManager
-                  cards={styleCards}
-                  activeCardId={selectedStyleId}
-                  isLoading={isLoadingStyleCards}
-                  onSelect={setSelectedStyleId}
-                  onCreate={async (data) => {
-                    await createStyleCard({
-                      ...data,
-                      projectId: activeProjectId ?? undefined,
-                    })
-                  }}
-                  onUpdate={updateStyleCard}
-                  onDelete={removeStyleCard}
-                />
-              </div>
+                  <StyleCardManager
+                    cards={styleCards}
+                    activeCardId={selectedStyleId}
+                    isLoading={isLoadingStyleCards}
+                    onSelect={setSelectedStyleId}
+                    onCreate={async (data) => {
+                      await createStyleCard({
+                        ...data,
+                        projectId: activeProjectId ?? undefined,
+                      })
+                    }}
+                    onUpdate={updateStyleCard}
+                    onDelete={removeStyleCard}
+                  />
+                </div>
+              </StudioErrorBoundary>
             </AnimatedCollapse>
           </div>
 

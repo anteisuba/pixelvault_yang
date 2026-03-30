@@ -1257,6 +1257,7 @@
   },
   "ErrorBoundary": {
     "title": "Something went wrong",
+    "sectionError": "{section} encountered an error",
     "description": "An unexpected error occurred. Please try again.",
     "retry": "Try again",
     "home": "Back to home"

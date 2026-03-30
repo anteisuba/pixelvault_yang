@@ -65,6 +65,7 @@ export type StudioAction =
   | { type: 'SET_PROMPT'; payload: string }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
+  | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -102,6 +103,8 @@ export function studioFormReducer(
       return { ...state, aspectRatio: action.payload }
     case 'SET_ADVANCED_PARAMS':
       return { ...state, advancedParams: action.payload }
+    case 'RESET_ADVANCED_PARAMS':
+      return { ...state, advancedParams: {} }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
     case 'TOGGLE_PANEL':

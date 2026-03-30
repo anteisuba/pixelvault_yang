@@ -1257,6 +1257,7 @@
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",
+    "sectionError": "{section}でエラーが発生しました",
     "description": "予期しないエラーが発生しました。もう一度お試しください。",
     "retry": "再試行",
     "home": "ホームに戻る"

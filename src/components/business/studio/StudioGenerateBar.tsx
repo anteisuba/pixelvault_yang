@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useRef, useEffect } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -9,7 +9,6 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { cn } from '@/lib/utils'
 
 const ASPECT_RATIOS = ['1:1', '16:9', '9:16'] as const
@@ -25,6 +24,20 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const canGenerate = !!styles.activeCardId && !!selectedStyleCard?.modelId
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
+
+  // ── Reset advancedParams when adapter type changes ──────────
+  const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
+  useEffect(() => {
+    const currentAdapter = selectedStyleCard?.adapterType
+    if (
+      prevAdapterRef.current !== undefined &&
+      currentAdapter !== undefined &&
+      prevAdapterRef.current !== currentAdapter
+    ) {
+      dispatch({ type: 'RESET_ADVANCED_PARAMS' })
+    }
+    prevAdapterRef.current = currentAdapter
+  }, [selectedStyleCard?.adapterType, dispatch])
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate || !styles.activeCardId) return
@@ -62,12 +75,19 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-1.5">
+      {/* Sticky on mobile, static on desktop */}
+      <div className="flex items-center justify-between gap-3 sm:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none py-2 sm:py-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+        <div
+          role="radiogroup"
+          aria-label={t('aspectRatioLabel')}
+          className="flex gap-1.5"
+        >
           {ASPECT_RATIOS.map((r) => (
             <button
               key={r}
               type="button"
+              role="radio"
+              aria-checked={state.aspectRatio === r}
               onClick={() => dispatch({ type: 'SET_ASPECT_RATIO', payload: r })}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',

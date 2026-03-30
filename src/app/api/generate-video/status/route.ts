@@ -1,37 +1,33 @@
-import { logger } from '@/lib/logger'
+import 'server-only'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { VideoStatusRequestSchema } from '@/types'
-import type { VideoStatusResponse } from '@/types'
+
+import { logger } from '@/lib/logger'
+import { AuthError, isGenerationError } from '@/lib/errors'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
 import { checkVideoGenerationStatus } from '@/services/generate-video.service'
+import { VideoStatusRequestSchema } from '@/types'
+import { MAX_DURATION_CONFIGS } from '@/constants/config'
 
-export const maxDuration = 240
+export const maxDuration = MAX_DURATION_CONFIGS.generateVideo
 
 // ─── GET /api/generate-video/status?jobId=xxx ────────────────────
 
 export async function GET(request: NextRequest) {
   try {
     const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<VideoStatusResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
+    if (!clerkId) throw new AuthError()
 
     const { searchParams } = new URL(request.url)
     const parseResult = VideoStatusRequestSchema.safeParse({
       jobId: searchParams.get('jobId') ?? '',
     })
-
     if (!parseResult.success) {
-      return NextResponse.json<VideoStatusResponse>(
+      return NextResponse.json(
         {
           success: false,
-          error: parseResult.error.issues
-            .map((e: { message: string }) => e.message)
-            .join(', '),
+          error: parseResult.error.issues.map((e) => e.message).join(', '),
         },
         { status: 400 },
       )
@@ -41,26 +37,22 @@ export async function GET(request: NextRequest) {
       clerkId,
       parseResult.data.jobId,
     )
-
-    return NextResponse.json<VideoStatusResponse>({
-      success: true,
-      data,
-    })
+    return NextResponse.json({ success: true, data })
   } catch (error) {
+    if (isGenerationError(error)) {
+      return NextResponse.json(error.toJSON(), { status: error.httpStatus })
+    }
     if (isGenerateImageServiceError(error)) {
-      return NextResponse.json<VideoStatusResponse>(
+      return NextResponse.json(
         { success: false, error: error.message },
         { status: error.status },
       )
     }
-
-    logger.error('[API /api/generate-video/status] Error', { error: error instanceof Error ? error.message : String(error) })
-
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
-    return NextResponse.json<VideoStatusResponse>(
-      { success: false, error: message },
+    logger.error('GET /api/generate-video/status unhandled error', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return NextResponse.json(
+      { success: false, error: 'An unexpected error occurred' },
       { status: 500 },
     )
   }

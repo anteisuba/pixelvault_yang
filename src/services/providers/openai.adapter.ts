@@ -58,16 +58,18 @@ export const openAiAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    referenceImages,
     advancedParams,
   }: ProviderGenerationInput) {
     const { width, height, size } =
       OPENAI_IMAGE_SIZES[aspectRatio] ?? OPENAI_IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI
-    const endpoint = getOpenAiEndpoint(baseUrl, Boolean(referenceImage))
+    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+    const endpoint = getOpenAiEndpoint(baseUrl, Boolean(effectiveRefImage))
     let response: Response
 
-    if (referenceImage) {
-      const { buffer, mimeType } = await fetchAsBuffer(referenceImage)
+    if (effectiveRefImage) {
+      const { buffer, mimeType } = await fetchAsBuffer(effectiveRefImage)
       const extension = mimeType.split('/')[1] ?? 'png'
       const formData = new FormData()
 

@@ -54,6 +54,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: { generation } })
   } catch (err) {
     if (isGenerateImageServiceError(err)) {
+      logger.error('[POST /api/studio/generate] Service error', {
+        code: err.code,
+        message: err.message,
+        status: err.status,
+      })
       return NextResponse.json(
         { success: false, error: err.message, errorCode: err.code },
         { status: err.status },

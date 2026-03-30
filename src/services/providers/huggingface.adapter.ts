@@ -28,6 +28,7 @@ export const huggingFaceAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    referenceImages,
     advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
@@ -53,8 +54,9 @@ export const huggingFaceAdapter: ProviderAdapter = {
       parameters: params,
     }
 
-    if (referenceImage) {
-      body.image = referenceImage
+    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+    if (effectiveRefImage) {
+      body.image = effectiveRefImage
       // HuggingFace `strength` = denoising (higher = more change)
       // Our `referenceStrength` = similarity (higher = more similar)
       if (advancedParams?.referenceStrength != null) {

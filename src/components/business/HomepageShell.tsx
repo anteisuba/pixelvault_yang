@@ -4,19 +4,23 @@ import { useLocale, useTranslations } from 'next-intl'
 import {
   HOMEPAGE_NAVIGATION,
   HOMEPAGE_ROUTES,
-  HOMEPAGE_SCENES,
+  HOMEPAGE_SHOWCASE,
 } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
+import {
+  MotionReveal,
+  MotionStagger,
+  MotionStaggerItem,
+} from '@/components/ui/motion-reveal'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
-import { HomepageComparison } from './HomepageComparison'
-import { HomepageFeatures } from './HomepageFeatures'
 import { HomepageHero } from './HomepageHero'
 import { HomepageModels } from './HomepageModels'
-import { HomepageSceneCard } from './HomepageSceneCard'
+import { HomepageShowcaseCard } from './HomepageShowcaseCard'
+import { HomepageValueProps } from './HomepageValueProps'
 import { HomepageWorkflow } from './HomepageWorkflow'
 import styles from './HomepageShell.module.css'
 
@@ -106,29 +110,30 @@ export function HomepageShell({
 
           {/* Gallery Preview */}
           <section id="gallery" className={styles.galleryPreview}>
-            <div className={styles.galleryPreviewHead}>
-              <p
-                className={cn(
-                  styles.sectionLabel,
-                  isDenseLocale && styles.denseCopy,
-                )}
-              >
-                {t('stage.label')}
-              </p>
-              <h2 className={styles.galleryPreviewTitle}>{t('stage.title')}</h2>
-              <p className={styles.galleryPreviewDesc}>{t('stage.value')}</p>
-            </div>
+            <MotionReveal>
+              <div className={styles.galleryPreviewHead}>
+                <h2 className={styles.galleryPreviewTitle}>
+                  {t('stage.title')}
+                </h2>
+              </div>
+            </MotionReveal>
 
-            <div className={styles.sceneGrid}>
-              {HOMEPAGE_SCENES.map((scene) => (
-                <HomepageSceneCard
-                  key={scene.id}
-                  sceneId={scene.id}
-                  modelId={scene.modelId}
-                  tone={scene.tone}
-                />
+            <MotionStagger staggerMs={120} className={styles.showcaseGrid}>
+              {HOMEPAGE_SHOWCASE.map((item) => (
+                <MotionStaggerItem key={item.id}>
+                  <HomepageShowcaseCard
+                    src={item.src}
+                    model={item.model}
+                    prompt={t(
+                      `scenes.items.${item.id}.prompt` as Parameters<
+                        typeof t
+                      >[0],
+                      { defaultValue: item.model },
+                    )}
+                  />
+                </MotionStaggerItem>
               ))}
-            </div>
+            </MotionStagger>
 
             <div className={styles.galleryPreviewActions}>
               <Button
@@ -145,34 +150,24 @@ export function HomepageShell({
             </div>
           </section>
 
-          <HomepageFeatures />
-          <HomepageComparison />
+          <HomepageValueProps />
           <HomepageWorkflow />
           <HomepageModels />
 
           {/* Footer CTA */}
-          <section className={styles.footerBand}>
-            <p
-              className={cn(
-                styles.sectionLabel,
-                isDenseLocale && styles.denseCopy,
-              )}
-            >
-              {t('footer.eyebrow')}
-            </p>
-            <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
-            <p className={styles.footerDescription}>
-              {t('footer.description')}
-            </p>
-            <div className={styles.footerActions}>
-              <Button asChild size="lg" className={styles.primaryButton}>
-                <Link href={primaryActionHref}>
-                  {primaryActionLabel}
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </div>
-          </section>
+          <MotionReveal>
+            <section className={styles.footerBand}>
+              <h2 className={styles.footerTitle}>{t('footer.title')}</h2>
+              <div className={styles.footerActions}>
+                <Button asChild size="lg" className={styles.primaryButton}>
+                  <Link href={primaryActionHref}>
+                    {primaryActionLabel}
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              </div>
+            </section>
+          </MotionReveal>
         </main>
       </div>
     </div>

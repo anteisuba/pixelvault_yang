@@ -144,7 +144,7 @@
     },
     "heroEyebrow": "个人 AI 档案",
     "heroTitle": "认真创作，完整保存。",
-    "heroDescription": "在多个主流图像模型之间生成、挑选、保存，并回到一个会保留提示词与路由上下文的个人档案。",
+    "heroDescription": "多模型图像生成，永久归档。",
     "actions": {
       "signedOutPrimary": "开始建立档案",
       "signedInPrimary": "打开工作台",
@@ -258,6 +258,36 @@
         "geminiConcept": {
           "note": "快速概念探索",
           "prompt": "由相机零件、金属工具和压花组成的编辑风静物"
+        }
+      }
+    },
+    "valueProps": {
+      "eyebrow": "为什么选择 PixelVault",
+      "title": "你的密钥，你的图片，零加价。",
+      "items": {
+        "chooseEngine": {
+          "title": "自由切换模型",
+          "description": "写实、动漫、DALL-E、Gemini — 一个工作台。"
+        },
+        "keepEveryKeeper": {
+          "title": "留住重要结果",
+          "description": "好的结果始终保存在你的档案中。"
+        },
+        "spendCredits": {
+          "title": "用量透明",
+          "description": "每次生成都显示供应商和成本。"
+        },
+        "byok": {
+          "title": "自带密钥",
+          "description": "API Key 端到端加密。"
+        },
+        "permanentArchive": {
+          "title": "永久存档",
+          "description": "存储在 Cloudflare R2，无过期链接。"
+        },
+        "arena": {
+          "title": "竞技场对比",
+          "description": "盲测对比 + ELO 排名。"
         }
       }
     },

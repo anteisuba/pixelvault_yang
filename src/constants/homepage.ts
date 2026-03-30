@@ -92,3 +92,56 @@ export const HOMEPAGE_COMPARISON = [
 
 export type HomepageComparisonIcon =
   (typeof HOMEPAGE_COMPARISON)[number]['icon']
+
+/** Merged Features + Comparison for the unified "Why PixelVault" section */
+export const HOMEPAGE_VALUE_PROPS = [
+  { id: 'chooseEngine', icon: 'sparkles' },
+  { id: 'keepEveryKeeper', icon: 'archive' },
+  { id: 'spendCredits', icon: 'shield' },
+  { id: 'byok', icon: 'key' },
+  { id: 'permanentArchive', icon: 'database' },
+  { id: 'arena', icon: 'swords' },
+] as const
+
+export type HomepageValuePropIcon =
+  (typeof HOMEPAGE_VALUE_PROPS)[number]['icon']
+
+/** Showcase images for hero + gallery preview */
+export const HOMEPAGE_SHOWCASE = [
+  {
+    id: 'sdxlRealism',
+    src: '/showcase/showcase-01.svg',
+    model: 'SDXL',
+    tone: 'dawn',
+  },
+  {
+    id: 'animagineAnime',
+    src: '/showcase/showcase-02.svg',
+    model: 'Animagine',
+    tone: 'forest',
+  },
+  {
+    id: 'geminiConcept',
+    src: '/showcase/showcase-03.svg',
+    model: 'Gemini',
+    tone: 'ink',
+  },
+  {
+    id: 'dalleCreative',
+    src: '/showcase/showcase-04.svg',
+    model: 'DALL-E',
+    tone: 'sky',
+  },
+  {
+    id: 'fluxPro',
+    src: '/showcase/showcase-05.svg',
+    model: 'Flux',
+    tone: 'amber',
+  },
+  {
+    id: 'novelaiIllust',
+    src: '/showcase/showcase-06.svg',
+    model: 'NovelAI',
+    tone: 'earth',
+  },
+] as const

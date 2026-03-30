@@ -144,7 +144,7 @@
     },
     "heroEyebrow": "個人AIアーカイブ",
     "heroTitle": "意図して作り、きちんと残す。",
-    "heroDescription": "複数の主要な画像モデルを使い分けながら生成し、良い結果を保存し、プロンプトとルートの文脈ごと見返せます。",
+    "heroDescription": "マルチモデル画像生成と永久アーカイブ。",
     "actions": {
       "signedOutPrimary": "アーカイブを始める",
       "signedInPrimary": "スタジオを開く",
@@ -258,6 +258,36 @@
         "geminiConcept": {
           "note": "素早いコンセプト探索",
           "prompt": "カメラ部品、金属工具、押し花を並べたエディトリアル静物"
+        }
+      }
+    },
+    "valueProps": {
+      "eyebrow": "PixelVaultの特長",
+      "title": "あなたのキー。あなたの画像。追加料金ゼロ。",
+      "items": {
+        "chooseEngine": {
+          "title": "自由にモデルを切り替える",
+          "description": "リアル、アニメ、DALL-E、Gemini — ひとつのスタジオ。"
+        },
+        "keepEveryKeeper": {
+          "title": "大切な結果を残す",
+          "description": "良い結果はアーカイブにずっと残ります。"
+        },
+        "spendCredits": {
+          "title": "透明な使用量",
+          "description": "各生成にプロバイダーとコストが表示。"
+        },
+        "byok": {
+          "title": "自分のキーを使う",
+          "description": "APIキーはエンドツーエンドで暗号化。"
+        },
+        "permanentArchive": {
+          "title": "永久アーカイブ",
+          "description": "Cloudflare R2に保存。期限切れリンクなし。"
+        },
+        "arena": {
+          "title": "アリーナ比較",
+          "description": "ELOランキング付きブラインド比較。"
         }
       }
     },

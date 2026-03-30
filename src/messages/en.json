@@ -144,7 +144,7 @@
     },
     "heroEyebrow": "Personal AI archive",
     "heroTitle": "Make deliberately. Keep everything.",
-    "heroDescription": "Generate across leading image models, keep the strong results, and return to a library that preserves the prompt and route behind each image.",
+    "heroDescription": "Multi-model image generation with permanent archiving.",
     "actions": {
       "signedOutPrimary": "Start your archive",
       "signedInPrimary": "Open studio",
@@ -258,6 +258,36 @@
         "geminiConcept": {
           "note": "Fast concepting",
           "prompt": "Editorial still life of camera parts, metal tools, and pressed flowers"
+        }
+      }
+    },
+    "valueProps": {
+      "eyebrow": "Why PixelVault",
+      "title": "Your keys. Your images. Zero markup.",
+      "items": {
+        "chooseEngine": {
+          "title": "Switch models freely",
+          "description": "Realism, anime, DALL-E, Gemini — one studio."
+        },
+        "keepEveryKeeper": {
+          "title": "Keep what matters",
+          "description": "Good results stay in your archive, always."
+        },
+        "spendCredits": {
+          "title": "Transparent usage",
+          "description": "Every generation shows provider and cost."
+        },
+        "byok": {
+          "title": "Bring your own keys",
+          "description": "Your API keys, encrypted end-to-end."
+        },
+        "permanentArchive": {
+          "title": "Permanent archive",
+          "description": "Stored on Cloudflare R2. No expiring links."
+        },
+        "arena": {
+          "title": "Arena comparison",
+          "description": "Blind side-by-side with ELO ranking."
         }
       }
     },

@@ -124,7 +124,16 @@
       "Bash(xargs grep:*)",
       "Bash(sed -n '301,308p' src/messages/ja.json)",
       "Bash(sed -n '301,308p' src/messages/zh.json)",
-      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")"
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(gh repo:*)",
+      "Skill(ship)",
+      "Skill(ship:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ]
   },
   "hooks": {

@@ -2,14 +2,11 @@ import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
-
-export const maxDuration = 240
-
-// Allow large reference images (base64): 10MB image ≈ ~14MB JSON string
-export const bodySizeLimit = '15mb'
 import type { CreateArenaMatchResponse, ArenaMatchResponse } from '@/types'
 import { createArenaMatch, getArenaMatch } from '@/services/arena.service'
 import { rateLimit } from '@/lib/rate-limit'
+
+export const maxDuration = 240
 
 // ─── POST /api/arena/matches — Create a match ────────────────────
 

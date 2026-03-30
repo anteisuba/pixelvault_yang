@@ -1,0 +1,10 @@
+allowBuilds:
+  '@clerk/shared': false
+  '@parcel/watcher': false
+  '@prisma/engines': false
+  '@sentry/cli': false
+  '@swc/core': false
+  msw: false
+  prisma: false
+  sharp: false
+  unrs-resolver: false

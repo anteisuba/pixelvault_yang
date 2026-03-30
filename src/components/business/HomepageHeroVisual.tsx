@@ -12,9 +12,9 @@ const VISIBLE_COUNT = 3
 const ROTATE_INTERVAL_MS = 4000
 
 const cardTransforms = [
-  { rotate: -3, x: 0, y: 0, scale: 1 },
-  { rotate: 2, x: 20, y: -12, scale: 0.95 },
-  { rotate: -1.5, x: -16, y: 8, scale: 0.9 },
+  { rotate: -6, x: 0, y: 0, scale: 1 },
+  { rotate: 5, x: 40, y: -20, scale: 0.92 },
+  { rotate: -3, x: -32, y: 14, scale: 0.85 },
 ]
 
 export function HomepageHeroVisual() {

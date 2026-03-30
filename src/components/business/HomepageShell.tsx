@@ -150,7 +150,9 @@ export function HomepageShell({
             </div>
           </section>
 
-          <HomepageValueProps />
+          <div className={styles.sectionWarm}>
+            <HomepageValueProps />
+          </div>
           <HomepageWorkflow />
           <HomepageModels />
 

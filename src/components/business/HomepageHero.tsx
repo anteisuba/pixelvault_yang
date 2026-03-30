@@ -42,47 +42,64 @@ export function HomepageHero({
   return (
     <section className={styles.hero}>
       <div className={styles.heroGrid}>
-        <MotionReveal className={styles.heroCopy}>
-          <p className={cn(styles.eyebrow, isDenseLocale && styles.denseCopy)}>
-            {eyebrow}
-          </p>
-          <h1 className={styles.title}>{title}</h1>
-          <p className={styles.description}>{description}</p>
-
-          <div className={styles.actions}>
-            <Button asChild size="lg" className={styles.primaryButton}>
-              <Link href={primaryActionHref}>
-                {primaryActionLabel}
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className={styles.secondaryButton}
+        <div className={styles.heroCopy}>
+          <MotionReveal delay={0}>
+            <p
+              className={cn(styles.eyebrow, isDenseLocale && styles.denseCopy)}
             >
-              <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-            </Button>
-          </div>
+              {eyebrow}
+            </p>
+          </MotionReveal>
 
-          <div className={styles.heroPills}>
-            <span className={styles.heroPill}>
-              {t('signals.modelCoverageValue', {
-                modelCount: MODEL_OPTIONS.length,
-                providerCount,
-              })}
-            </span>
-            <span className={styles.heroPill}>
-              {t('signals.creditValue', {
-                creditCount: tCommon('creditCount', {
-                  count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                }),
-              })}
-            </span>
-          </div>
-        </MotionReveal>
+          <MotionReveal delay={0.1}>
+            <h1 className={styles.title}>
+              {title}
+              <span className={styles.titleAccent} aria-hidden="true" />
+            </h1>
+          </MotionReveal>
+
+          <MotionReveal delay={0.2}>
+            <p className={styles.description}>{description}</p>
+          </MotionReveal>
+
+          <MotionReveal delay={0.3}>
+            <div className={styles.actions}>
+              <Button asChild size="lg" className={styles.primaryButton}>
+                <Link href={primaryActionHref}>
+                  {primaryActionLabel}
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className={styles.secondaryButton}
+              >
+                <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
+              </Button>
+            </div>
+          </MotionReveal>
+
+          <MotionReveal delay={0.4}>
+            <div className={styles.heroPills}>
+              <span className={styles.heroPill}>
+                {t('signals.modelCoverageValue', {
+                  modelCount: MODEL_OPTIONS.length,
+                  providerCount,
+                })}
+              </span>
+              <span className={styles.heroPill}>
+                {t('signals.creditValue', {
+                  creditCount: tCommon('creditCount', {
+                    count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                  }),
+                })}
+              </span>
+            </div>
+          </MotionReveal>
+        </div>
 
         <MotionReveal delay={0.2}>
           <HomepageHeroVisual />

@@ -1886,6 +1886,11 @@ export type StyleCardFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` StyleCards.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of StyleCards.
+   */
   distinct?: Prisma.StyleCardScalarFieldEnum | Prisma.StyleCardScalarFieldEnum[]
 }
 

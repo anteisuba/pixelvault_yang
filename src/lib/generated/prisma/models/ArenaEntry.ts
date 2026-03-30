@@ -1333,6 +1333,11 @@ export type ArenaEntryFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` ArenaEntries.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ArenaEntries.
+   */
   distinct?: Prisma.ArenaEntryScalarFieldEnum | Prisma.ArenaEntryScalarFieldEnum[]
 }
 

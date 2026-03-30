@@ -1207,6 +1207,11 @@ export type UserFollowFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` UserFollows.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of UserFollows.
+   */
   distinct?: Prisma.UserFollowScalarFieldEnum | Prisma.UserFollowScalarFieldEnum[]
 }
 

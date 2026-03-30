@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[API /api/character-cards/generations] Error:', error)
+    logger.error('[API /api/character-cards/generations] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json(
       { success: false, error: 'Failed to fetch generations' },
       { status: 500 },

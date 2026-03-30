@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('[API /api/generate-long-video/retry] Error:', error)
+    logger.error('[API /api/generate-long-video/retry] Error', { error: error instanceof Error ? error.message : String(error) })
 
     return NextResponse.json<LongVideoStatusResponse>(
       { success: false, error: 'Retry failed. Please try again.' },

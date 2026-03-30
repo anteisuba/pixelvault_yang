@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -61,7 +62,7 @@ export async function GET(
       data: profile,
     })
   } catch (error) {
-    console.error('[API /api/users/[username] GET] Error:', error)
+    logger.error('[API /api/users/[username] GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<CreatorProfilePageResponse>(

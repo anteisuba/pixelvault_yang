@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[API /api/images] ERROR:', error)
+    logger.error('[API /api/images] ERROR', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<GalleryResponse>(
       { success: false, error: 'Failed to fetch gallery' },
       { status: 500 },

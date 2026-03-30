@@ -56,15 +56,15 @@ function ToolButton({
       disabled={disabled}
       title={label}
       className={cn(
-        'relative h-8 gap-1.5 px-2.5 text-xs text-[#7a7872] transition-colors',
-        'hover:bg-[#f0ede6] hover:text-[#141413]',
-        active && 'bg-[#f0ede6] text-[#d97757]',
+        'relative h-8 gap-1.5 px-2.5 text-xs text-muted-foreground transition-colors',
+        'hover:bg-muted/30 hover:text-foreground',
+        active && 'bg-muted/30 text-primary',
       )}
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
       {badge !== undefined && badge !== 0 && (
-        <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#d97757] text-[10px] text-white">
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
           {badge}
         </span>
       )}
@@ -91,7 +91,7 @@ export function StudioToolbar({
   const t = useTranslations('StudioV2')
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-t border-[#e8e4dc] pt-2">
+    <div className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2">
       <ToolButton
         icon={
           <Sparkles

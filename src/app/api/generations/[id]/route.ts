@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
@@ -39,7 +40,7 @@ export async function DELETE(
   try {
     await deleteFromR2(result.storageKey)
   } catch (error) {
-    console.error('[API DELETE /api/generations] R2 cleanup failed:', error)
+    logger.error('[API DELETE /api/generations] R2 cleanup failed', { error: error instanceof Error ? error.message : String(error) })
   }
 
   return NextResponse.json({ success: true })

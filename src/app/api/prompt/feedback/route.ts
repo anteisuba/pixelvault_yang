@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/prompt/feedback] Error:', error)
+    logger.error('[API /api/prompt/feedback] Error', { error: error instanceof Error ? error.message : String(error) })
 
     return NextResponse.json<PromptFeedbackResponse>(
       { success: false, error: 'Prompt feedback failed. Please try again.' },

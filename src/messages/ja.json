@@ -1299,6 +1299,7 @@
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",
+    "sectionError": "{section}でエラーが発生しました",
     "description": "予期しないエラーが発生しました。もう一度お試しください。",
     "retry": "再試行",
     "home": "ホームに戻る"
@@ -1407,7 +1408,8 @@
     "background": "背景",
     "style": "画風",
     "model": "モデル",
-    "deleted": "削除済み"
+    "deleted": "削除済み",
+    "emptyState": "カードがまだありません — + をクリックして作成"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Tokenを保存しました",
@@ -1417,6 +1419,7 @@
   },
   "StudioV2": {
     "none": "未選択",
+    "noCards": "カードがまだありません。作成して始めましょう。",
     "new": "新規",
     "manage": "管理",
     "edit": "編集",
@@ -1426,6 +1429,7 @@
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
     "generateFailed": "生成失敗",
+    "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
     "enhance": "強化",
@@ -1442,5 +1446,25 @@
     "background": "背景",
     "style": "スタイル",
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
+      "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。"
+    },
+    "validation": {
+      "invalidInput": "入力が無効です。パラメータを確認してください。"
+    },
+    "rateLimit": "リクエストが多すぎます。しばらくお待ちください。",
+    "auth": {
+      "unauthorized": "続行するにはサインインしてください。"
+    },
+    "credits": {
+      "exceeded": "本日の無料生成制限に達しました。"
+    },
+    "apiKey": {
+      "missing": "このモデルにはAPIキーが必要です。",
+      "invalid": "無効なAPIキーです。確認してもう一度お試しください。"
+    }
   }
 }

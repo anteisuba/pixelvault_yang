@@ -118,6 +118,16 @@ export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
 
 export type GenerateVideoResponse = GenerateResponse
 
+// ─── Image Edit ──────────────────────────────────────────────────
+// Moved from /api/image/edit/route.ts to centralize all schemas
+
+export const ImageEditSchema = z.object({
+  action: z.enum(['upscale', 'remove-background']),
+  imageUrl: z.string().url(),
+})
+
+export type ImageEditRequest = z.infer<typeof ImageEditSchema>
+
 // ─── Video Queue (submit + poll) ─────────────────────────────────
 
 export const VideoJobStatusSchema = z.enum([

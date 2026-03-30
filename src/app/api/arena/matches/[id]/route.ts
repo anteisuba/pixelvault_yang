@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import type { ArenaMatchResponse } from '@/types'
@@ -33,7 +34,7 @@ export async function GET(
       data: match,
     })
   } catch (error) {
-    console.error('[API /api/arena/matches/[id]] Error:', error)
+    logger.error('[API /api/arena/matches/[id]] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<ArenaMatchResponse>(
       { success: false, error: 'Failed to fetch match.' },
       { status: 500 },

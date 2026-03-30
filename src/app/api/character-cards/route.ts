@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -26,7 +27,7 @@ export async function GET() {
       data: cards,
     })
   } catch (error) {
-    console.error('[API /api/character-cards GET] Error:', error)
+    logger.error('[API /api/character-cards GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<CharacterCardsResponse>(
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       data: card,
     })
   } catch (error) {
-    console.error('[API /api/character-cards POST] Error:', error)
+    logger.error('[API /api/character-cards POST] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<CharacterCardResponse>(

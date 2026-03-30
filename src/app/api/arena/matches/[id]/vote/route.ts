@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { ArenaVoteRequestSchema } from '@/types'
@@ -64,7 +65,7 @@ export async function POST(
       )
     }
 
-    console.error('[API /api/arena/matches/[id]/vote] Error:', error)
+    logger.error('[API /api/arena/matches/[id]/vote] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<ArenaVoteResponse>(
       { success: false, error: message },
       { status: 500 },

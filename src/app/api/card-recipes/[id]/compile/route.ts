@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -47,7 +48,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       data: compiled,
     })
   } catch (error) {
-    console.error('[API /api/card-recipes/[id]/compile POST] Error:', error)
+    logger.error('[API /api/card-recipes/[id]/compile POST] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     const status = message.startsWith('MISSING_') ? 400 : 500

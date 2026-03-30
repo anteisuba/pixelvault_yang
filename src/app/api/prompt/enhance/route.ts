@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { EnhancePromptRequestSchema } from '@/types'
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/prompt/enhance] Error:', error)
+    logger.error('[API /api/prompt/enhance] Error', { error: error instanceof Error ? error.message : String(error) })
 
     return NextResponse.json<EnhancePromptResponse>(
       { success: false, error: 'Prompt enhancement failed. Please try again.' },

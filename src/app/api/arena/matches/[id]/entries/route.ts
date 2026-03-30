@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       data: entry,
     })
   } catch (error) {
-    console.error('[API /api/arena/matches/entries] Error:', error)
+    logger.error('[API /api/arena/matches/entries] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'Entry generation failed'
     const status =

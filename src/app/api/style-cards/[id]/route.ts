@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -32,7 +33,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     return NextResponse.json<StyleCardResponse>({ success: true, data: card })
   } catch (error) {
-    console.error('[API /api/style-cards/[id] GET] Error:', error)
+    logger.error('[API /api/style-cards/[id] GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StyleCardResponse>(
@@ -77,7 +78,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const card = await updateStyleCard(clerkId, id, parseResult.data)
     return NextResponse.json<StyleCardResponse>({ success: true, data: card })
   } catch (error) {
-    console.error('[API /api/style-cards/[id] PUT] Error:', error)
+    logger.error('[API /api/style-cards/[id] PUT] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StyleCardResponse>(
@@ -101,7 +102,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     await deleteStyleCard(clerkId, id)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[API /api/style-cards/[id] DELETE] Error:', error)
+    logger.error('[API /api/style-cards/[id] DELETE] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json(

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
@@ -23,7 +24,7 @@ export async function GET() {
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/arena/personal-stats] Error:', error)
+    logger.error('[API /api/arena/personal-stats] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<ArenaPersonalStatsResponse>(

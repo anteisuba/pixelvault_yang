@@ -1299,6 +1299,7 @@
   },
   "ErrorBoundary": {
     "title": "出了点问题",
+    "sectionError": "{section}遇到了错误",
     "description": "发生了意外错误，请重试。",
     "retry": "重试",
     "home": "返回首页"
@@ -1407,7 +1408,8 @@
     "background": "背景",
     "style": "画风",
     "model": "模型",
-    "deleted": "已删除"
+    "deleted": "已删除",
+    "emptyState": "还没有卡片 — 点击 + 创建一张"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",
@@ -1417,6 +1419,7 @@
   },
   "StudioV2": {
     "none": "不选择",
+    "noCards": "还没有卡片，创建一张开始吧。",
     "new": "新建",
     "manage": "管理",
     "character": "角色",
@@ -1430,6 +1433,7 @@
     "generating": "生成中...",
     "generateSuccess": "图片已生成！",
     "generateFailed": "生成失败",
+    "aspectRatioLabel": "宽高比",
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
     "enhance": "增强",
@@ -1442,5 +1446,25 @@
     "removeToken": "删除",
     "cardManagement": "卡片管理",
     "projectHistory": "项目与历史"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AI 提供商错误，请重试。",
+      "timeout": "AI 提供商超时，请重试。"
+    },
+    "validation": {
+      "invalidInput": "输入无效，请检查参数。"
+    },
+    "rateLimit": "请求过于频繁，请稍候再试。",
+    "auth": {
+      "unauthorized": "请登录后继续。"
+    },
+    "credits": {
+      "exceeded": "今日免费生成次数已用完。"
+    },
+    "apiKey": {
+      "missing": "此模型需要 API Key。",
+      "invalid": "API Key 无效，请检查后重试。"
+    }
   }
 }

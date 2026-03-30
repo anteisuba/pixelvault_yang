@@ -66,47 +66,56 @@ export function CardDropdown({
   return (
     <div ref={ref} className="relative">
       {/* Trigger button */}
-      <button
-        type="button"
-        disabled={disabled || isLoading}
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          'flex items-center gap-2 rounded-lg border border-[#e8e4dc] bg-[#faf9f5] px-3 py-2',
-          'text-sm font-medium text-[#141413] transition-colors',
-          'hover:bg-[#f0ede6] hover:border-[#d97757]',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          open && 'border-[#d97757] bg-[#f0ede6]',
-        )}
-      >
-        {/* Thumbnail */}
-        {selectedCard?.sourceImageUrl ? (
-          <Image
-            src={selectedCard.sourceImageUrl}
-            alt={selectedCard.name}
-            width={20}
-            height={20}
-            className="rounded object-cover flex-shrink-0"
-          />
-        ) : (
-          <span className="w-5 h-5 rounded bg-[#e8e4dc] flex-shrink-0" />
-        )}
-
-        {/* Label */}
-        <span className="text-xs text-[#7a7872]">{label}</span>
-        <span className="max-w-[100px] truncate">
-          {selectedCard?.name ?? placeholder ?? t('none')}
-        </span>
-        <ChevronDown
+      {isLoading ? (
+        /* Loading skeleton */
+        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2">
+          <span className="w-5 h-5 rounded bg-muted animate-pulse flex-shrink-0" />
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="w-16 h-4 rounded bg-muted animate-pulse" />
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((o) => !o)}
           className={cn(
-            'h-3.5 w-3.5 text-[#7a7872] transition-transform',
-            open && 'rotate-180',
+            'flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2',
+            'text-sm font-medium text-foreground transition-colors',
+            'hover:bg-muted/30 hover:border-primary',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            open && 'border-primary bg-muted/30',
           )}
-        />
-      </button>
+        >
+          {/* Thumbnail */}
+          {selectedCard?.sourceImageUrl ? (
+            <Image
+              src={selectedCard.sourceImageUrl}
+              alt={selectedCard.name}
+              width={20}
+              height={20}
+              className="rounded object-cover flex-shrink-0"
+            />
+          ) : (
+            <span className="w-5 h-5 rounded bg-muted flex-shrink-0" />
+          )}
+
+          {/* Label */}
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="max-w-[100px] truncate">
+            {selectedCard?.name ?? placeholder ?? t('none')}
+          </span>
+          <ChevronDown
+            className={cn(
+              'h-3.5 w-3.5 text-muted-foreground transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+      )}
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-[#e8e4dc] bg-[#faf9f5] shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-border/60 bg-background shadow-lg">
           {/* None option */}
           <button
             type="button"
@@ -115,17 +124,24 @@ export function CardDropdown({
               setOpen(false)
             }}
             className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 text-sm text-[#7a7872]',
-              'hover:bg-[#f0ede6] rounded-t-lg',
-              !selectedId && 'bg-[#f0ede6] text-[#141413]',
+              'w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground',
+              'hover:bg-muted/30 rounded-t-lg',
+              !selectedId && 'bg-muted/30 text-foreground',
             )}
           >
-            <span className="w-6 h-6 rounded bg-[#e8e4dc]" />
+            <span className="w-6 h-6 rounded bg-muted" />
             {t('none')}
           </button>
 
           {/* Card list */}
           <div className="max-h-48 overflow-y-auto">
+            {cards.length === 0 && (
+              <div className="px-3 py-4 text-center">
+                <p className="text-xs text-muted-foreground/60 font-serif">
+                  {t('noCards')}
+                </p>
+              </div>
+            )}
             {cards.map((card) => (
               <button
                 key={card.id}
@@ -135,9 +151,9 @@ export function CardDropdown({
                   setOpen(false)
                 }}
                 className={cn(
-                  'w-full flex items-center gap-2 px-3 py-2 text-sm text-[#141413]',
-                  'hover:bg-[#f0ede6]',
-                  selectedId === card.id && 'bg-[#f0ede6]',
+                  'w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground',
+                  'hover:bg-muted/30',
+                  selectedId === card.id && 'bg-muted/30',
                 )}
               >
                 {card.sourceImageUrl ? (
@@ -149,7 +165,7 @@ export function CardDropdown({
                     className="rounded object-cover flex-shrink-0"
                   />
                 ) : (
-                  <span className="w-6 h-6 rounded bg-[#e8e4dc] flex-shrink-0" />
+                  <span className="w-6 h-6 rounded bg-muted flex-shrink-0" />
                 )}
                 <span className="truncate">{card.name}</span>
               </button>
@@ -157,12 +173,12 @@ export function CardDropdown({
           </div>
 
           {/* Footer actions */}
-          <div className="border-t border-[#e8e4dc] p-1 flex gap-1">
+          <div className="border-t border-border/60 p-1 flex gap-1">
             {onCreateNew && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex-1 h-7 text-xs text-[#d97757] hover:text-[#d97757] hover:bg-[#fdf1ec]"
+                className="flex-1 h-7 text-xs text-primary hover:text-primary hover:bg-primary/5"
                 onClick={() => {
                   onCreateNew()
                   setOpen(false)
@@ -176,7 +192,7 @@ export function CardDropdown({
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex-1 h-7 text-xs text-[#7a7872] hover:text-[#141413]"
+                className="flex-1 h-7 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   onManage()
                   setOpen(false)

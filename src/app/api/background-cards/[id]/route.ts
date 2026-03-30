@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -35,7 +36,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       data: card,
     })
   } catch (error) {
-    console.error('[API /api/background-cards/[id] GET] Error:', error)
+    logger.error('[API /api/background-cards/[id] GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<BackgroundCardResponse>(
@@ -83,7 +84,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       data: card,
     })
   } catch (error) {
-    console.error('[API /api/background-cards/[id] PUT] Error:', error)
+    logger.error('[API /api/background-cards/[id] PUT] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<BackgroundCardResponse>(
@@ -107,7 +108,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     await deleteBackgroundCard(clerkId, id)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[API /api/background-cards/[id] DELETE] Error:', error)
+    logger.error('[API /api/background-cards/[id] DELETE] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json(

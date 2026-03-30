@@ -144,7 +144,7 @@
     },
     "heroEyebrow": "Personal AI archive",
     "heroTitle": "Make deliberately. Keep everything.",
-    "heroDescription": "Generate across leading image models, keep the strong results, and return to a library that preserves the prompt and route behind each image.",
+    "heroDescription": "Multi-model image generation with permanent archiving.",
     "actions": {
       "signedOutPrimary": "Start your archive",
       "signedInPrimary": "Open studio",
@@ -258,6 +258,48 @@
         "geminiConcept": {
           "note": "Fast concepting",
           "prompt": "Editorial still life of camera parts, metal tools, and pressed flowers"
+        },
+        "dalleCreative": {
+          "note": "Creative illustration",
+          "prompt": "A cozy reading nook with rain streaking down a tall window"
+        },
+        "fluxPro": {
+          "note": "Photorealistic detail",
+          "prompt": "Morning light catching dewdrops on a spider web between fence posts"
+        },
+        "novelaiIllust": {
+          "note": "Stylized illustration",
+          "prompt": "Alchemist's workshop filled with glowing bottles and scattered notes"
+        }
+      }
+    },
+    "valueProps": {
+      "eyebrow": "Why PixelVault",
+      "title": "Your keys. Your images. Zero markup.",
+      "items": {
+        "chooseEngine": {
+          "title": "Switch models freely",
+          "description": "Realism, anime, DALL-E, Gemini — one studio."
+        },
+        "keepEveryKeeper": {
+          "title": "Keep what matters",
+          "description": "Good results stay in your archive, always."
+        },
+        "spendCredits": {
+          "title": "Transparent usage",
+          "description": "Every generation shows provider and cost."
+        },
+        "byok": {
+          "title": "Bring your own keys",
+          "description": "Your API keys, encrypted end-to-end."
+        },
+        "permanentArchive": {
+          "title": "Permanent archive",
+          "description": "Stored on Cloudflare R2. No expiring links."
+        },
+        "arena": {
+          "title": "Arena comparison",
+          "description": "Blind side-by-side with ELO ranking."
         }
       }
     },
@@ -1257,6 +1299,7 @@
   },
   "ErrorBoundary": {
     "title": "Something went wrong",
+    "sectionError": "{section} encountered an error",
     "description": "An unexpected error occurred. Please try again.",
     "retry": "Try again",
     "home": "Back to home"
@@ -1365,7 +1408,8 @@
     "background": "Background",
     "style": "Style",
     "model": "Model",
-    "deleted": "Deleted"
+    "deleted": "Deleted",
+    "emptyState": "No cards yet — click + to create one"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",
@@ -1375,6 +1419,7 @@
   },
   "StudioV2": {
     "none": "None",
+    "noCards": "No cards yet. Create one to get started.",
     "new": "New",
     "manage": "Manage",
     "character": "Character",
@@ -1388,6 +1433,7 @@
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
     "generateFailed": "Generation failed",
+    "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
     "enhance": "Enhance",
@@ -1400,5 +1446,25 @@
     "removeToken": "Remove",
     "cardManagement": "Card Management",
     "projectHistory": "Project & History"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AI provider error. Please try again.",
+      "timeout": "AI provider timed out. Please try again."
+    },
+    "validation": {
+      "invalidInput": "Invalid input. Please check your parameters."
+    },
+    "rateLimit": "Too many requests. Please wait a moment.",
+    "auth": {
+      "unauthorized": "Please sign in to continue."
+    },
+    "credits": {
+      "exceeded": "Free generation limit reached for today."
+    },
+    "apiKey": {
+      "missing": "API key is required for this model.",
+      "invalid": "Invalid API key. Please check and try again."
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateStoryRequestSchema } from '@/types'
@@ -20,7 +21,7 @@ export async function GET() {
       data: stories,
     })
   } catch (error) {
-    console.error('[API /api/stories GET] Error:', error)
+    logger.error('[API /api/stories GET] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StoryListResponse>(
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       data: story,
     })
   } catch (error) {
-    console.error('[API /api/stories POST] Error:', error)
+    logger.error('[API /api/stories POST] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<CreateStoryResponse>(

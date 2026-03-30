@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { toast } from 'sonner'
-import { useTranslations } from 'next-intl'
+import { useMemo } from 'react'
 
 import type {
   StyleCardRecord,
@@ -15,92 +13,61 @@ import {
   updateStyleCardAPI,
   deleteStyleCardAPI,
 } from '@/lib/api-client'
+import {
+  useCardManager,
+  type UseCardManagerReturn,
+} from '@/hooks/use-card-manager'
 
-export interface UseStyleCardsReturn {
-  cards: StyleCardRecord[]
-  isLoading: boolean
-  activeCardId: string | null
-  setActiveCardId: (id: string | null) => void
-  activeCard: StyleCardRecord | null
-  create: (data: CreateStyleCardRequest) => Promise<StyleCardRecord | null>
-  update: (id: string, data: UpdateStyleCardRequest) => Promise<boolean>
-  remove: (id: string) => Promise<boolean>
-  refresh: () => Promise<void>
+export type UseStyleCardsReturn = Pick<
+  UseCardManagerReturn<
+    StyleCardRecord,
+    CreateStyleCardRequest,
+    UpdateStyleCardRequest
+  >,
+  | 'cards'
+  | 'isLoading'
+  | 'activeCardId'
+  | 'setActiveCardId'
+  | 'activeCard'
+  | 'create'
+  | 'update'
+  | 'remove'
+  | 'refresh'
+>
+
+const api = {
+  list: listStyleCardsAPI,
+  create: createStyleCardAPI,
+  update: updateStyleCardAPI,
+  delete: deleteStyleCardAPI,
 }
 
 export function useStyleCards(projectId?: string | null): UseStyleCardsReturn {
-  const [cards, setCards] = useState<StyleCardRecord[]>([])
-  const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const t = useTranslations('Toasts')
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true)
-    const result = await listStyleCardsAPI(projectId)
-    if (result.success && result.data) {
-      setCards(result.data)
-    }
-    setIsLoading(false)
-  }, [projectId])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  const create = useCallback(
-    async (data: CreateStyleCardRequest): Promise<StyleCardRecord | null> => {
-      const result = await createStyleCardAPI(data)
-      if (result.success && result.data) {
-        setCards((prev) => [result.data!, ...prev])
-        toast.success(t('createSuccess'))
-        return result.data
-      }
-      toast.error(result.error ?? t('createFailed'))
-      return null
-    },
-    [t],
+  const manager = useCardManager<
+    StyleCardRecord,
+    CreateStyleCardRequest,
+    UpdateStyleCardRequest
+  >(
+    useMemo(
+      () => ({
+        cardType: 'style',
+        api,
+        selectionMode: 'single' as const,
+        projectId,
+      }),
+      [projectId],
+    ),
   )
-
-  const update = useCallback(
-    async (id: string, data: UpdateStyleCardRequest): Promise<boolean> => {
-      const result = await updateStyleCardAPI(id, data)
-      if (result.success && result.data) {
-        setCards((prev) => prev.map((c) => (c.id === id ? result.data! : c)))
-        toast.success(t('updateSuccess'))
-        return true
-      }
-      toast.error(result.error ?? t('updateFailed'))
-      return false
-    },
-    [t],
-  )
-
-  const remove = useCallback(
-    async (id: string): Promise<boolean> => {
-      const result = await deleteStyleCardAPI(id)
-      if (result.success) {
-        setCards((prev) => prev.filter((c) => c.id !== id))
-        if (activeCardId === id) setActiveCardId(null)
-        toast.success(t('deleteSuccess'))
-        return true
-      }
-      toast.error(result.error ?? t('deleteFailed'))
-      return false
-    },
-    [activeCardId, t],
-  )
-
-  const activeCard = cards.find((c) => c.id === activeCardId) ?? null
 
   return {
-    cards,
-    isLoading,
-    activeCardId,
-    setActiveCardId,
-    activeCard,
-    create,
-    update,
-    remove,
-    refresh,
+    cards: manager.cards,
+    isLoading: manager.isLoading,
+    activeCardId: manager.activeCardId,
+    setActiveCardId: manager.setActiveCardId,
+    activeCard: manager.activeCard,
+    create: manager.create,
+    update: manager.update,
+    remove: manager.remove,
+    refresh: manager.refresh,
   }
 }

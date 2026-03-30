@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       data: { updatedCount },
     })
   } catch (error) {
-    console.error('[API /api/generations/batch] Error:', error)
+    logger.error('[API /api/generations/batch] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json(
       { success: false, error: 'Batch operation failed' },
       { status: 500 },

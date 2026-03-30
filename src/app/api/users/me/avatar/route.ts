@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/users/me/avatar] Error:', error)
+    logger.error('[API /api/users/me/avatar] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'Failed to upload avatar'
     return NextResponse.json<UploadProfileImageResponse>(

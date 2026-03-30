@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { GenerateVariationsRequestSchema } from '@/types'
@@ -67,7 +68,7 @@ export async function POST(
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/image/analyze/[id]/variations] Error:', error)
+    logger.error('[API /api/image/analyze/[id]/variations] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<GenerateVariationsResponse>(
       {
         success: false,

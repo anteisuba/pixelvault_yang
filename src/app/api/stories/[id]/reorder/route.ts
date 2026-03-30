@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
@@ -46,7 +47,7 @@ export async function POST(
     const story = await reorderPanels(id, clerkId, parseResult.data.panelIds)
     return NextResponse.json<StoryResponse>({ success: true, data: story })
   } catch (error) {
-    console.error('[API /api/stories/[id]/reorder] Error:', error)
+    logger.error('[API /api/stories/[id]/reorder] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<StoryResponse>(

@@ -144,7 +144,7 @@
     },
     "heroEyebrow": "個人AIアーカイブ",
     "heroTitle": "意図して作り、きちんと残す。",
-    "heroDescription": "複数の主要な画像モデルを使い分けながら生成し、良い結果を保存し、プロンプトとルートの文脈ごと見返せます。",
+    "heroDescription": "マルチモデル画像生成と永久アーカイブ。",
     "actions": {
       "signedOutPrimary": "アーカイブを始める",
       "signedInPrimary": "スタジオを開く",
@@ -258,6 +258,48 @@
         "geminiConcept": {
           "note": "素早いコンセプト探索",
           "prompt": "カメラ部品、金属工具、押し花を並べたエディトリアル静物"
+        },
+        "dalleCreative": {
+          "note": "クリエイティブなイラスト",
+          "prompt": "高い窓に雨が流れ落ちる居心地の良い読書スペース"
+        },
+        "fluxPro": {
+          "note": "フォトリアルなディテール",
+          "prompt": "柵の間に張られた蜘蛛の巣の朝露に朝日が差し込む"
+        },
+        "novelaiIllust": {
+          "note": "スタイル化されたイラスト",
+          "prompt": "光るボトルと散らばったメモで埋め尽くされた錬金術師の工房"
+        }
+      }
+    },
+    "valueProps": {
+      "eyebrow": "PixelVaultの特長",
+      "title": "あなたのキー。あなたの画像。追加料金ゼロ。",
+      "items": {
+        "chooseEngine": {
+          "title": "自由にモデルを切り替える",
+          "description": "リアル、アニメ、DALL-E、Gemini — ひとつのスタジオ。"
+        },
+        "keepEveryKeeper": {
+          "title": "大切な結果を残す",
+          "description": "良い結果はアーカイブにずっと残ります。"
+        },
+        "spendCredits": {
+          "title": "透明な使用量",
+          "description": "各生成にプロバイダーとコストが表示。"
+        },
+        "byok": {
+          "title": "自分のキーを使う",
+          "description": "APIキーはエンドツーエンドで暗号化。"
+        },
+        "permanentArchive": {
+          "title": "永久アーカイブ",
+          "description": "Cloudflare R2に保存。期限切れリンクなし。"
+        },
+        "arena": {
+          "title": "アリーナ比較",
+          "description": "ELOランキング付きブラインド比較。"
         }
       }
     },
@@ -1257,6 +1299,7 @@
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",
+    "sectionError": "{section}でエラーが発生しました",
     "description": "予期しないエラーが発生しました。もう一度お試しください。",
     "retry": "再試行",
     "home": "ホームに戻る"
@@ -1365,7 +1408,8 @@
     "background": "背景",
     "style": "画風",
     "model": "モデル",
-    "deleted": "削除済み"
+    "deleted": "削除済み",
+    "emptyState": "カードがまだありません — + をクリックして作成"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Tokenを保存しました",
@@ -1375,6 +1419,7 @@
   },
   "StudioV2": {
     "none": "未選択",
+    "noCards": "カードがまだありません。作成して始めましょう。",
     "new": "新規",
     "manage": "管理",
     "edit": "編集",
@@ -1384,6 +1429,7 @@
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
     "generateFailed": "生成失敗",
+    "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
     "enhance": "強化",
@@ -1400,5 +1446,25 @@
     "background": "背景",
     "style": "スタイル",
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
+  },
+  "Errors": {
+    "provider": {
+      "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
+      "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。"
+    },
+    "validation": {
+      "invalidInput": "入力が無効です。パラメータを確認してください。"
+    },
+    "rateLimit": "リクエストが多すぎます。しばらくお待ちください。",
+    "auth": {
+      "unauthorized": "続行するにはサインインしてください。"
+    },
+    "credits": {
+      "exceeded": "本日の無料生成制限に達しました。"
+    },
+    "apiKey": {
+      "missing": "このモデルにはAPIキーが必要です。",
+      "invalid": "無効なAPIキーです。確認してもう一度お試しください。"
+    }
   }
 }

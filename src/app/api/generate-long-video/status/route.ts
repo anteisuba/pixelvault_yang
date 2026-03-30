@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import type { LongVideoStatusResponse } from '@/types'
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.error('[API /api/generate-long-video/status] Error:', error)
+    logger.error('[API /api/generate-long-video/status] Error', { error: error instanceof Error ? error.message : String(error) })
 
     return NextResponse.json<LongVideoStatusResponse>(
       { success: false, error: 'Status check failed. Please try again.' },

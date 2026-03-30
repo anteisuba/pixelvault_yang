@@ -121,7 +121,7 @@ export function StyleCardEditor({
     <div className="space-y-4">
       {/* Name */}
       <div>
-        <label className="block text-xs font-medium text-[#7a7872] mb-1">
+        <label className="block text-xs font-medium text-muted-foreground mb-1">
           {t('name') ?? '名称'}
         </label>
         <Input
@@ -129,13 +129,13 @@ export function StyleCardEditor({
           onChange={(e) => setName(e.target.value)}
           placeholder={t('namePlaceholder') ?? '画风卡名称'}
           disabled={isLoading}
-          className="border-[#e8e4dc] bg-[#faf9f5]"
+          className="border-border/60 bg-background"
         />
       </div>
 
       {/* Mode selector */}
       <div>
-        <label className="block text-xs font-medium text-[#7a7872] mb-2">
+        <label className="block text-xs font-medium text-muted-foreground mb-2">
           {t('generateMethod') ?? '生成方式'}
         </label>
         <div className="flex gap-2">
@@ -146,8 +146,8 @@ export function StyleCardEditor({
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors',
               mode === 'lora'
-                ? 'border-[#d97757] bg-[#fdf1ec] text-[#d97757]'
-                : 'border-[#e8e4dc] text-[#7a7872] hover:bg-[#f0ede6]',
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border/60 text-muted-foreground hover:bg-muted/30',
             )}
           >
             <Wand2 className="h-3.5 w-3.5" />
@@ -160,8 +160,8 @@ export function StyleCardEditor({
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors',
               mode === 'reference'
-                ? 'border-[#d97757] bg-[#fdf1ec] text-[#d97757]'
-                : 'border-[#e8e4dc] text-[#7a7872] hover:bg-[#f0ede6]',
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border/60 text-muted-foreground hover:bg-muted/30',
             )}
           >
             <ImageIcon className="h-3.5 w-3.5" />
@@ -172,14 +172,14 @@ export function StyleCardEditor({
 
       {/* Model selector */}
       <div>
-        <label className="block text-xs font-medium text-[#7a7872] mb-1">
+        <label className="block text-xs font-medium text-muted-foreground mb-1">
           {t('selectModel') ?? '选择模型'}
         </label>
         <select
           value={selectedModelId}
           onChange={(e) => setSelectedModelId(e.target.value)}
           disabled={isLoading}
-          className="w-full rounded-lg border border-[#e8e4dc] bg-[#faf9f5] px-3 py-2 text-sm text-[#141413] focus:outline-none focus:border-[#d97757]"
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
         >
           <option value="">
             {t('selectModelPlaceholder') ?? '— 不指定模型 —'}
@@ -195,23 +195,23 @@ export function StyleCardEditor({
       {/* LoRA list (LoRA mode only) */}
       {mode === 'lora' && (
         <div>
-          <label className="block text-xs font-medium text-[#7a7872] mb-1">
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
             LoRA
           </label>
           <div className="space-y-1 mb-2">
             {(advancedParams.loras ?? []).map((lora, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 rounded bg-[#f0ede6] px-2 py-1 text-xs"
+                className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1 text-xs"
               >
-                <span className="flex-1 truncate text-[#141413]">
+                <span className="flex-1 truncate text-foreground">
                   {lora.url}
                 </span>
-                <span className="text-[#7a7872]">×{lora.scale ?? 1}</span>
+                <span className="text-muted-foreground">×{lora.scale ?? 1}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveLora(i)}
-                  className="text-[#7a7872] hover:text-red-500"
+                  className="text-muted-foreground hover:text-red-500"
                 >
                   ×
                 </button>
@@ -223,14 +223,14 @@ export function StyleCardEditor({
               value={loraUrl}
               onChange={(e) => setLoraUrl(e.target.value)}
               placeholder="LoRA URL (Civitai / HuggingFace)"
-              className="flex-1 text-xs border-[#e8e4dc] bg-[#faf9f5]"
+              className="flex-1 text-xs border-border/60 bg-background"
               disabled={isLoading}
             />
             <Input
               value={loraScale}
               onChange={(e) => setLoraScale(e.target.value)}
               placeholder="1.0"
-              className="w-16 text-xs border-[#e8e4dc] bg-[#faf9f5]"
+              className="w-16 text-xs border-border/60 bg-background"
               disabled={isLoading}
             />
             <Button
@@ -239,7 +239,7 @@ export function StyleCardEditor({
               size="sm"
               onClick={handleAddLora}
               disabled={isLoading || !loraUrl.trim()}
-              className="text-xs border-[#e8e4dc] hover:border-[#d97757] hover:text-[#d97757]"
+              className="text-xs border-border/60 hover:border-primary hover:text-primary"
             >
               +
             </Button>
@@ -249,7 +249,7 @@ export function StyleCardEditor({
 
       {/* Style prompt */}
       <div>
-        <label className="block text-xs font-medium text-[#7a7872] mb-1">
+        <label className="block text-xs font-medium text-muted-foreground mb-1">
           {t('prompt')}
         </label>
         <Textarea
@@ -263,7 +263,7 @@ export function StyleCardEditor({
           }
           rows={3}
           disabled={isLoading}
-          className="resize-none border-[#e8e4dc] bg-[#faf9f5] text-sm"
+          className="resize-none border-border/60 bg-background text-sm"
         />
       </div>
 
@@ -276,7 +276,7 @@ export function StyleCardEditor({
             size="sm"
             onClick={onCancel}
             disabled={isLoading}
-            className="border-[#e8e4dc] text-[#7a7872]"
+            className="border-border/60 text-muted-foreground"
           >
             {tv2('cancel') ?? '取消'}
           </Button>
@@ -286,7 +286,7 @@ export function StyleCardEditor({
           size="sm"
           onClick={handleSubmit}
           disabled={isLoading || !name.trim() || !stylePrompt.trim()}
-          className="bg-[#d97757] hover:bg-[#c96645] text-white"
+          className="bg-primary hover:bg-primary/90 text-white"
         >
           {isLoading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

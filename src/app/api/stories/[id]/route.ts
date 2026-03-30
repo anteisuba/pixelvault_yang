@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { UpdateStoryRequestSchema } from '@/types'
@@ -39,7 +40,7 @@ export async function GET(
       { status: 404 },
     )
   } catch (error) {
-    console.error('[API /api/stories/[id] GET] Error:', error)
+    logger.error('[API /api/stories/[id] GET] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<StoryResponse>(
       { success: false, error: 'Failed to fetch story' },
       { status: 500 },
@@ -85,7 +86,7 @@ export async function PUT(
     const story = await updateStory(id, clerkId, parseResult.data)
     return NextResponse.json<StoryResponse>({ success: true, data: story })
   } catch (error) {
-    console.error('[API /api/stories/[id] PUT] Error:', error)
+    logger.error('[API /api/stories/[id] PUT] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json<StoryResponse>(
       { success: false, error: 'Failed to update story' },
       { status: 500 },
@@ -110,7 +111,7 @@ export async function DELETE(
     await deleteStory(id, clerkId)
     return new NextResponse(null, { status: 204 })
   } catch (error) {
-    console.error('[API /api/stories/[id] DELETE] Error:', error)
+    logger.error('[API /api/stories/[id] DELETE] Error', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json(
       { success: false, error: 'Failed to delete story' },
       { status: 500 },

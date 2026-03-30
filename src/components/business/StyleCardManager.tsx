@@ -83,7 +83,7 @@ export function StyleCardManager({
   if (view.type === 'create' || view.type === 'edit') {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-medium text-[#7a7872]">
+        <p className="text-xs font-medium text-muted-foreground">
           {view.type === 'create' ? t('new') : t('edit')} — {tStyle('title')}
         </p>
         <StyleCardEditor
@@ -107,7 +107,7 @@ export function StyleCardManager({
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
-            className="rounded-md border border-[#e8e4dc] px-3 py-1.5 text-xs text-[#7a7872] hover:bg-[#f0ede6]"
+            className="rounded-md border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30"
           >
             {t('cancel')}
           </button>
@@ -127,12 +127,12 @@ export function StyleCardManager({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-[#7a7872]">{tStyle('title')}</p>
+        <p className="text-xs font-medium text-muted-foreground">{tStyle('title')}</p>
         <button
           type="button"
           disabled={isLoading}
           onClick={() => setView({ type: 'create' })}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[#d97757] hover:bg-[#fdf1ec] disabled:opacity-50"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-primary/5 disabled:opacity-50"
         >
           <Plus className="h-3 w-3" />
           {t('new')}
@@ -140,7 +140,7 @@ export function StyleCardManager({
       </div>
 
       {cards.length === 0 && (
-        <p className="py-3 text-center text-xs text-[#7a7872]">
+        <p className="py-3 text-center text-xs text-muted-foreground">
           {tStyle('empty') ?? '暂无画风卡 — 点击「新建」添加'}
         </p>
       )}
@@ -154,8 +154,8 @@ export function StyleCardManager({
               className={cn(
                 'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
                 isActive
-                  ? 'border-[#d97757]/40 bg-[#fdf1ec]'
-                  : 'border-[#e8e4dc] bg-[#faf9f5] hover:bg-[#f0ede6]',
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-border/60 bg-background hover:bg-muted/30',
               )}
             >
               <button
@@ -164,14 +164,14 @@ export function StyleCardManager({
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 {isActive && (
-                  <Check className="h-3 w-3 flex-shrink-0 text-[#d97757]" />
+                  <Check className="h-3 w-3 flex-shrink-0 text-primary" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#141413]">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {card.name}
                   </p>
                   {card.modelId ? (
-                    <p className="truncate text-xs text-[#7a7872]">
+                    <p className="truncate text-xs text-muted-foreground">
                       {card.modelId}
                       {card.advancedParams?.loras?.length
                         ? ` · ${card.advancedParams.loras.length} LoRA`
@@ -187,7 +187,7 @@ export function StyleCardManager({
                 <button
                   type="button"
                   onClick={() => setView({ type: 'edit', card })}
-                  className="rounded p-1 text-[#7a7872] hover:bg-[#e8e4dc] hover:text-[#141413]"
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                   title={t('edit')}
                 >
                   <Pencil className="h-3 w-3" />
@@ -195,7 +195,7 @@ export function StyleCardManager({
                 <button
                   type="button"
                   onClick={() => setView({ type: 'confirmDelete', card })}
-                  className="rounded p-1 text-[#7a7872] hover:bg-red-50 hover:text-red-500"
+                  className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
                   title="删除"
                 >
                   <Trash2 className="h-3 w-3" />

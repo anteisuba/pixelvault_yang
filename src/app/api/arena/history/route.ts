@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
       data: result,
     })
   } catch (error) {
-    console.error('[API /api/arena/history] Error:', error)
+    logger.error('[API /api/arena/history] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<ArenaHistoryResponse>(

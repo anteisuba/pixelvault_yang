@@ -349,7 +349,7 @@ export default function VideoGenerateForm({
             onClick={() => setLongVideoMode(!longVideoMode)}
             className={cn(
               'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
-              longVideoMode ? 'bg-[#d97757]' : 'bg-[#e8e6dc]',
+              longVideoMode ? 'bg-primary' : 'bg-muted',
             )}
           >
             <span

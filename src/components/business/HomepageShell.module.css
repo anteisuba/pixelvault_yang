@@ -188,7 +188,7 @@
 .heroGrid {
   display: grid;
   gap: clamp(1.5rem, 3vw, 2rem);
-  align-items: end;
+  align-items: center;
 }
 
 .heroCopy {
@@ -266,68 +266,145 @@
   backdrop-filter: blur(8px);
 }
 
-/* ── Hero visual (right side scene cards) ────────────────────────────────── */
+/* ── Hero pills (inline metrics) ─────────────────────────────────────────── */
+
+.heroPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.heroPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 8%, var(--background));
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--home-muted);
+}
+
+/* ── Hero visual (card fan) ──────────────────────────────────────────────── */
 
 .heroVisual {
   display: none;
   position: relative;
-  padding: 1.5rem;
-  border: 1px dashed color-mix(in oklab, var(--border) 50%, transparent);
-  border-radius: var(--radius-3xl);
-  background: color-mix(in oklab, var(--primary) 2%, transparent);
+  min-height: 280px;
 }
 
-.heroVisualInner {
+.heroCardFan {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heroShowcaseCard {
+  width: 280px;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  box-shadow:
+    0 2px 8px color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 12px 32px color-mix(in oklab, var(--foreground) 4%, transparent);
+  border: 1px solid var(--home-border);
+}
+
+.heroShowcaseImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.heroShowcaseLabel {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  backdrop-filter: blur(8px);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--foreground);
+}
+
+/* ── Showcase cards (gallery preview) ────────────────────────────────────── */
+
+.showcaseGrid {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
+  min-width: 0;
 }
 
-.heroVisualCard {
+.showcaseCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--home-border);
+  background: var(--home-surface);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 300ms ease;
+}
+
+.showcaseCard:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 4px 12px color-mix(in oklab, var(--foreground) 5%, transparent),
+    0 12px 32px color-mix(in oklab, var(--foreground) 3%, transparent);
+}
+
+.showcaseCardImageWrap {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+
+.showcaseCardImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.heroVisualCard:first-child {
-  transform: rotate(-1.5deg);
+.showcaseCard:hover .showcaseCardImage {
+  transform: scale(1.03);
 }
 
-.heroVisualCard:last-child {
-  transform: rotate(1deg);
-  margin-top: -0.5rem;
-}
-
-/* ── Hero metrics strip ──────────────────────────────────────────────────── */
-
-.heroMetrics {
+.showcaseCardOverlay {
   display: grid;
-  gap: 0;
-  border-top: 1px solid var(--home-border);
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
 }
 
-.signalItem {
-  display: grid;
-  gap: 0.35rem;
-  padding: 0.95rem 0;
-  border-bottom: 1px solid var(--home-border);
-}
-
-.signalLabel {
-  font-size: 0.7rem;
+.showcaseCardModel {
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--primary);
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
-.signalValue {
+.showcaseCardPrompt {
   font-family: var(--font-serif);
-  font-size: 0.98rem;
-  line-height: 1.72;
-  color: color-mix(in oklab, var(--foreground) 90%, var(--background));
-  text-wrap: pretty;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--home-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* ── Scene cards ─────────────────────────────────────────────────────────── */
+/* ── Scene cards (kept for hero backward compat) ─────────────────────────── */
 
 .sceneGrid {
   display: grid;
@@ -434,15 +511,6 @@
   text-wrap: balance;
 }
 
-.galleryPreviewDesc {
-  max-width: 40rem;
-  font-family: var(--font-serif);
-  font-size: 1rem;
-  line-height: 1.75;
-  color: var(--home-muted);
-  text-wrap: pretty;
-}
-
 .galleryPreviewActions {
   padding-top: 0.25rem;
 }
@@ -490,7 +558,103 @@
   text-wrap: pretty;
 }
 
-/* ── Feature & workflow grids ────────────────────────────────────────────── */
+/* ── Value props grid (merged features + comparison) ─────────────────────── */
+
+.valuePropGrid {
+  display: grid;
+  gap: 0;
+}
+
+.valuePropItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1.15rem 0;
+  border-top: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
+}
+
+.valuePropIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 10%, var(--background));
+  color: var(--primary);
+}
+
+.valuePropTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.valuePropDescription {
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--home-muted);
+  margin-top: 0.2rem;
+}
+
+/* ── Workflow stepper ────────────────────────────────────────────────────── */
+
+.stepperTrack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stepperUnit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stepperNode {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0;
+}
+
+.stepperNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 10%, var(--background));
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.stepperTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.stepperLine {
+  width: 2px;
+  height: 2rem;
+  margin-left: calc(2.3rem / 2 - 1px);
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+  border-radius: 1px;
+}
+
+/* ── Feature & workflow grids (legacy, kept for backward compat) ──────── */
 
 .featureGrid,
 .workflowGrid {
@@ -572,7 +736,26 @@
   opacity: 0.85;
 }
 
-/* ── Model cards ─────────────────────────────────────────────────────────── */
+/* ── Model cards (compact) ───────────────────────────────────────────────── */
+
+.modelCompactGrid {
+  display: grid;
+  gap: 0;
+}
+
+.modelCardCompact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--home-border);
+  transition: background 200ms ease;
+}
+
+.modelCardCompact:hover {
+  background: color-mix(in oklab, var(--primary) 2%, transparent);
+}
 
 .modelCard {
   display: grid;
@@ -590,8 +773,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem 0.75rem;
-  margin-bottom: 0.65rem;
+  gap: 0.4rem;
 }
 
 .providerTag,
@@ -599,9 +781,9 @@
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 0.32rem 0.68rem;
+  padding: 0.25rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -619,10 +801,10 @@
 
 .modelTitle {
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 2.3vw, 2.05rem);
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
   font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.035em;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 /* ── Footer band ─────────────────────────────────────────────────────────── */
@@ -657,26 +839,47 @@
 
   .heroGrid {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    align-items: end;
+    align-items: center;
   }
 
   .heroVisual {
     display: block;
   }
 
-  .heroMetrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-    border-top: 0;
+  .heroCardFan {
+    height: 320px;
   }
 
-  .signalItem {
-    padding: 0;
-    border-bottom: 0;
+  .heroShowcaseCard {
+    width: 320px;
   }
 
-  .sceneGrid {
+  .showcaseGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .valuePropGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 2rem;
+  }
+
+  .stepperTrack {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .stepperUnit {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+  }
+
+  .stepperLine {
+    width: auto;
+    height: 2px;
+    flex: 1;
+    margin-left: 0;
+    margin-inline: 0.5rem;
   }
 
   .featureGrid,
@@ -685,10 +888,31 @@
     gap: 1.35rem;
   }
 
+  .sceneGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .modelCardCompact {
+    padding: 0.85rem 0.5rem;
+  }
+
   .modelCard {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
     align-items: start;
     gap: 1.5rem;
+  }
+}
+
+/* ── Responsive: large screens ───────────────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  .showcaseGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .valuePropGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 2rem;
   }
 }
 
@@ -737,39 +961,12 @@
   .galleryPreview {
     gap: 1.5rem;
   }
-}
 
-/* ── Scroll reveal animations ─────────────────────────────────────────────── */
-
-@keyframes fadeReveal {
-  from {
-    opacity: 0;
-    transform: translateY(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .heroCopy {
-    animation: fadeReveal 650ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .showcaseGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .heroVisual {
-    animation: fadeReveal 650ms 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .heroMetrics {
-    animation: fadeReveal 550ms 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .galleryPreview,
-  .section,
-  .footerBand {
-    animation: fadeReveal 500ms ease-out both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 20%;
+  .stepperNode {
+    gap: 0.65rem;
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import type { ArenaLeaderboardResponse } from '@/types'
 import { getArenaLeaderboard } from '@/services/arena.service'
@@ -13,7 +14,7 @@ export async function GET() {
       data: leaderboard,
     })
   } catch (error) {
-    console.error('[API /api/arena/leaderboard] Error:', error)
+    logger.error('[API /api/arena/leaderboard] Error', { error: error instanceof Error ? error.message : String(error) })
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'
     return NextResponse.json<ArenaLeaderboardResponse>(

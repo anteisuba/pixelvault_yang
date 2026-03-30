@@ -1,5 +1,16 @@
 'use client'
 
+/**
+ * Studio Context — split into 3 providers by update frequency to prevent
+ * unnecessary re-renders (per Eng Review finding).
+ *
+ * StudioFormContext  (HOT)  — prompt, aspectRatio, panels — changes on every keystroke
+ * StudioDataContext  (WARM) — cards, projects, civitai, upload, enhance — changes on user actions
+ * StudioGenContext   (COLD) — generation state — changes only during generation
+ *
+ * Usage: import { useStudioForm, useStudioData, useStudioGen } from '@/contexts/studio-context'
+ */
+
 import {
   createContext,
   useContext,
@@ -25,7 +36,9 @@ import type { UseBackgroundCardsReturn } from '@/hooks/use-background-cards'
 import type { UseStyleCardsReturn } from '@/hooks/use-style-cards'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 
-// ─── Reducer State ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// 1. FORM CONTEXT (HOT — changes on every keystroke)
+// ═══════════════════════════════════════════════════════════════════
 
 export type PanelName =
   | 'cardManagement'
@@ -38,7 +51,7 @@ export type PanelName =
 
 type StudioMode = 'image' | 'video'
 
-interface StudioState {
+export interface StudioFormState {
   mode: StudioMode
   prompt: string
   aspectRatio: AspectRatio
@@ -47,9 +60,7 @@ interface StudioState {
   panels: Record<PanelName, boolean>
 }
 
-// ─── Actions ─────────────────────────────────────────────────────
-
-type StudioAction =
+export type StudioAction =
   | { type: 'SET_MODE'; payload: StudioMode }
   | { type: 'SET_PROMPT'; payload: string }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -69,7 +80,7 @@ const initialPanels: Record<PanelName, boolean> = {
   refImage: false,
 }
 
-const initialState: StudioState = {
+const initialFormState: StudioFormState = {
   mode: 'image',
   prompt: '',
   aspectRatio: '1:1',
@@ -78,7 +89,10 @@ const initialState: StudioState = {
   panels: { ...initialPanels },
 }
 
-function studioReducer(state: StudioState, action: StudioAction): StudioState {
+export function studioFormReducer(
+  state: StudioFormState,
+  action: StudioAction,
+): StudioFormState {
   switch (action.type) {
     case 'SET_MODE':
       return { ...state, mode: action.payload }
@@ -116,18 +130,21 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
   }
 }
 
-// ─── Context Shape ───────────────────────────────────────────────
-
-interface StudioContextValue {
-  // Reducer state + dispatch
-  state: StudioState
+interface StudioFormContextValue {
+  state: StudioFormState
   dispatch: React.Dispatch<StudioAction>
+}
 
-  // Composed hooks
+const StudioFormContext = createContext<StudioFormContextValue | null>(null)
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. DATA CONTEXT (WARM — changes on user card/project actions)
+// ═══════════════════════════════════════════════════════════════════
+
+interface StudioDataContextValue {
   characters: UseCharacterCardsReturn
   backgrounds: UseBackgroundCardsReturn
   styles: UseStyleCardsReturn
-  generation: UseUnifiedGenerateReturn
   projects: ReturnType<typeof useProjects>
   imageUpload: ReturnType<typeof useImageUpload>
   promptEnhance: ReturnType<typeof usePromptEnhance>
@@ -136,33 +153,39 @@ interface StudioContextValue {
   usageSummary: ReturnType<typeof useUsageSummary>
 }
 
-const StudioContext = createContext<StudioContextValue | null>(null)
+const StudioDataContext = createContext<StudioDataContextValue | null>(null)
 
-// ─── Provider ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// 3. GENERATION CONTEXT (COLD — changes only during generation)
+// ═══════════════════════════════════════════════════════════════════
+
+const StudioGenContext = createContext<UseUnifiedGenerateReturn | null>(null)
+
+// ═══════════════════════════════════════════════════════════════════
+// COMBINED PROVIDER
+// ═══════════════════════════════════════════════════════════════════
 
 export function StudioProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(studioReducer, initialState)
+  // HOT — form state
+  const [formState, dispatch] = useReducer(studioFormReducer, initialFormState)
+  const formValue = useMemo(() => ({ state: formState, dispatch }), [formState])
 
-  // Compose existing hooks
+  // WARM — data hooks
   const projects = useProjects()
   const characters = useCharacterCards()
   const backgrounds = useBackgroundCards(projects.activeProjectId)
   const styles = useStyleCards(projects.activeProjectId)
-  const generation = useUnifiedGenerate()
   const imageUpload = useImageUpload()
   const promptEnhance = usePromptEnhance()
   const civitai = useCivitaiToken()
   const onboarding = useOnboarding()
   const usageSummary = useUsageSummary()
 
-  const value = useMemo<StudioContextValue>(
+  const dataValue = useMemo<StudioDataContextValue>(
     () => ({
-      state,
-      dispatch,
       characters,
       backgrounds,
       styles,
-      generation,
       projects,
       imageUpload,
       promptEnhance,
@@ -171,11 +194,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       usageSummary,
     }),
     [
-      state,
       characters,
       backgrounds,
       styles,
-      generation,
       projects,
       imageUpload,
       promptEnhance,
@@ -185,17 +206,56 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ],
   )
 
+  // COLD — generation
+  const generation = useUnifiedGenerate()
+
   return (
-    <StudioContext.Provider value={value}>{children}</StudioContext.Provider>
+    <StudioFormContext.Provider value={formValue}>
+      <StudioDataContext.Provider value={dataValue}>
+        <StudioGenContext.Provider value={generation}>
+          {children}
+        </StudioGenContext.Provider>
+      </StudioDataContext.Provider>
+    </StudioFormContext.Provider>
   )
 }
 
-// ─── Consumer Hook ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// CONSUMER HOOKS — each component only subscribes to what it needs
+// ═══════════════════════════════════════════════════════════════════
 
-export function useStudioContext(): StudioContextValue {
-  const ctx = useContext(StudioContext)
+/** Form state (prompt, mode, panels, aspect ratio) — re-renders on keystrokes */
+export function useStudioForm(): StudioFormContextValue {
+  const ctx = useContext(StudioFormContext)
   if (!ctx) {
-    throw new Error('useStudioContext must be used within <StudioProvider>')
+    throw new Error('useStudioForm must be used within <StudioProvider>')
   }
   return ctx
+}
+
+/** Data state (cards, projects, upload, enhance, civitai) — re-renders on CRUD actions */
+export function useStudioData(): StudioDataContextValue {
+  const ctx = useContext(StudioDataContext)
+  if (!ctx) {
+    throw new Error('useStudioData must be used within <StudioProvider>')
+  }
+  return ctx
+}
+
+/** Generation state — re-renders only during generation */
+export function useStudioGen(): UseUnifiedGenerateReturn {
+  const ctx = useContext(StudioGenContext)
+  if (!ctx) {
+    throw new Error('useStudioGen must be used within <StudioProvider>')
+  }
+  return ctx
+}
+
+/** Convenience: get all 3 contexts at once (use sparingly — causes re-renders from all 3) */
+export function useStudioContext() {
+  return {
+    ...useStudioForm(),
+    ...useStudioData(),
+    generation: useStudioGen(),
+  }
 }

@@ -51,7 +51,7 @@ export class ProviderError extends GenerationError {
   }
 }
 
-export class ValidationError extends GenerationError {
+export class GenerationValidationError extends GenerationError {
   readonly errorCode = 'VALIDATION_ERROR' as const
   readonly httpStatus = 400
   readonly i18nKey = 'errors.validation.invalidInput' as const

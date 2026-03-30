@@ -10,7 +10,7 @@ import {
   AuthError,
   GenerationError,
   RateLimitError,
-  ValidationError,
+  GenerationValidationError,
   isGenerationError,
 } from '@/lib/errors'
 import { isGenerateImageServiceError } from '@/services/generate-image.service'
@@ -108,7 +108,7 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
           field: String(issue.path?.join('.') ?? ''),
           message: issue.message,
         }))
-        throw new ValidationError(fieldErrors)
+        throw new GenerationValidationError(fieldErrors)
       }
 
       // 5. Call handler

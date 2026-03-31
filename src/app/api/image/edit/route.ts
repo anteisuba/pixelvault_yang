@@ -6,9 +6,9 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { ApiKeyError } from '@/lib/errors'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { MAX_DURATION_CONFIGS, RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
-export const maxDuration = MAX_DURATION_CONFIGS.imageEdit
+export const maxDuration = 120
 
 export const POST = createApiRoute({
   schema: ImageEditSchema,

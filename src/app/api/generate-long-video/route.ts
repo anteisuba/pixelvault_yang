@@ -1,9 +1,9 @@
 import { LongVideoRequestSchema } from '@/types'
 import { createLongVideoPipeline } from '@/services/video-pipeline.service'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { MAX_DURATION_CONFIGS, RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
-export const maxDuration = MAX_DURATION_CONFIGS.generateLongVideo
+export const maxDuration = 240
 
 export const POST = createApiRoute({
   schema: LongVideoRequestSchema,

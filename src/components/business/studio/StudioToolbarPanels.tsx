@@ -1,11 +1,19 @@
 'use client'
 
-import { useCallback } from 'react'
+import { memo, useCallback, useEffect } from 'react'
 import { Key, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
+import {
+  useStudioForm,
+  useStudioData,
+  useStudioGen,
+} from '@/contexts/studio-context'
 import { StudioToolbar } from '@/components/business/StudioToolbar'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 
 const PromptEnhancer = dynamic(() =>
   import('@/components/business/PromptEnhancer').then(
@@ -17,9 +25,9 @@ const ReverseEngineerPanel = dynamic(() =>
     (mod) => mod.ReverseEngineerPanel,
   ),
 )
-const CapabilityForm = dynamic(() =>
-  import('@/components/business/CapabilityForm').then(
-    (mod) => mod.CapabilityForm,
+const AdvancedSettings = dynamic(() =>
+  import('@/components/business/AdvancedSettings').then(
+    (mod) => mod.AdvancedSettings,
   ),
 )
 const ReferenceImageSection = dynamic(() =>
@@ -28,24 +36,33 @@ const ReferenceImageSection = dynamic(() =>
   ),
 )
 
-import {
-  useStudioForm,
-  useStudioData,
-  useStudioGen,
-} from '@/contexts/studio-context'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-
-export function StudioToolbarPanels() {
+/**
+ * StudioToolbarPanels — shared toolbar + 5 expandable panels.
+ * Works in both quick mode and card mode; reads everything from context.
+ */
+export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, promptEnhance, civitai, styles } = useStudioData()
   const { isGenerating } = useStudioGen()
   const t = useTranslations('StudioV2')
 
+  const { selectedModel } = useImageModelOptions()
+
+  // Resolve adapterType: quick mode uses selectedModel, card mode uses style card
+  const selectedStyleCard = styles.activeCard
   const adapterType =
-    (styles.activeCard?.adapterType as AI_ADAPTER_TYPES) ?? AI_ADAPTER_TYPES.FAL
+    state.workflowMode === 'quick' && selectedModel
+      ? selectedModel.adapterType
+      : ((selectedStyleCard?.adapterType as AI_ADAPTER_TYPES) ??
+        AI_ADAPTER_TYPES.FAL)
   const maxRefImages = getMaxReferenceImages(adapterType)
 
+  // Sync max limit to the image upload hook (enforced in addReferenceImage)
+  useEffect(() => {
+    imageUpload.setMaxImages(maxRefImages)
+  }, [maxRefImages, imageUpload])
+
+  // ── Handlers ──────────────────────────────────────────────────
   const handleEnhance = useCallback(
     (style: Parameters<typeof promptEnhance.enhance>[1]) => {
       if (!state.prompt.trim()) return
@@ -56,10 +73,13 @@ export function StudioToolbarPanels() {
 
   const handleUseEnhanced = useCallback(
     (text: string) => {
-      dispatch({ type: 'SET_PROMPT', payload: text })
+      // Append mode: add enhanced text after the original prompt
+      const current = state.prompt.trim()
+      const appended = current ? `${current}, ${text}` : text
+      dispatch({ type: 'SET_PROMPT', payload: appended })
       promptEnhance.clearEnhancement()
     },
-    [dispatch, promptEnhance],
+    [dispatch, promptEnhance, state.prompt],
   )
 
   const handleSaveToken = useCallback(async () => {
@@ -72,6 +92,7 @@ export function StudioToolbarPanels() {
 
   return (
     <>
+      {/* ── Toolbar button row ─────────────────────────────────── */}
       <StudioToolbar
         onEnhance={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
         isEnhancing={promptEnhance.isEnhancing}
@@ -91,6 +112,7 @@ export function StudioToolbarPanels() {
         disabled={isGenerating}
       />
 
+      {/* ── Prompt enhance panel ───────────────────────────────── */}
       {state.panels.enhance && (
         <PromptEnhancer
           prompt={state.prompt}
@@ -108,6 +130,7 @@ export function StudioToolbarPanels() {
         />
       )}
 
+      {/* ── Reverse engineer panel ─────────────────────────────── */}
       {state.panels.reverse && (
         <div className="rounded-lg border border-border/60 overflow-hidden">
           <ReverseEngineerPanel
@@ -119,23 +142,26 @@ export function StudioToolbarPanels() {
         </div>
       )}
 
-      {state.panels.advanced && styles.activeCard?.adapterType && (
-        <div
-          aria-live="polite"
-          className="rounded-lg border border-border/60 bg-background/60 p-3"
-        >
-          <CapabilityForm
-            adapterType={adapterType}
-            params={state.advancedParams}
-            onChange={(params) =>
-              dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })
-            }
-            hasReferenceImage={imageUpload.referenceImages.length > 0}
-            disabled={isGenerating}
-          />
-        </div>
-      )}
+      {/* ── Advanced settings panel ────────────────────────────── */}
+      {state.panels.advanced &&
+        (selectedModel?.adapterType || selectedStyleCard?.adapterType) && (
+          <div
+            aria-live="polite"
+            className="rounded-lg border border-border/60 bg-background/60 p-3"
+          >
+            <AdvancedSettings
+              adapterType={adapterType}
+              params={state.advancedParams}
+              onChange={(params) =>
+                dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })
+              }
+              hasReferenceImage={imageUpload.referenceImages.length > 0}
+              disabled={isGenerating}
+            />
+          </div>
+        )}
 
+      {/* ── Reference image panel ──────────────────────────────── */}
       {state.panels.refImage && (
         <ReferenceImageSection
           referenceImages={imageUpload.referenceImages}
@@ -152,11 +178,12 @@ export function StudioToolbarPanels() {
           previewAlt={t('referenceImage')}
           removeLabel={t('cancel')}
           uploadLabel={t('referenceImage')}
-          formatsLabel={t('referenceFormats')}
+          formatsLabel="JPG · PNG · WEBP"
           counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
         />
       )}
 
+      {/* ── Civitai token inline panel ─────────────────────────── */}
       {state.panels.civitai && (
         <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -186,7 +213,10 @@ export function StudioToolbarPanels() {
               type="password"
               value={state.tokenInput}
               onChange={(e) =>
-                dispatch({ type: 'SET_TOKEN_INPUT', payload: e.target.value })
+                dispatch({
+                  type: 'SET_TOKEN_INPUT',
+                  payload: e.target.value,
+                })
               }
               placeholder={t('tokenPlaceholder')}
               className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs font-mono focus:border-primary/40 focus:outline-none"
@@ -213,4 +243,4 @@ export function StudioToolbarPanels() {
       )}
     </>
   )
-}
+})

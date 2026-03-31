@@ -1,19 +1,22 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
 
+import { ProjectSelector } from '@/components/business/ProjectSelector'
+import { HistoryPanel } from '@/components/business/HistoryPanel'
+import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import {
   StudioModeSelector,
-  StudioPromptArea,
-  StudioGenerateBar,
-  StudioCardSelectors,
-  StudioPreview,
-  StudioToolbarPanels,
-  StudioCardManagement,
-  StudioProjectHistory,
-  StudioVideoMode,
+  StudioLeftPanel,
+  StudioRightPanel,
 } from '@/components/business/studio'
-import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
+import { cn } from '@/lib/utils'
+
+const VideoGenerateForm = dynamic(
+  () => import('@/components/business/VideoGenerateForm'),
+)
 
 import {
   StudioProvider,
@@ -23,8 +26,8 @@ import {
 } from '@/contexts/studio-context'
 
 /**
- * StudioWorkspace — thin orchestrator.
- * All state lives in StudioProvider; sub-components consume split contexts directly.
+ * StudioWorkspace — wrapped with StudioProvider for state management.
+ * Sub-components consume split contexts (Form/Data/Gen) for optimal re-renders.
  */
 export function StudioWorkspace() {
   return (
@@ -34,42 +37,83 @@ export function StudioWorkspace() {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// INNER — consumes the split contexts
+// ═══════════════════════════════════════════════════════════════════
+
 function StudioWorkspaceInner() {
   const { state } = useStudioForm()
-  const { onboarding } = useStudioData()
+  const { characters, projects, onboarding } = useStudioData()
   const { isGenerating, lastGeneration } = useStudioGen()
-  const t = useTranslations('StudioV2')
+
+  // Dynamic layout: single column when no content, split when content exists
+  const hasContent =
+    isGenerating || !!lastGeneration || projects.history.length > 0
+
+  const handleRename = useCallback(
+    async (id: string, name: string) => projects.update(id, { name }),
+    [projects],
+  )
 
   return (
     <div className="space-y-4">
+      {/* ── Mode tabs (Image / Video) ───────────────────────── */}
       <StudioModeSelector />
 
-      {state.mode === 'image' ? (
+      {state.outputType === 'image' ? (
         <div
           role="tabpanel"
           id="studio-panel-image"
           aria-labelledby="studio-tab-image"
           className="space-y-4"
         >
-          <StudioCardSelectors />
-          <StudioPromptArea />
-          <StudioGenerateBar />
+          {/* ── Project selector — full width top ────────────── */}
+          <ProjectSelector
+            projects={projects.projects}
+            activeProjectId={projects.activeProjectId}
+            isLoading={projects.isLoading}
+            onSelect={projects.setActiveProjectId}
+            onCreate={projects.create}
+            onRename={handleRename}
+            onDelete={projects.remove}
+          />
 
-          <div aria-live="polite" aria-atomic="true" className="sr-only">
-            {isGenerating
-              ? t('generating')
-              : lastGeneration
-                ? t('generateSuccess')
-                : null}
+          {/* ── Dynamic layout: centered when empty, split when content ─ */}
+          {/* Always render both panels to keep the component tree stable
+              (prevents Radix hydration ID mismatch). CSS controls layout. */}
+          <div
+            className={cn(
+              'flex flex-col',
+              hasContent ? 'lg:flex-row lg:gap-6' : 'mx-auto max-w-2xl',
+            )}
+          >
+            <StudioLeftPanel
+              className={cn('w-full', hasContent && 'lg:w-[45%] lg:shrink-0')}
+            />
+            <StudioRightPanel
+              className={cn(
+                'w-full mt-6',
+                hasContent ? 'lg:flex-1 lg:mt-0' : 'hidden',
+              )}
+            />
           </div>
-
-          <StudioPreview />
-          <StudioToolbarPanels />
-          <StudioCardManagement />
-          <StudioProjectHistory />
         </div>
       ) : (
-        <StudioVideoMode />
+        <div
+          role="tabpanel"
+          id="studio-panel-video"
+          aria-labelledby="studio-tab-video"
+          className="space-y-4"
+        >
+          <VideoGenerateForm activeCharacterCards={characters.activeCards} />
+          <HistoryPanel
+            generations={projects.history}
+            total={projects.historyTotal}
+            hasMore={projects.historyHasMore}
+            isLoading={projects.isLoadingHistory}
+            onLoadMore={projects.loadMoreHistory}
+          />
+        </div>
       )}
 
       <OnboardingTooltip

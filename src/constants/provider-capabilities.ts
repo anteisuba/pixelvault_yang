@@ -140,6 +140,8 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
   }
 
+// ─── Capability → UI Field Type Mapping ──────────────────────────
+
 /** Check whether a given adapter supports a specific capability */
 export function hasCapability(
   adapterType: AI_ADAPTER_TYPES,

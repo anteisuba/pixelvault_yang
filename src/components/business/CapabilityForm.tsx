@@ -42,6 +42,17 @@ interface CapabilityFormProps {
   disabled?: boolean
 }
 
+function isQualityValue(
+  value: string,
+): value is NonNullable<AdvancedParams['quality']> {
+  return (
+    value === 'auto' ||
+    value === 'low' ||
+    value === 'medium' ||
+    value === 'high'
+  )
+}
+
 /**
  * Data-driven advanced settings panel.
  * Iterates ADAPTER_CAPABILITIES[adapterType].capabilities and renders
@@ -203,7 +214,10 @@ function CapabilityField({
               label: t(`qualityOption.${v}`),
             }))}
             value={params.quality ?? 'auto'}
-            onChange={(v) => update({ quality: v })}
+            onChange={(value) => {
+              if (!isQualityValue(value)) return
+              update({ quality: value })
+            }}
             disabled={disabled}
           />
         </div>

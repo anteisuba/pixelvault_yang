@@ -2,8 +2,8 @@ import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { CreateArenaMatchRequestSchema } from '@/types'
-import type { CreateArenaMatchResponse, ArenaMatchResponse } from '@/types'
-import { createArenaMatch, getArenaMatch } from '@/services/arena.service'
+import type { CreateArenaMatchResponse } from '@/types'
+import { createArenaMatch } from '@/services/arena.service'
 import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 240

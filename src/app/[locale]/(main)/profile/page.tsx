@@ -10,17 +10,25 @@ import { ProfileFeed } from '@/components/business/ProfileFeed'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
+import { GallerySearchSchema } from '@/types'
 import {
   countUserGenerations,
   countUserGenerationsByType,
   countUserPublicGenerations,
-  getUserGenerations,
+  countPublicGenerations,
+  getPublicGenerations,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import { getUserUsageSummary } from '@/services/usage.service'
 
 interface ProfilePageProps {
   params: Promise<{ locale: AppLocale }>
+  searchParams: Promise<{
+    search?: string
+    model?: string
+    sort?: string
+    type?: string
+  }>
 }
 
 export async function generateMetadata({
@@ -34,8 +42,25 @@ export async function generateMetadata({
   }
 }
 
-export default async function ProfilePage({ params }: ProfilePageProps) {
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: ProfilePageProps) {
   const { locale } = await params
+  const filterResult = GallerySearchSchema.safeParse(await searchParams)
+  const initialFilters = filterResult.success
+    ? {
+        search: filterResult.data.search ?? '',
+        model: filterResult.data.model ?? '',
+        sort: filterResult.data.sort,
+        type: filterResult.data.type,
+      }
+    : {
+        search: '',
+        model: '',
+        sort: 'newest' as const,
+        type: 'all' as const,
+      }
   const isDenseLocale = isCjkLocale(locale)
   const t = await getTranslations({
     locale,
@@ -71,142 +96,163 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   const user = await ensureUser(clerkId)
 
-  const [usageSummary, generations, total, publicTotal, typeCounts] =
+  const [
+    usageSummary,
+    generations,
+    total,
+    publicTotal,
+    typeCounts,
+    filteredTotal,
+  ] =
     await Promise.all([
       getUserUsageSummary(user.id),
-      getUserGenerations(user.id, {
+      getPublicGenerations({
         page: PAGINATION.DEFAULT_PAGE,
         limit: PAGINATION.DEFAULT_LIMIT,
+        search: initialFilters.search || undefined,
+        model: initialFilters.model || undefined,
+        sort: initialFilters.sort,
+        type: initialFilters.type,
+        userId: user.id,
       }),
       countUserGenerations(user.id),
       countUserPublicGenerations(user.id),
       countUserGenerationsByType(user.id),
+      countPublicGenerations({
+        search: initialFilters.search || undefined,
+        model: initialFilters.model || undefined,
+        type: initialFilters.type,
+        userId: user.id,
+      }),
     ])
   const privateTotal = Math.max(total - publicTotal, 0)
 
   return (
     <div className="editorial-page">
       <div className="editorial-container">
-        <section className="editorial-hero">
-          <div className="editorial-hero-copy">
-            <span
-              className={cn(
-                'editorial-eyebrow',
-                isDenseLocale && 'tracking-normal normal-case',
-              )}
-            >
-              {t('heroEyebrow')}
-            </span>
-
-            <h1 className="editorial-title">{t('heroTitle')}</h1>
-            <p className="editorial-copy max-w-2xl">{t('heroDescription')}</p>
-
-            <div className="editorial-actions">
-              <Button asChild size="lg" className="rounded-full px-6">
-                <Link href={ROUTES.STUDIO}>{t('actions.primary')}</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="rounded-full border-border/80 bg-card/72 px-6"
+        <section className="editorial-panel">
+          <div className="editorial-panel-head">
+            <div className="editorial-section-head">
+              <span
+                className={cn(
+                  'editorial-eyebrow',
+                  isDenseLocale && 'tracking-normal normal-case',
+                )}
               >
-                <Link href={ROUTES.GALLERY}>{t('actions.secondary')}</Link>
-              </Button>
+                {t('heroEyebrow')}
+              </span>
+              <h1 className="editorial-section-title">{t('heroTitle')}</h1>
+              <p className="editorial-section-copy max-w-3xl">
+                {t('heroDescription')}
+              </p>
+
+              <div className="editorial-actions pt-2">
+                <Button asChild size="lg" className="rounded-full px-6">
+                  <Link href={ROUTES.STUDIO}>{t('actions.primary')}</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full border-border/80 bg-card/72 px-6"
+                >
+                  <Link href={ROUTES.GALLERY}>{t('actions.secondary')}</Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="editorial-panel-meta">
+              <div className="editorial-summary-grid md:grid-cols-3">
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.totalWorksLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {t('metrics.totalWorksValue', { count: total })}
+                  </p>
+                </article>
+
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.imagesLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {t('metrics.imagesValue', { count: typeCounts.images })}
+                  </p>
+                </article>
+
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.videosLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {t('metrics.videosValue', { count: typeCounts.videos })}
+                  </p>
+                </article>
+
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.publicWorksLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {t('metrics.publicWorksValue', { count: publicTotal })}
+                  </p>
+                </article>
+
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.privateWorksLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {t('metrics.privateWorksValue', { count: privateTotal })}
+                  </p>
+                </article>
+
+                <article className="editorial-summary-card">
+                  <p
+                    className={cn(
+                      'editorial-summary-label',
+                      isDenseLocale && 'tracking-normal normal-case',
+                    )}
+                  >
+                    {t('metrics.creditsLabel')}
+                  </p>
+                  <p className="editorial-summary-value">
+                    {tCommon('creditCount', {
+                      count: usageSummary.totalRequests,
+                    })}
+                  </p>
+                </article>
+              </div>
             </div>
           </div>
 
-          <div className="editorial-metrics">
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.totalWorksLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {t('metrics.totalWorksValue', { count: total })}
-              </p>
-            </article>
-
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.imagesLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {t('metrics.imagesValue', { count: typeCounts.images })}
-              </p>
-            </article>
-
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.videosLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {t('metrics.videosValue', { count: typeCounts.videos })}
-              </p>
-            </article>
-
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.publicWorksLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {t('metrics.publicWorksValue', { count: publicTotal })}
-              </p>
-            </article>
-
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.privateWorksLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {t('metrics.privateWorksValue', { count: privateTotal })}
-              </p>
-            </article>
-
-            <article className="editorial-metric">
-              <p
-                className={cn(
-                  'editorial-metric-label',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('metrics.creditsLabel')}
-              </p>
-              <p className="editorial-metric-value">
-                {tCommon('creditCount', {
-                  count: usageSummary.totalRequests,
-                })}
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section className="editorial-panel">
-          <div className="border-b border-border/70 pb-6">
+          <div className="editorial-panel-divider">
             <div className="editorial-section-head">
               <p
                 className={cn(
@@ -220,17 +266,18 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                 {t('collectionTitle')}
               </h2>
             </div>
-          </div>
 
-          <div className="pt-6">
-            <ProfileFeed
-              initialGenerations={generations}
-              initialPage={PAGINATION.DEFAULT_PAGE}
+            <div className="pt-6">
+              <ProfileFeed
+                initialGenerations={generations}
+                initialPage={PAGINATION.DEFAULT_PAGE}
               initialHasMore={
-                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
+                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < filteredTotal
               }
-              total={total}
-            />
+                total={filteredTotal}
+                initialFilters={initialFilters}
+              />
+            </div>
           </div>
         </section>
       </div>

@@ -6,7 +6,6 @@ import type {
   CharacterAttributes,
   RefineCharacterCardRequest,
   RefineGenerationResult,
-  GenerationRecord,
 } from '@/types'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { scoreConsistency } from '@/services/character-scoring.service'

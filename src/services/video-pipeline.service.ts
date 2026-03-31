@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { VIDEO_GENERATION } from '@/constants/config'
-import { getModelById, type VideoExtensionConfig } from '@/constants/models'
+import { getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
 import type {
   LongVideoRequest,
@@ -21,7 +21,6 @@ import {
 } from '@/services/storage/r2'
 import {
   createApiUsageEntry,
-  attachUsageEntryToGeneration,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import {

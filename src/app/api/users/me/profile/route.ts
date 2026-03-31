@@ -1,111 +1,107 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { z } from 'zod'
 
+import {
+  createApiGetRoute,
+  createApiRoute,
+} from '@/lib/api-route-factory'
+import { ApiRequestError } from '@/lib/errors'
 import { UpdateProfileSchema } from '@/types'
 import type { UpdateProfileResponse } from '@/types'
 import { ensureUser, updateProfile } from '@/services/user.service'
 
-export async function GET() {
-  try {
-    const { userId: clerkId } = await auth()
+const EmptyQuerySchema = z.object({})
+
+function mapProfileError(error: unknown): ApiRequestError {
+  const message =
+    error instanceof Error ? error.message : 'Failed to update profile'
+
+  if (message.includes('already taken')) {
+    return new ApiRequestError(
+      'USERNAME_TAKEN',
+      409,
+      'errors.profile.usernameTaken',
+      message,
+    )
+  }
+
+  if (message.includes('reserved')) {
+    return new ApiRequestError(
+      'USERNAME_RESERVED',
+      409,
+      'errors.profile.usernameReserved',
+      message,
+    )
+  }
+
+  if (message.includes('must be')) {
+    return new ApiRequestError(
+      'INVALID_USERNAME',
+      400,
+      'errors.profile.usernameInvalid',
+      message,
+    )
+  }
+
+  return new ApiRequestError(
+    'PROFILE_UPDATE_FAILED',
+    500,
+    'errors.profile.updateFailed',
+    'Failed to update profile',
+  )
+}
+
+export const GET = createApiGetRoute<typeof EmptyQuerySchema, NonNullable<UpdateProfileResponse['data']>>({
+  schema: EmptyQuerySchema,
+  routeName: 'GET /api/users/me/profile',
+  requireAuth: true,
+  handler: async ({ clerkId }) => {
     if (!clerkId) {
-      return NextResponse.json<UpdateProfileResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
+      throw new ApiRequestError(
+        'UNAUTHORIZED',
+        401,
+        'errors.auth.unauthorized',
+        'Unauthorized',
       )
     }
 
-    const user = await ensureUser(clerkId)
-    return NextResponse.json<UpdateProfileResponse>({
-      success: true,
-      data: {
+    try {
+      const user = await ensureUser(clerkId)
+
+      return {
         username: user.username ?? '',
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         bio: user.bio,
         isPublic: user.isPublic,
-      },
-    })
-  } catch (error) {
-    logger.error('[API /api/users/me/profile GET] Error', { error: error instanceof Error ? error.message : String(error) })
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return NextResponse.json<UpdateProfileResponse>(
-      { success: false, error: message },
-      { status: 500 },
-    )
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<UpdateProfileResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
+      }
+    } catch {
+      throw new ApiRequestError(
+        'PROFILE_LOAD_FAILED',
+        500,
+        'errors.profile.loadFailed',
+        'Failed to load profile',
       )
     }
+  },
+})
 
-    const body = await request.json().catch(() => null)
-    if (!body) {
-      return NextResponse.json<UpdateProfileResponse>(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
+export const PUT = createApiRoute<typeof UpdateProfileSchema, NonNullable<UpdateProfileResponse['data']>>({
+  schema: UpdateProfileSchema,
+  routeName: 'PUT /api/users/me/profile',
+  handler: async (clerkId, data) => {
+    try {
+      const user = await ensureUser(clerkId)
+      const updated = await updateProfile(user.id, data)
 
-    const parseResult = UpdateProfileSchema.safeParse(body)
-    if (!parseResult.success) {
-      return NextResponse.json<UpdateProfileResponse>(
-        {
-          success: false,
-          error: parseResult.error.issues
-            .map((e: { message: string }) => e.message)
-            .join(', '),
-        },
-        { status: 400 },
-      )
-    }
-
-    const user = await ensureUser(clerkId)
-    const updated = await updateProfile(user.id, parseResult.data)
-
-    return NextResponse.json<UpdateProfileResponse>({
-      success: true,
-      data: {
+      return {
         username: updated.username ?? '',
         displayName: updated.displayName,
         avatarUrl: user.avatarUrl,
         bio: updated.bio,
         isPublic: updated.isPublic,
-      },
-    })
-  } catch (error) {
-    logger.error('[API /api/users/me/profile PUT] Error', { error: error instanceof Error ? error.message : String(error) })
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
-    // Username conflict
-    if (message.includes('already taken') || message.includes('reserved')) {
-      return NextResponse.json<UpdateProfileResponse>(
-        { success: false, error: message },
-        { status: 409 },
-      )
+      }
+    } catch (error) {
+      throw mapProfileError(error)
     }
-
-    // Validation error
-    if (message.includes('must be')) {
-      return NextResponse.json<UpdateProfileResponse>(
-        { success: false, error: message },
-        { status: 400 },
-      )
-    }
-
-    return NextResponse.json<UpdateProfileResponse>(
-      { success: false, error: message },
-      { status: 500 },
-    )
-  }
-}
+  },
+})

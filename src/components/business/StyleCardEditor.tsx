@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
 import { AI_MODELS, getAvailableImageModels } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   StyleCardRecord,
   CreateStyleCardRequest,

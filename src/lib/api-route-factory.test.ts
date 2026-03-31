@@ -99,7 +99,11 @@ describe('createApiRoute', () => {
     mockUnauthenticated()
     const req = createPOST('/api/test', { name: 'a', count: 1 })
     const res = await POST(req)
-    const json = await parseJSON<{ success: boolean; error: string }>(res)
+    const json = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode: string
+    }>(res)
 
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)

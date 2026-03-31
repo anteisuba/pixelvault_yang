@@ -1,12 +1,10 @@
 import 'server-only'
 
-import { API_USAGE } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
 import type {
   GenerateVideoRequest,
   GenerationRecord,
-  VideoJobStatus,
   VideoStatusResponseData,
   VideoSubmitResponseData,
 } from '@/types'
@@ -29,7 +27,6 @@ import {
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,
-  recordFailedUsage,
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
 import { db } from '@/lib/db'

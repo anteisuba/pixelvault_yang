@@ -65,8 +65,9 @@ export function MobileTabBar() {
 
   return (
     <nav
-      aria-label="Mobile navigation"
+      aria-label={t('mobileNavigation')}
       className="fixed bottom-0 inset-x-0 z-50 border-t border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-14">
         <SignedIn>

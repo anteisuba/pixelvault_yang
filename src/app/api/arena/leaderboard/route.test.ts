@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createGET, parseJSON } from '@/test/api-helpers'
+import { parseJSON } from '@/test/api-helpers'
 
 vi.mock('@/services/arena.service', () => ({
   getArenaLeaderboard: vi.fn(),

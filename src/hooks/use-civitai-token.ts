@@ -9,6 +9,7 @@ import {
   setCivitaiTokenAPI,
   deleteCivitaiTokenAPI,
 } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 export interface UseCivitaiTokenReturn {
   hasToken: boolean
@@ -33,7 +34,9 @@ export function useCivitaiToken(): UseCivitaiTokenReturn {
   }, [])
 
   useEffect(() => {
-    refresh()
+    return deferEffectTask(() => {
+      void refresh()
+    })
   }, [refresh])
 
   const save = useCallback(

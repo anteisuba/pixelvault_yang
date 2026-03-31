@@ -8,9 +8,11 @@ import {
   useTransition,
   type RefObject,
 } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
   GallerySortOption,
   GenerationRecord,
@@ -29,11 +31,10 @@ interface UseGalleryOptions {
   initialPage?: number
   initialHasMore?: boolean
   initialTotal?: number
+  initialFilters?: Partial<GalleryFilters>
   limit?: number
   /** When true, fetches current user's own generations (including private) */
   mine?: boolean
-  /** Pre-set model filter from URL query param */
-  initialModel?: string
 }
 
 export interface UseGalleryReturn {
@@ -74,10 +75,11 @@ export function useGallery({
   initialPage = PAGINATION.DEFAULT_PAGE,
   initialHasMore = false,
   initialTotal = 0,
+  initialFilters,
   limit = PAGINATION.DEFAULT_LIMIT,
   mine = false,
-  initialModel = '',
 }: UseGalleryOptions = {}): UseGalleryReturn {
+  const tErrors = useTranslations('Errors')
   const [generations, setGenerations] =
     useState<GenerationRecord[]>(initialGenerations)
   const [total, setTotal] = useState(initialTotal)
@@ -88,7 +90,7 @@ export function useGallery({
   const [isPending, startTransition] = useTransition()
   const [filters, setFiltersState] = useState<GalleryFilters>({
     ...DEFAULT_FILTERS,
-    model: initialModel,
+    ...initialFilters,
   })
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(initialPage)
@@ -111,9 +113,6 @@ export function useGallery({
   useEffect(() => {
     filtersRef.current = filters
   }, [filters])
-
-  // When initialModel is set, server data is unfiltered — fetch filtered data on mount
-  const didInitialFetch = useRef(false)
 
   const fetchPage = useCallback(
     async (targetPage: number, append: boolean) => {
@@ -151,7 +150,13 @@ export function useGallery({
             setError(null)
           })
         } else {
-          setError(response.error ?? 'Failed to load gallery')
+          setError(
+            getApiErrorMessage(
+              tErrors,
+              response,
+              'Failed to load gallery',
+            ),
+          )
         }
       } catch (error) {
         setError(
@@ -160,20 +165,12 @@ export function useGallery({
       }
       setIsFetching(false)
     },
-    [limit, mine, startTransition],
+    [limit, mine, startTransition, tErrors],
   )
 
   const loadMore = useCallback(() => {
     void fetchPage(pageRef.current + 1, true)
   }, [fetchPage])
-
-  useEffect(() => {
-    if (initialModel && !didInitialFetch.current) {
-      didInitialFetch.current = true
-      setGenerations([])
-      void fetchPage(1, false)
-    }
-  }, [initialModel, fetchPage])
 
   const setFilters = useCallback(
     (newFilters: GalleryFilters) => {

@@ -28,7 +28,6 @@ export async function generateMetadata({
     return { title: 'Not Found' }
   }
 
-  const t = await getTranslations({ locale, namespace: 'ImageDetail' })
   const tModels = await getTranslations({ locale, namespace: 'Models' })
 
   const modelLabel = isBuiltInModel(generation.model)

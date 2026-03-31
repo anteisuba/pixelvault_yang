@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 
 import type { CreatorProfilePageData } from '@/types'
 import { getCreatorProfileAPI } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 export interface UseCreatorProfileReturn {
   profile: CreatorProfilePageData | null
@@ -54,7 +55,9 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
   }, [profile, page, username, isLoadingMore])
 
   useEffect(() => {
-    fetchProfile()
+    return deferEffectTask(() => {
+      void fetchProfile()
+    })
   }, [fetchProfile])
 
   return {

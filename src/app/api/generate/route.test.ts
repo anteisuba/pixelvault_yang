@@ -191,6 +191,6 @@ describe('POST /api/generate', () => {
 
     expect(res.status).toBe(500)
     expect(json.success).toBe(false)
-    expect(json.error).toBe('Image generation failed. Please try again.')
+    expect(json.error).toBe('An unexpected error occurred. Please try again.')
   })
 })

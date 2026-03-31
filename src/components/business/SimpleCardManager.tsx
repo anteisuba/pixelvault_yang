@@ -13,7 +13,6 @@ import {
   X,
   Image as ImageIcon,
   Palette,
-  Cpu,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'

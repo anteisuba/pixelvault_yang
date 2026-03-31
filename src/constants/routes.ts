@@ -33,5 +33,10 @@ export function creatorProfilePath(username: string): string {
   return `${ROUTES.CREATOR_PROFILE}/${encodeURIComponent(username)}`
 }
 
+/** Build a gallery detail URL from a generation ID */
+export function galleryGenerationPath(id: string): string {
+  return `${ROUTES.GALLERY}/${encodeURIComponent(id)}`
+}
+
 /** Type for all route values */
 export type Route = (typeof ROUTES)[keyof typeof ROUTES]

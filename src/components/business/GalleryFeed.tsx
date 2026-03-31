@@ -2,13 +2,15 @@
 
 import { Loader2, RefreshCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useCallback } from 'react'
 
 import { ROUTES } from '@/constants/routes'
+import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
-import { useGallery } from '@/hooks/use-gallery'
+import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import type { GenerationRecord } from '@/types'
 
 interface GalleryFeedProps {
@@ -16,7 +18,7 @@ interface GalleryFeedProps {
   initialPage: number
   initialHasMore: boolean
   total: number
-  initialModel?: string
+  initialFilters: GalleryFilters
 }
 
 export function GalleryFeed({
@@ -24,7 +26,7 @@ export function GalleryFeed({
   initialPage,
   initialHasMore,
   total,
-  initialModel,
+  initialFilters,
 }: GalleryFeedProps) {
   const t = useTranslations('GalleryPage')
   const {
@@ -42,8 +44,21 @@ export function GalleryFeed({
     initialPage,
     initialHasMore,
     initialTotal: total,
-    initialModel,
+    initialFilters,
   })
+
+  const handleFiltersChange = useCallback(
+    (nextFilters: GalleryFilters) => {
+      const query = buildGalleryQueryString(nextFilters)
+      const nextUrl = query
+        ? `${window.location.pathname}?${query}`
+        : window.location.pathname
+
+      window.history.replaceState(window.history.state, '', nextUrl)
+      setFilters(nextFilters)
+    },
+    [setFilters],
+  )
 
   const displayTotal = currentTotal ?? total
 
@@ -51,7 +66,7 @@ export function GalleryFeed({
     <div className="space-y-7">
       <GalleryFilterBar
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
         isLoading={isLoading}
       />
 

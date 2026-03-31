@@ -19,6 +19,7 @@ import {
   deleteCharacterCardAPI,
   refineCharacterCardAPI,
 } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 export interface UseCharacterCardsReturn {
   cards: CharacterCardRecord[]
@@ -120,7 +121,9 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   }, [])
 
   useEffect(() => {
-    void fetchCards()
+    return deferEffectTask(() => {
+      void fetchCards()
+    })
   }, [fetchCards])
 
   const create = useCallback(

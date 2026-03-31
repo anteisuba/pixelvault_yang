@@ -12,6 +12,7 @@ import {
   addToCollectionAPI,
   removeFromCollectionAPI,
 } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 import type {
   CollectionRecord,
   CreateCollectionRequest,
@@ -52,7 +53,9 @@ export function useCollections(): UseCollectionsReturn {
   }, [])
 
   useEffect(() => {
-    void refresh()
+    return deferEffectTask(() => {
+      void refresh()
+    })
   }, [refresh])
 
   const create = useCallback(

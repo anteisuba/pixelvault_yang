@@ -166,3 +166,29 @@ export function getReferenceImageMode(
 ): ReferenceImageMode {
   return ADAPTER_CAPABILITIES[adapterType].referenceImageMode ?? 'img2img'
 }
+
+export type CapabilityFieldType =
+  | 'slider'
+  | 'select'
+  | 'textarea'
+  | 'seed'
+  | 'lora'
+
+/** Map a user-configurable capability to its field type for data-driven rendering */
+export function getCapabilityFieldType(
+  cap: ProviderCapability,
+): CapabilityFieldType | null {
+  const map: Partial<Record<ProviderCapability, CapabilityFieldType>> = {
+    negativePrompt: 'textarea',
+    guidanceScale: 'slider',
+    steps: 'slider',
+    referenceStrength: 'slider',
+    seed: 'seed',
+    quality: 'select',
+    background: 'select',
+    style: 'select',
+    lora: 'lora',
+    // imageAnalysis is not user-configurable — no field type
+  }
+  return map[cap] ?? null
+}

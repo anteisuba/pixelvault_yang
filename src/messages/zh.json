@@ -77,7 +77,8 @@
     "historyLoadMore": "加载更多",
     "cancel": "取消",
     "save": "保存",
-    "create": "创建"
+    "create": "创建",
+    "close": "关闭"
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
@@ -112,6 +113,7 @@
     "signIn": "登录",
     "viewProfile": "查看主页",
     "signOut": "退出登录",
+    "mobileNavigation": "移动端导航",
     "links": {
       "gallery": "画廊",
       "studio": "工作台",
@@ -409,7 +411,9 @@
       "curationValue": "按时间倒序"
     },
     "filters": {
+      "searchLabel": "搜索档案",
       "searchPlaceholder": "按提示词搜索...",
+      "clearSearch": "清除搜索",
       "modelPlaceholder": "按模型筛选",
       "allModels": "全部模型",
       "clearFilters": "清除筛选",
@@ -727,6 +731,7 @@
   },
   "ImageDetail": {
     "title": "图像详情",
+    "close": "关闭",
     "promptLabel": "提示词",
     "negativePromptLabel": "反向提示词",
     "dimensionsLabel": "尺寸",
@@ -750,7 +755,9 @@
     "removeBackground": "去背景",
     "removingBackground": "处理中...",
     "editSuccess": "完成！正在下载结果。",
-    "editFailed": "编辑失败"
+    "editFailed": "编辑失败",
+    "downloadFailed": "下载失败，正在打开原图。",
+    "shareFailed": "复制分享链接失败。"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",
@@ -1304,6 +1311,11 @@
     "retry": "重试",
     "home": "返回首页"
   },
+  "GlobalError": {
+    "title": "出了点问题",
+    "description": "发生了意外错误，我们已经收到通知。",
+    "action": "重试"
+  },
   "CreatorProfile": {
     "metaTitle": "创作者作品集",
     "metaDescription": "在 PixelVault 探索 {name} 的 AI 生成艺术",
@@ -1315,6 +1327,7 @@
     "following": "已关注",
     "editProfile": "编辑资料",
     "changeAvatar": "更换头像",
+    "editProfileDescription": "更新公开资料中展示的信息，并选择是否保持公开。",
     "username": "用户名",
     "usernamePlaceholder": "your-username",
     "usernameHint": "字母、数字和连字符，3-30 个字符",
@@ -1440,6 +1453,7 @@
     "reverse": "反推",
     "advanced": "高级",
     "referenceImage": "参考图",
+    "referenceFormats": "JPG、PNG、WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
     "tokenPlaceholder": "输入 Civitai API Token",
@@ -1448,16 +1462,24 @@
     "projectHistory": "项目与历史"
   },
   "Errors": {
+    "common": {
+      "unexpected": "发生了意外错误，请重试。"
+    },
     "provider": {
       "failed": "AI 提供商错误，请重试。",
       "timeout": "AI 提供商超时，请重试。"
     },
     "validation": {
-      "invalidInput": "输入无效，请检查参数。"
+      "invalidInput": "输入无效，请检查参数。",
+      "invalidJson": "无法读取请求内容。"
     },
     "rateLimit": "请求过于频繁，请稍候再试。",
     "auth": {
       "unauthorized": "请登录后继续。"
+    },
+    "gallery": {
+      "invalidQuery": "当前筛选条件无效。",
+      "loadFailed": "加载画廊失败。"
     },
     "credits": {
       "exceeded": "今日免费生成次数已用完。"
@@ -1465,6 +1487,18 @@
     "apiKey": {
       "missing": "此模型需要 API Key。",
       "invalid": "API Key 无效，请检查后重试。"
+    },
+    "profile": {
+      "loadFailed": "加载资料失败。",
+      "updateFailed": "更新资料失败。",
+      "usernameTaken": "该用户名已被占用。",
+      "usernameReserved": "该用户名为保留词。",
+      "usernameInvalid": "用户名需为 3-30 个字符，以字母开头，且只能包含字母、数字或连字符。",
+      "avatarUploadFailed": "上传头像失败。",
+      "bannerUploadFailed": "上传封面图片失败。",
+      "unsupportedImageType": "请使用 JPEG、PNG 或 WebP 格式。",
+      "avatarTooLarge": "头像不能超过 5 MB。",
+      "bannerTooLarge": "封面图片不能超过 10 MB。"
     }
   }
 }

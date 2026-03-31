@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated Salesforce metadata/types are not part of the app source tree.
+    ".sfdx/**",
   ]),
 ]);
 

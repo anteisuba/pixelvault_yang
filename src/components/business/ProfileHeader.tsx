@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PROFILE } from '@/constants/config'
 import { uploadBannerAPI } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import type { CreatorProfilePageData } from '@/types'
 import { ProfileEditModal } from '@/components/business/ProfileEditModal'
 
@@ -62,14 +63,20 @@ export function ProfileHeader({
     setIsUploadingBanner(true)
     const reader = new FileReader()
     reader.onload = async () => {
-      const dataUrl = reader.result as string
+      if (typeof reader.result !== 'string') {
+        setIsUploadingBanner(false)
+        toast.error(t('updateFailed'))
+        return
+      }
+
+      const dataUrl = reader.result
       const res = await uploadBannerAPI(dataUrl)
       setIsUploadingBanner(false)
       if (res.success) {
         toast.success(t('bannerUpdated'))
         onProfileUpdate?.()
       } else {
-        toast.error(res.error ?? t('updateFailed'))
+        toast.error(getApiErrorMessage(t, res, t('updateFailed')))
       }
     }
     reader.readAsDataURL(file)

@@ -6,13 +6,6 @@ import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
 import { StudioToolbar } from '@/components/business/StudioToolbar'
-import {
-  useStudioForm,
-  useStudioData,
-  useStudioGen,
-} from '@/contexts/studio-context'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 
 const PromptEnhancer = dynamic(() =>
   import('@/components/business/PromptEnhancer').then(
@@ -24,9 +17,9 @@ const ReverseEngineerPanel = dynamic(() =>
     (mod) => mod.ReverseEngineerPanel,
   ),
 )
-const AdvancedSettings = dynamic(() =>
-  import('@/components/business/AdvancedSettings').then(
-    (mod) => mod.AdvancedSettings,
+const CapabilityForm = dynamic(() =>
+  import('@/components/business/CapabilityForm').then(
+    (mod) => mod.CapabilityForm,
   ),
 )
 const ReferenceImageSection = dynamic(() =>
@@ -35,16 +28,22 @@ const ReferenceImageSection = dynamic(() =>
   ),
 )
 
+import {
+  useStudioForm,
+  useStudioData,
+  useStudioGen,
+} from '@/contexts/studio-context'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+
 export function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
-  const { styles, imageUpload, promptEnhance, civitai } = useStudioData()
+  const { imageUpload, promptEnhance, civitai, styles } = useStudioData()
   const { isGenerating } = useStudioGen()
-
   const t = useTranslations('StudioV2')
 
-  const selectedStyleCard = styles.activeCard
   const adapterType =
-    (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES) ?? AI_ADAPTER_TYPES.FAL
+    (styles.activeCard?.adapterType as AI_ADAPTER_TYPES) ?? AI_ADAPTER_TYPES.FAL
   const maxRefImages = getMaxReferenceImages(adapterType)
 
   const handleEnhance = useCallback(
@@ -68,13 +67,11 @@ export function StudioToolbarPanels() {
     const ok = await civitai.save(state.tokenInput.trim())
     if (ok) {
       dispatch({ type: 'SET_TOKEN_INPUT', payload: '' })
-      dispatch({ type: 'CLOSE_PANEL', payload: 'civitai' })
     }
   }, [state.tokenInput, civitai, dispatch])
 
   return (
     <>
-      {/* Toolbar buttons */}
       <StudioToolbar
         onEnhance={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
         isEnhancing={promptEnhance.isEnhancing}
@@ -94,7 +91,6 @@ export function StudioToolbarPanels() {
         disabled={isGenerating}
       />
 
-      {/* Prompt enhance panel */}
       {state.panels.enhance && (
         <PromptEnhancer
           prompt={state.prompt}
@@ -112,7 +108,6 @@ export function StudioToolbarPanels() {
         />
       )}
 
-      {/* Reverse engineer panel */}
       {state.panels.reverse && (
         <div className="rounded-lg border border-border/60 overflow-hidden">
           <ReverseEngineerPanel
@@ -124,13 +119,12 @@ export function StudioToolbarPanels() {
         </div>
       )}
 
-      {/* Advanced settings panel */}
-      {state.panels.advanced && selectedStyleCard?.adapterType && (
+      {state.panels.advanced && styles.activeCard?.adapterType && (
         <div
           aria-live="polite"
           className="rounded-lg border border-border/60 bg-background/60 p-3"
         >
-          <AdvancedSettings
+          <CapabilityForm
             adapterType={adapterType}
             params={state.advancedParams}
             onChange={(params) =>
@@ -142,7 +136,6 @@ export function StudioToolbarPanels() {
         </div>
       )}
 
-      {/* Reference image panel */}
       {state.panels.refImage && (
         <ReferenceImageSection
           referenceImages={imageUpload.referenceImages}
@@ -159,12 +152,11 @@ export function StudioToolbarPanels() {
           previewAlt={t('referenceImage')}
           removeLabel={t('cancel')}
           uploadLabel={t('referenceImage')}
-          formatsLabel="JPG · PNG · WEBP"
+          formatsLabel={t('referenceFormats')}
           counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
         />
       )}
 
-      {/* Civitai token inline panel */}
       {state.panels.civitai && (
         <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -194,10 +186,7 @@ export function StudioToolbarPanels() {
               type="password"
               value={state.tokenInput}
               onChange={(e) =>
-                dispatch({
-                  type: 'SET_TOKEN_INPUT',
-                  payload: e.target.value,
-                })
+                dispatch({ type: 'SET_TOKEN_INPUT', payload: e.target.value })
               }
               placeholder={t('tokenPlaceholder')}
               className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs font-mono focus:border-primary/40 focus:outline-none"

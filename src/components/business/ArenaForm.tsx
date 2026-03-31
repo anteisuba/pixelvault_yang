@@ -27,9 +27,9 @@ import dynamic from 'next/dynamic'
 
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 
-const AdvancedSettings = dynamic(() =>
-  import('@/components/business/AdvancedSettings').then(
-    (mod) => mod.AdvancedSettings,
+const CapabilityForm = dynamic(() =>
+  import('@/components/business/CapabilityForm').then(
+    (mod) => mod.CapabilityForm,
   ),
 )
 const ReverseEngineerPanel = dynamic(() =>
@@ -454,7 +454,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
         )
         if (!firstSelected) return null
         return (
-          <AdvancedSettings
+          <CapabilityForm
             adapterType={firstSelected.adapterType}
             params={advancedParams}
             onChange={setAdvancedParams}

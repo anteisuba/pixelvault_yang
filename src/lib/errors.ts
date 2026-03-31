@@ -1,5 +1,5 @@
 /**
- * Unified error hierarchy for all generation-related operations.
+ * Unified error hierarchy for JSON API operations.
  *
  * Every error carries: errorCode (machine-readable), httpStatus, i18nKey (for client translation).
  * These classes are SERVER-ONLY — clients receive plain JSON: { errorCode, error, i18nKey }.
@@ -25,6 +25,24 @@ export abstract class GenerationError extends Error {
       errorCode: this.errorCode,
       i18nKey: this.i18nKey,
     }
+  }
+}
+
+export class ApiRequestError extends GenerationError {
+  readonly errorCode: string
+  readonly httpStatus: number
+  readonly i18nKey: string
+
+  constructor(
+    errorCode: string,
+    httpStatus: number,
+    i18nKey: string,
+    message: string,
+  ) {
+    super(message)
+    this.errorCode = errorCode
+    this.httpStatus = httpStatus
+    this.i18nKey = i18nKey
   }
 }
 

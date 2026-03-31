@@ -1,27 +1,30 @@
 'use client'
 
-import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
+import { useTranslations } from 'next-intl'
+
 import {
   StudioModeSelector,
-  StudioCardSelectors,
   StudioPromptArea,
   StudioGenerateBar,
+  StudioCardSelectors,
   StudioPreview,
   StudioToolbarPanels,
   StudioCardManagement,
   StudioProjectHistory,
   StudioVideoMode,
 } from '@/components/business/studio'
+import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 
 import {
   StudioProvider,
   useStudioForm,
   useStudioData,
+  useStudioGen,
 } from '@/contexts/studio-context'
 
 /**
- * StudioWorkspace — wrapped with StudioProvider for state management.
- * Sub-components consume split contexts (Form/Data/Gen) for optimal re-renders.
+ * StudioWorkspace — thin orchestrator.
+ * All state lives in StudioProvider; sub-components consume split contexts directly.
  */
 export function StudioWorkspace() {
   return (
@@ -34,6 +37,8 @@ export function StudioWorkspace() {
 function StudioWorkspaceInner() {
   const { state } = useStudioForm()
   const { onboarding } = useStudioData()
+  const { isGenerating, lastGeneration } = useStudioGen()
+  const t = useTranslations('StudioV2')
 
   return (
     <div className="space-y-4">
@@ -49,6 +54,15 @@ function StudioWorkspaceInner() {
           <StudioCardSelectors />
           <StudioPromptArea />
           <StudioGenerateBar />
+
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {isGenerating
+              ? t('generating')
+              : lastGeneration
+                ? t('generateSuccess')
+                : null}
+          </div>
+
           <StudioPreview />
           <StudioToolbarPanels />
           <StudioCardManagement />

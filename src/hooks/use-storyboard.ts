@@ -14,6 +14,7 @@ import {
   reorderPanelsAPI,
   generateNarrativeAPI,
 } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 export function useStoryList() {
   const [stories, setStories] = useState<StoryListItem[]>([])
@@ -30,7 +31,9 @@ export function useStoryList() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    return deferEffectTask(() => {
+      void refresh()
+    })
   }, [refresh])
 
   const createStory = useCallback(
@@ -69,12 +72,14 @@ export function useStoryEditor(storyId: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    getStoryAPI(storyId).then((result) => {
-      if (result.success && result.data) {
-        setStory(result.data)
-      }
-      setLoading(false)
+    return deferEffectTask(() => {
+      setLoading(true)
+      getStoryAPI(storyId).then((result) => {
+        if (result.success && result.data) {
+          setStory(result.data)
+        }
+        setLoading(false)
+      })
     })
   }, [storyId])
 

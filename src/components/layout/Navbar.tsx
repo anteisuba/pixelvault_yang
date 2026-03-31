@@ -24,11 +24,13 @@ export function Navbar() {
   const router = useRouter()
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPathname, setMenuPathname] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const isMenuOpen = menuOpen && menuPathname === pathname
 
   // Close menu on outside click
   useEffect(() => {
-    if (!menuOpen) return
+    if (!isMenuOpen) return
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false)
@@ -36,12 +38,7 @@ export function Navbar() {
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [menuOpen])
-
-  // Close menu on route change
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [pathname])
+  }, [isMenuOpen])
 
   const handleViewProfile = useCallback(() => {
     setMenuOpen(false)
@@ -142,10 +139,13 @@ export function Navbar() {
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
-                onClick={() => setMenuOpen((v) => !v)}
+                onClick={() => {
+                  setMenuPathname(pathname)
+                  setMenuOpen((value) => !value)
+                }}
                 className="flex size-12 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card/70 text-muted-foreground transition-all hover:text-foreground hover:border-primary/25 hover:bg-primary/5"
                 aria-label={t('viewProfile')}
-                aria-expanded={menuOpen}
+                aria-expanded={isMenuOpen}
                 aria-haspopup="true"
               >
                 {myProfile?.avatarUrl ? (
@@ -163,7 +163,7 @@ export function Navbar() {
               </button>
 
               {/* Dropdown menu */}
-              {menuOpen && (
+              {isMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-1 duration-150">
                   <button
                     type="button"

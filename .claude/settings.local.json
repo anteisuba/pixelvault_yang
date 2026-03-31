@@ -125,19 +125,15 @@
       "Bash(sed -n '301,308p' src/messages/ja.json)",
       "Bash(sed -n '301,308p' src/messages/zh.json)",
       "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
-      "Bash(find src/app/api -name \"*.ts\" -exec grep -l \"console\\\\.error\" {})",
-      "Bash(sed -i \"s/logger.error\\(''\\\\[API DELETE \\\\/api\\\\/generations\\\\] R2 cleanup failed:'', error\\)/logger.error\\(''[API DELETE \\\\/api\\\\/generations] R2 cleanup failed'', { error: error instanceof Error ? error.message : String\\(error\\) }\\)/g\" src/app/api/generations/\\\\[id\\\\]/route.ts)",
-      "Bash(sed -i \"s/logger.error\\(''\\\\[API \\\\/api\\\\/images\\\\] ERROR:'', error\\)/logger.error\\(''[API \\\\/api\\\\/images] ERROR'', { error: error instanceof Error ? error.message : String\\(error\\) }\\)/g\" src/app/api/images/route.ts)",
-      "Bash(for f:*)",
-      "Bash(do)",
-      "Bash(sed -i 's/border-\\\\[#e8e4dc\\\\]/border-border\\\\/60/g' \"$f\")",
-      "Bash(sed -i 's/bg-\\\\[#faf9f5\\\\]/bg-background/g' \"$f\")",
-      "Bash(sed -i 's/text-\\\\[#141413\\\\]/text-foreground/g' \"$f\")",
-      "Bash(sed -i 's/text-\\\\[#706f6c\\\\]/text-muted-foreground/g' \"$f\")",
-      "Bash(sed -i 's/bg-\\\\[#e8e6dc\\\\]/bg-muted/g' \"$f\")",
-      "Bash(sed -i 's/bg-\\\\[#d97757\\\\]/bg-primary/g' \"$f\")",
-      "Bash(sed -i 's/hover:bg-\\\\[#c96645\\\\]/hover:bg-primary\\\\/90/g' \"$f\")",
-      "Bash(sed -i 's/bg-\\\\[#f0efe9\\\\]/bg-muted\\\\/50/g' \"$f\")"
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(gh repo:*)",
+      "Skill(ship)",
+      "Skill(ship:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ]
   },
   "hooks": {

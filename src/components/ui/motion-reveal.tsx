@@ -55,7 +55,6 @@ export function MotionReveal({
 interface MotionStaggerProps {
   children: ReactNode
   staggerMs?: number
-  duration?: number
   direction?: Direction
   className?: string
 }
@@ -63,12 +62,9 @@ interface MotionStaggerProps {
 export function MotionStagger({
   children,
   staggerMs = 100,
-  duration = 0.5,
-  direction = 'up',
   className,
 }: MotionStaggerProps) {
   const shouldReduce = useReducedMotion()
-  const offset = directionOffset[direction]
   const staggerSec = staggerMs / 1000
 
   if (shouldReduce) {

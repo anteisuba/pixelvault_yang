@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -24,23 +23,18 @@ import { modelSupportsLora } from '@/constants/models'
 export function StudioCardSelectors() {
   const { dispatch } = useStudioForm()
   const { characters, backgrounds, styles } = useStudioData()
-
+  const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
   const t = useTranslations('StudioV2')
   const tApiKeys = useTranslations('StudioApiKeys')
 
-  const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
   const activeKeyCount = keys.filter((k) => k.isActive).length
-
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
 
-  const handleCharSelect = useCallback(
-    (id: string | null) => {
-      if (selectedCharId) characters.toggleCardSelection(selectedCharId)
-      if (id) characters.toggleCardSelection(id)
-    },
-    [selectedCharId, characters],
-  )
+  const handleCharSelect = (id: string | null) => {
+    if (selectedCharId) characters.toggleCardSelection(selectedCharId)
+    if (id) characters.toggleCardSelection(id)
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -89,7 +83,6 @@ export function StudioCardSelectors() {
         isLoading={styles.isLoading}
       />
 
-      {/* API Keys quick access */}
       <Sheet>
         <SheetTrigger asChild>
           <Button

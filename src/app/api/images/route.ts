@@ -1,67 +1,79 @@
-import { logger } from '@/lib/logger'
-import { auth } from '@clerk/nextjs/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
+import {
+  createApiGetRoute,
+} from '@/lib/api-route-factory'
+import { AuthError, ApiRequestError } from '@/lib/errors'
+import {
+  GallerySearchSchema,
+  type GalleryResponseData,
+} from '@/types'
 import {
   getPublicGenerations,
   countPublicGenerations,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
-import { GallerySearchSchema, type GalleryResponse } from '@/types'
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const parsed = GallerySearchSchema.safeParse(
-      Object.fromEntries(searchParams),
-    )
+const GalleryRequestSchema = GallerySearchSchema.extend({
+  mine: z.enum(['1']).optional(),
+})
 
-    if (!parsed.success) {
-      return NextResponse.json<GalleryResponse>(
-        { success: false, error: 'Invalid query parameters' },
-        { status: 400 },
+export const GET = createApiGetRoute<
+  typeof GalleryRequestSchema,
+  GalleryResponseData
+>({
+  schema: GalleryRequestSchema,
+  routeName: 'GET /api/images',
+  handler: async ({ clerkId, data }): Promise<GalleryResponseData> => {
+    try {
+      const mine = data.mine === '1'
+      let userId: string | undefined
+
+      if (mine) {
+        if (!clerkId) {
+          throw new AuthError()
+        }
+
+        const user = await ensureUser(clerkId)
+        userId = user.id
+      }
+
+      const [generations, total] = await Promise.all([
+        getPublicGenerations({
+          page: data.page,
+          limit: data.limit,
+          search: data.search,
+          model: data.model,
+          sort: data.sort,
+          type: data.type,
+          userId,
+        }),
+        countPublicGenerations({
+          search: data.search,
+          model: data.model,
+          type: data.type,
+          userId,
+        }),
+      ])
+
+      return {
+        generations,
+        page: data.page,
+        limit: data.limit,
+        total,
+        hasMore: data.page * data.limit < total,
+      }
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error
+      }
+
+      throw new ApiRequestError(
+        'GALLERY_FETCH_FAILED',
+        500,
+        'errors.gallery.loadFailed',
+        'Failed to fetch gallery',
       )
     }
-
-    const { page, limit, search, model, sort, type } = parsed.data
-
-    // If "mine" param is set, return the current user's own generations
-    const mine = searchParams.get('mine') === '1'
-    let userId: string | undefined
-    if (mine) {
-      const { userId: clerkId } = await auth()
-      if (!clerkId) {
-        return NextResponse.json<GalleryResponse>(
-          { success: false, error: 'Unauthorized' },
-          { status: 401 },
-        )
-      }
-      const user = await ensureUser(clerkId)
-      userId = user.id
-    }
-
-    const filterOpts = { search, model, type, userId }
-
-    const [generations, total] = await Promise.all([
-      getPublicGenerations({ page, limit, search, model, sort, type, userId }),
-      countPublicGenerations(filterOpts),
-    ])
-
-    return NextResponse.json<GalleryResponse>({
-      success: true,
-      data: {
-        generations,
-        page,
-        limit,
-        total,
-        hasMore: page * limit < total,
-      },
-    })
-  } catch (error) {
-    logger.error('[API /api/images] ERROR', { error: error instanceof Error ? error.message : String(error) })
-    return NextResponse.json<GalleryResponse>(
-      { success: false, error: 'Failed to fetch gallery' },
-      { status: 500 },
-    )
-  }
-}
+  },
+})

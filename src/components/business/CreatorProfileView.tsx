@@ -41,23 +41,17 @@ export function CreatorProfileView({
   const data = profile ?? initialData ?? null
 
   // Like handler — update local state optimistically
-  const handleLikeSuccess = useCallback(
-    (_generationId: string, _liked: boolean, _likeCount: number) => {
-      refresh()
-    },
-    [refresh],
-  )
+  const handleLikeSuccess = useCallback(() => {
+    refresh()
+  }, [refresh])
 
   const { toggle: toggleLike, isPending: isLikePending } =
     useLike(handleLikeSuccess)
 
   // Follow handler
-  const handleFollowSuccess = useCallback(
-    (_targetUserId: string, _following: boolean, _followerCount: number) => {
-      refresh()
-    },
-    [refresh],
-  )
+  const handleFollowSuccess = useCallback(() => {
+    refresh()
+  }, [refresh])
 
   const { toggle: toggleFollow, isPending: isFollowPending } =
     useFollow(handleFollowSuccess)

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Type Check & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npx vitest run --reporter=verbose
+        env:
+          NODE_ENV: test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Stub env vars for build (not real secrets)
+          DATABASE_URL: "postgresql://stub:stub@localhost:5432/stub"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_stub"
+          CLERK_SECRET_KEY: "sk_test_stub"
+          NEXT_PUBLIC_STORAGE_BASE_URL: "https://stub.example.com"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          R2_ACCOUNT_ID: "stub"
+          R2_ACCESS_KEY_ID: "stub"
+          R2_SECRET_ACCESS_KEY: "stub"
+          R2_BUCKET_NAME: "stub"
+          API_KEY_ENCRYPTION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"

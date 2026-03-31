@@ -269,6 +269,7 @@ export const replicateAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    referenceImages,
     advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
@@ -289,8 +290,9 @@ export const replicateAdapter: ProviderAdapter = {
       await applyLoraParams(input, advancedParams.loras, isNoobAI)
     }
 
-    if (referenceImage) {
-      input.image = referenceImage
+    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+    if (effectiveRefImage) {
+      input.image = effectiveRefImage
       if (advancedParams?.referenceStrength != null) {
         input.strength = invertReferenceStrength(
           advancedParams.referenceStrength,

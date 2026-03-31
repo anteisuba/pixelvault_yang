@@ -29,7 +29,12 @@ describe('POST /api/image/analyze', () => {
 
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({
+      success: false,
+      error: 'Unauthorized',
+      errorCode: 'UNAUTHORIZED',
+      i18nKey: 'errors.auth.unauthorized',
+    })
   })
 
   it('returns 429 when rate limited', async () => {
@@ -43,9 +48,11 @@ describe('POST /api/image/analyze', () => {
 
     expect(res.status).toBe(429)
     const body = await parseJSON(res)
-    expect(body).toEqual({
+    expect(body).toMatchObject({
       success: false,
       error: 'Too many requests. Please wait a moment.',
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      i18nKey: 'errors.rateLimit',
     })
   })
 
@@ -75,9 +82,11 @@ describe('POST /api/image/analyze', () => {
 
     expect(res.status).toBe(400)
     const body = await parseJSON(res)
-    expect(body).toEqual({
+    expect(body).toMatchObject({
       success: false,
       error: 'Image too large. Maximum size is 10MB.',
+      errorCode: 'VALIDATION_ERROR',
+      i18nKey: 'errors.validation.invalidInput',
     })
   })
 
@@ -120,6 +129,11 @@ describe('POST /api/image/analyze', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'AI provider down' })
+    expect(body).toMatchObject({
+      success: false,
+      error: 'An unexpected error occurred. Please try again.',
+      errorCode: 'INTERNAL_ERROR',
+      i18nKey: 'errors.common.unexpected',
+    })
   })
 })

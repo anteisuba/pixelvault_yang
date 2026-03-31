@@ -1,0 +1,73 @@
+# PixelVault — Cursor IDE Rules
+
+You are working on PixelVault, a multi-model AI image/video generation + permanent archive platform.
+
+## Stack
+Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)
+
+## Critical Architecture Rules
+
+### Data Flow (NEVER violate)
+```
+constants → types (Zod) → services → hooks → components
+```
+- Constants: `src/constants/` — all config, enums, routes. Check here FIRST before adding new values.
+- Types: `src/types/index.ts` — Zod schemas + inferred TypeScript types. NEVER use `any` or `as` assertions.
+- Services: `src/services/` — server-only business logic. Must `import 'server-only'` at top.
+- Hooks: `src/hooks/` — client-side state. All API calls go through `src/lib/api-client.ts`.
+- Components: `src/components/business/` (stateful) | `src/components/ui/` (stateless shadcn).
+
+### API Routes (`src/app/api/`)
+Every route does exactly 3 things:
+1. `const { userId } = await auth()` — Clerk auth check
+2. `Schema.safeParse(body)` — Zod validation
+3. `await someService(...)` — delegate to service layer
+
+NO business logic in routes. NO database queries in routes.
+
+### AI Provider System
+- 7 adapters in `src/services/providers/`: huggingface, gemini, openai, fal, replicate, novelai, volcengine
+- All implement `ProviderAdapter` interface from `src/services/providers/types.ts`
+- Registry in `src/services/providers/registry.ts` — use `getProviderAdapter(adapterType)`
+- Models defined in `src/constants/models.ts` (enum `AI_MODELS`)
+- Adapter types in `src/constants/providers.ts` (enum `AI_ADAPTER_TYPES`)
+
+### Card/Recipe System
+- Cards: character, background, style, model — each in `src/services/<type>-card.service.ts`
+- Recipe compilation: `src/services/recipe-compiler.service.ts` — fuses cards into a single prompt
+- Two compilation modes: LLM fusion (primary) → template fallback
+
+### Resilience Utilities (use these)
+- `src/lib/with-retry.ts` — wrap external API calls with exponential backoff
+- `src/lib/circuit-breaker.ts` — per-provider circuit breaker
+- `src/lib/prompt-guard.ts` — validate prompts before sending to AI
+- `src/lib/llm-output-validator.ts` — validate LLM responses
+- `src/lib/logger.ts` — structured logging (NEVER use console.log in services)
+
+### i18n
+- 3 locale files: `src/messages/{en,ja,zh}.json` — ALL THREE must stay in sync
+- Use `useTranslations('Namespace')` in components
+- NEVER hardcode user-facing strings
+
+## Forbidden Patterns
+- `any` type — use Zod schema + `z.infer<>`
+- `fetch()` in components — use `src/lib/api-client.ts`
+- `console.log` in services — use `src/lib/logger.ts`
+- Tailwind arbitrary values like `w-[347px]` — extend config instead
+- Magic numbers/strings — use `src/constants/`
+- `as` type assertions — derive types from Zod schemas
+- Pure white `#fff` background — use `#faf9f5`
+- Blue-purple gradients, neon colors, heavy shadows
+
+## Design Language
+- Background: `#faf9f5` · Text: `#141413` · Accent: `#d97757`
+- Fonts: Space Grotesk (headings) + Lora (body)
+- Motion: fade-in + translate-up, 300-600ms ease-out only
+
+## Common Mistakes to Avoid
+1. Adding a new model without updating ALL of: `AI_MODELS` enum, model config, i18n (3 files), provider adapter
+2. Creating a service without `import 'server-only'` at top
+3. Putting business logic in API routes instead of service layer
+4. Forgetting to update all 3 i18n files when adding UI text
+5. Using `z.parse()` (throws) in API routes — use `z.safeParse()` instead
+6. Not validating prompt length — add `.max(4000)` on prompt fields

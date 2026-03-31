@@ -80,6 +80,7 @@ export const falAdapter: ProviderAdapter = {
     providerConfig,
     apiKey,
     referenceImage,
+    referenceImages,
     advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
@@ -114,8 +115,10 @@ export const falAdapter: ProviderAdapter = {
       }))
     }
 
-    if (referenceImage) {
-      body.image_url = referenceImage
+    // Resolve effective reference image: prefer referenceImages array, fallback to singular
+    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+    if (effectiveRefImage) {
+      body.image_url = effectiveRefImage
       // fal's `strength` = denoising strength (higher = more change, less similarity)
       // Our `referenceStrength` = how much to reference (higher = more similar)
       // Invert: denoising = 1 - referenceStrength
@@ -224,7 +227,6 @@ export const falAdapter: ProviderAdapter = {
     prompt,
     modelId,
     aspectRatio,
-    providerConfig,
     apiKey,
     duration,
     referenceImage,

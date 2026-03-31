@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { Check, Film, Loader2, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -141,7 +141,9 @@ export default function VideoGenerateForm({
   )
   const [resolution, setResolution] = useState<string | undefined>()
   const [negativePrompt, setNegativePrompt] = useState('')
-  const [appliedCardIds, setAppliedCardIds] = useState<string[]>([])
+  const [selectedAppliedCardIds, setSelectedAppliedCardIds] = useState<
+    string[]
+  >([])
   const [longVideoMode, setLongVideoMode] = useState(false)
   const [targetDuration, setTargetDuration] = useState(30)
 
@@ -179,6 +181,10 @@ export default function VideoGenerateForm({
     : generatedGeneration
 
   const hasCards = activeCharacterCards.length > 0
+  const activeCardIdSet = new Set(activeCharacterCards.map((card) => card.id))
+  const appliedCardIds = selectedAppliedCardIds.filter((id) =>
+    activeCardIdSet.has(id),
+  )
   const isCardApplied = appliedCardIds.length > 0
   const appliedCards = activeCharacterCards.filter((c) =>
     appliedCardIds.includes(c.id),
@@ -190,17 +196,7 @@ export default function VideoGenerateForm({
     : 1
   const showMultiCardWarning = hasCards && activeCharacterCards.length > 1
 
-  // Reset applied state when selected cards change
-  useEffect(() => {
-    if (!hasCards) {
-      setAppliedCardIds([])
-    } else {
-      const activeIds = new Set(activeCharacterCards.map((c) => c.id))
-      setAppliedCardIds((prev) => prev.filter((id) => activeIds.has(id)))
-    }
-  }, [activeCharacterCards, hasCards])
-
-  const handleApplyCharacterCards = useCallback(() => {
+  function handleApplyCharacterCards() {
     if (!hasCards) return
     setPrompt('')
     clearAllImages()
@@ -210,97 +206,71 @@ export default function VideoGenerateForm({
       ? firstCard.sourceImages[0]
       : firstCard.sourceImageUrl
     if (firstImage) addReferenceImage(firstImage)
-    setAppliedCardIds(activeCharacterCards.map((c) => c.id))
-  }, [
-    activeCharacterCards,
-    hasCards,
-    setPrompt,
-    clearAllImages,
-    addReferenceImage,
-  ])
+    setSelectedAppliedCardIds(activeCharacterCards.map((c) => c.id))
+  }
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      if (!selectedModel || !prompt.trim()) return
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedModel || !prompt.trim()) return
 
-      // Combine character card base prompts + user action prompt
-      let finalPrompt = prompt.trim()
-      if (isCardApplied && appliedCards.length > 0) {
-        const basePrompts = appliedCards
-          .map((c) => c.characterPrompt.trim())
-          .filter(Boolean)
-        const base =
-          basePrompts.length === 1
-            ? basePrompts[0]
-            : basePrompts
-                .map(
-                  (p, i) =>
-                    `[Character ${i + 1}: ${appliedCards[i].name}]\n${p}`,
-                )
-                .join('\n\n')
-        const action = prompt.trim()
-        finalPrompt = action ? `${base}\n\n${action}` : base
-      }
-      if (!finalPrompt) return
+    let finalPrompt = prompt.trim()
+    if (isCardApplied && appliedCards.length > 0) {
+      const basePrompts = appliedCards
+        .map((card) => card.characterPrompt.trim())
+        .filter(Boolean)
+      const base =
+        basePrompts.length === 1
+          ? basePrompts[0]
+          : basePrompts
+              .map(
+                (promptText, index) =>
+                  `[Character ${index + 1}: ${appliedCards[index].name}]\n${promptText}`,
+              )
+              .join('\n\n')
+      const action = prompt.trim()
+      finalPrompt = action ? `${base}\n\n${action}` : base
+    }
+    if (!finalPrompt) return
 
-      let processedImage = referenceImage
-      if (referenceImage && selectedModel.adapterType === 'openai') {
-        const dims = VIDEO_SIZES[aspectRatio] ?? VIDEO_SIZES['16:9']
-        processedImage = await resizeImageToDataUrl(
-          referenceImage,
-          dims.width,
-          dims.height,
-        )
-      }
+    let processedImage = referenceImage
+    if (referenceImage && selectedModel.adapterType === 'openai') {
+      const dims = VIDEO_SIZES[aspectRatio] ?? VIDEO_SIZES['16:9']
+      processedImage = await resizeImageToDataUrl(
+        referenceImage,
+        dims.width,
+        dims.height,
+      )
+    }
 
-      const commonParams = {
-        prompt: finalPrompt,
-        modelId: selectedModel.modelId,
-        aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
-        referenceImage: processedImage,
-        negativePrompt: negativePrompt.trim() || undefined,
-        resolution: resolution as
-          | '480p'
-          | '540p'
-          | '720p'
-          | '1080p'
-          | undefined,
-        apiKeyId: selectedApiKeyId,
-        characterCardIds:
-          appliedCardIds.length > 0 ? appliedCardIds : undefined,
-      }
+    const commonParams = {
+      prompt: finalPrompt,
+      modelId: selectedModel.modelId,
+      aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
+      referenceImage: processedImage,
+      negativePrompt: negativePrompt.trim() || undefined,
+      resolution: resolution as
+        | '480p'
+        | '540p'
+        | '720p'
+        | '1080p'
+        | undefined,
+      apiKeyId: selectedApiKeyId,
+      characterCardIds: appliedCardIds.length > 0 ? appliedCardIds : undefined,
+    }
 
-      if (longVideoMode) {
-        await longVideo.generate({
-          ...commonParams,
-          targetDuration,
-        })
-      } else {
-        await generate({
-          ...commonParams,
-          duration,
-        })
-      }
-    },
-    [
-      selectedModel,
-      prompt,
-      aspectRatio,
+    if (longVideoMode) {
+      await longVideo.generate({
+        ...commonParams,
+        targetDuration,
+      })
+      return
+    }
+
+    await generate({
+      ...commonParams,
       duration,
-      targetDuration,
-      longVideoMode,
-      referenceImage,
-      negativePrompt,
-      resolution,
-      selectedApiKeyId,
-      isCardApplied,
-      appliedCards,
-      appliedCardIds,
-      generate,
-      longVideo,
-    ],
-  )
+    })
+  }
 
   const stageLabels: Record<string, string> = {
     queued: t('stageQueued'),

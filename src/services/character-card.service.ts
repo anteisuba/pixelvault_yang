@@ -15,6 +15,12 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
+import {
+  mapCharacterCardRow,
+  serializeCharacterAttributes,
+  serializeCharacterLoras,
+  serializeSourceImageEntries,
+} from '@/services/character-card.mapper'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 
@@ -40,62 +46,6 @@ Return ONLY valid JSON matching this exact schema (all fields optional strings):
 }
 
 Be specific and detailed. Focus on visually distinctive traits that would help an AI model reproduce this character consistently. Do NOT include background or setting details — focus only on the character.`
-
-const BUILD_PROMPT_SYSTEM_PROMPT = `You are an expert at writing AI image generation prompts. Given structured character attributes as JSON, compose a single detailed prompt that would generate an image of this character.
-
-The prompt should be natural language, detailed, and focused on the character's appearance. Include all provided attributes. Do NOT add background, setting, or action unless explicitly stated in the attributes.
-
-Return ONLY the prompt text, no explanation or preamble.`
-
-// ─── Helpers ───────────────────────────────────────────────────
-
-/** DB row shape for CharacterCard (with optional variant relations) */
-interface DbCharacterCardRow {
-  id: string
-  name: string
-  description: string | null
-  sourceImageUrl: string
-  sourceImages: unknown
-  sourceImageEntries: unknown
-  characterPrompt: string
-  modelPrompts: unknown
-  referenceImages: unknown
-  attributes: unknown
-  loras: unknown
-  tags: string[]
-  status: string
-  stabilityScore: number | null
-  parentId: string | null
-  variantLabel: string | null
-  createdAt: Date
-  updatedAt: Date
-  variants?: DbCharacterCardRow[]
-}
-
-/** Map DB CharacterCard row to API response record */
-function toRecord(row: DbCharacterCardRow): CharacterCardRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    sourceImageUrl: row.sourceImageUrl,
-    sourceImages: (row.sourceImages as string[]) ?? [row.sourceImageUrl],
-    sourceImageEntries: (row.sourceImageEntries as SourceImageEntry[]) ?? [],
-    characterPrompt: row.characterPrompt,
-    modelPrompts: (row.modelPrompts as Record<string, string>) ?? null,
-    referenceImages: (row.referenceImages as string[]) ?? null,
-    attributes: (row.attributes as CharacterAttributes) ?? null,
-    loras: (row.loras as CharacterCardRecord['loras']) ?? null,
-    tags: row.tags,
-    status: row.status as CharacterCardRecord['status'],
-    stabilityScore: row.stabilityScore,
-    parentId: row.parentId,
-    variantLabel: row.variantLabel,
-    variants: (row.variants ?? []).map(toRecord),
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  }
-}
 
 // ─── Web Search Enhancement ──────────────────────────────────
 
@@ -416,9 +366,9 @@ export async function createCharacterCard(
       sourceImageUrl: primaryUrl,
       sourceStorageKey: primaryStorageKey,
       sourceImages: sourceImageUrls,
-      sourceImageEntries: JSON.parse(JSON.stringify(sourceImageEntries)),
+      sourceImageEntries: serializeSourceImageEntries(sourceImageEntries),
       characterPrompt,
-      attributes: JSON.parse(JSON.stringify(attributes)),
+      attributes: serializeCharacterAttributes(attributes),
       tags: input.tags ?? [],
       status: 'DRAFT',
       parentId: input.parentId ?? null,
@@ -426,7 +376,7 @@ export async function createCharacterCard(
     },
   })
 
-  return toRecord(card as DbCharacterCardRow)
+  return mapCharacterCardRow(card)
 }
 
 /**
@@ -448,7 +398,7 @@ export async function listCharacterCards(
     },
   })
 
-  return cards.map((c) => toRecord(c as unknown as DbCharacterCardRow))
+  return cards.map((card) => mapCharacterCardRow(card))
 }
 
 /**
@@ -472,7 +422,7 @@ export async function getCharacterCard(
 
   if (!card || card.userId !== dbUser.id || card.isDeleted) return null
 
-  return toRecord(card as unknown as DbCharacterCardRow)
+  return mapCharacterCardRow(card)
 }
 
 /**
@@ -500,17 +450,15 @@ export async function updateCharacterCard(
   if (data.characterPrompt !== undefined)
     updateData.characterPrompt = data.characterPrompt
   if (data.attributes !== undefined)
-    updateData.attributes = JSON.parse(JSON.stringify(data.attributes))
+    updateData.attributes = serializeCharacterAttributes(data.attributes)
   if (data.variantLabel !== undefined)
     updateData.variantLabel = data.variantLabel
   if (data.sourceImageEntries !== undefined)
-    updateData.sourceImageEntries = JSON.parse(
-      JSON.stringify(data.sourceImageEntries),
+    updateData.sourceImageEntries = serializeSourceImageEntries(
+      data.sourceImageEntries,
     )
   if (data.loras !== undefined)
-    updateData.loras = data.loras
-      ? JSON.parse(JSON.stringify(data.loras))
-      : null
+    updateData.loras = data.loras ? serializeCharacterLoras(data.loras) : null
 
   const card = await db.characterCard.update({
     where: { id: cardId },
@@ -523,7 +471,7 @@ export async function updateCharacterCard(
     },
   })
 
-  return toRecord(card as unknown as DbCharacterCardRow)
+  return mapCharacterCardRow(card)
 }
 
 /**

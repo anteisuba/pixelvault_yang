@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils'
 export function StudioProjectHistory() {
   const { state, dispatch } = useStudioForm()
   const { projects } = useStudioData()
-
   const t = useTranslations('StudioV2')
 
   const handleRename = useCallback(

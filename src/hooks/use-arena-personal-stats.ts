@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getArenaPersonalStatsAPI } from '@/lib/api-client'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { PersonalModelStat } from '@/types'
 
 interface UseArenaPersonalStatsReturn {
@@ -34,7 +35,9 @@ export function useArenaPersonalStats(): UseArenaPersonalStatsReturn {
   }, [])
 
   useEffect(() => {
-    void fetchStats()
+    return deferEffectTask(() => {
+      void fetchStats()
+    })
   }, [fetchStats])
 
   return { totalMatches, stats, isLoading, error, refresh: fetchStats }

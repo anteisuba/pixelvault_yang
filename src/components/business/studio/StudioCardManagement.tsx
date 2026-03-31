@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl'
 import { CharacterCardManager } from '@/components/business/CharacterCardManager'
 import { SimpleCardManager } from '@/components/business/SimpleCardManager'
 import { StyleCardManager } from '@/components/business/StyleCardManager'
-import { AnimatedCollapse } from '@/components/ui/animated-collapse'
 import { StudioErrorBoundary } from '@/components/business/studio/StudioErrorBoundary'
+import { AnimatedCollapse } from '@/components/ui/animated-collapse'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils'
 export function StudioCardManagement() {
   const { state, dispatch } = useStudioForm()
   const { characters, backgrounds, styles, projects } = useStudioData()
-
   const t = useTranslations('StudioV2')
   const tBg = useTranslations('BackgroundCard')
 

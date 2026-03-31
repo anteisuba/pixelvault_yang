@@ -175,7 +175,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
-    externalModelId: 'gemini-3-pro-image-preview',
+    externalModelId: 'gemini-3.1-pro-image-preview',
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/models/gemini-v3',

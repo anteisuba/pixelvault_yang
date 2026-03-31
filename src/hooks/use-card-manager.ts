@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -80,7 +81,9 @@ export function useCardManager<
   }, [config.api, config.projectId])
 
   useEffect(() => {
-    refresh()
+    return deferEffectTask(() => {
+      void refresh()
+    })
   }, [refresh])
 
   const toggleCardSelection = useCallback(

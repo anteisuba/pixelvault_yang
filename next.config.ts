@@ -2,11 +2,17 @@ import { withSentryConfig } from '@sentry/nextjs'
 import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
 
+// Arena reference images can exceed the proxy's default buffered body size.
+const PROXY_CLIENT_MAX_BODY_SIZE = '15mb'
+
 const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
   ? new URL(process.env.NEXT_PUBLIC_STORAGE_BASE_URL).hostname
   : 'pub-5346558f8dc549f9ba5217489fe5395e.r2.dev'
 
 const nextConfig: NextConfig = {
+  experimental: {
+    proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_SIZE,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,

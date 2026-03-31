@@ -77,7 +77,8 @@
     "historyLoadMore": "Load more",
     "cancel": "Cancel",
     "save": "Save",
-    "create": "Create"
+    "create": "Create",
+    "close": "Close"
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
@@ -112,6 +113,7 @@
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "signOut": "Sign Out",
+    "mobileNavigation": "Mobile navigation",
     "links": {
       "gallery": "Gallery",
       "studio": "Studio",
@@ -409,7 +411,9 @@
       "curationValue": "Newest first"
     },
     "filters": {
+      "searchLabel": "Search the archive",
       "searchPlaceholder": "Search by prompt...",
+      "clearSearch": "Clear search",
       "modelPlaceholder": "Filter by model",
       "allModels": "All models",
       "clearFilters": "Clear filters",
@@ -727,6 +731,7 @@
   },
   "ImageDetail": {
     "title": "Image details",
+    "close": "Close",
     "promptLabel": "Prompt",
     "negativePromptLabel": "Negative prompt",
     "dimensionsLabel": "Dimensions",
@@ -750,7 +755,9 @@
     "removeBackground": "Remove BG",
     "removingBackground": "Removing...",
     "editSuccess": "Done! Downloading the result.",
-    "editFailed": "Editing failed"
+    "editFailed": "Editing failed",
+    "downloadFailed": "Download failed. Opening the original instead.",
+    "shareFailed": "Failed to copy the share link."
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",
@@ -1304,6 +1311,11 @@
     "retry": "Try again",
     "home": "Back to home"
   },
+  "GlobalError": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Our team has been notified.",
+    "action": "Try again"
+  },
   "CreatorProfile": {
     "metaTitle": "Creator Portfolio",
     "metaDescription": "Explore {name}'s AI-generated artwork on PixelVault",
@@ -1315,6 +1327,7 @@
     "following": "Following",
     "editProfile": "Edit Profile",
     "changeAvatar": "Change avatar",
+    "editProfileDescription": "Update the details people see on your profile and choose whether it stays public.",
     "username": "Username",
     "usernamePlaceholder": "your-username",
     "usernameHint": "Letters, numbers, and hyphens. 3-30 characters.",
@@ -1440,6 +1453,7 @@
     "reverse": "Reverse",
     "advanced": "Advanced",
     "referenceImage": "Reference",
+    "referenceFormats": "JPG, PNG, WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
     "tokenPlaceholder": "Enter Civitai API token",
@@ -1448,16 +1462,24 @@
     "projectHistory": "Project & History"
   },
   "Errors": {
+    "common": {
+      "unexpected": "An unexpected error occurred. Please try again."
+    },
     "provider": {
       "failed": "AI provider error. Please try again.",
       "timeout": "AI provider timed out. Please try again."
     },
     "validation": {
-      "invalidInput": "Invalid input. Please check your parameters."
+      "invalidInput": "Invalid input. Please check your parameters.",
+      "invalidJson": "The request body could not be read."
     },
     "rateLimit": "Too many requests. Please wait a moment.",
     "auth": {
       "unauthorized": "Please sign in to continue."
+    },
+    "gallery": {
+      "invalidQuery": "The selected filters are invalid.",
+      "loadFailed": "Failed to load the gallery."
     },
     "credits": {
       "exceeded": "Free generation limit reached for today."
@@ -1465,6 +1487,18 @@
     "apiKey": {
       "missing": "API key is required for this model.",
       "invalid": "Invalid API key. Please check and try again."
+    },
+    "profile": {
+      "loadFailed": "Failed to load your profile.",
+      "updateFailed": "Failed to update your profile.",
+      "usernameTaken": "This username is already taken.",
+      "usernameReserved": "This username is reserved.",
+      "usernameInvalid": "Username must be 3-30 characters, start with a letter, and use only letters, numbers, or hyphens.",
+      "avatarUploadFailed": "Failed to upload the avatar.",
+      "bannerUploadFailed": "Failed to upload the cover image.",
+      "unsupportedImageType": "Please use JPEG, PNG, or WebP.",
+      "avatarTooLarge": "Avatar must be under 5 MB.",
+      "bannerTooLarge": "Cover image must be under 10 MB."
     }
   }
 }

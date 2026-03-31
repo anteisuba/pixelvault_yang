@@ -77,7 +77,8 @@
     "historyLoadMore": "もっと読み込む",
     "cancel": "キャンセル",
     "save": "保存",
-    "create": "作成"
+    "create": "作成",
+    "close": "閉じる"
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
@@ -112,6 +113,7 @@
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
     "signOut": "サインアウト",
+    "mobileNavigation": "モバイルナビゲーション",
     "links": {
       "gallery": "ギャラリー",
       "studio": "スタジオ",
@@ -409,7 +411,9 @@
       "curationValue": "新しい順"
     },
     "filters": {
+      "searchLabel": "アーカイブを検索",
       "searchPlaceholder": "プロンプトで検索...",
+      "clearSearch": "検索をクリア",
       "modelPlaceholder": "モデルで絞り込み",
       "allModels": "すべてのモデル",
       "clearFilters": "フィルターをクリア",
@@ -727,6 +731,7 @@
   },
   "ImageDetail": {
     "title": "画像の詳細",
+    "close": "閉じる",
     "promptLabel": "プロンプト",
     "negativePromptLabel": "ネガティブプロンプト",
     "dimensionsLabel": "サイズ",
@@ -750,7 +755,9 @@
     "removeBackground": "背景除去",
     "removingBackground": "除去中...",
     "editSuccess": "完了！結果をダウンロードしています。",
-    "editFailed": "編集に失敗しました"
+    "editFailed": "編集に失敗しました",
+    "downloadFailed": "ダウンロードに失敗しました。元画像を開きます。",
+    "shareFailed": "共有リンクのコピーに失敗しました。"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",
@@ -1304,6 +1311,11 @@
     "retry": "再試行",
     "home": "ホームに戻る"
   },
+  "GlobalError": {
+    "title": "問題が発生しました",
+    "description": "予期しないエラーが発生しました。チームに通知済みです。",
+    "action": "再試行"
+  },
   "CreatorProfile": {
     "metaTitle": "クリエイターポートフォリオ",
     "metaDescription": "{name}のAI生成アートをPixelVaultで探索",
@@ -1315,6 +1327,7 @@
     "following": "フォロー中",
     "editProfile": "プロフィール編集",
     "changeAvatar": "アバターを変更",
+    "editProfileDescription": "プロフィールに表示される情報を更新し、公開状態を選択できます。",
     "username": "ユーザー名",
     "usernamePlaceholder": "your-username",
     "usernameHint": "英数字とハイフン。3〜30文字。",
@@ -1436,6 +1449,7 @@
     "reverse": "リバース",
     "advanced": "詳細",
     "referenceImage": "参照画像",
+    "referenceFormats": "JPG、PNG、WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "tokenPlaceholder": "Civitai API Tokenを入力",
@@ -1448,16 +1462,24 @@
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
   },
   "Errors": {
+    "common": {
+      "unexpected": "予期しないエラーが発生しました。もう一度お試しください。"
+    },
     "provider": {
       "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
       "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。"
     },
     "validation": {
-      "invalidInput": "入力が無効です。パラメータを確認してください。"
+      "invalidInput": "入力が無効です。パラメータを確認してください。",
+      "invalidJson": "リクエスト本文を読み取れませんでした。"
     },
     "rateLimit": "リクエストが多すぎます。しばらくお待ちください。",
     "auth": {
       "unauthorized": "続行するにはサインインしてください。"
+    },
+    "gallery": {
+      "invalidQuery": "選択したフィルターが無効です。",
+      "loadFailed": "ギャラリーの読み込みに失敗しました。"
     },
     "credits": {
       "exceeded": "本日の無料生成制限に達しました。"
@@ -1465,6 +1487,18 @@
     "apiKey": {
       "missing": "このモデルにはAPIキーが必要です。",
       "invalid": "無効なAPIキーです。確認してもう一度お試しください。"
+    },
+    "profile": {
+      "loadFailed": "プロフィールの読み込みに失敗しました。",
+      "updateFailed": "プロフィールの更新に失敗しました。",
+      "usernameTaken": "このユーザー名は既に使用されています。",
+      "usernameReserved": "このユーザー名は予約済みです。",
+      "usernameInvalid": "ユーザー名は3〜30文字で、先頭は英字、使用できるのは英字・数字・ハイフンのみです。",
+      "avatarUploadFailed": "アバターのアップロードに失敗しました。",
+      "bannerUploadFailed": "カバー画像のアップロードに失敗しました。",
+      "unsupportedImageType": "JPEG、PNG、WebP形式を使用してください。",
+      "avatarTooLarge": "アバターは5MB以下にしてください。",
+      "bannerTooLarge": "カバー画像は10MB以下にしてください。"
     }
   }
 }

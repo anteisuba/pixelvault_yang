@@ -142,34 +142,6 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 
 // ─── Capability → UI Field Type Mapping ──────────────────────────
 
-/** UI field types that each capability maps to in the CapabilityForm */
-export type CapabilityFieldType =
-  | 'slider'
-  | 'select'
-  | 'textarea'
-  | 'seed'
-  | 'lora'
-
-const CAPABILITY_FIELD_MAP: Record<ProviderCapability, CapabilityFieldType> = {
-  negativePrompt: 'textarea',
-  guidanceScale: 'slider',
-  steps: 'slider',
-  seed: 'seed',
-  referenceStrength: 'slider',
-  quality: 'select',
-  background: 'select',
-  style: 'select',
-  imageAnalysis: 'select',
-  lora: 'lora',
-}
-
-/** Get the UI field type for a given capability (used by CapabilityForm) */
-export function getCapabilityFieldType(
-  cap: ProviderCapability,
-): CapabilityFieldType {
-  return CAPABILITY_FIELD_MAP[cap]
-}
-
 /** Check whether a given adapter supports a specific capability */
 export function hasCapability(
   adapterType: AI_ADAPTER_TYPES,
@@ -195,4 +167,30 @@ export function getReferenceImageMode(
   adapterType: AI_ADAPTER_TYPES,
 ): ReferenceImageMode {
   return ADAPTER_CAPABILITIES[adapterType].referenceImageMode ?? 'img2img'
+}
+
+export type CapabilityFieldType =
+  | 'slider'
+  | 'select'
+  | 'textarea'
+  | 'seed'
+  | 'lora'
+
+/** Map a user-configurable capability to its field type for data-driven rendering */
+export function getCapabilityFieldType(
+  cap: ProviderCapability,
+): CapabilityFieldType | null {
+  const map: Partial<Record<ProviderCapability, CapabilityFieldType>> = {
+    negativePrompt: 'textarea',
+    guidanceScale: 'slider',
+    steps: 'slider',
+    referenceStrength: 'slider',
+    seed: 'seed',
+    quality: 'select',
+    background: 'select',
+    style: 'select',
+    lora: 'lora',
+    // imageAnalysis is not user-configurable — no field type
+  }
+  return map[cap] ?? null
 }

@@ -20,12 +20,13 @@ import {
   batchUpdateVisibilityAPI,
   deleteGenerationAPI,
 } from '@/lib/api-client'
+import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { useGallery } from '@/hooks/use-gallery'
+import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import type { GenerationRecord } from '@/types'
 
 interface ProfileFeedProps {
@@ -33,6 +34,7 @@ interface ProfileFeedProps {
   initialPage: number
   initialHasMore: boolean
   total: number
+  initialFilters: GalleryFilters
 }
 
 export function ProfileFeed({
@@ -40,6 +42,7 @@ export function ProfileFeed({
   initialPage,
   initialHasMore,
   total,
+  initialFilters,
 }: ProfileFeedProps) {
   const t = useTranslations('LibraryPage')
   const tToasts = useTranslations('Toasts')
@@ -64,6 +67,7 @@ export function ProfileFeed({
     initialPage,
     initialHasMore,
     initialTotal: total,
+    initialFilters,
     mine: true,
   })
 
@@ -80,6 +84,19 @@ export function ProfileFeed({
       }
     },
     [removeGeneration, tToasts],
+  )
+
+  const handleFiltersChange = useCallback(
+    (nextFilters: GalleryFilters) => {
+      const query = buildGalleryQueryString(nextFilters)
+      const nextUrl = query
+        ? `${window.location.pathname}?${query}`
+        : window.location.pathname
+
+      window.history.replaceState(window.history.state, '', nextUrl)
+      setFilters(nextFilters)
+    },
+    [setFilters],
   )
 
   const toggleSelect = (id: string) => {
@@ -135,7 +152,7 @@ export function ProfileFeed({
     <div className="space-y-7">
       <GalleryFilterBar
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
         isLoading={isLoading}
       />
 

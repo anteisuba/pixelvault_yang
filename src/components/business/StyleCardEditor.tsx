@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
 import { AI_MODELS, getAvailableImageModels } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   StyleCardRecord,
   CreateStyleCardRequest,
@@ -16,6 +15,8 @@ import type {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { ReferenceImageSection } from '@/components/ui/reference-image-section'
+import { useImageUpload } from '@/hooks/use-image-upload'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export function StyleCardEditor({
   )
   const [loraUrl, setLoraUrl] = useState('')
   const [loraScale, setLoraScale] = useState('1.0')
+  const imageUpload = useImageUpload()
 
   // Filtered model lists
   const loraModels = getAvailableImageModels().filter((m) => m.supportsLora)
@@ -112,10 +114,20 @@ export function StyleCardEditor({
         advancedParams && Object.keys(advancedParams).length > 0
           ? advancedParams
           : undefined,
+      sourceImageData:
+        mode === 'reference' ? imageUpload.referenceImage : undefined,
     }
 
     await onSave(data)
-  }, [name, stylePrompt, selectedModelId, advancedParams, onSave])
+  }, [
+    name,
+    stylePrompt,
+    selectedModelId,
+    advancedParams,
+    imageUpload.referenceImage,
+    mode,
+    onSave,
+  ])
 
   return (
     <div className="space-y-4">
@@ -192,6 +204,35 @@ export function StyleCardEditor({
         </select>
       </div>
 
+      {/* Reference image upload (reference mode only) */}
+      {mode === 'reference' && (
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            {t('sourceImage')}
+          </label>
+          <p className="text-2xs text-muted-foreground mb-2">
+            {t('sourceImageHint')}
+          </p>
+          <ReferenceImageSection
+            referenceImages={imageUpload.referenceImages}
+            maxImages={1}
+            isDragging={imageUpload.isDragging}
+            fileInputRef={imageUpload.fileInputRef}
+            onDrop={imageUpload.handleDrop}
+            onDragOver={imageUpload.handleDragOver}
+            onDragLeave={imageUpload.handleDragLeave}
+            onOpenFilePicker={imageUpload.openFilePicker}
+            onInputChange={imageUpload.handleInputChange}
+            onRemoveImage={imageUpload.removeReferenceImage}
+            onClearAll={imageUpload.clearAllImages}
+            previewAlt={t('sourceImage')}
+            removeLabel={tv2('cancel')}
+            uploadLabel={t('sourceImage')}
+            formatsLabel="JPG · PNG · WEBP"
+          />
+        </div>
+      )}
+
       {/* LoRA list (LoRA mode only) */}
       {mode === 'lora' && (
         <div>
@@ -207,7 +248,9 @@ export function StyleCardEditor({
                 <span className="flex-1 truncate text-foreground">
                   {lora.url}
                 </span>
-                <span className="text-muted-foreground">×{lora.scale ?? 1}</span>
+                <span className="text-muted-foreground">
+                  ×{lora.scale ?? 1}
+                </span>
                 <button
                   type="button"
                   onClick={() => handleRemoveLora(i)}

@@ -209,7 +209,6 @@ export const volcengineAdapter: ProviderAdapter = {
     referenceImage,
     negativePrompt,
     resolution,
-    i2vModelId,
     videoDefaults,
   }: ProviderQueueSubmitInput) {
     const baseUrl = buildBaseUrl(providerConfig.baseUrl)

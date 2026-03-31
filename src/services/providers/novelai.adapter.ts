@@ -6,7 +6,6 @@ import sharp from 'sharp'
 import {
   API_USAGE,
   AI_PROVIDER_ENDPOINTS,
-  IMAGE_SIZES,
 } from '@/constants/config'
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -77,10 +76,6 @@ function parseCharacterPrompt(prompt: string): {
   // start with a character marker. We detect it by looking for the last
   // character's description end — the scene part is whatever is left after
   // the last character block's description.
-  const lastCharEnd =
-    matches[matches.length - 1].index! + matches[matches.length - 1][0].length
-  const remainingText = prompt.slice(lastCharEnd)
-
   // The last "character"'s description may contain the scene prompt appended.
   // Split: everything up to 2+ newlines before non-character-tag content = char desc,
   // rest = scene. If last char desc contains double-newline, split there.
@@ -153,50 +148,6 @@ async function toRawBase64(input: string): Promise<string> {
   }
 
   return input
-}
-
-/**
- * Encode a base64 image into a vibe token via NovelAI's /ai/encode-vibe endpoint.
- * V4/V4.5 models require vibe-encoded tokens instead of raw base64 in reference_image_multiple.
- */
-async function encodeVibe(
-  base64Image: string,
-  informationExtracted: number,
-  modelId: string,
-  apiKey: string,
-  baseUrl: string,
-): Promise<string> {
-  const endpoint = `${baseUrl}/ai/encode-vibe`
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      image: base64Image,
-      information_extracted: informationExtracted,
-      model: modelId,
-    }),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    logger.error('NovelAI encode-vibe failed', {
-      status: response.status,
-      modelId,
-      endpoint,
-      errorBody: errorBody.slice(0, 500),
-    })
-    throw new ProviderError(
-      'NovelAI',
-      response.status,
-      `encode-vibe failed: ${errorBody}`,
-    )
-  }
-
-  const buffer = Buffer.from(await response.arrayBuffer())
-  return buffer.toString('base64')
 }
 
 /**
@@ -541,7 +492,7 @@ export const novelAiAdapter: ProviderAdapter = {
     }
   },
 
-  async healthCheck({ apiKey, baseUrl, timeoutMs }: HealthCheckInput) {
+  async healthCheck({ apiKey, timeoutMs }: HealthCheckInput) {
     const start = Date.now()
     try {
       // User API is still on api.novelai.net (image.novelai.net is for generation only)

@@ -102,7 +102,7 @@ describe('createApiRoute', () => {
     const json = await parseJSON<{
       success: boolean
       error: string
-      errorCode?: string
+      errorCode: string
     }>(res)
 
     expect(res.status).toBe(401)

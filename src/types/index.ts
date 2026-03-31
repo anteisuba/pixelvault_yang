@@ -1726,21 +1726,34 @@ export interface CivitaiTokenStatusResponse {
 
 // ── Studio V2 Generate ──────────────────────────────────────────
 
-export const StudioGenerateSchema = z.object({
-  characterCardId: z.string().optional(),
-  backgroundCardId: z.string().optional(),
-  styleCardId: z.string().optional(),
-  freePrompt: z
-    .string()
-    .trim()
-    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
-    .optional(),
-  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
-  projectId: z.string().optional(),
-  /** User-uploaded reference images (base64 or URL) from toolbar */
-  referenceImages: z.array(z.string()).optional(),
-  /** Advanced params override from toolbar Advanced Settings panel */
-  advancedParams: z.record(z.string(), z.unknown()).optional(),
-})
+export const StudioGenerateSchema = z
+  .object({
+    /** Quick mode: direct model selection */
+    modelId: z.string().trim().min(1).max(160).optional(),
+    /** Quick mode: specific API key for saved route */
+    apiKeyId: z.string().trim().min(1).optional(),
+    /** Card mode: card IDs */
+    characterCardId: z.string().optional(),
+    backgroundCardId: z.string().optional(),
+    styleCardId: z.string().optional(),
+    freePrompt: z
+      .string()
+      .trim()
+      .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+      .optional(),
+    aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+    projectId: z.string().optional(),
+    /** User-uploaded reference images (base64 or URL) from toolbar */
+    referenceImages: z.array(z.string()).optional(),
+    /** Advanced params override from toolbar Advanced Settings panel */
+    advancedParams: z.record(z.string(), z.unknown()).optional(),
+  })
+  .refine((data) => !!(data.modelId || data.styleCardId), {
+    message: 'Either modelId or styleCardId is required',
+  })
+  .refine((data) => !(data.modelId && data.styleCardId), {
+    message: 'Cannot specify both modelId and styleCardId',
+    path: ['modelId'],
+  })
 
 export type StudioGenerateRequest = z.infer<typeof StudioGenerateSchema>

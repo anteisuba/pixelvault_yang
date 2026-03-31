@@ -806,6 +806,10 @@
       "anime": {
         "label": "Anime",
         "description": "Add anime style and character details"
+      },
+      "lora": {
+        "label": "LoRA Tags",
+        "description": "Generate LoRA trigger keywords and tags"
       }
     }
   },
@@ -1449,8 +1453,8 @@
     "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
-    "enhance": "Enhance",
-    "reverse": "Reverse",
+    "enhance": "Append",
+    "reverse": "Image Reverse",
     "advanced": "Advanced",
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
@@ -1460,6 +1464,20 @@
     "removeToken": "Remove",
     "cardManagement": "Card Management",
     "projectHistory": "Project & History"
+  },
+  "StudioV3": {
+    "quickMode": "Quick Generate",
+    "cardMode": "Card Generate",
+    "emptyStateHint": "Write a description on the left to start creating",
+    "generating": "Generating...",
+    "selectProject": "Select project",
+    "newProject": "New project",
+    "noProjects": "No projects yet, create your first one",
+    "quickModePlaceholder": "Model selector coming soon — use Card mode for now",
+    "selectModel": "Select a model",
+    "useAsReference": "Use as reference",
+    "addedAsReference": "Added as reference image",
+    "refImageLimitReached": "Reference image limit reached"
   },
   "Errors": {
     "common": {

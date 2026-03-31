@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
+import { fetchImageAsDataUrl } from '@/lib/fetch-image-data-url'
 
 interface UseImageUploadReturn {
   /** First reference image (backward compat for single-image adapters) */
@@ -11,6 +12,10 @@ interface UseImageUploadReturn {
   addReferenceImage: (image: string) => void
   removeReferenceImage: (index: number) => void
   clearAllImages: () => void
+  /** Add a reference image from an HTTPS URL (fetches + converts to base64) */
+  addFromUrl: (url: string) => Promise<void>
+  /** Set the max number of reference images allowed. Enforced in addReferenceImage/addFromUrl. */
+  setMaxImages: (max: number) => void
   isDragging: boolean
   setIsDragging: (dragging: boolean) => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
@@ -32,6 +37,11 @@ export function useImageUpload(): UseImageUploadReturn {
   const [referenceImages, setReferenceImages] = useState<string[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const maxImagesRef = useRef<number>(Infinity)
+
+  const setMaxImages = useCallback((max: number) => {
+    maxImagesRef.current = max
+  }, [])
 
   const referenceImage = referenceImages[0] as string | undefined
 
@@ -45,12 +55,25 @@ export function useImageUpload(): UseImageUploadReturn {
   }, [])
 
   const addReferenceImage = useCallback((image: string) => {
-    setReferenceImages((prev) => [...prev, image])
+    setReferenceImages((prev) => {
+      const max = maxImagesRef.current
+      if (max <= 1) return [image] // single-image mode: replace
+      if (prev.length >= max) return prev // multi-image mode: enforce limit
+      return [...prev, image]
+    })
   }, [])
 
   const removeReferenceImage = useCallback((index: number) => {
     setReferenceImages((prev) => prev.filter((_, i) => i !== index))
   }, [])
+
+  const addFromUrl = useCallback(
+    async (url: string) => {
+      const dataUrl = await fetchImageAsDataUrl(url)
+      addReferenceImage(dataUrl)
+    },
+    [addReferenceImage],
+  )
 
   const clearAllImages = useCallback(() => {
     setReferenceImages([])
@@ -77,7 +100,14 @@ export function useImageUpload(): UseImageUploadReturn {
     async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
       setIsDragging(false)
-      // Support dropping multiple files
+
+      // Ignore studio-ref drops here — handled by StudioLeftPanel global drop zone
+      // to avoid double-adding (event bubbles from ReferenceImageSection → LeftPanel)
+      if (e.dataTransfer.types.includes('application/x-studio-ref')) {
+        return
+      }
+
+      // Support dropping multiple local files
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith('image/'),
       )
@@ -112,6 +142,10 @@ export function useImageUpload(): UseImageUploadReturn {
           addReferenceImage(base64)
         }
       }
+      // Reset input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     },
     [loadImageAsBase64, addReferenceImage],
   )
@@ -126,6 +160,8 @@ export function useImageUpload(): UseImageUploadReturn {
     addReferenceImage,
     removeReferenceImage,
     clearAllImages,
+    addFromUrl,
+    setMaxImages,
     isDragging,
     setIsDragging,
     fileInputRef,

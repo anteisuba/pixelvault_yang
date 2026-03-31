@@ -7,8 +7,13 @@ import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 
 /**
- * One-shot Studio V2 generation:
- * compileRecipe → generateImageForUser
+ * Studio generation — two paths:
+ *
+ * Quick mode (modelId present):
+ *   Skip recipe compilation → direct generateImageForUser
+ *
+ * Card mode (styleCardId present):
+ *   compileRecipe → generateImageForUser (original V2 flow)
  */
 export async function compileAndGenerate(
   clerkId: string,
@@ -16,7 +21,34 @@ export async function compileAndGenerate(
 ): Promise<GenerationRecord> {
   const dbUser = await ensureUser(clerkId)
 
-  logger.info('[StudioGenerate] Compiling recipe', {
+  // ── Quick mode: modelId direct path ─────────────────────────
+  if (input.modelId) {
+    logger.info('[StudioGenerate] Quick mode — direct generation', {
+      userId: dbUser.id,
+      modelId: input.modelId,
+      hasApiKeyId: !!input.apiKeyId,
+    })
+
+    const generation = await generateImageForUser(clerkId, {
+      prompt: input.freePrompt ?? '',
+      modelId: input.modelId,
+      apiKeyId: input.apiKeyId,
+      aspectRatio: input.aspectRatio ?? '1:1',
+      referenceImages:
+        input.referenceImages && input.referenceImages.length > 0
+          ? input.referenceImages
+          : undefined,
+      advancedParams: input.advancedParams
+        ? (input.advancedParams as Record<string, unknown>)
+        : undefined,
+      projectId: input.projectId,
+    })
+
+    return generation
+  }
+
+  // ── Card mode: recipe compilation path ──────────────────────
+  logger.info('[StudioGenerate] Card mode — compiling recipe', {
     userId: dbUser.id,
     styleCardId: input.styleCardId,
     characterCardId: input.characterCardId,

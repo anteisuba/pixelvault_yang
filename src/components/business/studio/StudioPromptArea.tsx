@@ -20,13 +20,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         dispatch({ type: 'SET_PROMPT', payload: e.target.value })
       }
       placeholder={
+        state.workflowMode === 'card' &&
         selectedStyleCard?.modelId &&
         modelSupportsLora(selectedStyleCard.modelId)
           ? t('freePromptPlaceholderLora')
           : t('freePromptPlaceholder')
       }
-      className="w-full rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm font-serif text-foreground placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none"
-      rows={2}
+      className="w-full min-h-[100px] rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm font-serif text-foreground placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none"
+      rows={4}
     />
   )
 })

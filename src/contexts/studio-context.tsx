@@ -43,16 +43,20 @@ import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 export type PanelName =
   | 'cardManagement'
   | 'projectHistory'
+  | 'modelSelector'
   | 'civitai'
   | 'enhance'
   | 'reverse'
   | 'advanced'
   | 'refImage'
 
-type StudioMode = 'image' | 'video'
+type OutputType = 'image' | 'video'
+type WorkflowMode = 'quick' | 'card'
 
 export interface StudioFormState {
-  mode: StudioMode
+  outputType: OutputType
+  workflowMode: WorkflowMode
+  selectedOptionId: string | null
   prompt: string
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
@@ -61,19 +65,23 @@ export interface StudioFormState {
 }
 
 export type StudioAction =
-  | { type: 'SET_MODE'; payload: StudioMode }
+  | { type: 'SET_OUTPUT_TYPE'; payload: OutputType }
+  | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
+  | { type: 'SET_OPTION_ID'; payload: string | null }
   | { type: 'SET_PROMPT'; payload: string }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
+  | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
   | { type: 'RESET_FORM' }
 
 const initialPanels: Record<PanelName, boolean> = {
   cardManagement: false,
   projectHistory: false,
+  modelSelector: false,
   civitai: false,
   enhance: false,
   reverse: false,
@@ -82,7 +90,9 @@ const initialPanels: Record<PanelName, boolean> = {
 }
 
 const initialFormState: StudioFormState = {
-  mode: 'image',
+  outputType: 'image',
+  workflowMode: 'quick',
+  selectedOptionId: null,
   prompt: '',
   aspectRatio: '1:1',
   advancedParams: {},
@@ -95,8 +105,12 @@ export function studioFormReducer(
   action: StudioAction,
 ): StudioFormState {
   switch (action.type) {
-    case 'SET_MODE':
-      return { ...state, mode: action.payload }
+    case 'SET_OUTPUT_TYPE':
+      return { ...state, outputType: action.payload }
+    case 'SET_WORKFLOW_MODE':
+      return { ...state, workflowMode: action.payload }
+    case 'SET_OPTION_ID':
+      return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
       return { ...state, prompt: action.payload }
     case 'SET_ASPECT_RATIO':
@@ -107,13 +121,31 @@ export function studioFormReducer(
       return { ...state, advancedParams: {} }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
-    case 'TOGGLE_PANEL':
+    case 'TOGGLE_PANEL': {
+      const target = action.payload
+      const isOpening = !state.panels[target]
+      // Toolbar panels are mutually exclusive — opening one closes the others
+      const toolbarPanels: PanelName[] = [
+        'enhance',
+        'reverse',
+        'advanced',
+        'refImage',
+        'civitai',
+      ]
+      const isToolbarPanel = toolbarPanels.includes(target)
+      const newPanels = { ...state.panels }
+      if (isOpening && isToolbarPanel) {
+        for (const p of toolbarPanels) {
+          if (p !== target) newPanels[p] = false
+        }
+      }
+      newPanels[target] = isOpening
+      return { ...state, panels: newPanels }
+    }
+    case 'OPEN_PANEL':
       return {
         ...state,
-        panels: {
-          ...state.panels,
-          [action.payload]: !state.panels[action.payload],
-        },
+        panels: { ...state.panels, [action.payload]: true },
       }
     case 'CLOSE_PANEL':
       return {
@@ -126,6 +158,7 @@ export function studioFormReducer(
         prompt: '',
         aspectRatio: '1:1',
         advancedParams: {},
+        selectedOptionId: null,
         panels: { ...initialPanels },
       }
     default:

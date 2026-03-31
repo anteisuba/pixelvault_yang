@@ -34,6 +34,23 @@ export function HistoryPanel({
     [onSelect],
   )
 
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, gen: GenerationRecord) => {
+      // Only allow dragging images, not videos
+      if (gen.outputType !== 'IMAGE' || !gen.url) {
+        e.preventDefault()
+        return
+      }
+      e.dataTransfer.effectAllowed = 'copy'
+      e.dataTransfer.setData(
+        'application/x-studio-ref',
+        JSON.stringify({ url: gen.url, id: gen.id }),
+      )
+      e.dataTransfer.setData('text/uri-list', gen.url)
+    },
+    [],
+  )
+
   if (!isLoading && generations.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
@@ -62,10 +79,15 @@ export function HistoryPanel({
             key={gen.id}
             type="button"
             onClick={() => handleSelect(gen)}
+            draggable={gen.outputType === 'IMAGE' && !!gen.url}
+            onDragStart={(e) => handleDragStart(e, gen)}
             className={cn(
               'group relative aspect-square overflow-hidden rounded-md border border-border/40 bg-muted/30 transition-all',
               'hover:border-primary/30 hover:shadow-sm',
               onSelect && 'cursor-pointer',
+              gen.outputType === 'IMAGE' &&
+                gen.url &&
+                'cursor-grab active:cursor-grabbing',
             )}
           >
             {gen.url ? (

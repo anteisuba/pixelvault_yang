@@ -806,6 +806,10 @@
       "anime": {
         "label": "动漫",
         "description": "添加动漫风格和角色细节"
+      },
+      "lora": {
+        "label": "LoRA 标签",
+        "description": "生成 LoRA 触发关键词和标签"
       }
     }
   },
@@ -1449,8 +1453,8 @@
     "aspectRatioLabel": "宽高比",
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
-    "enhance": "增强",
-    "reverse": "反推",
+    "enhance": "追加",
+    "reverse": "图片反向工程",
     "advanced": "高级",
     "referenceImage": "参考图",
     "referenceFormats": "JPG、PNG、WebP",
@@ -1460,6 +1464,20 @@
     "removeToken": "删除",
     "cardManagement": "卡片管理",
     "projectHistory": "项目与历史"
+  },
+  "StudioV3": {
+    "quickMode": "快速生成",
+    "cardMode": "卡片生成",
+    "emptyStateHint": "在左侧写下描述，开始你的第一次创作",
+    "generating": "正在生成...",
+    "selectProject": "选择项目",
+    "newProject": "新建项目",
+    "noProjects": "还没有项目，创建第一个开始创作",
+    "quickModePlaceholder": "模型选择器即将推出 — 请先使用卡片模式",
+    "selectModel": "选择模型",
+    "useAsReference": "用作参考图",
+    "addedAsReference": "已添加为参考图",
+    "refImageLimitReached": "参考图数量已达上限"
   },
   "Errors": {
     "common": {

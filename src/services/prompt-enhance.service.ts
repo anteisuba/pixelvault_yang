@@ -17,6 +17,8 @@ const STYLE_SYSTEM_PROMPTS: Record<PromptEnhanceStyle, string> = {
   photorealistic: `You are an expert AI image prompt engineer specializing in photorealism. Enhance the given prompt by adding camera parameters (lens type, focal length, aperture), lighting setup (golden hour, studio lighting), film stock qualities, and photographic composition rules. Return ONLY the enhanced prompt text, no explanation.`,
 
   anime: `You are an expert AI image prompt engineer specializing in anime and manga styles. Enhance the given prompt by adding anime-specific style descriptors, character design details, scene atmosphere, color vibrancy, and animation quality references (like Studio Ghibli, Makoto Shinkai style). Return ONLY the enhanced prompt text, no explanation.`,
+
+  lora: `You are an expert at writing trigger keywords for LoRA fine-tuned image models. Given a scene description, output a comma-separated list of LoRA-style trigger tags: character tags (e.g. 1girl, blue_hair, twintails), pose tags, clothing tags, background tags, quality tags (masterpiece, best quality, highres), and negative avoidance hints. Keep the output concise, tag-format only (lowercase, underscores). Return ONLY the tag list, no explanation or sentence prose.`,
 }
 
 export async function enhancePrompt(

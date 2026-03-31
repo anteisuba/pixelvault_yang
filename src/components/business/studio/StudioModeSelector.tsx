@@ -25,11 +25,13 @@ export const StudioModeSelector = memo(function StudioModeSelector() {
         <button
           type="button"
           role="tab"
-          aria-selected={state.mode === 'image'}
-          onClick={() => dispatch({ type: 'SET_MODE', payload: 'image' })}
+          aria-selected={state.outputType === 'image'}
+          onClick={() =>
+            dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
+          }
           className={cn(
             'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-            state.mode === 'image'
+            state.outputType === 'image'
               ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
               : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
           )}
@@ -40,11 +42,13 @@ export const StudioModeSelector = memo(function StudioModeSelector() {
         <button
           type="button"
           role="tab"
-          aria-selected={state.mode === 'video'}
-          onClick={() => dispatch({ type: 'SET_MODE', payload: 'video' })}
+          aria-selected={state.outputType === 'video'}
+          onClick={() =>
+            dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
+          }
           className={cn(
             'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-            state.mode === 'video'
+            state.outputType === 'video'
               ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
               : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
           )}

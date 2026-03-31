@@ -9,6 +9,7 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { cn } from '@/lib/utils'
 
 const ASPECT_RATIOS = ['1:1', '16:9', '9:16'] as const
@@ -20,10 +21,19 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const { isGenerating, generate } = useStudioGen()
   const t = useTranslations('StudioV2')
 
+  // ── Quick mode: resolve selected model (shared hook) ──────────
+  const { selectedModel } = useImageModelOptions()
+
+  // ── Card mode: style card ─────────────────────────────────────
   const selectedStyleCard = styles.activeCard
-  const canGenerate = !!styles.activeCardId && !!selectedStyleCard?.modelId
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
+
+  // ── canGenerate: depends on workflow mode ──────────────────────
+  const canGenerate =
+    state.workflowMode === 'quick'
+      ? !!selectedModel?.modelId && !!state.prompt.trim()
+      : !!styles.activeCardId && !!selectedStyleCard?.modelId
 
   // ── Reset advancedParams when adapter type changes ──────────
   const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
@@ -40,35 +50,61 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   }, [selectedStyleCard?.adapterType, dispatch])
 
   const handleGenerate = useCallback(async () => {
-    if (!canGenerate || !styles.activeCardId) return
-    await generate({
-      mode: 'image',
-      image: {
-        characterCardId: selectedCharId ?? undefined,
-        backgroundCardId: backgrounds.activeCardId ?? undefined,
-        styleCardId: styles.activeCardId,
-        freePrompt: state.prompt || undefined,
-        aspectRatio: state.aspectRatio,
-        projectId: projects.activeProjectId ?? undefined,
-        referenceImages:
-          imageUpload.referenceImages.length > 0
-            ? imageUpload.referenceImages
-            : undefined,
-        advancedParams:
-          Object.keys(state.advancedParams).length > 0
-            ? state.advancedParams
-            : undefined,
-      },
-    })
+    if (!canGenerate) return
+
+    if (state.workflowMode === 'quick' && selectedModel) {
+      // Quick mode: pass modelId + apiKeyId directly
+      await generate({
+        mode: 'image',
+        image: {
+          modelId: selectedModel.modelId,
+          apiKeyId: selectedModel.keyId,
+          freePrompt: state.prompt || undefined,
+          aspectRatio: state.aspectRatio,
+          projectId: projects.activeProjectId ?? undefined,
+          referenceImages:
+            imageUpload.referenceImages.length > 0
+              ? imageUpload.referenceImages
+              : undefined,
+          advancedParams:
+            Object.keys(state.advancedParams).length > 0
+              ? state.advancedParams
+              : undefined,
+        },
+      })
+    } else if (state.workflowMode === 'card' && styles.activeCardId) {
+      // Card mode: pass card IDs (original flow)
+      await generate({
+        mode: 'image',
+        image: {
+          characterCardId: selectedCharId ?? undefined,
+          backgroundCardId: backgrounds.activeCardId ?? undefined,
+          styleCardId: styles.activeCardId,
+          freePrompt: state.prompt || undefined,
+          aspectRatio: state.aspectRatio,
+          projectId: projects.activeProjectId ?? undefined,
+          referenceImages:
+            imageUpload.referenceImages.length > 0
+              ? imageUpload.referenceImages
+              : undefined,
+          advancedParams:
+            Object.keys(state.advancedParams).length > 0
+              ? state.advancedParams
+              : undefined,
+        },
+      })
+    }
   }, [
     canGenerate,
+    state.workflowMode,
+    state.prompt,
+    state.aspectRatio,
+    state.advancedParams,
+    selectedModel,
     generate,
     selectedCharId,
     backgrounds.activeCardId,
     styles.activeCardId,
-    state.prompt,
-    state.aspectRatio,
-    state.advancedParams,
     projects.activeProjectId,
     imageUpload.referenceImages,
   ])
@@ -126,10 +162,14 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
         </button>
       </div>
 
-      {/* No-model warning */}
-      {styles.activeCardId && !selectedStyleCard?.modelId && (
-        <p className="text-xs text-destructive/70 font-serif">{t('noModel')}</p>
-      )}
+      {/* No-model warning (card mode only) */}
+      {state.workflowMode === 'card' &&
+        styles.activeCardId &&
+        !selectedStyleCard?.modelId && (
+          <p className="text-xs text-destructive/70 font-serif">
+            {t('noModel')}
+          </p>
+        )}
     </>
   )
 })

@@ -13,7 +13,9 @@ function makeInitialState(
   overrides?: Partial<StudioFormState>,
 ): StudioFormState {
   return {
-    mode: 'image',
+    outputType: 'image',
+    workflowMode: 'quick',
+    selectedOptionId: null,
     prompt: '',
     aspectRatio: '1:1',
     advancedParams: {},
@@ -21,6 +23,7 @@ function makeInitialState(
     panels: {
       cardManagement: false,
       projectHistory: false,
+      modelSelector: false,
       civitai: false,
       enhance: false,
       reverse: false,
@@ -34,24 +37,64 @@ function makeInitialState(
 // ─── Tests ───────────────────────────────────────────────────────
 
 describe('studioFormReducer', () => {
-  // ── SET_MODE ──
+  // ── SET_OUTPUT_TYPE ──
 
-  it('SET_MODE changes mode', () => {
+  it('SET_OUTPUT_TYPE changes outputType', () => {
     const state = makeInitialState()
     const next = studioFormReducer(state, {
-      type: 'SET_MODE',
+      type: 'SET_OUTPUT_TYPE',
       payload: 'video',
     })
-    expect(next.mode).toBe('video')
+    expect(next.outputType).toBe('video')
   })
 
-  it('SET_MODE does not mutate other fields', () => {
+  it('SET_OUTPUT_TYPE does not mutate other fields', () => {
     const state = makeInitialState({ prompt: 'hello' })
     const next = studioFormReducer(state, {
-      type: 'SET_MODE',
+      type: 'SET_OUTPUT_TYPE',
       payload: 'video',
     })
     expect(next.prompt).toBe('hello')
+  })
+
+  // ── SET_WORKFLOW_MODE ──
+
+  it('SET_WORKFLOW_MODE switches to card mode', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_WORKFLOW_MODE',
+      payload: 'card',
+    })
+    expect(next.workflowMode).toBe('card')
+  })
+
+  it('SET_WORKFLOW_MODE switches back to quick mode', () => {
+    const state = makeInitialState({ workflowMode: 'card' })
+    const next = studioFormReducer(state, {
+      type: 'SET_WORKFLOW_MODE',
+      payload: 'quick',
+    })
+    expect(next.workflowMode).toBe('quick')
+  })
+
+  // ── SET_OPTION_ID ──
+
+  it('SET_OPTION_ID sets selected model', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_OPTION_ID',
+      payload: 'gemini-2.0-flash',
+    })
+    expect(next.selectedOptionId).toBe('gemini-2.0-flash')
+  })
+
+  it('SET_OPTION_ID clears selected model', () => {
+    const state = makeInitialState({ selectedOptionId: 'some-model' })
+    const next = studioFormReducer(state, {
+      type: 'SET_OPTION_ID',
+      payload: null,
+    })
+    expect(next.selectedOptionId).toBeNull()
   })
 
   // ── SET_PROMPT ──
@@ -160,14 +203,27 @@ describe('studioFormReducer', () => {
     expect(next.panels.advanced).toBe(false)
   })
 
-  it('TOGGLE_PANEL does not affect other panels', () => {
+  it('TOGGLE_PANEL does not affect non-toolbar panels', () => {
+    const state = makeInitialState()
+    state.panels.cardManagement = true
+    const next = studioFormReducer(state, {
+      type: 'TOGGLE_PANEL',
+      payload: 'advanced',
+    })
+    // cardManagement is not a toolbar panel, so it stays open
+    expect(next.panels.cardManagement).toBe(true)
+    expect(next.panels.advanced).toBe(true)
+  })
+
+  it('TOGGLE_PANEL toolbar panels are mutually exclusive', () => {
     const state = makeInitialState()
     state.panels.enhance = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
       payload: 'advanced',
     })
-    expect(next.panels.enhance).toBe(true)
+    // Opening advanced should close enhance (both are toolbar panels)
+    expect(next.panels.enhance).toBe(false)
     expect(next.panels.advanced).toBe(true)
   })
 
@@ -194,11 +250,12 @@ describe('studioFormReducer', () => {
 
   // ── RESET_FORM ──
 
-  it('RESET_FORM resets prompt, aspectRatio, advancedParams, and panels', () => {
+  it('RESET_FORM resets prompt, aspectRatio, advancedParams, selectedOptionId, and panels', () => {
     const state = makeInitialState({
       prompt: 'something long',
       aspectRatio: '16:9',
       advancedParams: { guidanceScale: 12 },
+      selectedOptionId: 'some-model',
     })
     state.panels.advanced = true
     state.panels.enhance = true
@@ -208,15 +265,22 @@ describe('studioFormReducer', () => {
     expect(next.prompt).toBe('')
     expect(next.aspectRatio).toBe('1:1')
     expect(next.advancedParams).toEqual({})
+    expect(next.selectedOptionId).toBeNull()
     // All panels should be closed
     const allPanelsClosed = Object.values(next.panels).every((v) => v === false)
     expect(allPanelsClosed).toBe(true)
   })
 
-  it('RESET_FORM preserves mode', () => {
-    const state = makeInitialState({ mode: 'video', prompt: 'test' })
+  it('RESET_FORM preserves outputType', () => {
+    const state = makeInitialState({ outputType: 'video', prompt: 'test' })
     const next = studioFormReducer(state, { type: 'RESET_FORM' })
-    expect(next.mode).toBe('video')
+    expect(next.outputType).toBe('video')
+  })
+
+  it('RESET_FORM preserves workflowMode', () => {
+    const state = makeInitialState({ workflowMode: 'card', prompt: 'test' })
+    const next = studioFormReducer(state, { type: 'RESET_FORM' })
+    expect(next.workflowMode).toBe('card')
   })
 
   it('RESET_FORM preserves tokenInput', () => {
@@ -249,6 +313,7 @@ describe('studioFormReducer', () => {
   it.each<PanelName>([
     'cardManagement',
     'projectHistory',
+    'modelSelector',
     'civitai',
     'enhance',
     'reverse',

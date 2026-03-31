@@ -1,5 +1,7 @@
 # Studio V3 重设计计划
 
+> **Last updated**: 2026-03-31 — Phase 1 已实现，Phase 2-5 根据 post-implementation review 修订
+
 ## Context
 
 当前 Studio 的核心 UX 问题：
@@ -153,10 +155,13 @@ Studio 顶部（Toggle 之上）放项目选择器：
 
 ### API 变更
 扩展现有 `/api/studio/generate`：
-- `StudioGenerateSchema` 新增 `modelId: z.string().optional()`
+- `StudioGenerateSchema` 新增 `modelId: z.string().optional()` + `apiKeyId: z.string().optional()`
 - 有 `modelId` 时跳过 recipe compilation，直接调用 `generateImageForUser`
 - 有 `styleCardId` 时走原来的 `compileAndGenerate` 流程
-- 两者互斥校验
+- **双重 refine 校验** (post-review 修订):
+  1. `modelId || styleCardId` — 至少一个必填（防止两者都空穿透到服务层报 500）
+  2. `!(modelId && styleCardId)` — 互斥（防止冲突）
+- `apiKeyId` 用于 saved route / custom model（与 `GenerateRequestSchema` 一致）
 
 ### 卡片编辑
 - 选择: CardDropdown（轻量 Popover）
@@ -165,8 +170,9 @@ Studio 顶部（Toggle 之上）放项目选择器：
 
 ---
 
-## Phase 1: 左右分栏布局 + 项目选择器 + Toggle
+## Phase 1: 左右分栏布局 + 项目选择器 + Toggle ✅ DONE
 
+**状态**: 已实现 (2026-03-31)
 **目标**: 把单列 StudioWorkspace 改为左右分栏 + 顶部项目选择器 + Toggle 模式切换
 
 ### 修改文件清单:
@@ -178,20 +184,25 @@ Studio 顶部（Toggle 之上）放项目选择器：
 - action `SET_MODE` → `SET_OUTPUT_TYPE`
 - 所有引用处同步更新
 
-**新增 FormState 字段**:
+**新增 FormState 字段** (已实现 + Phase 2 修订):
 ```ts
 // 在 StudioFormState 中添加:
-workflowMode: 'quick' | 'card'  // 快速生成 vs 卡片生成
-selectedModelId: string | null   // 快速模式下选中的模型
+workflowMode: 'quick' | 'card'    // 快速生成 vs 卡片生成 (Phase 1 已实现)
+selectedModelId: string | null     // Phase 1 已实现 (Phase 2 将重命名为 selectedOptionId)
+// Phase 2 修订: selectedModelId → selectedOptionId: string | null
+// 原因: 只存 modelId 会丢失 apiKeyId，saved route / custom model 无法工作
+// ModelSelector 的 optionId 格式: "workspace:modelId" 或 "saved:keyId"
+// 生成时通过 findSelectedModel(options, optionId) 解析出 modelId + keyId
 ```
 
-**新增 Actions**:
+**新增 Actions** (Phase 1 已实现):
 ```ts
 | { type: 'SET_WORKFLOW_MODE'; payload: 'quick' | 'card' }
 | { type: 'SET_MODEL_ID'; payload: string | null }
+// Phase 2: SET_MODEL_ID → SET_OPTION_ID, payload 类型不变
 ```
 
-**Reducer 新增 case**:
+**Reducer 新增 case** (Phase 1 已实现):
 ```ts
 case 'SET_WORKFLOW_MODE':
   return { ...state, workflowMode: action.payload }
@@ -365,7 +376,10 @@ useEffect(() => {
 
 **空状态**: 无项目时显示 "还没有项目，创建第一个开始创作" + 创建按钮
 
-**首次进入**: 自动选中最近更新的项目（`projects[0]` 因为 API 按 updatedAt desc 排序）
+**首次进入**: 保持 `activeProjectId = null`（"All Generations" 状态）。
+> **POST-REVIEW 修订**: 原计划自动选第一个项目，但系统支持 null 项目状态。
+> 删除项目时 generations 移回 projectId=null，如果不保留 null 入口这些数据会丢失。
+> `useProjects` 已用 `pid ?? 'unassigned'` 正确查询无项目的记录。
 
 #### 6. `src/components/business/studio/StudioLeftPanel.tsx` (新建)
 
@@ -511,47 +525,106 @@ export { StudioErrorBoundary } from './StudioErrorBoundary'
 - 切换项目时: `useBackgroundCards(activeProjectId)` 和 `useStyleCards(activeProjectId)` 自动响应
 - 不需要额外的 DataState 字段，因为 `useProjects` 已提供 `activeProjectId` + `setActiveProjectId`
 
-**FormContext 变更**:
-- `workflowMode` 控制左侧面板显示哪套 UI
-- `selectedModelId` 用于快速模式下的模型直选（Phase 2 才真正用到）
-- `outputType` 替换原来的 `mode`（保持 image/video 切换，与 workflowMode 正交）
+**FormContext 变更** (Phase 1 已实现):
+- `workflowMode` 控制左侧面板显示哪套 UI ✅
+- `selectedModelId` → Phase 2 重命名为 `selectedOptionId`（存 ModelSelector 的 optionId 而非裸 modelId）
+- `outputType` 替换原来的 `mode`（保持 image/video 切换，与 workflowMode 正交）✅
 
 ---
 
-## Phase 2: 模型直选 + 无卡片生成
+## Phase 2: 模型直选 + 无卡片生成 (POST-REVIEW 修订版)
 
 **目标**: 快速模式下模型选择器 + prompt 即可生成
 
 ### 修改文件:
-- `src/components/business/studio/StudioLeftPanel.tsx` — 添加模型选择器（快速模式）
-- `src/components/business/studio/StudioGenerateBar.tsx` — 修改 canGenerate 逻辑
-- `src/types/index.ts` — 扩展 StudioGenerateSchema，添加 modelId 字段
-- `src/app/api/studio/generate/route.ts` — 处理 modelId 直传
+- `src/contexts/studio-context.tsx` — `selectedModelId` → `selectedOptionId`, `SET_MODEL_ID` → `SET_OPTION_ID`
+- `src/contexts/studio-context.test.ts` — 同步更新测试
+- `src/components/business/studio/StudioLeftPanel.tsx` — 替换占位为 ModelSelector，构建 modelOptions
+- `src/components/business/studio/StudioGenerateBar.tsx` — 修改 canGenerate + handleGenerate 逻辑
+- `src/types/index.ts` — 扩展 StudioGenerateSchema
+- `src/app/api/studio/generate/route.ts` — 处理 modelId + apiKeyId 直传
 - `src/services/studio-generate.service.ts` — modelId 直传时跳过 recipe compilation
+- `src/hooks/use-studio-model-options.ts` (新建) — 构建快速模式 model options（复用 VideoGenerateForm 的模式）
+
+### Context 重命名 (修订: 防止能力倒退):
+```ts
+// studio-context.tsx
+// Phase 1 已有:
+selectedModelId: string | null
+// Phase 2 改为:
+selectedOptionId: string | null    // ModelSelector 的 optionId
+// optionId 格式: "workspace:{modelId}" 或 "saved:{keyId}"
+// 生成时: findSelectedModel(options, optionId) → { modelId, keyId }
+```
+
+**修订原因**: 只存 modelId 会丢失 saved route 的 apiKeyId 信息。
+现有系统中 `VideoGenerateForm` 已用相同模式:
+- `StudioModelOption.optionId` 存选择
+- 提交时从 option 解析 `modelId` + `keyId`(→apiKeyId)
+- `resolveGenerationRoute` 依赖 apiKeyId 区分 saved/workspace/free 三条路径
+
+### StudioLeftPanel 中的 ModelSelector 集成:
+```ts
+// 构建 options (复用 VideoGenerateForm 的模式)
+const imageModels = getAvailableImageModels()
+const builtInOptions: StudioModelOption[] = imageModels.map(model => ({
+  optionId: `workspace:${model.id}`,
+  modelId: model.id,
+  adapterType: model.adapterType,
+  providerConfig: model.providerConfig,
+  requestCount: model.cost,
+  isBuiltIn: true,
+  sourceType: 'workspace',
+}))
+const savedOptions = buildSavedModelOptions(
+  keys.filter(key => key.isActive),
+  key => imageModels.some(m => m.id === key.modelId),
+)
+const modelOptions = [...builtInOptions, ...savedOptions]
+const selectedModel = findSelectedModel(modelOptions, state.selectedOptionId)
+```
 
 ### canGenerate 新逻辑:
 ```ts
 // 旧: !!styles.activeCardId && !!selectedStyleCard?.modelId
 // 新:
 const canGenerate = (
-  (formState.workflowMode === 'quick' && !!formState.selectedModelId) ||
+  (formState.workflowMode === 'quick' && !!selectedModel?.modelId) ||
   (formState.workflowMode === 'card' && !!styles.activeCardId && !!selectedStyleCard?.modelId)
 ) && !!formState.prompt.trim()
 ```
 
-### API Key 自动路由 (已有逻辑复用):
-- `src/services/generate-image.service.ts` 的 `resolveGenerationRoute` 已支持
-- 前端用 useMemo in StudioLeftPanel 提前检查，无 key 时内联提示
+### handleGenerate 新逻辑 (快速模式):
+```ts
+if (state.workflowMode === 'quick' && selectedModel) {
+  await generate({
+    mode: 'image',
+    image: {
+      modelId: selectedModel.modelId,
+      apiKeyId: selectedModel.keyId,    // ← 关键: 传 apiKeyId 以支持 saved route
+      freePrompt: state.prompt,
+      aspectRatio: state.aspectRatio,
+      projectId: projects.activeProjectId ?? undefined,
+      referenceImages: ...,
+      advancedParams: ...,
+    },
+  })
+}
+```
 
-### Schema 互斥校验 (Eng Review #2):
+### Schema 双重校验 (修订: 防止两者都空):
 ```ts
 // src/types/index.ts
 export const StudioGenerateSchema = z.object({
   // ...现有字段
   modelId: z.string().optional(),
+  apiKeyId: z.string().optional(),     // ← 新增: saved route 支持
   styleCardId: z.string().optional(),
   // ...其他字段
 }).refine(
+  (data) => !!(data.modelId || data.styleCardId),
+  { message: 'Either modelId or styleCardId is required' }
+).refine(
   (data) => !(data.modelId && data.styleCardId),
   { message: 'Cannot specify both modelId and styleCardId', path: ['modelId'] }
 )
@@ -565,6 +638,7 @@ export async function compileAndGenerate(clerkId: string, input: StudioGenerateI
     // 跳过 recipe compilation，直接生成
     return generateImageForUser(clerkId, {
       modelId: input.modelId,
+      apiKeyId: input.apiKeyId,         // ← 传递 apiKeyId
       prompt: input.freePrompt,
       aspectRatio: input.aspectRatio,
       referenceImages: input.referenceImages,
@@ -580,9 +654,10 @@ export async function compileAndGenerate(clerkId: string, input: StudioGenerateI
 ```
 
 ### Phase 2 测试:
-- `StudioGenerateSchema` 互斥校验: modelId + styleCardId → parse error
-- `compileAndGenerate` modelId 路径: 跳过 compileRecipe
-- canGenerate 逻辑: quick mode + modelId → true, card mode + no card → false
+- `StudioGenerateSchema` 双重校验: 两者都空 → error; 两者都有 → error; 只有一个 → pass
+- `compileAndGenerate` modelId 路径: apiKeyId 正确透传
+- canGenerate 逻辑: quick mode + selectedModel → true, card mode + no card → false
+- saved route 端到端: 选 saved option → apiKeyId 传到后端 → resolveGenerationRoute 走 saved 路径
 
 ---
 
@@ -605,10 +680,22 @@ const showLoRA = !selectedModelId || model?.supportsLora
 const showAdvancedParams = !!selectedModelId
 ```
 
-### 历史网格拖拽到参考图:
-- 右侧历史网格图片: `draggable="true"` + `onDragStart` 设置 `dataTransfer`
-- 左侧参考图区域: `onDrop` 接收图片 URL → 调用 `useImageUpload.addFromUrl()`
-- 复用现有 `ReferenceImageSection` + `useImageUpload`
+### 历史网格拖拽到参考图 (POST-REVIEW 修订):
+
+**问题**: `useImageUpload.addFromUrl()` 不存在。现有 hook 只支持本地文件上传 (FileReader.readAsDataURL)。
+
+**修订方案**:
+1. **给 `useImageUpload` 新增 `addFromUrl(url: string)` 方法**:
+   - fetch(url) → blob → FileReader.readAsDataURL → base64
+   - 验证 MIME type (image/jpeg, image/png, image/webp)
+   - 验证文件大小 (与现有 MAX_FILE_SIZE 一致)
+   - 错误处理: CORS 失败 / 格式不对 → toast 提示
+2. **CORS 前提**: R2 图片 URL 需要 CORS 配置允许同源 fetch (确认 R2 bucket CORS policy)
+3. **实现**:
+   - 右侧历史网格: `draggable="true"` + `onDragStart` 设置 `dataTransfer.setData('text/uri-list', imageUrl)`
+   - 左侧参考图区域: `onDrop` 检测 `text/uri-list` → 调用 `addFromUrl(url)`
+   - 复用现有 `ReferenceImageSection` (已有 onDrop handler，需扩展识别 URL 类型)
+4. **降级**: 如果 CORS 受限，改用 proxy endpoint `/api/proxy-image?url=xxx` 中转
 
 ---
 
@@ -759,24 +846,29 @@ const showAdvancedParams = !!selectedModelId
 
 ## What already exists (可复用)
 
-- `StudioModeSelector` — 现有模式选择器组件（可改造为 Toggle）
-- `StudioGenerateBar` — 生成按钮+逻辑（需修改 canGenerate）
-- `StudioPromptArea` — 提示词输入区（直接复用）
-- `ReferenceImageSection` — 参考图上传组件（直接复用）
-- `useImageUpload` — 图片上传 hook（直接复用）
+### Phase 1 已实现的组件 (不要重新创建):
+- `StudioLeftPanel` — 左侧配置面板 (Toggle + CardDropdown + Prompt + GenerateBar + Toolbar + 卡片管理)
+- `StudioRightPanel` — 右侧结果面板 (GenerationPreview + HistoryPanel)
+- `GenerationPreview` — 生成预览 (空状态 + 生成中 + 结果展示)
+- `StudioModeSelector` — Image/Video 模式切换 (已用 SET_OUTPUT_TYPE)
+- `StudioWorkspace` — 左右分栏布局 + ProjectSelector + ModeSelector
+
+### 可直接复用:
+- `StudioGenerateBar` — 生成按钮+逻辑（Phase 2 修改 canGenerate）
+- `StudioPromptArea` — 提示词输入区
+- `ReferenceImageSection` — 参考图上传组件
+- `useImageUpload` — 图片上传 hook (Phase 3 需要扩展 addFromUrl)
 - `StyleCardEditor` — LoRA 配置（去掉参考图模式后复用）
-- `CardDropdown` — 卡片选择下拉（直接复用）
+- `CardDropdown` — 卡片选择下拉
+- `ModelSelector` — 模型选择器 (Phase 2 直接复用，与 VideoGenerateForm 相同模式)
+- `buildSavedModelOptions` / `findSelectedModel` — ModelSelector 配套工具函数
 - shadcn `Sheet`, `Select`, `Button`, `Input`, `Textarea` — UI 原语
-- `resolveGenerationRoute` — API Key 自动路由（后端已有）
+- `resolveGenerationRoute` — API Key 自动路由（后端已有，支持 saved/workspace/free 三路径）
 - `provider-capabilities` — 模型能力查询（已有）
-- `/api/projects` — 项目 CRUD API（已有）
-- `/api/projects/[id]/history` — 项目生成历史 API（已有）
-- `Project` 数据模型 — 关联 generations + 所有卡片类型（已有）
-- `StudioGenerateSchema.projectId` — 生成请求已支持 projectId（已有）
-- `docs/design-system.md` — 完整设计系统（赤陶暖色调）
-- `useProjects` hook — 项目 CRUD（已在 StudioProvider 中使用）
-- `useCharacterCards`, `useBackgroundCards`, `useStyleCards` — 卡片管理 hooks（已有）
-- `useUnifiedGenerate` — 统一生成 hook（已有）
+- `ProjectSelector` — 项目选择器 (支持 null = "All Generations")
+- `useProjects` hook — 项目 CRUD + null 状态 + 历史查询
+- `useCharacterCards`, `useBackgroundCards`, `useStyleCards` — 卡片管理 hooks
+- `useUnifiedGenerate` — 统一生成 hook
 
 ## Failure Modes
 
@@ -784,11 +876,16 @@ const showAdvancedParams = !!selectedModelId
 |----------|---------|---------|------------|----------|
 | modelId 直传生成 | 模型不存在/已下线 | 待写 | 有(resolveRoute 会抛错) | toast 报错 |
 | modelId + styleCardId 同传 | 前端 bug | 待写(Zod refine) | 有(400) | 400 错误 |
+| **两者都空** | **前端 bug 或绕过** | **待写(Zod refine)** | **Phase 2 新增** | **400 错误** |
 | 快速模式无 API key | 用户没配 key | 待写 | 有(ApiKeyError) | 内联警告 |
-| 项目切换 race condition | 快速切换 3 次 | 待写 | Phase 1 修复(stale guard) | 修复后无闪烁 |
-| 历史拖拽到参考图 | 跨域图片 URL | 无 | 待确认 | 可能静默失败 |
+| **saved route apiKeyId 缺失** | **只传 modelId 没传 apiKeyId** | **待写** | **resolveRoute 走 workspace fallback** | **可能用错 key** |
+| 项目切换 race condition | 快速切换 3 次 | ✅ Phase 1 已修 | ✅ stale guard | ✅ 修复后无闪烁 |
+| 历史拖拽到参考图 | 跨域图片 URL | 无 | Phase 3 需实现 addFromUrl + CORS | 可能静默失败 |
+| **null 项目状态** | **删除项目后 generations 无入口** | **N/A** | **✅ 已保留 null** | **✅ All Generations 入口** |
 
-**修复**: 项目切换 race condition — `useCardManager` 的 `useEffect` 加 stale request guard（`let ignore = false` 模式），防止旧 projectId 的响应覆盖新数据。一起在 Phase 1 修复。
+**已修复 (Phase 1)**: 项目切换 race condition — `useCardManager` 的 `useEffect` 加 stale request guard。
+**待修复 (Phase 2)**: Schema 双重校验 + apiKeyId 透传 + selectedOptionId 重命名。
+**待修复 (Phase 3)**: `useImageUpload.addFromUrl()` 实现 + CORS 确认。
 
 ## GSTACK REVIEW REPORT
 
@@ -798,6 +895,17 @@ const showAdvancedParams = !!selectedModelId
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | DONE | 4 issues, 0 critical gaps, scope reduced |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | DONE | score: 5/10 → 8/10, 7 decisions made (incl. Issue #20 project system) |
+| **Post-impl Review** | Manual | Phase 1 后复查 | 1 | **DONE** | **5 issues found, all addressed below** |
+
+### Post-implementation Review (2026-03-31)
+
+| # | 问题 | 严重度 | 修订 |
+|---|------|--------|------|
+| P1 | Schema 只做互斥校验，缺少至少一个约束 → 两者都空时 500 而非 400 | **High** | 加 `modelId \|\| styleCardId` refine |
+| P1 | Quick mode 只存 selectedModelId 丢失 apiKeyId → saved route 能力倒退 | **High** | 改为 selectedOptionId + 提取 modelId/keyId |
+| P1 | 自动选第一个 project 丢失 null 状态 → 无项目 generations 无入口 | **Medium** | 保留 null 默认 + "All Generations" 入口 |
+| P2 | Phase 1 内容已实现但计划未标记 → 重复实现风险 | **Medium** | 标记 ✅ DONE |
+| P2 | 拖拽依赖 addFromUrl() 但 hook 无此 API | **Medium** | Phase 3 前需实现 + CORS 确认 |
 
 **UNRESOLVED:** 0 decisions pending
-**VERDICT:** Design + Eng CLEARED — ready to implement. Run `/ship` when done.
+**VERDICT:** Phase 1 ✅ shipped. Phase 2-5 plan revised and ready.

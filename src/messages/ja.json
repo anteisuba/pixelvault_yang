@@ -806,6 +806,10 @@
       "anime": {
         "label": "アニメ",
         "description": "アニメスタイルとキャラクターの詳細を追加"
+      },
+      "lora": {
+        "label": "LoRAタグ",
+        "description": "LoRAトリガーキーワードとタグを生成"
       }
     }
   },
@@ -1445,8 +1449,8 @@
     "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
-    "enhance": "強化",
-    "reverse": "リバース",
+    "enhance": "追加",
+    "reverse": "画像リバース",
     "advanced": "詳細",
     "referenceImage": "参照画像",
     "referenceFormats": "JPG、PNG、WebP",
@@ -1460,6 +1464,20 @@
     "background": "背景",
     "style": "スタイル",
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
+  },
+  "StudioV3": {
+    "quickMode": "クイック生成",
+    "cardMode": "カード生成",
+    "emptyStateHint": "左側に説明を書いて作成を開始",
+    "generating": "生成中...",
+    "selectProject": "プロジェクトを選択",
+    "newProject": "新規プロジェクト",
+    "noProjects": "プロジェクトがありません。最初の一つを作成しましょう",
+    "quickModePlaceholder": "モデルセレクターは近日公開 — 今はカードモードをご利用ください",
+    "selectModel": "モデルを選択",
+    "useAsReference": "参照画像として使用",
+    "addedAsReference": "参照画像として追加しました",
+    "refImageLimitReached": "参照画像の上限に達しました"
   },
   "Errors": {
     "common": {

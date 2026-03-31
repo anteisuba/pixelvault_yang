@@ -20,6 +20,7 @@ const STYLE_ICONS: Record<PromptEnhanceStyle, string> = {
   artistic: '🎨',
   photorealistic: '📷',
   anime: '✨',
+  lora: '🏷️',
 }
 
 export function PromptEnhanceButton({

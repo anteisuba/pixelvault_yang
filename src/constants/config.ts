@@ -191,7 +191,7 @@ export const ARENA = {
 /** Prompt enhancement configuration */
 export const PROMPT_ENHANCE = {
   MAX_INPUT_LENGTH: 2000,
-  STYLES: ['detailed', 'artistic', 'photorealistic', 'anime'] as const,
+  STYLES: ['detailed', 'artistic', 'photorealistic', 'anime', 'lora'] as const,
 } as const
 
 export type PromptEnhanceStyle = (typeof PROMPT_ENHANCE.STYLES)[number]

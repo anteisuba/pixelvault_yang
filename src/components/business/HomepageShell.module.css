@@ -898,17 +898,7 @@
   font-size: clamp(1.25rem, 1.8vw, 1.5rem);
 }
 
-/* ── Showcase grid featured first card ───────────────────────────────────── */
-
-@media (min-width: 768px) {
-  .showcaseGrid > :first-child {
-    grid-row: span 2;
-  }
-
-  .showcaseGrid > :first-child .showcaseCardImageWrap {
-    aspect-ratio: 3 / 4;
-  }
-}
+/* ── Showcase grid: uniform cards (no featured first card) ─────────────── */
 
 /* ── Responsive: tablet+ ─────────────────────────────────────────────────── */
 

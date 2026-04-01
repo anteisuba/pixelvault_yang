@@ -6,7 +6,11 @@ import { getAvailableImageModels } from '@/constants/models'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
-import { buildSavedModelOptions, findSelectedModel } from '@/lib/model-options'
+import {
+  buildSavedModelOptions,
+  findSelectedModel,
+  mergeModelOptionsWithSavedFirst,
+} from '@/lib/model-options'
 
 export interface UseImageModelOptionsReturn {
   /** All available model options (workspace + saved routes) */
@@ -40,7 +44,7 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
       keys.filter((k) => k.isActive),
       (k) => imageModels.some((m) => m.id === k.modelId),
     )
-    return [...builtIn, ...saved]
+    return mergeModelOptionsWithSavedFirst(saved, builtIn)
   }, [imageModels, keys])
 
   const selectedModel = useMemo(

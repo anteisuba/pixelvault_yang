@@ -1,5 +1,9 @@
 import { API_USAGE } from '@/constants/config'
-import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
+import {
+  getModelById,
+  getModelMessageKey,
+  isBuiltInModel,
+} from '@/constants/models'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { UserApiKeyRecord } from '@/types'
 
@@ -17,13 +21,25 @@ export function buildSavedModelOptions(
     modelId: key.modelId,
     adapterType: key.adapterType,
     providerConfig: key.providerConfig,
-    requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+    requestCount:
+      getModelById(key.modelId)?.cost ??
+      API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     isBuiltIn: isBuiltInModel(key.modelId),
     sourceType: 'saved' as const,
     keyId: key.id,
     keyLabel: key.label,
     maskedKey: key.maskedKey,
   }))
+}
+
+/**
+ * Keep saved routes ahead of workspace defaults while preserving relative order.
+ */
+export function mergeModelOptionsWithSavedFirst(
+  savedOptions: StudioModelOption[],
+  workspaceOptions: StudioModelOption[],
+): StudioModelOption[] {
+  return [...savedOptions, ...workspaceOptions]
 }
 
 /**

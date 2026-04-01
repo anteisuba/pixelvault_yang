@@ -8,6 +8,12 @@ import { useStudioGen } from '@/contexts/studio-context'
 import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'
 
+function formatDuration(seconds: number): string {
+  const min = Math.floor(seconds / 60)
+  const sec = seconds % 60
+  return min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`
+}
+
 interface GenerationPreviewProps {
   onUseAsReference?: (url: string) => void
 }
@@ -15,7 +21,7 @@ interface GenerationPreviewProps {
 export const GenerationPreview = memo(function GenerationPreview({
   onUseAsReference,
 }: GenerationPreviewProps) {
-  const { isGenerating, lastGeneration } = useStudioGen()
+  const { isGenerating, lastGeneration, elapsedSeconds } = useStudioGen()
   const t = useTranslations('StudioV3')
 
   const handleDragStart = useCallback(
@@ -47,6 +53,11 @@ export const GenerationPreview = memo(function GenerationPreview({
           <p className="text-sm text-muted-foreground font-serif animate-pulse">
             {t('generating')}
           </p>
+          {elapsedSeconds > 0 && (
+            <p className="text-xs text-muted-foreground font-serif">
+              {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
+            </p>
+          )}
         </div>
       </div>
     )

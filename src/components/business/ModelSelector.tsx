@@ -119,19 +119,6 @@ export function ModelSelector({
   const [searchQuery, setSearchQuery] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
-  // Scroll selected item into view when list overflows
-  useEffect(() => {
-    if (selectedRef.current && listRef.current) {
-      const list = listRef.current
-      const item = selectedRef.current
-      const listRect = list.getBoundingClientRect()
-      const itemRect = item.getBoundingClientRect()
-      if (itemRect.top < listRect.top || itemRect.bottom > listRect.bottom) {
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      }
-    }
-  }, [value])
-
   const filteredOptions = useMemo(() => {
     if (!searchQuery.trim()) return options
     const q = searchQuery.toLowerCase()
@@ -151,6 +138,28 @@ export function ModelSelector({
     [filteredOptions, groupMode],
   )
   const hasMultipleGroups = groups.length > 1
+
+  // Scroll selected item into view when list grouping or filtering changes.
+  useEffect(() => {
+    if (selectedRef.current && listRef.current) {
+      const frameId = window.requestAnimationFrame(() => {
+        const list = listRef.current
+        const item = selectedRef.current
+
+        if (!list || !item) {
+          return
+        }
+
+        const listRect = list.getBoundingClientRect()
+        const itemRect = item.getBoundingClientRect()
+        if (itemRect.top < listRect.top || itemRect.bottom > listRect.bottom) {
+          item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        }
+      })
+
+      return () => window.cancelAnimationFrame(frameId)
+    }
+  }, [value, groupMode, searchQuery, collapsedGroups, filteredOptions.length])
 
   const toggleGroupCollapse = (group: string) => {
     setCollapsedGroups((prev) => {
@@ -217,7 +226,10 @@ export function ModelSelector({
         ref={listRef}
         role="radiogroup"
         aria-label={t('label')}
-        className={cn('grid gap-2', needsScroll && 'max-h-96 overflow-y-auto')}
+        className={cn(
+          'grid gap-2',
+          needsScroll && 'max-h-96 overflow-y-auto overscroll-contain pr-1 pb-3',
+        )}
       >
         {groups.map(({ group, options: groupOptions }) => {
           const isCollapsed = collapsedGroups.has(group)
@@ -263,7 +275,7 @@ export function ModelSelector({
                       aria-checked={isSelected ? 'true' : 'false'}
                       onClick={() => onChange(option.optionId)}
                       className={cn(
-                        'group relative flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
+                        'group relative flex w-full scroll-mt-3 scroll-mb-3 items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
                         isSelected
                           ? 'border-primary/40 bg-primary/5 shadow-sm shadow-primary/8'
                           : 'border-border/50 bg-background/50 hover:border-primary/20 hover:bg-primary/3',

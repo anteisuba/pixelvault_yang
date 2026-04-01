@@ -40,7 +40,11 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
 import { useGenerateLongVideo } from '@/hooks/use-generate-long-video'
 import { useGenerationForm } from '@/hooks/use-generation-form'
-import { buildSavedModelOptions, findSelectedModel } from '@/lib/model-options'
+import {
+  buildSavedModelOptions,
+  findSelectedModel,
+  mergeModelOptionsWithSavedFirst,
+} from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 function formatDuration(seconds: number): string {
@@ -162,7 +166,10 @@ export default function VideoGenerateForm({
     keys.filter((key) => key.isActive),
     (key) => videoModels.some((m) => m.id === key.modelId),
   )
-  const modelOptions = [...builtInOptions, ...savedOptions]
+  const modelOptions = mergeModelOptionsWithSavedFirst(
+    savedOptions,
+    builtInOptions,
+  )
   const selectedModel = findSelectedModel(modelOptions, selectedOptionId)
 
   const selectedApiKeyId = selectedModel?.keyId

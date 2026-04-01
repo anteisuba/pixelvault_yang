@@ -128,7 +128,20 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm install:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(python3 -c \":*)",
+      "Bash(/tmp/write-plan.js:*)",
+      "Bash(printf '%s' 'const fs=require\\(\"\"fs\"\"\\);const p=\"\"C:/Users/15620/.claude/plans/vast-skipping-biscuit-agent-a2e6715b298910553.md\"\";const s=[];')",
+      "Bash(/tmp/wp.js:*)",
+      "Bash(grep -r \"canvas\\\\|Canvas\\\\|draw\\\\|mask\\\\|inpaint\" /c/workspace/pixelvault_yang/src/components --include=*.tsx --include=*.ts -l)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/en)",
+      "Bash(grep -l \"CharacterCard\" prisma/migrations/*/migration.sql)",
+      "Bash(grep -l \"CREATE TABLE.*CharacterCard\\\\|CharacterCard\" prisma/migrations/*/migration.sql)",
+      "Bash(grep \"CREATE TABLE.*\"\"CharacterCard\"\"\" prisma/migrations/*/migration.sql)",
+      "Bash(grep -ri \"CharacterCard\" prisma/migrations/*/migration.sql)",
+      "Bash(grep -ri \"charactercard\\\\|character_card\" prisma/migrations/*/migration.sql)"
     ]
   },
   "hooks": {

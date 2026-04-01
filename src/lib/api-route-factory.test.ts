@@ -37,7 +37,11 @@ const testSchema = z.object({
   count: z.number().int().min(1).max(100),
 })
 
-type TestResult = { id: string; name: string }
+type TestResult = {
+  id: string
+  name: string
+  seed?: bigint | number | string | null
+}
 
 const mockHandler =
   vi.fn<
@@ -91,6 +95,25 @@ describe('createApiRoute', () => {
 
     expect(res.headers.get('X-RateLimit-Limit')).toBe('10')
     expect(res.headers.get('X-RateLimit-Remaining')).toBe('9')
+  })
+
+  it('serializes bigint fields in successful responses', async () => {
+    mockHandler.mockResolvedValue({
+      id: '1',
+      name: 'seeded',
+      seed: BigInt(42),
+    })
+
+    const req = createPOST('/api/test', { name: 'hello', count: 5 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      data: { id: string; name: string; seed: number | string }
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.seed).toBe(42)
   })
 
   // ── Auth ──

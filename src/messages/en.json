@@ -756,6 +756,8 @@
     "removingBackground": "Removing...",
     "editSuccess": "Done! Downloading the result.",
     "editFailed": "Editing failed",
+    "saveUpscaleToGallery": "Save upscaled to gallery",
+    "editSavedToGallery": "Saved to gallery!",
     "downloadFailed": "Download failed. Opening the original instead.",
     "shareFailed": "Failed to copy the share link."
   },
@@ -1136,6 +1138,26 @@
       "label": "Illustrious XL",
       "description": "Anime/illustration-specialized model with the largest LoRA ecosystem on Civitai. Supports dual LoRA."
     },
+    "gemini25FlashImage": {
+      "label": "Gemini 2.5 Flash",
+      "description": "Fast and cost-effective by Google. Good text rendering and prompt understanding."
+    },
+    "flux2Max": {
+      "label": "FLUX 2 Max",
+      "description": "Highest quality FLUX model by Black Forest Labs. Exceptional detail and coherence."
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "Design-focused model for logos, icons, and brand-quality imagery."
+    },
+    "fluxKontextPro": {
+      "label": "FLUX Kontext Pro",
+      "description": "Reference-based editing. Upload an image and describe changes with a prompt."
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "Multi-reference editing. Combine up to 4 reference images for consistent generation."
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"
@@ -1444,6 +1466,7 @@
     "background": "Background",
     "style": "Style",
     "noModel": "No model set — open Style card management to add a model",
+    "requiresReferenceImage": "This model requires a reference image — add one in the Reference panel",
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",
@@ -1472,6 +1495,7 @@
     "cardMode": "Card Generate",
     "emptyStateHint": "Write a description on the left to start creating",
     "generating": "Generating...",
+    "elapsed": "Elapsed: {seconds}",
     "selectProject": "Select project",
     "newProject": "New project",
     "noProjects": "No projects yet, create your first one",
@@ -1479,7 +1503,9 @@
     "selectModel": "Select a model",
     "useAsReference": "Use as reference",
     "addedAsReference": "Added as reference image",
-    "refImageLimitReached": "Reference image limit reached"
+    "refImageLimitReached": "Reference image limit reached",
+    "settings": "Settings",
+    "studioSettings": "Studio Settings"
   },
   "Errors": {
     "common": {

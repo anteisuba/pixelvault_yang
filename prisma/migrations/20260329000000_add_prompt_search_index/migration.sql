@@ -4,9 +4,15 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Add GIN trigram index on prompt for fast ILIKE searches
 -- This dramatically speeds up `WHERE prompt ILIKE '%keyword%'` queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_generation_prompt_trgm
+CREATE INDEX IF NOT EXISTS idx_generation_prompt_trgm
   ON "Generation" USING GIN (prompt gin_trgm_ops);
 
 -- Add GIN trigram index on CharacterCard name for search
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_character_card_name_trgm
-  ON "CharacterCard" USING GIN (name gin_trgm_ops);
+-- (conditional: table may not exist yet in shadow DB migration replay)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'CharacterCard') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_character_card_name_trgm ON "CharacterCard" USING GIN (name gin_trgm_ops)';
+  END IF;
+END
+$$;

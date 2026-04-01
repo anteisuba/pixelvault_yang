@@ -220,7 +220,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
       .filter((opt) => readyOptionIds.has(opt.optionId))
       .map((opt) => opt.adapterType)
     if (selectedAdapters.length === 0) return 1
-    return Math.min(...selectedAdapters.map(getMaxReferenceImages))
+    return Math.min(...selectedAdapters.map((a) => getMaxReferenceImages(a)))
   }, [modelOptions, readyOptionIds])
 
   const toggleModel = useCallback((optionId: string) => {

@@ -756,6 +756,8 @@
     "removingBackground": "处理中...",
     "editSuccess": "完成！正在下载结果。",
     "editFailed": "编辑失败",
+    "saveUpscaleToGallery": "保存超分结果到画廊",
+    "editSavedToGallery": "已保存到画廊！",
     "downloadFailed": "下载失败，正在打开原图。",
     "shareFailed": "复制分享链接失败。"
   },
@@ -1136,6 +1138,26 @@
       "label": "Illustrious XL",
       "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
     },
+    "gemini25FlashImage": {
+      "label": "Gemini 2.5 Flash",
+      "description": "Google 出品，快速低成本。擅长文字渲染和提示词理解。"
+    },
+    "flux2Max": {
+      "label": "FLUX 2 Max",
+      "description": "Black Forest Labs 最高品质 FLUX 模型。细节和连贯性卓越。"
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "设计专用模型，适合 Logo、图标和品牌级图像。"
+    },
+    "fluxKontextPro": {
+      "label": "FLUX Kontext Pro",
+      "description": "基于参考图的编辑生成。上传图片后用提示词描述修改内容。"
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "多参考图编辑。最多组合 4 张参考图实现一致性生成。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"
@@ -1444,6 +1466,7 @@
     "background": "背景",
     "style": "画风",
     "noModel": "未设置模型 — 请在卡片管理中为画风卡添加模型",
+    "requiresReferenceImage": "此模型需要参考图 — 请在参考图面板中上传",
     "edit": "编辑",
     "save": "保存",
     "cancel": "取消",
@@ -1472,6 +1495,7 @@
     "cardMode": "卡片生成",
     "emptyStateHint": "在左侧写下描述，开始你的第一次创作",
     "generating": "正在生成...",
+    "elapsed": "已等待 {seconds}",
     "selectProject": "选择项目",
     "newProject": "新建项目",
     "noProjects": "还没有项目，创建第一个开始创作",
@@ -1479,7 +1503,9 @@
     "selectModel": "选择模型",
     "useAsReference": "用作参考图",
     "addedAsReference": "已添加为参考图",
-    "refImageLimitReached": "参考图数量已达上限"
+    "refImageLimitReached": "参考图数量已达上限",
+    "settings": "设置",
+    "studioSettings": "工作室设置"
   },
   "Errors": {
     "common": {

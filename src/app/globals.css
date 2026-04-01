@@ -13,6 +13,8 @@
   --font-mono: var(--font-geist-mono);
   /* Custom scale tokens */
   --max-width-content: 75rem;
+  --width-studio-left: 17.5rem;
+  --width-studio-right: 20rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -446,6 +448,30 @@ html:lang(zh) {
     line-height: 1.65;
     color: color-mix(in oklab, var(--foreground) 88%, var(--background));
     text-wrap: pretty;
+  }
+
+  /* ── Studio three-column layout (B1) ────────────────────────────────── */
+
+  .studio-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    .studio-grid {
+      display: grid;
+      grid-template-columns: var(--width-studio-left) 1fr var(--width-studio-right);
+      gap: 1.5rem;
+      align-items: start;
+    }
+  }
+
+  .studio-col-sticky {
+    position: sticky;
+    top: calc(3.5rem + 1rem);
+    max-height: calc(100vh - 3.5rem - 2rem);
+    overflow-y: auto;
   }
 
   /* ── Clerk overrides ───────────────────────────────────────────────────── */

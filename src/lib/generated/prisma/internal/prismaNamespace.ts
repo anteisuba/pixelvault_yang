@@ -2316,7 +2316,13 @@ export const GenerationScalarFieldEnum = {
   projectId: 'projectId',
   characterCardId: 'characterCardId',
   cardRecipeId: 'cardRecipeId',
-  recipeSnapshot: 'recipeSnapshot'
+  recipeSnapshot: 'recipeSnapshot',
+  snapshot: 'snapshot',
+  runGroupId: 'runGroupId',
+  runGroupType: 'runGroupType',
+  runGroupIndex: 'runGroupIndex',
+  isWinner: 'isWinner',
+  seed: 'seed'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]
@@ -2821,6 +2827,20 @@ export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, '
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+/**
+ * Reference to a field of type 'BigInt'
+ */
+export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
+    
+
+
+/**
+ * Reference to a field of type 'BigInt[]'
+ */
+export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
     
 
 

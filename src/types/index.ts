@@ -40,6 +40,62 @@ export const AdvancedParamsSchema = z.object({
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 
+// ─── Generation Snapshot (B0) ────────────────────────────────────
+
+/** Point-in-time capture of all input parameters for a generation */
+export const GenerationSnapshotSchema = z.object({
+  /** Original user prompt (before recipe compilation) */
+  freePrompt: z.string().optional(),
+  /** Final prompt sent to provider (after compilation/enhancement) */
+  compiledPrompt: z.string(),
+  /** Model used for generation */
+  modelId: z.string(),
+  /** Aspect ratio */
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
+  /** Advanced parameters snapshot */
+  advancedParams: AdvancedParamsSchema.optional(),
+  /** Reference image URLs */
+  referenceImages: z.array(z.string()).optional(),
+  /** Card IDs used (card mode only) */
+  characterCardId: z.string().optional(),
+  backgroundCardId: z.string().optional(),
+  styleCardId: z.string().optional(),
+  /** API key ID used (BYOK route) */
+  apiKeyId: z.string().optional(),
+  /** Project ID */
+  projectId: z.string().optional(),
+  /** Whether free tier was used */
+  isFreeGeneration: z.boolean().optional(),
+  /** Credit cost */
+  creditCost: z.number().optional(),
+  /** Seed (duplicated for quick access without parsing snapshot) */
+  seed: z.number().optional(),
+})
+
+export type GenerationSnapshot = z.infer<typeof GenerationSnapshotSchema>
+
+// ─── ActiveRun State Model (B0) ──────────────────────────────────
+
+export type RunItemStatus = 'pending' | 'generating' | 'completed' | 'failed'
+export type RunGroupMode = 'single' | 'compare' | 'variant'
+
+export interface RunItem {
+  id: string
+  modelId: string
+  status: RunItemStatus
+  generation: GenerationRecord | null
+  error: string | null
+}
+
+export interface ActiveRun {
+  id: string
+  mode: RunGroupMode
+  items: RunItem[]
+  selectedItemId: string | null
+  prompt: string
+  startedAt: number
+}
+
 // ─── Generate Request ─────────────────────────────────────────────
 
 /** Zod schema for image generation request validation */
@@ -153,6 +209,10 @@ export type GenerateVideoResponse = GenerateResponse
 export const ImageEditSchema = z.object({
   action: z.enum(['upscale', 'remove-background']),
   imageUrl: z.string().url(),
+  /** When true, persist the edited result to R2 and create a Generation record */
+  persist: z.boolean().optional(),
+  /** Source generation ID (required when persist is true) */
+  generationId: z.string().optional(),
 })
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
@@ -304,6 +364,18 @@ export interface GenerationRecord {
     displayName: string | null
     avatarUrl: string | null
   } | null
+  /** B0: Full input parameter snapshot — parse with GenerationSnapshotSchema */
+  snapshot?: unknown
+  /** B0: Seed used for generation (bigint from DB, string/number after JSON) */
+  seed?: bigint | string | number | null
+  /** B0: Run group ID for compare/variant */
+  runGroupId?: string | null
+  /** B0: Run group type */
+  runGroupType?: string
+  /** B0: Position in run group */
+  runGroupIndex?: number
+  /** B0: Winner flag for compare mode */
+  isWinner?: boolean
 }
 
 // ─── API Key ──────────────────────────────────────────────────────

@@ -21,6 +21,8 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface AdvancedSettingsProps {
   adapterType: AI_ADAPTER_TYPES
+  /** Optional model ID for per-model capability overrides */
+  modelId?: string
   params: AdvancedParams
   onChange: (params: AdvancedParams) => void
   /** Whether a reference image is attached (shows referenceStrength) */
@@ -35,15 +37,16 @@ interface AdvancedSettingsProps {
  */
 export function AdvancedSettings({
   adapterType,
+  modelId,
   params,
   onChange,
   hasReferenceImage = false,
   disabled = false,
 }: AdvancedSettingsProps) {
   const t = useTranslations('AdvancedSettings')
-  const config = getCapabilityConfig(adapterType)
+  const config = getCapabilityConfig(adapterType, modelId)
   const has = (cap: Parameters<typeof hasCapability>[1]) =>
-    hasCapability(adapterType, cap)
+    hasCapability(adapterType, cap, modelId)
 
   // Only show panel if adapter has user-configurable capabilities (not just imageAnalysis)
   const USER_CONFIGURABLE: ProviderCapability[] = [

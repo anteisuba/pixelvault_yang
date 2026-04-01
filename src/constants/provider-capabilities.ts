@@ -1,4 +1,5 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
 
 /**
  * Provider capability flags.
@@ -140,33 +141,72 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
   }
 
+// ─── Per-Model Capability Overrides ─────────────────────────────
+// When a model needs different capabilities than its adapter default,
+// add an entry keyed by model ID (AI_MODELS enum value).
+// Only specified fields are overridden; unspecified fall through to adapter.
+
+export const MODEL_CAPABILITY_OVERRIDES: Partial<
+  Record<string, Partial<CapabilityConfig>>
+> = {
+  // Kontext: only seed, native reference image handling
+  [AI_MODELS.FLUX_KONTEXT_PRO]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 1,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.FLUX_KONTEXT_MAX]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 4,
+    referenceImageMode: 'native' as const,
+  },
+}
+
+/** Resolve effective capability config: model override → adapter fallback */
+function resolveConfig(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
+): CapabilityConfig {
+  const base = ADAPTER_CAPABILITIES[adapterType]
+  if (!modelId) return base
+  const override = MODEL_CAPABILITY_OVERRIDES[modelId]
+  if (!override) return base
+  return { ...base, ...override }
+}
+
 // ─── Capability → UI Field Type Mapping ──────────────────────────
 
-/** Check whether a given adapter supports a specific capability */
+/** Check whether a given adapter (optionally a specific model) supports a capability */
 export function hasCapability(
   adapterType: AI_ADAPTER_TYPES,
   capability: ProviderCapability,
+  modelId?: string,
 ): boolean {
-  return ADAPTER_CAPABILITIES[adapterType].capabilities.includes(capability)
+  return resolveConfig(adapterType, modelId).capabilities.includes(capability)
 }
 
-/** Get the full capability config for an adapter */
+/** Get the full capability config for an adapter, with optional model-level override */
 export function getCapabilityConfig(
   adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
 ): CapabilityConfig {
-  return ADAPTER_CAPABILITIES[adapterType]
+  return resolveConfig(adapterType, modelId)
 }
 
-/** Get the maximum number of reference images supported by an adapter (default: 1) */
-export function getMaxReferenceImages(adapterType: AI_ADAPTER_TYPES): number {
-  return ADAPTER_CAPABILITIES[adapterType].maxReferenceImages ?? 1
+/** Get the maximum number of reference images (default: 1), with optional model override */
+export function getMaxReferenceImages(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
+): number {
+  return resolveConfig(adapterType, modelId).maxReferenceImages ?? 1
 }
 
-/** Get how this adapter handles reference images (default: 'img2img') */
+/** Get how reference images are handled (default: 'img2img'), with optional model override */
 export function getReferenceImageMode(
   adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
 ): ReferenceImageMode {
-  return ADAPTER_CAPABILITIES[adapterType].referenceImageMode ?? 'img2img'
+  return resolveConfig(adapterType, modelId).referenceImageMode ?? 'img2img'
 }
 
 export type CapabilityFieldType =

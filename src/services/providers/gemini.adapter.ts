@@ -114,6 +114,7 @@ export const geminiAdapter: ProviderAdapter = {
           },
         },
       }),
+      signal: AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {

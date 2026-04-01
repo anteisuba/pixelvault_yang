@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
+import type { Prisma } from '@/lib/generated/prisma/client'
 import type {
   GenerationRecord,
   GallerySortOption,
@@ -33,6 +34,16 @@ export interface CreateGenerationInput {
   characterCardIds?: string[]
   /** Project ID to associate this generation with */
   projectId?: string
+  /** B0: Full input parameter snapshot (JSON) */
+  snapshot?: Prisma.InputJsonValue
+  /** B0: Seed for reproducibility */
+  seed?: bigint
+  /** B0: Run group ID for compare/variant */
+  runGroupId?: string
+  /** B0: Run group type */
+  runGroupType?: string
+  /** B0: Position within run group */
+  runGroupIndex?: number
 }
 
 export interface ListGenerationsOptions {
@@ -131,6 +142,11 @@ export async function createGeneration(
       isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
       projectId: input.projectId,
+      snapshot: input.snapshot,
+      seed: input.seed,
+      runGroupId: input.runGroupId,
+      runGroupType: input.runGroupType ?? 'single',
+      runGroupIndex: input.runGroupIndex ?? 0,
     },
   })
 

@@ -756,6 +756,8 @@
     "removingBackground": "除去中...",
     "editSuccess": "完了！結果をダウンロードしています。",
     "editFailed": "編集に失敗しました",
+    "saveUpscaleToGallery": "高解像度化をギャラリーに保存",
+    "editSavedToGallery": "ギャラリーに保存しました！",
     "downloadFailed": "ダウンロードに失敗しました。元画像を開きます。",
     "shareFailed": "共有リンクのコピーに失敗しました。"
   },
@@ -1136,6 +1138,26 @@
       "label": "Illustrious XL",
       "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
     },
+    "gemini25FlashImage": {
+      "label": "Gemini 2.5 Flash",
+      "description": "Google製。高速・低コスト。テキスト描画とプロンプト理解に優れる。"
+    },
+    "flux2Max": {
+      "label": "FLUX 2 Max",
+      "description": "Black Forest Labsの最高品質FLUXモデル。卓越なディテールと一貫性。"
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "デザイン特化モデル。ロゴ、アイコン、ブランド品質の画像に最適。"
+    },
+    "fluxKontextPro": {
+      "label": "FLUX Kontext Pro",
+      "description": "参照画像ベースの編集生成。画像をアップロードしてプロンプトで変更を指示。"
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "マルチ参照編集。最大4枚の参照画像を組み合わせて一貫性のある生成。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
@@ -1465,13 +1487,15 @@
     "character": "キャラクター",
     "background": "背景",
     "style": "スタイル",
-    "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください"
+    "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください",
+    "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください"
   },
   "StudioV3": {
     "quickMode": "クイック生成",
     "cardMode": "カード生成",
     "emptyStateHint": "左側に説明を書いて作成を開始",
     "generating": "生成中...",
+    "elapsed": "経過時間: {seconds}",
     "selectProject": "プロジェクトを選択",
     "newProject": "新規プロジェクト",
     "noProjects": "プロジェクトがありません。最初の一つを作成しましょう",
@@ -1479,7 +1503,9 @@
     "selectModel": "モデルを選択",
     "useAsReference": "参照画像として使用",
     "addedAsReference": "参照画像として追加しました",
-    "refImageLimitReached": "参照画像の上限に達しました"
+    "refImageLimitReached": "参照画像の上限に達しました",
+    "settings": "設定",
+    "studioSettings": "スタジオ設定"
   },
   "Errors": {
     "common": {

@@ -314,6 +314,7 @@ export async function generateVariationsAPI(
 export async function editImageAPI(
   action: 'upscale' | 'remove-background',
   imageUrl: string,
+  options?: { persist?: boolean; generationId?: string },
 ): Promise<{
   success: boolean
   data?: { imageUrl: string; width: number; height: number }
@@ -325,7 +326,14 @@ export async function editImageAPI(
     const response = await fetch(API_ENDPOINTS.IMAGE_EDIT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, imageUrl }),
+      body: JSON.stringify({
+        action,
+        imageUrl,
+        ...(options?.persist && {
+          persist: true,
+          generationId: options.generationId,
+        }),
+      }),
     })
     if (!response.ok) {
       const payload = await getErrorPayload(

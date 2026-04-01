@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { VIDEO_GENERATION } from '@/constants/config'
 import type {
+  ActiveRun,
   GenerationRecord,
   StudioGenerateRequest,
   GenerateVideoRequest,
@@ -41,6 +42,8 @@ export interface UseUnifiedGenerateReturn {
   lastGeneration: GenerationRecord | null
   generate: (input: UnifiedGenerateInput) => Promise<GenerationRecord | null>
   reset: () => void
+  /** B0: Active generation run with per-item tracking */
+  activeRun: ActiveRun | null
 }
 
 // ─── Hook ────────────────────────────────────────────────────────
@@ -53,6 +56,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const [lastGeneration, setLastGeneration] = useState<GenerationRecord | null>(
     null,
   )
+  const [activeRun, setActiveRun] = useState<ActiveRun | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -114,23 +118,73 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
+      startTimer()
+
+      // B0: Create ActiveRun with single item
+      const itemId = crypto.randomUUID()
+      setActiveRun({
+        id: crypto.randomUUID(),
+        mode: 'single',
+        items: [
+          {
+            id: itemId,
+            modelId: input.modelId ?? 'unknown',
+            status: 'generating',
+            generation: null,
+            error: null,
+          },
+        ],
+        selectedItemId: itemId,
+        prompt: input.freePrompt ?? '',
+        startedAt: Date.now(),
+      })
+
       try {
         const result = await studioGenerateAPI(input)
         if (result.success && result.data?.generation) {
           setLastGeneration(result.data.generation)
+          setActiveRun((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  items: prev.items.map((item) =>
+                    item.id === itemId
+                      ? {
+                          ...item,
+                          status: 'completed' as const,
+                          generation: result.data!.generation,
+                        }
+                      : item,
+                  ),
+                }
+              : null,
+          )
           toast.success(tStudio('generateSuccess'))
           return result.data.generation
         }
         const msg = result.error ?? tStudio('generateFailed')
         setError(msg)
+        setActiveRun((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: prev.items.map((item) =>
+                  item.id === itemId
+                    ? { ...item, status: 'failed' as const, error: msg }
+                    : item,
+                ),
+              }
+            : null,
+        )
         toast.error(msg)
         return null
       } finally {
+        stopTimer()
         setIsGenerating(false)
         setStage('idle')
       }
     },
-    [tStudio],
+    [tStudio, startTimer, stopTimer],
   )
 
   // ── Video generation (async queue + polling) ──────────────────
@@ -142,10 +196,42 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setStage('queued')
       startTimer()
 
+      // B0: Create ActiveRun for video generation
+      const itemId = crypto.randomUUID()
+      setActiveRun({
+        id: crypto.randomUUID(),
+        mode: 'single',
+        items: [
+          {
+            id: itemId,
+            modelId: params.modelId,
+            status: 'generating',
+            generation: null,
+            error: null,
+          },
+        ],
+        selectedItemId: itemId,
+        prompt: params.prompt,
+        startedAt: Date.now(),
+      })
+
       try {
         const submitResponse = await submitVideoAPI(params)
         if (!submitResponse.success || !submitResponse.data) {
-          finish(submitResponse.error ?? tVideo('errorFallback'))
+          const msg = submitResponse.error ?? tVideo('errorFallback')
+          setActiveRun((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  items: prev.items.map((item) =>
+                    item.id === itemId
+                      ? { ...item, status: 'failed' as const, error: msg }
+                      : item,
+                  ),
+                }
+              : null,
+          )
+          finish(msg)
           return null
         }
 
@@ -158,6 +244,22 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             pollCountRef.current += 1
 
             if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
+              setActiveRun((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      items: prev.items.map((item) =>
+                        item.id === itemId
+                          ? {
+                              ...item,
+                              status: 'failed' as const,
+                              error: tVideo('errorTimeout'),
+                            }
+                          : item,
+                      ),
+                    }
+                  : null,
+              )
               finish(tVideo('errorTimeout'))
               resolve(null)
               return
@@ -172,7 +274,24 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 ) {
                   return
                 }
-                finish(statusResponse.error ?? tVideo('errorFallback'))
+                const msg = statusResponse.error ?? tVideo('errorFallback')
+                setActiveRun((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        items: prev.items.map((item) =>
+                          item.id === itemId
+                            ? {
+                                ...item,
+                                status: 'failed' as const,
+                                error: msg,
+                              }
+                            : item,
+                        ),
+                      }
+                    : null,
+                )
+                finish(msg)
                 resolve(null)
                 return
               }
@@ -181,6 +300,22 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
               if (status === 'COMPLETED' && generation) {
                 setLastGeneration(generation)
+                setActiveRun((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        items: prev.items.map((item) =>
+                          item.id === itemId
+                            ? {
+                                ...item,
+                                status: 'completed' as const,
+                                generation,
+                              }
+                            : item,
+                        ),
+                      }
+                    : null,
+                )
                 finish()
                 toast.success(tVideo('toastSuccess'))
                 resolve(generation)
@@ -188,7 +323,24 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               }
 
               if (status === 'FAILED') {
-                finish(statusResponse.error ?? tVideo('errorFallback'))
+                const msg = statusResponse.error ?? tVideo('errorFallback')
+                setActiveRun((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        items: prev.items.map((item) =>
+                          item.id === itemId
+                            ? {
+                                ...item,
+                                status: 'failed' as const,
+                                error: msg,
+                              }
+                            : item,
+                        ),
+                      }
+                    : null,
+                )
+                finish(msg)
                 resolve(null)
                 return
               }
@@ -197,6 +349,22 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 setStage('processing')
               }
             } catch {
+              setActiveRun((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      items: prev.items.map((item) =>
+                        item.id === itemId
+                          ? {
+                              ...item,
+                              status: 'failed' as const,
+                              error: tVideo('errorUnexpected'),
+                            }
+                          : item,
+                      ),
+                    }
+                  : null,
+              )
               finish(tVideo('errorUnexpected'))
               resolve(null)
             }
@@ -232,6 +400,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     setLastGeneration(null)
     setStage('idle')
     setElapsedSeconds(0)
+    setActiveRun(null)
     stopTimer()
     stopPolling()
   }, [stopTimer, stopPolling])
@@ -244,5 +413,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     lastGeneration,
     generate,
     reset,
+    activeRun,
   }
 }

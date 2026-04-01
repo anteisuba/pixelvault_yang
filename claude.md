@@ -55,6 +55,8 @@ See `docs/design-system.md` for full spec. Key constraints:
 | `docs/components.md` | Components, hooks & capability system API reference |
 | `docs/phases.md` | Development phase tracking |
 | `docs/roadmap.md` | Future features and priorities |
+| `docs/plans/unified-development-plan.md` | Unified 3-track dev plan (A: fixes, B: Studio redesign, C: features) |
+| `docs/development-plan.md` | Original S1-S9 implementation specs (reference, merged into unified plan) |
 
 ## Component Tiers
 

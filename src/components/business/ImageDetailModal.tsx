@@ -17,6 +17,7 @@ import {
   LockKeyhole,
   Pin,
   Sparkles,
+  Save,
   Trash2,
   ZoomIn,
 } from 'lucide-react'
@@ -136,6 +137,22 @@ export function ImageDetailModal({
     }
 
     toast.success(t('editSuccess'))
+  }
+
+  const handleEditSave = async (action: 'upscale' | 'remove-background') => {
+    setEditingAction(action)
+    const result = await editImageAPI(action, generation.url, {
+      persist: true,
+      generationId: generation.id,
+    })
+    setEditingAction(null)
+
+    if (!result.success || !result.data) {
+      toast.error(getApiErrorMessage(tErrors, result, t('editFailed')))
+      return
+    }
+
+    toast.success(t('editSavedToGallery'))
   }
 
   const labelClass = getLabelClassName(isDenseLocale)
@@ -419,6 +436,17 @@ export function ImageDetailModal({
                   {editingAction === 'remove-background'
                     ? t('removingBackground')
                     : t('removeBackground')}
+                </Button>
+                {/* Save edited to gallery */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={editingAction !== null}
+                  onClick={() => void handleEditSave('upscale')}
+                >
+                  <Save className="size-3.5" />
+                  {t('saveUpscaleToGallery')}
                 </Button>
               </>
             )}

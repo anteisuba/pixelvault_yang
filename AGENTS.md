@@ -1361,3 +1361,95 @@ more maintainable
 more visually intentional
 
 If a change makes the codebase noisier, less predictable, or more ad-hoc, it is probably the wrong change.
+
+---
+
+# Appendix A. Codex Thread Operating Model
+
+This project should maintain four pinned Codex threads with these exact names:
+
+- `规范`
+- `探索`
+- `前端`
+- `后端`
+
+These threads are not interchangeable. They define a durable operating model for the repository.
+
+## A.1 `规范`
+
+Purpose:
+
+- produce durable project rules, workflows, and AI meta-coding guidance
+- write those documents into `docs/guides/`
+- keep `AGENTS.md` updated with the guide index in Appendix B
+
+Rules:
+
+- only write documents that have ongoing governing value
+- prefer stable rules and repeatable workflows over temporary task notes
+- when execution work reveals a reusable constraint, fold it back into `docs/guides/`
+
+## A.2 `探索`
+
+Purpose:
+
+- understand this repository and external repositories
+- break large tasks into executable plans
+- write exploration output into `docs/plans/`
+
+Rules:
+
+- use this thread for investigation, decomposition, comparison, and architecture reading
+- keep implementation out unless a tiny probe is required to confirm understanding
+- when a plan becomes stale, update the plan document instead of letting execution drift silently
+
+## A.3 `前端`
+
+Purpose:
+
+- execute UI, layout, interaction, responsive, and localization-facing implementation work
+
+Rules:
+
+- every code modification in this thread must use plan mode
+- read the relevant plan in `docs/plans/` before substantial implementation when one exists
+- if durable frontend rules emerge, feed them back into `规范`
+- if the implementation changes task shape, feed that back into `探索`
+
+## A.4 `后端`
+
+Purpose:
+
+- execute service, API, auth, storage, database, and server-side implementation work
+
+Rules:
+
+- every code modification in this thread must use plan mode
+- read the relevant plan in `docs/plans/` before substantial implementation when one exists
+- if durable backend rules emerge, feed them back into `规范`
+- if the implementation changes task shape, feed that back into `探索`
+
+## A.5 Cross-Layer Work
+
+Some changes naturally span frontend and backend.
+
+When that happens:
+
+- choose either `前端` or `后端` as the execution thread
+- keep the plan explicit about which layers are being changed
+- do not duplicate the same implementation across both execution threads
+
+## A.6 Feedback Loop
+
+The intended operating loop is:
+
+`规范` defines durable laws -> `探索` turns uncertainty into plans -> `前端` or `后端` executes in plan mode -> new durable insights flow back into `规范` and `探索`
+
+---
+
+# Appendix B. Guide Index
+
+Every durable rule document created under `docs/guides/` must be indexed here.
+
+- `docs/guides/README.md` — guide directory purpose, update rules, and current catalog
+- `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, output locations, and feedback loop

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { GenerationRecord, StudioGenerateRequest } from '@/types'
+import { db } from '@/lib/db'
 import { compileRecipe } from '@/services/recipe-compiler.service'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { ensureUser } from '@/services/user.service'
@@ -89,6 +90,21 @@ export async function compileAndGenerate(
       allReferenceImages.length > 0 ? allReferenceImages : undefined,
     advancedParams: mergedAdvancedParams,
     projectId: input.projectId,
+  })
+
+  // B0: Enrich snapshot with card-mode-specific fields
+  // (generateImageForUser already saved the base snapshot)
+  await db.generation.update({
+    where: { id: generation.id },
+    data: {
+      snapshot: {
+        ...((generation.snapshot as Record<string, unknown>) ?? {}),
+        freePrompt: input.freePrompt,
+        characterCardId: input.characterCardId,
+        backgroundCardId: input.backgroundCardId,
+        styleCardId: input.styleCardId,
+      },
+    },
   })
 
   return generation

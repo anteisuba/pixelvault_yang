@@ -167,7 +167,13 @@ export const GenerationScalarFieldEnum = {
   projectId: 'projectId',
   characterCardId: 'characterCardId',
   cardRecipeId: 'cardRecipeId',
-  recipeSnapshot: 'recipeSnapshot'
+  recipeSnapshot: 'recipeSnapshot',
+  snapshot: 'snapshot',
+  runGroupId: 'runGroupId',
+  runGroupType: 'runGroupType',
+  runGroupIndex: 'runGroupIndex',
+  isWinner: 'isWinner',
+  seed: 'seed'
 } as const
 
 export type GenerationScalarFieldEnum = (typeof GenerationScalarFieldEnum)[keyof typeof GenerationScalarFieldEnum]

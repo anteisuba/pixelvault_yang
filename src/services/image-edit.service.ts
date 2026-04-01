@@ -2,6 +2,13 @@ import 'server-only'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { ProviderError } from '@/services/providers/types'
+import {
+  fetchAsBuffer,
+  uploadToR2,
+  generateStorageKey,
+} from '@/services/storage/r2'
+import { createGeneration } from '@/services/generation.service'
+import type { GenerationRecord } from '@/types'
 
 // ─── fal.ai image editing endpoints ──────────────────────────────
 
@@ -82,4 +89,37 @@ export async function removeBackground(
     width: data.image.width,
     height: data.image.height,
   }
+}
+
+/**
+ * Persist an edited image (upscale/remove-bg) result to R2 and create a Generation record.
+ */
+export async function persistEditedImage(params: {
+  userId: string
+  resultUrl: string
+  sourceGenerationId: string
+  action: 'upscale' | 'remove-bg'
+  width: number
+  height: number
+}): Promise<GenerationRecord> {
+  const storageKey = generateStorageKey('IMAGE', params.userId)
+  const { buffer, mimeType } = await fetchAsBuffer(params.resultUrl)
+  const permanentUrl = await uploadToR2({
+    data: buffer,
+    key: storageKey,
+    mimeType,
+  })
+
+  return createGeneration({
+    url: permanentUrl,
+    storageKey,
+    mimeType,
+    width: params.width,
+    height: params.height,
+    prompt: `[${params.action}] from generation ${params.sourceGenerationId}`,
+    model: params.action,
+    provider: 'fal',
+    requestCount: 0,
+    userId: params.userId,
+  })
 }

@@ -15,12 +15,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 
 interface ApiKeyDrawerTriggerProps {
   children: React.ReactNode
+  className?: string
 }
 
-export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
+export function ApiKeyDrawerTrigger({
+  children,
+  className,
+}: ApiKeyDrawerTriggerProps) {
   const [open, setOpen] = useState(false)
   const { keys, isLoading } = useApiKeysContext()
   const t = useTranslations('StudioApiKeys')
@@ -32,7 +37,10 @@ export function ApiKeyDrawerTrigger({ children }: ApiKeyDrawerTriggerProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-10 shrink-0 rounded-full border-border/70 bg-background/78 px-3 text-foreground shadow-none"
+          className={cn(
+            'h-10 shrink-0 rounded-full border-border/70 bg-background/78 px-3 text-foreground shadow-none',
+            className,
+          )}
           data-onboarding="apiKey"
         >
           <KeyRound className="size-4" />

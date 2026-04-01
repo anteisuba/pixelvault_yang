@@ -1,5 +1,9 @@
 import { ImageEditSchema } from '@/types'
-import { removeBackground, upscaleImage } from '@/services/image-edit.service'
+import {
+  removeBackground,
+  upscaleImage,
+  persistEditedImage,
+} from '@/services/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -36,6 +40,19 @@ export const POST = createApiRoute({
       data.action === 'upscale'
         ? await upscaleImage(data.imageUrl, apiKey)
         : await removeBackground(data.imageUrl, apiKey)
+
+    // Persist to R2 + DB if requested
+    if (data.persist && data.generationId) {
+      const generation = await persistEditedImage({
+        userId: user.id,
+        resultUrl: result.imageUrl,
+        sourceGenerationId: data.generationId,
+        action: data.action === 'remove-background' ? 'remove-bg' : 'upscale',
+        width: result.width,
+        height: result.height,
+      })
+      return { ...result, generation }
+    }
 
     return result
   },

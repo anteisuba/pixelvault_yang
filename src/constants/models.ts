@@ -33,6 +33,11 @@ export enum AI_MODELS {
   ILLUSTRIOUS_XL = 'illustrious-xl',
   NOVELAI_V4_FULL = 'nai-diffusion-4-full',
   NOVELAI_V3 = 'nai-diffusion-3',
+  GEMINI_25_FLASH_IMAGE = 'gemini-2.5-flash-image',
+  FLUX_2_MAX = 'flux-2-max',
+  RECRAFT_V4_PRO = 'recraft-v4-pro',
+  FLUX_KONTEXT_PRO = 'flux-kontext-pro',
+  FLUX_KONTEXT_MAX = 'flux-kontext-max',
   // Video models
   KLING_VIDEO = 'kling-video',
   KLING_V3_PRO = 'kling-v3-pro',
@@ -70,6 +75,11 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.ILLUSTRIOUS_XL]: 'illustriousXl',
   [AI_MODELS.NOVELAI_V4_FULL]: 'novelaiV4Full',
   [AI_MODELS.NOVELAI_V3]: 'novelaiV3',
+  [AI_MODELS.GEMINI_25_FLASH_IMAGE]: 'gemini25FlashImage',
+  [AI_MODELS.FLUX_2_MAX]: 'flux2Max',
+  [AI_MODELS.RECRAFT_V4_PRO]: 'recraftV4Pro',
+  [AI_MODELS.FLUX_KONTEXT_PRO]: 'fluxKontextPro',
+  [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
@@ -150,6 +160,8 @@ export interface ModelOption {
   supportsLora?: boolean
   /** Video extension capability for long video generation */
   videoExtension?: VideoExtensionConfig
+  /** Whether this model requires at least one reference image to generate */
+  requiresReferenceImage?: boolean
 }
 
 /** All model options with their configuration — ordered by quality ranking */
@@ -432,6 +444,81 @@ export const MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'general',
   },
 
+  // ═══ New Image Models (A2) ══════════════════════════════════════
+
+  // Gemini 2.5 Flash Image — fast, cost-effective, text rendering
+  {
+    id: AI_MODELS.GEMINI_25_FLASH_IMAGE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+    externalModelId: 'gemini-2.5-flash-preview-image-generation',
+    outputType: 'IMAGE',
+    available: true,
+    freeTier: true,
+    officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
+    qualityTier: 'standard',
+    styleTag: 'general',
+  },
+
+  // FLUX 2 Max — highest quality FLUX model
+  {
+    id: AI_MODELS.FLUX_2_MAX,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/flux-2-max',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/flux-2-max',
+    qualityTier: 'premium',
+    styleTag: 'photorealistic',
+  },
+
+  // Recraft V4 Pro — design-focused, logos, vector-style
+  {
+    id: AI_MODELS.RECRAFT_V4_PRO,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/recraft/v4/pro/text-to-image',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/recraft-v4-pro',
+    qualityTier: 'premium',
+    styleTag: 'design',
+  },
+
+  // FLUX Kontext Pro — single reference image editing/generation
+  {
+    id: AI_MODELS.FLUX_KONTEXT_PRO,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/flux-pro/kontext',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/flux-pro/kontext',
+    qualityTier: 'premium',
+    styleTag: 'photorealistic',
+    requiresReferenceImage: true,
+  },
+
+  // FLUX Kontext Max — multi-reference image editing/generation
+  {
+    id: AI_MODELS.FLUX_KONTEXT_MAX,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/flux-pro/kontext/max/multi',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/flux-pro/kontext/max',
+    qualityTier: 'premium',
+    styleTag: 'photorealistic',
+    requiresReferenceImage: true,
+  },
+
   // ═══ Video Models — Premium Tier ═════════════════════════════════
 
   // #1 — Kling 3.0 Pro, multi-shot storyboarding, native audio, 1080p
@@ -691,6 +778,11 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.ILLUSTRIOUS_XL]: 'Illustrious',
   [AI_MODELS.NOVELAI_V4_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V3]: 'NovelAI',
+  [AI_MODELS.GEMINI_25_FLASH_IMAGE]: 'Gemini',
+  [AI_MODELS.FLUX_2_MAX]: 'FLUX',
+  [AI_MODELS.RECRAFT_V4_PRO]: 'Recraft',
+  [AI_MODELS.FLUX_KONTEXT_PRO]: 'FLUX',
+  [AI_MODELS.FLUX_KONTEXT_MAX]: 'FLUX',
   // Video families
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.KLING_VIDEO]: 'Kling',

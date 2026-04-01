@@ -83,6 +83,21 @@ function buildJsonErrorResponse(error: GenerationError): NextResponse<ErrorRespo
   })
 }
 
+function toJsonSafe<T>(value: T): T {
+  const serialized = JSON.stringify(value, (_key, currentValue) => {
+    if (typeof currentValue === 'bigint') {
+      const asNumber = Number(currentValue)
+      return Number.isSafeInteger(asNumber)
+        ? asNumber
+        : currentValue.toString()
+    }
+
+    return currentValue
+  })
+
+  return serialized === undefined ? value : (JSON.parse(serialized) as T)
+}
+
 async function getClerkId(required: boolean): Promise<string | null> {
   const authResult = (await auth()) ?? { userId: null }
   const clerkId = authResult.userId ?? null
@@ -246,12 +261,12 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
       if (!config.rateLimit) {
         return NextResponse.json<SuccessResponse<TResult>>({
           success: true,
-          data: result,
+          data: toJsonSafe(result),
         })
       }
 
       return NextResponse.json<SuccessResponse<TResult>>(
-        { success: true, data: result },
+        { success: true, data: toJsonSafe(result) },
         {
           headers: buildRateLimitHeaders(config.rateLimit.limit, remaining),
         },
@@ -310,7 +325,7 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
 
       return NextResponse.json<SuccessResponse<TResult>>({
         success: true,
-        data: result,
+        data: toJsonSafe(result),
       })
     } catch (error) {
       return handleRouteError(config.routeName, startedAt, error)

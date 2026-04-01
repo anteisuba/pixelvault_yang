@@ -139,3 +139,29 @@
 ### W1: Multi-Reference Images — COMPLETE
 ### W2: Project System — COMPLETE
 - See `docs/roadmap.md` Phase W for details
+
+## Phase E: Unified Development Plan — IN PROGRESS
+
+> 合并 development-plan.md (S1-S9) + Studio Redesign Plan + 两轮 Codex Review。
+> 详见: [`docs/plans/unified-development-plan.md`](plans/unified-development-plan.md)
+
+### Track A: 基础修复
+- [x] A1 — 数据层修复 (credit 成本/能力覆盖/计时器/Model ID)
+- [x] A2 — 新模型接入 (Gemini 2.5 Flash/FLUX 2 Max/Recraft V4/Kontext Pro+Max)
+- [x] A3 — 校验+持久化+并行化+超时
+
+### Track B: Studio 重构
+- [ ] B0 — Generation 快照 DTO + ActiveRun 状态模型
+- [ ] B1 — 三栏布局重构 (删除 hero/模型排名，prompt 居中)
+- [ ] B2 — 状态补全+重试+快捷键 (合并 S4+Phase2+3)
+- [ ] B3 — 卡片优化+历史元数据+Remix (合并 S5+Phase4)
+- [ ] B4 — 多模型对比生成 (共享并发服务)
+- [ ] B5 — 批量变体 4选1
+- [ ] B6 — 智能 Prompt (模板库+模型建议+灵感按钮)
+- [ ] B7 — 动效+无障碍
+
+### Track C: 独立功能线
+- [ ] C1 — Storyboard 增量增强
+- [ ] C2 — 系列模式+角色一致性
+- [ ] C3 — 图片编辑 (Kontext 指令/Outpainting/Inpainting)
+- [ ] C4 — 漫画高级 (气泡/多模板导出/剧本模式)

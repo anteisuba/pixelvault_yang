@@ -10,6 +10,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { getModelById } from '@/constants/models'
 import { cn } from '@/lib/utils'
 
 const ASPECT_RATIOS = ['1:1', '16:9', '9:16'] as const
@@ -30,10 +31,19 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
 
   // ── canGenerate: depends on workflow mode ──────────────────────
-  const canGenerate =
+  const currentModelId =
     state.workflowMode === 'quick'
+      ? selectedModel?.modelId
+      : selectedStyleCard?.modelId
+  const modelRequiresRef = currentModelId
+    ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
+    : false
+  const hasRefImage = imageUpload.referenceImages.length > 0
+  const canGenerate =
+    (state.workflowMode === 'quick'
       ? !!selectedModel?.modelId && !!state.prompt.trim()
-      : !!styles.activeCardId && !!selectedStyleCard?.modelId
+      : !!styles.activeCardId && !!selectedStyleCard?.modelId) &&
+    (!modelRequiresRef || hasRefImage)
 
   // ── Reset advancedParams when adapter type changes ──────────
   const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
@@ -112,7 +122,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   return (
     <>
       {/* Sticky on mobile, static on desktop */}
-      <div className="flex items-center justify-between gap-3 sm:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none py-2 sm:py-0 -mx-1 px-1 sm:mx-0 sm:px-0">
+      <div className="flex items-center justify-between gap-3 lg:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm lg:bg-transparent lg:backdrop-blur-none py-2 lg:py-0 -mx-1 px-1 lg:mx-0 lg:px-0">
         <div
           role="radiogroup"
           aria-label={t('aspectRatioLabel')}
@@ -170,6 +180,13 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
             {t('noModel')}
           </p>
         )}
+
+      {/* Reference image required warning */}
+      {modelRequiresRef && !hasRefImage && (
+        <p className="text-xs text-destructive/70 font-serif">
+          {t('requiresReferenceImage')}
+        </p>
+      )}
     </>
   )
 })

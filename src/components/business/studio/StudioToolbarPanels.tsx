@@ -55,7 +55,11 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       ? selectedModel.adapterType
       : ((selectedStyleCard?.adapterType as AI_ADAPTER_TYPES) ??
         AI_ADAPTER_TYPES.FAL)
-  const maxRefImages = getMaxReferenceImages(adapterType)
+  const modelId =
+    state.workflowMode === 'quick' && selectedModel
+      ? selectedModel.modelId
+      : (selectedStyleCard?.modelId ?? undefined)
+  const maxRefImages = getMaxReferenceImages(adapterType, modelId)
 
   // Sync max limit to the image upload hook (enforced in addReferenceImage)
   useEffect(() => {
@@ -151,6 +155,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           {selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
             <AdvancedSettings
               adapterType={adapterType}
+              modelId={modelId}
               params={state.advancedParams}
               onChange={(params) =>
                 dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })

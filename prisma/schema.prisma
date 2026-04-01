@@ -175,6 +175,15 @@ model Generation {
   cardRecipeId    String?
   cardRecipe      CardRecipe?      @relation(fields: [cardRecipeId], references: [id], onDelete: SetNull)
   recipeSnapshot  Json?
+
+  // ── B0: Generation Snapshot ────────────────────────────────────
+  snapshot       Json?                       // Full input parameter snapshot
+  runGroupId     String?                     // Groups compare/variant runs
+  runGroupType   String  @default("single")  // "single" | "compare" | "variant"
+  runGroupIndex  Int     @default(0)         // Position within group (0-based)
+  isWinner       Boolean @default(false)     // Winner flag for compare mode
+  seed           BigInt?                     // Seed for reproducibility
+
   generationJob  GenerationJob?   @relation("GenerationToJob")
   apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
   arenaEntries   ArenaEntry[]
@@ -190,6 +199,7 @@ model Generation {
   @@index([userId, isPublic, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
   @@index([characterCardId, createdAt(sort: Desc)])
+  @@index([runGroupId])
 }
 
 model GenerationJob {

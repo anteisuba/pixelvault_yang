@@ -47,6 +47,8 @@ export interface ResolvedGenerationRoute {
   providerConfig: ProviderConfig
   apiKey: string
   isFreeGeneration?: boolean
+  /** Credit cost for this generation (from model config, fallback 1) */
+  creditCost: number
 }
 
 type GenerateImageServiceErrorCode =
@@ -61,6 +63,7 @@ type GenerateImageServiceErrorCode =
   | 'PROVIDER_ERROR'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'
+  | 'VALIDATION_ERROR'
 
 export class GenerateImageServiceError extends Error {
   readonly code: GenerateImageServiceErrorCode
@@ -114,6 +117,8 @@ export async function resolveGenerationRoute(
       adapterType: selectedApiKey.adapterType,
       providerConfig: selectedApiKey.providerConfig,
       apiKey: selectedApiKey.keyValue,
+      creditCost:
+        builtInModel?.cost ?? API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     }
   }
 
@@ -144,6 +149,7 @@ export async function resolveGenerationRoute(
       adapterType: autoKey.adapterType,
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
+      creditCost: builtInModel.cost,
     }
   }
 
@@ -173,6 +179,7 @@ export async function resolveGenerationRoute(
       providerConfig: builtInModel.providerConfig,
       apiKey: platformKey,
       isFreeGeneration: true,
+      creditCost: builtInModel.cost,
     }
   }
 
@@ -189,6 +196,7 @@ export async function recordFailedUsage(params: {
   adapterType: AI_ADAPTER_TYPES
   provider: string
   modelId: string
+  creditCost: number
   durationMs: number
   referenceImage?: string
   errorMessage: string
@@ -200,7 +208,7 @@ export async function recordFailedUsage(params: {
       adapterType: params.adapterType,
       provider: params.provider,
       modelId: params.modelId,
-      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      requestCount: params.creditCost,
       inputImageCount: params.referenceImage ? 1 : 0,
       outputImageCount: 0,
       durationMs: params.durationMs,
@@ -208,7 +216,7 @@ export async function recordFailedUsage(params: {
       errorMessage: params.errorMessage,
     }),
     failGenerationJob(params.generationJobId, {
-      requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      requestCount: params.creditCost,
       errorMessage: params.errorMessage,
     }),
   ])
@@ -231,6 +239,21 @@ export async function generateImageForUser(
   }
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
+
+  // Validate: models that require reference images must have at least one
+  const builtInModel = getModelById(input.modelId)
+  if (builtInModel?.requiresReferenceImage) {
+    const hasRef =
+      input.referenceImage || (input.referenceImages?.length ?? 0) > 0
+    if (!hasRef) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'This model requires at least one reference image',
+        400,
+      )
+    }
+  }
+
   const provider = getProviderLabel(executionRoute.providerConfig)
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
 
@@ -291,6 +314,7 @@ export async function generateImageForUser(
       adapterType: executionRoute.adapterType,
       provider,
       modelId: executionRoute.modelId,
+      creditCost: executionRoute.creditCost,
       durationMs: Date.now() - providerCallStartedAt,
       referenceImage: input.referenceImage,
       errorMessage: message,
@@ -349,7 +373,7 @@ export async function generateImageForUser(
     adapterType: executionRoute.adapterType,
     provider,
     modelId: executionRoute.modelId,
-    requestCount: generatedAsset.requestCount,
+    requestCount: executionRoute.creditCost,
     inputImageCount: input.referenceImage ? 1 : 0,
     outputImageCount: 1,
     width: generatedAsset.width,
@@ -359,28 +383,35 @@ export async function generateImageForUser(
   })
 
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
+  const refKey = input.referenceImage
+    ? generateStorageKey('IMAGE', dbUser.id)
+    : undefined
 
   try {
-    // Upload reference image to R2 if provided
-    let referenceImageUrl: string | undefined
-    if (input.referenceImage) {
-      const refKey = generateStorageKey('IMAGE', dbUser.id)
-      const { buffer: refBuffer, mimeType: refMimeType } = await fetchAsBuffer(
-        input.referenceImage,
-      )
-      referenceImageUrl = await uploadToR2({
-        data: refBuffer,
-        key: refKey,
-        mimeType: refMimeType,
-      })
-    }
+    // Fetch reference image and generated image in parallel
+    const [refData, genData] = await Promise.all([
+      input.referenceImage
+        ? fetchAsBuffer(input.referenceImage)
+        : Promise.resolve(null),
+      fetchAsBuffer(generatedAsset.imageUrl),
+    ])
 
-    const { buffer, mimeType } = await fetchAsBuffer(generatedAsset.imageUrl)
-    const permanentUrl = await uploadToR2({
-      data: buffer,
-      key: storageKey,
-      mimeType,
-    })
+    // Upload both to R2 in parallel
+    const [referenceImageUrl, permanentUrl] = await Promise.all([
+      refData && refKey
+        ? uploadToR2({
+            data: refData.buffer,
+            key: refKey,
+            mimeType: refData.mimeType,
+          })
+        : Promise.resolve(undefined),
+      uploadToR2({
+        data: genData.buffer,
+        key: storageKey,
+        mimeType: genData.mimeType,
+      }),
+    ])
+    const mimeType = genData.mimeType
 
     const generation = await createGeneration({
       url: permanentUrl,
@@ -392,18 +423,36 @@ export async function generateImageForUser(
       prompt: input.prompt,
       model: executionRoute.modelId,
       provider,
-      requestCount: generatedAsset.requestCount,
+      requestCount: executionRoute.creditCost,
       isFreeGeneration: executionRoute.isFreeGeneration,
       userId: dbUser.id,
       characterCardIds: input.characterCardIds,
       projectId: input.projectId,
+      snapshot: JSON.parse(
+        JSON.stringify({
+          compiledPrompt: input.prompt,
+          modelId: executionRoute.modelId,
+          aspectRatio: input.aspectRatio,
+          advancedParams: input.advancedParams,
+          referenceImages: input.referenceImages,
+          apiKeyId: input.apiKeyId,
+          projectId: input.projectId,
+          isFreeGeneration: executionRoute.isFreeGeneration,
+          creditCost: executionRoute.creditCost,
+          seed: input.advancedParams?.seed,
+        }),
+      ),
+      seed:
+        input.advancedParams?.seed != null
+          ? BigInt(input.advancedParams.seed)
+          : undefined,
     })
 
     await Promise.all([
       attachUsageEntryToGeneration(usageEntry.id, generation.id),
       completeGenerationJob(generationJob.id, {
         generationId: generation.id,
-        requestCount: generatedAsset.requestCount,
+        requestCount: executionRoute.creditCost,
       }),
     ])
 
@@ -413,7 +462,7 @@ export async function generateImageForUser(
       error instanceof Error ? error.message : 'Failed to persist generation'
 
     await failGenerationJob(generationJob.id, {
-      requestCount: generatedAsset.requestCount,
+      requestCount: executionRoute.creditCost,
       errorMessage: message,
     })
 

@@ -115,17 +115,34 @@ export const falAdapter: ProviderAdapter = {
       }))
     }
 
-    // Resolve effective reference image: prefer referenceImages array, fallback to singular
-    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
-    if (effectiveRefImage) {
-      body.image_url = effectiveRefImage
-      // fal's `strength` = denoising strength (higher = more change, less similarity)
-      // Our `referenceStrength` = how much to reference (higher = more similar)
-      // Invert: denoising = 1 - referenceStrength
-      if (advancedParams?.referenceStrength != null) {
-        body.strength = invertReferenceStrength(
-          advancedParams.referenceStrength,
-        )
+    // Kontext models: native reference image handling (no strength/denoising)
+    const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
+    const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
+
+    if (KONTEXT_MULTI_MODELS.has(externalModelId)) {
+      // Kontext Max: multiple reference images
+      if (referenceImages?.length) {
+        body.image_urls = referenceImages
+      }
+    } else if (KONTEXT_SINGLE_MODELS.has(externalModelId)) {
+      // Kontext Pro: single reference image
+      const ref = referenceImages?.[0] ?? referenceImage
+      if (ref) {
+        body.image_url = ref
+      }
+    } else {
+      // Standard FAL img2img: reference image with denoising strength
+      const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+      if (effectiveRefImage) {
+        body.image_url = effectiveRefImage
+        // fal's `strength` = denoising strength (higher = more change, less similarity)
+        // Our `referenceStrength` = how much to reference (higher = more similar)
+        // Invert: denoising = 1 - referenceStrength
+        if (advancedParams?.referenceStrength != null) {
+          body.strength = invertReferenceStrength(
+            advancedParams.referenceStrength,
+          )
+        }
       }
     }
 
@@ -136,6 +153,7 @@ export const falAdapter: ProviderAdapter = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -285,6 +303,7 @@ export const falAdapter: ProviderAdapter = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -326,6 +345,7 @@ export const falAdapter: ProviderAdapter = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -349,6 +369,7 @@ export const falAdapter: ProviderAdapter = {
     const statusResponse = await fetch(statusUrl, {
       method: 'GET',
       headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
     })
 
     if (!statusResponse.ok) {
@@ -368,6 +389,7 @@ export const falAdapter: ProviderAdapter = {
     const resultResponse = await fetch(responseUrl, {
       method: 'GET',
       headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
     })
 
     if (!resultResponse.ok) {

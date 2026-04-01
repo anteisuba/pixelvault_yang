@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -19,17 +20,24 @@ import { Button } from '@/components/ui/button'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { modelSupportsLora } from '@/constants/models'
+import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
 export function StudioCardSelectors() {
   const { dispatch } = useStudioForm()
-  const { characters, backgrounds, styles } = useStudioData()
+  const { characters, backgrounds, styles, projects } = useStudioData()
   const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
   const t = useTranslations('StudioV2')
+  const tV3 = useTranslations('StudioV3')
   const tApiKeys = useTranslations('StudioApiKeys')
 
   const activeKeyCount = keys.filter((k) => k.isActive).length
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
+  const projectHistory = projects.history
+  const cardUsage = useMemo(
+    () => buildStudioCardUsageMap(projectHistory),
+    [projectHistory],
+  )
 
   const handleCharSelect = (id: string | null) => {
     if (selectedCharId) characters.toggleCardSelection(selectedCharId)
@@ -44,6 +52,9 @@ export function StudioCardSelectors() {
           id: c.id,
           name: c.name,
           sourceImageUrl: c.sourceImageUrl,
+          tags: c.tags,
+          createdAt: c.createdAt,
+          lastUsedAt: cardUsage.character[c.id] ?? null,
         }))}
         selectedId={selectedCharId}
         onSelect={handleCharSelect}
@@ -58,6 +69,9 @@ export function StudioCardSelectors() {
           id: c.id,
           name: c.name,
           sourceImageUrl: c.sourceImageUrl ?? null,
+          tags: c.tags,
+          createdAt: c.createdAt,
+          lastUsedAt: cardUsage.background[c.id] ?? null,
         }))}
         selectedId={backgrounds.activeCardId}
         onSelect={backgrounds.setActiveCardId}
@@ -71,9 +85,16 @@ export function StudioCardSelectors() {
         cards={styles.cards.map((c) => ({
           id: c.id,
           name: c.modelId
-            ? `${c.name} · ${modelSupportsLora(c.modelId) ? 'LoRA' : 'Ref'}`
+            ? `${c.name} · ${
+                modelSupportsLora(c.modelId)
+                  ? tV3('loraBadge')
+                  : tV3('referenceBadge')
+              }`
             : c.name,
           sourceImageUrl: c.sourceImageUrl ?? null,
+          tags: c.tags,
+          createdAt: c.createdAt,
+          lastUsedAt: cardUsage.style[c.id] ?? null,
         }))}
         selectedId={styles.activeCardId}
         onSelect={styles.setActiveCardId}

@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
-  Plus,
   Trash2,
   Edit3,
   Check,
@@ -13,12 +12,19 @@ import {
   X,
   Image as ImageIcon,
   Palette,
+  Copy,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import { cn } from '@/lib/utils'
 import type { CardType } from '@/constants/card-types'
+import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
+import type { CardManagerSortMode } from '@/lib/card-management'
+import {
+  matchesCardSearch,
+  sortCardManagerItems,
+} from '@/lib/card-management'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -29,6 +35,8 @@ interface CardItem {
   sourceImageUrl: string | null
   prompt: string // backgroundPrompt / stylePrompt / model name
   tags: string[]
+  createdAt?: Date | string | number | null
+  lastUsedAt?: Date | string | number | null
 }
 
 interface SimpleCardManagerProps {
@@ -107,6 +115,8 @@ export function SimpleCardManager({
   const [editingCardId, setEditingCardId] = useState<string | null>(null)
   const [editPrompt, setEditPrompt] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortMode, setSortMode] = useState<CardManagerSortMode>('recent')
 
   // Create form state
   const [newName, setNewName] = useState('')
@@ -117,8 +127,28 @@ export function SimpleCardManager({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const t = useTranslations('CardSlot')
+  const tv2 = useTranslations('StudioV2')
   const Icon = CARD_ICONS[cardType]
   const color = CARD_COLORS[cardType]
+
+  const visibleCards = useMemo(
+    () =>
+      sortCardManagerItems(
+        cards.filter((card) =>
+          matchesCardSearch(searchQuery, [
+            card.name,
+            card.description,
+            card.prompt,
+            card.tags,
+          ]),
+        ),
+        sortMode,
+        (card) => card.name,
+        (card) => card.createdAt,
+        (card) => card.lastUsedAt,
+      ),
+    [cards, searchQuery, sortMode],
+  )
 
   // ── Image Upload ─────────────────────────────────────────────
   const handleFileChange = useCallback(
@@ -173,6 +203,23 @@ export function SimpleCardManager({
     [editPrompt, onUpdate],
   )
 
+  const handleDuplicate = useCallback(
+    async (card: CardItem) => {
+      setIsCreating(true)
+      try {
+        await onCreate({
+          name: `${card.name} ${t('copySuffix')}`,
+          description: card.description ?? undefined,
+          prompt: card.prompt,
+          tags: card.tags.length > 0 ? card.tags : undefined,
+        })
+      } finally {
+        setIsCreating(false)
+      }
+    },
+    [onCreate, t],
+  )
+
   return (
     <div className="rounded-xl border border-border/60 bg-background/30">
       {/* Header */}
@@ -202,17 +249,15 @@ export function SimpleCardManager({
 
       {isExpanded && (
         <div className="border-t border-border/40 px-4 py-3 space-y-2">
-          {/* Create button */}
-          {!showCreateForm && (
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
-            >
-              <Plus className="size-3.5" />
-              {t('select')}
-            </button>
-          )}
+          <CardManagerToolbar
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            createLabel={t('create')}
+            onCreate={() => setShowCreateForm(true)}
+            createDisabled={isLoading || showCreateForm || isCreating}
+          />
 
           {/* Create Form */}
           {showCreateForm && (
@@ -221,7 +266,7 @@ export function SimpleCardManager({
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Name"
+                placeholder={t('namePlaceholder')}
                 className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm focus:border-primary/40 focus:outline-none"
               />
 
@@ -265,7 +310,7 @@ export function SimpleCardManager({
                       className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 py-3 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
                     >
                       <Upload className="size-3.5" />
-                      Upload image to extract attributes
+                      {t('uploadToExtract')}
                     </button>
                   )}
                 </div>
@@ -277,7 +322,7 @@ export function SimpleCardManager({
                   <textarea
                     value={newPrompt}
                     onChange={(e) => setNewPrompt(e.target.value)}
-                    placeholder={promptPlaceholder ?? 'Description...'}
+                    placeholder={promptPlaceholder ?? t('descriptionPlaceholder')}
                     rows={2}
                     className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
                   />
@@ -288,7 +333,7 @@ export function SimpleCardManager({
                 <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-primary">
-                      LoRA
+                      {t('loraLabel')}
                     </span>
                     {newLoras.length < maxLoras && (
                       <button
@@ -301,7 +346,7 @@ export function SimpleCardManager({
                         }
                         className="text-xs text-primary hover:text-primary/80"
                       >
-                        + Add LoRA
+                        + {t('addLora')}
                       </button>
                     )}
                   </div>
@@ -362,7 +407,7 @@ export function SimpleCardManager({
                   ))}
                   {newLoras.length === 0 && (
                     <p className="text-[10px] text-muted-foreground/60 text-center py-1">
-                      Click &quot;+ Add LoRA&quot; to configure
+                      {t('loraEmptyHint')}
                     </p>
                   )}
                 </div>
@@ -383,7 +428,7 @@ export function SimpleCardManager({
                   ) : (
                     <Check className="size-3" />
                   )}
-                  Create
+                  {t('create')}
                 </button>
                 <button
                   type="button"
@@ -397,7 +442,7 @@ export function SimpleCardManager({
                   }}
                   className="rounded-md border border-border/60 px-3 py-1 text-xs text-muted-foreground"
                 >
-                  Cancel
+                  {tv2('cancel')}
                 </button>
               </div>
             </div>
@@ -412,7 +457,7 @@ export function SimpleCardManager({
 
           {/* Card list */}
           {!isLoading &&
-            cards.map((card) => (
+            visibleCards.map((card) => (
               <div
                 key={card.id}
                 className={cn(
@@ -485,7 +530,7 @@ export function SimpleCardManager({
                     {/* Prompt / description */}
                     <div>
                       <span className="text-xs font-medium text-muted-foreground">
-                        {promptLabel ?? 'Prompt'}
+                        {promptLabel ?? t('promptLabel')}
                       </span>
                       {editingCardId === card.id ? (
                         <div className="mt-1 space-y-1">
@@ -501,14 +546,14 @@ export function SimpleCardManager({
                               onClick={() => handleSaveEdit(card.id)}
                               className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground"
                             >
-                              Save
+                              {tv2('save')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditingCardId(null)}
                               className="rounded border border-border/60 px-2 py-0.5 text-xs text-muted-foreground"
                             >
-                              Cancel
+                              {tv2('cancel')}
                             </button>
                           </div>
                         </div>
@@ -541,7 +586,15 @@ export function SimpleCardManager({
                         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <Edit3 className="size-3" />
-                        Edit
+                        {tv2('edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDuplicate(card)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <Copy className="size-3" />
+                        {t('duplicate')}
                       </button>
                       <button
                         type="button"
@@ -549,7 +602,7 @@ export function SimpleCardManager({
                         className="flex items-center gap-1 text-xs text-red-500/70 hover:text-red-500"
                       >
                         <Trash2 className="size-3" />
-                        Delete
+                        {t('delete')}
                       </button>
                     </div>
                   </div>
@@ -566,6 +619,17 @@ export function SimpleCardManager({
               </p>
             </div>
           )}
+          {!isLoading &&
+            cards.length > 0 &&
+            visibleCards.length === 0 &&
+            !showCreateForm && (
+              <div className="flex flex-col items-center gap-1.5 py-6 text-center">
+                <Palette className="size-5 text-muted-foreground/30" />
+                <p className="text-xs text-muted-foreground/60 font-serif">
+                  {tv2('cardSearchEmpty')}
+                </p>
+              </div>
+            )}
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 
 import { StudioApiRoutesSection } from './StudioApiRoutesSection'
 import { StudioCardSection } from './StudioCardSection'
+import { StudioRecentConfigurations } from './StudioRecentConfigurations'
 
 export const StudioLeftColumn = memo(function StudioLeftColumn({
   className,
@@ -46,6 +47,8 @@ export const StudioLeftColumn = memo(function StudioLeftColumn({
         onRename={handleRename}
         onDelete={projects.remove}
       />
+
+      <StudioRecentConfigurations />
 
       {/* ── Mode tabs (Image / Video) ─────────────────────────────── */}
       <div
@@ -92,7 +95,7 @@ export const StudioLeftColumn = memo(function StudioLeftColumn({
       {/* ── Workflow Toggle (Quick / Card) ──────────────────────── */}
       <div
         role="tablist"
-        aria-label="Workflow mode"
+        aria-label={tV3('workflowModeLabel')}
         className="flex rounded-lg border border-border/60 p-1"
       >
         <button

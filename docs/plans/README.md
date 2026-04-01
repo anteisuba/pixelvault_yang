@@ -34,6 +34,7 @@
 ## 当前计划
 
 - `jimeng-google-video-integration.md`
+- `studio-runtime-manual-checklist.md`
 - `studio-refactor.md`
 - `studio-v3-redesign.md`
 - `unified-development-plan.md`

@@ -248,6 +248,40 @@ describe('studioFormReducer', () => {
     expect(next.panels.civitai).toBe(false)
   })
 
+  // ── CLOSE_ALL_PANELS ──
+
+  it('CLOSE_ALL_PANELS closes every open panel', () => {
+    const state = makeInitialState()
+    state.panels.advanced = true
+    state.panels.enhance = true
+    state.panels.cardManagement = true
+
+    const next = studioFormReducer(state, {
+      type: 'CLOSE_ALL_PANELS',
+    })
+
+    expect(Object.values(next.panels).every((value) => value === false)).toBe(
+      true,
+    )
+  })
+
+  it('CLOSE_ALL_PANELS preserves non-panel form state', () => {
+    const state = makeInitialState({
+      workflowMode: 'card',
+      prompt: 'keep me',
+      selectedOptionId: 'workspace:gemini',
+    })
+    state.panels.modelSelector = true
+
+    const next = studioFormReducer(state, {
+      type: 'CLOSE_ALL_PANELS',
+    })
+
+    expect(next.workflowMode).toBe('card')
+    expect(next.prompt).toBe('keep me')
+    expect(next.selectedOptionId).toBe('workspace:gemini')
+  })
+
   // ── RESET_FORM ──
 
   it('RESET_FORM resets prompt, aspectRatio, advancedParams, selectedOptionId, and panels', () => {

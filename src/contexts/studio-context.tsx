@@ -76,6 +76,7 @@ export type StudioAction =
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
+  | { type: 'CLOSE_ALL_PANELS' }
   | { type: 'RESET_FORM' }
 
 const initialPanels: Record<PanelName, boolean> = {
@@ -151,6 +152,11 @@ export function studioFormReducer(
       return {
         ...state,
         panels: { ...state.panels, [action.payload]: false },
+      }
+    case 'CLOSE_ALL_PANELS':
+      return {
+        ...state,
+        panels: { ...initialPanels },
       }
     case 'RESET_FORM':
       return {

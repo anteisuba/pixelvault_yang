@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -10,6 +11,7 @@ import { StudioErrorBoundary } from '@/components/business/studio/StudioErrorBou
 import { AnimatedCollapse } from '@/components/ui/animated-collapse'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
+import { buildStudioCardUsageMap } from '@/lib/studio-history'
 import { cn } from '@/lib/utils'
 
 export function StudioCardManagement() {
@@ -17,6 +19,11 @@ export function StudioCardManagement() {
   const { characters, backgrounds, styles, projects } = useStudioData()
   const t = useTranslations('StudioV2')
   const tBg = useTranslations('BackgroundCard')
+  const projectHistory = projects.history
+  const cardUsage = useMemo(
+    () => buildStudioCardUsageMap(projectHistory),
+    [projectHistory],
+  )
 
   return (
     <div className="rounded-xl border border-border/40 overflow-hidden">
@@ -48,6 +55,7 @@ export function StudioCardManagement() {
               cards={characters.cards}
               activeCardIds={characters.activeCardIds}
               isLoading={characters.isLoading}
+              lastUsedAtById={cardUsage.character}
               onToggleSelect={characters.toggleCardSelection}
               onCreate={characters.create}
               onUpdate={characters.update}
@@ -64,6 +72,8 @@ export function StudioCardManagement() {
                 sourceImageUrl: c.sourceImageUrl ?? null,
                 prompt: c.backgroundPrompt,
                 tags: c.tags,
+                createdAt: c.createdAt,
+                lastUsedAt: cardUsage.background[c.id] ?? null,
               }))}
               activeCardId={backgrounds.activeCardId}
               isLoading={backgrounds.isLoading}
@@ -95,6 +105,7 @@ export function StudioCardManagement() {
               cards={styles.cards}
               activeCardId={styles.activeCardId}
               isLoading={styles.isLoading}
+              lastUsedAtById={cardUsage.style}
               onSelect={styles.setActiveCardId}
               onCreate={async (data) => {
                 await styles.create({

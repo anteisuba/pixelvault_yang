@@ -4,16 +4,16 @@ import { memo, useCallback, useRef, useEffect } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import {
   useStudioForm,
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById } from '@/constants/models'
 import { cn } from '@/lib/utils'
-
-const ASPECT_RATIOS = ['1:1', '16:9', '9:16'] as const
 
 export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const { state, dispatch } = useStudioForm()
@@ -21,6 +21,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
     useStudioData()
   const { isGenerating, generate } = useStudioGen()
   const t = useTranslations('StudioV2')
+  const tV3 = useTranslations('StudioV3')
 
   // ── Quick mode: resolve selected model (shared hook) ──────────
   const { selectedModel } = useImageModelOptions()
@@ -119,6 +120,12 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
     imageUpload.referenceImages,
   ])
 
+  useStudioShortcuts({
+    onGenerate: () => {
+      void handleGenerate()
+    },
+  })
+
   return (
     <>
       {/* Sticky on mobile, static on desktop */}
@@ -128,7 +135,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           aria-label={t('aspectRatioLabel')}
           className="flex gap-1.5"
         >
-          {ASPECT_RATIOS.map((r) => (
+          {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
             <button
               key={r}
               type="button"
@@ -166,7 +173,12 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           ) : (
             <>
               <Sparkles className="size-4" />
-              {t('generate')}
+              <span className="flex flex-col items-start leading-none">
+                <span>{t('generate')}</span>
+                <span className="text-[10px] font-medium opacity-70">
+                  {tV3('generateShortcutHint')}
+                </span>
+              </span>
             </>
           )}
         </button>

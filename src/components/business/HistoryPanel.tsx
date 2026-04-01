@@ -15,6 +15,7 @@ interface HistoryPanelProps {
   isLoading: boolean
   onLoadMore: () => void
   onSelect?: (generation: GenerationRecord) => void
+  selectedId?: string | null
 }
 
 export function HistoryPanel({
@@ -24,6 +25,7 @@ export function HistoryPanel({
   isLoading,
   onLoadMore,
   onSelect,
+  selectedId,
 }: HistoryPanelProps) {
   const t = useTranslations('Projects')
 
@@ -88,6 +90,8 @@ export function HistoryPanel({
               gen.outputType === 'IMAGE' &&
                 gen.url &&
                 'cursor-grab active:cursor-grabbing',
+              selectedId === gen.id &&
+                'border-primary/40 ring-2 ring-primary/20 shadow-sm shadow-primary/10',
             )}
           >
             {gen.url ? (

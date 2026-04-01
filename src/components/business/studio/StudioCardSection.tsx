@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { modelSupportsLora } from '@/constants/models'
+import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
 import { StudioApiRoutesSection } from './StudioApiRoutesSection'
 
@@ -31,10 +32,16 @@ export const StudioCardSection = memo(function StudioCardSection() {
   const { state, dispatch } = useStudioForm()
   const { characters, backgrounds, styles, projects } = useStudioData()
   const t = useTranslations('StudioV2')
+  const tV3 = useTranslations('StudioV3')
   const tBg = useTranslations('BackgroundCard')
+  const projectHistory = projects.history
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
+  const cardUsage = useMemo(
+    () => buildStudioCardUsageMap(projectHistory),
+    [projectHistory],
+  )
 
   const handleCharSelect = useCallback(
     (id: string | null) => {
@@ -54,6 +61,9 @@ export const StudioCardSection = memo(function StudioCardSection() {
             id: c.id,
             name: c.name,
             sourceImageUrl: c.sourceImageUrl,
+            tags: c.tags,
+            createdAt: c.createdAt,
+            lastUsedAt: cardUsage.character[c.id] ?? null,
           }))}
           selectedId={selectedCharId}
           onSelect={handleCharSelect}
@@ -68,6 +78,9 @@ export const StudioCardSection = memo(function StudioCardSection() {
             id: c.id,
             name: c.name,
             sourceImageUrl: c.sourceImageUrl ?? null,
+            tags: c.tags,
+            createdAt: c.createdAt,
+            lastUsedAt: cardUsage.background[c.id] ?? null,
           }))}
           selectedId={backgrounds.activeCardId}
           onSelect={backgrounds.setActiveCardId}
@@ -81,9 +94,16 @@ export const StudioCardSection = memo(function StudioCardSection() {
           cards={styles.cards.map((c) => ({
             id: c.id,
             name: c.modelId
-              ? `${c.name} · ${modelSupportsLora(c.modelId) ? 'LoRA' : 'Ref'}`
+              ? `${c.name} · ${
+                  modelSupportsLora(c.modelId)
+                    ? tV3('loraBadge')
+                    : tV3('referenceBadge')
+                }`
               : c.name,
             sourceImageUrl: c.sourceImageUrl ?? null,
+            tags: c.tags,
+            createdAt: c.createdAt,
+            lastUsedAt: cardUsage.style[c.id] ?? null,
           }))}
           selectedId={styles.activeCardId}
           onSelect={styles.setActiveCardId}
@@ -125,12 +145,13 @@ export const StudioCardSection = memo(function StudioCardSection() {
               {t('cardManagement')}
             </SheetTitle>
           </SheetHeader>
-          <StudioErrorBoundary section="Card Management">
+          <StudioErrorBoundary section={t('cardManagement')}>
             <div className="p-6 space-y-6">
               <CharacterCardManager
                 cards={characters.cards}
                 activeCardIds={characters.activeCardIds}
                 isLoading={characters.isLoading}
+                lastUsedAtById={cardUsage.character}
                 onToggleSelect={characters.toggleCardSelection}
                 onCreate={characters.create}
                 onUpdate={characters.update}
@@ -147,6 +168,8 @@ export const StudioCardSection = memo(function StudioCardSection() {
                   sourceImageUrl: c.sourceImageUrl ?? null,
                   prompt: c.backgroundPrompt,
                   tags: c.tags,
+                  createdAt: c.createdAt,
+                  lastUsedAt: cardUsage.background[c.id] ?? null,
                 }))}
                 activeCardId={backgrounds.activeCardId}
                 isLoading={backgrounds.isLoading}
@@ -178,6 +201,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
                 cards={styles.cards}
                 activeCardId={styles.activeCardId}
                 isLoading={styles.isLoading}
+                lastUsedAtById={cardUsage.style}
                 onSelect={styles.setActiveCardId}
                 onCreate={async (data) => {
                   await styles.create({

@@ -104,7 +104,17 @@ B3 = S5+Phase4(合并) ──→ B4 对比 ──→ B5 变体
 
 ### B0 — Generation 快照 + ActiveRun 状态模型
 
-**状态:** 未开始
+**状态:** 部分完成 ⏳
+
+#### 当前已落地
+- Prisma `Generation` 已包含 `snapshot` / `runGroupId` / `runGroupType` / `runGroupIndex` / `isWinner` / `seed`
+- `types/index.ts` 已有 `GenerationSnapshotSchema`
+- `studio-context.tsx` / `use-unified-generate.ts` 已切到 `activeRun` 主状态模型
+
+#### 当前仍待补
+- 补齐 snapshot 序列化与回放的回归测试
+- 把 compare / variant 的 run-group 约束补全到服务层
+- 完成旧记录 `snapshot = null` 的兼容读取路径
 
 #### B0a. GenerationSnapshot DTO
 Prisma migration 新增:
@@ -143,7 +153,17 @@ type ActiveRun = {
 
 ### B1 — 三栏布局重构
 
-**状态:** 未开始
+**状态:** 已完成 ✅
+
+#### 已完成范围
+- `StudioWorkspace` 已切成项目栏 + 左中右/左右主布局
+- `StudioLeftColumn` / `StudioCenterColumn` / `StudioRightColumn` 已承担主要布局职责
+- `ProjectSelector`、Image/Video tabs、HistoryPanel、移动端设置面板已迁入新结构
+- API 路由入口、卡片管理入口、预览区与历史区都已接回新布局
+
+#### 当前备注
+- Video 仍以现有布局逻辑为主，没有做单独重构
+- 浏览器级回归仍需结合手动验证清单补一次完整走查
 
 #### 删除
 - Hero 统计区 → Navbar tooltip
@@ -170,7 +190,7 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B2 — 状态补全 + 重试 + 快捷键（合并 S4 + Phase 2 + Phase 3）
 
-**状态:** 未开始
+**状态:** 已完成 ✅
 
 #### 来自 S4: 重试基础设施
 - `use-unified-generate.ts` — `lastRequestPayload` + `retry()` 方法
@@ -188,25 +208,43 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 - Cmd+Enter 生成 + Cmd+E 增强 + Cmd+K 聚焦 + Esc 关闭面板
 - Generate 按钮显示快捷键提示
 
-**验证:** 空态体验 + 断网 inline 错误 + 快捷键 + i18n 三语零 missing key
+#### 已完成范围
+- `use-unified-generate.ts` 已补 `lastRequestPayload` + `retry()`
+- Preview 区已有 inline error + retry，非 preview 错误仍保留 toast
+- Studio 新拆分组件的硬编码文案已回收到消息表，三语文案已补齐
+- `Cmd/Ctrl + Enter`、`Cmd/Ctrl + E`、`Cmd/Ctrl + K`、`Esc` 已接入
+- 生成状态、工作流标签和屏幕阅读器状态文本已切到统一 `studio` 文案体系
+
+**验证:** `vitest` / `eslint` / `tsc` 已通过；浏览器视觉回归仍需手动补验
 
 ---
 
 ### B3 — 卡片优化 + 历史元数据 + Remix（合并 S5 + Phase 4）
 
-**状态:** 未开始
+**状态:** 进行中 ⏳
 
 #### 来自 S5: 卡片功能
-- 卡片搜索/筛选（名称/标签）
-- 卡片复制
-- 卡片排序（最近使用/创建时间/名称）
+- 卡片搜索/筛选（名称/标签） ✅
+- 卡片复制 ✅
+- 卡片排序（最近使用/创建时间/名称） ✅
 
 #### 来自 Phase 4: Remix + 元数据
-- **Remix V1** — 回填 prompt + modelId（现有数据）
-- **Remix V2** — 回填完整 snapshot（依赖 B0 数据积累）
-- **历史默认态**: 缩略图 + model badge + prompt 前 30 字
-- **展开态**: 点击 → 完整 prompt + 参数 + Remix 按钮
-- **最近使用入口**: 左栏顶部 3 个最近配置组合
+- **Remix V1** — 回填 prompt + modelId（现有数据） ✅
+- **Remix V2** — 回填完整 snapshot（依赖 B0 数据积累） ⏳
+- **历史默认态**: 缩略图 + model badge + prompt 前 30 字 ✅
+- **展开态**: 点击 → 完整 prompt + 参数 + Remix 按钮 ✅
+- **最近使用入口**: 左栏顶部 3 个最近配置组合 ✅
+
+#### 已完成范围
+- History 缩略图已驱动右侧预览，不再默认直接塞入参考图
+- Preview 已支持 `Use as reference` 和 `Remix`
+- 卡片下拉已支持搜索、排序、最近使用
+- 管理面板内部已支持搜索、排序、复制
+- 最近配置入口已接到左栏和移动端设置面板
+
+#### 当前仍待补
+- `Remix V2` 继续优先消费完整 snapshot
+- 浏览器级视觉和交互回归
 
 **验证:** 卡片搜索可用 + Remix V1 回填 + 历史元数据正确
 

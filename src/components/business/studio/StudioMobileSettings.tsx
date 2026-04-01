@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 
 import { StudioApiRoutesSection } from './StudioApiRoutesSection'
 import { StudioCardSection } from './StudioCardSection'
+import { StudioRecentConfigurations } from './StudioRecentConfigurations'
 import { StudioToolbarPanels } from './StudioToolbarPanels'
 
 export const StudioMobileSettings = memo(function StudioMobileSettings() {
@@ -65,6 +66,8 @@ export const StudioMobileSettings = memo(function StudioMobileSettings() {
             onRename={handleRename}
             onDelete={projects.remove}
           />
+
+          <StudioRecentConfigurations />
 
           {/* ── Mode tabs (Image / Video) ─────────────────────────── */}
           <div
@@ -111,7 +114,7 @@ export const StudioMobileSettings = memo(function StudioMobileSettings() {
           {/* ── Workflow toggle + Model/Card ───────────────────────── */}
           <div
             role="tablist"
-            aria-label="Workflow mode"
+            aria-label={tV3('workflowModeLabel')}
             className="flex rounded-lg border border-border/60 p-1"
           >
             <button

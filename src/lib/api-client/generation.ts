@@ -486,12 +486,15 @@ export async function studioGenerateAPI(
       body: JSON.stringify(data),
     })
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
     return await response.json()

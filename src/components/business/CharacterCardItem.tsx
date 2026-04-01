@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Check,
   FolderPlus,
+  Copy,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -86,6 +87,7 @@ export interface CharacterCardItemProps {
   onCreate: (
     data: CreateCharacterCardRequest,
   ) => Promise<CharacterCardRecord | null>
+  onDuplicateCard?: (card: CharacterCardRecord) => Promise<void> | void
   activeCardIds: string[]
   onToggleSelectCard: (id: string) => void
   onDeleteCard: (id: string) => Promise<boolean>
@@ -105,6 +107,7 @@ export function CharacterCardItem({
   onDelete,
   onUpdate,
   onCreate,
+  onDuplicateCard,
   activeCardIds,
   onToggleSelectCard,
   onDeleteCard,
@@ -112,8 +115,10 @@ export function CharacterCardItem({
   depth = 0,
 }: CharacterCardItemProps) {
   const t = useTranslations('CharacterCard')
+  const tCard = useTranslations('CardSlot')
   const tView = useTranslations('CharacterCard.viewTypes')
   const [expanded, setExpanded] = useState(false)
+  const [localExpanded, setLocalExpanded] = useState(false)
   const [showVariants, setShowVariants] = useState(false)
   const [showVariantForm, setShowVariantForm] = useState(false)
   const [isCreatingVariant, setIsCreatingVariant] = useState(false)
@@ -122,6 +127,16 @@ export function CharacterCardItem({
 
   const hasVariants = card.variants && card.variants.length > 0
   const isRoot = depth === 0
+  const isExpandedResolved = depth > 0 ? localExpanded : isExpanded
+
+  const handleToggleItemExpand = () => {
+    if (depth > 0) {
+      setLocalExpanded((prev) => !prev)
+      return
+    }
+
+    onToggleExpand()
+  }
 
   const handleSavePrompt = async () => {
     const success = await onUpdate({ characterPrompt: editPrompt })
@@ -175,7 +190,7 @@ export function CharacterCardItem({
         </button>
         <button
           type="button"
-          onClick={onToggleExpand}
+          onClick={handleToggleItemExpand}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border/40">
@@ -212,7 +227,7 @@ export function CharacterCardItem({
               )}
             </div>
           </div>
-          {isExpanded ? (
+          {isExpandedResolved ? (
             <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
           ) : (
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -221,7 +236,7 @@ export function CharacterCardItem({
       </div>
 
       {/* Expanded content */}
-      {isExpanded && (
+      {isExpandedResolved && (
         <div className="space-y-3 border-t border-border/40 p-3">
           {/* Source images */}
           {sourceEntries.length > 0 && (
@@ -363,12 +378,23 @@ export function CharacterCardItem({
                 {t('addVariant')}
               </button>
             )}
+            {onDuplicateCard ? (
+              <button
+                type="button"
+                onClick={() => void onDuplicateCard(card)}
+                className="flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Copy className="size-3" />
+                {tCard('duplicate')}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onDelete}
               className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive transition-colors hover:bg-destructive/10"
             >
               <Trash2 className="size-3" />
+              {tCard('delete')}
             </button>
           </div>
 
@@ -417,6 +443,7 @@ export function CharacterCardItem({
                   onToggleSelectCard={onToggleSelectCard}
                   onDeleteCard={onDeleteCard}
                   onUpdateCard={onUpdateCard}
+                  onDuplicateCard={onDuplicateCard}
                   depth={1}
                 />
               ))}

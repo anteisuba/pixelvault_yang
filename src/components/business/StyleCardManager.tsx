@@ -1,21 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, Check } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Copy, Pencil, Trash2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
+import { isBuiltInModel } from '@/constants/models'
+import { isAiAdapterType } from '@/constants/providers'
 import type {
   StyleCardRecord,
   CreateStyleCardRequest,
   UpdateStyleCardRequest,
 } from '@/types'
+import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
 import { StyleCardEditor } from '@/components/business/StyleCardEditor'
+import type { CardManagerSortMode } from '@/lib/card-management'
+import {
+  matchesCardSearch,
+  sortCardManagerItems,
+} from '@/lib/card-management'
 
 interface StyleCardManagerProps {
   cards: StyleCardRecord[]
   activeCardId: string | null
   isLoading: boolean
+  lastUsedAtById: Record<string, number>
   onSelect: (id: string | null) => void
   onCreate: (data: CreateStyleCardRequest) => Promise<void>
   onUpdate: (
@@ -39,6 +48,7 @@ export function StyleCardManager({
   cards,
   activeCardId,
   isLoading,
+  lastUsedAtById,
   onSelect,
   onCreate,
   onUpdate,
@@ -46,9 +56,13 @@ export function StyleCardManager({
 }: StyleCardManagerProps) {
   const t = useTranslations('StudioV2')
   const tStyle = useTranslations('StyleCard')
+  const tCard = useTranslations('CardSlot')
+  const tV3 = useTranslations('StudioV3')
 
   const [view, setView] = useState<ManagerView>({ type: 'list' })
   const [isSaving, setIsSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortMode, setSortMode] = useState<CardManagerSortMode>('recent')
 
   const handleSave = async (
     data: CreateStyleCardRequest | UpdateStyleCardRequest,
@@ -80,6 +94,48 @@ export function StyleCardManager({
     }
   }
 
+  const handleDuplicate = async (card: StyleCardRecord) => {
+    setIsSaving(true)
+    try {
+      await onCreate({
+        name: `${card.name} ${tCard('copySuffix')}`,
+        description: card.description ?? undefined,
+        stylePrompt: card.stylePrompt,
+        attributes: card.attributes ?? undefined,
+        modelId: card.modelId && isBuiltInModel(card.modelId) ? card.modelId : undefined,
+        adapterType:
+          card.adapterType && isAiAdapterType(card.adapterType)
+            ? card.adapterType
+            : undefined,
+        advancedParams: card.advancedParams ?? undefined,
+        tags: card.tags,
+        projectId: card.projectId ?? undefined,
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const visibleCards = useMemo(
+    () =>
+      sortCardManagerItems(
+        cards.filter((card) =>
+          matchesCardSearch(searchQuery, [
+            card.name,
+            card.description,
+            card.stylePrompt,
+            card.tags,
+            card.modelId,
+          ]),
+        ),
+        sortMode,
+        (card) => card.name,
+        (card) => card.createdAt,
+        (card) => lastUsedAtById[card.id] ?? 0,
+      ),
+    [cards, lastUsedAtById, searchQuery, sortMode],
+  )
+
   if (view.type === 'create' || view.type === 'edit') {
     return (
       <div className="space-y-3">
@@ -100,9 +156,8 @@ export function StyleCardManager({
     const card = view.card
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
-        <p className="text-sm text-foreground">
-          删除「{card.name}」？此操作不可撤销。
-        </p>
+        <p className="text-sm text-foreground">{tStyle('deleteConfirm')}</p>
+        <p className="text-xs text-muted-foreground">{card.name}</p>
         <div className="flex gap-2 justify-end">
           <button
             type="button"
@@ -117,7 +172,7 @@ export function StyleCardManager({
             onClick={() => handleDelete(card)}
             className="rounded-md bg-destructive px-3 py-1.5 text-xs text-destructive-foreground disabled:opacity-50"
           >
-            删除
+            {tStyle('delete')}
           </button>
         </div>
       </div>
@@ -127,26 +182,34 @@ export function StyleCardManager({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{tStyle('title')}</p>
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => setView({ type: 'create' })}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-primary hover:bg-primary/5 disabled:opacity-50"
-        >
-          <Plus className="h-3 w-3" />
-          {t('new')}
-        </button>
+        <p className="text-xs font-medium text-muted-foreground">
+          {tStyle('title')}
+        </p>
       </div>
+
+      <CardManagerToolbar
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        createLabel={t('new')}
+        onCreate={() => setView({ type: 'create' })}
+        createDisabled={isLoading || isSaving}
+      />
 
       {cards.length === 0 && (
         <p className="py-3 text-center text-xs text-muted-foreground">
-          {tStyle('empty') ?? '暂无画风卡 — 点击「新建」添加'}
+          {tStyle('empty')}
         </p>
       )}
 
       <div className="space-y-1">
-        {cards.map((card) => {
+        {cards.length > 0 && visibleCards.length === 0 ? (
+          <p className="py-3 text-center text-xs text-muted-foreground">
+            {t('cardSearchEmpty')}
+          </p>
+        ) : null}
+        {visibleCards.map((card) => {
           const isActive = card.id === activeCardId
           return (
             <div
@@ -174,7 +237,7 @@ export function StyleCardManager({
                     <p className="truncate text-xs text-muted-foreground">
                       {card.modelId}
                       {card.advancedParams?.loras?.length
-                        ? ` · ${card.advancedParams.loras.length} LoRA`
+                        ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
                         : ''}
                     </p>
                   ) : (
@@ -194,9 +257,17 @@ export function StyleCardManager({
                 </button>
                 <button
                   type="button"
+                  onClick={() => void handleDuplicate(card)}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title={tCard('duplicate')}
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => setView({ type: 'confirmDelete', card })}
                   className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
-                  title="删除"
+                  title={tStyle('delete')}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>

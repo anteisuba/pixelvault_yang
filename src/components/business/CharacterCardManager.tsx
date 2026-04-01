@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Sparkles,
   ChevronDown,
   ChevronRight,
   User,
   Loader2,
-  Plus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -16,14 +15,21 @@ import type {
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
 } from '@/types'
+import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
 import { CharacterCardCreateForm } from '@/components/business/CharacterCardCreateForm'
 import { CharacterCardItem } from '@/components/business/CharacterCardItem'
 import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
+import type { CardManagerSortMode } from '@/lib/card-management'
+import {
+  matchesCardSearch,
+  sortCardManagerItems,
+} from '@/lib/card-management'
 
 interface CharacterCardManagerProps {
   cards: CharacterCardRecord[]
   activeCardIds: string[]
   isLoading: boolean
+  lastUsedAtById: Record<string, number>
   onToggleSelect: (id: string) => void
   onCreate: (
     data: CreateCharacterCardRequest,
@@ -36,16 +42,21 @@ export function CharacterCardManager({
   cards,
   activeCardIds,
   isLoading,
+  lastUsedAtById,
   onToggleSelect,
   onCreate,
   onUpdate,
   onDelete,
 }: CharacterCardManagerProps) {
   const t = useTranslations('CharacterCard')
+  const tStudio = useTranslations('StudioV2')
+  const tCard = useTranslations('CardSlot')
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortMode, setSortMode] = useState<CardManagerSortMode>('recent')
 
   const selectedCount = activeCardIds.length
 
@@ -59,6 +70,56 @@ export function CharacterCardManager({
     }
     return card
   }
+
+  const handleDuplicate = async (card: CharacterCardRecord) => {
+    setIsCreating(true)
+    try {
+      const duplicatedCard = await onCreate({
+        name: `${card.name} ${tCard('copySuffix')}`,
+        description: card.description ?? undefined,
+        tags: card.tags.length > 0 ? card.tags : undefined,
+        sourceImages:
+          card.sourceImages.length > 0
+            ? card.sourceImages
+            : card.sourceImageEntries.map((entry) => entry.url),
+        parentId: card.parentId ?? undefined,
+        variantLabel: card.variantLabel ?? undefined,
+      })
+
+      if (duplicatedCard) {
+        onToggleSelect(duplicatedCard.id)
+      }
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const visibleCards = useMemo(
+    () =>
+      sortCardManagerItems(
+        cards.filter((card) =>
+          matchesCardSearch(searchQuery, [
+            card.name,
+            card.description,
+            card.characterPrompt,
+            card.tags,
+            card.variantLabel,
+            card.variants.map((variant) => variant.name),
+            card.variants.map((variant) => variant.variantLabel ?? ''),
+            card.variants.flatMap((variant) => variant.tags),
+          ]),
+        ),
+        sortMode,
+        (card) => card.name,
+        (card) => card.createdAt,
+        (card) =>
+          Math.max(
+            lastUsedAtById[card.id] ?? 0,
+            ...card.variants.map((variant) => lastUsedAtById[variant.id] ?? 0),
+          ),
+      ),
+    [cards, lastUsedAtById, searchQuery, sortMode],
+  )
 
   return (
     <div className="rounded-xl border border-border/60 bg-background/30">
@@ -86,16 +147,15 @@ export function CharacterCardManager({
 
       {!isCollapsed && (
         <div className="border-t border-border/40 px-4 py-3 space-y-3">
-          {!showCreateForm && (
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-1 rounded-md border border-primary/30 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
-            >
-              <Plus className="size-3" />
-              {t('createNew')}
-            </button>
-          )}
+          <CardManagerToolbar
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            createLabel={t('createNew')}
+            onCreate={() => setShowCreateForm(true)}
+            createDisabled={isLoading || showCreateForm || isCreating}
+          />
 
           {showCreateForm && (
             <CharacterCardCreateForm
@@ -117,9 +177,16 @@ export function CharacterCardManager({
                 {t('noCardsHint')}
               </p>
             </div>
+          ) : visibleCards.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/60 py-8 text-center">
+              <Sparkles className="mx-auto mb-2 size-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                {tStudio('cardSearchEmpty')}
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
-              {cards.map((card) => (
+              {visibleCards.map((card) => (
                 <CharacterCardItem
                   key={card.id}
                   card={card}
@@ -134,6 +201,7 @@ export function CharacterCardManager({
                   onDelete={() => onDelete(card.id)}
                   onUpdate={(data) => onUpdate(card.id, data)}
                   onCreate={onCreate}
+                  onDuplicateCard={handleDuplicate}
                   activeCardIds={activeCardIds}
                   onToggleSelectCard={onToggleSelect}
                   onDeleteCard={onDelete}

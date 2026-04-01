@@ -64,7 +64,7 @@ export const StudioLeftPanel = memo(function StudioLeftPanel({
         // Ignore invalid data
       }
     },
-    [imageUpload, state.panels.refImage, dispatch],
+    [imageUpload, dispatch],
   )
 
   return (
@@ -82,7 +82,7 @@ export const StudioLeftPanel = memo(function StudioLeftPanel({
       {/* ── Workflow Toggle (Quick / Card) ──────────────────────── */}
       <div
         role="tablist"
-        aria-label="Workflow mode"
+        aria-label={tV3('workflowModeLabel')}
         className="flex rounded-lg border border-border/60 p-1"
       >
         <button

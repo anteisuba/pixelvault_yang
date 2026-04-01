@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { VIDEO_GENERATION } from '@/constants/config'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
   GenerationRecord,
@@ -41,6 +42,7 @@ export interface UseUnifiedGenerateReturn {
   error: string | null
   lastGeneration: GenerationRecord | null
   generate: (input: UnifiedGenerateInput) => Promise<GenerationRecord | null>
+  retry: () => Promise<GenerationRecord | null>
   reset: () => void
   /** B0: Active generation run with per-item tracking */
   activeRun: ActiveRun | null
@@ -58,12 +60,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   )
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null)
 
+  const lastRequestRef = useRef<UnifiedGenerateInput | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCountRef = useRef(0)
 
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
+  const tErrors = useTranslations('Errors')
 
   // ── Timer/polling lifecycle ────────────────────────────────────
 
@@ -142,6 +146,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       try {
         const result = await studioGenerateAPI(input)
         if (result.success && result.data?.generation) {
+          setError(null)
           setLastGeneration(result.data.generation)
           setActiveRun((prev) =>
             prev
@@ -162,7 +167,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           toast.success(tStudio('generateSuccess'))
           return result.data.generation
         }
-        const msg = result.error ?? tStudio('generateFailed')
+        const msg = getApiErrorMessage(tErrors, result, tStudio('generateFailed'))
         setError(msg)
         setActiveRun((prev) =>
           prev
@@ -176,7 +181,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               }
             : null,
         )
-        toast.error(msg)
         return null
       } finally {
         stopTimer()
@@ -184,7 +188,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         setStage('idle')
       }
     },
-    [tStudio, startTimer, stopTimer],
+    [tErrors, tStudio, startTimer, stopTimer],
   )
 
   // ── Video generation (async queue + polling) ──────────────────
@@ -384,6 +388,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
   const generate = useCallback(
     async (input: UnifiedGenerateInput): Promise<GenerationRecord | null> => {
+      lastRequestRef.current = input
       if (input.mode === 'image' && input.image) {
         return generateImage(input.image)
       }
@@ -395,12 +400,21 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [generateImage, generateVideo],
   )
 
+  const retry = useCallback(async (): Promise<GenerationRecord | null> => {
+    if (isGenerating || !lastRequestRef.current) {
+      return null
+    }
+
+    return generate(lastRequestRef.current)
+  }, [generate, isGenerating])
+
   const reset = useCallback(() => {
     setError(null)
     setLastGeneration(null)
     setStage('idle')
     setElapsedSeconds(0)
     setActiveRun(null)
+    lastRequestRef.current = null
     stopTimer()
     stopPolling()
   }, [stopTimer, stopPolling])
@@ -412,6 +426,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     error,
     lastGeneration,
     generate,
+    retry,
     reset,
     activeRun,
   }

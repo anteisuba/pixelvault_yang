@@ -1,6 +1,7 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import {
   useStudioForm,
@@ -9,8 +10,11 @@ import {
 } from '@/contexts/studio-context'
 import { GenerationPreview } from './GenerationPreview'
 import { HistoryPanel } from '@/components/business/HistoryPanel'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import { buildStudioRemixPreset } from '@/lib/studio-remix'
 
 export const StudioRightColumn = memo(function StudioRightColumn({
   className,
@@ -19,7 +23,27 @@ export const StudioRightColumn = memo(function StudioRightColumn({
 }) {
   const { dispatch } = useStudioForm()
   const { projects, imageUpload } = useStudioData()
-  const { isGenerating, lastGeneration } = useStudioGen()
+  const { isGenerating, lastGeneration, retry } = useStudioGen()
+  const { modelOptions } = useImageModelOptions()
+  const t = useTranslations('StudioV3')
+  const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(
+    null,
+  )
+
+  const previewGeneration = useMemo(() => {
+    const candidates = lastGeneration
+      ? [lastGeneration, ...projects.history.filter((gen) => gen.id !== lastGeneration.id)]
+      : projects.history
+
+    if (selectedGenerationId && selectedGenerationId !== lastGeneration?.id) {
+      return (
+        candidates.find((generation) => generation.id === selectedGenerationId) ??
+        null
+      )
+    }
+
+    return candidates[0] ?? null
+  }, [lastGeneration, projects.history, selectedGenerationId])
 
   const handleUseAsRef = useCallback(
     async (url: string) => {
@@ -31,24 +55,53 @@ export const StudioRightColumn = memo(function StudioRightColumn({
 
   const handleHistorySelect = useCallback(
     (gen: GenerationRecord) => {
-      if (gen.outputType === 'IMAGE' && gen.url) {
-        void handleUseAsRef(gen.url)
+      setSelectedGenerationId(gen.id)
+    },
+    [],
+  )
+
+  const handleRemix = useCallback(
+    (generation: GenerationRecord) => {
+      const preset = buildStudioRemixPreset(generation, modelOptions)
+
+      setSelectedGenerationId(null)
+      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
+      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
+      dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
+      dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
+      dispatch({ type: 'CLOSE_ALL_PANELS' })
+
+      if (preset.optionId) {
+        dispatch({ type: 'SET_OPTION_ID', payload: preset.optionId })
+      }
+
+      const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
+      if (promptField instanceof HTMLTextAreaElement) {
+        promptField.focus()
       }
     },
-    [handleUseAsRef],
+    [dispatch, modelOptions],
   )
 
   return (
     <div className={cn('space-y-4', className)}>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {isGenerating
-          ? 'Generating...'
+          ? t('generating')
           : lastGeneration
-            ? 'Generation complete'
+            ? t('generationComplete')
             : null}
       </div>
 
-      <GenerationPreview onUseAsReference={handleUseAsRef} />
+      <GenerationPreview
+        generation={previewGeneration}
+        isLatestResult={previewGeneration?.id === lastGeneration?.id}
+        onUseAsReference={handleUseAsRef}
+        onRemix={handleRemix}
+        onRetry={() => {
+          void retry()
+        }}
+      />
 
       <HistoryPanel
         generations={projects.history}
@@ -57,6 +110,7 @@ export const StudioRightColumn = memo(function StudioRightColumn({
         isLoading={projects.isLoadingHistory}
         onLoadMore={projects.loadMoreHistory}
         onSelect={handleHistorySelect}
+        selectedId={previewGeneration?.id}
       />
     </div>
   )

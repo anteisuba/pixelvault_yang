@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { modelSupportsLora } from '@/constants/models'
 
@@ -15,6 +16,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   return (
     <textarea
+      id={STUDIO_PROMPT_TEXTAREA_ID}
       value={state.prompt}
       onChange={(e) =>
         dispatch({ type: 'SET_PROMPT', payload: e.target.value })

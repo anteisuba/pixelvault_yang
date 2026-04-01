@@ -143,12 +143,12 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       )}
 
       {/* ── Advanced settings panel ────────────────────────────── */}
-      {state.panels.advanced &&
-        (selectedModel?.adapterType || selectedStyleCard?.adapterType) && (
-          <div
-            aria-live="polite"
-            className="rounded-lg border border-border/60 bg-background/60 p-3"
-          >
+      {state.panels.advanced && (
+        <div
+          aria-live="polite"
+          className="rounded-lg border border-border/60 bg-background/60 p-3"
+        >
+          {selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
             <AdvancedSettings
               adapterType={adapterType}
               params={state.advancedParams}
@@ -158,8 +158,13 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
               hasReferenceImage={imageUpload.referenceImages.length > 0}
               disabled={isGenerating}
             />
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              {t('selectModelFirst')}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Reference image panel ──────────────────────────────── */}
       {state.panels.refImage && (

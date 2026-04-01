@@ -1002,7 +1002,8 @@
     "loraHint": "加载自定义 LoRA 模型来控制风格、角色或概念。粘贴 Civitai 或 HuggingFace 链接即可。",
     "loraAdd": "添加",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... 或 HuggingFace 链接",
-    "loraScale": "权重"
+    "loraScale": "权重",
+    "noConfigurable": "该模型没有可配置的高级设置"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -1460,6 +1461,7 @@
     "referenceFormats": "JPG、PNG、WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
+    "selectModelFirst": "请先选择模型以配置高级设置",
     "tokenPlaceholder": "输入 Civitai API Token",
     "removeToken": "删除",
     "cardManagement": "卡片管理",

@@ -1002,7 +1002,8 @@
     "loraHint": "Apply custom LoRA models for style, character, or concept control. Paste a URL from Civitai or HuggingFace.",
     "loraAdd": "Add",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... or HuggingFace URL",
-    "loraScale": "Weight"
+    "loraScale": "Weight",
+    "noConfigurable": "This model has no configurable advanced settings"
   },
   "ReverseEngineer": {
     "title": "Reverse Engineer",
@@ -1460,6 +1461,7 @@
     "referenceFormats": "JPG, PNG, WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
+    "selectModelFirst": "Select a model to configure advanced settings",
     "tokenPlaceholder": "Enter Civitai API token",
     "removeToken": "Remove",
     "cardManagement": "Card Management",

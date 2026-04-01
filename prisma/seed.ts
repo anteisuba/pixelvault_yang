@@ -24,8 +24,8 @@ const MODEL_OPTIONS = [
     },
   },
   {
-    id: 'gemini-3.1-pro-image-preview',
-    externalModelId: 'gemini-3.1-pro-image-preview',
+    id: 'gemini-3-pro-image-preview',
+    externalModelId: 'gemini-3-pro-image-preview',
     adapterType: 'gemini',
     outputType: 'IMAGE' as const,
     cost: 3,

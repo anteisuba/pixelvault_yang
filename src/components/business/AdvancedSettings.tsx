@@ -60,7 +60,13 @@ export function AdvancedSettings({
   const hasConfigurableCapability = config.capabilities.some((cap) =>
     USER_CONFIGURABLE.includes(cap),
   )
-  if (!hasConfigurableCapability) return null
+  if (!hasConfigurableCapability) {
+    return (
+      <p className="text-xs text-muted-foreground text-center py-2">
+        {t('noConfigurable')}
+      </p>
+    )
+  }
 
   const update = (patch: Partial<AdvancedParams>) =>
     onChange({ ...params, ...patch })

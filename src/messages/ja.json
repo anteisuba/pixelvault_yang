@@ -1002,7 +1002,8 @@
     "loraHint": "カスタムLoRAモデルを適用して、スタイル・キャラクター・コンセプトを制御。CivitaiまたはHuggingFaceのURLを貼り付けてください。",
     "loraAdd": "追加",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... または HuggingFace URL",
-    "loraScale": "重み"
+    "loraScale": "重み",
+    "noConfigurable": "このモデルには設定可能な詳細パラメータがありません"
   },
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",
@@ -1456,6 +1457,7 @@
     "referenceFormats": "JPG、PNG、WebP",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
+    "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
     "tokenPlaceholder": "Civitai API Tokenを入力",
     "removeToken": "削除",
     "cardManagement": "カード管理",

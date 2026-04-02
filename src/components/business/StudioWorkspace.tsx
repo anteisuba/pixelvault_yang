@@ -6,7 +6,6 @@ import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import {
   StudioModeSelector,
   StudioTopBar,
-  StudioLeftColumn,
   StudioCenterColumn,
   StudioRightColumn,
   StudioMobileSettings,
@@ -62,13 +61,12 @@ function StudioWorkspaceInner() {
           id="studio-panel-image"
           aria-labelledby="studio-tab-image"
         >
-          {/* Desktop (lg+): top bar + three-column grid */}
+          {/* Desktop (lg+): top bar + two-column grid */}
           <div className="hidden lg:block space-y-4">
             <StudioTopBar />
-            <div className="grid studio-grid">
-              <StudioLeftColumn />
+            <div className="grid studio-grid-2col">
               <StudioCenterColumn />
-              <StudioRightColumn className="studio-col-sticky" />
+              <StudioRightColumn />
             </div>
           </div>
 

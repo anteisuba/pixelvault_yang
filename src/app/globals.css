@@ -19,7 +19,7 @@
   /* Custom scale tokens */
   --max-width-content: 75rem;
   --width-studio-left: 20rem;
-  --width-studio-right: 24rem;
+  --width-studio-right: 28rem;
   --text-brand: 1.12rem;
   --text-nav: 0.6875rem;
   --text-tab: 0.6875rem;
@@ -470,6 +470,13 @@ html:lang(zh) {
       gap: 1.5rem;
       align-items: start;
     }
+  }
+
+  .studio-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr var(--width-studio-right);
+    gap: 1.5rem;
+    align-items: stretch;
   }
 
   .studio-col-sticky {

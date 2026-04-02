@@ -228,7 +228,8 @@ export function ModelSelector({
         aria-label={t('label')}
         className={cn(
           'grid gap-2',
-          needsScroll && 'max-h-96 overflow-y-auto overscroll-contain pr-1 pb-3',
+          needsScroll &&
+            'max-h-96 overflow-y-auto overscroll-contain pr-2 pb-3',
         )}
       >
         {groups.map(({ group, options: groupOptions }) => {

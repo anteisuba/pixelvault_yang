@@ -2,11 +2,10 @@
 
 import dynamic from 'next/dynamic'
 
-import { HistoryPanel } from '@/components/business/HistoryPanel'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import {
   StudioModeSelector,
-  StudioApiRoutesSection,
+  StudioTopBar,
   StudioLeftColumn,
   StudioCenterColumn,
   StudioRightColumn,
@@ -41,7 +40,7 @@ export function StudioWorkspace() {
 
 function StudioWorkspaceInner() {
   const { state } = useStudioForm()
-  const { characters, projects, onboarding } = useStudioData()
+  const { characters, onboarding } = useStudioData()
 
   return (
     <div className="space-y-4">
@@ -54,15 +53,7 @@ function StudioWorkspaceInner() {
           className="space-y-4"
         >
           <StudioModeSelector />
-          <StudioApiRoutesSection />
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
-          <HistoryPanel
-            generations={projects.history}
-            total={projects.historyTotal}
-            hasMore={projects.historyHasMore}
-            isLoading={projects.isLoadingHistory}
-            onLoadMore={projects.loadMoreHistory}
-          />
         </div>
       ) : (
         /* ── Image mode: three-column layout ──────────────────── */
@@ -71,11 +62,14 @@ function StudioWorkspaceInner() {
           id="studio-panel-image"
           aria-labelledby="studio-tab-image"
         >
-          {/* Desktop (lg+): three-column grid */}
-          <div className="hidden lg:grid studio-grid">
-            <StudioLeftColumn className="studio-col-sticky" />
-            <StudioCenterColumn />
-            <StudioRightColumn className="studio-col-sticky" />
+          {/* Desktop (lg+): top bar + three-column grid */}
+          <div className="hidden lg:block space-y-4">
+            <StudioTopBar />
+            <div className="grid studio-grid">
+              <StudioLeftColumn />
+              <StudioCenterColumn />
+              <StudioRightColumn className="studio-col-sticky" />
+            </div>
           </div>
 
           {/* Mobile + Tablet (<lg): stacked layout */}

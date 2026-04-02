@@ -91,17 +91,37 @@
   box-shadow: 0 2px 4px color-mix(in oklab, var(--primary) 30%, transparent), 0 8px 20px color-mix(in oklab, var(--primary) 18%, transparent);
   transform: translateY(-1px);
 }
+.homepage-primary-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
+  outline-offset: 2px;
+}
 
 .homepage-secondary-btn {
   border-color: var(--home-border);
   background: color-mix(in oklab, var(--background) 70%, transparent);
   backdrop-filter: blur(8px);
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.homepage-secondary-btn:hover {
+  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
+}
+.homepage-secondary-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
+  outline-offset: 2px;
 }
 
 .homepage-utility-btn {
   border-color: var(--home-border);
   background: color-mix(in oklab, var(--background) 70%, transparent);
   backdrop-filter: blur(8px);
+  transition: border-color 200ms ease;
+}
+.homepage-utility-btn:hover {
+  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
+}
+.homepage-utility-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
+  outline-offset: 2px;
 }
 
 .homepage-warm {

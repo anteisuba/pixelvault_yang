@@ -129,12 +129,15 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   return (
     <>
       {/* Sticky on mobile, static on desktop */}
-      <div className="flex items-center justify-between gap-3 lg:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm lg:bg-transparent lg:backdrop-blur-none py-2 lg:py-0 -mx-1 px-1 lg:mx-0 lg:px-0">
+      <div className="flex items-center justify-between gap-3 lg:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm lg:bg-transparent lg:backdrop-blur-none py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:py-0 lg:pb-0 -mx-1 px-1 lg:mx-0 lg:px-0">
         <div
           role="radiogroup"
           aria-label={t('aspectRatioLabel')}
-          className="flex gap-1.5"
+          className="flex items-center gap-1.5"
         >
+          <span className="text-2xs font-medium text-muted-foreground mr-1 hidden sm:inline">
+            {t('aspectRatioLabel')}
+          </span>
           {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
             <button
               key={r}
@@ -184,19 +187,20 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
         </button>
       </div>
 
-      {/* No-model warning (card mode only) */}
-      {state.workflowMode === 'card' &&
-        styles.activeCardId &&
-        !selectedStyleCard?.modelId && (
-          <p className="text-xs text-destructive/70 font-serif">
-            {t('noModel')}
-          </p>
-        )}
-
-      {/* Reference image required warning */}
-      {modelRequiresRef && !hasRefImage && (
-        <p className="text-xs text-destructive/70 font-serif">
-          {t('requiresReferenceImage')}
+      {/* Contextual hint when generate is disabled */}
+      {!canGenerate && !isGenerating && (
+        <p className="text-xs text-muted-foreground/70 font-serif">
+          {state.workflowMode === 'quick' && !selectedModel?.modelId
+            ? t('noModelHint')
+            : state.workflowMode === 'quick' && !state.prompt.trim()
+              ? t('promptHint')
+              : state.workflowMode === 'card' &&
+                  styles.activeCardId &&
+                  !selectedStyleCard?.modelId
+                ? t('noModel')
+                : modelRequiresRef && !hasRefImage
+                  ? t('requiresReferenceImage')
+                  : null}
         </p>
       )}
     </>

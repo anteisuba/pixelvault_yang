@@ -52,8 +52,11 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   if (!generation && !isGenerating && !error) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 p-5">
-        <div className="space-y-2 text-center">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 p-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
+            <ImagePlus className="size-5 text-primary/60" />
+          </div>
           <p className="text-sm font-medium text-foreground">
             {t('emptyStateTitle')}
           </p>
@@ -91,9 +94,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         <p className="text-sm font-medium text-foreground">
           {t('previewErrorTitle')}
         </p>
-        <p className="mt-1 font-serif text-sm text-muted-foreground">
-          {error}
-        </p>
+        <p className="mt-1 font-serif text-sm text-muted-foreground">{error}</p>
         {onRetry && (
           <Button
             variant="outline"
@@ -120,7 +121,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="rounded-full border border-border/60 bg-background/80 px-2 py-1 text-2xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <span className="rounded-full border border-border/60 bg-background/80 px-2 py-1 text-2xs font-semibold tracking-wide text-muted-foreground">
             {isLatestResult ? t('latestResult') : t('historySelection')}
           </span>
           <span className="truncate text-xs text-muted-foreground">

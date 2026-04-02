@@ -87,13 +87,13 @@ export const StudioCenterColumn = memo(function StudioCenterColumn({
       {/* Card mode: card management section */}
       {state.workflowMode === 'card' && <StudioCardSection />}
 
-      <StudioPromptArea />
-      <StudioGenerateBar />
-      <StudioToolbarPanels />
-
-      {/* Route switcher — compact list of available API routes */}
-      {savedOptions.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
+      {/* Route switcher — above prompt for discoverability */}
+      {state.workflowMode === 'quick' && savedOptions.length > 0 && (
+        <div
+          role="radiogroup"
+          aria-label="Model selection"
+          className="flex flex-wrap gap-2"
+        >
           {savedOptions.map((option) => {
             const isSelected = option.optionId === state.selectedOptionId
             const healthStatus = option.keyId
@@ -133,6 +133,10 @@ export const StudioCenterColumn = memo(function StudioCenterColumn({
           })}
         </div>
       )}
+
+      <StudioPromptArea />
+      <StudioGenerateBar />
+      <StudioToolbarPanels />
     </div>
   )
 })

@@ -1489,6 +1489,8 @@
     "style": "Style",
     "noModel": "No model set — open Style card management to add a model",
     "requiresReferenceImage": "This model requires a reference image — add one in the Reference panel",
+    "promptHint": "Enter a prompt to generate",
+    "noModelHint": "Select a model first",
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",

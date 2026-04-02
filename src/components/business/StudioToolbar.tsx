@@ -122,6 +122,8 @@ export function StudioToolbar({
         badge={referenceImageCount}
         disabled={disabled}
       />
+      {/* Separator between creative tools and config */}
+      <div className="h-4 w-px bg-border/60 mx-1" aria-hidden="true" />
       <ToolButton
         icon={<Key className="h-3.5 w-3.5" />}
         label={t('civitaiToken')}

@@ -1510,7 +1510,9 @@
     "background": "背景",
     "style": "スタイル",
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください",
-    "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください"
+    "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください",
+    "promptHint": "プロンプトを入力して生成",
+    "noModelHint": "まずモデルを選択してください"
   },
   "StudioV3": {
     "quickMode": "クイック生成",

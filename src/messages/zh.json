@@ -1489,6 +1489,8 @@
     "style": "画风",
     "noModel": "未设置模型 — 请在卡片管理中为画风卡添加模型",
     "requiresReferenceImage": "此模型需要参考图 — 请在参考图面板中上传",
+    "promptHint": "输入提示词即可生成",
+    "noModelHint": "请先选择模型",
     "edit": "编辑",
     "save": "保存",
     "cancel": "取消",

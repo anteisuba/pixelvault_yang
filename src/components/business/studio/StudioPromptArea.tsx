@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { Textarea } from '@/components/ui/textarea'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { modelSupportsLora } from '@/constants/models'
@@ -11,12 +12,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
   const { styles } = useStudioData()
   const t = useTranslations('StudioV2')
+  const tForm = useTranslations('StudioForm')
 
   const selectedStyleCard = styles.activeCard
 
   return (
-    <textarea
+    <Textarea
       id={STUDIO_PROMPT_TEXTAREA_ID}
+      aria-label={tForm('promptLabel')}
       value={state.prompt}
       onChange={(e) =>
         dispatch({ type: 'SET_PROMPT', payload: e.target.value })
@@ -28,8 +31,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           ? t('freePromptPlaceholderLora')
           : t('freePromptPlaceholder')
       }
-      className="w-full min-h-[100px] rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm font-serif text-foreground placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 resize-none"
-      rows={4}
+      className="min-h-48 resize-y rounded-2xl border-border/60 bg-background/60 px-4 py-3 font-serif text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:border-primary/40 focus-visible:ring-primary/20 lg:min-h-56"
+      rows={8}
     />
   )
 })

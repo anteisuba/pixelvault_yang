@@ -57,7 +57,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
       <div
         role="tablist"
         aria-label={tStudio('modeLabel')}
-        className="flex gap-2"
+        className="flex rounded-lg border border-border/60 p-1"
       >
         <button
           type="button"
@@ -67,10 +67,10 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
           }
           className={cn(
-            'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
             state.outputType === 'image'
-              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-              : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
           <ImageIcon className="size-3.5" />
@@ -84,16 +84,22 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
           }
           className={cn(
-            'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
             state.outputType === 'video'
-              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-              : 'border border-border/60 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/20',
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
           <Film className="size-3.5" />
           {tStudio('modeVideo')}
         </button>
       </div>
+
+      {/* Divider between mode toggles */}
+      <div
+        className="hidden xl:block h-6 w-px bg-border/60"
+        aria-hidden="true"
+      />
 
       {/* Quick / Card workflow toggle */}
       <div
@@ -167,9 +173,9 @@ export const StudioTopBar = memo(function StudioTopBar() {
       </Sheet>
 
       {/* Free credits badge */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-xs text-muted-foreground">
         <Gift className="size-3.5 text-chart-3" />
-        <span className="font-serif">
+        <span className="font-serif font-medium">
           {tStudio('freeQuota', {
             remaining: Math.max(0, freeRemaining),
             limit: summary.freeGenerationLimit,

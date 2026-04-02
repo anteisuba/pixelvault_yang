@@ -92,7 +92,7 @@ export const ImageCard = memo(function ImageCard({
 
   return (
     <>
-      <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+      <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
         <div className="relative overflow-hidden bg-secondary/18">
           <button
             type="button"

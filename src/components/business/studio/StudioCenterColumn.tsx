@@ -112,10 +112,10 @@ export const StudioCenterColumn = memo(function StudioCenterColumn({
                   dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
                 }
                 className={cn(
-                  'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                  'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
                   isSelected
-                    ? 'border border-primary/40 bg-primary/5 text-foreground'
-                    : 'border border-border/50 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+                    ? 'border border-primary/40 bg-primary/5 text-foreground shadow-sm shadow-primary/10'
+                    : 'border border-border/50 text-muted-foreground hover:border-primary/20 hover:text-foreground hover:bg-primary/3',
                 )}
               >
                 <ApiKeyHealthDot status={healthStatus} />

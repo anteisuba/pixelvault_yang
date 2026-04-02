@@ -144,7 +144,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
           <button
             type="button"
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 active:scale-95',
               activeRouteCount > 0
                 ? 'border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/20'
                 : 'border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',

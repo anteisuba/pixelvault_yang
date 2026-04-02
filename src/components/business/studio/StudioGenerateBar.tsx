@@ -143,9 +143,9 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
               aria-checked={state.aspectRatio === r}
               onClick={() => dispatch({ type: 'SET_ASPECT_RATIO', payload: r })}
               className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
                 state.aspectRatio === r
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
                   : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
               )}
             >
@@ -159,9 +159,9 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           onClick={handleGenerate}
           disabled={isGenerating || !canGenerate}
           className={cn(
-            'flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-colors',
+            'flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-all duration-200',
             canGenerate && !isGenerating
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20'
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20 active:scale-95'
               : 'bg-muted text-muted-foreground cursor-not-allowed',
           )}
         >

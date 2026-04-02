@@ -1541,7 +1541,8 @@
     "addedAsReference": "已添加为参考图",
     "refImageLimitReached": "参考图数量已达上限",
     "settings": "设置",
-    "studioSettings": "工作室设置"
+    "studioSettings": "工作室设置",
+    "openDetail": "查看详情"
   },
   "Errors": {
     "common": {

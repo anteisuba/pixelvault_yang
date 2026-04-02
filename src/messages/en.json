@@ -1541,7 +1541,8 @@
     "addedAsReference": "Added as reference image",
     "refImageLimitReached": "Reference image limit reached",
     "settings": "Settings",
-    "studioSettings": "Studio Settings"
+    "studioSettings": "Studio Settings",
+    "openDetail": "View details"
   },
   "Errors": {
     "common": {

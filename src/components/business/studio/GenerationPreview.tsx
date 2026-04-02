@@ -1,11 +1,12 @@
 'use client'
 
-import { memo, useCallback } from 'react'
-import { ImagePlus, RotateCcw, Sparkles } from 'lucide-react'
+import { memo, useCallback, useState } from 'react'
+import { ImagePlus, RotateCcw, Sparkles, ZoomIn } from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { useStudioGen } from '@/contexts/studio-context'
 import { ImageCard } from '@/components/business/ImageCard'
+import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getGenerationPromptPreview } from '@/lib/studio-remix'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   const t = useTranslations('StudioV3')
   const tModels = useTranslations('Models')
   const format = useFormatter()
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
@@ -143,6 +145,20 @@ export const GenerationPreview = memo(function GenerationPreview({
       >
         <ImageCard generation={generation} />
 
+        {/* Zoom overlay — click to open detail modal */}
+        {!isGenerating && (
+          <button
+            type="button"
+            onClick={() => setDetailOpen(true)}
+            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-200 group-hover:bg-black/20 group-hover:opacity-100"
+            aria-label={t('openDetail')}
+          >
+            <div className="rounded-full bg-background/90 p-2 shadow-sm backdrop-blur-sm">
+              <ZoomIn className="size-5 text-foreground" />
+            </div>
+          </button>
+        )}
+
         {isGenerating && (
           <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -158,6 +174,14 @@ export const GenerationPreview = memo(function GenerationPreview({
           </div>
         )}
       </div>
+
+      {/* Detail modal */}
+      <ImageDetailModal
+        generation={generation}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        showVisibility
+      />
 
       {error && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">

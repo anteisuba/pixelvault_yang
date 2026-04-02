@@ -1541,7 +1541,8 @@
     "addedAsReference": "参照画像として追加しました",
     "refImageLimitReached": "参照画像の上限に達しました",
     "settings": "設定",
-    "studioSettings": "スタジオ設定"
+    "studioSettings": "スタジオ設定",
+    "openDetail": "詳細を表示"
   },
   "Errors": {
     "common": {

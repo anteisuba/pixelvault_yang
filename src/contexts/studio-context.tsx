@@ -49,6 +49,7 @@ export type PanelName =
   | 'reverse'
   | 'advanced'
   | 'refImage'
+  | 'layerDecompose'
 
 type OutputType = 'image' | 'video'
 type WorkflowMode = 'quick' | 'card'
@@ -88,6 +89,7 @@ const initialPanels: Record<PanelName, boolean> = {
   reverse: false,
   advanced: false,
   refImage: false,
+  layerDecompose: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -131,6 +133,7 @@ export function studioFormReducer(
         'reverse',
         'advanced',
         'refImage',
+        'layerDecompose',
         'civitai',
       ]
       const isToolbarPanel = toolbarPanels.includes(target)

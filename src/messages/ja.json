@@ -1035,6 +1035,20 @@
     "reset": "リセット",
     "useAsPrompt": "バトルプロンプトとして使用"
   },
+  "LayerDecompose": {
+    "title": "レイヤー分解",
+    "animeOnly": "アニメ調イラストに最適です。キャラクターを意味レイヤー（髪、目、服など）に分解します。",
+    "uploadPrompt": "画像をドロップまたはクリックしてアップロード",
+    "uploadHint": "JPG、PNG、WebP — アニメキャラ画像推奨",
+    "decomposing": "レイヤーを分解中...",
+    "decomposingHint": "1〜3分かかる場合があります（GPU推論）",
+    "layerCount": "{count}個のレイヤーを抽出",
+    "useAsReference": "参照画像として使用",
+    "addedAsReference": "「{name}」を参照画像に追加しました",
+    "downloadPsd": "PSDダウンロード",
+    "reset": "リセット",
+    "error": "レイヤー分解に失敗しました"
+  },
   "Onboarding": {
     "next": "次へ",
     "finish": "了解",
@@ -1508,6 +1522,7 @@
     "advanced": "詳細",
     "referenceImage": "参照画像",
     "referenceFormats": "JPG、PNG、WebP",
+    "layerDecompose": "レイヤー分解",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",

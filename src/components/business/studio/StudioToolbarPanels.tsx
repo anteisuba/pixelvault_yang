@@ -35,6 +35,11 @@ const ReferenceImageSection = dynamic(() =>
     (mod) => mod.ReferenceImageSection,
   ),
 )
+const LayerDecomposePanel = dynamic(() =>
+  import('@/components/business/LayerDecomposePanel').then(
+    (mod) => mod.LayerDecomposePanel,
+  ),
+)
 
 /**
  * StudioToolbarPanels — shared toolbar + 5 expandable panels.
@@ -109,6 +114,9 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           dispatch({ type: 'TOGGLE_PANEL', payload: 'refImage' })
         }
         referenceImageCount={imageUpload.referenceImages.length}
+        onLayerDecompose={() =>
+          dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
+        }
         onCivitaiToken={() =>
           dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
         }
@@ -191,6 +199,13 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           formatsLabel="JPG · PNG · WEBP"
           counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
         />
+      )}
+
+      {/* ── Layer decompose panel ─────────────────────────────── */}
+      {state.panels.layerDecompose && (
+        <div className="rounded-lg border border-border/60 overflow-hidden">
+          <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
+        </div>
       )}
 
       {/* ── Civitai token inline panel ─────────────────────────── */}

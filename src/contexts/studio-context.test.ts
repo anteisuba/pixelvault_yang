@@ -29,6 +29,7 @@ function makeInitialState(
       reverse: false,
       advanced: false,
       refImage: false,
+      layerDecompose: false,
     },
     ...overrides,
   }

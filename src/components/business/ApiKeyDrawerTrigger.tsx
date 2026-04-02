@@ -55,7 +55,7 @@ export function ApiKeyDrawerTrigger({
           </Badge>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-xl">
+      <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-2xl">
         <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
           <SheetTitle className="flex items-center gap-2 font-display text-lg font-medium">
             <KeyRound className="size-4" />

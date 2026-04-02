@@ -138,7 +138,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-xl"
+          className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-2xl"
         >
           <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
             <SheetTitle className="font-display text-lg font-medium">

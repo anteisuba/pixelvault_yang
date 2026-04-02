@@ -175,7 +175,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
         <p className="text-sm font-medium text-foreground">
           {t('addForm.adapterLabel')}
         </p>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
           {API_KEY_ADAPTER_OPTIONS.map((option) => (
             <button
               key={option}

@@ -12,6 +12,7 @@ import {
   Eraser,
   Globe2,
   ImageIcon,
+  Layers,
   Link2,
   Loader2,
   LockKeyhole,
@@ -29,6 +30,7 @@ import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
 import {
+  decomposeImageAPI,
   downloadRemoteAsset,
   editImageAPI,
   toggleGenerationVisibility,
@@ -68,7 +70,7 @@ export function ImageDetailModal({
   const [isDownloading, setIsDownloading] = useState(false)
   const [copied, setCopied] = useState<'prompt' | 'link' | null>(null)
   const [editingAction, setEditingAction] = useState<
-    'upscale' | 'remove-background' | null
+    'upscale' | 'remove-background' | 'decompose' | null
   >(null)
   const [isPinned, setIsPinned] = useState(generation.isFeatured ?? false)
   const [isPinning, setIsPinning] = useState(false)
@@ -149,6 +151,48 @@ export function ImageDetailModal({
 
     if (!result.success || !result.data) {
       toast.error(getApiErrorMessage(tErrors, result, t('editFailed')))
+      return
+    }
+
+    toast.success(t('editSavedToGallery'))
+  }
+
+  const handleDecomposeDownload = async () => {
+    setEditingAction('decompose')
+    const result = await decomposeImageAPI(generation.url)
+    setEditingAction(null)
+
+    if (!result.success || !result.data) {
+      toast.error(getApiErrorMessage(tErrors, result, t('decomposeFailed')))
+      return
+    }
+
+    const downloadResult = await downloadRemoteAsset(
+      result.data.psdUrl,
+      `pixelvault-${generation.id.slice(0, 8)}-layers.psd`,
+    )
+
+    if (!downloadResult.success) {
+      toast.error(
+        getApiErrorMessage(tErrors, downloadResult, t('downloadFailed')),
+      )
+      window.open(result.data.psdUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    toast.success(t('decomposeSuccess'))
+  }
+
+  const handleDecomposeSave = async () => {
+    setEditingAction('decompose')
+    const result = await decomposeImageAPI(generation.url, {
+      persist: true,
+      generationId: generation.id,
+    })
+    setEditingAction(null)
+
+    if (!result.success || !result.data) {
+      toast.error(getApiErrorMessage(tErrors, result, t('decomposeFailed')))
       return
     }
 
@@ -447,6 +491,34 @@ export function ImageDetailModal({
                 >
                   <Save className="size-3.5" />
                   {t('saveUpscaleToGallery')}
+                </Button>
+                {/* Layer decomposition (See-Through) */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={editingAction !== null}
+                  onClick={() => void handleDecomposeDownload()}
+                  title={t('decomposeDescription')}
+                >
+                  {editingAction === 'decompose' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Layers className="size-3.5" />
+                  )}
+                  {editingAction === 'decompose'
+                    ? t('decomposing')
+                    : t('decompose')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={editingAction !== null}
+                  onClick={() => void handleDecomposeSave()}
+                >
+                  <Save className="size-3.5" />
+                  {t('saveDecomposeToGallery')}
                 </Button>
               </>
             )}

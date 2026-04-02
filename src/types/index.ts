@@ -10,6 +10,7 @@ import {
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
@@ -169,7 +170,7 @@ export const GenerationConfigSchema = z.object({
   // video-specific fields (ignored when outputType === 'image')
   duration: z.number().min(1).max(10).optional(),
   negativePrompt: z.string().max(2000).optional(),
-  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
+  resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
 })
 
 /** Unified generation config type */
@@ -194,7 +195,7 @@ export const GenerateVideoRequestSchema = z.object({
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
-  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
+  resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
 })
@@ -216,6 +217,49 @@ export const ImageEditSchema = z.object({
 })
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
+
+// ─── Image Layer Decomposition (See-Through) ────────────────────
+
+export const ImageDecomposeSchema = z.object({
+  imageUrl: z.string().url(),
+  /** Inference resolution (768–1536, step 64). Default: 1280 (trained resolution). */
+  resolution: z
+    .number()
+    .int()
+    .min(768)
+    .max(1536)
+    .refine((v) => v % 64 === 0, {
+      message: 'Resolution must be a multiple of 64',
+    })
+    .optional()
+    .default(1280),
+  /** Reproducibility seed (0–9999). Default: 42. */
+  seed: z.number().int().min(0).max(9999).optional().default(42),
+  /** When true, persist PSD and layer PNGs to R2 */
+  persist: z.boolean().optional(),
+  /** Source generation ID (required when persist is true) */
+  generationId: z.string().optional(),
+})
+
+export type ImageDecomposeRequest = z.infer<typeof ImageDecomposeSchema>
+
+/** A single decomposed layer from See-Through */
+export interface DecomposedLayer {
+  /** Semantic label (e.g. "front_hair", "left_eye", "upper_body") */
+  name: string
+  /** URL to the layer PNG */
+  imageUrl: string
+}
+
+/** Full result of image layer decomposition */
+export interface ImageDecomposeResult {
+  /** Individual layer images */
+  layers: DecomposedLayer[]
+  /** URL to download the layered PSD file */
+  psdUrl: string
+  /** Total number of layers extracted */
+  layerCount: number
+}
 
 // ─── Video Queue (submit + poll) ─────────────────────────────────
 
@@ -273,7 +317,7 @@ export const LongVideoRequestSchema = z.object({
     .max(VIDEO_GENERATION.MAX_LONG_VIDEO_DURATION),
   referenceImage: z.string().optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
-  resolution: z.enum(['480p', '540p', '720p', '1080p']).optional(),
+  resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
 })

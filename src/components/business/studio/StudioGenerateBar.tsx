@@ -19,7 +19,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const { state, dispatch } = useStudioForm()
   const { characters, backgrounds, styles, imageUpload, projects } =
     useStudioData()
-  const { isGenerating, generate } = useStudioGen()
+  const { isGenerating, generate, elapsedSeconds } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
 
@@ -171,7 +171,14 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           {isGenerating ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {t('generating')}
+              <span className="flex flex-col items-start leading-none">
+                <span>{t('generating')}</span>
+                {elapsedSeconds > 0 && (
+                  <span className="text-[10px] font-medium opacity-70 tabular-nums">
+                    {elapsedSeconds}s
+                  </span>
+                )}
+              </span>
             </>
           ) : (
             <>

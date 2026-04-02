@@ -8,9 +8,10 @@ import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { RATE_LIMIT_CONFIGS, MAX_DURATION_CONFIGS } from '@/constants/config'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
-export const maxDuration = MAX_DURATION_CONFIGS.imageDecompose
+// Next.js segment config exports must remain statically analyzable literals.
+export const maxDuration = 300
 
 export const POST = createApiRoute({
   schema: ImageDecomposeSchema,

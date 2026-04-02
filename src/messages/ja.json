@@ -1542,7 +1542,9 @@
     "refImageLimitReached": "参照画像の上限に達しました",
     "settings": "設定",
     "studioSettings": "スタジオ設定",
-    "openDetail": "詳細を表示"
+    "openDetail": "詳細を表示",
+    "showPreview": "プレビューを表示",
+    "hidePreview": "履歴を閲覧"
   },
   "Errors": {
     "common": {

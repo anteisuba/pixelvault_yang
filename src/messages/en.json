@@ -1542,7 +1542,9 @@
     "refImageLimitReached": "Reference image limit reached",
     "settings": "Settings",
     "studioSettings": "Studio Settings",
-    "openDetail": "View details"
+    "openDetail": "View details",
+    "showPreview": "Show preview",
+    "hidePreview": "Browse history"
   },
   "Errors": {
     "common": {

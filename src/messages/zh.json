@@ -1542,7 +1542,9 @@
     "refImageLimitReached": "参考图数量已达上限",
     "settings": "设置",
     "studioSettings": "工作室设置",
-    "openDetail": "查看详情"
+    "openDetail": "查看详情",
+    "showPreview": "显示预览",
+    "hidePreview": "浏览历史"
   },
   "Errors": {
     "common": {

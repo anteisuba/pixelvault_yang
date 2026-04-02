@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useCallback, useMemo, useState } from 'react'
+import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -26,19 +27,24 @@ export const StudioRightColumn = memo(function StudioRightColumn({
   const { isGenerating, lastGeneration, retry } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
   const t = useTranslations('StudioV3')
-  const [selectedGenerationId, setSelectedGenerationId] = useState<string | null>(
-    null,
-  )
+  const [selectedGenerationId, setSelectedGenerationId] = useState<
+    string | null
+  >(null)
+  const [previewCollapsed, setPreviewCollapsed] = useState(false)
 
   const previewGeneration = useMemo(() => {
     const candidates = lastGeneration
-      ? [lastGeneration, ...projects.history.filter((gen) => gen.id !== lastGeneration.id)]
+      ? [
+          lastGeneration,
+          ...projects.history.filter((gen) => gen.id !== lastGeneration.id),
+        ]
       : projects.history
 
     if (selectedGenerationId && selectedGenerationId !== lastGeneration?.id) {
       return (
-        candidates.find((generation) => generation.id === selectedGenerationId) ??
-        null
+        candidates.find(
+          (generation) => generation.id === selectedGenerationId,
+        ) ?? null
       )
     }
 
@@ -53,12 +59,9 @@ export const StudioRightColumn = memo(function StudioRightColumn({
     [imageUpload, dispatch],
   )
 
-  const handleHistorySelect = useCallback(
-    (gen: GenerationRecord) => {
-      setSelectedGenerationId(gen.id)
-    },
-    [],
-  )
+  const handleHistorySelect = useCallback((gen: GenerationRecord) => {
+    setSelectedGenerationId(gen.id)
+  }, [])
 
   const handleRemix = useCallback(
     (generation: GenerationRecord) => {
@@ -83,6 +86,12 @@ export const StudioRightColumn = memo(function StudioRightColumn({
     [dispatch, modelOptions],
   )
 
+  // Auto-expand preview when a new generation completes
+  const handleHistorySelectWithExpand = useCallback((gen: GenerationRecord) => {
+    setSelectedGenerationId(gen.id)
+    setPreviewCollapsed(false)
+  }, [])
+
   return (
     <div className={cn('space-y-4', className)}>
       <div aria-live="polite" aria-atomic="true" className="sr-only">
@@ -93,15 +102,40 @@ export const StudioRightColumn = memo(function StudioRightColumn({
             : null}
       </div>
 
-      <GenerationPreview
-        generation={previewGeneration}
-        isLatestResult={previewGeneration?.id === lastGeneration?.id}
-        onUseAsReference={handleUseAsRef}
-        onRemix={handleRemix}
-        onRetry={() => {
-          void retry()
-        }}
-      />
+      {/* Collapse/expand toggle */}
+      {(previewGeneration || isGenerating) && (
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setPreviewCollapsed((prev) => !prev)}
+            className="flex items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-primary/20"
+          >
+            {previewCollapsed ? (
+              <>
+                <ChevronsUpDown className="size-3" />
+                {t('showPreview')}
+              </>
+            ) : (
+              <>
+                <ChevronsDownUp className="size-3" />
+                {t('hidePreview')}
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {!previewCollapsed && (
+        <GenerationPreview
+          generation={previewGeneration}
+          isLatestResult={previewGeneration?.id === lastGeneration?.id}
+          onUseAsReference={handleUseAsRef}
+          onRemix={handleRemix}
+          onRetry={() => {
+            void retry()
+          }}
+        />
+      )}
 
       <HistoryPanel
         generations={projects.history}
@@ -109,8 +143,8 @@ export const StudioRightColumn = memo(function StudioRightColumn({
         hasMore={projects.historyHasMore}
         isLoading={projects.isLoadingHistory}
         onLoadMore={projects.loadMoreHistory}
-        onSelect={handleHistorySelect}
-        selectedId={previewGeneration?.id}
+        onSelect={handleHistorySelectWithExpand}
+        selectedId={previewCollapsed ? null : previewGeneration?.id}
       />
     </div>
   )

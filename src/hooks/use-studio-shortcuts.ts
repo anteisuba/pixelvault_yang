@@ -22,7 +22,13 @@ export function useStudioShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase()
+      const key =
+        typeof event.key === 'string' ? event.key.toLowerCase() : ''
+
+      if (!key) {
+        return
+      }
+
       const hasModifier = event.metaKey || event.ctrlKey
 
       if (hasModifier && key === 'enter') {

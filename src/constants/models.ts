@@ -4,6 +4,7 @@ import {
   getDefaultProviderConfig,
   type ProviderConfig,
 } from '@/constants/providers'
+import type { VideoResolution } from '@/constants/video-options'
 
 /**
  * AI Model definitions and configuration
@@ -108,7 +109,7 @@ export type StyleTag =
 /** Model-specific default parameters for video generation */
 export interface VideoDefaults {
   negativePrompt?: string
-  resolution?: string
+  resolution?: VideoResolution
   cfgScale?: number
   enablePromptOptimizer?: boolean
   generateAudio?: boolean

@@ -34,6 +34,7 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/lib/prompt-guard'
+import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
 // ─── Submit video to fal.ai queue ────────────────────────────────
 
@@ -52,6 +53,14 @@ export async function submitVideoGeneration(
       400,
     )
   }
+
+  validateVideoGenerationInput({
+    modelId: input.modelId,
+    aspectRatio: input.aspectRatio,
+    duration: input.duration,
+    referenceImage: input.referenceImage,
+    resolution: input.resolution,
+  })
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -86,10 +95,7 @@ export async function submitVideoGeneration(
             negativePrompt: input.negativePrompt,
             resolution: input.resolution,
             i2vModelId: modelConfig?.i2vModelId,
-            videoDefaults: modelConfig?.videoDefaults as Record<
-              string,
-              unknown
-            >,
+            videoDefaults: modelConfig?.videoDefaults,
           }),
         {
           maxAttempts: 2,

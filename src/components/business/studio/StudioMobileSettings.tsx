@@ -20,9 +20,8 @@ import {
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 
-import { StudioApiRoutesSection } from './StudioApiRoutesSection'
 import { StudioCardSection } from './StudioCardSection'
-import { StudioRecentConfigurations } from './StudioRecentConfigurations'
+import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
 import { StudioToolbarPanels } from './StudioToolbarPanels'
 
 export const StudioMobileSettings = memo(function StudioMobileSettings() {
@@ -67,7 +66,9 @@ export const StudioMobileSettings = memo(function StudioMobileSettings() {
             onDelete={projects.remove}
           />
 
-          <StudioRecentConfigurations />
+          {state.workflowMode === 'quick' && (
+            <StudioQuickRouteSelector managementMode="inline" />
+          )}
 
           {/* ── Mode tabs (Image / Video) ─────────────────────────── */}
           <div
@@ -190,7 +191,6 @@ export const StudioMobileSettings = memo(function StudioMobileSettings() {
           )}
 
           {state.workflowMode === 'card' && <StudioCardSection />}
-          {state.workflowMode === 'quick' && <StudioApiRoutesSection />}
 
           {/* ── Toolbar panels ─────────────────────────────────────── */}
           <StudioToolbarPanels />

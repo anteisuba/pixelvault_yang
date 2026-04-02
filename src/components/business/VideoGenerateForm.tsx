@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Check, Film, Loader2, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -17,10 +17,12 @@ import { isCjkLocale } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 
 import type { CharacterCardRecord } from '@/types'
+import { HistoryPanel } from '@/components/business/HistoryPanel'
 import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
+import { StudioApiRoutesSection } from '@/components/business/studio'
 
 const PromptEnhancer = dynamic(() =>
   import('@/components/business/PromptEnhancer').then(
@@ -37,13 +39,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { useStudioData } from '@/contexts/studio-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
 import { useGenerateLongVideo } from '@/hooks/use-generate-long-video'
 import { useGenerationForm } from '@/hooks/use-generation-form'
 import {
   buildSavedModelOptions,
   findSelectedModel,
-  mergeModelOptionsWithSavedFirst,
+  getTranslatedModelLabel,
+  mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
@@ -97,9 +101,12 @@ export default function VideoGenerateForm({
   const cjk = isCjkLocale(locale)
   const t = useTranslations('VideoGenerate')
   const tCard = useTranslations('VideoGenerate.characterCard')
-
   const tLong = useTranslations('LongVideo')
-  const { keys } = useApiKeysContext()
+  const tModels = useTranslations('Models')
+  const tProjects = useTranslations('Projects')
+  const tStudio = useTranslations('StudioV3')
+  const { keys, healthMap } = useApiKeysContext()
+  const { projects } = useStudioData()
   const {
     isGenerating,
     stage,
@@ -150,6 +157,9 @@ export default function VideoGenerateForm({
   >([])
   const [longVideoMode, setLongVideoMode] = useState(false)
   const [targetDuration, setTargetDuration] = useState(30)
+  const [selectedGenerationId, setSelectedGenerationId] = useState<
+    string | null
+  >(null)
 
   const videoModels = getAvailableVideoModels()
 
@@ -166,9 +176,10 @@ export default function VideoGenerateForm({
     keys.filter((key) => key.isActive),
     (key) => videoModels.some((m) => m.id === key.modelId),
   )
-  const modelOptions = mergeModelOptionsWithSavedFirst(
+  const modelOptions = mergeModelOptionsWithPreferredSavedRoutes(
     savedOptions,
     builtInOptions,
+    healthMap,
   )
   const selectedModel = findSelectedModel(modelOptions, selectedOptionId)
 
@@ -186,6 +197,25 @@ export default function VideoGenerateForm({
   const currentGeneration = longVideoMode
     ? longVideo.generatedGeneration
     : generatedGeneration
+
+  const videoHistory = useMemo(
+    () =>
+      projects.history.filter((generation) => generation.outputType === 'VIDEO'),
+    [projects.history],
+  )
+  const previewGeneration = useMemo(() => {
+    if (selectedGenerationId && selectedGenerationId !== currentGeneration?.id) {
+      return (
+        videoHistory.find((generation) => generation.id === selectedGenerationId) ??
+        null
+      )
+    }
+
+    return currentGeneration ?? videoHistory[0] ?? null
+  }, [currentGeneration, selectedGenerationId, videoHistory])
+  const selectedModelLabel = selectedModel
+    ? getTranslatedModelLabel(tModels, selectedModel.modelId)
+    : t('modelPlaceholder')
 
   const hasCards = activeCharacterCards.length > 0
   const activeCardIdSet = new Set(activeCharacterCards.map((card) => card.id))
@@ -219,6 +249,7 @@ export default function VideoGenerateForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedModel || !prompt.trim()) return
+    setSelectedGenerationId(null)
 
     let finalPrompt = prompt.trim()
     if (isCardApplied && appliedCards.length > 0) {
@@ -255,12 +286,7 @@ export default function VideoGenerateForm({
       aspectRatio: aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
       referenceImage: processedImage,
       negativePrompt: negativePrompt.trim() || undefined,
-      resolution: resolution as
-        | '480p'
-        | '540p'
-        | '720p'
-        | '1080p'
-        | undefined,
+      resolution: resolution as '480p' | '540p' | '720p' | '1080p' | undefined,
       apiKeyId: selectedApiKeyId,
       characterCardIds: appliedCardIds.length > 0 ? appliedCardIds : undefined,
     }
@@ -286,6 +312,7 @@ export default function VideoGenerateForm({
   }
 
   const tierLabel = selectedModelConfig?.qualityTier
+  const sessionDurationLabel = longVideoMode ? `${targetDuration}s` : `${duration}s`
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

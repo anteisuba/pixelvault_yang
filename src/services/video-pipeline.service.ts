@@ -28,6 +28,8 @@ import {
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
 import { db } from '@/lib/db'
+import { isVideoResolution } from '@/constants/video-options'
+import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
 // ─── Create Long Video Pipeline ─────────────────────────────────
 
@@ -81,6 +83,14 @@ export async function createLongVideoPipeline(
       : 0
   const totalClips = 1 + extensionClips
 
+  validateVideoGenerationInput({
+    modelId: input.modelId,
+    aspectRatio: input.aspectRatio,
+    duration: firstClipDuration,
+    referenceImage: input.referenceImage,
+    resolution: input.resolution,
+  })
+
   // Upload reference image to R2 if provided
   let referenceImageUrl: string | undefined
   if (input.referenceImage) {
@@ -111,7 +121,7 @@ export async function createLongVideoPipeline(
       negativePrompt: input.negativePrompt,
       resolution: input.resolution,
       i2vModelId: modelConfig.i2vModelId,
-      videoDefaults: modelConfig.videoDefaults as Record<string, unknown>,
+      videoDefaults: modelConfig.videoDefaults,
     })
   } catch (error) {
     if (error instanceof GenerateImageServiceError) throw error
@@ -482,6 +492,10 @@ export async function retryPipelineClip(
       VIDEO_GENERATION.MAX_DURATION,
       pipeline.targetDurationSec,
     )
+    const validatedResolution =
+      pipeline.resolution && isVideoResolution(pipeline.resolution)
+        ? pipeline.resolution
+        : undefined
 
     const queueResult = await providerAdapter.submitVideoToQueue({
       prompt: pipeline.prompt,
@@ -494,9 +508,9 @@ export async function retryPipelineClip(
       duration: firstClipDuration,
       referenceImage: pipeline.referenceImageUrl ?? undefined,
       negativePrompt: pipeline.negativePrompt ?? undefined,
-      resolution: pipeline.resolution ?? undefined,
+      resolution: validatedResolution,
       i2vModelId: modelConfig?.i2vModelId,
-      videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
+      videoDefaults: modelConfig?.videoDefaults,
     })
 
     await db.videoPipelineClip.update({
@@ -634,6 +648,11 @@ async function submitNextClip({
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
   if (!providerAdapter) return
 
+  const validatedResolution =
+    pipeline.resolution && isVideoResolution(pipeline.resolution)
+      ? pipeline.resolution
+      : undefined
+
   try {
     if (
       extensionConfig.extensionMethod === 'native_extend' &&
@@ -684,9 +703,9 @@ async function submitNextClip({
         duration: extensionConfig.extensionClipDuration,
         referenceImage: previousClipLastFrameUrl,
         negativePrompt: pipeline.negativePrompt ?? undefined,
-        resolution: pipeline.resolution ?? undefined,
+        resolution: validatedResolution,
         i2vModelId: modelConfig?.i2vModelId,
-        videoDefaults: modelConfig?.videoDefaults as Record<string, unknown>,
+        videoDefaults: modelConfig?.videoDefaults,
       })
 
       await db.videoPipelineClip.update({

@@ -9,7 +9,7 @@ import { useStudioForm } from '@/contexts/studio-context'
 import {
   buildSavedModelOptions,
   findSelectedModel,
-  mergeModelOptionsWithSavedFirst,
+  mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 
 export interface UseImageModelOptionsReturn {
@@ -25,7 +25,7 @@ export interface UseImageModelOptionsReturn {
  */
 export function useImageModelOptions(): UseImageModelOptionsReturn {
   const { state } = useStudioForm()
-  const { keys } = useApiKeysContext()
+  const { keys, healthMap } = useApiKeysContext()
 
   const imageModels = useMemo(() => getAvailableImageModels(), [])
 
@@ -44,8 +44,8 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
       keys.filter((k) => k.isActive),
       (k) => imageModels.some((m) => m.id === k.modelId),
     )
-    return mergeModelOptionsWithSavedFirst(saved, builtIn)
-  }, [imageModels, keys])
+    return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
+  }, [healthMap, imageModels, keys])
 
   const selectedModel = useMemo(
     () =>

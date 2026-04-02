@@ -1,7 +1,13 @@
 'use client'
 
 import { memo, useCallback, useState } from 'react'
-import { ImagePlus, RotateCcw, Sparkles, ZoomIn } from 'lucide-react'
+import {
+  GripHorizontal,
+  ImagePlus,
+  RotateCcw,
+  Sparkles,
+  ZoomIn,
+} from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { useStudioGen } from '@/contexts/studio-context'
@@ -145,17 +151,23 @@ export const GenerationPreview = memo(function GenerationPreview({
       >
         <ImageCard generation={generation} />
 
-        {/* Zoom overlay — click to open detail modal */}
+        {/* Hover overlay — click to zoom, drag hint at bottom */}
         {!isGenerating && (
           <button
             type="button"
             onClick={() => setDetailOpen(true)}
-            className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-200 group-hover:bg-black/20 group-hover:opacity-100"
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/0 opacity-0 transition-all duration-200 group-hover:bg-black/20 group-hover:opacity-100"
             aria-label={t('openDetail')}
           >
             <div className="rounded-full bg-background/90 p-2 shadow-sm backdrop-blur-sm">
               <ZoomIn className="size-5 text-foreground" />
             </div>
+            {generation.outputType === 'IMAGE' && (
+              <span className="mt-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
+                <GripHorizontal className="size-3" />
+                {t('dragHint')}
+              </span>
+            )}
           </button>
         )}
 

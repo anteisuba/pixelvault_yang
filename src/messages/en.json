@@ -762,6 +762,15 @@
     "editFailed": "Editing failed",
     "saveUpscaleToGallery": "Save upscaled to gallery",
     "editSavedToGallery": "Saved to gallery!",
+    "decompose": "Layer Decompose",
+    "decomposing": "Decomposing layers...",
+    "decomposeSuccess": "Done! Downloading the PSD file.",
+    "decomposeFailed": "Layer decomposition failed",
+    "decomposeDescription": "Split into semantic layers (hair, eyes, clothes, etc.) as a layered PSD. Best for anime-style illustrations.",
+    "downloadPsd": "Download PSD",
+    "layerPreview": "Layer Preview",
+    "layerCount": "{count} layers extracted",
+    "saveDecomposeToGallery": "Save layers to gallery",
     "downloadFailed": "Download failed. Opening the original instead.",
     "shareFailed": "Failed to copy the share link."
   },
@@ -1543,6 +1552,7 @@
     "settings": "Settings",
     "studioSettings": "Studio Settings",
     "openDetail": "View details",
+    "dragHint": "Drag as reference",
     "showPreview": "Show preview",
     "hidePreview": "Browse history"
   },

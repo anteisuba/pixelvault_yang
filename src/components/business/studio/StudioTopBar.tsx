@@ -39,9 +39,9 @@ export const StudioTopBar = memo(function StudioTopBar() {
   )
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2 xl:gap-3">
       {/* Project selector */}
-      <div className="min-w-48">
+      <div className="min-w-36 xl:min-w-48">
         <ProjectSelector
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
@@ -67,7 +67,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
             state.outputType === 'image'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -84,7 +84,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
             state.outputType === 'video'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -115,7 +115,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
           }
           className={cn(
-            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
             state.workflowMode === 'quick'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -131,7 +131,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
           }
           className={cn(
-            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
             state.workflowMode === 'card'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',

@@ -15,6 +15,7 @@ interface HistoryPanelProps {
   isLoading: boolean
   onLoadMore: () => void
   onSelect?: (generation: GenerationRecord) => void
+  onOpenDetail?: (generation: GenerationRecord) => void
   selectedId?: string | null
 }
 
@@ -25,6 +26,7 @@ export function HistoryPanel({
   isLoading,
   onLoadMore,
   onSelect,
+  onOpenDetail,
   selectedId,
 }: HistoryPanelProps) {
   const t = useTranslations('Projects')
@@ -74,13 +76,14 @@ export function HistoryPanel({
         )}
       </div>
 
-      {/* Thumbnail grid */}
-      <div className="grid grid-cols-3 gap-1.5">
+      {/* Thumbnail grid — auto-fill adapts when preview is collapsed */}
+      <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5">
         {generations.map((gen) => (
           <button
             key={gen.id}
             type="button"
             onClick={() => handleSelect(gen)}
+            onDoubleClick={() => onOpenDetail?.(gen)}
             draggable={gen.outputType === 'IMAGE' && !!gen.url}
             onDragStart={(e) => handleDragStart(e, gen)}
             className={cn(

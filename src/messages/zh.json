@@ -762,6 +762,15 @@
     "editFailed": "编辑失败",
     "saveUpscaleToGallery": "保存超分结果到画廊",
     "editSavedToGallery": "已保存到画廊！",
+    "decompose": "图层分解",
+    "decomposing": "正在分解图层...",
+    "decomposeSuccess": "完成！正在下载 PSD 文件。",
+    "decomposeFailed": "图层分解失败",
+    "decomposeDescription": "将角色拆解为语义图层（头发、眼睛、服装等），输出为分层 PSD。最适合动漫风格插画。",
+    "downloadPsd": "下载 PSD",
+    "layerPreview": "图层预览",
+    "layerCount": "已提取 {count} 个图层",
+    "saveDecomposeToGallery": "保存图层到画廊",
     "downloadFailed": "下载失败，正在打开原图。",
     "shareFailed": "复制分享链接失败。"
   },
@@ -1543,6 +1552,7 @@
     "settings": "设置",
     "studioSettings": "工作室设置",
     "openDetail": "查看详情",
+    "dragHint": "拖拽作为参考图",
     "showPreview": "显示预览",
     "hidePreview": "浏览历史"
   },

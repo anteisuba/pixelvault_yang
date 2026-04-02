@@ -11,6 +11,7 @@ import {
 } from '@/contexts/studio-context'
 import { GenerationPreview } from './GenerationPreview'
 import { HistoryPanel } from '@/components/business/HistoryPanel'
+import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,8 @@ export const StudioRightColumn = memo(function StudioRightColumn({
     string | null
   >(null)
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
+  const [detailGeneration, setDetailGeneration] =
+    useState<GenerationRecord | null>(null)
 
   const previewGeneration = useMemo(() => {
     const candidates = lastGeneration
@@ -144,8 +147,21 @@ export const StudioRightColumn = memo(function StudioRightColumn({
         isLoading={projects.isLoadingHistory}
         onLoadMore={projects.loadMoreHistory}
         onSelect={handleHistorySelectWithExpand}
+        onOpenDetail={setDetailGeneration}
         selectedId={previewCollapsed ? null : previewGeneration?.id}
       />
+
+      {/* Detail modal for double-clicked history item */}
+      {detailGeneration && (
+        <ImageDetailModal
+          generation={detailGeneration}
+          open={!!detailGeneration}
+          onOpenChange={(open) => {
+            if (!open) setDetailGeneration(null)
+          }}
+          showVisibility
+        />
+      )}
     </div>
   )
 })

@@ -162,9 +162,9 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           onClick={handleGenerate}
           disabled={isGenerating || !canGenerate}
           className={cn(
-            'flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-all duration-200',
+            'flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-[transform,background-color,box-shadow] duration-300 ease-out',
             canGenerate && !isGenerating
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20 active:scale-95'
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
               : 'bg-muted text-muted-foreground cursor-not-allowed',
           )}
         >

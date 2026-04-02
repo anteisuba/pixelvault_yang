@@ -762,6 +762,15 @@
     "editFailed": "編集に失敗しました",
     "saveUpscaleToGallery": "高解像度化をギャラリーに保存",
     "editSavedToGallery": "ギャラリーに保存しました！",
+    "decompose": "レイヤー分解",
+    "decomposing": "レイヤー分解中...",
+    "decomposeSuccess": "完了！PSDファイルをダウンロードしています。",
+    "decomposeFailed": "レイヤー分解に失敗しました",
+    "decomposeDescription": "髪、目、服などのセマンティックレイヤーに分解し、レイヤー付きPSDとして出力します。アニメ調イラストに最適です。",
+    "downloadPsd": "PSDダウンロード",
+    "layerPreview": "レイヤープレビュー",
+    "layerCount": "{count}個のレイヤーを抽出",
+    "saveDecomposeToGallery": "レイヤーをギャラリーに保存",
     "downloadFailed": "ダウンロードに失敗しました。元画像を開きます。",
     "shareFailed": "共有リンクのコピーに失敗しました。"
   },
@@ -1543,6 +1552,7 @@
     "settings": "設定",
     "studioSettings": "スタジオ設定",
     "openDetail": "詳細を表示",
+    "dragHint": "ドラッグで参照に追加",
     "showPreview": "プレビューを表示",
     "hidePreview": "履歴を閲覧"
   },

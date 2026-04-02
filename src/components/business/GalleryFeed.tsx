@@ -76,12 +76,14 @@ export function GalleryFeed({
             {t('feedDescription')}
           </p>
         </div>
-        <span className="editorial-count-pill">
-          {t('feedCount', {
-            shown: generations.length,
-            total: displayTotal,
-          })}
-        </span>
+        {generations.length !== displayTotal && (
+          <span className="editorial-count-pill">
+            {t('feedCount', {
+              shown: generations.length,
+              total: displayTotal,
+            })}
+          </span>
+        )}
       </div>
 
       <GalleryGrid

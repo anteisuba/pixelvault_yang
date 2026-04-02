@@ -10,7 +10,6 @@ import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
 import { HomepageHeroVisual } from './HomepageHeroVisual'
-import styles from './HomepageShell.module.css'
 
 const providerCount = new Set(MODEL_OPTIONS.map((model) => model.adapterType))
   .size
@@ -40,68 +39,75 @@ export function HomepageHero({
   const tCommon = useTranslations('Common')
 
   return (
-    <section className={styles.hero}>
-      <div className={styles.heroGrid}>
-        <div className={styles.heroCopy}>
-          <MotionReveal delay={0}>
-            <p
-              className={cn(styles.eyebrow, isDenseLocale && styles.denseCopy)}
+    <section
+      className="homepage-border-top flex flex-col gap-[clamp(1.5rem,3vw,2.25rem)]"
+      style={{
+        paddingBlock: 'clamp(2rem, 5vw, 3.5rem) clamp(1.5rem, 3vw, 2.5rem)',
+      }}
+    >
+      <div className="grid gap-[clamp(1.5rem,3vw,2rem)] items-center md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="grid gap-[0.85rem] min-w-0">
+          <p
+            className={cn(
+              'inline-flex w-fit text-[0.72rem] font-semibold tracking-[0.18em] uppercase text-primary opacity-85',
+              isDenseLocale && 'tracking-normal normal-case',
+            )}
+          >
+            {eyebrow}
+          </p>
+
+          <h1 className="max-w-[18ch] font-display text-[clamp(3rem,7vw,5.5rem)] font-bold leading-[0.9] tracking-[-0.04em] text-balance">
+            {title}
+            <span
+              className="block w-14 h-[3px] mt-3 rounded-sm bg-primary"
+              aria-hidden="true"
+            />
+          </h1>
+
+          <p className="max-w-[36rem] font-serif text-[clamp(1.04rem,1.7vw,1.18rem)] leading-[1.8] text-[var(--home-muted)] text-pretty">
+            {description}
+          </p>
+
+          <div className="flex flex-wrap gap-[0.85rem] pt-[0.15rem] [&>*]:flex-none">
+            <Button
+              asChild
+              size="lg"
+              className="homepage-primary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0"
             >
-              {eyebrow}
-            </p>
-          </MotionReveal>
+              <Link href={primaryActionHref}>
+                {primaryActionLabel}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
 
-          <MotionReveal delay={0.1}>
-            <h1 className={styles.title}>
-              {title}
-              <span className={styles.titleAccent} aria-hidden="true" />
-            </h1>
-          </MotionReveal>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="homepage-secondary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0"
+            >
+              <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
+            </Button>
+          </div>
 
-          <MotionReveal delay={0.2}>
-            <p className={styles.description}>{description}</p>
-          </MotionReveal>
-
-          <MotionReveal delay={0.3}>
-            <div className={styles.actions}>
-              <Button asChild size="lg" className={styles.primaryButton}>
-                <Link href={primaryActionHref}>
-                  {primaryActionLabel}
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className={styles.secondaryButton}
-              >
-                <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
-              </Button>
-            </div>
-          </MotionReveal>
-
-          <MotionReveal delay={0.4}>
-            <div className={styles.heroPills}>
-              <span className={styles.heroPill}>
-                {t('signals.modelCoverageValue', {
-                  modelCount: MODEL_OPTIONS.length,
-                  providerCount,
-                })}
-              </span>
-              <span className={styles.heroPill}>
-                {t('signals.creditValue', {
-                  creditCount: tCommon('creditCount', {
-                    count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                  }),
-                })}
-              </span>
-            </div>
-          </MotionReveal>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <span className="homepage-pill inline-flex items-center px-3 py-[0.3rem] rounded-full text-[0.72rem] font-medium tracking-[0.02em] text-[var(--home-muted)]">
+              {t('signals.modelCoverageValue', {
+                modelCount: MODEL_OPTIONS.length,
+                providerCount,
+              })}
+            </span>
+            <span className="homepage-pill inline-flex items-center px-3 py-[0.3rem] rounded-full text-[0.72rem] font-medium tracking-[0.02em] text-[var(--home-muted)]">
+              {t('signals.creditValue', {
+                creditCount: tCommon('creditCount', {
+                  count: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                }),
+              })}
+            </span>
+          </div>
         </div>
 
-        <MotionReveal delay={0.2}>
+        <MotionReveal delay={0.2} margin="0px">
           <HomepageHeroVisual />
         </MotionReveal>
       </div>

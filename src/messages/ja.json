@@ -110,6 +110,7 @@
   },
   "Navbar": {
     "creditsLoading": "...",
+    "creditsTooltip": "使用したAPIリクエスト数",
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
     "signOut": "サインアウト",
@@ -321,6 +322,7 @@
     "modeLabel": "生成モード",
     "modeImage": "画像",
     "modeVideo": "動画",
+    "advancedOptions": "詳細設定",
     "freeQuota": "本日の無料回数 {remaining}/{limit}",
     "freeQuotaLow": "残りわずか",
     "metrics": {
@@ -408,7 +410,8 @@
       "modelCoverageLabel": "現在の対応範囲",
       "modelCoverageValue": "{count, plural, one {# 個の組み込み画像モデル} other {# 個の組み込み画像モデル}}",
       "curationLabel": "並び順",
-      "curationValue": "新しい順"
+      "curationValue": "新しい順",
+      "inlineSummary": "{imageCount}枚の公開画像、{modelCount}の組み込みモデル"
     },
     "filters": {
       "searchLabel": "アーカイブを検索",
@@ -458,7 +461,8 @@
       "publicWorksValue": "{count, plural, =0 {公開なし} other {#件公開}}",
       "privateWorksLabel": "非公開",
       "privateWorksValue": "{count, plural, =0 {非公開なし} other {#件非公開}}",
-      "creditsLabel": "APIリクエスト"
+      "creditsLabel": "APIリクエスト",
+      "inlineSummary": "{total, plural, =0 {作品なし} other {{total}作品}} · 公開{publicCount} · 非公開{privateCount} · {requestCount}リクエスト使用"
     },
     "collectionEyebrow": "アーカイブ",
     "collectionTitle": "最近の生成",
@@ -853,6 +857,7 @@
     "idsHint": "プロフィールライブラリから生成IDをカンマ区切りで貼り付けてください。",
     "createAction": "ストーリーを作成",
     "empty": "ストーリーがまだありません。最初のビジュアルストーリーを作成しましょう！",
+    "emptySubtitle": "AIが書くキャプション付きで、生成した画像をストーリーにまとめましょう。",
     "panelCount": "{count}パネル",
     "backToList": "すべてのストーリー",
     "storyEyebrow": "ストーリー",
@@ -1511,9 +1516,6 @@
     "quickMode": "クイック生成",
     "cardMode": "カード生成",
     "workflowModeLabel": "ワークフローモード",
-    "recentConfigurations": "最近の設定",
-    "recentConfigurationsEmpty": "何枚か生成すると、最近使った設定がここに表示されます。",
-    "applyRecentConfiguration": "最近の設定を適用",
     "latestResult": "最新結果",
     "historySelection": "履歴プレビュー",
     "generationComplete": "生成が完了しました",

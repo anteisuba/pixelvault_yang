@@ -110,6 +110,7 @@
   },
   "Navbar": {
     "creditsLoading": "...",
+    "creditsTooltip": "已使用的 API 请求数",
     "signIn": "登录",
     "viewProfile": "查看主页",
     "signOut": "退出登录",
@@ -321,6 +322,7 @@
     "modeLabel": "生成模式",
     "modeImage": "图片",
     "modeVideo": "视频",
+    "advancedOptions": "高级选项",
     "freeQuota": "今日免费 {remaining}/{limit}",
     "freeQuotaLow": "即将用完",
     "metrics": {
@@ -408,7 +410,8 @@
       "modelCoverageLabel": "当前覆盖",
       "modelCoverageValue": "{count, plural, one {# 个内置图像模型} other {# 个内置图像模型}}",
       "curationLabel": "排序",
-      "curationValue": "按时间倒序"
+      "curationValue": "按时间倒序",
+      "inlineSummary": "{imageCount} 张公开图片，涵盖 {modelCount} 个内置模型"
     },
     "filters": {
       "searchLabel": "搜索档案",
@@ -458,7 +461,8 @@
       "publicWorksValue": "{count, plural, =0 {暂无公开} other {#件公开}}",
       "privateWorksLabel": "私密",
       "privateWorksValue": "{count, plural, =0 {暂无私密} other {#件私密}}",
-      "creditsLabel": "API请求"
+      "creditsLabel": "API请求",
+      "inlineSummary": "{total, plural, =0 {暂无作品} other {{total} 个作品}} · {publicCount} 个公开 · {privateCount} 个私有 · 已用 {requestCount} 次请求"
     },
     "collectionEyebrow": "归档",
     "collectionTitle": "最近生成",
@@ -853,6 +857,7 @@
     "idsHint": "从你的个人图库复制生成 ID，用逗号分隔。",
     "createAction": "创建故事",
     "empty": "还没有故事。创建你的第一个视觉故事！",
+    "emptySubtitle": "将你的生成作品组合成叙事序列，由 AI 撰写配文。",
     "panelCount": "{count} 个面板",
     "backToList": "所有故事",
     "storyEyebrow": "故事",
@@ -1511,9 +1516,6 @@
     "quickMode": "快速生成",
     "cardMode": "卡片生成",
     "workflowModeLabel": "工作流模式",
-    "recentConfigurations": "最近配置",
-    "recentConfigurationsEmpty": "先生成几张图，最近用过的配置会显示在这里。",
-    "applyRecentConfiguration": "应用最近配置",
     "latestResult": "最新结果",
     "historySelection": "历史预览",
     "generationComplete": "生成完成",

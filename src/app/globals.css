@@ -2,6 +2,11 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@source not "../../.codex-artifacts";
+@source not "../../.codex-dev.err.log";
+@source not "../../.codex-dev.out.log";
+@source not "../../.gstack";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -468,10 +473,18 @@ html:lang(zh) {
   }
 
   .studio-col-sticky {
-    position: sticky;
-    top: calc(3.5rem + 1rem);
-    max-height: calc(100vh - 3.5rem - 2rem);
-    overflow-y: auto;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  @media (min-width: 1024px) {
+    .studio-col-sticky {
+      position: sticky;
+      top: calc(3.5rem + 1rem);
+      max-height: calc(100vh - 3.5rem - 2rem);
+      overflow-y: auto;
+    }
   }
 
   /* ── Clerk overrides ───────────────────────────────────────────────────── */

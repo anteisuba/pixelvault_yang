@@ -126,51 +126,12 @@ export default async function GalleryPage({
             </div>
 
             <div className="editorial-panel-meta">
-              <div className="editorial-summary-grid">
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.archiveSizeLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.archiveSizeValue', { count: total })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.modelCoverageLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.modelCoverageValue', {
-                      count: availableModels.length,
-                    })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.curationLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.curationValue')}
-                  </p>
-                </article>
-              </div>
+              <p className="font-serif text-sm text-muted-foreground">
+                {t('metrics.inlineSummary', {
+                  imageCount: total,
+                  modelCount: availableModels.length,
+                })}
+              </p>
             </div>
           </div>
 
@@ -191,9 +152,9 @@ export default async function GalleryPage({
               <GalleryFeed
                 initialGenerations={generations}
                 initialPage={PAGINATION.DEFAULT_PAGE}
-              initialHasMore={
-                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
-              }
+                initialHasMore={
+                  PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
+                }
                 total={total}
                 initialFilters={initialFilters}
               />

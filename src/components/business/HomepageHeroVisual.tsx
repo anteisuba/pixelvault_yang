@@ -6,8 +6,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
 
-import styles from './HomepageShell.module.css'
-
 const VISIBLE_COUNT = 3
 const ROTATE_INTERVAL_MS = 4000
 
@@ -35,15 +33,15 @@ export function HomepageHeroVisual() {
   })
 
   return (
-    <div className={styles.heroVisual}>
-      <div className={styles.heroCardFan}>
+    <div className="hidden md:block relative min-h-[280px]">
+      <div className="relative w-full h-[280px] md:h-[380px] flex items-center justify-center">
         <AnimatePresence mode="popLayout">
           {visibleItems.map((item) => {
             const transform = cardTransforms[item.stackIndex]
             return (
               <motion.div
                 key={item.id}
-                className={styles.heroShowcaseCard}
+                className="homepage-hero-card w-[280px] md:w-[360px] rounded-2xl overflow-hidden"
                 initial={{
                   opacity: 0,
                   rotate: transform.rotate + 8,
@@ -71,10 +69,12 @@ export function HomepageHeroVisual() {
                   alt={`${item.model} showcase`}
                   width={320}
                   height={240}
-                  className={styles.heroShowcaseImage}
+                  className="block w-full h-auto object-cover"
                   priority={item.stackIndex === 0}
                 />
-                <span className={styles.heroShowcaseLabel}>{item.model}</span>
+                <span className="homepage-hero-label absolute bottom-3 left-3 px-[0.6rem] py-1 rounded-full text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-foreground">
+                  {item.model}
+                </span>
               </motion.div>
             )
           })}

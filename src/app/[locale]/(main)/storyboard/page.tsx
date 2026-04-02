@@ -43,7 +43,7 @@ export default function StoryboardPage() {
 
           <Button
             onClick={() => setShowCreate((v) => !v)}
-            className="gap-2 rounded-full"
+            className="w-fit gap-2 rounded-full"
           >
             <Plus className="size-4" />
             {t('createButton')}
@@ -92,8 +92,11 @@ export default function StoryboardPage() {
           {/* Empty state */}
           {!loading && stories.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-12">
-              <BookOpen className="size-8 text-muted-foreground/50" />
+              <BookOpen className="size-10 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{t('empty')}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('emptySubtitle')}
+              </p>
             </div>
           )}
 

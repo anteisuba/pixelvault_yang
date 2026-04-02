@@ -163,12 +163,14 @@ export function ProfileFeed({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="editorial-count-pill">
-            {t('collectionCount', {
-              shown: generations.length,
-              total: displayTotal,
-            })}
-          </span>
+          {generations.length !== displayTotal && (
+            <span className="editorial-count-pill">
+              {t('collectionCount', {
+                shown: generations.length,
+                total: displayTotal,
+              })}
+            </span>
+          )}
           {!selectMode ? (
             <Button
               variant="outline"

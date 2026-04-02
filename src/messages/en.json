@@ -110,6 +110,7 @@
   },
   "Navbar": {
     "creditsLoading": "...",
+    "creditsTooltip": "Total API requests used",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "signOut": "Sign Out",
@@ -321,6 +322,7 @@
     "modeLabel": "Generation mode",
     "modeImage": "Image",
     "modeVideo": "Video",
+    "advancedOptions": "Advanced Options",
     "freeQuota": "{remaining}/{limit} free today",
     "freeQuotaLow": "Almost out",
     "metrics": {
@@ -408,7 +410,8 @@
       "modelCoverageLabel": "Current coverage",
       "modelCoverageValue": "{count, plural, one {# built-in image model} other {# built-in image models}}",
       "curationLabel": "Sort",
-      "curationValue": "Newest first"
+      "curationValue": "Newest first",
+      "inlineSummary": "{imageCount} public images across {modelCount} built-in models"
     },
     "filters": {
       "searchLabel": "Search the archive",
@@ -458,7 +461,8 @@
       "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
       "privateWorksLabel": "Private",
       "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
-      "creditsLabel": "API requests"
+      "creditsLabel": "API requests",
+      "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used"
     },
     "collectionEyebrow": "Archive",
     "collectionTitle": "Recent generations",
@@ -853,6 +857,7 @@
     "idsHint": "Paste generation IDs from your profile library, separated by commas.",
     "createAction": "Create Story",
     "empty": "No stories yet. Create your first visual story!",
+    "emptySubtitle": "Combine your generations into a narrative sequence with AI-written captions.",
     "panelCount": "{count} panels",
     "backToList": "All Stories",
     "storyEyebrow": "Story",
@@ -1511,9 +1516,6 @@
     "quickMode": "Quick Generate",
     "cardMode": "Card Generate",
     "workflowModeLabel": "Workflow mode",
-    "recentConfigurations": "Recent setups",
-    "recentConfigurationsEmpty": "Generate a few images and your recent setups will appear here.",
-    "applyRecentConfiguration": "Apply recent setup",
     "latestResult": "Latest result",
     "historySelection": "History selection",
     "generationComplete": "Generation complete",

@@ -172,6 +172,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   }, [apiKeys, healthMap, verify])
 
   const [prompt, setPrompt] = useState('')
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [aspectRatio, setAspectRatio] =
     useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(
@@ -245,6 +246,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault()
+      setHasAttemptedSubmit(true)
       if (!prompt.trim() || selectedModels.length < 2) return
       const hasAdvanced = Object.values(advancedParams).some(
         (v) => v !== undefined,
@@ -284,12 +286,18 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
         description={t('modelSelectCount', { count: selectedModels.length })}
         badge={
           selectedModels.length < 2 ? (
-            <Badge
-              variant="destructive"
-              className="rounded-full px-2 py-0 text-2xs"
-            >
-              {t('modelSelectMinimum')}
-            </Badge>
+            hasAttemptedSubmit ? (
+              <Badge
+                variant="destructive"
+                className="rounded-full px-2 py-0 text-2xs"
+              >
+                {t('modelSelectMinimum')}
+              </Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {t('modelSelectMinimum')}
+              </span>
+            )
           ) : undefined
         }
       >

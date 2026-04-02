@@ -16,8 +16,6 @@ import {
   MotionStaggerItem,
 } from '@/components/ui/motion-reveal'
 
-import styles from './HomepageShell.module.css'
-
 export function HomepageModels() {
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
@@ -28,52 +26,57 @@ export function HomepageModels() {
   const groups = groupModelsByProvider(MODEL_OPTIONS)
 
   return (
-    <section id="models" className={styles.section}>
+    <section
+      id="models"
+      className="homepage-border-top grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
+    >
       <MotionReveal>
-        <div className={styles.sectionIntro}>
+        <div className="grid gap-[0.65rem] max-w-[42rem]">
           <p
             className={cn(
-              styles.sectionLabel,
-              isDenseLocale && styles.denseCopy,
+              'text-[0.72rem] font-semibold tracking-[0.18em] uppercase text-primary opacity-75',
+              isDenseLocale && 'tracking-normal normal-case',
             )}
           >
             {t('models.eyebrow')}
           </p>
-          <h2 className={styles.sectionTitle}>{t('models.title')}</h2>
+          <h2 className="font-display text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
+            {t('models.title')}
+          </h2>
         </div>
       </MotionReveal>
 
-      <div className={styles.modelRail}>
+      <div className="homepage-model-rail grid gap-0">
         {groups.map(({ group, models }) => (
           <div key={group}>
-            <h3 className={styles.modelGroupTitle}>
+            <h3 className="homepage-model-group font-display text-[0.78rem] font-semibold tracking-[0.12em] uppercase text-primary pt-[1.4rem] pb-[0.4rem] opacity-85">
               {tCommon(`providerGroups.${group}`)}
             </h3>
 
             <MotionStagger
               staggerMs={60}
               direction="left"
-              className={styles.modelCompactGrid}
+              className="grid gap-0"
             >
               {models.map((model) => (
                 <MotionStaggerItem key={model.id} direction="left">
-                  <article className={styles.modelCardCompact}>
-                    <span className={styles.modelTitle}>
+                  <article className="homepage-model-compact homepage-model-border flex items-center justify-between gap-3 py-[0.85rem] md:px-2 transition-colors duration-200">
+                    <span className="font-display text-[clamp(1rem,1.4vw,1.15rem)] font-medium leading-[1.2] tracking-[-0.02em]">
                       {tModels(`${getModelMessageKey(model.id)}.label`)}
                     </span>
-                    <div className={styles.modelMeta}>
+                    <div className="flex flex-wrap items-center gap-[0.4rem]">
                       <span
                         className={cn(
-                          styles.providerTag,
-                          isDenseLocale && styles.denseCopy,
+                          'homepage-provider-tag inline-flex items-center w-fit px-[0.55rem] py-1 rounded-full text-[0.62rem] font-semibold tracking-[0.14em] uppercase text-foreground',
+                          isDenseLocale && 'tracking-normal normal-case',
                         )}
                       >
                         {getProviderLabel(model.providerConfig)}
                       </span>
                       <span
                         className={cn(
-                          styles.costTag,
-                          isDenseLocale && styles.denseCopy,
+                          'homepage-cost-tag inline-flex items-center w-fit px-[0.55rem] py-1 rounded-full text-[0.62rem] font-semibold tracking-[0.14em] uppercase',
+                          isDenseLocale && 'tracking-normal normal-case',
                         )}
                       >
                         {tCommon('creditCount', {

@@ -21,6 +21,7 @@ interface MotionRevealProps {
   delay?: number
   duration?: number
   direction?: Direction
+  margin?: string
   className?: string
 }
 
@@ -29,6 +30,7 @@ export function MotionReveal({
   delay = 0,
   duration = 0.5,
   direction = 'up',
+  margin = '-60px',
   className,
 }: MotionRevealProps) {
   const shouldReduce = useReducedMotion()
@@ -43,7 +45,7 @@ export function MotionReveal({
     <motion.div
       initial={{ opacity: 0, ...offset }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
+      viewport={{ once: true, margin }}
       transition={{ ...TWEEN_BASE, duration, delay }}
       className={className}
     >

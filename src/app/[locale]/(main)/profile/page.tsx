@@ -13,7 +13,6 @@ import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { GallerySearchSchema } from '@/types'
 import {
   countUserGenerations,
-  countUserGenerationsByType,
   countUserPublicGenerations,
   countPublicGenerations,
   getPublicGenerations,
@@ -66,10 +65,6 @@ export default async function ProfilePage({
     locale,
     namespace: 'LibraryPage',
   })
-  const tCommon = await getTranslations({
-    locale,
-    namespace: 'Common',
-  })
   const { userId: clerkId } = await auth()
 
   if (!clerkId) {
@@ -96,14 +91,7 @@ export default async function ProfilePage({
 
   const user = await ensureUser(clerkId)
 
-  const [
-    usageSummary,
-    generations,
-    total,
-    publicTotal,
-    typeCounts,
-    filteredTotal,
-  ] =
+  const [usageSummary, generations, total, publicTotal, filteredTotal] =
     await Promise.all([
       getUserUsageSummary(user.id),
       getPublicGenerations({
@@ -117,7 +105,6 @@ export default async function ProfilePage({
       }),
       countUserGenerations(user.id),
       countUserPublicGenerations(user.id),
-      countUserGenerationsByType(user.id),
       countPublicGenerations({
         search: initialFilters.search || undefined,
         model: initialFilters.model || undefined,
@@ -162,93 +149,14 @@ export default async function ProfilePage({
             </div>
 
             <div className="editorial-panel-meta">
-              <div className="editorial-summary-grid md:grid-cols-3">
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.totalWorksLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.totalWorksValue', { count: total })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.imagesLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.imagesValue', { count: typeCounts.images })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.videosLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.videosValue', { count: typeCounts.videos })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.publicWorksLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.publicWorksValue', { count: publicTotal })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.privateWorksLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {t('metrics.privateWorksValue', { count: privateTotal })}
-                  </p>
-                </article>
-
-                <article className="editorial-summary-card">
-                  <p
-                    className={cn(
-                      'editorial-summary-label',
-                      isDenseLocale && 'tracking-normal normal-case',
-                    )}
-                  >
-                    {t('metrics.creditsLabel')}
-                  </p>
-                  <p className="editorial-summary-value">
-                    {tCommon('creditCount', {
-                      count: usageSummary.totalRequests,
-                    })}
-                  </p>
-                </article>
-              </div>
+              <p className="font-serif text-sm text-muted-foreground">
+                {t('metrics.inlineSummary', {
+                  total,
+                  publicCount: publicTotal,
+                  privateCount: privateTotal,
+                  requestCount: usageSummary.totalRequests,
+                })}
+              </p>
             </div>
           </div>
 
@@ -271,9 +179,10 @@ export default async function ProfilePage({
               <ProfileFeed
                 initialGenerations={generations}
                 initialPage={PAGINATION.DEFAULT_PAGE}
-              initialHasMore={
-                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < filteredTotal
-              }
+                initialHasMore={
+                  PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT <
+                  filteredTotal
+                }
                 total={filteredTotal}
                 initialFilters={initialFilters}
               />

@@ -16,8 +16,6 @@ import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
-import styles from './MobileTabBar.module.css'
-
 interface TabItem {
   href: string
   label: string
@@ -31,15 +29,20 @@ interface TabListProps {
 
 function TabList({ tabs, pathname }: TabListProps) {
   return (
-    <div className={styles.tabList}>
+    <div className="flex h-full items-stretch">
       {tabs.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
-          className={cn(styles.tabLink, pathname === href && styles.active)}
+          className={cn(
+            'flex flex-1 flex-col items-center justify-center gap-[0.35rem] text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
+            pathname === href && 'text-primary',
+          )}
         >
           <Icon className="size-5" />
-          <span className={styles.tabLabel}>{label}</span>
+          <span className="text-tab font-semibold tracking-[0.12em] uppercase leading-none">
+            {label}
+          </span>
         </Link>
       ))}
     </div>

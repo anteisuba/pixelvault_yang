@@ -9,6 +9,12 @@ import { useTranslations } from 'next-intl'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
@@ -126,14 +132,25 @@ export function Navbar() {
           <LocaleSwitcher />
 
           <SignedIn>
-            <div className="flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-nav font-semibold uppercase tracking-nav-dense text-foreground">
-              <Coins className="size-3.5 shrink-0 text-primary" />
-              <span className="hidden sm:inline">
-                {isLoading
-                  ? t('creditsLoading')
-                  : tCommon('creditCount', { count: summary.totalRequests })}
-              </span>
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-nav font-semibold uppercase tracking-nav-dense text-foreground">
+                    <Coins className="size-3.5 shrink-0 text-primary" />
+                    <span className="hidden sm:inline">
+                      {isLoading
+                        ? t('creditsLoading')
+                        : tCommon('creditCount', {
+                            count: summary.totalRequests,
+                          })}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('creditsTooltip')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {/* Avatar dropdown */}
             <div className="relative" ref={menuRef}>

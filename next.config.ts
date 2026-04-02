@@ -59,9 +59,6 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // Upload source maps for better stack traces
   widenClientFileUpload: true,
 
-  // Automatically tree-shake Sentry logger statements
-  disableLogger: true,
-
   // Hide source maps from browser devtools in production
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,

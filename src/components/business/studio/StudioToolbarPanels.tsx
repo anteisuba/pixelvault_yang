@@ -144,7 +144,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
 
       {/* ── Reverse engineer panel ─────────────────────────────── */}
       {state.panels.reverse && (
-        <div className="rounded-lg border border-border/60 overflow-hidden">
+        <div className="rounded-lg border border-border/60 overflow-hidden studio-panel-animate">
           <ReverseEngineerPanel
             onUsePrompt={(prompt) => {
               dispatch({ type: 'SET_PROMPT', payload: prompt })
@@ -158,7 +158,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       {state.panels.advanced && (
         <div
           aria-live="polite"
-          className="rounded-lg border border-border/60 bg-background/60 p-3"
+          className="rounded-lg border border-border/60 bg-background/60 p-3 studio-panel-animate"
         >
           {selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
             <AdvancedSettings
@@ -203,14 +203,14 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
 
       {/* ── Layer decompose panel ─────────────────────────────── */}
       {state.panels.layerDecompose && (
-        <div className="rounded-lg border border-border/60 overflow-hidden">
+        <div className="rounded-lg border border-border/60 overflow-hidden studio-panel-animate">
           <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
         </div>
       )}
 
       {/* ── Civitai token inline panel ─────────────────────────── */}
       {state.panels.civitai && (
-        <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-2">
+        <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-2 studio-panel-animate">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Key className="size-3.5 text-primary" />

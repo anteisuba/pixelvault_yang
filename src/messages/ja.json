@@ -1569,7 +1569,26 @@
     "openDetail": "詳細を表示",
     "dragHint": "ドラッグで参照に追加",
     "showPreview": "プレビューを表示",
-    "hidePreview": "履歴を閲覧"
+    "hidePreview": "履歴を閲覧",
+    "projects": "プロジェクト",
+    "allGenerations": "すべての生成",
+    "tags": "タグ",
+    "favorites": "お気に入り",
+    "reference": "参照",
+    "final": "完成",
+    "wip": "作業中",
+    "recent": "最近",
+    "today": "今日",
+    "yesterday": "昨日",
+    "thisWeek": "今週",
+    "apiKeys": "APIキー",
+    "addApiKey": "APIキーを追加",
+    "active": "有効",
+    "rename": "名前を変更",
+    "deleteProject": "削除",
+    "addSubProject": "サブプロジェクトを追加",
+    "apiError": "エラー",
+    "apiUnverified": "未確認"
   },
   "Errors": {
     "common": {

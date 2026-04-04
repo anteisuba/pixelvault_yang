@@ -43,7 +43,7 @@ export function PromptEnhancer({
       />
 
       {enhanced && enhancedOriginal && enhancedStyle && (
-        <div className="mt-3">
+        <div className="mt-3 studio-panel-animate">
           <PromptComparisonPanel
             original={enhancedOriginal}
             enhanced={enhanced}

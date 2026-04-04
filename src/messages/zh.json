@@ -1569,7 +1569,26 @@
     "openDetail": "查看详情",
     "dragHint": "拖拽作为参考图",
     "showPreview": "显示预览",
-    "hidePreview": "浏览历史"
+    "hidePreview": "浏览历史",
+    "projects": "项目",
+    "allGenerations": "全部生成",
+    "tags": "标签",
+    "favorites": "收藏",
+    "reference": "参考",
+    "final": "定稿",
+    "wip": "进行中",
+    "recent": "最近",
+    "today": "今天",
+    "yesterday": "昨天",
+    "thisWeek": "本周",
+    "apiKeys": "API 密钥",
+    "addApiKey": "添加 API 密钥",
+    "active": "可用",
+    "rename": "重命名",
+    "deleteProject": "删除",
+    "addSubProject": "添加子项目",
+    "apiError": "异常",
+    "apiUnverified": "未验证"
   },
   "Errors": {
     "common": {

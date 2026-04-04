@@ -1569,7 +1569,26 @@
     "openDetail": "View details",
     "dragHint": "Drag as reference",
     "showPreview": "Show preview",
-    "hidePreview": "Browse history"
+    "hidePreview": "Browse history",
+    "projects": "Projects",
+    "allGenerations": "All Generations",
+    "tags": "Tags",
+    "favorites": "Favorites",
+    "reference": "Reference",
+    "final": "Final",
+    "wip": "WIP",
+    "recent": "Recent",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "apiKeys": "API Keys",
+    "addApiKey": "Add API Key",
+    "active": "Active",
+    "rename": "Rename",
+    "deleteProject": "Delete",
+    "addSubProject": "Add Sub-project",
+    "apiError": "Error",
+    "apiUnverified": "Unverified"
   },
   "Errors": {
     "common": {

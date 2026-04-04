@@ -7,8 +7,9 @@ import {
   StudioModeSelector,
   StudioTopBar,
   StudioCenterColumn,
-  StudioRightColumn,
   StudioMobileSettings,
+  StudioSidebar,
+  StudioGallery,
 } from '@/components/business/studio'
 
 const VideoGenerateForm = dynamic(
@@ -55,18 +56,19 @@ function StudioWorkspaceInner() {
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
         </div>
       ) : (
-        /* ── Image mode: three-column layout ──────────────────── */
+        /* ── Image mode: sidebar + vertical workspace ──────────── */
         <div
           role="tabpanel"
           id="studio-panel-image"
           aria-labelledby="studio-tab-image"
         >
-          {/* Desktop (lg+): top bar + two-column grid */}
-          <div className="hidden lg:block space-y-4">
-            <StudioTopBar />
-            <div className="grid studio-grid-2col">
+          {/* Desktop (lg+): sidebar + workspace */}
+          <div className="hidden lg:flex studio-layout">
+            <StudioSidebar />
+            <div className="studio-workspace p-5 space-y-4">
+              <StudioTopBar />
               <StudioCenterColumn />
-              <StudioRightColumn />
+              <StudioGallery />
             </div>
           </div>
 
@@ -74,7 +76,7 @@ function StudioWorkspaceInner() {
           <div className="lg:hidden space-y-4">
             <StudioModeSelector />
             <StudioCenterColumn />
-            <StudioRightColumn />
+            <StudioGallery />
             <StudioMobileSettings />
           </div>
         </div>

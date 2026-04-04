@@ -1,13 +1,12 @@
 'use client'
 
-import { memo, useCallback, useState } from 'react'
+import { memo, useState } from 'react'
 import { ImageIcon, Film, KeyRound, Gift } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioForm, useStudioData } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { ProjectSelector } from '@/components/business/ProjectSelector'
 import {
   Sheet,
   SheetContent,
@@ -21,7 +20,6 @@ import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
 
 export const StudioTopBar = memo(function StudioTopBar() {
   const { state, dispatch } = useStudioForm()
-  const { projects } = useStudioData()
   const tStudio = useTranslations('StudioPage')
   const tV3 = useTranslations('StudioV3')
   const tApiKeys = useTranslations('StudioApiKeys')
@@ -33,26 +31,8 @@ export const StudioTopBar = memo(function StudioTopBar() {
   const freeRemaining =
     summary.freeGenerationLimit - summary.freeGenerationsToday
 
-  const handleRename = useCallback(
-    async (id: string, name: string) => projects.update(id, { name }),
-    [projects],
-  )
-
   return (
     <div className="flex flex-wrap items-center gap-2 xl:gap-3">
-      {/* Project selector */}
-      <div className="min-w-36 xl:min-w-48">
-        <ProjectSelector
-          projects={projects.projects}
-          activeProjectId={projects.activeProjectId}
-          isLoading={projects.isLoading}
-          onSelect={projects.setActiveProjectId}
-          onCreate={projects.create}
-          onRename={handleRename}
-          onDelete={projects.remove}
-        />
-      </div>
-
       {/* Image / Video toggle */}
       <div
         role="tablist"
@@ -67,7 +47,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.96]',
             state.outputType === 'image'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -84,7 +64,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.96]',
             state.outputType === 'video'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -115,7 +95,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
           }
           className={cn(
-            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
+            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.96]',
             state.workflowMode === 'quick'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -131,7 +111,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
           }
           className={cn(
-            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-colors',
+            'rounded-md px-3 xl:px-4 py-1.5 text-xs xl:text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.96]',
             state.workflowMode === 'card'
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted/30',

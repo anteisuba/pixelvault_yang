@@ -1,215 +1,46 @@
 'use client'
 
-import { memo, useCallback, useRef, useEffect } from 'react'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { memo } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
-import {
-  useStudioForm,
-  useStudioData,
-  useStudioGen,
-} from '@/contexts/studio-context'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { getModelById } from '@/constants/models'
+import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
+/**
+ * StudioGenerateBar — Now only contains aspect ratio pills.
+ * Generate button has moved into StudioPromptArea.
+ */
 export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const { state, dispatch } = useStudioForm()
-  const { characters, backgrounds, styles, imageUpload, projects } =
-    useStudioData()
-  const { isGenerating, generate, elapsedSeconds } = useStudioGen()
   const t = useTranslations('StudioV2')
-  const tV3 = useTranslations('StudioV3')
-
-  // ── Quick mode: resolve selected model (shared hook) ──────────
-  const { selectedModel } = useImageModelOptions()
-
-  // ── Card mode: style card ─────────────────────────────────────
-  const selectedStyleCard = styles.activeCard
-  const selectedCharId =
-    characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
-
-  // ── canGenerate: depends on workflow mode ──────────────────────
-  const currentModelId =
-    state.workflowMode === 'quick'
-      ? selectedModel?.modelId
-      : selectedStyleCard?.modelId
-  const modelRequiresRef = currentModelId
-    ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
-    : false
-  const hasRefImage = imageUpload.referenceImages.length > 0
-  const canGenerate =
-    (state.workflowMode === 'quick'
-      ? !!selectedModel?.modelId && !!state.prompt.trim()
-      : !!styles.activeCardId && !!selectedStyleCard?.modelId) &&
-    (!modelRequiresRef || hasRefImage)
-
-  // ── Reset advancedParams when adapter type changes ──────────
-  const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
-  useEffect(() => {
-    const currentAdapter = selectedStyleCard?.adapterType
-    if (
-      prevAdapterRef.current !== undefined &&
-      currentAdapter !== undefined &&
-      prevAdapterRef.current !== currentAdapter
-    ) {
-      dispatch({ type: 'RESET_ADVANCED_PARAMS' })
-    }
-    prevAdapterRef.current = currentAdapter
-  }, [selectedStyleCard?.adapterType, dispatch])
-
-  const handleGenerate = useCallback(async () => {
-    if (!canGenerate) return
-
-    if (state.workflowMode === 'quick' && selectedModel) {
-      // Quick mode: pass modelId + apiKeyId directly
-      await generate({
-        mode: 'image',
-        image: {
-          modelId: selectedModel.modelId,
-          apiKeyId: selectedModel.keyId,
-          freePrompt: state.prompt || undefined,
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams:
-            Object.keys(state.advancedParams).length > 0
-              ? state.advancedParams
-              : undefined,
-        },
-      })
-    } else if (state.workflowMode === 'card' && styles.activeCardId) {
-      // Card mode: pass card IDs (original flow)
-      await generate({
-        mode: 'image',
-        image: {
-          characterCardId: selectedCharId ?? undefined,
-          backgroundCardId: backgrounds.activeCardId ?? undefined,
-          styleCardId: styles.activeCardId,
-          freePrompt: state.prompt || undefined,
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams:
-            Object.keys(state.advancedParams).length > 0
-              ? state.advancedParams
-              : undefined,
-        },
-      })
-    }
-  }, [
-    canGenerate,
-    state.workflowMode,
-    state.prompt,
-    state.aspectRatio,
-    state.advancedParams,
-    selectedModel,
-    generate,
-    selectedCharId,
-    backgrounds.activeCardId,
-    styles.activeCardId,
-    projects.activeProjectId,
-    imageUpload.referenceImages,
-  ])
-
-  useStudioShortcuts({
-    onGenerate: () => {
-      void handleGenerate()
-    },
-  })
 
   return (
-    <>
-      {/* Sticky on mobile, static on desktop */}
-      <div className="flex items-center justify-between gap-3 lg:static sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm lg:bg-transparent lg:backdrop-blur-none py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:py-0 lg:pb-0 -mx-1 px-1 lg:mx-0 lg:px-0">
-        <div
-          role="radiogroup"
-          aria-label={t('aspectRatioLabel')}
-          className="flex items-center gap-1.5"
-        >
-          <span className="text-2xs font-medium text-muted-foreground mr-1 hidden sm:inline">
-            {t('aspectRatioLabel')}
-          </span>
-          {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              role="radio"
-              aria-checked={state.aspectRatio === r}
-              onClick={() => dispatch({ type: 'SET_ASPECT_RATIO', payload: r })}
-              className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
-                state.aspectRatio === r
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
-                  : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
-              )}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-
+    <div className="flex items-center gap-1.5">
+      <span className="text-2xs font-medium text-muted-foreground mr-1 hidden sm:inline">
+        {t('aspectRatioLabel')}
+      </span>
+      {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
         <button
+          key={r}
           type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating || !canGenerate}
+          role="radio"
+          aria-checked={state.aspectRatio === r}
+          onClick={() => dispatch({ type: 'SET_ASPECT_RATIO', payload: r })}
           className={cn(
-            'flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-[transform,background-color,box-shadow] duration-300 ease-out',
-            canGenerate && !isGenerating
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
-              : 'bg-muted text-muted-foreground cursor-not-allowed',
+            'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
+            'hover:scale-[1.03] active:scale-[0.95]',
+            state.aspectRatio === r
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
+              : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
           )}
+          style={{
+            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}
         >
-          {isGenerating ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              <span className="flex flex-col items-start leading-none">
-                <span>{t('generating')}</span>
-                {elapsedSeconds > 0 && (
-                  <span className="text-[10px] font-medium opacity-70 tabular-nums">
-                    {elapsedSeconds}s
-                  </span>
-                )}
-              </span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="size-4" />
-              <span className="flex flex-col items-start leading-none">
-                <span>{t('generate')}</span>
-                <span className="text-[10px] font-medium opacity-70">
-                  {tV3('generateShortcutHint')}
-                </span>
-              </span>
-            </>
-          )}
+          {r}
         </button>
-      </div>
-
-      {/* Contextual hint when generate is disabled */}
-      {!canGenerate && !isGenerating && (
-        <p className="text-xs text-muted-foreground/70 font-serif">
-          {state.workflowMode === 'quick' && !selectedModel?.modelId
-            ? t('noModelHint')
-            : state.workflowMode === 'quick' && !state.prompt.trim()
-              ? t('promptHint')
-              : state.workflowMode === 'card' &&
-                  styles.activeCardId &&
-                  !selectedStyleCard?.modelId
-                ? t('noModel')
-                : modelRequiresRef && !hasRefImage
-                  ? t('requiresReferenceImage')
-                  : null}
-        </p>
-      )}
-    </>
+      ))}
+    </div>
   )
 })

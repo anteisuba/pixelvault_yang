@@ -66,8 +66,8 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           className={cn(
-            'relative h-8 gap-1.5 px-2.5 text-xs text-muted-foreground transition-colors',
-            'hover:bg-muted/30 hover:text-foreground',
+            'relative h-8 gap-1.5 px-2.5 text-xs text-muted-foreground transition-all duration-200',
+            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
             active && 'bg-muted/30 text-primary',
           )}
         >

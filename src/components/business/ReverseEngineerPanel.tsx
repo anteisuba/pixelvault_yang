@@ -120,7 +120,7 @@ export function ReverseEngineerPanel({
   // Step 1: Upload
   if (step === 'idle' || step === 'uploading') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 studio-step-animate">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
             {t('title')}
@@ -168,7 +168,7 @@ export function ReverseEngineerPanel({
   // Step 2: Analyzing
   if (step === 'analyzing') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 studio-step-animate">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
             {t('title')}
@@ -204,7 +204,7 @@ export function ReverseEngineerPanel({
 
   // Step 3: Prompt ready / generating / done
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 studio-step-animate">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
         <Button

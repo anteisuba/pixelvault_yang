@@ -22,7 +22,10 @@
       "premium": "Premium",
       "standard": "Standard",
       "budget": "Budget"
-    }
+    },
+    "model": "Model",
+    "cost": "Cost",
+    "capabilities": "Capabilities"
   },
   "Toasts": {
     "createSuccess": "Created successfully",

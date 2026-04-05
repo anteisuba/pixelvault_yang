@@ -22,7 +22,10 @@
       "premium": "プレミアム",
       "standard": "スタンダード",
       "budget": "バジェット"
-    }
+    },
+    "model": "モデル",
+    "cost": "コスト",
+    "capabilities": "機能"
   },
   "Toasts": {
     "createSuccess": "作成しました",

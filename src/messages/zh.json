@@ -22,7 +22,10 @@
       "premium": "高端",
       "standard": "标准",
       "budget": "入门"
-    }
+    },
+    "model": "模型",
+    "cost": "消费",
+    "capabilities": "功能"
   },
   "Toasts": {
     "createSuccess": "创建成功",

@@ -424,6 +424,9 @@
     "filters": {
       "searchLabel": "Search the archive",
       "searchPlaceholder": "Search by prompt...",
+      "searchHint1": "anime girl with flowers",
+      "searchHint2": "photorealistic landscape",
+      "searchHint3": "cyberpunk city at night",
       "clearSearch": "Clear search",
       "modelPlaceholder": "Filter by model",
       "allModels": "All models",
@@ -747,6 +750,8 @@
     "promptLabel": "Prompt",
     "negativePromptLabel": "Negative prompt",
     "dimensionsLabel": "Dimensions",
+    "referenceLabel": "Reference",
+    "generatedLabel": "Generated",
     "download": "Download",
     "downloading": "Downloading...",
     "openOriginal": "Open original",

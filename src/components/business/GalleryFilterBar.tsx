@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useRef, useState } from 'react'
 
@@ -18,7 +18,7 @@ import {
 } from '@/types'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { PlaceholdersInput } from '@/components/ui/placeholders-input'
 import {
   Select,
   SelectContent,
@@ -105,13 +105,16 @@ export function GalleryFilterBar({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <div className="relative flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+        <PlaceholdersInput
           aria-label={t('searchLabel')}
-          placeholder={t('searchPlaceholder')}
+          placeholders={[
+            t('searchPlaceholder'),
+            t('searchHint1'),
+            t('searchHint2'),
+            t('searchHint3'),
+          ]}
           value={searchInput}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="rounded-full border-border/70 bg-card/60 pl-9 pr-9"
+          onChange={handleSearchChange}
           disabled={isLoading}
         />
         {searchInput ? (

@@ -424,6 +424,9 @@
     "filters": {
       "searchLabel": "アーカイブを検索",
       "searchPlaceholder": "プロンプトで検索...",
+      "searchHint1": "花を持つアニメの女の子",
+      "searchHint2": "フォトリアルな風景",
+      "searchHint3": "夜のサイバーパンク都市",
       "clearSearch": "検索をクリア",
       "modelPlaceholder": "モデルで絞り込み",
       "allModels": "すべてのモデル",
@@ -747,6 +750,8 @@
     "promptLabel": "プロンプト",
     "negativePromptLabel": "ネガティブプロンプト",
     "dimensionsLabel": "サイズ",
+    "referenceLabel": "参考画像",
+    "generatedLabel": "生成結果",
     "download": "ダウンロード",
     "downloading": "ダウンロード中...",
     "openOriginal": "原画像を開く",

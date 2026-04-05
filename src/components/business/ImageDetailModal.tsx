@@ -46,6 +46,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { ImageCompare } from '@/components/ui/image-compare'
 import { MetadataList } from '@/components/ui/metadata-list'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn, getLabelClassName } from '@/lib/utils'
@@ -242,6 +243,14 @@ export function ImageDetailModal({
               width={generation.width}
               height={generation.height}
               className="max-h-[60svh] rounded-none border-0"
+            />
+          ) : generation.referenceImageUrl ? (
+            <ImageCompare
+              beforeSrc={generation.referenceImageUrl}
+              afterSrc={generation.url}
+              beforeLabel={t('referenceLabel')}
+              afterLabel={t('generatedLabel')}
+              className="max-h-[60svh]"
             />
           ) : (
             <img

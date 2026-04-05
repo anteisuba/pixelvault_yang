@@ -507,44 +507,42 @@ html:lang(zh) {
     text-wrap: pretty;
   }
 
-  /* ── Studio layout (V2: sidebar + vertical workspace) ───────────────── */
+  /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
-  .studio-layout {
+  .studio-layout-v2 {
+    height: calc(100vh - 3.5rem);
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    background: var(--background);
   }
 
-  @media (min-width: 1024px) {
-    .studio-layout {
-      flex-direction: row;
-      height: calc(100vh - 3.5rem);
-      overflow: hidden;
-    }
-  }
-
-  .studio-sidebar {
-    display: none;
-  }
-
-  @media (min-width: 1024px) {
-    .studio-sidebar {
-      display: flex;
-      flex-direction: column;
-      width: var(--width-studio-sidebar, 13rem);
-      flex-shrink: 0;
-      border-right: 1px solid hsl(var(--border) / 0.5);
-      background: hsl(var(--muted) / 0.3);
-      overflow-y: auto;
-      height: 100%;
-    }
-  }
-
-  .studio-workspace {
+  /* Canvas — hero area between TopBar and BottomDock */
+  .studio-canvas {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Bottom dock */
+  .studio-dock {
+    border-top: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+    padding: 0.75rem 1.5rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .studio-dock-inner {
+    max-width: 48rem;
+    margin: 0 auto;
+  }
+
+  /* History strip */
+  .studio-history {
+    border-top: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+    padding: 0.625rem 1.5rem 0.75rem;
+    flex-shrink: 0;
+    max-height: 220px;
     overflow-y: auto;
   }
 

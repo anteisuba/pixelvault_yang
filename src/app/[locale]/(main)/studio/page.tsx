@@ -22,14 +22,8 @@ export async function generateMetadata({
 
 export default async function StudioPage() {
   return (
-    <div className="editorial-page">
-      <div className="editorial-container">
-        <ApiKeysProvider>
-          <section className="editorial-panel">
-            <StudioWorkspace />
-          </section>
-        </ApiKeysProvider>
-      </div>
-    </div>
+    <ApiKeysProvider>
+      <StudioWorkspace />
+    </ApiKeysProvider>
   )
 }

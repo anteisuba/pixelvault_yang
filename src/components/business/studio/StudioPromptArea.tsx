@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useRef, useEffect, type ChangeEvent } from 'react'
+import { memo, useCallback, useRef, useEffect } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -12,12 +12,17 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { getModelById } from '@/constants/models'
-import { modelSupportsLora } from '@/constants/models'
+import { getModelById, modelSupportsLora } from '@/constants/models'
 import { cn } from '@/lib/utils'
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputActions,
+} from '@/components/ui/prompt-input'
 
 /**
- * StudioPromptArea — Prompt textarea with embedded Generate button (ChatGPT style).
+ * StudioPromptArea — Prompt textarea with embedded Generate button.
+ * Uses prompt-kit PromptInput compound component.
  */
 export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
@@ -128,53 +133,42 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     },
   })
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Auto-resize textarea based on content
-  const handleAutoResize = useCallback(
-    (e: ChangeEvent<HTMLTextAreaElement>) => {
-      dispatch({ type: 'SET_PROMPT', payload: e.target.value })
-      const el = e.target
-      el.style.height = 'auto'
-      el.style.height = `${Math.max(96, Math.min(el.scrollHeight, 320))}px`
-    },
-    [dispatch],
-  )
+  const placeholder =
+    state.workflowMode === 'card' &&
+    selectedStyleCard?.modelId &&
+    modelSupportsLora(selectedStyleCard.modelId)
+      ? t('freePromptPlaceholderLora')
+      : t('freePromptPlaceholder')
 
   return (
-    <div className="relative">
-      {/* Textarea — compact initial, auto-grows */}
-      <textarea
-        ref={textareaRef}
+    <PromptInput
+      isLoading={isGenerating}
+      value={state.prompt}
+      onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+      maxHeight={320}
+      onSubmit={handleGenerate}
+      disabled={isGenerating}
+      className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+    >
+      <PromptInputTextarea
         id={STUDIO_PROMPT_TEXTAREA_ID}
         aria-label={tForm('promptLabel')}
-        value={state.prompt}
-        onChange={handleAutoResize}
-        placeholder={
-          state.workflowMode === 'card' &&
-          selectedStyleCard?.modelId &&
-          modelSupportsLora(selectedStyleCard.modelId)
-            ? t('freePromptPlaceholderLora')
-            : t('freePromptPlaceholder')
-        }
-        className="w-full resize-none rounded-2xl border border-border/60 bg-background/60 px-4 py-3 pb-14 font-serif text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-[height] duration-200 ease-out"
-        rows={3}
-        style={{ minHeight: '96px' }}
+        placeholder={placeholder}
+        className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
       />
-
-      {/* Generate button — embedded bottom-right */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-2">
+      <PromptInputActions className="justify-between px-2 pb-2">
         {/* Contextual hint */}
-        {!canGenerate && !isGenerating && (
-          <span className="text-2xs text-muted-foreground/60 max-w-48 text-right">
-            {state.workflowMode === 'quick' && !selectedModel?.modelId
+        <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
+          {!canGenerate && !isGenerating
+            ? state.workflowMode === 'quick' && !selectedModel?.modelId
               ? t('noModelHint')
               : state.workflowMode === 'quick' && !state.prompt.trim()
                 ? tV3('generateShortcutHint')
-                : null}
-          </span>
-        )}
+                : null
+            : null}
+        </span>
 
+        {/* Generate button */}
         <button
           type="button"
           onClick={handleGenerate}
@@ -209,7 +203,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             </>
           )}
         </button>
-      </div>
-    </div>
+      </PromptInputActions>
+    </PromptInput>
   )
 })

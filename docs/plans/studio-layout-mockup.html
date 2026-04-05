@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio Layout Mockup — Claude Code Style</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Lora:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #faf9f5;
+    --text: #141413;
+    --accent: #d97757;
+    --border: #e5e3dd;
+    --muted: #8a8880;
+    --surface: #f3f1ec;
+    --sidebar-w: 260px;
+  }
+
+  body {
+    font-family: 'Lora', serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ═══ NAVBAR (existing, simplified) ═══ */
+  .navbar {
+    height: 48px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--bg);
+  }
+  .navbar .logo { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; }
+  .navbar a { text-decoration: none; color: var(--muted); }
+  .navbar a.active { color: var(--text); text-decoration: underline; text-underline-offset: 6px; }
+  .navbar .spacer { flex: 1; }
+  .navbar .credits { font-size: 12px; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px; }
+
+  /* ═══ STUDIO CONTAINER ═══ */
+  .studio {
+    height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ═══ TOP BAR ═══ */
+  .studio-top {
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .sidebar-btn {
+    width: 32px; height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  .sidebar-btn:hover { border-color: var(--accent); color: var(--text); }
+  .sidebar-btn.active { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+
+  .mode-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .mode-toggle button {
+    padding: 4px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.2s;
+  }
+  .mode-toggle button.active {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .route-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+  .route-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+  }
+  .route-name { font-weight: 500; color: var(--text); }
+  .route-provider { color: var(--muted); }
+
+  /* ═══ CANVAS (main image area) ═══ */
+  .studio-canvas {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 24px;
+    min-height: 0;
+  }
+
+  .canvas-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .canvas-empty .icon {
+    width: 64px; height: 64px;
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .canvas-image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 12px;
+    object-fit: contain;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+
+  /* ═══ BOTTOM DOCK ═══ */
+  .studio-dock {
+    border-top: 1px solid var(--border);
+    padding: 12px 24px 8px;
+    flex-shrink: 0;
+  }
+
+  .dock-inner {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .prompt-box {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  .prompt-box:focus-within { border-color: var(--accent); }
+
+  .prompt-box textarea {
+    width: 100%;
+    min-height: 72px;
+    max-height: 200px;
+    resize: none;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 16px;
+    padding-bottom: 44px;
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    line-height: 1.6;
+    background: transparent;
+    color: var(--text);
+    outline: none;
+  }
+  .prompt-box textarea::placeholder { color: #b8b5ae; }
+
+  .prompt-actions {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .prompt-hint {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .generate-btn {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .generate-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+  /* Tools row */
+  .dock-tools {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 0 4px;
+    flex-wrap: wrap;
+  }
+
+  .tool-btn {
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .tool-btn:hover { background: var(--surface); color: var(--text); }
+  .tool-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(217, 119, 87, 0.06); }
+
+  .tool-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* Bottom row: aspect + model selector */
+  .dock-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 2px;
+  }
+
+  .aspect-pills {
+    display: flex;
+    gap: 4px;
+  }
+  .aspect-pill {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .aspect-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .model-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text);
+    cursor: pointer;
+    background: transparent;
+    transition: all 0.15s;
+  }
+  .model-selector:hover { border-color: var(--accent); }
+  .model-selector .chevron { font-size: 10px; color: var(--muted); }
+
+  /* ═══ HISTORY STRIP ═══ */
+  .studio-history {
+    border-top: 1px solid var(--border);
+    padding: 10px 24px 12px;
+    flex-shrink: 0;
+  }
+
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .history-header h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+  .history-filters {
+    display: flex;
+    gap: 2px;
+  }
+  .history-filter {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'Space Grotesk', sans-serif;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .history-filter.active { background: var(--surface); color: var(--text); }
+
+  .history-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+  }
+  .history-scroll::-webkit-scrollbar { height: 4px; }
+  .history-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .history-item {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    scroll-snap-align: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+  }
+  .history-item:hover { transform: translateY(-2px); }
+  .history-item img { width: 100%; height: 100%; object-fit: cover; }
+  .history-item .latest {
+    position: absolute;
+    top: 4px; left: 4px;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: white;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+  }
+
+  /* ═══ SIDEBAR OVERLAY ═══ */
+  .sidebar-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 20, 19, 0.15);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .sidebar-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-panel.open { transform: translateX(0); }
+
+  .sidebar-section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    padding: 14px 16px 6px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 8px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: 'Lora', serif;
+    transition: background 0.15s;
+  }
+  .sidebar-item:hover { background: var(--surface); }
+  .sidebar-item.active { background: var(--surface); font-weight: 500; }
+  .sidebar-item .icon { font-size: 14px; color: var(--muted); }
+  .sidebar-item .badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 16px;
+  }
+
+  .sidebar-key-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .sidebar-key-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .sidebar-key-dot.green { background: #4ade80; }
+  .sidebar-key-dot.yellow { background: #facc15; }
+  .sidebar-key-name { font-weight: 500; font-family: 'Space Grotesk', sans-serif; }
+  .sidebar-key-provider { color: var(--muted); font-family: 'Space Grotesk', sans-serif; }
+  .sidebar-key-status {
+    margin-left: auto;
+    font-size: 10px;
+    color: #4ade80;
+    font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .sidebar-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin: 4px 8px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.15s;
+  }
+  .sidebar-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ═══ LABEL ═══ */
+  .mockup-label {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <span class="logo">PixelVault</span>
+  <a href="#">GALLERY</a>
+  <a href="#" class="active">STUDIO</a>
+  <a href="#">ARENA</a>
+  <a href="#">STORIES</a>
+  <a href="#">ARCHIVE</a>
+  <span class="spacer"></span>
+  <span class="credits">✦ 332 REQUESTS</span>
+</nav>
+
+<!-- STUDIO -->
+<div class="studio">
+
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-backdrop" id="backdrop" onclick="toggleSidebar()"></div>
+  <aside class="sidebar-panel" id="sidebar">
+    <div class="sidebar-section-title">Projects</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active">
+        <span class="icon">📂</span>
+        All Generations
+        <span class="badge">47</span>
+      </button>
+      <button class="sidebar-item">
+        <span class="icon">📁</span>
+        原神
+      </button>
+      <button class="sidebar-item">
+        <span class="icon">📁</span>
+        鳴潮
+      </button>
+    </nav>
+
+    <div style="flex:1"></div>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-title">API Keys</div>
+    <div class="sidebar-nav" style="padding-bottom: 12px;">
+      <div class="sidebar-key-row">
+        <span class="sidebar-key-dot green"></span>
+        <span class="sidebar-key-name">gemini</span>
+        <span class="sidebar-key-provider">Gemini</span>
+        <span class="sidebar-key-status">Active</span>
+      </div>
+      <div class="sidebar-key-row">
+        <span class="sidebar-key-dot yellow"></span>
+        <span class="sidebar-key-name">test</span>
+        <span class="sidebar-key-provider">HuggingFace</span>
+        <span class="sidebar-key-status">Active</span>
+      </div>
+      <button class="sidebar-add-btn">🔑 Add API Key</button>
+    </div>
+  </aside>
+
+  <!-- Top Bar -->
+  <div class="studio-top">
+    <button class="sidebar-btn" id="sidebarBtn" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+
+    <div class="mode-toggle">
+      <button class="active">🖼 Image</button>
+      <button>🎬 Video</button>
+    </div>
+
+    <div class="route-indicator">
+      <span class="route-dot"></span>
+      Available
+      <span class="route-name">gemini</span>
+      <span class="route-provider">Gemini</span>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <span style="font-size:12px;color:var(--muted);font-family:'Space Grotesk',sans-serif;">✦ 332 REQUESTS</span>
+  </div>
+
+  <!-- Canvas -->
+  <div class="studio-canvas">
+    <div class="canvas-empty">
+      <div class="icon">🎨</div>
+      <span style="font-family:'Space Grotesk',sans-serif;">Generate your first image</span>
+      <span style="font-size:12px;">Write a prompt below and click Generate</span>
+    </div>
+    <!-- When image is generated:
+    <img class="canvas-image" src="generated.png" alt="Generated image" />
+    -->
+  </div>
+
+  <!-- Bottom Dock -->
+  <div class="studio-dock">
+    <div class="dock-inner">
+      <!-- Prompt -->
+      <div class="prompt-box">
+        <textarea placeholder="Describe the action, scene, or expression..."></textarea>
+        <div class="prompt-actions">
+          <span class="prompt-hint">Select a model first</span>
+          <button class="generate-btn">✦ Generate</button>
+        </div>
+      </div>
+
+      <!-- Tools Row -->
+      <div class="dock-tools">
+        <button class="tool-btn">✨ Append</button>
+        <button class="tool-btn">🔄 Image Reverse</button>
+        <button class="tool-btn active">⚙ Advanced</button>
+        <button class="tool-btn">🖼 Reference</button>
+        <button class="tool-btn">📐 Layers</button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" style="color:var(--accent);">🔑 Civitai Token</button>
+      </div>
+
+      <!-- Aspect + Model -->
+      <div class="dock-bottom">
+        <div class="aspect-pills">
+          <button class="aspect-pill active">1:1</button>
+          <button class="aspect-pill">16:9</button>
+          <button class="aspect-pill">9:16</button>
+        </div>
+        <button class="model-selector">
+          gemini-3-pro-image-preview
+          <span class="chevron">▾</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Strip -->
+  <div class="studio-history">
+    <div class="history-header">
+      <h4>History</h4>
+      <div class="history-filters">
+        <button class="history-filter active">All</button>
+        <button class="history-filter">Favorites</button>
+        <button class="history-filter">Today</button>
+      </div>
+    </div>
+    <div class="history-scroll">
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#fce7d6,#f0c4a8);display:flex;align-items:center;justify-content:center;font-size:24px;">🌸</div>
+        <span class="latest">Latest</span>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#d6e7fc,#a8c4f0);display:flex;align-items:center;justify-content:center;font-size:24px;">🎭</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#e7fcd6,#c4f0a8);display:flex;align-items:center;justify-content:center;font-size:24px;">⚔️</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#fcd6e7,#f0a8c4);display:flex;align-items:center;justify-content:center;font-size:24px;">🌙</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#e7d6fc,#c4a8f0);display:flex;align-items:center;justify-content:center;font-size:24px;">🏰</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#fce7d6,#f0c4a8);display:flex;align-items:center;justify-content:center;font-size:24px;">🎪</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#d6fce7,#a8f0c4);display:flex;align-items:center;justify-content:center;font-size:24px;">🌊</div>
+      </div>
+      <div class="history-item">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#fcd6d6,#f0a8a8);display:flex;align-items:center;justify-content:center;font-size:24px;">🔥</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<span class="mockup-label">Studio Layout Mockup v1 — Claude Code Style</span>
+
+<script>
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('backdrop').classList.toggle('open');
+    document.getElementById('sidebarBtn').classList.toggle('active');
+  }
+</script>
+</body>
+</html>

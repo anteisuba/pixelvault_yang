@@ -3,11 +3,13 @@
 import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
+import { Particles } from '@/components/ui/particles'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import {
   StudioModeSelector,
   StudioTopBar,
-  StudioCenterColumn,
-  StudioMobileSettings,
+  StudioCanvas,
+  StudioBottomDock,
   StudioSidebar,
   StudioGallery,
 } from '@/components/business/studio'
@@ -24,7 +26,7 @@ import {
 
 /**
  * StudioWorkspace — wrapped with StudioProvider for state management.
- * Sub-components consume split contexts (Form/Data/Gen) for optimal re-renders.
+ * Canvas-centric layout: TopBar → Canvas → BottomDock → Gallery.
  */
 export function StudioWorkspace() {
   return (
@@ -43,43 +45,44 @@ function StudioWorkspaceInner() {
   const { characters, onboarding } = useStudioData()
 
   return (
-    <div className="space-y-4">
+    <SidebarProvider defaultOpen={false} className="!min-h-0 bg-background">
       {state.outputType === 'video' ? (
-        /* ── Video mode: simple stack (no three-column) ──────── */
+        /* ── Video mode: simple stack (no canvas layout) ──────── */
         <div
           role="tabpanel"
           id="studio-panel-video"
           aria-labelledby="studio-tab-video"
-          className="space-y-4"
+          className="space-y-4 p-5"
         >
           <StudioModeSelector />
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
         </div>
       ) : (
-        /* ── Image mode: sidebar + vertical workspace ──────────── */
-        <div
-          role="tabpanel"
-          id="studio-panel-image"
-          aria-labelledby="studio-tab-image"
-        >
-          {/* Desktop (lg+): sidebar + workspace */}
-          <div className="hidden lg:flex studio-layout">
-            <StudioSidebar />
-            <div className="studio-workspace p-5 space-y-4">
+        /* ── Image mode: canvas-centric vertical layout ──────── */
+        <>
+          <StudioSidebar />
+          <SidebarInset>
+            <div
+              role="tabpanel"
+              id="studio-panel-image"
+              aria-labelledby="studio-tab-image"
+              className="studio-layout-v2"
+            >
+              <Particles
+                className="fixed inset-0 z-0 pointer-events-none"
+                quantity={120}
+                staticity={30}
+                ease={40}
+                size={1.5}
+                color="#c4653f"
+              />
               <StudioTopBar />
-              <StudioCenterColumn />
+              <StudioCanvas />
+              <StudioBottomDock />
               <StudioGallery />
             </div>
-          </div>
-
-          {/* Mobile + Tablet (<lg): stacked layout */}
-          <div className="lg:hidden space-y-4">
-            <StudioModeSelector />
-            <StudioCenterColumn />
-            <StudioGallery />
-            <StudioMobileSettings />
-          </div>
-        </div>
+          </SidebarInset>
+        </>
       )}
 
       <OnboardingTooltip
@@ -93,6 +96,6 @@ function StudioWorkspaceInner() {
         onSkip={onboarding.skip}
         onDismiss={onboarding.dismiss}
       />
-    </div>
+    </SidebarProvider>
   )
 }

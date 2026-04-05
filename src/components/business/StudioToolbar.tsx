@@ -9,9 +9,9 @@ import {
   Layers,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import * as Toolbar from '@radix-ui/react-toolbar'
 
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
@@ -20,20 +20,14 @@ import {
 } from '@/components/ui/tooltip'
 
 interface StudioToolbarProps {
-  /** Whether prompt enhance is available / loading */
   onEnhance?: () => void
   isEnhancing?: boolean
-  /** Whether reverse-engineer panel is open */
   onReverse?: () => void
-  /** Advanced settings toggle */
   onAdvanced?: () => void
   advancedOpen?: boolean
-  /** Reference image panel toggle */
   onReferenceImage?: () => void
   referenceImageCount?: number
-  /** Layer decompose panel toggle */
   onLayerDecompose?: () => void
-  /** Civitai token toggle */
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
@@ -59,15 +53,14 @@ function ToolButton({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
+        <Toolbar.Button
           type="button"
-          variant="ghost"
-          size="sm"
           onClick={onClick}
           disabled={disabled}
           className={cn(
-            'relative h-8 gap-1.5 px-2.5 text-xs text-muted-foreground transition-all duration-200',
+            'relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-200',
             'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
             active && 'bg-muted/30 text-primary',
           )}
         >
@@ -78,7 +71,7 @@ function ToolButton({
               {badge}
             </span>
           )}
-        </Button>
+        </Toolbar.Button>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="sm:hidden">
         {label}
@@ -88,8 +81,7 @@ function ToolButton({
 }
 
 /**
- * Studio V2 Layer 2 toolbar.
- * Provides quick-access buttons for enhance, reverse, advanced, reference image, and Civitai token.
+ * Studio toolbar — uses Radix Toolbar for roving tabindex keyboard navigation.
  */
 export function StudioToolbar({
   onEnhance,
@@ -108,7 +100,10 @@ export function StudioToolbar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2">
+      <Toolbar.Root
+        className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2"
+        aria-label="Studio tools"
+      >
         <ToolButton
           icon={
             <Sparkles
@@ -145,8 +140,7 @@ export function StudioToolbar({
           onClick={onLayerDecompose}
           disabled={disabled}
         />
-        {/* Separator between creative tools and config */}
-        <div className="h-4 w-px bg-border/60 mx-1" aria-hidden="true" />
+        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
         <ToolButton
           icon={<Key className="h-3.5 w-3.5" />}
           label={t('civitaiToken')}
@@ -154,7 +148,7 @@ export function StudioToolbar({
           active={hasToken}
           disabled={disabled}
         />
-      </div>
+      </Toolbar.Root>
     </TooltipProvider>
   )
 }

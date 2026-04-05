@@ -24,6 +24,7 @@ interface TextRepelProps extends ComponentPropsWithoutRef<'div'> {
   repelRadius?: number
   repelForce?: number
   lineHeight?: number
+  letterSpacing?: number
 }
 
 export function TextRepel({
@@ -36,6 +37,7 @@ export function TextRepel({
   repelRadius = 80,
   repelForce = 0.4,
   lineHeight = 1.6,
+  letterSpacing = 0,
   ...props
 }: TextRepelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -104,7 +106,7 @@ export function TextRepel({
         width: charWidth,
       })
 
-      cursorX += charWidth
+      cursorX += charWidth + letterSpacing
     }
 
     particlesRef.current = particles
@@ -115,7 +117,7 @@ export function TextRepel({
     canvas.style.height = `${newH}px`
     container.style.minHeight = `${newH}px`
     ctx.scale(dpr, dpr)
-  }, [text, fontSize, fontFamily, fontWeight, lineHeight, dpr])
+  }, [text, fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, dpr])
 
   const resolvedFontRef = useRef('sans-serif')
 

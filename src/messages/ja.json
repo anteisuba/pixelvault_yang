@@ -152,7 +152,7 @@
     "heroEyebrow": "個人AIアーカイブ",
     "heroTitle": "意図して作り、きちんと残す。",
     "heroDescription": "マルチモデル画像生成と永久アーカイブ。",
-    "heroRepelText": "Gemini、DALL-E、Flux、NovelAIなど38モデルで画像を生成。Seedance、Kling、Lumaで画像を動画に変換。アリーナでモデルをブラインド比較。生成画像からストーリーボードを作成。すべての作品はプロンプト・設定・メタデータとともに永久保存。あなただけのクリエイティブアーカイブ。",
+    "heroRepelText": "Gemini、DALL-E、Flux、NovelAIなど38のAIモデルで画像を生成。Seedance、Kling、Lumaで画像を動画に変換。アリーナでモデルをブラインド比較し、ELOランキングを確認。生成画像からストーリーボードやコミックを作成。すべての作品はプロンプト・設定・メタデータとともに永久保存。自分のAPIキーを使用、追加料金ゼロ、エンドツーエンド暗号化。",
     "actions": {
       "signedOutPrimary": "アーカイブを始める",
       "signedInPrimary": "スタジオを開く",

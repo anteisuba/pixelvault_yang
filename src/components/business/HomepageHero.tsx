@@ -39,8 +39,9 @@ export function HomepageHero({
         color="var(--foreground)"
         repelRadius={100}
         repelForce={0.5}
-        lineHeight={1.25}
-        className="w-full max-w-5xl min-h-[320px]"
+        lineHeight={1.45}
+        letterSpacing={2}
+        className="w-full min-h-[320px]"
       />
 
       <div className="flex flex-wrap justify-center gap-4 pt-8 max-sm:flex-col max-sm:items-center">

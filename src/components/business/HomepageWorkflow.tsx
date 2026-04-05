@@ -18,7 +18,7 @@ export function HomepageWorkflow() {
   return (
     <section
       id="workflow"
-      className="homepage-border-top grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
+      className="grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
     >
       <BlurFade inView>
         <div className="grid gap-[0.65rem] max-w-[42rem]">

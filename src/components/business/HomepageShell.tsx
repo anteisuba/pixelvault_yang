@@ -1,10 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import {
-  HOMEPAGE_NAVIGATION,
-  HOMEPAGE_ROUTES,
-} from '@/constants/homepage'
+import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { HyperText } from '@/components/ui/hyper-text'
@@ -73,18 +70,6 @@ export function HomepageShell({
             </HyperText>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-[1.35rem]" aria-label={t('navigationLabel')}>
-            {HOMEPAGE_NAVIGATION.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="homepage-nav-link text-sm font-semibold tracking-[0.12em] uppercase text-[var(--home-muted)] transition-colors duration-[180ms] ease-in-out hover:text-foreground focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-[color-mix(in_oklab,var(--ring)_75%,transparent)] focus-visible:outline-offset-[0.35rem] focus-visible:rounded-sm"
-              >
-                {t(`navigation.${item.id}`)}
-              </Link>
-            ))}
-          </nav>
-
           <div className="flex items-center justify-end gap-3 shrink-0 max-sm:gap-2">
             <LocaleSwitcher />
 
@@ -110,9 +95,7 @@ export function HomepageShell({
             galleryActionLabel={t('stage.cta')}
           />
 
-          <div className="homepage-warm">
-            <HomepageValueProps />
-          </div>
+          <HomepageValueProps />
           <HomepageWorkflow />
           <HomepageModels />
 

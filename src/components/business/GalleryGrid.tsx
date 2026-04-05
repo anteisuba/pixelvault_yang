@@ -6,6 +6,7 @@ import type { Route } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 
 import { ImageCard } from '@/components/business/ImageCard'
+import { BlurFade } from '@/components/ui/blur-fade'
 import { Button } from '@/components/ui/button'
 import type { GenerationRecord } from '@/types'
 
@@ -62,20 +63,27 @@ export function GalleryGrid({
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
     >
       {generations.map((generation, index) => (
-        <div
+        <BlurFade
           key={generation.id}
+          delay={Math.min(index * 0.05, 0.5)}
+          inView
           className="mb-5 break-inside-avoid"
-          role="article"
-          aria-posinset={index + 1}
-          aria-setsize={generations.length}
         >
-          <ImageCard
-            generation={generation}
-            showVisibility={showVisibility}
-            showDelete={showDelete}
-            onDelete={onDelete}
-          />
-        </div>
+          <div
+            role="article"
+            aria-posinset={index + 1}
+            aria-setsize={generations.length}
+            className="transition-all duration-300 hover:scale-[1.02] hover:z-10"
+            style={{ perspective: '1000px' }}
+          >
+            <ImageCard
+              generation={generation}
+              showVisibility={showVisibility}
+              showDelete={showDelete}
+              onDelete={onDelete}
+            />
+          </div>
+        </BlurFade>
       ))}
     </section>
   )

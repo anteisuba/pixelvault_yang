@@ -1,21 +1,16 @@
-import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
-import { getAvailableModels } from '@/constants/models'
-import { ROUTES } from '@/constants/routes'
-import { cn } from '@/lib/utils'
-
-import { GalleryFeed } from '@/components/business/GalleryFeed'
-import { Button } from '@/components/ui/button'
-import { Link } from '@/i18n/navigation'
-import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { GallerySearchSchema } from '@/types'
 import {
   countPublicGenerations,
   getPublicGenerations,
 } from '@/services/generation.service'
+
+import { GalleryFeed } from '@/components/business/GalleryFeed'
+import { Particles } from '@/components/ui/particles'
+import type { AppLocale } from '@/i18n/routing'
 
 export const revalidate = 60
 
@@ -59,12 +54,6 @@ export default async function GalleryPage({
         sort: 'newest' as const,
         type: 'all' as const,
       }
-  const isDenseLocale = isCjkLocale(locale)
-  const t = await getTranslations({
-    locale,
-    namespace: 'GalleryPage',
-  })
-  const { userId } = await auth()
   const [generations, total] = await Promise.all([
     getPublicGenerations({
       page: PAGINATION.DEFAULT_PAGE,
@@ -80,87 +69,27 @@ export default async function GalleryPage({
       type: initialFilters.type,
     }),
   ])
-  const availableModels = getAvailableModels()
-  const primaryHref = userId ? ROUTES.STUDIO : ROUTES.SIGN_IN
 
   return (
-    <div className="editorial-page">
-      <div className="editorial-container">
-        <section className="editorial-panel">
-          <div className="editorial-panel-head">
-            <div className="editorial-section-head">
-              <span
-                className={cn(
-                  'editorial-eyebrow',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('heroEyebrow')}
-              </span>
-              <h1 className="editorial-section-title">{t('heroTitle')}</h1>
-              <p className="editorial-section-copy max-w-3xl">
-                {t('heroDescription')}
-              </p>
-
-              <div className="editorial-actions pt-2">
-                <Button asChild size="lg" className="rounded-full px-6">
-                  <Link href={primaryHref}>
-                    {userId
-                      ? t('actions.primarySignedIn')
-                      : t('actions.primarySignedOut')}
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full border-border/80 bg-card/72 px-6"
-                >
-                  <Link href={userId ? ROUTES.PROFILE : ROUTES.HOME}>
-                    {userId
-                      ? t('actions.secondarySignedIn')
-                      : t('actions.secondarySignedOut')}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="editorial-panel-meta">
-              <p className="font-serif text-sm text-muted-foreground">
-                {t('metrics.inlineSummary', {
-                  imageCount: total,
-                  modelCount: availableModels.length,
-                })}
-              </p>
-            </div>
-          </div>
-
-          <div className="editorial-panel-divider">
-            <div className="space-y-2">
-              <p
-                className={cn(
-                  'editorial-eyebrow',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {t('feedEyebrow')}
-              </p>
-              <h2 className="editorial-section-title">{t('feedTitle')}</h2>
-            </div>
-
-            <div className="pt-6">
-              <GalleryFeed
-                initialGenerations={generations}
-                initialPage={PAGINATION.DEFAULT_PAGE}
-                initialHasMore={
-                  PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
-                }
-                total={total}
-                initialFilters={initialFilters}
-              />
-            </div>
-          </div>
-        </section>
+    <div className="relative min-h-screen">
+      <Particles
+        className="fixed inset-0 z-0"
+        quantity={120}
+        staticity={30}
+        ease={40}
+        size={1.5}
+        color="#c4653f"
+      />
+      <div className="relative z-[1] mx-auto max-w-content px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+        <GalleryFeed
+          initialGenerations={generations}
+          initialPage={PAGINATION.DEFAULT_PAGE}
+          initialHasMore={
+            PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
+          }
+          total={total}
+          initialFilters={initialFilters}
+        />
       </div>
     </div>
   )

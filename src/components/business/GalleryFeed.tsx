@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, RefreshCcw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
 
@@ -10,6 +10,7 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
+import { PulsatingButton } from '@/components/ui/pulsating-button'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import type { GenerationRecord } from '@/types'
 
@@ -103,26 +104,26 @@ export function GalleryFeed({
       {hasMore ? (
         <div className="flex flex-col items-center gap-4">
           <div ref={sentinelRef} className="h-4 w-full" />
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            onClick={loadMore}
-            disabled={isLoading}
-            className="rounded-full border-border/80 bg-card/74 px-6"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                {t('loadingMore')}
-              </>
-            ) : (
-              <>
-                <RefreshCcw className="size-4" />
-                {t('loadMore')}
-              </>
-            )}
-          </Button>
+          {isLoading ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              disabled
+              className="rounded-full border-border/80 bg-card/74 px-6"
+            >
+              <Loader2 className="size-4 animate-spin" />
+              {t('loadingMore')}
+            </Button>
+          ) : (
+            <PulsatingButton
+              onClick={loadMore}
+              pulseColor="hsl(var(--primary))"
+              className="rounded-full px-6 text-sm"
+            >
+              {t('loadMore')}
+            </PulsatingButton>
+          )}
         </div>
       ) : generations.length > 0 ? (
         <div className="rounded-3xl border border-border/70 bg-secondary/18 px-4 py-3 text-center font-serif text-sm text-muted-foreground">

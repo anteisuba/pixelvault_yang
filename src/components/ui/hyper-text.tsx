@@ -8,7 +8,6 @@ import {
   type RefAttributes,
 } from "react"
 import {
-  AnimatePresence,
   motion,
   type DOMMotionComponents,
   type HTMLMotionProps,
@@ -168,19 +167,19 @@ export function HyperText({
       ref={elementRef}
       className={cn("overflow-hidden py-2 text-4xl font-bold", className)}
       onMouseEnter={handleAnimationTrigger}
+      suppressHydrationWarning
       {...props}
     >
-      <AnimatePresence>
-        {displayText.map((letter, index) => (
-          <motion.span
-            key={index}
-            className={cn("inline-block text-center", letter === " " ? "w-3" : "")}
-            style={letter !== " " ? { width: "0.65em" } : undefined}
-          >
-            {letter}
-          </motion.span>
-        ))}
-      </AnimatePresence>
+      {displayText.map((letter, index) => (
+        <span
+          key={index}
+          className={cn("inline-block text-center", letter === " " ? "w-3" : "")}
+          style={letter !== " " ? { width: "0.65em" } : undefined}
+          suppressHydrationWarning
+        >
+          {letter}
+        </span>
+      ))}
     </MotionComponent>
   )
 }

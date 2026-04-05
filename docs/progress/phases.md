@@ -90,7 +90,7 @@
 
 ## Phase A–C: Code Quality, Model UX, Performance — COMPLETE
 
-> See `docs/roadmap.md` Phase A–C for full breakdown.
+> See `../product/roadmap.md` Phase A–C for full breakdown.
 
 - Design system compliance fixes + form deduplication + Error Boundary
 - Dynamic imports & lazy loading (PromptEnhancer, ReverseEngineerPanel, AdvancedSettings)
@@ -138,12 +138,12 @@
 ### W0: VolcEngine Seedance — COMPLETE
 ### W1: Multi-Reference Images — COMPLETE
 ### W2: Project System — COMPLETE
-- See `docs/roadmap.md` Phase W for details
+- See `../product/roadmap.md` Phase W for details
 
 ## Phase E: Unified Development Plan — IN PROGRESS
 
 > 合并 development-plan.md (S1-S9) + Studio Redesign Plan + 两轮 Codex Review。
-> 详见: [`docs/plans/unified-development-plan.md`](plans/unified-development-plan.md)
+> 详见: [`../plans/product/unified-development-plan.md`](../plans/product/unified-development-plan.md)
 
 ### Track A: 基础修复
 - [x] A1 — 数据层修复 (credit 成本/能力覆盖/计时器/Model ID)

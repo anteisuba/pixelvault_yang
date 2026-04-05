@@ -281,19 +281,31 @@ export function LayerDecomposePanel({
                 {layer.name}
               </p>
             </div>
-            {/* Hover action */}
-            {onAddAsReference && (
+            {/* Hover actions */}
+            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
                 onClick={() =>
-                  void handleUseAsReference(layer.imageUrl, layer.name)
+                  void downloadRemoteAsset(layer.imageUrl, `${layer.name}.png`)
                 }
-                className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
-                title={t('useAsReference')}
+                className="rounded-full bg-white/20 p-1.5 transition-colors hover:bg-white/40"
+                title={t('downloadLayer')}
               >
-                <ImagePlus className="size-5 text-white" />
+                <Download className="size-4 text-white" />
               </button>
-            )}
+              {onAddAsReference && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleUseAsReference(layer.imageUrl, layer.name)
+                  }
+                  className="rounded-full bg-white/20 p-1.5 transition-colors hover:bg-white/40"
+                  title={t('useAsReference')}
+                >
+                  <ImagePlus className="size-4 text-white" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

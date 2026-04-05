@@ -1,7 +1,7 @@
 # PixelVault 全功能开发计划（Codex Review 修正版）
 
 > **已合并到统一计划。** 本文件的 S1-S9 已与 Studio Redesign Plan 合并为三轨执行方案。
-> 最新计划见: [`docs/plans/unified-development-plan.md`](plans/unified-development-plan.md)
+> 最新计划见: [`unified-development-plan.md`](./unified-development-plan.md)
 >
 > 映射关系:
 > - S1 → Track A: A1 (数据层修复)

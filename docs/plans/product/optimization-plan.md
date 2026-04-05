@@ -18,7 +18,7 @@
 - [x] 创建 `.cursorrules` — Cursor IDE 项目规则
 - [x] 创建 `.github/copilot-instructions.md` — GitHub Copilot 项目规则
 - [x] 更新 `CLAUDE.md` — 补充关键架构约束和常见陷阱
-- [x] 创建 `docs/ai-context.md` — AI 开发者速查手册（项目地图、数据流、关键接口）
+- [x] 创建 `docs/tooling/ai-context.md` — AI 开发者速查手册（项目地图、数据流、关键接口）
 
 ### 0.2 代码自描述增强
 - [x] 创建 `src/lib/invariants.ts` — 运行时断言工具（代替注释说明约束）

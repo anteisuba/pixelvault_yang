@@ -141,7 +141,9 @@
       "Bash(grep -l \"CREATE TABLE.*CharacterCard\\\\|CharacterCard\" prisma/migrations/*/migration.sql)",
       "Bash(grep \"CREATE TABLE.*\"\"CharacterCard\"\"\" prisma/migrations/*/migration.sql)",
       "Bash(grep -ri \"CharacterCard\" prisma/migrations/*/migration.sql)",
-      "Bash(grep -ri \"charactercard\\\\|character_card\" prisma/migrations/*/migration.sql)"
+      "Bash(grep -ri \"charactercard\\\\|character_card\" prisma/migrations/*/migration.sql)",
+      "Bash(npm test:*)",
+      "Bash(findstr :3000)"
     ]
   },
   "hooks": {

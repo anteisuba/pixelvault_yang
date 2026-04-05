@@ -46,6 +46,7 @@ export function generateStorageKey(
  */
 export async function fetchAsBuffer(
   url: string,
+  headers?: Record<string, string>,
 ): Promise<{ buffer: Buffer; mimeType: string }> {
   if (url.startsWith('data:')) {
     const [meta, base64] = url.split(',')
@@ -54,7 +55,7 @@ export async function fetchAsBuffer(
     return { buffer, mimeType }
   }
 
-  const response = await fetch(url)
+  const response = await fetch(url, headers ? { headers } : undefined)
   if (!response.ok) {
     throw new Error(`Failed to fetch image (${response.status}): ${url}`)
   }

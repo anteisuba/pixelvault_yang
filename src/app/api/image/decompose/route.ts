@@ -1,8 +1,5 @@
 import { ImageDecomposeSchema } from '@/types'
-import {
-  decomposeImage,
-  persistDecomposition,
-} from '@/services/image-decompose.service'
+import { decomposeImage } from '@/services/image-decompose.service'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -28,29 +25,13 @@ export const POST = createApiRoute({
     const hfToken =
       userKeyRecord?.keyValue ?? getSystemApiKey(AI_ADAPTER_TYPES.HUGGINGFACE)
 
-    const result = await decomposeImage(
+    // decomposeImage now persists all layers + PSD to R2 automatically
+    return decomposeImage(
       data.imageUrl,
+      user.id,
       data.resolution,
       data.seed,
       hfToken ?? undefined,
     )
-
-    // Persist to R2 + DB if requested
-    if (data.persist && data.generationId) {
-      const persisted = await persistDecomposition({
-        userId: user.id,
-        psdUrl: result.psdUrl,
-        layers: result.layers,
-        sourceGenerationId: data.generationId,
-      })
-      return {
-        ...result,
-        psdUrl: persisted.persistedPsdUrl,
-        layers: persisted.persistedLayers,
-        generation: persisted.generation,
-      }
-    }
-
-    return result
   },
 })

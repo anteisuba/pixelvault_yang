@@ -1,4 +1,4 @@
-# Personal AI Gallery TODO
+# Product Documentation Overview
 
 这组文档的目标，不是再写一份空泛的产品说明，而是把你现在这套代码库，推进成一个真正能公开发布的 AI 图片产品地基。
 
@@ -18,12 +18,12 @@
 
 ## 阅读顺序
 
-1. [00-status-audit.md](./00-status-audit.md)
-2. [01-product-scope.md](./01-product-scope.md)
-3. [02-architecture.md](./02-architecture.md)
-4. [03-data-and-prompts.md](./03-data-and-prompts.md)
-5. [04-roadmap.md](./04-roadmap.md)
-6. [05-decisions.md](./05-decisions.md)
+1. [当前项目体检](../progress/current-status-audit.md)
+2. [产品范围与第一版边界](./product-scope.md)
+3. [技术架构与地基设计](../architecture/foundation-architecture.md)
+4. [Prompt 数据与推荐系统设计](./prompt-data-and-recommendation.md)
+5. [分阶段 TODO](./staged-roadmap.md)
+6. [需要拍板的关键决定](./key-product-decisions.md)
 
 ## 一句话结论
 

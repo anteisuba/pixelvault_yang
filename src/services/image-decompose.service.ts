@@ -19,7 +19,7 @@ import type {
 
 // ─── HuggingFace Spaces config ──────────────────────────────────
 
-const SEE_THROUGH_SPACE = '24yearsold/see-through-demo'
+const SEE_THROUGH_SPACE = 'xiuruisu/see-through'
 
 // ─── Types for Gradio response ──────────────────────────────────
 
@@ -38,10 +38,11 @@ interface GradioGalleryItem {
  * Decompose an anime illustration into semantic layers using See-Through (HF Spaces).
  *
  * Calls the Gradio `/predict` endpoint with the image, resolution, and seed.
- * Returns layer PNGs + a layered PSD file.
+ * Persists all layer PNGs + PSD to R2 so URLs remain accessible.
  */
 export async function decomposeImage(
   imageUrl: string,
+  userId: string,
   resolution: number = 1280,
   seed: number = 42,
   hfToken?: string,
@@ -130,20 +131,62 @@ export async function decomposeImage(
     )
   }
 
-  const layers: DecomposedLayer[] = (gallery ?? []).map((item) => ({
+  const rawLayers: DecomposedLayer[] = (gallery ?? []).map((item) => ({
     name: item.caption ?? item.image.orig_name ?? 'layer',
     imageUrl: item.image.url,
   }))
 
-  logger.info('[image-decompose] Decomposition complete', {
-    layerCount: layers.length,
+  logger.info('[image-decompose] Decomposition complete, persisting to R2', {
+    layerCount: rawLayers.length,
     hasPsd: !!psdFile.url,
   })
 
+  // ─── Persist all layers + PSD to R2 ─────────────────────────────
+  // Gradio temporary URLs on private Spaces require auth
+  const fetchHeaders = hfToken
+    ? { Authorization: `Bearer ${hfToken}` }
+    : undefined
+
+  const [persistedLayers, persistedPsdUrl] = await Promise.all([
+    // Upload each layer PNG to R2 in parallel
+    Promise.all(
+      rawLayers.map(async (layer) => {
+        const key = generateStorageKey('IMAGE', userId)
+        const { buffer, mimeType } = await fetchAsBuffer(
+          layer.imageUrl,
+          fetchHeaders,
+        )
+        const url = await uploadToR2({
+          data: buffer,
+          key,
+          mimeType: mimeType || 'image/png',
+        })
+        return { name: layer.name, imageUrl: url }
+      }),
+    ),
+    // Upload PSD to R2
+    (async () => {
+      const key = generateStorageKey('IMAGE', userId)
+      const { buffer, mimeType } = await fetchAsBuffer(
+        psdFile.url,
+        fetchHeaders,
+      )
+      return uploadToR2({
+        data: buffer,
+        key,
+        mimeType: mimeType || 'application/octet-stream',
+      })
+    })(),
+  ])
+
+  logger.info('[image-decompose] R2 persistence complete', {
+    layerCount: persistedLayers.length,
+  })
+
   return {
-    layers,
-    psdUrl: psdFile.url,
-    layerCount: layers.length,
+    layers: persistedLayers,
+    psdUrl: persistedPsdUrl,
+    layerCount: persistedLayers.length,
   }
 }
 

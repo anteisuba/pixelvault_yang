@@ -87,6 +87,10 @@
       "title": "Studio — PixelVault",
       "description": "Generate images and videos with multiple AI models in one workspace."
     },
+    "studioDraft": {
+      "title": "Studio Draft — PixelVault",
+      "description": "Workbench draft for the next Studio layout."
+    },
     "gallery": {
       "title": "Gallery — PixelVault",
       "description": "Browse the public archive of AI-generated images."
@@ -1046,6 +1050,7 @@
     "useAsReference": "Use as reference",
     "addedAsReference": "Added \"{name}\" as reference image",
     "downloadPsd": "Download PSD",
+    "downloadLayer": "Download layer",
     "reset": "Reset",
     "error": "Layer decomposition failed"
   },
@@ -1589,6 +1594,100 @@
     "addSubProject": "Add Sub-project",
     "apiError": "Error",
     "apiUnverified": "Unverified"
+  },
+  "StudioWorkbenchDraft": {
+    "eyebrow": "Studio draft",
+    "title": "Workbench direction for a denser, ComfyUI-like studio.",
+    "description": "This draft restores a fixed preview, demotes history to a filmstrip, and turns the center column into a focused compose surface.",
+    "note": "Draft only. Static mock data for layout and interaction review.",
+    "summary": "The goal is not to copy node graphs. The goal is to borrow the best part of creator tools: current state stays visible, history stays secondary, and the compose area stays concentrated around the next run.",
+    "actions": {
+      "backToStudio": "Open live studio"
+    },
+    "desktop": {
+      "title": "Desktop workbench draft",
+      "description": "Sidebar for resources, center for composition, fixed preview for the active result, and a filmstrip below."
+    },
+    "chrome": {
+      "project": "Project",
+      "projectValue": "Moonlit courier set",
+      "route": "Route",
+      "routeValue": "FLUX Kontext route",
+      "model": "Model",
+      "modelValue": "FLUX Kontext Pro",
+      "quota": "Free quota",
+      "quotaValue": "3 / 5 left today",
+      "references": "References",
+      "referencesValue": "2 attached"
+    },
+    "sidebar": {
+      "title": "Resources",
+      "projects": "Project scope",
+      "altProject": "Portrait prompt tests",
+      "routes": "Routes",
+      "routeHealth": "3 healthy routes",
+      "backupRoute": "Gemini fallback",
+      "routeFallback": "Held in reserve for retries",
+      "collections": "Collections",
+      "collectionCharacter": "Characters",
+      "collectionStyle": "Styles",
+      "collectionRecipe": "Recipes",
+      "collectionHint": "Reusable ingredients stay here instead of crowding the main compose surface.",
+      "projectCount": "6 active boards"
+    },
+    "compose": {
+      "title": "Compose",
+      "subtitle": "Model selection, prompt writing, reference intake, and status all stay in one dense working column.",
+      "modelMenu": "Model command menu",
+      "promptLabel": "Prompt",
+      "promptValue": "Editorial portrait of a bike courier stepping through orange rainlight, reflective jacket, wet pavement, cinematic depth, realistic texture.",
+      "promptHint": "Programmatic writes from remix, reverse, and enhancement should resize this field automatically.",
+      "referenceTitle": "Reference dropzone",
+      "referenceDrop": "Drop history frames here",
+      "referenceHint": "References should have a clear destination instead of hiding behind a toolbar toggle.",
+      "referenceBadge": "2 slots filled",
+      "statusTitle": "Generate status",
+      "statusReady": "Ready",
+      "statusMissingModel": "Missing model",
+      "statusMissingReference": "Missing reference",
+      "statusGenerating": "Generating · 12s",
+      "statusFailed": "Failed · Retry available",
+      "failureTitle": "Failure stays visible while you keep browsing.",
+      "failureHint": "Retry should remain anchored in the compose and preview flow, not disappear into history.",
+      "generate": "Generate",
+      "advancedTitle": "Advanced groups",
+      "advancedOpenHint": "Open groups should summarize what they control instead of dumping one long list.",
+      "advancedGroups": {
+        "composition": "Composition",
+        "reference": "Reference",
+        "quality": "Quality",
+        "provider": "Provider-specific"
+      }
+    },
+    "preview": {
+      "title": "Result preview",
+      "subtitle": "The active result stays fixed so loading, success, and failure never compete with history.",
+      "badge": "Latest result",
+      "selectionTitle": "Selected output",
+      "selectionHint": "History can change what is previewed, but the preview region stays stable.",
+      "openDetail": "Open detail",
+      "recoveryTitle": "Recovery belongs next to the result.",
+      "recoveryHint": "If generation fails, the preview side should keep the error and retry affordance in sight.",
+      "retry": "Retry",
+      "filmstripTitle": "History filmstrip",
+      "filmstripHint": "Single click previews, double click opens detail, drag sends to reference.",
+      "selected": "Selected"
+    },
+    "mobile": {
+      "title": "Mobile flow draft",
+      "description": "Mobile should keep the same order of importance, but move tools into a bottom sheet.",
+      "note": "Preview first, compose second, history third, tools in a bottom sheet.",
+      "preview": "Preview first",
+      "compose": "Compose second",
+      "history": "Horizontal filmstrip",
+      "tools": "Bottom-sheet tools",
+      "sheetLabel": "Model / Reference / Advanced"
+    }
   },
   "Errors": {
     "common": {

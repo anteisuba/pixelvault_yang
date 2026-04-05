@@ -1074,11 +1074,6 @@ export type ModelEloRatingFindManyArgs<ExtArgs extends runtime.Types.Extensions.
    * Skip the first `n` ModelEloRatings.
    */
   skip?: number
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-   * 
-   * Filter by unique combinations of ModelEloRatings.
-   */
   distinct?: Prisma.ModelEloRatingScalarFieldEnum | Prisma.ModelEloRatingScalarFieldEnum[]
 }
 

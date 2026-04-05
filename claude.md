@@ -32,7 +32,7 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 ## Design Language
 
-See `docs/design-system.md` for full spec. Key constraints:
+See `docs/frontend/design-system.md` for full spec. Key constraints:
 
 - Background: `#faf9f5` (米白, never `#fff`) · Text: `#141413` · Accent: `#d97757`
 - Fonts: Space Grotesk (headings) + Lora (body) — must be sans + serif pair
@@ -49,14 +49,14 @@ See `docs/design-system.md` for full spec. Key constraints:
 
 | File | Content |
 |------|---------|
-| `docs/architecture.md` | Directory structure, tech stack, data flow |
-| `docs/design-system.md` | Colors, typography, layout, motion rules |
-| `docs/database.md` | Prisma models, relations, migration workflow |
-| `docs/components.md` | Components, hooks & capability system API reference |
-| `docs/phases.md` | Development phase tracking |
-| `docs/roadmap.md` | Future features and priorities |
-| `docs/plans/unified-development-plan.md` | Unified 3-track dev plan (A: fixes, B: Studio redesign, C: features) |
-| `docs/development-plan.md` | Original S1-S9 implementation specs (reference, merged into unified plan) |
+| `docs/architecture/system-architecture.md` | Directory structure, tech stack, data flow |
+| `docs/frontend/design-system.md` | Colors, typography, layout, motion rules |
+| `docs/database/database.md` | Prisma models, relations, migration workflow |
+| `docs/frontend/components.md` | Components, hooks & capability system API reference |
+| `docs/progress/phases.md` | Development phase tracking |
+| `docs/product/roadmap.md` | Future features and priorities |
+| `docs/plans/product/unified-development-plan.md` | Unified 3-track dev plan (A: fixes, B: Studio redesign, C: features) |
+| `docs/plans/product/development-plan-legacy.md` | Original S1-S9 implementation specs (reference, merged into unified plan) |
 
 ## Component Tiers
 

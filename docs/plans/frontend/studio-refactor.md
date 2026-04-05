@@ -1,6 +1,6 @@
 # Studio 页面架构升级重构计划
 
-> 实施后将复制到 `docs/plans/studio-refactor.md` 提交到 GitHub
+> 实施后将复制到 `docs/plans/frontend/studio-refactor.md` 提交到 GitHub
 
 ## Context
 
@@ -404,7 +404,7 @@ try {                             rateLimit: RATE_LIMIT_CONFIGS.generate,
 5. `refactor: api routes — migrate to createApiRoute factory`
 6. `refactor: cleanup — remove legacy code, fix hardcoded colors`
 
-实施后将 plan 复制到 `docs/plans/studio-refactor.md` 提交到 GitHub。
+实施后将 plan 复制到 `docs/plans/frontend/studio-refactor.md` 提交到 GitHub。
 
 ---
 

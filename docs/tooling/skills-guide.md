@@ -43,7 +43,7 @@ gstack 是一个 AI 开发工厂，将 Claude 组织成 CEO、工程师、设计
 
 | 命令 | 用途 |
 |------|------|
-| `/design-consultation` | 从零建立完整设计系统，生成 `DESIGN.md` 和 HTML 预览页 |
+| `/design-consultation` | 从零建立完整设计系统，生成视觉规范文档和 HTML 预览页 |
 | `/design-review` | 视觉 QA：找出间距/层级/一致性问题，原子提交修复，截图对比 |
 
 #### 开发类
@@ -96,7 +96,7 @@ gstack 是一个 AI 开发工厂，将 Claude 组织成 CEO、工程师、设计
 ### 生成文件位置
 
 - `~/.gstack/projects/{项目名}/` — office-hours 等产出的设计文档
-- `DESIGN.md`（项目根目录）— design-consultation 产出
+- `docs/frontend/visual-design-system.md` — design-consultation 产出
 - `~/.gstack/analytics/` — 使用统计
 
 ---

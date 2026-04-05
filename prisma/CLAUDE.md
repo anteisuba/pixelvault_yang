@@ -14,7 +14,7 @@
 
 ## Schema Reference
 
-See `docs/database.md` for full model documentation.
+See `docs/database/database.md` for full model documentation.
 
 ## Naming Conventions
 

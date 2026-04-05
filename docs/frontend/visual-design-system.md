@@ -1,4 +1,4 @@
-# DESIGN.md — PixelVault Visual Design System
+# PixelVault Visual Design System
 
 This document is the **single source of truth** for all visual design decisions in PixelVault.
 Any new page, component, or UI change must follow the rules defined here to maintain visual consistency.

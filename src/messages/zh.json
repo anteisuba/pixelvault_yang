@@ -152,6 +152,7 @@
     "heroEyebrow": "个人 AI 档案",
     "heroTitle": "认真创作，完整保存。",
     "heroDescription": "多模型图像生成，永久归档。",
+    "heroRepelText": "用 Gemini、DALL-E、Flux、NovelAI 等 38 个模型生成图片。用 Seedance、Kling、Luma 把图片变成视频。在竞技场盲测对比模型表现。用生成的图片创建故事板。每次创作自动保存提示词、参数和元数据，永久归档你的创作记录。",
     "actions": {
       "signedOutPrimary": "开始建立档案",
       "signedInPrimary": "打开工作台",

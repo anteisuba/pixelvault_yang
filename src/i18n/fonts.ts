@@ -7,6 +7,7 @@ import {
   Noto_Serif_SC,
   Source_Serif_4,
   Space_Grotesk,
+  Zen_Maru_Gothic,
 } from 'next/font/google'
 
 export const appSans = Instrument_Sans({
@@ -42,12 +43,12 @@ export const japaneseSans = Noto_Sans_JP({
   fallback: ['Hiragino Sans', 'Yu Gothic UI', 'sans-serif'],
 })
 
-export const japaneseDisplay = Noto_Serif_JP({
+export const japaneseDisplay = Zen_Maru_Gothic({
   variable: '--font-japanese-display',
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '700'],
   display: 'swap',
   preload: false,
-  fallback: ['Hiragino Mincho ProN', 'Yu Mincho', 'serif'],
+  fallback: ['Hiragino Sans', 'Yu Gothic UI', 'sans-serif'],
 })
 
 export const chineseSans = Noto_Sans_SC({

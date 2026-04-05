@@ -4,7 +4,6 @@ import { useTranslations } from 'next-intl'
 import {
   HOMEPAGE_NAVIGATION,
   HOMEPAGE_ROUTES,
-  HOMEPAGE_SHOWCASE,
 } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurFade } from '@/components/ui/blur-fade'
@@ -18,7 +17,7 @@ import '@/app/homepage.css'
 
 import { HomepageHero } from './HomepageHero'
 import { HomepageModels } from './HomepageModels'
-import { HomepageShowcaseCard } from './HomepageShowcaseCard'
+
 import { HomepageValueProps } from './HomepageValueProps'
 import { HomepageWorkflow } from './HomepageWorkflow'
 
@@ -90,7 +89,7 @@ export function HomepageShell({
             <LocaleSwitcher />
 
             <Link href={utilityActionHref}>
-              <ShinyButton className="h-8 rounded-full border-border/80 px-4">
+              <ShinyButton className="h-9 rounded-full border-border/80 px-5">
                 {utilityActionLabel}
               </ShinyButton>
             </Link>
@@ -103,56 +102,13 @@ export function HomepageShell({
       >
         <main className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]" style={{ paddingBlock: 'clamp(1.5rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem)' }}>
           <HomepageHero
-            eyebrow={eyebrow}
-            title={title}
-            description={description}
             primaryActionHref={primaryActionHref}
             primaryActionLabel={primaryActionLabel}
             secondaryActionHref={secondaryActionHref}
             secondaryActionLabel={secondaryActionLabel}
+            galleryActionHref={HOMEPAGE_ROUTES.gallery}
+            galleryActionLabel={t('stage.cta')}
           />
-
-          {/* Gallery Preview */}
-          <section id="gallery" className="homepage-border-top grid gap-6 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24">
-            <BlurFade inView>
-              <div className="grid gap-[0.65rem] max-w-[42rem]">
-                <h2 className="font-display text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
-                  {t('stage.title')}
-                </h2>
-              </div>
-            </BlurFade>
-
-            <div className="grid gap-4 min-w-0 max-sm:grid-cols-2 md:grid-cols-3">
-              {HOMEPAGE_SHOWCASE.map((item, index) => (
-                <BlurFade key={item.id} delay={index * 0.12} inView>
-                  <HomepageShowcaseCard
-                    src={item.src}
-                    model={item.model}
-                    prompt={t(
-                      `scenes.items.${item.id}.prompt` as Parameters<
-                        typeof t
-                      >[0],
-                      { defaultValue: item.model },
-                    )}
-                  />
-                </BlurFade>
-              ))}
-            </div>
-
-            <div className="pt-1">
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="homepage-secondary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0"
-              >
-                <Link href={HOMEPAGE_ROUTES.gallery}>
-                  {t('stage.cta')}
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </div>
-          </section>
 
           <div className="homepage-warm">
             <HomepageValueProps />

@@ -1,3 +1,4 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -95,9 +96,10 @@
     background-position: calc(100% + var(--shiny-width)) 0;}}}
 
 :root {
-  --font-app-sans: var(--font-instrument-sans);
-  --font-app-display: var(--font-space-grotesk);
+  --font-app-sans: 'Satoshi', var(--font-instrument-sans), sans-serif;
+  --font-app-display: 'Satoshi', var(--font-space-grotesk), sans-serif;
   --font-app-serif: var(--font-source-serif);
+  --font-hero: 'Satoshi', sans-serif;
   --radius: 0.9rem;
 
   /* ── Light palette — warm amber/orange ────────────────────────────────── */
@@ -153,13 +155,17 @@
 }
 
 html:lang(ja) {
-  --font-app-display: var(--font-japanese-sans);
-  --font-app-serif: var(--font-japanese-display);
+  --font-app-sans: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
+  --font-app-display: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
+  --font-app-serif: var(--font-japanese-sans);
+  --font-hero: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
 }
 
 html:lang(zh) {
-  --font-app-display: var(--font-chinese-sans);
+  --font-app-sans: var(--font-chinese-sans), 'PingFang SC', sans-serif;
+  --font-app-display: var(--font-chinese-sans), 'PingFang SC', sans-serif;
   --font-app-serif: var(--font-chinese-display);
+  --font-hero: var(--font-chinese-sans), 'PingFang SC', sans-serif;
 }
 
 .dark {

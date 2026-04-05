@@ -1,4 +1,8 @@
+'use client'
+
 import Image from 'next/image'
+
+import { MagicCard } from '@/components/ui/magic-card'
 
 interface HomepageShowcaseCardProps {
   src: string
@@ -12,7 +16,13 @@ export function HomepageShowcaseCard({
   prompt,
 }: HomepageShowcaseCardProps) {
   return (
-    <article className="homepage-showcase-card homepage-showcase-surface overflow-hidden rounded-2xl transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+    <MagicCard
+      gradientFrom="#d97757"
+      gradientTo="#b85c3a"
+      gradientColor="rgba(217, 119, 87, 0.06)"
+      gradientOpacity={0.8}
+      className="homepage-showcase-card homepage-showcase-surface overflow-hidden rounded-2xl"
+    >
       <div className="aspect-[4/3] overflow-hidden">
         <Image
           src={src}
@@ -30,6 +40,6 @@ export function HomepageShowcaseCard({
           {prompt}
         </p>
       </div>
-    </article>
+    </MagicCard>
   )
 }

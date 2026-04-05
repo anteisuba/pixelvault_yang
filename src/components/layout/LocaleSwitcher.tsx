@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
+import { motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -24,14 +25,10 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
     <nav
       aria-label={t('label')}
       className={cn(
-        'flex items-center gap-1 rounded-full border border-border/80 bg-background/84 px-1.5 py-1',
+        'relative flex items-center gap-0.5 rounded-full border border-border/80 bg-background/84 px-1 py-0.5',
         className,
       )}
     >
-      <span className="hidden px-2 text-nav font-semibold uppercase tracking-nav text-muted-foreground md:inline">
-        {t('label')}
-      </span>
-
       {LOCALES.map((option) => {
         const isActive = locale === option
 
@@ -44,13 +41,24 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'rounded-full px-2.5 py-1 text-nav font-semibold uppercase tracking-nav transition-colors',
+              'relative z-10 rounded-full px-2.5 py-1 text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
               isActive
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                ? 'text-background'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {t(`options.${option}`)}
+            {isActive && (
+              <motion.span
+                layoutId="locale-indicator"
+                className="absolute inset-0 rounded-full bg-foreground"
+                transition={{
+                  type: 'spring',
+                  stiffness: 380,
+                  damping: 30,
+                }}
+              />
+            )}
+            <span className="relative z-10">{t(`options.${option}`)}</span>
           </Link>
         )
       })}

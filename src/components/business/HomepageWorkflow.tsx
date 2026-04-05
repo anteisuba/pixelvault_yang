@@ -7,7 +7,7 @@ import { HOMEPAGE_WORKFLOW } from '@/constants/homepage'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
-import { MotionReveal } from '@/components/ui/motion-reveal'
+import { BlurFade } from '@/components/ui/blur-fade'
 
 export function HomepageWorkflow() {
   const locale = useLocale()
@@ -20,7 +20,7 @@ export function HomepageWorkflow() {
       id="workflow"
       className="homepage-border-top grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
     >
-      <MotionReveal>
+      <BlurFade inView>
         <div className="grid gap-[0.65rem] max-w-[42rem]">
           <p
             className={cn(
@@ -34,7 +34,7 @@ export function HomepageWorkflow() {
             {t('workflow.title')}
           </h2>
         </div>
-      </MotionReveal>
+      </BlurFade>
 
       <div className="flex flex-col gap-0 md:flex-row md:items-center">
         {HOMEPAGE_WORKFLOW.map((item, index) => (

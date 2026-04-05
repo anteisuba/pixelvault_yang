@@ -3,8 +3,9 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
 import { MODEL_OPTIONS } from '@/constants/models'
+import { BlurFade } from '@/components/ui/blur-fade'
 import { Button } from '@/components/ui/button'
-import { MotionReveal } from '@/components/ui/motion-reveal'
+import { TextAnimate } from '@/components/ui/text-animate'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
@@ -56,13 +57,22 @@ export function HomepageHero({
             {eyebrow}
           </p>
 
-          <h1 className="max-w-[18ch] font-display text-[clamp(3rem,7vw,5.5rem)] font-bold leading-[0.9] tracking-[-0.04em] text-balance">
-            {title}
+          <div className="max-w-[18ch]">
+            <TextAnimate
+              as="h1"
+              by="word"
+              animation="blurInUp"
+              duration={0.8}
+              once
+              className="font-display text-[clamp(3rem,7vw,5.5rem)] font-bold leading-[0.9] tracking-[-0.04em] text-balance"
+            >
+              {title}
+            </TextAnimate>
             <span
               className="block w-14 h-[3px] mt-3 rounded-sm bg-primary"
               aria-hidden="true"
             />
-          </h1>
+          </div>
 
           <p className="max-w-[36rem] font-serif text-[clamp(1.04rem,1.7vw,1.18rem)] leading-[1.8] text-[var(--home-muted)] text-pretty">
             {description}
@@ -107,9 +117,9 @@ export function HomepageHero({
           </div>
         </div>
 
-        <MotionReveal delay={0.2} margin="0px">
+        <BlurFade delay={0.2} inView inViewMargin="0px">
           <HomepageHeroVisual />
-        </MotionReveal>
+        </BlurFade>
       </div>
     </section>
   )

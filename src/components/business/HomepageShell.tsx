@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   HOMEPAGE_NAVIGATION,
@@ -7,15 +7,12 @@ import {
   HOMEPAGE_SHOWCASE,
 } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
+import { BlurFade } from '@/components/ui/blur-fade'
+import { HyperText } from '@/components/ui/hyper-text'
 import { Button } from '@/components/ui/button'
-import {
-  MotionReveal,
-  MotionStagger,
-  MotionStaggerItem,
-} from '@/components/ui/motion-reveal'
+import { Particles } from '@/components/ui/particles'
+import { ShinyButton } from '@/components/ui/shiny-button'
 import { Link } from '@/i18n/navigation'
-import { isCjkLocale } from '@/i18n/routing'
-import { cn } from '@/lib/utils'
 
 import '@/app/homepage.css'
 
@@ -48,32 +45,33 @@ export function HomepageShell({
   utilityActionHref,
   utilityActionLabel,
 }: HomepageShellProps) {
-  const locale = useLocale()
-  const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
 
   return (
-    <div className="homepage">
+    <div className="homepage relative">
+      <Particles
+        className="fixed inset-0 z-[1]"
+        quantity={180}
+        staticity={30}
+        ease={40}
+        size={2}
+        color="#c4653f"
+      />
       <header className="homepage-header sticky top-0 z-20 py-[0.9rem_1rem]">
         <div
           className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4"
         >
-          <Link href={HOMEPAGE_ROUTES.home} className="grid gap-[0.18rem] min-w-0">
-            <span
-              className={cn(
-                'text-[0.72rem] font-semibold tracking-[0.2em] uppercase text-primary opacity-75 max-sm:hidden',
-                isDenseLocale && 'tracking-normal normal-case',
-              )}
+          <Link href={HOMEPAGE_ROUTES.home} className="min-w-0">
+            <HyperText
+              as="span"
+              duration={600}
+              animateOnHover
+              startOnView
+              className="font-display text-[clamp(1.4rem,2vw,1.7rem)] font-bold leading-none tracking-[-0.03em] max-sm:text-[1.2rem] !py-0"
             >
-              {t('brandLabel')}
-            </span>
-            <span className="font-display text-[clamp(1.3rem,1.8vw,1.55rem)] font-medium leading-[0.95] tracking-[-0.04em] max-sm:text-[1.08rem] max-sm:whitespace-nowrap">
               {tCommon('brand')}
-            </span>
-            <span className="max-w-96 font-serif text-base leading-[1.65] text-[var(--home-muted)] text-pretty max-sm:hidden">
-              {t('brandSubline')}
-            </span>
+            </HyperText>
           </Link>
 
           <nav className="hidden md:flex items-center gap-[1.35rem]" aria-label={t('navigationLabel')}>
@@ -81,7 +79,7 @@ export function HomepageShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className="homepage-nav-link text-[0.78rem] font-semibold tracking-[0.16em] uppercase text-[var(--home-muted)] transition-colors duration-[180ms] ease-in-out hover:text-foreground focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-[color-mix(in_oklab,var(--ring)_75%,transparent)] focus-visible:outline-offset-[0.35rem] focus-visible:rounded-sm"
+                className="homepage-nav-link text-sm font-semibold tracking-[0.12em] uppercase text-[var(--home-muted)] transition-colors duration-[180ms] ease-in-out hover:text-foreground focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-[color-mix(in_oklab,var(--ring)_75%,transparent)] focus-visible:outline-offset-[0.35rem] focus-visible:rounded-sm"
               >
                 {t(`navigation.${item.id}`)}
               </Link>
@@ -91,20 +89,17 @@ export function HomepageShell({
           <div className="flex items-center justify-end gap-3 shrink-0 max-sm:gap-2">
             <LocaleSwitcher />
 
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="homepage-utility-btn h-8 px-4 rounded-full text-[0.68rem] font-semibold tracking-[0.16em] uppercase"
-            >
-              <Link href={utilityActionHref}>{utilityActionLabel}</Link>
-            </Button>
+            <Link href={utilityActionHref}>
+              <ShinyButton className="h-8 rounded-full border-border/80 px-4">
+                {utilityActionLabel}
+              </ShinyButton>
+            </Link>
           </div>
         </div>
       </header>
 
       <div
-        className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 relative z-[1]"
+        className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 relative z-[2]"
       >
         <main className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]" style={{ paddingBlock: 'clamp(1.5rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem)' }}>
           <HomepageHero
@@ -119,17 +114,17 @@ export function HomepageShell({
 
           {/* Gallery Preview */}
           <section id="gallery" className="homepage-border-top grid gap-6 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24">
-            <MotionReveal>
+            <BlurFade inView>
               <div className="grid gap-[0.65rem] max-w-[42rem]">
                 <h2 className="font-display text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
                   {t('stage.title')}
                 </h2>
               </div>
-            </MotionReveal>
+            </BlurFade>
 
-            <MotionStagger staggerMs={120} className="grid gap-4 min-w-0 max-sm:grid-cols-2 md:grid-cols-3">
-              {HOMEPAGE_SHOWCASE.map((item) => (
-                <MotionStaggerItem key={item.id}>
+            <div className="grid gap-4 min-w-0 max-sm:grid-cols-2 md:grid-cols-3">
+              {HOMEPAGE_SHOWCASE.map((item, index) => (
+                <BlurFade key={item.id} delay={index * 0.12} inView>
                   <HomepageShowcaseCard
                     src={item.src}
                     model={item.model}
@@ -140,9 +135,9 @@ export function HomepageShell({
                       { defaultValue: item.model },
                     )}
                   />
-                </MotionStaggerItem>
+                </BlurFade>
               ))}
-            </MotionStagger>
+            </div>
 
             <div className="pt-1">
               <Button
@@ -166,7 +161,7 @@ export function HomepageShell({
           <HomepageModels />
 
           {/* Footer CTA */}
-          <MotionReveal>
+          <BlurFade inView>
             <section className="homepage-border-top grid gap-3 pt-[clamp(2rem,3.5vw,3rem)] max-sm:pb-8">
               <h2 className="max-w-[18ch] font-display text-[clamp(2rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
                 {t('footer.title')}
@@ -180,7 +175,7 @@ export function HomepageShell({
                 </Button>
               </div>
             </section>
-          </MotionReveal>
+          </BlurFade>
         </main>
       </div>
     </div>

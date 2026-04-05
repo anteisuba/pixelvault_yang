@@ -10,11 +10,7 @@ import { getProviderLabel } from '@/constants/providers'
 import { isCjkLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 
-import {
-  MotionReveal,
-  MotionStagger,
-  MotionStaggerItem,
-} from '@/components/ui/motion-reveal'
+import { BlurFade } from '@/components/ui/blur-fade'
 
 export function HomepageModels() {
   const locale = useLocale()
@@ -30,7 +26,7 @@ export function HomepageModels() {
       id="models"
       className="homepage-border-top grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
     >
-      <MotionReveal>
+      <BlurFade inView>
         <div className="grid gap-[0.65rem] max-w-[42rem]">
           <p
             className={cn(
@@ -44,7 +40,7 @@ export function HomepageModels() {
             {t('models.title')}
           </h2>
         </div>
-      </MotionReveal>
+      </BlurFade>
 
       <div className="homepage-model-rail grid gap-0">
         {groups.map(({ group, models }) => (
@@ -53,13 +49,9 @@ export function HomepageModels() {
               {tCommon(`providerGroups.${group}`)}
             </h3>
 
-            <MotionStagger
-              staggerMs={60}
-              direction="left"
-              className="grid gap-0"
-            >
-              {models.map((model) => (
-                <MotionStaggerItem key={model.id} direction="left">
+            <div className="grid gap-0">
+              {models.map((model, modelIndex) => (
+                <BlurFade key={model.id} delay={modelIndex * 0.06} inView direction="left">
                   <article className="homepage-model-compact homepage-model-border flex items-center justify-between gap-3 py-[0.85rem] md:px-2 transition-colors duration-200">
                     <span className="font-display text-[clamp(1rem,1.4vw,1.15rem)] font-medium leading-[1.2] tracking-[-0.02em]">
                       {tModels(`${getModelMessageKey(model.id)}.label`)}
@@ -85,9 +77,9 @@ export function HomepageModels() {
                       </span>
                     </div>
                   </article>
-                </MotionStaggerItem>
+                </BlurFade>
               ))}
-            </MotionStagger>
+            </div>
           </div>
         ))}
       </div>

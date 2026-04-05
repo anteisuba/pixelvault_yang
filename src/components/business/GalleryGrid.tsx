@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import type { Route } from '@/constants/routes'
@@ -56,35 +57,48 @@ export function GalleryGrid({
     )
   }
 
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+
   return (
     <section
       role="feed"
       aria-label="Gallery"
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
+      onMouseLeave={() => setHoveredId(null)}
     >
-      {generations.map((generation, index) => (
-        <BlurFade
-          key={generation.id}
-          delay={Math.min(index * 0.05, 0.5)}
-          inView
-          className="mb-5 break-inside-avoid"
-        >
-          <div
-            role="article"
-            aria-posinset={index + 1}
-            aria-setsize={generations.length}
-            className="transition-all duration-300 hover:scale-[1.02] hover:z-10"
-            style={{ perspective: '1000px' }}
+      {generations.map((generation, index) => {
+        const isHovered = hoveredId === generation.id
+        const isSomethingHovered = hoveredId !== null
+        return (
+          <BlurFade
+            key={generation.id}
+            delay={Math.min(index * 0.05, 0.5)}
+            inView
+            className="mb-5 break-inside-avoid"
           >
-            <ImageCard
-              generation={generation}
-              showVisibility={showVisibility}
-              showDelete={showDelete}
-              onDelete={onDelete}
-            />
-          </div>
-        </BlurFade>
-      ))}
+            <div
+              role="article"
+              aria-posinset={index + 1}
+              aria-setsize={generations.length}
+              className="transition-all duration-300 hover:z-10"
+              style={{
+                perspective: '1000px',
+                transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+                opacity: isSomethingHovered && !isHovered ? 0.5 : 1,
+                filter: isSomethingHovered && !isHovered ? 'blur(1px)' : 'none',
+              }}
+              onMouseEnter={() => setHoveredId(generation.id)}
+            >
+              <ImageCard
+                generation={generation}
+                showVisibility={showVisibility}
+                showDelete={showDelete}
+                onDelete={onDelete}
+              />
+            </div>
+          </BlurFade>
+        )
+      })}
     </section>
   )
 }

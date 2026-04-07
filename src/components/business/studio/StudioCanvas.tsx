@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useCallback } from 'react'
+import { memo, useCallback } from 'react'
 
 import {
   useStudioForm,
@@ -10,7 +10,6 @@ import {
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
-import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 import { GenerationPreview } from './GenerationPreview'
@@ -19,7 +18,7 @@ import { GenerationPreview } from './GenerationPreview'
  * StudioCanvas — central hero area for the canvas-centric layout.
  * Fills all vertical space between TopBar and BottomDock.
  * Delegates rendering to GenerationPreview (empty / loading / image / error).
- * Accepts dragged gallery images as reference images.
+ * Accepts gallery image drops — adds as reference and opens the ref panel.
  */
 export const StudioCanvas = memo(function StudioCanvas() {
   const { dispatch } = useStudioForm()
@@ -27,30 +26,17 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const { lastGeneration, retry } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
 
-  // ── Drag-drop zone: accept gallery images as reference ──────────
-  const [isDragOver, setIsDragOver] = useState(false)
-
+  // ── Drop handler: gallery images → open reference panel ────────
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes('application/x-studio-ref')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
-      setIsDragOver(true)
-    }
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (
-      e.currentTarget === e.target ||
-      !e.currentTarget.contains(e.relatedTarget as Node)
-    ) {
-      setIsDragOver(false)
     }
   }, [])
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault()
-      setIsDragOver(false)
       const studioRef = e.dataTransfer.getData('application/x-studio-ref')
       if (!studioRef) return
       try {
@@ -66,7 +52,6 @@ export const StudioCanvas = memo(function StudioCanvas() {
     [imageUpload, dispatch],
   )
 
-  // ── Actions for GenerationPreview ───────────────────────────────
   const handleUseAsReference = useCallback(
     async (url: string) => {
       await imageUpload.addFromUrl(url)
@@ -96,16 +81,11 @@ export const StudioCanvas = memo(function StudioCanvas() {
 
   return (
     <div
-      className={cn(
-        'studio-canvas transition-colors',
-        isDragOver &&
-          'ring-2 ring-primary/40 ring-inset rounded-xl bg-primary/5',
-      )}
+      className="studio-canvas"
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-5xl">
         <GenerationPreview
           generation={lastGeneration}
           isLatestResult

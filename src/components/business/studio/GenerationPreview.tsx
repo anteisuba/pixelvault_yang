@@ -2,27 +2,32 @@
 
 import { memo, useCallback, useState } from 'react'
 import {
+  Download,
+  Eraser,
   GripHorizontal,
   ImagePlus,
+  Layers,
+  Maximize2,
   RotateCcw,
+  Save,
+  Share2,
   Sparkles,
+  Wand2,
   ZoomIn,
   ZoomOut,
-  Maximize2,
 } from 'lucide-react'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import {
   TransformWrapper,
   TransformComponent,
   useControls,
 } from 'react-zoom-pan-pinch'
 
-import { useStudioGen } from '@/contexts/studio-context'
+import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { ImageCard } from '@/components/business/ImageCard'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
-import { getTranslatedModelLabel } from '@/lib/model-options'
-import { getGenerationPromptPreview } from '@/lib/studio-remix'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 function formatDuration(seconds: number): string {
@@ -47,9 +52,8 @@ export const GenerationPreview = memo(function GenerationPreview({
   onRetry,
 }: GenerationPreviewProps) {
   const { error, isGenerating, elapsedSeconds } = useStudioGen()
+  const { dispatch } = useStudioForm()
   const t = useTranslations('StudioV3')
-  const tModels = useTranslations('Models')
-  const format = useFormatter()
   const [detailOpen, setDetailOpen] = useState(false)
 
   const handleDragStart = useCallback(
@@ -65,6 +69,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     [generation],
   )
 
+  // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 py-16 sm:py-24">
@@ -81,9 +86,10 @@ export const GenerationPreview = memo(function GenerationPreview({
     )
   }
 
+  // ── Generating (no image yet) ─────────────────────────────────────
   if (isGenerating && !generation) {
     return (
-      <div className="rounded-xl overflow-hidden border border-border/40 bg-muted/20">
+      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10">
         <div className="flex flex-col items-center justify-center gap-3 py-12">
           <div className="relative">
             <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
@@ -101,6 +107,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     )
   }
 
+  // ── Error only (no generation) ────────────────────────────────────
   if (!generation) {
     return (
       <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
@@ -123,80 +130,167 @@ export const GenerationPreview = memo(function GenerationPreview({
     )
   }
 
-  const displayPrompt = getGenerationPromptPreview(generation)
-  const modelLabel = getTranslatedModelLabel(tModels, generation.model)
+  // ── Has generation: two-column layout (image + right toolbar) ─────
   const canUseAsReference =
     generation.outputType === 'IMAGE' && typeof onUseAsReference === 'function'
-  const canRemix =
-    generation.outputType === 'IMAGE' && typeof onRemix === 'function'
+
+  const handleDownload = () => {
+    if (!generation.url) return
+    const a = document.createElement('a')
+    a.href = generation.url
+    a.download = `pixelvault-${generation.id}.png`
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.click()
+  }
+
+  const handleShare = async () => {
+    if (!generation.url) return
+    try {
+      await navigator.clipboard.writeText(generation.url)
+    } catch {
+      // Fallback: ignore
+    }
+  }
+
+  const handleOpenLayers = () => {
+    dispatch({ type: 'OPEN_PANEL', payload: 'layerDecompose' })
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="rounded-full border border-border/60 bg-background/80 px-2 py-1 text-2xs font-semibold tracking-wide text-muted-foreground">
-            {isLatestResult ? t('latestResult') : t('historySelection')}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {modelLabel}
-          </span>
+    <>
+      <div className="flex gap-3">
+        {/* Left: image in dashed border container */}
+        <div className="flex-1 min-w-0">
+          <TransformWrapper
+            minScale={1}
+            maxScale={5}
+            doubleClick={{ mode: 'toggle', step: 2 }}
+            wheel={{ step: 0.1 }}
+            panning={{ velocityDisabled: true }}
+            disabled={isGenerating}
+          >
+            <div
+              className="group relative rounded-2xl border border-dashed border-border/60 bg-muted/10 overflow-hidden"
+              draggable={generation.outputType === 'IMAGE'}
+              onDragStart={handleDragStart}
+            >
+              <TransformComponent
+                wrapperClass="!w-full"
+                contentClass="!w-full flex items-center justify-center"
+              >
+                <ImageCard
+                  generation={generation}
+                  className="max-h-[60vh] w-auto mx-auto object-contain"
+                />
+              </TransformComponent>
+
+              {/* Zoom controls — top right */}
+              {!isGenerating && (
+                <ZoomControls onDetailOpen={() => setDetailOpen(true)} />
+              )}
+
+              {/* Drag hint */}
+              {!isGenerating && generation.outputType === 'IMAGE' && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
+                    <GripHorizontal className="size-3" />
+                    {t('dragHint')}
+                  </span>
+                </div>
+              )}
+
+              {/* Generating overlay */}
+              {isGenerating && (
+                <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-medium text-foreground">
+                      {t('generating')}
+                    </p>
+                    {elapsedSeconds > 0 && (
+                      <p className="text-2xs text-muted-foreground">
+                        {t('elapsed', {
+                          seconds: formatDuration(elapsedSeconds),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </TransformWrapper>
+
+          {/* Error below image */}
+          {error && (
+            <div className="mt-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-3">
+              <p className="text-sm font-medium text-foreground">
+                {t('previewErrorTitle')}
+              </p>
+              <p className="mt-1 font-serif text-xs text-muted-foreground">
+                {error}
+              </p>
+              {onRetry && !isGenerating && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 rounded-full"
+                  onClick={onRetry}
+                >
+                  <RotateCcw className="size-3.5" />
+                  {t('retry')}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-        <span className="shrink-0 text-2xs text-muted-foreground">
-          {format.dateTime(new Date(generation.createdAt), {
-            month: 'short',
-            day: 'numeric',
-          })}
-        </span>
+
+        {/* Right: tool buttons column */}
+        <div className="shrink-0 flex flex-col gap-1.5">
+          <CanvasToolButton
+            icon={Download}
+            label={t('toolDownload')}
+            onClick={handleDownload}
+          />
+          <CanvasToolButton
+            icon={Maximize2}
+            label={t('toolViewOriginal')}
+            onClick={() => setDetailOpen(true)}
+          />
+          <CanvasToolButton
+            icon={Share2}
+            label={t('toolShare')}
+            onClick={handleShare}
+          />
+          {canUseAsReference && (
+            <CanvasToolButton
+              icon={ImagePlus}
+              label={t('useAsReference')}
+              onClick={() => onUseAsReference?.(generation.url)}
+            />
+          )}
+          <div className="my-1 h-px bg-border/40" />
+          <CanvasToolButton
+            icon={Wand2}
+            label={t('toolSuperRes')}
+            disabled
+          />
+          <CanvasToolButton
+            icon={Eraser}
+            label={t('toolRemoveBg')}
+            disabled
+          />
+          <CanvasToolButton
+            icon={Save}
+            label={t('toolSaveSuperRes')}
+            disabled
+          />
+          <CanvasToolButton
+            icon={Layers}
+            label={t('toolLayers')}
+            onClick={handleOpenLayers}
+          />
+        </div>
       </div>
-
-      <TransformWrapper
-        minScale={1}
-        maxScale={5}
-        doubleClick={{ mode: 'toggle', step: 2 }}
-        wheel={{ step: 0.1 }}
-        panning={{ velocityDisabled: true }}
-        disabled={isGenerating}
-      >
-        <div
-          className="group relative rounded-xl overflow-hidden"
-          draggable={generation.outputType === 'IMAGE'}
-          onDragStart={handleDragStart}
-        >
-          <TransformComponent wrapperClass="!w-full" contentClass="!w-full">
-            <ImageCard generation={generation} />
-          </TransformComponent>
-
-          {/* Zoom controls — top right */}
-          {!isGenerating && (
-            <ZoomControls onDetailOpen={() => setDetailOpen(true)} />
-          )}
-
-          {/* Drag hint */}
-          {!isGenerating && generation.outputType === 'IMAGE' && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
-                <GripHorizontal className="size-3" />
-                {t('dragHint')}
-              </span>
-            </div>
-          )}
-
-          {isGenerating && (
-            <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-foreground">
-                  {t('generating')}
-                </p>
-                {elapsedSeconds > 0 && (
-                  <p className="text-2xs text-muted-foreground">
-                    {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </TransformWrapper>
 
       {/* Detail modal */}
       <ImageDetailModal
@@ -205,67 +299,46 @@ export const GenerationPreview = memo(function GenerationPreview({
         onOpenChange={setDetailOpen}
         showVisibility
       />
-
-      {error && (
-        <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
-          <p className="text-sm font-medium text-foreground">
-            {t('previewErrorTitle')}
-          </p>
-          <p className="mt-1 font-serif text-sm text-muted-foreground">
-            {error}
-          </p>
-          {onRetry && !isGenerating && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 rounded-full"
-              onClick={onRetry}
-            >
-              <RotateCcw className="size-3.5" />
-              {t('retry')}
-            </Button>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-border/50 bg-background/70 p-4">
-        <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground">
-          {t('promptPreviewLabel')}
-        </p>
-        <p className="mt-2 line-clamp-4 font-serif text-sm leading-6 text-foreground">
-          {displayPrompt}
-        </p>
-      </div>
-
-      {(canUseAsReference || canRemix) && (
-        <div className="flex flex-wrap gap-2">
-          {canUseAsReference && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={() => onUseAsReference?.(generation.url)}
-            >
-              <ImagePlus className="size-3.5" />
-              {t('useAsReference')}
-            </Button>
-          )}
-          {canRemix && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={() => onRemix?.(generation)}
-            >
-              <Sparkles className="size-3.5" />
-              {t('remix')}
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+    </>
   )
 })
+
+// ── Canvas Tool Button ──────────────────────────────────────────────
+
+function CanvasToolButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick?: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'group/btn relative flex size-9 items-center justify-center rounded-lg border border-border/40 bg-background/80 transition-all',
+        disabled
+          ? 'opacity-40 cursor-not-allowed'
+          : 'hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-95',
+      )}
+      style={{
+        transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+    >
+      <Icon className="size-4" />
+      {/* Tooltip */}
+      <span className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-md bg-foreground/90 px-2 py-1 text-2xs text-background opacity-0 transition-opacity group-hover/btn:opacity-100">
+        {label}
+      </span>
+    </button>
+  )
+}
 
 // ── Zoom Controls (uses react-zoom-pan-pinch context) ─────────────
 

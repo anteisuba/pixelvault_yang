@@ -1620,7 +1620,15 @@
     "deleteProject": "削除",
     "addSubProject": "サブプロジェクトを追加",
     "apiError": "エラー",
-    "apiUnverified": "未確認"
+    "apiUnverified": "未確認",
+    "toolDownload": "ダウンロード",
+    "toolViewOriginal": "原画を表示",
+    "toolShare": "共有",
+    "toolSuperRes": "超解像",
+    "toolRemoveBg": "背景除去",
+    "toolSaveSuperRes": "超解像を保存",
+    "toolLayers": "レイヤー分解",
+    "linkCopied": "リンクをコピーしました"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "スタジオ草案",

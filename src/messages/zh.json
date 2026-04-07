@@ -1620,7 +1620,15 @@
     "deleteProject": "删除",
     "addSubProject": "添加子项目",
     "apiError": "异常",
-    "apiUnverified": "未验证"
+    "apiUnverified": "未验证",
+    "toolDownload": "下载",
+    "toolViewOriginal": "查看原图",
+    "toolShare": "分享",
+    "toolSuperRes": "超分辨率",
+    "toolRemoveBg": "去背景",
+    "toolSaveSuperRes": "保存超分结果",
+    "toolLayers": "图层分解",
+    "linkCopied": "链接已复制"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "工作台草稿",

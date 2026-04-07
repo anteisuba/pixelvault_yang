@@ -1620,7 +1620,15 @@
     "deleteProject": "Delete",
     "addSubProject": "Add Sub-project",
     "apiError": "Error",
-    "apiUnverified": "Unverified"
+    "apiUnverified": "Unverified",
+    "toolDownload": "Download",
+    "toolViewOriginal": "View original",
+    "toolShare": "Share",
+    "toolSuperRes": "Super resolution",
+    "toolRemoveBg": "Remove background",
+    "toolSaveSuperRes": "Save super-res",
+    "toolLayers": "Layer decompose",
+    "linkCopied": "Link copied"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "Studio draft",

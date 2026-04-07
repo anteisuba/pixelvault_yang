@@ -101,9 +101,17 @@ export function useImageUpload(): UseImageUploadReturn {
       e.preventDefault()
       setIsDragging(false)
 
-      // Ignore studio-ref drops here — handled by StudioLeftPanel global drop zone
-      // to avoid double-adding (event bubbles from ReferenceImageSection → LeftPanel)
+      // Handle studio gallery image drops (drag from gallery → reference)
       if (e.dataTransfer.types.includes('application/x-studio-ref')) {
+        const studioRef = e.dataTransfer.getData('application/x-studio-ref')
+        if (studioRef) {
+          try {
+            const { url } = JSON.parse(studioRef) as { url: string }
+            if (url) await addFromUrl(url)
+          } catch {
+            // Ignore invalid data
+          }
+        }
         return
       }
 
@@ -116,7 +124,7 @@ export function useImageUpload(): UseImageUploadReturn {
         addReferenceImage(base64)
       }
     },
-    [loadImageAsBase64, addReferenceImage],
+    [loadImageAsBase64, addReferenceImage, addFromUrl],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

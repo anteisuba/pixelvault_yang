@@ -193,7 +193,7 @@ export const StudioSidebar = memo(function StudioSidebar() {
                           className="absolute right-2 top-full z-50 mt-1 min-w-[140px] rounded-lg border border-border/60 bg-background py-1 shadow-lg"
                           style={{
                             animation:
-                              'studio-dropdown-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              'studio-dropdown-in 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
                           }}
                         >
                           <button

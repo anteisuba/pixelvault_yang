@@ -7,8 +7,15 @@ import {
   RotateCcw,
   Sparkles,
   ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react'
 import { useFormatter, useTranslations } from 'next-intl'
+import {
+  TransformWrapper,
+  TransformComponent,
+  useControls,
+} from 'react-zoom-pan-pinch'
 
 import { useStudioGen } from '@/contexts/studio-context'
 import { ImageCard } from '@/components/business/ImageCard'
@@ -60,18 +67,16 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   if (!generation && !isGenerating && !error) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 p-8">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-            <ImagePlus className="size-5 text-primary/60" />
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            {t('emptyStateTitle')}
-          </p>
-          <p className="font-serif text-sm leading-6 text-muted-foreground">
-            {t('emptyStateHint')}
-          </p>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 py-16 sm:py-24">
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
+          <ImagePlus className="size-6 text-primary/60" />
         </div>
+        <p className="mt-4 text-sm font-medium text-foreground">
+          {t('emptyStateTitle')}
+        </p>
+        <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
+          {t('emptyStateHint')}
+        </p>
       </div>
     )
   }
@@ -144,48 +149,54 @@ export const GenerationPreview = memo(function GenerationPreview({
         </span>
       </div>
 
-      <div
-        className="group relative rounded-xl overflow-hidden cursor-grab active:cursor-grabbing"
-        draggable={generation.outputType === 'IMAGE'}
-        onDragStart={handleDragStart}
+      <TransformWrapper
+        minScale={1}
+        maxScale={5}
+        doubleClick={{ mode: 'toggle', step: 2 }}
+        wheel={{ step: 0.1 }}
+        panning={{ velocityDisabled: true }}
+        disabled={isGenerating}
       >
-        <ImageCard generation={generation} />
+        <div
+          className="group relative rounded-xl overflow-hidden"
+          draggable={generation.outputType === 'IMAGE'}
+          onDragStart={handleDragStart}
+        >
+          <TransformComponent wrapperClass="!w-full" contentClass="!w-full">
+            <ImageCard generation={generation} />
+          </TransformComponent>
 
-        {/* Hover overlay — click to zoom, drag hint at bottom */}
-        {!isGenerating && (
-          <button
-            type="button"
-            onClick={() => setDetailOpen(true)}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/0 opacity-0 transition-all duration-200 group-hover:bg-black/20 group-hover:opacity-100"
-            aria-label={t('openDetail')}
-          >
-            <div className="rounded-full bg-background/90 p-2 shadow-sm backdrop-blur-sm">
-              <ZoomIn className="size-5 text-foreground" />
-            </div>
-            {generation.outputType === 'IMAGE' && (
-              <span className="mt-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
+          {/* Zoom controls — top right */}
+          {!isGenerating && (
+            <ZoomControls onDetailOpen={() => setDetailOpen(true)} />
+          )}
+
+          {/* Drag hint */}
+          {!isGenerating && generation.outputType === 'IMAGE' && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-2xs text-muted-foreground backdrop-blur-sm">
                 <GripHorizontal className="size-3" />
                 {t('dragHint')}
               </span>
-            )}
-          </button>
-        )}
-
-        {isGenerating && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-foreground">
-                {t('generating')}
-              </p>
-              {elapsedSeconds > 0 && (
-                <p className="text-2xs text-muted-foreground">
-                  {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
-                </p>
-              )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {isGenerating && (
+            <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-medium text-foreground">
+                  {t('generating')}
+                </p>
+                {elapsedSeconds > 0 && (
+                  <p className="text-2xs text-muted-foreground">
+                    {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </TransformWrapper>
 
       {/* Detail modal */}
       <ImageDetailModal
@@ -255,3 +266,46 @@ export const GenerationPreview = memo(function GenerationPreview({
     </div>
   )
 })
+
+// ── Zoom Controls (uses react-zoom-pan-pinch context) ─────────────
+
+function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
+  const { zoomIn, zoomOut, resetTransform } = useControls()
+
+  return (
+    <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <button
+        type="button"
+        onClick={() => zoomIn(0.5)}
+        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+        aria-label="Zoom in"
+      >
+        <ZoomIn className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => zoomOut(0.5)}
+        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+        aria-label="Zoom out"
+      >
+        <ZoomOut className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => resetTransform()}
+        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+        aria-label="Reset zoom"
+      >
+        <Maximize2 className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onDetailOpen}
+        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+        aria-label="Open detail"
+      >
+        <Sparkles className="size-3.5" />
+      </button>
+    </div>
+  )
+}

@@ -17,7 +17,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-2xs font-medium text-muted-foreground mr-1 hidden sm:inline">
+      <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
         {t('aspectRatioLabel')}
       </span>
       {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
@@ -28,14 +28,14 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
           aria-checked={state.aspectRatio === r}
           onClick={() => dispatch({ type: 'SET_ASPECT_RATIO', payload: r })}
           className={cn(
-            'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
+            'rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200',
             'hover:scale-[1.03] active:scale-[0.95]',
             state.aspectRatio === r
               ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
               : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
           )}
           style={{
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
           {r}

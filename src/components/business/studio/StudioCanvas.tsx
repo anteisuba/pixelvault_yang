@@ -97,14 +97,15 @@ export const StudioCanvas = memo(function StudioCanvas() {
   return (
     <div
       className={cn(
-        'studio-canvas flex items-center justify-center overflow-auto p-6 min-h-0 transition-colors',
-        isDragOver && 'ring-2 ring-primary/40 ring-inset rounded-xl bg-primary/5',
+        'studio-canvas transition-colors',
+        isDragOver &&
+          'ring-2 ring-primary/40 ring-inset rounded-xl bg-primary/5',
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl">
         <GenerationPreview
           generation={lastGeneration}
           isLatestResult

@@ -3,7 +3,6 @@
 import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
-import { Particles } from '@/components/ui/particles'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import {
   StudioModeSelector,
@@ -12,6 +11,10 @@ import {
   StudioBottomDock,
   StudioSidebar,
   StudioGallery,
+  StudioFlowLayout,
+  StudioCommandPalette,
+  StudioPanelPopovers,
+  StudioPanelSheets,
 } from '@/components/business/studio'
 
 const VideoGenerateForm = dynamic(
@@ -68,22 +71,20 @@ function StudioWorkspaceInner() {
               aria-labelledby="studio-tab-image"
               className="studio-layout-v2"
             >
-              <Particles
-                className="fixed inset-0 z-0 pointer-events-none"
-                quantity={120}
-                staticity={30}
-                ease={40}
-                size={1.5}
-                color="#c4653f"
-              />
               <StudioTopBar />
-              <StudioCanvas />
-              <StudioBottomDock />
-              <StudioGallery />
+              <StudioFlowLayout
+                canvas={<StudioCanvas />}
+                dock={<StudioBottomDock />}
+                gallery={<StudioGallery />}
+              />
+              <StudioPanelPopovers />
+              <StudioPanelSheets />
             </div>
           </SidebarInset>
         </>
       )}
+
+      <StudioCommandPalette />
 
       <OnboardingTooltip
         active={onboarding.active}

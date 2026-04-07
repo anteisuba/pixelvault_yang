@@ -439,7 +439,13 @@
         "all": "All types",
         "image": "Images",
         "video": "Videos"
-      }
+      },
+      "tabs": {
+        "all": "All",
+        "favorites": "Favorites",
+        "today": "Today"
+      },
+      "signInToFavorite": "Sign in to view your favorites"
     },
     "feedEyebrow": "Archive",
     "feedTitle": "Recent public works",
@@ -809,7 +815,11 @@
     "featuredOn": "Pinned",
     "featuredOff": "Not pinned",
     "pinAction": "Pin to Top",
-    "unpinAction": "Unpin"
+    "unpinAction": "Unpin",
+    "like": "Like",
+    "unlike": "Unlike",
+    "download": "Download",
+    "downloadFailed": "Download failed"
   },
   "PromptEnhance": {
     "button": "Enhance",
@@ -1551,6 +1561,14 @@
     "removeToken": "Remove",
     "cardManagement": "Card Management",
     "projectHistory": "Project & History"
+  },
+  "StudioPanels": {
+    "reference": "Reference Images",
+    "reverse": "Image Reverse Engineer",
+    "layers": "Layer Decompose",
+    "advanced": "Advanced Settings",
+    "enhance": "Prompt Enhancement",
+    "civitai": "Civitai Token"
   },
   "StudioV3": {
     "quickMode": "Quick Generate",

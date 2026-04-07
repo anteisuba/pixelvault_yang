@@ -183,7 +183,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 : 'bg-muted text-muted-foreground cursor-not-allowed',
           )}
           style={{
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
           {isGenerating ? (

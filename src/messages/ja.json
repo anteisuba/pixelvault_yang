@@ -439,7 +439,13 @@
         "all": "すべて",
         "image": "画像",
         "video": "動画"
-      }
+      },
+      "tabs": {
+        "all": "すべて",
+        "favorites": "お気に入り",
+        "today": "今日"
+      },
+      "signInToFavorite": "お気に入りを表示するにはログインしてください"
     },
     "feedEyebrow": "アーカイブ",
     "feedTitle": "最近の公開作品",
@@ -809,7 +815,11 @@
     "featuredOn": "ピン留め中",
     "featuredOff": "未ピン留め",
     "pinAction": "トップにピン留め",
-    "unpinAction": "ピン留め解除"
+    "unpinAction": "ピン留め解除",
+    "like": "いいね",
+    "unlike": "いいね解除",
+    "download": "ダウンロード",
+    "downloadFailed": "ダウンロードに失敗しました"
   },
   "PromptEnhance": {
     "button": "強化",
@@ -1551,6 +1561,14 @@
     "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください",
     "promptHint": "プロンプトを入力して生成",
     "noModelHint": "まずモデルを選択してください"
+  },
+  "StudioPanels": {
+    "reference": "参照画像",
+    "reverse": "画像リバースエンジニア",
+    "layers": "レイヤー分解",
+    "advanced": "詳細設定",
+    "enhance": "プロンプト強化",
+    "civitai": "Civitai トークン"
   },
   "StudioV3": {
     "quickMode": "クイック生成",

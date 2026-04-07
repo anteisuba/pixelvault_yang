@@ -43,7 +43,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
     : null
 
   return (
-    <div className="flex h-11 items-center gap-3 border-b border-border/60 px-4 shrink-0 font-display">
+    <div className="flex h-12 items-center gap-3 border-b border-border/60 px-4 shrink-0 font-display">
       {/* Sidebar toggle */}
       <button
         type="button"
@@ -54,7 +54,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
         )}
         aria-label="Toggle sidebar"
       >
-        <PanelLeft className="size-4" />
+        <PanelLeft className="size-4.5" />
       </button>
 
       {/* Image / Video toggle */}
@@ -71,13 +71,13 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all duration-200',
+            'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
             state.outputType === 'image'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
-          <ImageIcon className="size-3.5" />
+          <ImageIcon className="size-4" />
           {tStudio('modeImage')}
         </button>
         <button
@@ -88,19 +88,22 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all duration-200',
+            'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
             state.outputType === 'video'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
-          <Film className="size-3.5" />
+          <Film className="size-4" />
           {tStudio('modeVideo')}
         </button>
       </div>
 
       {/* Divider */}
-      <div className="hidden xl:block h-6 w-px bg-border/60" aria-hidden="true" />
+      <div
+        className="hidden xl:block h-6 w-px bg-border/60"
+        aria-hidden="true"
+      />
 
       {/* Quick / Card workflow toggle */}
       <div
@@ -116,7 +119,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
           }
           className={cn(
-            'rounded-md px-3 py-1 text-xs font-medium transition-all duration-200',
+            'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
             state.workflowMode === 'quick'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -132,7 +135,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
           }
           className={cn(
-            'rounded-md px-3 py-1 text-xs font-medium transition-all duration-200',
+            'rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
             state.workflowMode === 'card'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -144,7 +147,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
 
       {/* Active route indicator */}
       {routeLabel && (
-        <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground ml-1">
+        <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground ml-1">
           <ApiKeyHealthDot status={routeHealth} />
           <span className="font-medium text-foreground">{routeLabel}</span>
           {routeProvider && <span>{routeProvider}</span>}
@@ -155,8 +158,8 @@ export const StudioTopBar = memo(function StudioTopBar() {
       <div className="flex-1" />
 
       {/* Free credits badge */}
-      <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-xs text-muted-foreground">
-        <Gift className="size-3.5 text-chart-3" />
+      <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-sm text-muted-foreground">
+        <Gift className="size-4 text-chart-3" />
         <span className="font-serif font-medium">
           {tStudio('freeQuota', {
             remaining: Math.max(0, freeRemaining),

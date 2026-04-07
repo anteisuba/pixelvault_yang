@@ -1,7 +1,7 @@
 'use client'
 
-import { memo, useCallback, useMemo, useState, useRef } from 'react'
-import { Heart, RefreshCw, Download } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { Heart, RefreshCw, Download, Grid3X3, LayoutGrid } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -11,17 +11,42 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { ImageDetailModal } from '@/components/business/ImageDetailModal'
+import { StudioLightbox } from './StudioLightbox'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 
-const COLS = 5
-const VISIBLE_ROWS = 3 // 15 items = 3 rows of 5
-const ROW_HEIGHT = 130 // px per row (including gap)
-const GAP = 6
+const COLS_WIDE = 5
+const COLS_DESKTOP = 4
+const COLS_TABLET = 3
+const COLS_MOBILE = 2
+const GAP = 8
+
+function useResponsiveCols() {
+  const [cols, setCols] = useState(COLS_DESKTOP)
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      setCols(
+        w < 640
+          ? COLS_MOBILE
+          : w < 1024
+            ? COLS_TABLET
+            : w < 1440
+              ? COLS_DESKTOP
+              : COLS_WIDE,
+      )
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  return cols
+}
 
 export const StudioGallery = memo(function StudioGallery() {
   const { dispatch } = useStudioForm()
@@ -30,10 +55,11 @@ export const StudioGallery = memo(function StudioGallery() {
   const { modelOptions } = useImageModelOptions()
   const t = useTranslations('StudioV3')
   const tProj = useTranslations('Projects')
+  const COLS = useResponsiveCols()
 
-  const [detailGeneration, setDetailGeneration] =
-    useState<GenerationRecord | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState(-1)
   const [filter, setFilter] = useState<'all' | 'favorites' | 'today'>('all')
+  const [layout, setLayout] = useState<'grid' | 'masonry'>('masonry')
 
   // Merge latest generation into history
   const allGenerations = useMemo(() => {
@@ -96,44 +122,69 @@ export const StudioGallery = memo(function StudioGallery() {
     return result
   }, [allGenerations])
 
-  const needsVirtualization = rows.length > VISIBLE_ROWS
+  // Feed mode: no internal virtualization, parent scroll handles it
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 2,
-    enabled: needsVirtualization,
-  })
 
   return (
     <section className="studio-history space-y-2">
-      {/* Header + filters */}
+      {/* Header + filters + layout toggle */}
       <div className="flex items-center justify-between">
-        <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-display">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-display">
           {tProj('history')}
         </h3>
-        <div className="flex gap-1">
-          {(['all', 'favorites', 'today'] as const).map((f) => (
+        <div className="flex items-center gap-2">
+          {/* Layout toggle */}
+          <div className="flex rounded-md border border-border/40 p-0.5">
             <button
-              key={f}
               type="button"
-              onClick={() => setFilter(f)}
+              onClick={() => setLayout('grid')}
               className={cn(
-                'rounded-md px-2.5 py-1 text-2xs transition-colors',
-                filter === f
-                  ? 'bg-foreground text-background font-medium'
+                'flex size-7 items-center justify-center rounded-sm transition-colors',
+                layout === 'grid'
+                  ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:bg-muted',
               )}
+              aria-label="Grid layout"
             >
-              {f === 'all'
-                ? 'All'
-                : f === 'favorites'
-                  ? t('favorites')
-                  : t('today')}
+              <Grid3X3 className="size-3.5" />
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setLayout('masonry')}
+              className={cn(
+                'flex size-7 items-center justify-center rounded-sm transition-colors',
+                layout === 'masonry'
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+              aria-label="Masonry layout"
+            >
+              <LayoutGrid className="size-3.5" />
+            </button>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex gap-1">
+            {(['all', 'favorites', 'today'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-xs transition-colors',
+                  filter === f
+                    ? 'bg-foreground text-background font-medium'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {f === 'all'
+                  ? 'All'
+                  : f === 'favorites'
+                    ? t('favorites')
+                    : t('today')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -146,69 +197,43 @@ export const StudioGallery = memo(function StudioGallery() {
         </div>
       )}
 
-      {/* Grid gallery with virtualization */}
+      {/* Gallery feed — masonry or grid */}
       {!isEmpty && (
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto"
-          style={{
-            maxHeight: needsVirtualization
-              ? VISIBLE_ROWS * ROW_HEIGHT + GAP
-              : undefined,
-          }}
-        >
-          {needsVirtualization ? (
-            /* Virtualized rows */
+        <div ref={scrollRef}>
+          {layout === 'masonry' ? (
             <div
-              style={{
-                height: virtualizer.getTotalSize(),
-                position: 'relative',
-                width: '100%',
-              }}
+              className="studio-masonry-grid"
+              style={{ columns: COLS, gap: GAP }}
             >
-              {virtualizer.getVirtualItems().map((virtualRow) => {
-                const row = rows[virtualRow.index]
-                return (
-                  <div
-                    key={virtualRow.index}
-                    className="absolute left-0 right-0"
-                    style={{
-                      top: virtualRow.start,
-                      height: virtualRow.size,
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${COLS}, 1fr)`,
-                      gap: GAP,
-                    }}
-                  >
-                    {row.map((gen) => (
-                      <GalleryItem
-                        key={gen.id}
-                        gen={gen}
-                        isLatest={gen.id === lastGeneration?.id}
-                        onDragStart={handleDragStart}
-                        onClick={setDetailGeneration}
-                        onRemix={handleRemix}
-                        onUseAsRef={handleUseAsRef}
-                        t={t}
-                      />
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            /* Non-virtualized grid (≤15 items) */
-            <div
-              className="grid gap-1.5"
-              style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
-            >
-              {allGenerations.map((gen) => (
+              {allGenerations.map((gen, idx) => (
                 <GalleryItem
                   key={gen.id}
                   gen={gen}
                   isLatest={gen.id === lastGeneration?.id}
                   onDragStart={handleDragStart}
-                  onClick={setDetailGeneration}
+                  onClick={() => setLightboxIndex(idx)}
+                  onRemix={handleRemix}
+                  onUseAsRef={handleUseAsRef}
+                  t={t}
+                  preserveAspectRatio
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+                gap: GAP,
+              }}
+            >
+              {allGenerations.map((gen, idx) => (
+                <GalleryItem
+                  key={gen.id}
+                  gen={gen}
+                  isLatest={gen.id === lastGeneration?.id}
+                  onDragStart={handleDragStart}
+                  onClick={() => setLightboxIndex(idx)}
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
                   t={t}
@@ -226,24 +251,20 @@ export const StudioGallery = memo(function StudioGallery() {
             type="button"
             onClick={projects.loadMoreHistory}
             disabled={projects.isLoadingHistory}
-            className="rounded-lg border border-dashed border-border/40 px-4 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-lg border border-dashed border-border/40 px-5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
           >
             {projects.isLoadingHistory ? '...' : tProj('historyLoadMore')}
           </button>
         </div>
       )}
 
-      {/* Detail modal */}
-      {detailGeneration && (
-        <ImageDetailModal
-          generation={detailGeneration}
-          open={!!detailGeneration}
-          onOpenChange={(open) => {
-            if (!open) setDetailGeneration(null)
-          }}
-          showVisibility
-        />
-      )}
+      {/* Lightbox */}
+      <StudioLightbox
+        generations={allGenerations}
+        index={lightboxIndex}
+        open={lightboxIndex >= 0}
+        onClose={() => setLightboxIndex(-1)}
+      />
     </section>
   )
 })
@@ -254,10 +275,11 @@ interface GalleryItemProps {
   gen: GenerationRecord
   isLatest: boolean
   onDragStart: (e: React.DragEvent, gen: GenerationRecord) => void
-  onClick: (gen: GenerationRecord) => void
+  onClick: () => void
   onRemix: (gen: GenerationRecord) => void
   onUseAsRef: (url: string) => Promise<void>
   t: ReturnType<typeof useTranslations>
+  preserveAspectRatio?: boolean
 }
 
 const GalleryItem = memo(function GalleryItem({
@@ -268,26 +290,41 @@ const GalleryItem = memo(function GalleryItem({
   onRemix,
   onUseAsRef,
   t,
+  preserveAspectRatio,
 }: GalleryItemProps) {
   return (
     <div
       className={cn(
-        'group relative aspect-square cursor-pointer overflow-hidden rounded-lg border transition-transform duration-200 hover:-translate-y-0.5',
+        'group relative cursor-pointer overflow-hidden rounded-lg border transition-transform duration-200 hover:-translate-y-0.5',
+        !preserveAspectRatio && 'aspect-square',
+        preserveAspectRatio && 'break-inside-avoid mb-1.5',
         isLatest ? 'border-2 border-primary' : 'border-border/40',
       )}
       draggable={gen.outputType === 'IMAGE' && !!gen.url}
       onDragStart={(e) => onDragStart(e, gen)}
-      onClick={() => onClick(gen)}
+      onClick={onClick}
     >
       {gen.url ? (
-        <Image
-          src={gen.url}
-          alt={gen.prompt?.slice(0, 50) ?? ''}
-          fill
-          sizes="20vw"
-          className="object-cover"
-          unoptimized
-        />
+        preserveAspectRatio ? (
+          <Image
+            src={gen.url}
+            alt={gen.prompt?.slice(0, 50) ?? ''}
+            width={gen.width ?? 512}
+            height={gen.height ?? 512}
+            sizes="20vw"
+            className="w-full h-auto"
+            unoptimized
+          />
+        ) : (
+          <Image
+            src={gen.url}
+            alt={gen.prompt?.slice(0, 50) ?? ''}
+            fill
+            sizes="20vw"
+            className="object-cover"
+            unoptimized
+          />
+        )
       ) : (
         <div className="flex size-full items-center justify-center bg-muted/30">
           <span className="text-xs text-muted-foreground">No image</span>
@@ -305,7 +342,7 @@ const GalleryItem = memo(function GalleryItem({
       <div
         className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 translate-y-[-4px] transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0"
         style={{
-          transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
         <GalleryAction
@@ -356,10 +393,10 @@ function GalleryAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex size-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm transition-all hover:bg-primary/80 hover:scale-110 active:scale-90"
-      style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+      className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm transition-all hover:bg-primary/80 hover:scale-110 active:scale-90"
+      style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
     >
-      <Icon className="size-3" />
+      <Icon className="size-3.5" />
     </button>
   )
 }

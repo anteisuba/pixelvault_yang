@@ -439,7 +439,13 @@
         "all": "全部类型",
         "image": "图片",
         "video": "视频"
-      }
+      },
+      "tabs": {
+        "all": "全部",
+        "favorites": "收藏",
+        "today": "今日"
+      },
+      "signInToFavorite": "登录后查看收藏"
     },
     "feedEyebrow": "档案",
     "feedTitle": "最近公开作品",
@@ -809,7 +815,11 @@
     "featuredOn": "已置顶",
     "featuredOff": "未置顶",
     "pinAction": "置顶到首页",
-    "unpinAction": "取消置顶"
+    "unpinAction": "取消置顶",
+    "like": "收藏",
+    "unlike": "取消收藏",
+    "download": "下载",
+    "downloadFailed": "下载失败"
   },
   "PromptEnhance": {
     "button": "增强",
@@ -1551,6 +1561,14 @@
     "removeToken": "删除",
     "cardManagement": "卡片管理",
     "projectHistory": "项目与历史"
+  },
+  "StudioPanels": {
+    "reference": "参考图",
+    "reverse": "图片反向工程",
+    "layers": "图层分解",
+    "advanced": "高级设置",
+    "enhance": "提示词增强",
+    "civitai": "Civitai Token"
   },
   "StudioV3": {
     "quickMode": "快速生成",

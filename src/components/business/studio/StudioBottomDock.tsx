@@ -91,7 +91,8 @@ function ModelDropdownStandalone() {
 
   const activeOpt = selected ?? visibleOptions[0]
   const selectedLabel = activeOpt
-    ? (activeOpt.keyLabel ?? getTranslatedModelLabel(tModels, activeOpt.modelId))
+    ? (activeOpt.keyLabel ??
+      getTranslatedModelLabel(tModels, activeOpt.modelId))
     : ''
   const selectedProvider = activeOpt
     ? getProviderLabel(activeOpt.providerConfig)
@@ -106,11 +107,11 @@ function ModelDropdownStandalone() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200',
+          'flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200',
           'border-border/50 hover:border-primary/20 active:scale-[0.97]',
         )}
         style={{
-          transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
         <ApiKeyHealthDot status={selectedHealth} />
@@ -118,11 +119,11 @@ function ModelDropdownStandalone() {
         <span className="text-muted-foreground/60">{selectedProvider}</span>
         <ChevronDown
           className={cn(
-            'size-3 text-muted-foreground transition-transform duration-300',
+            'size-3.5 text-muted-foreground transition-transform duration-300',
             open && 'rotate-180',
           )}
           style={{
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       </button>
@@ -132,7 +133,7 @@ function ModelDropdownStandalone() {
           className="absolute left-0 bottom-full z-50 mb-1 min-w-[280px] rounded-xl border border-border/60 bg-background py-1 shadow-lg"
           style={{
             animation:
-              'studio-dropdown-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              'studio-dropdown-in 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
           {visibleOptions.map((option) => {
@@ -152,7 +153,7 @@ function ModelDropdownStandalone() {
                   setOpen(false)
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors',
+                  'flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors',
                   'hover:bg-muted',
                   isSelected && 'bg-muted/60',
                 )}

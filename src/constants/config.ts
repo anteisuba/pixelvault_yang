@@ -238,7 +238,7 @@ export const HEALTH_CHECK = {
 /** Free tier configuration */
 export const FREE_TIER = {
   /** Maximum free generations per user per day */
-  DAILY_LIMIT: 5,
+  DAILY_LIMIT: 20,
   /** Whether the free tier is enabled */
   ENABLED: true,
 } as const

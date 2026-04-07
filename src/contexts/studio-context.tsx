@@ -14,7 +14,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useReducer,
+  useRef,
   useMemo,
   type ReactNode,
 } from 'react'
@@ -256,6 +258,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // COLD — generation
   const generation = useUnifiedGenerate()
+
+  // Refresh usage summary when a generation completes
+  const prevGenerationRef = useRef(generation.lastGeneration)
+  useEffect(() => {
+    if (
+      generation.lastGeneration &&
+      generation.lastGeneration !== prevGenerationRef.current
+    ) {
+      prevGenerationRef.current = generation.lastGeneration
+      usageSummary.refresh()
+    }
+  }, [generation.lastGeneration, usageSummary])
 
   return (
     <StudioFormContext.Provider value={formValue}>

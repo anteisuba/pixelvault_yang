@@ -30,19 +30,30 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
   return (
     <div className="studio-dock">
       <div className="flex gap-4">
-        {/* Left: input controls */}
-        <div className="w-full max-w-xl shrink-0 space-y-2">
+        {/* Left: input controls — full width when no panel, shrinks when panel opens */}
+        <div
+          className="shrink-0 space-y-2 transition-all duration-300"
+          style={{
+            width: hasOpenPanel ? '60%' : '100%',
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
+        >
           {state.workflowMode === 'card' && <StudioCardSection />}
           <StudioPromptArea />
           <StudioToolbarPanels />
         </div>
 
-        {/* Right: tool panel content (shown when a toolbar button is clicked) */}
-        {hasOpenPanel && (
-          <div className="flex-1 min-w-0">
-            <StudioDockPanelArea />
-          </div>
-        )}
+        {/* Right: tool panel content — slides in from right */}
+        <div
+          className="min-w-0 overflow-hidden transition-all duration-300"
+          style={{
+            flex: hasOpenPanel ? '1 1 0%' : '0 0 0%',
+            opacity: hasOpenPanel ? 1 : 0,
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
+        >
+          <StudioDockPanelArea />
+        </div>
       </div>
     </div>
   )

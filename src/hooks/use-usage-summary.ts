@@ -1,14 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 
 import { fetchUsageSummary } from '@/lib/api-client'
+import { FREE_TIER } from '@/constants/config'
 import type { UsageSummary } from '@/types'
 
 interface UseUsageSummaryReturn {
   summary: UsageSummary
   isLoading: boolean
+  /** Re-fetch usage data (call after generation completes) */
+  refresh: () => void
 }
 
 const EMPTY_USAGE_SUMMARY: UsageSummary = {
@@ -18,13 +21,18 @@ const EMPTY_USAGE_SUMMARY: UsageSummary = {
   last30DaysRequests: 0,
   lastRequestAt: null,
   freeGenerationsToday: 0,
-  freeGenerationLimit: 5,
+  freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
 }
 
 export function useUsageSummary(): UseUsageSummaryReturn {
   const { isSignedIn } = useUser()
   const [summary, setSummary] = useState<UsageSummary>(EMPTY_USAGE_SUMMARY)
   const [isLoading, setIsLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const refresh = useCallback(() => {
+    setRefreshKey((k) => k + 1)
+  }, [])
 
   useEffect(() => {
     let isCancelled = false
@@ -62,7 +70,7 @@ export function useUsageSummary(): UseUsageSummaryReturn {
     return () => {
       isCancelled = true
     }
-  }, [isSignedIn])
+  }, [isSignedIn, refreshKey])
 
-  return { summary, isLoading }
+  return { summary, isLoading, refresh }
 }

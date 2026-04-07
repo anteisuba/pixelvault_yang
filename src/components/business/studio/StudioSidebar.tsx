@@ -17,6 +17,8 @@ import { useTranslations } from 'next-intl'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useUsageSummary } from '@/hooks/use-usage-summary'
+import { Gift } from 'lucide-react'
 import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
 import {
   Sheet,
@@ -44,6 +46,7 @@ export const StudioSidebar = memo(function StudioSidebar() {
   const { state, dispatch } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
   const { modelOptions } = useImageModelOptions()
+  const { summary } = useUsageSummary()
   const t = useTranslations('StudioV3')
   const tApiKeys = useTranslations('StudioApiKeys')
 
@@ -248,6 +251,35 @@ export const StudioSidebar = memo(function StudioSidebar() {
           <SidebarGroupLabel>{t('apiKeys')}</SidebarGroupLabel>
 
           <SidebarMenu>
+            {/* Built-in free tier key */}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={
+                  !state.selectedOptionId ||
+                  state.selectedOptionId?.startsWith('workspace:')
+                }
+                onClick={() => {
+                  // Select first workspace model option
+                  const workspaceOpt = modelOptions.find(
+                    (o) => o.sourceType === 'workspace' && o.freeTier,
+                  )
+                  if (workspaceOpt) {
+                    dispatch({
+                      type: 'SET_OPTION_ID',
+                      payload: workspaceOpt.optionId,
+                    })
+                  }
+                }}
+              >
+                <Gift className="size-4 text-primary" />
+                <span className="font-medium">PixelVault</span>
+                <span className="ml-auto text-2xs text-muted-foreground">
+                  {summary.freeGenerationLimit - summary.freeGenerationsToday}/
+                  {summary.freeGenerationLimit}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
             {activeKeys.map((key) => {
               // Find the model option that uses this key
               const matchingOption = modelOptions.find(

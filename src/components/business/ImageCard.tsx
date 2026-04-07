@@ -1,17 +1,20 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import Image from 'next/image'
 
 import {
   ArrowUpRight,
   Coins,
+  Download,
   Globe2,
+  Heart,
   ImageIcon,
   LockKeyhole,
   Pin,
   Play,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { isCjkLocale } from '@/i18n/routing'
@@ -22,6 +25,9 @@ import type { GenerationRecord } from '@/types'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { MetadataList } from '@/components/ui/metadata-list'
 import { useGenerationVisibility } from '@/hooks/use-generation-visibility'
+import { useLike } from '@/hooks/use-like'
+import { downloadRemoteAsset } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn, getLabelClassName } from '@/lib/utils'
 
@@ -46,12 +52,56 @@ export const ImageCard = memo(function ImageCard({
       initialIsFeatured: generation.isFeatured,
     })
   const [detailOpen, setDetailOpen] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [liked, setLiked] = useState(generation.isLiked ?? false)
+  const [likeCount, setLikeCount] = useState(generation.likeCount ?? 0)
   const format = useFormatter()
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('GalleryCard')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const tErrors = useTranslations('Errors')
+
+  const { toggle: toggleLike, isPending: isLikePending } = useLike(
+    useCallback((_id: string, newLiked: boolean, newCount: number) => {
+      setLiked(newLiked)
+      setLikeCount(newCount)
+    }, []),
+  )
+
+  const handleLike = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      // Optimistic update
+      setLiked((prev) => !prev)
+      setLikeCount((prev) => (liked ? Math.max(prev - 1, 0) : prev + 1))
+      void toggleLike(generation.id)
+    },
+    [generation.id, liked, toggleLike],
+  )
+
+  const handleDownload = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (isDownloading) return
+      setIsDownloading(true)
+      try {
+        const ext = generation.mimeType.split('/')[1] || 'png'
+        const result = await downloadRemoteAsset(
+          generation.url,
+          `pixelvault-${generation.id.slice(0, 8)}.${ext}`,
+        )
+        if (!result.success) {
+          toast.error(getApiErrorMessage(tErrors, result, t('downloadFailed')))
+          window.open(generation.url, '_blank', 'noopener,noreferrer')
+        }
+      } finally {
+        setIsDownloading(false)
+      }
+    },
+    [generation, isDownloading, t, tErrors],
+  )
 
   const isVideo =
     generation.outputType === 'VIDEO' || generation.url.endsWith('.mp4')
@@ -139,6 +189,36 @@ export const ImageCard = memo(function ImageCard({
               )}
             </>
           )}
+
+          {/* Hover action buttons */}
+          <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={handleLike}
+              disabled={isLikePending}
+              className="flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
+              aria-label={liked ? t('unlike') : t('like')}
+            >
+              <Heart
+                className={cn(
+                  'size-3.5 transition-colors',
+                  liked && 'fill-red-500 text-red-500',
+                )}
+              />
+              {likeCount > 0 && <span>{likeCount}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => void handleDownload(e)}
+              disabled={isDownloading}
+              className="flex items-center rounded-full bg-black/50 p-1.5 text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
+              aria-label={t('download')}
+            >
+              <Download
+                className={cn('size-3.5', isDownloading && 'animate-pulse')}
+              />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">

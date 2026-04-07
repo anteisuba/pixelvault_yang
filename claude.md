@@ -85,6 +85,35 @@ See `docs/frontend/design-system.md` for full spec. Key constraints:
 | LLM Validator | `src/lib/llm-output-validator.ts` | Validate LLM outputs (prompt enhance, recipe fusion) |
 | Invariants | `src/lib/invariants.ts` | Runtime assertions for programmer errors |
 
+## Dev Server
+
+- Dev server runs on port 3000 (`npm run dev`)
+- **Do NOT kill an already-running dev server** — if port 3000 is occupied, assume the user started it and reuse it as-is
+- Only start a new dev server if nothing is listening on port 3000
+
+## Testing
+
+**Framework**: Vitest + @testing-library/react · Test helpers in `src/test/api-helpers.ts`
+
+### Hard Rules
+1. **新增功能必须写测试** — 后端(service/API route)和前端(hook/component)都要有对应的 `.test.ts(x)` 文件
+2. **修改功能必须更新测试** — 改了逻辑就要更新对应测试，确保测试反映当前行为
+3. **完成功能后自动运行测试** — 写完代码后执行 `npx vitest run --reporter=verbose` 验证通过
+
+### 测试文件放置规则
+- API route: 同目录下 `route.test.ts`（如 `src/app/api/images/route.test.ts`）
+- Service: 同目录下 `<name>.test.ts`（如 `src/services/generation.service.test.ts`）
+- Hook: 同目录下 `<name>.test.ts`（如 `src/hooks/use-gallery.test.ts`）
+- Component: 同目录下 `<name>.test.tsx`（如 `src/components/business/ImageCard.test.tsx`）
+- Util/Lib: 同目录下 `<name>.test.ts`（如 `src/lib/utils.test.ts`）
+
+### 测试内容要求
+- **API route**: auth(401) → validation(400) → service mock → success → error handling(500)
+- **Service**: 业务逻辑验证、边界条件、错误抛出
+- **Hook**: 状态变化、API 调用 mock、loading/error 状态
+- **Component**: 渲染、用户交互、条件显示
+- **Zod schema**: safeParse 有效/无效输入、边界值
+
 ## Common Pitfalls
 
 1. **Adding a model** — must update: `AI_MODELS` enum + model config + i18n (3 files) + provider adapter

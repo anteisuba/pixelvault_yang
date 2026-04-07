@@ -15,6 +15,7 @@ import { fetchGalleryImages } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
   GallerySortOption,
+  GalleryTimeRange,
   GenerationRecord,
   OutputTypeFilter,
 } from '@/types'
@@ -24,6 +25,8 @@ export interface GalleryFilters {
   model: string
   sort: GallerySortOption
   type: OutputTypeFilter
+  timeRange: GalleryTimeRange
+  liked: boolean
 }
 
 interface UseGalleryOptions {
@@ -58,6 +61,8 @@ const DEFAULT_FILTERS: GalleryFilters = {
   model: '',
   sort: 'newest',
   type: 'all',
+  timeRange: 'all',
+  liked: false,
 }
 
 function mergeGenerations(
@@ -127,6 +132,8 @@ export function useGallery({
           model: f.model || undefined,
           sort: f.sort,
           type: f.type || undefined,
+          timeRange: f.timeRange || undefined,
+          liked: f.liked || undefined,
           mine,
         }
         const response = await fetchGalleryImages(
@@ -151,11 +158,7 @@ export function useGallery({
           })
         } else {
           setError(
-            getApiErrorMessage(
-              tErrors,
-              response,
-              'Failed to load gallery',
-            ),
+            getApiErrorMessage(tErrors, response, 'Failed to load gallery'),
           )
         }
       } catch (error) {

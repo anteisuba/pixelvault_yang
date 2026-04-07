@@ -19,5 +19,13 @@ export function buildGalleryQueryString(filters: GalleryFilters): string {
     params.set('type', filters.type)
   }
 
+  if (filters.timeRange && filters.timeRange !== 'all') {
+    params.set('timeRange', filters.timeRange)
+  }
+
+  if (filters.liked) {
+    params.set('liked', '1')
+  }
+
   return params.toString()
 }

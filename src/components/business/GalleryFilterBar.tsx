@@ -1,8 +1,10 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { Heart, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useRef, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
+import { toast } from 'sonner'
 
 import {
   getAvailableImageModels,
@@ -26,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 interface GalleryFilterBarProps {
   filters: GalleryFilters
@@ -37,6 +40,8 @@ const ALL_MODELS_VALUE = '__all__'
 const imageModels = getAvailableImageModels()
 const videoModels = getAvailableVideoModels()
 
+type TabKey = 'all' | 'favorites' | 'today'
+
 export function GalleryFilterBar({
   filters,
   onFiltersChange,
@@ -44,8 +49,31 @@ export function GalleryFilterBar({
 }: GalleryFilterBarProps) {
   const t = useTranslations('GalleryPage.filters')
   const tModels = useTranslations('Models')
+  const { isSignedIn } = useAuth()
   const [searchInput, setSearchInput] = useState(filters.search)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // Derive active tab from filters
+  const activeTab: TabKey = filters.liked
+    ? 'favorites'
+    : filters.timeRange === 'today'
+      ? 'today'
+      : 'all'
+
+  const handleTabChange = useCallback(
+    (tab: TabKey) => {
+      if (tab === 'favorites' && !isSignedIn) {
+        toast.info(t('signInToFavorite'))
+        return
+      }
+      onFiltersChange({
+        ...filters,
+        liked: tab === 'favorites',
+        timeRange: tab === 'today' ? 'today' : 'all',
+      })
+    },
+    [filters, onFiltersChange, isSignedIn, t],
+  )
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -93,7 +121,11 @@ export function GalleryFilterBar({
   )
 
   const hasActiveFilters =
-    filters.search || filters.model || filters.type !== 'all'
+    filters.search ||
+    filters.model ||
+    filters.type !== 'all' ||
+    filters.timeRange !== 'all' ||
+    filters.liked
 
   const modelsForType =
     filters.type === 'video'
@@ -102,107 +134,145 @@ export function GalleryFilterBar({
         ? imageModels
         : [...imageModels, ...videoModels]
 
+  const tabs: { key: TabKey; label: string; icon?: React.ReactNode }[] = [
+    { key: 'all', label: t('tabs.all') },
+    {
+      key: 'favorites',
+      label: t('tabs.favorites'),
+      icon: <Heart className="size-3.5" />,
+    },
+    { key: 'today', label: t('tabs.today') },
+  ]
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="relative flex-1">
-        <PlaceholdersInput
-          aria-label={t('searchLabel')}
-          placeholders={[
-            t('searchPlaceholder'),
-            t('searchHint1'),
-            t('searchHint2'),
-            t('searchHint3'),
-          ]}
-          value={searchInput}
-          onChange={handleSearchChange}
-          disabled={isLoading}
-        />
-        {searchInput ? (
+    <div className="space-y-4">
+      {/* Tab row */}
+      <div className="flex gap-1.5" role="tablist">
+        {tabs.map((tab) => (
           <button
+            key={tab.key}
             type="button"
-            onClick={clearSearch}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={t('clearSearch')}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            onClick={() => handleTabChange(tab.key)}
+            disabled={isLoading}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-300',
+              activeTab === tab.key
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground',
+            )}
           >
-            <X className="size-4" />
+            {tab.icon}
+            {tab.label}
           </button>
+        ))}
+      </div>
+
+      {/* Existing filter row */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <PlaceholdersInput
+            aria-label={t('searchLabel')}
+            placeholders={[
+              t('searchPlaceholder'),
+              t('searchHint1'),
+              t('searchHint2'),
+              t('searchHint3'),
+            ]}
+            value={searchInput}
+            onChange={handleSearchChange}
+            disabled={isLoading}
+          />
+          {searchInput ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={t('clearSearch')}
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Select
+            value={filters.type}
+            onValueChange={handleTypeChange}
+            disabled={isLoading}
+          >
+            <SelectTrigger className="w-[130px] rounded-full border-border/70 bg-card/60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OUTPUT_TYPE_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {t(`type.${option}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.model || ALL_MODELS_VALUE}
+            onValueChange={handleModelChange}
+            disabled={isLoading}
+          >
+            <SelectTrigger className="w-[180px] rounded-full border-border/70 bg-card/60">
+              <SelectValue placeholder={t('modelPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_MODELS_VALUE}>{t('allModels')}</SelectItem>
+              {modelsForType.map((model) => (
+                <SelectItem key={model.id} value={model.id}>
+                  {tModels(`${getModelMessageKey(model.id)}.label`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.sort}
+            onValueChange={handleSortChange}
+            disabled={isLoading}
+          >
+            <SelectTrigger className="w-[140px] rounded-full border-border/70 bg-card/60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GALLERY_SORT_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {t(`sort.${option}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasActiveFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              onFiltersChange({
+                search: '',
+                model: '',
+                sort: filters.sort,
+                type: 'all',
+                timeRange: 'all',
+                liked: false,
+              })
+            }
+            className="shrink-0 rounded-full text-muted-foreground"
+            disabled={isLoading}
+          >
+            <X className="size-3.5" />
+            {t('clearFilters')}
+          </Button>
         ) : null}
       </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Select
-          value={filters.type}
-          onValueChange={handleTypeChange}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="w-[130px] rounded-full border-border/70 bg-card/60">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {OUTPUT_TYPE_FILTER_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {t(`type.${option}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.model || ALL_MODELS_VALUE}
-          onValueChange={handleModelChange}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="w-[180px] rounded-full border-border/70 bg-card/60">
-            <SelectValue placeholder={t('modelPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_MODELS_VALUE}>{t('allModels')}</SelectItem>
-            {modelsForType.map((model) => (
-              <SelectItem key={model.id} value={model.id}>
-                {tModels(`${getModelMessageKey(model.id)}.label`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.sort}
-          onValueChange={handleSortChange}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="w-[140px] rounded-full border-border/70 bg-card/60">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {GALLERY_SORT_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {t(`sort.${option}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {hasActiveFilters ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            onFiltersChange({
-              search: '',
-              model: '',
-              sort: filters.sort,
-              type: 'all',
-            })
-          }
-          className="shrink-0 rounded-full text-muted-foreground"
-          disabled={isLoading}
-        >
-          <X className="size-3.5" />
-          {t('clearFilters')}
-        </Button>
-      ) : null}
     </div>
   )
 }

@@ -53,12 +53,16 @@ export default async function ProfilePage({
         model: filterResult.data.model ?? '',
         sort: filterResult.data.sort,
         type: filterResult.data.type,
+        timeRange: filterResult.data.timeRange,
+        liked: false,
       }
     : {
         search: '',
         model: '',
         sort: 'newest' as const,
         type: 'all' as const,
+        timeRange: 'all' as const,
+        liked: false,
       }
   const isDenseLocale = isCjkLocale(locale)
   const t = await getTranslations({

@@ -3,10 +3,10 @@
   "configurations": [
     {
       "name": "nextjs-dev",
-      "runtimeExecutable": "/usr/local/bin/node",
-      "runtimeArgs": ["/usr/local/bin/npm", "run", "dev"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
-      "autoPort": false
+      "autoPort": true
     }
   ]
 }

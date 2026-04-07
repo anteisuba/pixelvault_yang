@@ -1,13 +1,8 @@
 import { z } from 'zod'
 
-import {
-  createApiGetRoute,
-} from '@/lib/api-route-factory'
+import { createApiGetRoute } from '@/lib/api-route-factory'
 import { AuthError, ApiRequestError } from '@/lib/errors'
-import {
-  GallerySearchSchema,
-  type GalleryResponseData,
-} from '@/types'
+import { GallerySearchSchema, type GalleryResponseData } from '@/types'
 import {
   getPublicGenerations,
   countPublicGenerations,
@@ -27,15 +22,22 @@ export const GET = createApiGetRoute<
   handler: async ({ clerkId, data }): Promise<GalleryResponseData> => {
     try {
       const mine = data.mine === '1'
+      const liked = data.liked === '1'
       let userId: string | undefined
+      let likedByUserId: string | undefined
+      let viewerUserId: string | undefined
 
-      if (mine) {
-        if (!clerkId) {
+      // Resolve user when auth-gated features are used or user is logged in
+      if (mine || liked || clerkId) {
+        if ((mine || liked) && !clerkId) {
           throw new AuthError()
         }
-
-        const user = await ensureUser(clerkId)
-        userId = user.id
+        if (clerkId) {
+          const user = await ensureUser(clerkId)
+          if (mine) userId = user.id
+          if (liked) likedByUserId = user.id
+          viewerUserId = user.id
+        }
       }
 
       const [generations, total] = await Promise.all([
@@ -46,13 +48,18 @@ export const GET = createApiGetRoute<
           model: data.model,
           sort: data.sort,
           type: data.type,
+          timeRange: data.timeRange,
           userId,
+          likedByUserId,
+          viewerUserId,
         }),
         countPublicGenerations({
           search: data.search,
           model: data.model,
           type: data.type,
+          timeRange: data.timeRange,
           userId,
+          likedByUserId,
         }),
       ])
 

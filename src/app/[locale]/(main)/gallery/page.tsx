@@ -21,6 +21,8 @@ interface GalleryPageProps {
     model?: string
     sort?: string
     type?: string
+    timeRange?: string
+    liked?: string
   }>
 }
 
@@ -47,12 +49,16 @@ export default async function GalleryPage({
         model: filterResult.data.model ?? '',
         sort: filterResult.data.sort,
         type: filterResult.data.type,
+        timeRange: filterResult.data.timeRange,
+        liked: filterResult.data.liked === '1',
       }
     : {
         search: '',
         model: '',
         sort: 'newest' as const,
         type: 'all' as const,
+        timeRange: 'all' as const,
+        liked: false,
       }
   const [generations, total] = await Promise.all([
     getPublicGenerations({
@@ -62,11 +68,13 @@ export default async function GalleryPage({
       model: initialFilters.model || undefined,
       sort: initialFilters.sort,
       type: initialFilters.type,
+      timeRange: initialFilters.timeRange,
     }),
     countPublicGenerations({
       search: initialFilters.search || undefined,
       model: initialFilters.model || undefined,
       type: initialFilters.type,
+      timeRange: initialFilters.timeRange,
     }),
   ])
 

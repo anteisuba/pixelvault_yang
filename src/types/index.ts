@@ -420,6 +420,10 @@ export interface GenerationRecord {
   runGroupIndex?: number
   /** B0: Winner flag for compare mode */
   isWinner?: boolean
+  /** Like count — present in gallery context */
+  likeCount?: number
+  /** Whether the current viewer has liked this — present when viewer is authenticated */
+  isLiked?: boolean
 }
 
 // ─── API Key ──────────────────────────────────────────────────────
@@ -504,11 +508,16 @@ export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
 export const OUTPUT_TYPE_FILTER_OPTIONS = ['all', 'image', 'video'] as const
 export type OutputTypeFilter = (typeof OUTPUT_TYPE_FILTER_OPTIONS)[number]
 
+export const GALLERY_TIME_RANGE_OPTIONS = ['all', 'today', 'week'] as const
+export type GalleryTimeRange = (typeof GALLERY_TIME_RANGE_OPTIONS)[number]
+
 export const GallerySearchSchema = z.object({
   search: z.string().trim().max(200).optional(),
   model: z.string().trim().max(100).optional(),
   sort: z.enum(GALLERY_SORT_OPTIONS).default('newest'),
   type: z.enum(OUTPUT_TYPE_FILTER_OPTIONS).default('all'),
+  timeRange: z.enum(GALLERY_TIME_RANGE_OPTIONS).default('all'),
+  liked: z.enum(['1']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })

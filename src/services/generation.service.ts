@@ -5,6 +5,7 @@ import type { Prisma } from '@/lib/generated/prisma/client'
 import type {
   GenerationRecord,
   GallerySortOption,
+  GalleryTimeRange,
   OutputType,
   OutputTypeFilter,
 } from '@/types'
@@ -58,8 +59,13 @@ export interface GalleryQueryOptions {
   model?: string
   sort?: GallerySortOption
   type?: OutputTypeFilter
+  timeRange?: GalleryTimeRange
   /** When set, query this user's own generations (including private) */
   userId?: string
+  /** When set, only return generations liked by this user */
+  likedByUserId?: string
+  /** When set, include isLiked for this viewer */
+  viewerUserId?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -81,7 +87,9 @@ function buildGalleryWhere(options: {
   search?: string
   model?: string
   type?: OutputTypeFilter
+  timeRange?: GalleryTimeRange
   userId?: string
+  likedByUserId?: string
 }) {
   const where: Record<string, unknown> = {}
 
@@ -110,6 +118,24 @@ function buildGalleryWhere(options: {
   if (outputType) {
     where.outputType = outputType
   }
+
+  // Time range filter
+  if (options.timeRange === 'today') {
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    where.createdAt = { gte: startOfDay }
+  } else if (options.timeRange === 'week') {
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    weekAgo.setHours(0, 0, 0, 0)
+    where.createdAt = { gte: weekAgo }
+  }
+
+  // Liked-by filter
+  if (options.likedByUserId) {
+    where.likes = { some: { userId: options.likedByUserId } }
+  }
+
   return where
 }
 
@@ -275,10 +301,20 @@ export async function getPublicGenerations({
   model,
   sort = 'newest',
   type,
+  timeRange,
   userId,
+  likedByUserId,
+  viewerUserId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
   const results = await db.generation.findMany({
-    where: buildGalleryWhere({ search, model, type, userId }),
+    where: buildGalleryWhere({
+      search,
+      model,
+      type,
+      timeRange,
+      userId,
+      likedByUserId,
+    }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
@@ -290,12 +326,19 @@ export async function getPublicGenerations({
           avatarUrl: true,
         },
       },
+      _count: { select: { likes: true } },
+      ...(viewerUserId
+        ? { likes: { where: { userId: viewerUserId }, take: 1 } }
+        : {}),
     },
   })
 
-  // Map creator info onto records
+  // Map creator info + like data onto records
   const mapped = results.map((r) => {
-    const { user, ...rest } = r
+    const { user, _count, likes, ...rest } = r as typeof r & {
+      _count: { likes: number }
+      likes?: { id: string }[]
+    }
     return {
       ...rest,
       creator: user?.username
@@ -305,6 +348,8 @@ export async function getPublicGenerations({
             avatarUrl: user.avatarUrl,
           }
         : null,
+      likeCount: _count.likes,
+      isLiked: viewerUserId ? (likes?.length ?? 0) > 0 : undefined,
     }
   })
 
@@ -392,7 +437,7 @@ export async function toggleGenerationVisibility(
 export async function countPublicGenerations(
   options: Pick<
     GalleryQueryOptions,
-    'search' | 'model' | 'type' | 'userId'
+    'search' | 'model' | 'type' | 'timeRange' | 'userId' | 'likedByUserId'
   > = {},
 ): Promise<number> {
   return db.generation.count({

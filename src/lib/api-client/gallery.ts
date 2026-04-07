@@ -11,6 +11,8 @@ export async function fetchGalleryImages(
     model?: string
     sort?: string
     type?: string
+    timeRange?: string
+    liked?: boolean
     mine?: boolean
   },
 ): Promise<GalleryResponse> {
@@ -25,6 +27,10 @@ export async function fetchGalleryImages(
     if (filters?.type && filters.type !== 'all') {
       params.set('type', filters.type)
     }
+    if (filters?.timeRange && filters.timeRange !== 'all') {
+      params.set('timeRange', filters.timeRange)
+    }
+    if (filters?.liked) params.set('liked', '1')
     if (filters?.mine) params.set('mine', '1')
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)

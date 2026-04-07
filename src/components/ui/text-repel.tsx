@@ -121,7 +121,9 @@ export function TextRepel({
 
   const resolvedFontRef = useRef('sans-serif')
   const configRef = useRef({ fontSize, fontWeight, color, repelRadius, repelForce, dpr })
-  configRef.current = { fontSize, fontWeight, color, repelRadius, repelForce, dpr }
+  useEffect(() => {
+    configRef.current = { fontSize, fontWeight, color, repelRadius, repelForce, dpr }
+  }, [fontSize, fontWeight, color, repelRadius, repelForce, dpr])
 
   useEffect(() => {
     buildParticles()

@@ -111,7 +111,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   if (!hasOpenPanel) return null
 
   return (
-    <div className="h-full overflow-y-auto rounded-lg border border-border/40 bg-background/60 p-3">
+    <div className="h-full overflow-y-auto">
       {/* ── Prompt Enhancer ──────────────────────────────────── */}
       {state.panels.enhance && (
         <PromptEnhancer

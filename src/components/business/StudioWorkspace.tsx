@@ -13,8 +13,6 @@ import {
   StudioGallery,
   StudioFlowLayout,
   StudioCommandPalette,
-  StudioPanelPopovers,
-  StudioPanelSheets,
 } from '@/components/business/studio'
 
 const VideoGenerateForm = dynamic(
@@ -77,8 +75,6 @@ function StudioWorkspaceInner() {
                 dock={<StudioBottomDock />}
                 gallery={<StudioGallery />}
               />
-              <StudioPanelPopovers />
-              <StudioPanelSheets />
             </div>
           </SidebarInset>
         </>

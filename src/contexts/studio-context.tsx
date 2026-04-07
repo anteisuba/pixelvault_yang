@@ -50,6 +50,7 @@ export type PanelName =
   | 'advanced'
   | 'refImage'
   | 'layerDecompose'
+  | 'aspectRatio'
 
 type OutputType = 'image' | 'video'
 type WorkflowMode = 'quick' | 'card'
@@ -90,6 +91,7 @@ const initialPanels: Record<PanelName, boolean> = {
   advanced: false,
   refImage: false,
   layerDecompose: false,
+  aspectRatio: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -135,6 +137,7 @@ export function studioFormReducer(
         'refImage',
         'layerDecompose',
         'civitai',
+        'aspectRatio',
       ]
       const isToolbarPanel = toolbarPanels.includes(target)
       const newPanels = { ...state.panels }

@@ -541,8 +541,7 @@ html:lang(zh) {
   }
 
   .studio-dock-inner {
-    max-width: 48rem;
-    margin: 0 auto;
+    width: 100%;
   }
 
   /* Resizable panel sidebar styling */

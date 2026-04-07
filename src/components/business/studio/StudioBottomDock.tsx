@@ -8,30 +8,41 @@ import { StudioCardSection } from './StudioCardSection'
 import { StudioPromptArea } from './StudioPromptArea'
 import { StudioGenerateBar } from './StudioGenerateBar'
 import { StudioToolbarPanels } from './StudioToolbarPanels'
+import { StudioDockPanelArea } from './StudioDockPanelArea'
+
 /**
- * StudioBottomDock — Bottom dock consolidating all input controls.
- * Composes: prompt input + toolbar + expandable panels + aspect ratio + model selector.
+ * StudioBottomDock — Left-right split layout.
+ * Left: model selector + prompt + toolbar + aspect ratio
+ * Right: active tool panel content (inline, no popover/sheet)
  */
 export const StudioBottomDock = memo(function StudioBottomDock() {
   const { state } = useStudioForm()
 
+  const hasOpenPanel =
+    state.panels.enhance ||
+    state.panels.advanced ||
+    state.panels.civitai ||
+    state.panels.refImage ||
+    state.panels.reverse ||
+    state.panels.layerDecompose ||
+    state.panels.aspectRatio
+
   return (
     <div className="studio-dock">
-      <div className="studio-dock-inner space-y-2">
-        {/* Card section — card mode only */}
-        {state.workflowMode === 'card' && <StudioCardSection />}
-
-        {/* Model dropdown — quick mode only (reuse from CenterColumn) */}
-        {state.workflowMode === 'quick' && <ModelDropdownStandalone />}
-
-        {/* Prompt input (prompt-kit) */}
-        <StudioPromptArea />
-
-        {/* Controls: toolbar + expandable panels + aspect ratio */}
-        <div className="space-y-2">
+      <div className="flex gap-4">
+        {/* Left: input controls */}
+        <div className="w-full max-w-xl shrink-0 space-y-2">
+          {state.workflowMode === 'card' && <StudioCardSection />}
+          <StudioPromptArea />
           <StudioToolbarPanels />
-          <StudioGenerateBar />
         </div>
+
+        {/* Right: tool panel content (shown when a toolbar button is clicked) */}
+        {hasOpenPanel && (
+          <div className="flex-1 min-w-0">
+            <StudioDockPanelArea />
+          </div>
+        )}
       </div>
     </div>
   )

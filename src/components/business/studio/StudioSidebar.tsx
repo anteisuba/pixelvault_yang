@@ -14,8 +14,9 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioData } from '@/contexts/studio-context'
+import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
 import {
   Sheet,
@@ -40,7 +41,9 @@ import { cn } from '@/lib/utils'
 
 export const StudioSidebar = memo(function StudioSidebar() {
   const { projects } = useStudioData()
+  const { state, dispatch } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
+  const { modelOptions } = useImageModelOptions()
   const t = useTranslations('StudioV3')
   const tApiKeys = useTranslations('StudioApiKeys')
 
@@ -98,7 +101,10 @@ export const StudioSidebar = memo(function StudioSidebar() {
   )
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-border/50 !top-14 !h-[calc(100svh-3.5rem)]">
+    <Sidebar
+      collapsible="offcanvas"
+      className="border-r border-border/50 !top-14 !h-[calc(100svh-3.5rem)]"
+    >
       <SidebarContent>
         {/* ── Projects Group ──────────────────── */}
         <SidebarGroup>
@@ -241,45 +247,61 @@ export const StudioSidebar = memo(function StudioSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>{t('apiKeys')}</SidebarGroupLabel>
 
-          <div className="flex flex-col gap-0.5 px-2">
-            {activeKeys.map((key) => (
-              <div
-                key={key.id}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-sidebar-accent"
-              >
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{
-                    background:
-                      healthMap[key.id] === 'failed'
-                        ? '#ef4444'
-                        : healthMap[key.id] === 'available'
-                          ? '#22c55e'
-                          : '#a0a0a0',
-                  }}
-                />
-                <span className="font-medium text-sidebar-foreground">
-                  {key.label}
-                </span>
-                <span className="text-sidebar-foreground/60">
-                  {key.providerConfig.label}
-                </span>
-                {healthMap[key.id] === 'failed' ? (
-                  <span className="ml-auto rounded bg-red-50 px-1.5 py-0.5 text-2xs font-medium text-red-600 dark:bg-red-950 dark:text-red-400">
-                    {t('apiError')}
-                  </span>
-                ) : healthMap[key.id] === 'available' ? (
-                  <span className="ml-auto rounded bg-emerald-50 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                    {t('active')}
-                  </span>
-                ) : (
-                  <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-2xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                    {t('apiUnverified')}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+          <SidebarMenu>
+            {activeKeys.map((key) => {
+              // Find the model option that uses this key
+              const matchingOption = modelOptions.find(
+                (o) => o.keyId === key.id,
+              )
+              const isSelected =
+                matchingOption?.optionId === state.selectedOptionId
+
+              return (
+                <SidebarMenuItem key={key.id}>
+                  <SidebarMenuButton
+                    isActive={isSelected}
+                    onClick={() => {
+                      if (matchingOption) {
+                        dispatch({
+                          type: 'SET_OPTION_ID',
+                          payload: matchingOption.optionId,
+                        })
+                      }
+                    }}
+                  >
+                    <span
+                      className="size-1.5 shrink-0 rounded-full"
+                      style={{
+                        background:
+                          healthMap[key.id] === 'failed'
+                            ? '#ef4444'
+                            : healthMap[key.id] === 'available'
+                              ? '#22c55e'
+                              : '#a0a0a0',
+                      }}
+                    />
+                    <span className="font-medium">{key.label}</span>
+                    <span className="text-sidebar-foreground/60">
+                      {key.providerConfig.label}
+                    </span>
+                    {healthMap[key.id] === 'failed' ? (
+                      <span className="ml-auto rounded bg-red-50 px-1.5 py-0.5 text-2xs font-medium text-red-600 dark:bg-red-950 dark:text-red-400">
+                        {t('apiError')}
+                      </span>
+                    ) : healthMap[key.id] === 'available' ? (
+                      <span className="ml-auto rounded bg-emerald-50 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                        {t('active')}
+                      </span>
+                    ) : (
+                      <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-2xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                        {t('apiUnverified')}
+                      </span>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
+          </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
 
@@ -295,7 +317,7 @@ export const StudioSidebar = memo(function StudioSidebar() {
               {t('addApiKey')}
             </button>
           </SheetTrigger>
-          <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+          <SheetContent className="w-[520px] sm:max-w-[640px] overflow-y-auto">
             <SheetHeader>
               <SheetTitle>{tApiKeys('sheetTitle')}</SheetTitle>
             </SheetHeader>

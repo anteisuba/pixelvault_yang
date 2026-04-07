@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Key,
   Layers,
+  RatioIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -28,6 +29,8 @@ interface StudioToolbarProps {
   onReferenceImage?: () => void
   referenceImageCount?: number
   onLayerDecompose?: () => void
+  onAspectRatio?: () => void
+  aspectRatioOpen?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
@@ -92,6 +95,8 @@ export function StudioToolbar({
   onReferenceImage,
   referenceImageCount,
   onLayerDecompose,
+  onAspectRatio,
+  aspectRatioOpen,
   onCivitaiToken,
   hasToken,
   disabled,
@@ -138,6 +143,13 @@ export function StudioToolbar({
           icon={<Layers className="h-3.5 w-3.5" />}
           label={t('layerDecompose')}
           onClick={onLayerDecompose}
+          disabled={disabled}
+        />
+        <ToolButton
+          icon={<RatioIcon className="h-3.5 w-3.5" />}
+          label={t('aspectRatioLabel')}
+          onClick={onAspectRatio}
+          active={aspectRatioOpen}
           disabled={disabled}
         />
         <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

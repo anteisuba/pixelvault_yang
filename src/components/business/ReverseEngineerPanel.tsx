@@ -120,13 +120,7 @@ export function ReverseEngineerPanel({
   // Step 1: Upload
   if (step === 'idle' || step === 'uploading') {
     return (
-      <div className="space-y-4 studio-step-animate">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            {t('title')}
-          </h3>
-        </div>
-
+      <div className="studio-step-animate">
         <div
           onDragOver={(e) => {
             e.preventDefault()
@@ -136,21 +130,17 @@ export function ReverseEngineerPanel({
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 transition-colors',
+            'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
             isDragging
-              ? 'border-primary bg-primary/5'
-              : 'border-border/75 hover:border-primary/50 hover:bg-muted/30',
+              ? 'border-primary/50 bg-primary/5'
+              : 'border-border/60 bg-background/60 hover:border-primary/30 hover:bg-primary/3',
           )}
         >
-          <Upload className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-foreground">
-              {t('uploadTitle')}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('uploadHint')}
-            </p>
-          </div>
+          <Upload className="size-5 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">
+            {t('uploadTitle')}
+          </p>
+          <p className="text-xs text-muted-foreground">{t('uploadHint')}</p>
           <input
             ref={fileInputRef}
             type="file"
@@ -160,7 +150,7 @@ export function ReverseEngineerPanel({
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       </div>
     )
   }

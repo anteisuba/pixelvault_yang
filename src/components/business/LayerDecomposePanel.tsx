@@ -122,48 +122,33 @@ export function LayerDecomposePanel({
   // Step: idle — Upload zone
   if (step === 'idle') {
     return (
-      <div className="space-y-3 p-4">
-        <div className="flex items-center gap-2">
-          <Layers className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            {t('title')}
-          </h3>
-        </div>
-
-        <p className="text-xs text-muted-foreground">{t('animeOnly')}</p>
-
-        <div
-          onDragOver={(e) => {
-            e.preventDefault()
-            setIsDragging(true)
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-6 transition-colors',
-            isDragging
-              ? 'border-primary bg-primary/5'
-              : 'border-border/75 hover:border-primary/50 hover:bg-muted/30',
-          )}
-        >
-          <Upload className="size-6 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium text-foreground">
-              {t('uploadPrompt')}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('uploadHint')}
-            </p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
+          isDragging
+            ? 'border-primary/50 bg-primary/5'
+            : 'border-border/60 bg-background/60 hover:border-primary/30 hover:bg-primary/3',
+        )}
+      >
+        <Upload className="size-5 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">
+          {t('uploadPrompt')}
+        </p>
+        <p className="text-xs text-muted-foreground">{t('uploadHint')}</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
       </div>
     )
   }

@@ -22,8 +22,8 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
       {/* Canvas preview */}
       <div className="px-4 pt-3 pb-1 sm:px-6">{canvas}</div>
 
-      {/* Dock — sticky bottom while in view, scrolls away with content */}
-      <div className="sticky bottom-0 z-10">{dock}</div>
+      {/* Dock — normal flow, textarea expands downward */}
+      <div>{dock}</div>
 
       {/* Gallery feed — full-width masonry */}
       <div className="px-4 pb-4 sm:px-6">{gallery}</div>

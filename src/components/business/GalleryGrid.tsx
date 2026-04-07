@@ -32,6 +32,8 @@ export function GalleryGrid({
   showDelete = false,
   onDelete,
 }: GalleryGridProps) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+
   if (generations.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 px-6 py-16 text-center sm:px-10">
@@ -56,8 +58,6 @@ export function GalleryGrid({
       </div>
     )
   }
-
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   return (
     <section

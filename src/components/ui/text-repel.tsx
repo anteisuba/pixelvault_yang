@@ -120,59 +120,65 @@ export function TextRepel({
   }, [text, fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, dpr])
 
   const resolvedFontRef = useRef('sans-serif')
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const w = canvas.width / dpr
-    const h = canvas.height / dpr
-
-    ctx.clearRect(0, 0, w, h)
-    ctx.font = `${fontWeight} ${fontSize}px ${resolvedFontRef.current}`
-    ctx.textBaseline = 'top'
-    ctx.fillStyle = color
-
-    const mx = mouseRef.current.x
-    const my = mouseRef.current.y
-    const r2 = repelRadius * repelRadius
-
-    for (const p of particlesRef.current) {
-      const dx = p.x - mx
-      const dy = p.y - my
-      const dist2 = dx * dx + dy * dy
-
-      if (dist2 < r2 && dist2 > 0) {
-        const dist = Math.sqrt(dist2)
-        const force = (1 - dist / repelRadius) * repelForce
-        p.vx += (dx / dist) * force * fontSize
-        p.vy += (dy / dist) * force * fontSize
-      }
-
-      // spring back to origin
-      const sx = p.originX - p.x
-      const sy = p.originY - p.y
-      p.vx += sx * 0.08
-      p.vy += sy * 0.08
-
-      // damping
-      p.vx *= 0.85
-      p.vy *= 0.85
-
-      p.x += p.vx
-      p.y += p.vy
-
-      ctx.fillText(p.char, p.x, p.y)
-    }
-
-    rafRef.current = requestAnimationFrame(draw)
-  }, [fontSize, fontFamily, fontWeight, color, repelRadius, repelForce, dpr])
+  const configRef = useRef({ fontSize, fontWeight, color, repelRadius, repelForce, dpr })
+  configRef.current = { fontSize, fontWeight, color, repelRadius, repelForce, dpr }
 
   useEffect(() => {
     buildParticles()
+
+    function draw() {
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      const cfg = configRef.current
+      const w = canvas.width / cfg.dpr
+      const h = canvas.height / cfg.dpr
+
+      ctx.clearRect(0, 0, w, h)
+      ctx.font = `${cfg.fontWeight} ${cfg.fontSize}px ${resolvedFontRef.current}`
+      ctx.textBaseline = 'top'
+      ctx.fillStyle = cfg.color
+
+      const mx = mouseRef.current.x
+      const my = mouseRef.current.y
+      const r2 = cfg.repelRadius * cfg.repelRadius
+      const particles = particlesRef.current
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i]
+        const dx = p.x - mx
+        const dy = p.y - my
+        const dist2 = dx * dx + dy * dy
+
+        if (dist2 < r2 && dist2 > 0) {
+          const dist = Math.sqrt(dist2)
+          const force = (1 - dist / cfg.repelRadius) * cfg.repelForce
+          p.vx += (dx / dist) * force * cfg.fontSize
+          p.vy += (dy / dist) * force * cfg.fontSize
+        }
+
+        // spring back to origin
+        const sx = p.originX - p.x
+        const sy = p.originY - p.y
+        p.vx += sx * 0.08
+        p.vy += sy * 0.08
+
+        // damping
+        p.vx *= 0.85
+        p.vy *= 0.85
+
+        p.x += p.vx
+        p.y += p.vy
+
+        ctx.fillText(p.char, p.x, p.y)
+      }
+
+      rafRef.current = requestAnimationFrame(draw)
+    }
+
     rafRef.current = requestAnimationFrame(draw)
 
     const handleResize = () => {
@@ -184,7 +190,7 @@ export function TextRepel({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', handleResize)
     }
-  }, [buildParticles, draw])
+  }, [buildParticles])
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

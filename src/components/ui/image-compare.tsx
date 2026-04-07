@@ -20,6 +20,7 @@ export function ImageCompare({
   ...props
 }: ImageCompareProps) {
   const [position, setPosition] = useState(50)
+  const [containerWidth, setContainerWidth] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
 
@@ -27,6 +28,7 @@ export function ImageCompare({
     const container = containerRef.current
     if (!container) return
     const rect = container.getBoundingClientRect()
+    setContainerWidth(rect.width)
     const x = clientX - rect.left
     const pct = Math.max(0, Math.min(100, (x / rect.width) * 100))
     setPosition(pct)
@@ -84,7 +86,7 @@ export function ImageCompare({
           src={beforeSrc}
           alt={beforeLabel}
           className="block h-full object-cover"
-          style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100vw' }}
+          style={{ width: containerWidth ? `${containerWidth}px` : '100vw' }}
           draggable={false}
         />
       </div>

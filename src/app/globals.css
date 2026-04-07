@@ -504,11 +504,10 @@ html:lang(zh) {
   /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
   .studio-layout-v2 {
-    height: calc(100vh - 3.5rem);
+    min-height: calc(100vh - 3.5rem);
     display: flex;
     flex-direction: column;
     position: relative;
-    overflow: hidden;
     background: var(--background);
   }
 

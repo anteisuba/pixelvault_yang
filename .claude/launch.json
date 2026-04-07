@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "nextjs-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": ["-l", "-c", "npm run dev"],
       "port": 3000,
       "autoPort": true
     }

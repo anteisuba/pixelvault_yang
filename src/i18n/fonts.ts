@@ -1,17 +1,7 @@
-import {
-  Geist_Mono,
-  Instrument_Sans,
-  Noto_Sans_JP,
-  Noto_Sans_SC,
-  Noto_Serif_JP,
-  Noto_Serif_SC,
-  Source_Serif_4,
-  Space_Grotesk,
-  Zen_Maru_Gothic,
-} from 'next/font/google'
+import { Geist_Mono, Inter, Noto_Sans_JP, Noto_Sans_SC } from 'next/font/google'
 
-export const appSans = Instrument_Sans({
-  variable: '--font-instrument-sans',
+export const appSans = Inter({
+  variable: '--font-app-sans',
   subsets: ['latin'],
   display: 'swap',
 })
@@ -21,30 +11,8 @@ export const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-export const appDisplay = Space_Grotesk({
-  variable: '--font-space-grotesk',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-})
-
-export const appSerif = Source_Serif_4({
-  variable: '--font-source-serif',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-})
-
 export const japaneseSans = Noto_Sans_JP({
   variable: '--font-japanese-sans',
-  weight: ['400', '500', '700'],
-  display: 'swap',
-  preload: false,
-  fallback: ['Hiragino Sans', 'Yu Gothic UI', 'sans-serif'],
-})
-
-export const japaneseDisplay = Zen_Maru_Gothic({
-  variable: '--font-japanese-display',
   weight: ['400', '500', '700'],
   display: 'swap',
   preload: false,
@@ -57,12 +25,4 @@ export const chineseSans = Noto_Sans_SC({
   display: 'swap',
   preload: false,
   fallback: ['PingFang SC', 'Microsoft YaHei', 'sans-serif'],
-})
-
-export const chineseDisplay = Noto_Serif_SC({
-  variable: '--font-chinese-display',
-  weight: ['400', '600', '700'],
-  display: 'swap',
-  preload: false,
-  fallback: ['Songti SC', 'STSong', 'serif'],
 })

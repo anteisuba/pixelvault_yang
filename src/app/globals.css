@@ -14,8 +14,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-app-sans);
-  --font-display: var(--font-app-display);
-  --font-serif: var(--font-app-serif);
+  --font-display: var(--font-app-sans);
+  --font-serif: var(--font-app-sans);
   --font-mono: var(--font-geist-mono);
   /* Custom scale tokens */
   --max-width-content: 75rem;
@@ -114,10 +114,8 @@
     boxShadow: 0 0 0 var(--distance) oklch(from var(--pulse-color, var(--bg)) l c h / 0);}}}
 
 :root {
-  --font-app-sans: 'Satoshi', var(--font-instrument-sans), sans-serif;
-  --font-app-display: 'Satoshi', var(--font-space-grotesk), sans-serif;
-  --font-app-serif: var(--font-source-serif);
-  --font-hero: 'Satoshi', sans-serif;
+  --font-app-sans: var(--font-app-sans), sans-serif;
+  --font-hero: var(--font-app-sans), sans-serif;
   --radius: 0.9rem;
 
   /* ── Light palette — warm amber/orange ────────────────────────────────── */
@@ -173,16 +171,12 @@
 }
 
 html:lang(ja) {
-  --font-app-sans: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
-  --font-app-display: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
-  --font-app-serif: var(--font-japanese-sans);
-  --font-hero: var(--font-japanese-display), 'Hiragino Sans', sans-serif;
+  --font-app-sans: var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
+  --font-hero: var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
 }
 
 html:lang(zh) {
   --font-app-sans: var(--font-chinese-sans), 'PingFang SC', sans-serif;
-  --font-app-display: var(--font-chinese-sans), 'PingFang SC', sans-serif;
-  --font-app-serif: var(--font-chinese-display);
   --font-hero: var(--font-chinese-sans), 'PingFang SC', sans-serif;
 }
 

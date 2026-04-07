@@ -30,6 +30,7 @@ function makeInitialState(
       advanced: false,
       refImage: false,
       layerDecompose: false,
+      aspectRatio: false,
     },
     ...overrides,
   }

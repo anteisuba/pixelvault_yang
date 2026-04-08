@@ -179,10 +179,9 @@ export const GenerationPreview = memo(function GenerationPreview({
                 wrapperClass="!w-full"
                 contentClass="!w-full flex items-center justify-center"
               >
-                <ImageCard
-                  generation={generation}
-                  className="max-h-[60vh] w-auto mx-auto object-contain"
-                />
+                <div className="max-h-[60vh] w-auto mx-auto [&_img]:object-contain">
+                  <ImageCard generation={generation} />
+                </div>
               </TransformComponent>
 
               {/* Zoom controls — top right */}
@@ -269,16 +268,8 @@ export const GenerationPreview = memo(function GenerationPreview({
             />
           )}
           <div className="my-1 h-px bg-border/40" />
-          <CanvasToolButton
-            icon={Wand2}
-            label={t('toolSuperRes')}
-            disabled
-          />
-          <CanvasToolButton
-            icon={Eraser}
-            label={t('toolRemoveBg')}
-            disabled
-          />
+          <CanvasToolButton icon={Wand2} label={t('toolSuperRes')} disabled />
+          <CanvasToolButton icon={Eraser} label={t('toolRemoveBg')} disabled />
           <CanvasToolButton
             icon={Save}
             label={t('toolSaveSuperRes')}

@@ -7,10 +7,10 @@ on:
     branches: [main]
 
 jobs:
-  check:
-    name: Type Check & Build
+  lint:
+    name: Type Check & Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +32,73 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       - name: Run tests
         run: npx vitest run --reporter=verbose
         env:
           NODE_ENV: test
+
+  audit:
+    name: Security & Schema Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency vulnerability scan
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Prisma migration drift check
+        run: npx prisma generate && npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code
+        continue-on-error: true
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint, test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Build
         run: npm run build

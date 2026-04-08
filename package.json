@@ -11,7 +11,17 @@
     "test:run": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
-    "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts"
+    "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   },
   "prisma": {
     "seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts"
@@ -73,7 +83,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "prisma": "^7.4.0",
     "shadcn": "^3.8.5",

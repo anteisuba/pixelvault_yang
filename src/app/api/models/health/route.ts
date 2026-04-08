@@ -16,7 +16,7 @@ export async function GET() {
   if (cached) {
     return NextResponse.json<ModelHealthResponse>({
       success: true,
-      data: cached,
+      data: cached.records,
     })
   }
 

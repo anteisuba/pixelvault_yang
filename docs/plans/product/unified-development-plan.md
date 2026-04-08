@@ -22,22 +22,24 @@ B1 三栏布局
 B2 = S4+Phase2+3(合并)
     │
     ↓
-B3 = S5+Phase4(合并) ──→ B4 对比 ──→ B5 变体
-                                        │
-并行: B6 智能Prompt                     ↓
-并行: C1 Storyboard             C2 系列模式 ──→ C4 漫画高级
-最后: B7 动效+无障碍
+B3 = S5+Phase4(合并) ──→ B6 智能Prompt ──→ B5 变体 ──→ B4 对比
+                                                               │
+并行: C1 Storyboard                                            ↓
+                                                    C3 图片编辑 + C2 系列模式
+                                                               │
+最后: B7 动效+无障碍                                            ↓
+                                                        C4 漫画高级
 ```
 
 ---
 
 ## Review 记录
 
-| 来源 | 发现数 | 状态 |
-|------|--------|------|
-| Dev Plan Codex Review | 9 (F1-F9): credit 成本/能力覆盖/计时器/Model ID/校验/持久化/并行化/重试 | 全部纳入 Track A+B |
-| Studio Design Review | 7 维度评分 4/10→7/10: 信息架构/交互状态/用户旅程/AI Slop/设计系统/响应式/决策 | 全部纳入 Track B |
-| Studio Codex Review | 8 (P1-P3): snapshot DTO/ActiveRun/保留清单/共享服务/右栏精简/toast策略/i18n收口/测试 | 全部纳入 Track B |
+| 来源                  | 发现数                                                                               | 状态               |
+| --------------------- | ------------------------------------------------------------------------------------ | ------------------ |
+| Dev Plan Codex Review | 9 (F1-F9): credit 成本/能力覆盖/计时器/Model ID/校验/持久化/并行化/重试              | 全部纳入 Track A+B |
+| Studio Design Review  | 7 维度评分 4/10→7/10: 信息架构/交互状态/用户旅程/AI Slop/设计系统/响应式/决策        | 全部纳入 Track B   |
+| Studio Codex Review   | 8 (P1-P3): snapshot DTO/ActiveRun/保留清单/共享服务/右栏精简/toast策略/i18n收口/测试 | 全部纳入 Track B   |
 
 ---
 
@@ -48,19 +50,23 @@ B3 = S5+Phase4(合并) ──→ B4 对比 ──→ B5 变体
 **状态:** 已完成 ✅
 
 #### A1a. Credit 成本修复（F1）
+
 - `generate-image.service.ts` — requestCount 改用 `builtInModel?.cost`
 - `model-options.ts:20` — 同上
 
 #### A1b. 模型级能力覆盖（F2）
+
 - `provider-capabilities.ts` — 新增 `MODEL_CAPABILITY_OVERRIDES`
 - `getCapabilityConfig(adapterType, modelId?)` — 先查 model override 再 fallback
 - `AdvancedSettings.tsx` / `CapabilityForm.tsx` / `StudioToolbarPanels.tsx` — 传递 modelId
 
 #### A1c. 图片生成计时器（F4）
+
 - `use-unified-generate.ts` — `generateImage()` 加 `startTimer()` / `stopTimer()`
 - `GenerationPreview.tsx` — 显示 `elapsedSeconds`
 
 #### A1d. Model ID 纠正（F5）
+
 - FLUX 2 Max: `fal-ai/flux-2/max` → `fal-ai/flux-2-max`
 - Recraft V4 Pro: → `fal-ai/recraft/v4/pro/text-to-image`
 - Kontext Pro/Max: 新增正确 ID
@@ -73,13 +79,13 @@ B3 = S5+Phase4(合并) ──→ B4 对比 ──→ B5 变体
 
 **状态:** 已完成 ✅
 
-| 模型 | enum | adapterType | cost | 特殊 |
-|------|------|------------|------|------|
-| gemini-2.5-flash-image | GEMINI_25_FLASH_IMAGE | GEMINI | 1 | — |
-| FLUX 2 Max | FLUX_2_MAX | FAL | 3 | — |
-| Recraft V4 Pro | RECRAFT_V4_PRO | FAL | 2 | — |
-| Kontext Pro | FLUX_KONTEXT | FAL | 2 | requiresReferenceImage |
-| Kontext Max | FLUX_KONTEXT_MAX | FAL | 3 | requiresReferenceImage, multi-ref |
+| 模型                   | enum                  | adapterType | cost | 特殊                              |
+| ---------------------- | --------------------- | ----------- | ---- | --------------------------------- |
+| gemini-2.5-flash-image | GEMINI_25_FLASH_IMAGE | GEMINI      | 1    | —                                 |
+| FLUX 2 Max             | FLUX_2_MAX            | FAL         | 3    | —                                 |
+| Recraft V4 Pro         | RECRAFT_V4_PRO        | FAL         | 2    | —                                 |
+| Kontext Pro            | FLUX_KONTEXT          | FAL         | 2    | requiresReferenceImage            |
+| Kontext Max            | FLUX_KONTEXT_MAX      | FAL         | 3    | requiresReferenceImage, multi-ref |
 
 改动文件: `models.ts` + `provider-capabilities.ts` + `fal.adapter.ts` + `messages/{en,ja,zh}.json`
 
@@ -107,17 +113,21 @@ B3 = S5+Phase4(合并) ──→ B4 对比 ──→ B5 变体
 **状态:** 部分完成 ⏳
 
 #### 当前已落地
+
 - Prisma `Generation` 已包含 `snapshot` / `runGroupId` / `runGroupType` / `runGroupIndex` / `isWinner` / `seed`
 - `types/index.ts` 已有 `GenerationSnapshotSchema`
 - `studio-context.tsx` / `use-unified-generate.ts` 已切到 `activeRun` 主状态模型
 
 #### 当前仍待补
+
 - 补齐 snapshot 序列化与回放的回归测试
 - 把 compare / variant 的 run-group 约束补全到服务层
 - 完成旧记录 `snapshot = null` 的兼容读取路径
 
 #### B0a. GenerationSnapshot DTO
+
 Prisma migration 新增:
+
 ```prisma
 model Generation {
   snapshot       Json?     // 完整卡片+参数快照
@@ -128,21 +138,24 @@ model Generation {
   seed           BigInt?
 }
 ```
+
 - `types/index.ts` — GenerationSnapshotSchema（含 card snapshots + advancedParams + seed）
 - `generation.service.ts` — createGeneration 保存 snapshot
 - `studio-generate.service.ts` — 构造 snapshot
 - 向后兼容: 旧记录 snapshot=null
 
 #### B0b. ActiveRun 状态模型
+
 ```typescript
 type ActiveRun = {
   id: string
   mode: 'single' | 'compare' | 'variant'
-  items: RunItem[]    // 1/2-3/4 items
+  items: RunItem[] // 1/2-3/4 items
   selectedItemId: string | null
   prompt: string
 }
 ```
+
 - `studio-context.tsx` — 替换 StudioGenContext 内部状态
 - 向后兼容 computed: `isGenerating` / `lastGeneration`
 - `use-unified-generate.ts` — 适配 ActiveRun
@@ -156,21 +169,25 @@ type ActiveRun = {
 **状态:** 已完成 ✅
 
 #### 已完成范围
+
 - `StudioWorkspace` 已切成项目栏 + 左中右/左右主布局
 - `StudioLeftColumn` / `StudioCenterColumn` / `StudioRightColumn` 已承担主要布局职责
 - `ProjectSelector`、Image/Video tabs、HistoryPanel、移动端设置面板已迁入新结构
 - API 路由入口、卡片管理入口、预览区与历史区都已接回新布局
 
 #### 当前备注
+
 - Video 仍以现有布局逻辑为主，没有做单独重构
 - 浏览器级回归仍需结合手动验证清单补一次完整走查
 
 #### 删除
+
 - Hero 统计区 → Navbar tooltip
 - 模型排名 section → 已有 `/models` 页
 - 页面标题
 
 #### 保留清单
+
 - ProjectSelector → 左栏顶部
 - Image/Video tabs → 左栏（Video 走现有布局不重构）
 - OnboardingTooltip → 锚点迁移到新布局
@@ -178,6 +195,7 @@ type ActiveRun = {
 - 今日免费额度 → 左栏底部
 
 #### 布局
+
 ```
 Desktop (>=1024px):  左栏(280px) | 中心(flex-1) | 右栏(320px)
 Tablet (768-1023):   左栏折叠(48px icon) | 中心(flex-1) | 右栏叠底
@@ -193,22 +211,26 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 **状态:** 已完成 ✅
 
 #### 来自 S4: 重试基础设施
+
 - `use-unified-generate.ts` — `lastRequestPayload` + `retry()` 方法
 - `studio-context.tsx` — 暴露 retry
 
 #### 来自 Phase 2: 交互状态
+
 - **空态**: 中心区引导 + 右栏示例 + 左栏卡片引导
 - **进度**: 三阶段 "排队→生成→下载" + blur→clear 渐进加载
 - **错误策略**: 生成错误 → preview inline + 重试按钮；非 preview → 保留 toast
 - **卡片引导**: "不选择" → "选择角色（可选）"
 
 #### 来自 Phase 3: i18n + 命名 + 快捷键
+
 - i18n namespace 收敛: StudioPage/V2/V3/Projects → 统一 `studio`
 - 模式重命名: Quick→"直接生成" Card→"风格组合"
 - Cmd+Enter 生成 + Cmd+E 增强 + Cmd+K 聚焦 + Esc 关闭面板
 - Generate 按钮显示快捷键提示
 
 #### 已完成范围
+
 - `use-unified-generate.ts` 已补 `lastRequestPayload` + `retry()`
 - Preview 区已有 inline error + retry，非 preview 错误仍保留 toast
 - Studio 新拆分组件的硬编码文案已回收到消息表，三语文案已补齐
@@ -224,11 +246,13 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 **状态:** 进行中 ⏳
 
 #### 来自 S5: 卡片功能
+
 - 卡片搜索/筛选（名称/标签） ✅
 - 卡片复制 ✅
 - 卡片排序（最近使用/创建时间/名称） ✅
 
 #### 来自 Phase 4: Remix + 元数据
+
 - **Remix V1** — 回填 prompt + modelId（现有数据） ✅
 - **Remix V2** — 回填完整 snapshot（依赖 B0 数据积累） ⏳
 - **历史默认态**: 缩略图 + model badge + prompt 前 30 字 ✅
@@ -236,6 +260,7 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 - **最近使用入口**: 左栏顶部 3 个最近配置组合 ✅
 
 #### 已完成范围
+
 - History 缩略图已驱动右侧预览，不再默认直接塞入参考图
 - Preview 已支持 `Use as reference` 和 `Remix`
 - 卡片下拉已支持搜索、排序、最近使用
@@ -243,6 +268,7 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 - 最近配置入口已接到左栏和移动端设置面板
 
 #### 当前仍待补
+
 - `Remix V2` 继续优先消费完整 snapshot
 - 浏览器级视觉和交互回归
 
@@ -338,33 +364,54 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 ## 推荐执行时间线
 
 ```
-Week 1-2:  A1 + A2 + A3 (基础修复，消除技术债)
-Week 2-3:  B0 (快照+ActiveRun，为后续功能打地基)
-Week 3-4:  B1 (三栏布局，最大视觉变化)
-Week 4-5:  B2 (合并 S4+Phase2+3: 状态/重试/快捷键/i18n)
-Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据)
-           并行: C1 Storyboard + B6 智能Prompt
-Week 6-7:  B4 (多模型对比) + C2 系列模式
-Week 7-8:  B5 (变体4选1) + C3 图片编辑
-Week 8+:   B7 (动效/无障碍) + C4 漫画高级
+Week 1-2:  A1 + A2 + A3 (基础修复，消除技术债) ✅ 已完成
+Week 2-3:  B0 (快照+ActiveRun，为后续功能打地基) ✅ 已完成
+Week 3-4:  B1 (三栏布局，最大视觉变化) ✅ 已完成
+Week 4-5:  B2 (合并 S4+Phase2+3: 状态/重试/快捷键/i18n) ✅ 已完成
+Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ⏳ 进行中
+```
+
+### 后续优先级重排（数据驱动评分, 2026-04-08 更新）
+
+评分维度: 用户影响(5) + 收入潜力(5) + 依赖少(5) + 工作量低(5) + 风险低(5) = 总分25
+
+| 排名 | 功能               |  总分  | 理由                                                         |
+| :--: | ------------------ | :----: | ------------------------------------------------------------ |
+|  1   | **B6 智能提示词**  | **22** | 零依赖，prompt-presets.ts 已有基础，最高用户体验提升         |
+|  2   | **B5 变体 4选1**   | **18** | 比 B4 简单（同模型不同 seed），验证并行生成基础设施          |
+|  3   | **B4 多模型对比**  | **17** | 核心差异化功能，可复用 Arena parallel-generate + B5 基础设施 |
+|  4   | **C3 图片编辑**    | **17** | Kontext 适配器已就绪(A2)，多参考图支持已完成(W1)             |
+|  5   | B7 动效+无障碍     |   16   | 上线前打磨，非功能性                                         |
+|  6   | C2 系列模式        |   14   | 角色一致性痛点，依赖 A2+B2 已满足                            |
+|  7   | C1 Storyboard 增量 |   14   | 中等价值，中等工作量                                         |
+|  8   | C4 漫画高级        |   8    | 依赖 C1+C2，最高工作量，延后                                 |
+
+**与 v1 的关键变化**: B6 提前到 B3 之后（原 v1 中 B4 先于 B5/B6）。理由是 B6 零外部依赖且 `prompt-presets.ts` 已有基础结构，而 B4 需要提取 Arena 的 parallel-generate 逻辑 + B5 先验证并行生成。
+
+```
+Week 6:    B6 智能Prompt（模板 + 模型建议 + 灵感按钮）
+Week 7:    B5 变体4选1（同模型4种子 2x2 grid）
+Week 8-9:  B4 多模型对比（提取 parallel-generate，2-3 模型并排）
+Week 9-11: C3 图片编辑（Kontext 指令编辑 + 外扩 + 局部重绘）
+Week 11+:  B7 动效 → C2 系列 → C1 Storyboard → C4 漫画
 ```
 
 ## 验证方式
 
-| 阶段 | UI 验证 | 服务/Schema 测试 |
-|------|---------|-----------------|
-| A1 | 生成后 credit 正确 | requestCount = model.cost |
-| A2 | 5 模型各生成成功 | Kontext 能力覆盖生效 |
-| A3 | 无参考图拒绝 + 编辑保存 | 并行上传节省时间 |
-| B0 | N/A | Prisma migrate + snapshot 序列化 |
-| B1 | 三栏 + responsive + 回归 | tsc 零错误 |
-| B2 | 空态+进度+inline错误+快捷键 | i18n-check + retry test |
-| B3 | 卡片搜索+Remix+元数据 | Remix DTO 还原 test |
-| B4 | 对比并排+选择 | parallel-generate service test |
-| B5 | 4-grid+选择 | variant seed test |
-| B6 | 模板填充+建议 | 数据完整性 test |
-| B7 | 动效+a11y | axe-core scan |
-| C1-C4 | 各功能验收 | 对应 service tests |
+| 阶段  | UI 验证                     | 服务/Schema 测试                 |
+| ----- | --------------------------- | -------------------------------- |
+| A1    | 生成后 credit 正确          | requestCount = model.cost        |
+| A2    | 5 模型各生成成功            | Kontext 能力覆盖生效             |
+| A3    | 无参考图拒绝 + 编辑保存     | 并行上传节省时间                 |
+| B0    | N/A                         | Prisma migrate + snapshot 序列化 |
+| B1    | 三栏 + responsive + 回归    | tsc 零错误                       |
+| B2    | 空态+进度+inline错误+快捷键 | i18n-check + retry test          |
+| B3    | 卡片搜索+Remix+元数据       | Remix DTO 还原 test              |
+| B4    | 对比并排+选择               | parallel-generate service test   |
+| B5    | 4-grid+选择                 | variant seed test                |
+| B6    | 模板填充+建议               | 数据完整性 test                  |
+| B7    | 动效+a11y                   | axe-core scan                    |
+| C1-C4 | 各功能验收                  | 对应 service tests               |
 
 ## NOT in scope
 

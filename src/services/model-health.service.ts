@@ -15,15 +15,21 @@ interface CacheEntry {
   timestamp: number
 }
 
+interface HealthCacheResult {
+  records: ModelHealthRecord[]
+  stale: boolean
+}
+
 let healthCache: CacheEntry | null = null
 
-export function getHealthCache(): ModelHealthRecord[] | null {
+export function getHealthCache(): HealthCacheResult | null {
   if (!healthCache) return null
-  if (Date.now() - healthCache.timestamp > HEALTH_CHECK.CACHE_TTL_MS) {
-    healthCache = null
-    return null
+  const age = Date.now() - healthCache.timestamp
+  if (age > HEALTH_CHECK.CACHE_TTL_MS) {
+    // Return stale data instead of null — avoids empty arrays on the frontend
+    return { records: healthCache.records, stale: true }
   }
-  return healthCache.records
+  return { records: healthCache.records, stale: false }
 }
 
 // ─── Health check logic ───────────────────────────────────────────

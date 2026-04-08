@@ -215,6 +215,7 @@ async function loadStyleCard(id: string, userId: string) {
       modelId: true,
       adapterType: true,
       advancedParams: true,
+      sourceImageUrl: true,
     },
   })
 }
@@ -387,6 +388,14 @@ export async function compileRecipe(
   const charRefImages = charCard?.referenceImages as string[] | null
   if (charRefImages?.length) {
     referenceImages.push(...charRefImages)
+  }
+  // Add style card source image as visual style reference
+  if (styleCard?.sourceImageUrl) {
+    referenceImages.push(styleCard.sourceImageUrl)
+  }
+  // Add background card source image as environment reference
+  if (bgCard?.sourceImageUrl) {
+    referenceImages.push(bgCard.sourceImageUrl)
   }
 
   // Build snapshot for reproducibility

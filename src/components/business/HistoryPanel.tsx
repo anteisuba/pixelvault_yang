@@ -114,7 +114,7 @@ export function HistoryPanel({
                   fill
                   sizes="80px"
                   className="object-cover transition-transform group-hover:scale-105"
-                  unoptimized
+                  loading="lazy"
                 />
               )
             ) : (

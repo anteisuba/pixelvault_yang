@@ -97,7 +97,6 @@ export function ProfileHeader({
             fill
             className="object-cover"
             priority
-            unoptimized
           />
         ) : (
           /* Warm gradient fallback matching design system */
@@ -150,7 +149,6 @@ export function ProfileHeader({
                 width={96}
                 height={96}
                 className="size-24 rounded-full object-cover border-4 border-background shadow-md ring-1 ring-border/40"
-                unoptimized
               />
             ) : (
               <div className="size-24 rounded-full bg-primary/8 flex items-center justify-center border-4 border-background shadow-md ring-1 ring-border/40">

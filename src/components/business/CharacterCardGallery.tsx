@@ -68,7 +68,7 @@ export function CharacterCardGallery({
               fill
               className="object-cover transition-transform group-hover:scale-105"
               sizes="(max-width: 640px) 33vw, 25vw"
-              unoptimized
+              loading="lazy"
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               <p className="line-clamp-2 text-[10px] leading-tight text-white">

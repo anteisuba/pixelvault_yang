@@ -21,10 +21,7 @@ import { cn } from '@/lib/utils'
 import type { CardType } from '@/constants/card-types'
 import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
 import type { CardManagerSortMode } from '@/lib/card-management'
-import {
-  matchesCardSearch,
-  sortCardManagerItems,
-} from '@/lib/card-management'
+import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -289,7 +286,7 @@ export function SimpleCardManager({
                           fill
                           className="object-cover"
                           sizes="300px"
-                          unoptimized
+                          loading="lazy"
                         />
                       </div>
                       <button
@@ -322,7 +319,9 @@ export function SimpleCardManager({
                   <textarea
                     value={newPrompt}
                     onChange={(e) => setNewPrompt(e.target.value)}
-                    placeholder={promptPlaceholder ?? t('descriptionPlaceholder')}
+                    placeholder={
+                      promptPlaceholder ?? t('descriptionPlaceholder')
+                    }
                     rows={2}
                     className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
                   />
@@ -496,7 +495,7 @@ export function SimpleCardManager({
                         fill
                         className="object-cover"
                         sizes="32px"
-                        unoptimized
+                        loading="lazy"
                       />
                     </div>
                   )}

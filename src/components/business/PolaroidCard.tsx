@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Heart, Pin, X, Sparkles } from 'lucide-react'
+
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -143,7 +145,7 @@ export function PolaroidCard({
                 className="absolute inset-0 size-full object-cover"
               />
             ) : (
-              <Image
+              <OptimizedImage
                 src={url}
                 alt={
                   isPromptPublic
@@ -154,7 +156,6 @@ export function PolaroidCard({
                 sizes="200px"
                 className="object-cover"
                 loading="lazy"
-                unoptimized
               />
             )}
             {isFeatured && (

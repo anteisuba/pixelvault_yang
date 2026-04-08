@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import { OptimizedImage } from '@/components/ui/optimized-image'
+
 import type { ArenaEntryRecord, EloUpdate } from '@/types'
 import { Button } from '@/components/ui/button'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -44,7 +46,7 @@ export function ArenaGrid({
               fill
               sizes="64px"
               className="object-cover"
-              unoptimized
+              loading="lazy"
             />
           </div>
           <p className="font-serif text-xs text-muted-foreground">
@@ -79,13 +81,13 @@ export function ArenaGrid({
               {/* Image */}
               {entry.imageUrl && (
                 <div className="relative aspect-square overflow-hidden">
-                  <Image
+                  <OptimizedImage
                     src={entry.imageUrl}
                     alt={`Model ${SLOT_LABELS[entry.slotIndex]}`}
                     fill
                     sizes="(max-width: 640px) 100vw, 50vw"
                     className="object-cover"
-                    unoptimized
+                    loading="lazy"
                   />
                 </div>
               )}

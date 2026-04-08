@@ -200,14 +200,20 @@ export default function VideoGenerateForm({
 
   const videoHistory = useMemo(
     () =>
-      projects.history.filter((generation) => generation.outputType === 'VIDEO'),
+      projects.history.filter(
+        (generation) => generation.outputType === 'VIDEO',
+      ),
     [projects.history],
   )
   const previewGeneration = useMemo(() => {
-    if (selectedGenerationId && selectedGenerationId !== currentGeneration?.id) {
+    if (
+      selectedGenerationId &&
+      selectedGenerationId !== currentGeneration?.id
+    ) {
       return (
-        videoHistory.find((generation) => generation.id === selectedGenerationId) ??
-        null
+        videoHistory.find(
+          (generation) => generation.id === selectedGenerationId,
+        ) ?? null
       )
     }
 
@@ -312,7 +318,9 @@ export default function VideoGenerateForm({
   }
 
   const tierLabel = selectedModelConfig?.qualityTier
-  const sessionDurationLabel = longVideoMode ? `${targetDuration}s` : `${duration}s`
+  const sessionDurationLabel = longVideoMode
+    ? `${targetDuration}s`
+    : `${duration}s`
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -523,7 +531,7 @@ export default function VideoGenerateForm({
                       fill
                       className="object-cover"
                       sizes="40px"
-                      unoptimized
+                      loading="lazy"
                     />
                   </div>
                 ))}

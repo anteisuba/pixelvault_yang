@@ -3,6 +3,8 @@
 import { memo, useCallback, useState } from 'react'
 import Image from 'next/image'
 
+import { OptimizedImage } from '@/components/ui/optimized-image'
+
 import {
   ArrowUpRight,
   Coins,
@@ -160,14 +162,14 @@ export const ImageCard = memo(function ImageCard({
                 style={{ aspectRatio }}
               />
             ) : (
-              <Image
+              <OptimizedImage
                 src={generation.url}
                 alt={generation.prompt}
                 width={generation.width}
                 height={generation.height}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                unoptimized
+                loading="lazy"
               />
             )}
           </button>

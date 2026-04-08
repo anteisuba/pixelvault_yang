@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
+    deviceSizes: [640, 828, 1080, 1200, 1920],
+    imageSizes: [32, 48, 64, 96, 200, 384],
     remotePatterns: [
       { protocol: 'https', hostname: storageHost },
       { protocol: 'https', hostname: '*.fal.media' },

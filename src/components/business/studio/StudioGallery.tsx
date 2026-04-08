@@ -1,10 +1,9 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Heart, RefreshCw, Download, Grid3X3, LayoutGrid } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import Image from 'next/image'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 
 import {
   useStudioForm,
@@ -113,18 +112,6 @@ export const StudioGallery = memo(function StudioGallery() {
 
   const isEmpty = !isGenerating && allGenerations.length === 0
 
-  // Chunk generations into rows of COLS
-  const rows = useMemo(() => {
-    const result: GenerationRecord[][] = []
-    for (let i = 0; i < allGenerations.length; i += COLS) {
-      result.push(allGenerations.slice(i, i + COLS))
-    }
-    return result
-  }, [allGenerations])
-
-  // Feed mode: no internal virtualization, parent scroll handles it
-  const scrollRef = useRef<HTMLDivElement>(null)
-
   return (
     <section className="studio-history space-y-2">
       {/* Header + filters + layout toggle */}
@@ -199,7 +186,7 @@ export const StudioGallery = memo(function StudioGallery() {
 
       {/* Gallery feed — masonry or grid */}
       {!isEmpty && (
-        <div ref={scrollRef}>
+        <div>
           {layout === 'masonry' ? (
             <div
               className="studio-masonry-grid"
@@ -306,23 +293,23 @@ const GalleryItem = memo(function GalleryItem({
     >
       {gen.url ? (
         preserveAspectRatio ? (
-          <Image
+          <OptimizedImage
             src={gen.url}
             alt={gen.prompt?.slice(0, 50) ?? ''}
             width={gen.width ?? 512}
             height={gen.height ?? 512}
             sizes="20vw"
             className="w-full h-auto"
-            unoptimized
+            loading="lazy"
           />
         ) : (
-          <Image
+          <OptimizedImage
             src={gen.url}
             alt={gen.prompt?.slice(0, 50) ?? ''}
             fill
             sizes="20vw"
             className="object-cover"
-            unoptimized
+            loading="lazy"
           />
         )
       ) : (

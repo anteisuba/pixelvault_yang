@@ -200,7 +200,7 @@ export function CharacterCardItem({
               fill
               className="object-cover"
               sizes="48px"
-              unoptimized
+              loading="lazy"
             />
           </div>
           <div className="min-w-0 flex-1">
@@ -256,7 +256,7 @@ export function CharacterCardItem({
                       fill
                       className="object-cover"
                       sizes="64px"
-                      unoptimized
+                      loading="lazy"
                     />
                     {entry.viewType !== 'other' && (
                       <span className="absolute bottom-0 left-0 right-0 bg-background/80 text-center text-[9px] font-medium backdrop-blur-sm">
@@ -345,7 +345,7 @@ export function CharacterCardItem({
                           fill
                           className="object-cover"
                           sizes="64px"
-                          unoptimized
+                          loading="lazy"
                         />
                       </div>
                     ))}

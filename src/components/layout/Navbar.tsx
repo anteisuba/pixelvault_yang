@@ -207,7 +207,6 @@ export function Navbar() {
                           width={40}
                           height={40}
                           className="size-full rounded-full object-cover"
-                          unoptimized
                         />
                       ) : (
                         <UserCircle className="size-4.5" />

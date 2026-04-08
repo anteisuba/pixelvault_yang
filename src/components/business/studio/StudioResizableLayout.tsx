@@ -23,14 +23,14 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
       {/* Canvas + Dock: fills the initial viewport (minus navbar + topbar) */}
       <div className="min-h-[calc(100vh-6.5rem)] flex flex-col">
         {/* Canvas — flex-1 pushes dock to the bottom */}
-        <div className="flex-1 px-4 pt-3 pb-1 sm:px-6">{canvas}</div>
+        <div className="flex-1 px-2 pt-2 pb-1 sm:px-6 sm:pt-3">{canvas}</div>
 
         {/* Dock — sits at the bottom of the viewport */}
         <div className="shrink-0">{dock}</div>
       </div>
 
       {/* Gallery — natural page flow, scroll down to reveal */}
-      <div className="px-4 pb-4 sm:px-6">{gallery}</div>
+      <div className="px-2 pb-20 sm:px-6 sm:pb-4">{gallery}</div>
     </div>
   )
 })

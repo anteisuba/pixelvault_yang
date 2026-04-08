@@ -8,7 +8,7 @@ export default function MainLayout({
   children: React.ReactNode
 }>) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <Navbar />
       <main className="pb-14 md:pb-0">{children}</main>
       <MobileTabBar />

@@ -121,30 +121,30 @@ export function Navbar() {
     >
       <div
         className={cn(
-          'mx-auto flex max-w-content items-center justify-between gap-3 px-4 transition-all duration-300 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8',
+          'mx-auto flex max-w-content items-center justify-between gap-3 overflow-hidden px-4 transition-all duration-300 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8',
           scrolled ? 'h-12' : 'h-14',
         )}
       >
-        <div className="flex min-w-0 items-center gap-5 lg:gap-8">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-5 lg:gap-8">
           <SignedIn>
-            <Link href={ROUTES.STUDIO} className="min-w-0">
+            <Link href={ROUTES.STUDIO} className="shrink-0">
               <HyperText
                 as="span"
                 duration={600}
                 animateOnHover
-                className="font-display text-brand font-bold leading-none tracking-brand !py-0"
+                className="font-display text-brand font-bold leading-none tracking-brand max-sm:text-sm !py-0"
               >
                 {tCommon('brand')}
               </HyperText>
             </Link>
           </SignedIn>
           <SignedOut>
-            <Link href={ROUTES.HOME} className="min-w-0">
+            <Link href={ROUTES.HOME} className="shrink-0">
               <HyperText
                 as="span"
                 duration={600}
                 animateOnHover
-                className="font-display text-brand font-bold leading-none tracking-brand !py-0"
+                className="font-display text-brand font-bold leading-none tracking-brand max-sm:text-sm !py-0"
               >
                 {tCommon('brand')}
               </HyperText>

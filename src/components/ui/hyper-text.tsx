@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   useEffect,
@@ -6,15 +6,15 @@ import {
   useState,
   type ComponentType,
   type RefAttributes,
-} from "react"
+} from 'react'
 import {
   motion,
   type DOMMotionComponents,
   type HTMLMotionProps,
   type MotionProps,
-} from "motion/react"
+} from 'motion/react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 type CharacterSet = string[] | readonly string[]
 
@@ -38,10 +38,10 @@ type MotionElementType = Extract<
   keyof typeof motionElements
 >
 type HyperTextMotionComponent = ComponentType<
-  Omit<HTMLMotionProps<"div">, "ref"> & RefAttributes<HTMLElement>
+  Omit<HTMLMotionProps<'div'>, 'ref'> & RefAttributes<HTMLElement>
 >
 
-interface HyperTextProps extends Omit<MotionProps, "children"> {
+interface HyperTextProps extends Omit<MotionProps, 'children'> {
   /** The text content to be animated */
   children: string
   /** Optional className for styling */
@@ -61,7 +61,7 @@ interface HyperTextProps extends Omit<MotionProps, "children"> {
 }
 
 const DEFAULT_CHARACTER_SET = Object.freeze(
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
 ) as readonly string[]
 
 const getRandomInt = (max: number): number => Math.floor(Math.random() * max)
@@ -71,7 +71,7 @@ export function HyperText({
   className,
   duration = 800,
   delay = 0,
-  as: Component = "div",
+  as: Component = 'div',
   startOnView = false,
   animateOnHover = true,
   characterSet = DEFAULT_CHARACTER_SET,
@@ -80,7 +80,7 @@ export function HyperText({
   const MotionComponent = motionElements[Component] as HyperTextMotionComponent
 
   const [displayText, setDisplayText] = useState<string[]>(() =>
-    children.split("")
+    children.split(''),
   )
   const [isAnimating, setIsAnimating] = useState(false)
   const iterationCount = useRef(0)
@@ -111,7 +111,7 @@ export function HyperText({
           observer.disconnect()
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     )
 
     if (elementRef.current) {
@@ -137,12 +137,12 @@ export function HyperText({
 
         setDisplayText((currentText) =>
           currentText.map((letter, index) =>
-            letter === " "
+            letter === ' '
               ? letter
               : index <= iterationCount.current
                 ? children[index]
-                : characterSet[getRandomInt(characterSet.length)]
-          )
+                : characterSet[getRandomInt(characterSet.length)],
+          ),
         )
 
         if (progress < 1) {
@@ -165,7 +165,10 @@ export function HyperText({
   return (
     <MotionComponent
       ref={elementRef}
-      className={cn("overflow-hidden py-2 text-4xl font-bold", className)}
+      className={cn(
+        'overflow-hidden whitespace-nowrap py-2 text-4xl font-bold',
+        className,
+      )}
       onMouseEnter={handleAnimationTrigger}
       suppressHydrationWarning
       {...props}
@@ -173,8 +176,10 @@ export function HyperText({
       {displayText.map((letter, index) => (
         <span
           key={index}
-          className={cn("inline-block text-center", letter === " " ? "w-3" : "")}
-          style={letter !== " " ? { width: "0.65em" } : undefined}
+          className={cn(
+            'inline-block text-center',
+            letter === ' ' ? 'w-3' : '',
+          )}
           suppressHydrationWarning
         >
           {letter}

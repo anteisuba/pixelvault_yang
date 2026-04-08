@@ -1,8 +1,11 @@
+'use client'
+
 import { useTranslations } from 'next-intl'
 
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { TextRepel } from '@/components/ui/text-repel'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Link } from '@/i18n/navigation'
 
 interface HomepageHeroProps {
@@ -23,6 +26,7 @@ export function HomepageHero({
   galleryActionLabel,
 }: HomepageHeroProps) {
   const t = useTranslations('Homepage')
+  const isMobile = useIsMobile()
 
   return (
     <section
@@ -33,15 +37,15 @@ export function HomepageHero({
     >
       <TextRepel
         text={t('heroRepelText')}
-        fontSize={40}
+        fontSize={isMobile ? 22 : 40}
         fontFamily="var(--font-hero)"
         fontWeight="700"
         color="var(--foreground)"
-        repelRadius={100}
+        repelRadius={isMobile ? 50 : 100}
         repelForce={0.5}
         lineHeight={1.45}
-        letterSpacing={2}
-        className="w-full min-h-[320px]"
+        letterSpacing={isMobile ? 1 : 2}
+        className="w-full min-h-[220px] sm:min-h-[320px]"
       />
 
       <div className="flex flex-wrap justify-center gap-4 pt-8 max-sm:flex-col max-sm:items-center">

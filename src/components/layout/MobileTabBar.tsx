@@ -40,7 +40,7 @@ function TabList({ tabs, pathname }: TabListProps) {
           )}
         >
           <Icon className="size-5" />
-          <span className="text-tab font-semibold tracking-[0.12em] uppercase leading-none">
+          <span className="text-tab font-semibold tracking-[0.04em] uppercase leading-none truncate max-w-[4.5rem]">
             {label}
           </span>
         </Link>

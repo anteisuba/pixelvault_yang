@@ -92,6 +92,10 @@ export const API_ENDPOINTS = {
   /** Model health check */
   MODEL_HEALTH: '/api/models/health',
 
+  /** System health (public pong + token-based provider refresh) */
+  HEALTH: '/api/health',
+  HEALTH_PROVIDERS: '/api/health/providers',
+
   /** Admin model management */
   ADMIN_MODELS: '/api/admin/models',
 

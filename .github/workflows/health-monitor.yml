@@ -1,0 +1,77 @@
+name: Provider Health Monitor
+
+on:
+  schedule:
+    - cron: '17 */6 * * *' # Every 6 hours at :17
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  check:
+    name: AI Provider Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger provider health refresh
+        id: health
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.HEALTH_CHECK_TOKEN }}" \
+            "${{ secrets.PROD_URL }}/api/health/providers")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "body=$BODY" >> "$GITHUB_OUTPUT"
+
+          # Extract summary counts
+          UNAVAILABLE=$(echo "$BODY" | jq -r '.summary.unavailable // 0')
+          DEGRADED=$(echo "$BODY" | jq -r '.summary.degraded // 0')
+          AVAILABLE=$(echo "$BODY" | jq -r '.summary.available // 0')
+          TOTAL=$(echo "$BODY" | jq -r '.summary.total // 0')
+
+          echo "unavailable=$UNAVAILABLE" >> "$GITHUB_OUTPUT"
+          echo "degraded=$DEGRADED" >> "$GITHUB_OUTPUT"
+          echo "available=$AVAILABLE" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+
+          echo "Summary: $AVAILABLE available / $DEGRADED degraded / $UNAVAILABLE unavailable (total: $TOTAL)"
+
+      - name: Create issue if providers are down
+        if: steps.health.outputs.unavailable != '0' && steps.health.outputs.http_code == '200'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = JSON.parse('${{ steps.health.outputs.body }}');
+            const down = body.data
+              .filter(r => r.status === 'unavailable')
+              .map(r => `- **${r.modelId}**: ${r.error || 'No response'}`)
+              .join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'provider-outage',
+              state: 'open',
+            });
+
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `AI Provider Outage: ${body.summary.unavailable} model(s) unavailable`,
+                body: `**Provider health check detected unavailable models:**\n\n${down}\n\n**Summary:** ${body.summary.available} available / ${body.summary.degraded} degraded / ${body.summary.unavailable} unavailable\n\n*Auto-created by health-monitor workflow*`,
+                labels: ['provider-outage'],
+              });
+            }
+
+      - name: Fail if health endpoint unreachable
+        if: steps.health.outputs.http_code != '200'
+        run: |
+          echo "Health endpoint returned HTTP ${{ steps.health.outputs.http_code }}"
+          exit 1

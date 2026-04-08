@@ -1,0 +1,63 @@
+name: Deploy Health Check
+
+on:
+  deployment_status:
+
+jobs:
+  verify:
+    name: Post-Deploy Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event.deployment_status.state == 'success'
+
+    steps:
+      - name: Wait for CDN propagation
+        run: sleep 30
+
+      - name: Extract deployment URL
+        id: url
+        run: |
+          URL="${{ github.event.deployment_status.environment_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ github.event.deployment_status.target_url }}"
+          fi
+          echo "deploy_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Checking deployment: $URL"
+
+      - name: Check /api/health (liveness)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.url.outputs.deploy_url }}/api/health")
+          echo "Health endpoint: HTTP $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check /en (landing page)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "${{ steps.url.outputs.deploy_url }}/en")
+          echo "Landing page: HTTP $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check /en/gallery (public page)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "${{ steps.url.outputs.deploy_url }}/en/gallery")
+          echo "Gallery page: HTTP $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check /api/models/health (cached health)
+        run: |
+          RESPONSE=$(curl -s "${{ steps.url.outputs.deploy_url }}/api/models/health")
+          echo "Models health: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"success":true' || exit 1
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.url.outputs.deploy_url }}';
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Deploy health check failed: ${url}`,
+              body: `Post-deploy smoke test failed for deployment:\n\n- URL: ${url}\n- Commit: ${context.sha}\n- Workflow: ${context.runId}\n\nCheck the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`,
+              labels: ['deploy-failure'],
+            });

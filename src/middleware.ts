@@ -20,6 +20,8 @@ const isPublicRoute = createRouteMatcher([
   ...publicLocaleRoutes,
   '/api/images',
   '/api/webhooks/clerk',
+  '/api/health',
+  '/api/health/providers',
 ])
 
 export default clerkMiddleware(async (auth, request) => {

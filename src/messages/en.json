@@ -1210,6 +1210,10 @@
       "label": "FLUX Kontext Max",
       "description": "Multi-reference editing. Combine up to 4 reference images for consistent generation."
     },
+    "playgroundV25": {
+      "label": "Playground v2.5",
+      "description": "Aesthetic-focused generation, excels at portraits and artistic compositions."
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"

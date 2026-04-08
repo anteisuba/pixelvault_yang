@@ -1210,6 +1210,10 @@
       "label": "FLUX Kontext Max",
       "description": "多参考图编辑。最多组合 4 张参考图实现一致性生成。"
     },
+    "playgroundV25": {
+      "label": "Playground v2.5",
+      "description": "专注美学质量的生成模型，擅长人像和艺术构图。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"

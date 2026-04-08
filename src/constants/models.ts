@@ -39,6 +39,7 @@ export enum AI_MODELS {
   RECRAFT_V4_PRO = 'recraft-v4-pro',
   FLUX_KONTEXT_PRO = 'flux-kontext-pro',
   FLUX_KONTEXT_MAX = 'flux-kontext-max',
+  PLAYGROUND_V25 = 'playground-v2.5',
   // Video models
   KLING_VIDEO = 'kling-video',
   KLING_V3_PRO = 'kling-v3-pro',
@@ -81,6 +82,7 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.RECRAFT_V4_PRO]: 'recraftV4Pro',
   [AI_MODELS.FLUX_KONTEXT_PRO]: 'fluxKontextPro',
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
+  [AI_MODELS.PLAYGROUND_V25]: 'playgroundV25',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
@@ -444,6 +446,20 @@ export const MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'budget',
     styleTag: 'general',
   },
+  // #17 — Aesthetic-focused, excels at portraits and artistic compositions
+  {
+    id: AI_MODELS.PLAYGROUND_V25,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.HUGGINGFACE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.HUGGINGFACE),
+    externalModelId: 'playgroundai/playground-v2.5-1024px-aesthetic',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic',
+    qualityTier: 'standard',
+    styleTag: 'general',
+  },
 
   // ═══ New Image Models (A2) ══════════════════════════════════════
 
@@ -774,6 +790,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SD_35_LARGE]: 'Stable Diffusion',
   [AI_MODELS.SDXL]: 'Stable Diffusion',
   [AI_MODELS.ANIMAGINE_XL_4]: 'Stable Diffusion',
+  [AI_MODELS.PLAYGROUND_V25]: 'Playground',
   [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'NovelAI',
   [AI_MODELS.ILLUSTRIOUS_XL]: 'Illustrious',

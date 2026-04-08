@@ -1210,6 +1210,10 @@
       "label": "FLUX Kontext Max",
       "description": "マルチ参照編集。最大4枚の参照画像を組み合わせて一貫性のある生成。"
     },
+    "playgroundV25": {
+      "label": "Playground v2.5",
+      "description": "美的品質に特化した生成モデル。ポートレートやアート構図に優れています。"
+    },
     "veo3": {
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"

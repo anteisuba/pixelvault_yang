@@ -1,5 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
-import { ArrowLeft, ArrowUpRight, Coins, Download } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Coins,
+  Download,
+  ImageIcon,
+} from 'lucide-react'
 import type { Metadata } from 'next'
 import { getFormatter, getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
@@ -221,6 +227,27 @@ export default async function ImageDetailPage({
                   </div>
                 ) : null}
               </>
+            ) : null}
+
+            {generation.referenceImageUrl ? (
+              <div className="space-y-2">
+                <p className={cn(labelClass, 'flex items-center gap-1.5')}>
+                  <ImageIcon className="size-3" />
+                  {t('referenceImageLabel')}
+                </p>
+                <a
+                  href={generation.referenceImageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-fit"
+                >
+                  <img
+                    src={generation.referenceImageUrl}
+                    alt={t('referenceImageLabel')}
+                    className="h-auto max-h-40 rounded-xl border border-border/70 object-contain"
+                  />
+                </a>
+              </div>
             ) : null}
 
             <dl className="grid gap-2 border-t border-border/70 pt-4">

@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
+    "analyze": "ANALYZE=true npm run build",
     "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts",
     "prepare": "husky"
   },
@@ -69,6 +70,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.2",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

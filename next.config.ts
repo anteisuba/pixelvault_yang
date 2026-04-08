@@ -1,6 +1,11 @@
+import bundleAnalyzer from '@next/bundle-analyzer'
 import { withSentryConfig } from '@sentry/nextjs'
 import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
 
 // Arena reference images can exceed the proxy's default buffered body size.
 const PROXY_CLIENT_MAX_BODY_SIZE = '15mb'
@@ -52,7 +57,7 @@ const nextConfig: NextConfig = {
 
 const withNextIntl = createNextIntlPlugin()
 
-export default withSentryConfig(withNextIntl(nextConfig), {
+export default withSentryConfig(withBundleAnalyzer(withNextIntl(nextConfig)), {
   // Suppress source map upload logs in CI
   silent: !process.env.CI,
 

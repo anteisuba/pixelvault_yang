@@ -45,6 +45,12 @@ next-env.d.ts
 .env*.local
 .claude/worktrees/
 
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # codex artifacts (browser profiles with LOCK files break Turbopack)
 .codex-artifacts/
 .codex-dev.err.log

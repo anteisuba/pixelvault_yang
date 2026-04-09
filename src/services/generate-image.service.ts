@@ -374,7 +374,9 @@ export async function generateImageForUser(
     provider,
     modelId: executionRoute.modelId,
     requestCount: executionRoute.creditCost,
-    inputImageCount: input.referenceImage ? 1 : 0,
+    inputImageCount: input.referenceImage
+      ? 1
+      : (input.referenceImages?.length ?? 0),
     outputImageCount: 1,
     width: generatedAsset.width,
     height: generatedAsset.height,
@@ -383,15 +385,18 @@ export async function generateImageForUser(
   })
 
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
-  const refKey = input.referenceImage
+  // Use single referenceImage if available, otherwise take first from referenceImages array
+  const effectiveRefImage =
+    input.referenceImage || input.referenceImages?.[0] || undefined
+  const refKey = effectiveRefImage
     ? generateStorageKey('IMAGE', dbUser.id)
     : undefined
 
   try {
     // Fetch reference image and generated image in parallel
     const [refData, genData] = await Promise.all([
-      input.referenceImage
-        ? fetchAsBuffer(input.referenceImage)
+      effectiveRefImage
+        ? fetchAsBuffer(effectiveRefImage)
         : Promise.resolve(null),
       fetchAsBuffer(generatedAsset.imageUrl),
     ])

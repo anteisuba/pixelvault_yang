@@ -53,42 +53,45 @@ function ProjectActions({
   onDelete: (id: string) => void
 }) {
   return (
-    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-      <button
-        type="button"
+    <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <span
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           e.stopPropagation()
           const newName = prompt('Rename project:', projectName)
           if (newName?.trim()) onRename(projectId, newName.trim())
         }}
-        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="flex size-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
         title="Rename"
       >
         <Pencil className="size-2.5" />
-      </button>
-      <button
-        type="button"
+      </span>
+      <span
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           e.stopPropagation()
           onAddSub(projectName)
         }}
-        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="flex size-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
         title="Add sub-project"
       >
         <FolderPlus className="size-2.5" />
-      </button>
-      <button
-        type="button"
+      </span>
+      <span
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           e.stopPropagation()
           onDelete(projectId)
         }}
-        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        className="flex size-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         title="Delete"
       >
         <Trash2 className="size-2.5" />
-      </button>
-    </div>
+      </span>
+    </span>
   )
 }
 

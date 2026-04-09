@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import {
   StudioModeSelector,
   StudioTopBar,
@@ -44,33 +44,25 @@ export function StudioWorkspace() {
 function StudioWorkspaceInner() {
   const { state } = useStudioForm()
   const { characters, onboarding } = useStudioData()
-  const isMobile = useIsMobile()
 
   return (
-    <div className="flex min-h-0 bg-background">
+    <SidebarProvider defaultOpen={false} className="!min-h-0 bg-background">
       {state.outputType === 'video' ? (
         /* ── Video mode: simple stack (no canvas layout) ──────── */
         <div
           role="tabpanel"
           id="studio-panel-video"
           aria-labelledby="studio-tab-video"
-          className="w-full space-y-4 p-5"
+          className="space-y-4 p-5"
         >
           <StudioModeSelector />
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
         </div>
       ) : (
-        /* ── Image mode: sidebar + canvas layout ─────────────── */
+        /* ── Image mode: canvas-centric vertical layout ──────── */
         <>
-          {/* Sidebar — desktop only */}
-          {!isMobile && (
-            <div className="w-52 shrink-0">
-              <StudioSidebar />
-            </div>
-          )}
-
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
+          <StudioSidebar />
+          <SidebarInset>
             <div
               role="tabpanel"
               id="studio-panel-image"
@@ -84,7 +76,7 @@ function StudioWorkspaceInner() {
                 gallery={<StudioGallery />}
               />
             </div>
-          </div>
+          </SidebarInset>
         </>
       )}
 
@@ -101,6 +93,6 @@ function StudioWorkspaceInner() {
         onSkip={onboarding.skip}
         onDismiss={onboarding.dismiss}
       />
-    </div>
+    </SidebarProvider>
   )
 }

@@ -1065,6 +1065,22 @@
     "dimTags": "タグ (NovelAI)",
     "extract": "抽出"
   },
+  "PromptAssistant": {
+    "title": "プロンプトアシスタント",
+    "placeholder": "作りたいものを説明してください...",
+    "send": "送信",
+    "usePrompt": "プロンプトとして使用",
+    "clear": "クリア",
+    "loading": "プロンプトを生成中...",
+    "emptyHint": "作りたいものを説明するか、上のスタイルプリセットをクリック",
+    "targetModel": "対象モデル",
+    "selectApiKey": "APIキーを選択",
+    "presetDetailed": "詳細",
+    "presetArtistic": "アート",
+    "presetPhoto": "写真",
+    "presetAnime": "アニメ",
+    "presetTags": "タグ"
+  },
   "LayerDecompose": {
     "title": "レイヤー分解",
     "animeOnly": "アニメ調イラストに最適です。キャラクターを意味レイヤー（髪、目、服など）に分解します。",

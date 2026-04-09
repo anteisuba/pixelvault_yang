@@ -48,6 +48,8 @@ export const API_ENDPOINTS = {
 
   /** Prompt feedback (AI coaching) */
   PROMPT_FEEDBACK: '/api/prompt/feedback',
+  /** Prompt assistant (chat-based prompt generation) */
+  PROMPT_ASSISTANT: '/api/prompt/assistant',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
@@ -284,6 +286,7 @@ export const RATE_LIMIT_CONFIGS = {
   imageDecompose: { limit: 5, windowSeconds: 120 },
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
+  promptAssistant: { limit: 30, windowSeconds: 60 },
 } as const
 
 /** Centralized maxDuration configs for serverless functions */

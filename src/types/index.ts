@@ -589,6 +589,42 @@ export interface EnhancePromptResponse {
   error?: string
 }
 
+// ─── Prompt Assistant (Chat-based) ───────────────────────────────
+
+export const PromptAssistantMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+})
+
+export const PromptAssistantRequestSchema = z.object({
+  messages: z.array(PromptAssistantMessageSchema).min(1),
+  /** Current generation model (for model-aware prompt formatting) */
+  modelId: z.string().optional(),
+  /** Reference image base64 or URL (for style analysis) */
+  referenceImageData: z.string().optional(),
+  /** Current prompt in the textarea (for context) */
+  currentPrompt: z.string().optional(),
+  /** User-selected API key for LLM calls */
+  apiKeyId: z.string().optional(),
+})
+
+export type PromptAssistantRequest = z.infer<
+  typeof PromptAssistantRequestSchema
+>
+export type PromptAssistantMessage = z.infer<
+  typeof PromptAssistantMessageSchema
+>
+
+export interface PromptAssistantResponseData {
+  prompt: string
+}
+
+export interface PromptAssistantResponse {
+  success: boolean
+  data?: PromptAssistantResponseData
+  error?: string
+}
+
 // ─── Prompt Feedback ─────────────────────────────────────────────
 
 export const PromptFeedbackRequestSchema = z.object({

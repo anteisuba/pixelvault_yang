@@ -1065,6 +1065,22 @@
     "dimTags": "Tags (NovelAI)",
     "extract": "Extract"
   },
+  "PromptAssistant": {
+    "title": "Prompt Assistant",
+    "placeholder": "Describe what you want...",
+    "send": "Send",
+    "usePrompt": "Use as Prompt",
+    "clear": "Clear",
+    "loading": "Generating prompt...",
+    "emptyHint": "Describe what you want to create, or click a style preset above",
+    "targetModel": "Target model",
+    "selectApiKey": "Select API key",
+    "presetDetailed": "Detailed",
+    "presetArtistic": "Artistic",
+    "presetPhoto": "Photo",
+    "presetAnime": "Anime",
+    "presetTags": "Tags"
+  },
   "LayerDecompose": {
     "title": "Layer Decompose",
     "animeOnly": "Best for anime-style illustrations. Splits into semantic layers (hair, eyes, clothes, etc.).",

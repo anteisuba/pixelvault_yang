@@ -11,13 +11,21 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+
+/** Adapter types that support LLM text generation (for prompt assistant) */
+const LLM_CAPABLE_ADAPTERS = new Set([
+  AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.VOLCENGINE,
+])
 import { StudioGenerateBar } from './StudioGenerateBar'
 
-const PromptEnhancer = dynamic(() =>
-  import('@/components/business/PromptEnhancer').then(
-    (mod) => mod.PromptEnhancer,
+const PromptAssistantPanel = dynamic(() =>
+  import('@/components/business/PromptAssistantPanel').then(
+    (mod) => mod.PromptAssistantPanel,
   ),
 )
 const AdvancedSettings = dynamic(() =>
@@ -53,6 +61,12 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const { selectedModel } = useImageModelOptions()
+  const { keys: apiKeys } = useApiKeysContext()
+
+  // Filter to LLM-capable API keys for the prompt assistant
+  const llmApiKeys = apiKeys
+    .filter((k) => k.isActive && LLM_CAPABLE_ADAPTERS.has(k.adapterType))
+    .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
 
   const selectedStyleCard = styles.activeCard
   const adapterType =
@@ -112,19 +126,17 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* ── Prompt Enhancer ──────────────────────────────────── */}
+      {/* ── Prompt Assistant (Chat-based) ──────────────────── */}
       {state.panels.enhance && (
-        <PromptEnhancer
-          prompt={state.prompt}
-          isEnhancing={promptEnhance.isEnhancing}
-          disabled={isGenerating}
-          enhanced={promptEnhance.enhanced}
-          enhancedOriginal={promptEnhance.original}
-          enhancedStyle={promptEnhance.style}
-          onEnhance={handleEnhance}
-          onUseEnhanced={handleUseEnhanced}
-          onDismiss={() => {
-            promptEnhance.clearEnhancement()
+        <PromptAssistantPanel
+          currentPrompt={state.prompt}
+          modelId={modelId}
+          referenceImageData={imageUpload.referenceImages[0]}
+          llmApiKeys={llmApiKeys}
+          onUsePrompt={(text) => {
+            dispatch({ type: 'SET_PROMPT', payload: text })
+          }}
+          onClose={() => {
             dispatch({ type: 'CLOSE_PANEL', payload: 'enhance' })
           }}
         />

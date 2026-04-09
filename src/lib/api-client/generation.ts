@@ -4,6 +4,8 @@ import type {
   CivitaiTokenStatusResponse,
   EnhancePromptRequest,
   EnhancePromptResponse,
+  PromptAssistantRequest,
+  PromptAssistantResponse,
   GenerateRequest,
   GenerateResponse,
   GenerateVariationsRequest,
@@ -617,6 +619,38 @@ export async function deleteCivitaiTokenAPI(): Promise<{
         error: await getErrorMessage(response, 'Failed to delete token'),
       }
     }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+// ─── Prompt Assistant (Chat-based) ──────────────────────────────
+
+export async function chatPromptAssistantAPI(
+  params: PromptAssistantRequest,
+): Promise<PromptAssistantResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.PROMPT_ASSISTANT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Assistant failed with status ${response.status}`,
+        ),
+      }
+    }
+
     return await response.json()
   } catch (error) {
     return {

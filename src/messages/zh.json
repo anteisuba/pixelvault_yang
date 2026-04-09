@@ -1065,6 +1065,22 @@
     "dimTags": "标签 (NovelAI)",
     "extract": "提取"
   },
+  "PromptAssistant": {
+    "title": "提示词助手",
+    "placeholder": "描述你想要创作的内容...",
+    "send": "发送",
+    "usePrompt": "填入提示词",
+    "clear": "清空",
+    "loading": "正在生成提示词...",
+    "emptyHint": "描述你想要创作的内容，或点击上方的风格预设",
+    "targetModel": "目标模型",
+    "selectApiKey": "选择 API 密钥",
+    "presetDetailed": "详细",
+    "presetArtistic": "艺术",
+    "presetPhoto": "摄影",
+    "presetAnime": "动漫",
+    "presetTags": "标签"
+  },
   "LayerDecompose": {
     "title": "图层分解",
     "animeOnly": "最适合动漫风格插画。将角色拆解为语义图层（头发、眼睛、服装等）。",

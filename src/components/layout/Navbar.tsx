@@ -121,7 +121,7 @@ export function Navbar() {
     >
       <div
         className={cn(
-          'mx-auto flex max-w-content items-center justify-between gap-3 overflow-hidden px-4 transition-all duration-300 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8',
+          'mx-auto flex max-w-content items-center justify-between gap-3 px-4 transition-all duration-300 sm:gap-4 sm:px-6 lg:gap-5 lg:px-8',
           scrolled ? 'h-12' : 'h-14',
         )}
       >

@@ -1,53 +1,48 @@
 # Studio 侧边栏 UX 优化 v2
 
+## 已完成
+
+- [x] TreeView 替换 shadcn SidebarMenu（树形折叠项目列表）
+- [x] 项目名 "Parent / Child" 自动解析为嵌套树
+- [x] "全部生成" 作为顶部特殊入口
+- [x] API Keys 紧凑列表
+- [x] 项目操作按钮（重命名/子项目/删除）hover 显示
+- [x] TopBar 侧边栏收缩按钮保留（SidebarProvider offcanvas）
+- [x] TopBar 模型/API 指示器始终显示
+- [x] 拖拽图片到项目（基础版：拖到项目树区域 = 移入当前选中项目）
+- [x] PATCH /api/generations/[id]/project API route
+
+## 待优化 TODO
+
+### 拖拽体验优化
+
+- [ ] 精确 drop 到具体项目节点（目前只能 drop 到当前选中的项目）
+- [ ] 用 Pragmatic DnD 替换 HTML5 drag API（更好的视觉反馈）
+- [ ] 拖拽时每个项目节点独立高亮（而非整个树区域高亮）
+- [ ] 拖拽预览缩略图（drag ghost image）
+
+### 项目管理优化
+
+- [ ] 项目生成数量 badge 显示在每个节点右侧
+- [ ] 重命名改为 inline 编辑（不用 prompt 弹窗）
+- [ ] 删除前确认弹窗
+- [ ] 右键菜单（替代 hover 按钮，移动端更友好）
+- [ ] 新建项目时自动进入重命名状态
+
+### 视觉优化
+
+- [ ] 项目文件夹图标区分有/无子项目
+- [ ] 选中项目时左侧彩色指示条
+- [ ] 空项目占位提示
+- [ ] 侧边栏收起时显示 mini 图标模式
+
+### 移动端
+
+- [ ] 手机端侧边栏用 Sheet 弹出（目前直接隐藏）
+- [ ] 底部 Tab 加项目入口
+
 ## 技术方案
 
-- **Tree View**: [shadcn-tree-view](https://github.com/MrLightful/shadcn-tree-view) — 树形折叠 + 图标 + 选中状态
-- **Drag & Drop**: [@atlaskit/pragmatic-drag-and-drop](https://github.com/atlassian/pragmatic-drag-and-drop) — Atlassian 拖拽库
-- 已安装: `src/components/ui/tree-view.tsx` + `@atlaskit/pragmatic-drag-and-drop`
-
-## 旧方案（已替代）
-
-## 问题清单
-
-### 1. 侧边栏组件体验差
-
-- 当前组件操作麻烦，交互不直观
-- 需要调研更合适的侧边栏组件或重新设计交互
-
-### 2. 项目目录层级不明显
-
-- 项目列表视觉上平铺，看不出层级关系
-- "全部生成" 和具体项目之间没有视觉区分
-- 多个 "New project" 命名不直观
-
-### 3. 拖拽图片到项目
-
-- 希望能从历史记录/Gallery 中拖动图片放入项目
-- 需要实现 drag & drop 交互
-- 拖拽目标：侧边栏的项目文件夹
-
-## 优化方向
-
-### 侧边栏重设计
-
-- 项目文件夹用树形结构 + 缩进 + 折叠
-- "全部生成" 作为特殊入口，视觉上与项目区分
-- 项目图标 + 生成数量 badge
-- 右键菜单：重命名、删除、移动
-
-### 拖拽交互
-
-- Gallery/历史中的图片卡支持 `draggable`
-- 侧边栏项目文件夹作为 drop target
-- 拖拽时高亮目标项目
-- Drop 后调用 API 将图片移入项目
-
-## 关键文件
-
-| 文件                                               | 改动                    |
-| -------------------------------------------------- | ----------------------- |
-| `src/components/business/studio/StudioSidebar.tsx` | 重构侧边栏布局          |
-| `src/components/business/studio/StudioGallery.tsx` | 图片卡添加 draggable    |
-| `src/components/business/ImageCard.tsx`            | 支持 drag 事件          |
-| `src/services/project.service.ts`                  | 添加"移动图片到项目"API |
+- **Tree View**: `src/components/ui/tree-view.tsx` (shadcn-tree-view)
+- **Drag & Drop**: `@atlaskit/pragmatic-drag-and-drop`（已安装未使用，当前用 HTML5 API）
+- **API**: `PATCH /api/generations/[id]/project` (已完成)

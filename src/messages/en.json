@@ -1655,7 +1655,8 @@
     "toolRemoveBg": "Remove background",
     "toolSaveSuperRes": "Save super-res",
     "toolLayers": "Layer decompose",
-    "linkCopied": "Link copied"
+    "linkCopied": "Link copied",
+    "toolDrawerTitle": "Tools"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "Studio draft",

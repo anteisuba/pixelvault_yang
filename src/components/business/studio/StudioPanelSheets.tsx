@@ -85,7 +85,7 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
       >
         <SheetContent
           side="right"
-          className="w-[380px] sm:max-w-[420px] flex flex-col"
+          className="w-full sm:w-[380px] sm:max-w-[420px] flex flex-col"
         >
           <SheetHeader>
             <SheetTitle className="font-display">
@@ -124,7 +124,7 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
       >
         <SheetContent
           side="right"
-          className="w-[420px] sm:max-w-[480px] flex flex-col"
+          className="w-full sm:w-[420px] sm:max-w-[480px] flex flex-col"
         >
           <SheetHeader>
             <SheetTitle className="font-display">
@@ -151,7 +151,7 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
       >
         <SheetContent
           side="right"
-          className="w-[420px] sm:max-w-[480px] flex flex-col"
+          className="w-full sm:w-[420px] sm:max-w-[480px] flex flex-col"
         >
           <SheetHeader>
             <SheetTitle className="font-display">

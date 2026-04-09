@@ -1655,7 +1655,8 @@
     "toolRemoveBg": "背景除去",
     "toolSaveSuperRes": "超解像を保存",
     "toolLayers": "レイヤー分解",
-    "linkCopied": "リンクをコピーしました"
+    "linkCopied": "リンクをコピーしました",
+    "toolDrawerTitle": "ツール"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "スタジオ草案",

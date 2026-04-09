@@ -3,6 +3,8 @@
 import { memo } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
 
 import { StudioCardSection } from './StudioCardSection'
 import { StudioPromptArea } from './StudioPromptArea'
@@ -12,11 +14,12 @@ import { StudioDockPanelArea } from './StudioDockPanelArea'
 
 /**
  * StudioBottomDock — Left-right split layout.
- * Left: model selector + prompt + toolbar + aspect ratio
- * Right: active tool panel content (inline, no popover/sheet)
+ * Desktop: 60%/40% grid with inline panel area.
+ * Mobile: full-width controls, panel opens as bottom drawer.
  */
 export const StudioBottomDock = memo(function StudioBottomDock() {
-  const { state } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
+  const isMobile = useIsMobile()
 
   const hasOpenPanel =
     state.panels.enhance ||
@@ -27,6 +30,35 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
     state.panels.layerDecompose ||
     state.panels.aspectRatio
 
+  const closeAllPanels = () => dispatch({ type: 'CLOSE_ALL_PANELS' })
+
+  // ── Mobile: full-width dock + drawer for panels ───────────────────
+  if (isMobile) {
+    return (
+      <div className="studio-dock">
+        <div className="space-y-2">
+          {state.workflowMode === 'card' && <StudioCardSection />}
+          <StudioPromptArea />
+          <StudioToolbarPanels />
+        </div>
+
+        <Drawer
+          open={hasOpenPanel}
+          onOpenChange={(open) => {
+            if (!open) closeAllPanels()
+          }}
+        >
+          <DrawerContent className="max-h-[80vh]">
+            <div className="overflow-y-auto px-4 pb-6 pt-2">
+              <StudioDockPanelArea />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    )
+  }
+
+  // ── Desktop: 60%/40% grid layout ──────────────────────────────────
   return (
     <div className="studio-dock">
       <div

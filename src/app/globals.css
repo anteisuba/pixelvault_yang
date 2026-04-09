@@ -28,8 +28,8 @@
   --tracking-brand: -0.04em;
   --tracking-nav: 0.16em;
   --tracking-nav-dense: 0.14em;
-  --text-3xs: 0.625rem;   /* 10px */
-  --text-2xs: 0.6875rem;  /* 11px */
+  --text-3xs: 0.625rem; /* 10px */
+  --text-2xs: 0.6875rem; /* 11px */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -66,52 +66,77 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite
+    alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
     }
   }
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
+    0% {
+      transform: translateZ(0) rotate(0);
     }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
     }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
     }
-  100% {
-    transform: translateZ(0) rotate(360deg);
+    100% {
+      transform: translateZ(0) rotate(360deg);
     }
   }
-  --animate-shiny-text: shiny-text 8s infinite
-;
+  --animate-shiny-text: shiny-text 8s infinite;
   @keyframes shiny-text {
-  0%, 90%, 100% {
-    background-position: calc(-100% - var(--shiny-width)) 0;}
-  30%, 60% {
-    background-position: calc(100% + var(--shiny-width)) 0;}}
-  --animate-orbit: orbit calc(var(--duration)*1s) linear infinite;
+    0%,
+    90%,
+    100% {
+      background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+    30%,
+    60% {
+      background-position: calc(100% + var(--shiny-width)) 0;
+    }
+  }
+  --animate-orbit: orbit calc(var(--duration) * 1s) linear infinite;
   @keyframes orbit {
-  0% {
-    transform: rotate(calc(var(--angle) * 1deg)) translateY(calc(var(--radius) * 1px)) rotate(calc(var(--angle) * -1deg));}
-  100% {
-    transform: rotate(calc(var(--angle) * 1deg + 360deg)) translateY(calc(var(--radius) * 1px)) rotate(calc((var(--angle) * -1deg) - 360deg));}}
+    0% {
+      transform: rotate(calc(var(--angle) * 1deg))
+        translateY(calc(var(--radius) * 1px)) rotate(calc(var(--angle) * -1deg));
+    }
+    100% {
+      transform: rotate(calc(var(--angle) * 1deg + 360deg))
+        translateY(calc(var(--radius) * 1px))
+        rotate(calc((var(--angle) * -1deg) - 360deg));
+    }
+  }
   --animate-pulse: pulse var(--duration) ease-out infinite;
-  --animate-pulse-ripple: pulse-ripple var(--duration) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  --animate-pulse-ripple: pulse-ripple var(--duration)
+    cubic-bezier(0.16, 1, 0.3, 1) infinite;
   @keyframes pulse {
-  0%, 100% {
-    boxShadow: 0 0 0 0 var(--pulse-color, oklch(from var(--bg) l c h / 0.5));}
-  50% {
-    boxShadow: 0 0 0 var(--distance) var(--pulse-color, oklch(from var(--bg) l c h / 0.5));}}
+    0%,
+    100% {
+      boxshadow: 0 0 0 0 var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+    50% {
+      boxshadow: 0 0 0 var(--distance)
+        var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+  }
   @keyframes pulse-ripple {
-  0% {
-    boxShadow: 0 0 0 0 oklch(from var(--pulse-color, var(--bg)) l c h / 1);}
-  100% {
-    boxShadow: 0 0 0 var(--distance) oklch(from var(--pulse-color, var(--bg)) l c h / 0);}}}
+    0% {
+      boxshadow: 0 0 0 0 oklch(from var(--pulse-color, var(--bg)) l c h / 1);
+    }
+    100% {
+      boxshadow: 0 0 0 var(--distance)
+        oklch(from var(--pulse-color, var(--bg)) l c h / 0);
+    }
+  }
+}
 
 :root {
   --font-app-sans: var(--font-app-sans), sans-serif;
@@ -504,7 +529,7 @@ html:lang(zh) {
   /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
   .studio-layout-v2 {
-    min-height: calc(100vh - 3.5rem);
+    min-height: calc(100svh - 3.5rem);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -531,6 +556,13 @@ html:lang(zh) {
     backdrop-filter: blur(12px);
     position: relative;
     z-index: 10;
+  }
+
+  /* ── Touch-device utility: make hover-only elements always visible ── */
+  @media (hover: none) {
+    .card-actions {
+      opacity: 1 !important;
+    }
   }
 
   .studio-dock-inner {
@@ -579,8 +611,9 @@ html:lang(zh) {
   .studio-gallery-item {
     flex-shrink: 0;
     scroll-snap-align: start;
-    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.3s ease;
+    transition:
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s ease;
   }
 
   .studio-gallery-item:hover {
@@ -594,14 +627,26 @@ html:lang(zh) {
 
   /* Dropdown fade-in animation (design-compliant: no bounce) */
   @keyframes studio-dropdown-in {
-    0% { opacity: 0; transform: translateY(-6px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Panel slide-down animation (for toolbar panels) */
   @keyframes studio-panel-in {
-    0% { opacity: 0; transform: translateY(-8px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .studio-panel-animate {
@@ -610,8 +655,13 @@ html:lang(zh) {
 
   /* Generate button pulse glow */
   @keyframes studio-pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.3); }
-    50% { box-shadow: 0 0 0 8px rgba(217, 119, 87, 0); }
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(217, 119, 87, 0);
+    }
   }
 
   .studio-generating {
@@ -620,8 +670,14 @@ html:lang(zh) {
 
   /* Step content fade-in (for multi-step panels) */
   @keyframes studio-step-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .studio-step-animate {
@@ -632,31 +688,65 @@ html:lang(zh) {
   .studio-stagger > * {
     animation: studio-step-in 0.3s ease-out both;
   }
-  .studio-stagger > *:nth-child(1) { animation-delay: 0s; }
-  .studio-stagger > *:nth-child(2) { animation-delay: 0.05s; }
-  .studio-stagger > *:nth-child(3) { animation-delay: 0.1s; }
-  .studio-stagger > *:nth-child(4) { animation-delay: 0.15s; }
-  .studio-stagger > *:nth-child(5) { animation-delay: 0.2s; }
-  .studio-stagger > *:nth-child(6) { animation-delay: 0.25s; }
+  .studio-stagger > *:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .studio-stagger > *:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .studio-stagger > *:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .studio-stagger > *:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .studio-stagger > *:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+  .studio-stagger > *:nth-child(6) {
+    animation-delay: 0.25s;
+  }
 
   /* Gallery item entrance animation */
   @keyframes studio-gallery-enter {
-    from { opacity: 0; transform: translateY(8px) scale(0.96); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .studio-gallery-item {
     animation: studio-gallery-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .studio-gallery-item:nth-child(1) { animation-delay: 0s; }
-  .studio-gallery-item:nth-child(2) { animation-delay: 0.04s; }
-  .studio-gallery-item:nth-child(3) { animation-delay: 0.04s; }
-  .studio-gallery-item:nth-child(4) { animation-delay: 0.08s; }
-  .studio-gallery-item:nth-child(5) { animation-delay: 0.12s; }
-  .studio-gallery-item:nth-child(6) { animation-delay: 0.16s; }
-  .studio-gallery-item:nth-child(7) { animation-delay: 0.2s; }
-  .studio-gallery-item:nth-child(8) { animation-delay: 0.24s; }
+  .studio-gallery-item:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .studio-gallery-item:nth-child(2) {
+    animation-delay: 0.04s;
+  }
+  .studio-gallery-item:nth-child(3) {
+    animation-delay: 0.04s;
+  }
+  .studio-gallery-item:nth-child(4) {
+    animation-delay: 0.08s;
+  }
+  .studio-gallery-item:nth-child(5) {
+    animation-delay: 0.12s;
+  }
+  .studio-gallery-item:nth-child(6) {
+    animation-delay: 0.16s;
+  }
+  .studio-gallery-item:nth-child(7) {
+    animation-delay: 0.2s;
+  }
+  .studio-gallery-item:nth-child(8) {
+    animation-delay: 0.24s;
+  }
 
   /* Command palette (cmdk) */
   [cmdk-dialog] {

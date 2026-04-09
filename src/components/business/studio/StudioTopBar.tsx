@@ -43,7 +43,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
     : null
 
   return (
-    <div className="flex h-12 items-center gap-3 border-b border-border/60 px-4 shrink-0 font-display">
+    <div className="flex h-12 items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 shrink-0 font-display">
       {/* Sidebar toggle */}
       <button
         type="button"
@@ -71,13 +71,13 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
+            'flex items-center gap-1 sm:gap-1.5 rounded-md px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200',
             state.outputType === 'image'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
-          <ImageIcon className="size-4" />
+          <ImageIcon className="size-3.5 sm:size-4" />
           {tStudio('modeImage')}
         </button>
         <button
@@ -88,7 +88,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
           }
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all duration-200',
+            'flex items-center gap-1 sm:gap-1.5 rounded-md px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200',
             state.outputType === 'video'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
@@ -105,11 +105,11 @@ export const StudioTopBar = memo(function StudioTopBar() {
         aria-hidden="true"
       />
 
-      {/* Quick / Card workflow toggle */}
+      {/* Quick / Card workflow toggle — hidden on mobile */}
       <div
         role="tablist"
         aria-label={tV3('workflowModeLabel')}
-        className="flex rounded-lg border border-border/60 p-0.5"
+        className="hidden sm:flex rounded-lg border border-border/60 p-0.5"
       >
         <button
           type="button"
@@ -145,9 +145,9 @@ export const StudioTopBar = memo(function StudioTopBar() {
         </button>
       </div>
 
-      {/* Active route indicator */}
+      {/* Active route indicator — hidden on mobile */}
       {routeLabel && (
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-1">
+        <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground ml-1">
           <ApiKeyHealthDot status={routeHealth} />
           <span className="font-medium text-foreground">{routeLabel}</span>
           {routeProvider && <span>{routeProvider}</span>}
@@ -158,7 +158,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
       <div className="flex-1" />
 
       {/* Free credits badge */}
-      <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-sm text-muted-foreground">
+      <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-muted-foreground">
         <Gift className="size-4 text-chart-3" />
         <span className="font-serif font-medium">
           {tStudio('freeQuota', {

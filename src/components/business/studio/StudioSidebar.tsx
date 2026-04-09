@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import {
   Key,
   Folder,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { assignToProjectAPI } from '@/lib/api-client'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
@@ -195,6 +196,45 @@ export const StudioSidebar = memo(function StudioSidebar() {
     [projects],
   )
 
+  // ── Drag & Drop: move generation to project ───────────────────
+
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, projectId: string | null) => {
+      if (e.dataTransfer.types.includes('application/x-studio-ref')) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+        setDropTargetId(projectId)
+      }
+    },
+    [],
+  )
+
+  const handleDragLeave = useCallback(() => {
+    setDropTargetId(null)
+  }, [])
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent, projectId: string | null) => {
+      e.preventDefault()
+      setDropTargetId(null)
+
+      const raw = e.dataTransfer.getData('application/x-studio-ref')
+      if (!raw) return
+
+      try {
+        const { id: generationId } = JSON.parse(raw) as { id: string }
+        if (!generationId) return
+        await assignToProjectAPI(generationId, projectId)
+        void projects.refresh()
+      } catch {
+        // silently fail
+      }
+    },
+    [projects],
+  )
+
   const treeData = useMemo(
     () =>
       buildProjectTree(
@@ -234,12 +274,18 @@ export const StudioSidebar = memo(function StudioSidebar() {
           </button>
         </div>
 
-        {/* ── All Generations ────────────────────────────────── */}
+        {/* ── All Generations (drop = unassign from project) ── */}
         <button
           type="button"
           onClick={() => projects.setActiveProjectId(null)}
+          onDragOver={(e) => handleDragOver(e, null)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => void handleDrop(e, null)}
           className={cn(
             'mx-2 mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors',
+            dropTargetId === null &&
+              dropTargetId !== undefined &&
+              'ring-2 ring-primary/40 bg-primary/5',
             !projects.activeProjectId
               ? 'bg-accent/70 text-accent-foreground font-medium'
               : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground',
@@ -254,8 +300,48 @@ export const StudioSidebar = memo(function StudioSidebar() {
           </span>
         </button>
 
-        {/* ── Project Tree ───────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-1">
+        {/* ── Project Tree (supports external drop from Gallery) */}
+        <div
+          className="flex-1 overflow-y-auto px-1"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('application/x-studio-ref')) {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+              // Find closest project node by walking up DOM
+              const target = (e.target as HTMLElement).closest(
+                '[data-state]',
+              ) as HTMLElement | null
+              const accordionItem = target?.closest(
+                '[data-orientation]',
+              ) as HTMLElement | null
+              // AccordionItem has value = project id
+              const projectId =
+                accordionItem
+                  ?.querySelector('[data-state]')
+                  ?.getAttribute('data-value') ?? null
+              if (projectId) setDropTargetId(projectId)
+            }
+          }}
+          onDragLeave={() => setDropTargetId(null)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDropTargetId(null)
+            const raw = e.dataTransfer.getData('application/x-studio-ref')
+            if (!raw) return
+            // Use the active project as target (the one user is hovering)
+            const targetId = dropTargetId ?? projects.activeProjectId
+            try {
+              const { id: generationId } = JSON.parse(raw) as { id: string }
+              if (generationId && targetId) {
+                void assignToProjectAPI(generationId, targetId).then(() =>
+                  projects.refresh(),
+                )
+              }
+            } catch {
+              // silently fail
+            }
+          }}
+        >
           {treeData.length > 0 ? (
             <TreeView
               data={treeData}

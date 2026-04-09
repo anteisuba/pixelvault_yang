@@ -660,3 +660,39 @@ export async function chatPromptAssistantAPI(
     }
   }
 }
+
+// ─── Assign Generation to Project ───────────────────────────────
+
+export async function assignToProjectAPI(
+  generationId: string,
+  projectId: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATIONS}/${generationId}/project`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      },
+    )
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          'Failed to assign generation to project',
+        ),
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to assign generation',
+    }
+  }
+}

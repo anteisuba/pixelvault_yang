@@ -3,6 +3,7 @@ import 'server-only'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { CARD_RECIPE } from '@/constants/card-types'
+import { ADAPTER_PROMPT_HINTS } from '@/constants/model-strengths'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { z } from 'zod'
 import {
@@ -46,27 +47,9 @@ export interface CompiledRecipe {
 
 // ─── LLM System Prompts ─────────────────────────────────────────
 
-// Model-specific prompt style hints used by the fusion system prompt
-const MODEL_PROMPT_HINTS: Record<string, string> = {
-  [AI_ADAPTER_TYPES.FAL]:
-    'Target model: FLUX. Prefer photographic terminology, specific lens/camera details, precise lighting descriptions, and full natural language sentences.',
-  [AI_ADAPTER_TYPES.NOVELAI]:
-    'Target model: NovelAI (anime diffusion). Output as comma-separated danbooru-style tags. Include quality tags (masterpiece, best quality) at the start. Character tags before style and background tags.',
-  [AI_ADAPTER_TYPES.GEMINI]:
-    'Target model: Gemini image generation. Prefer natural, descriptive English sentences with rich visual detail.',
-  [AI_ADAPTER_TYPES.VOLCENGINE]:
-    'Target model: Seedream (VolcEngine). Prefer concise, clear descriptions. Works well with both English and Chinese.',
-  [AI_ADAPTER_TYPES.OPENAI]:
-    'Target model: GPT Image. Prefer detailed natural language descriptions with emphasis on composition and mood.',
-  [AI_ADAPTER_TYPES.HUGGINGFACE]:
-    'Target model: Stable Diffusion. Prefer comma-separated descriptive phrases with quality modifiers.',
-  [AI_ADAPTER_TYPES.REPLICATE]:
-    'Target model: Replicate hosted model. Prefer detailed natural language descriptions.',
-}
-
 function buildFusionSystemPrompt(adapterType: string): string {
   const modelHint =
-    MODEL_PROMPT_HINTS[adapterType] ??
+    ADAPTER_PROMPT_HINTS[adapterType] ??
     'Prefer detailed natural language descriptions.'
 
   if (isTagBasedAdapter(adapterType)) {
@@ -75,8 +58,10 @@ function buildFusionSystemPrompt(adapterType: string): string {
 ${modelHint}
 
 Rules:
+- The STYLE input defines the visual language for the entire image. Style tags should MODIFY character and background tags, not just be appended separately.
+- Apply style modifiers directly to character and background tags (e.g., if style is "watercolor," use watercolor_portrait, soft_edges on the character, not just list "watercolor" at the end).
 - Do NOT simply concatenate the inputs. Understand the semantics and prioritize the most important visual elements.
-- Most important tags first (subject, key features, then style, then background).
+- Order: subject + style-modified character tags first, then style-modified background, then quality tags.
 - Output ONLY the composed tags, no explanation or preamble.`
   }
 
@@ -85,8 +70,10 @@ Rules:
 ${modelHint}
 
 Rules:
-- Do NOT simply concatenate the inputs. Understand the semantics and produce natural, flowing text.
-- Start with the subject/character, then integrate the action, background, and style naturally.
+- The STYLE input defines the visual language for the entire image. Apply the style's color palette, mood, medium, and aesthetic to how you describe the character AND the background.
+- Do NOT just append style keywords at the end. Instead, describe the character and background IN the style's visual language from the start.
+- Example: if the style is "watercolor painting," describe the character with soft edges, transparent washes, and muted tones — not "a girl standing in a garden, watercolor style."
+- The output should feel like a single cohesive prompt where every element belongs to the same artistic world.
 - Be detailed and specific. Include visual details that help the AI model produce a high-quality image.
 - Output ONLY the composed prompt text, no explanation or preamble.
 - Output in English.`
@@ -211,6 +198,7 @@ async function loadStyleCard(id: string, userId: string) {
       id: true,
       name: true,
       stylePrompt: true,
+      attributes: true,
       loras: true,
       modelId: true,
       adapterType: true,
@@ -256,11 +244,32 @@ async function compileWithLlm(
     backgroundPrompt?: string
     stylePrompt?: string
     freePrompt?: string
+    styleAttributes?: Record<string, unknown> | null
   },
 ): Promise<string | null> {
   try {
     const route = await resolveLlmTextRoute(userId)
     const systemPrompt = buildFusionSystemPrompt(adapterType)
+
+    // Build style section with structured attributes when available
+    let styleSection: string | null = null
+    if (parts.stylePrompt) {
+      styleSection = `STYLE: ${truncatePrompt(parts.stylePrompt)}`
+      const attrs = parts.styleAttributes
+      if (attrs) {
+        const attrLines = [
+          attrs.artStyle ? `- Art Style: ${attrs.artStyle}` : null,
+          attrs.colorPalette ? `- Color Palette: ${attrs.colorPalette}` : null,
+          attrs.mood ? `- Mood: ${attrs.mood}` : null,
+          attrs.influences ? `- Influences: ${attrs.influences}` : null,
+        ]
+          .filter(Boolean)
+          .join('\n')
+        if (attrLines) {
+          styleSection += `\n\nSTYLE ATTRIBUTES (apply these to ALL elements):\n${attrLines}`
+        }
+      }
+    }
 
     const userMessage = [
       parts.characterPrompt
@@ -269,7 +278,7 @@ async function compileWithLlm(
       parts.backgroundPrompt
         ? `BACKGROUND: ${truncatePrompt(parts.backgroundPrompt)}`
         : null,
-      parts.stylePrompt ? `STYLE: ${truncatePrompt(parts.stylePrompt)}` : null,
+      styleSection,
       parts.freePrompt
         ? `ACTION/SCENE: ${truncatePrompt(parts.freePrompt)}`
         : null,
@@ -342,12 +351,13 @@ export async function compileRecipe(
     throw new Error('MISSING_MODEL_IN_STYLE: 请在画风卡中选择一个模型')
   }
 
-  // Collect prompt parts
+  // Collect prompt parts (include style attributes for LLM harmonization)
   const parts = {
     characterPrompt: charCard?.characterPrompt,
     backgroundPrompt: bgCard?.backgroundPrompt,
     stylePrompt: styleCard?.stylePrompt,
     freePrompt: input.freePrompt ?? undefined,
+    styleAttributes: (styleCard?.attributes as Record<string, unknown>) ?? null,
   }
 
   // Include adapterType in cache key (same recipe compiles differently for different models)

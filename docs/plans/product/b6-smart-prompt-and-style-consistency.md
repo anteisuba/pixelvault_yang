@@ -1,99 +1,125 @@
-# B6 智能提示词 + Recipe 风格一致性优化
+# B6 智能提示词 + Recipe 风格一致性优化 v2
 
 ## Context
 
-两个独立但相关的问题：
+三个相关问题：
 
-1. **快速生成**画风趋同 — prompt enhance 的 5 个 system prompt 不感知当前模型，所有模型用同一套增强逻辑
-2. **卡片生成**角色/背景与画风不统一 — recipe compiler 的 LLM fusion prompt 把 style 当作平级输入拼接，没有让风格"渗透"到角色和背景描述中
+1. **快速生成画风趋同** — prompt enhance 不感知模型，所有模型用同一套增强逻辑
+2. **卡片生成角色/背景与画风不统一** — recipe compiler 把 style 当平级输入，没有渗透
+3. **无法从参考图提取特定维度** — Image Reverse 输出一大段混合 prompt，用户无法选择性提取画风/角色/背景
 
-两个问题分别修改，互不依赖。
+v2 方案核心变化：**从 Image Reverse 入手**，让用户上传图片后选择提取维度（画风/角色/背景/整体），而非输出一个 blob。
 
 ---
 
-## Part A: 快速生成 — 模型感知增强 + 场景模板
+## Part A: Image Reverse 结构化提取（核心改动）
 
-### A1. 模型感知 Prompt Enhancement [后端]
+### A1. 选择维度 → 按需提取 [核心交互]
 
-**修改文件**: `src/services/prompt-enhance.service.ts`
+用户上传图片后，**先出现多选项**让用户选择要提取的维度，选完再调 AI：
 
-当前 `enhancePrompt()` 签名：`(clerkId, prompt, style, apiKeyId?)`
-新增 `modelId` 参数：`(clerkId, prompt, style, modelId?, apiKeyId?)`
+```
+┌─────────────────────────────────┐
+│  [源图缩略图]                    │
+│                                  │
+│  从这张图提取什么？（可多选）      │
+│  ☐ 🎨 画风 (Art Style)          │
+│  ☐ 👤 角色 (Character)          │
+│  ☐ 🏞 背景 (Background)         │
+│  ☐ 📋 整体 (Overall)            │
+│                                  │
+│           [提取 →]               │
+└─────────────────────────────────┘
+          ↓ 点击提取
+┌─────────────────────────────────┐
+│  🎨 画风:                        │
+│  "水彩画风格，柔和透明色调..."     │
+│                       [填入 ✓]   │
+│  🏞 背景:                        │
+│  "樱花树下，阳光斑驳..."          │
+│                       [填入 ✓]   │
+└─────────────────────────────────┘
+```
 
-根据 modelId 解析 adapterType，在 system prompt 中注入模型特定指令：
+好处：
 
-- FLUX/FAL: "优先使用摄影术语、镜头参数、自然光描述"
-- NovelAI: "输出 danbooru 风格 tag，quality tags 在前"
-- Gemini/OpenAI: "详细自然语言，注重构图和情绪"
-- SeedDream/VolcEngine: "简洁清晰，中英文均可"
+- **省 token** — 选画风就只提取画风，不浪费 API 调用
+- **更精准** — AI 专注一个维度，质量更高
+- **更快** — 短任务响应更快
 
-复用已有的 `MODEL_PROMPT_HINTS`（recipe-compiler.service.ts:50-65），提取为共享常量。
+### A2. System Prompt 按维度动态生成 [后端]
 
-**改动链**:
+**文件**: `src/services/image-analysis.service.ts`
 
-1. `src/services/prompt-enhance.service.ts` — 签名 + system prompt 注入
-2. `src/app/api/prompt/enhance/route.ts` — request schema 加 `modelId?`
-3. `src/types/index.ts` — `PromptEnhanceRequestSchema` 加 `modelId`
-4. `src/hooks/use-prompt-enhance.ts` — enhance() 传 modelId
-5. `src/components/business/studio/StudioDockPanelArea.tsx` — 传当前 selectedModel
-
-### A2. 场景灵感模板 [新增]
-
-**新建文件**: `src/constants/prompt-templates.ts`
-
-定义 10+ 场景模板，每个模板包含：
+新增 `dimensions` 参数，按选中的维度组装 system prompt：
 
 ```ts
-interface PromptTemplate {
-  id: string
-  messageKey: string // i18n key
-  category:
-    | 'portrait'
-    | 'landscape'
-    | 'anime'
-    | 'concept'
-    | 'photo'
-    | 'abstract'
-  prompt: string // 英文基础 prompt
-  suggestedModels: AI_MODELS[] // 推荐模型列表
-  aspectRatio: AspectRatio
-  tags: string[] // 搜索用
+type AnalysisDimension = 'artStyle' | 'character' | 'background' | 'overall'
+
+// 每个维度有专门的提取指令
+const DIMENSION_PROMPTS: Record<AnalysisDimension, string> = {
+  artStyle:
+    'Focus ONLY on the visual style: art medium, technique, color palette, mood, lighting, brush strokes, influences. Ignore characters and specific objects.',
+  character:
+    'Focus ONLY on the characters/people: appearance, clothing, pose, expression, accessories. Ignore background and style.',
+  background:
+    'Focus ONLY on the environment/setting: location, architecture, nature, weather, time of day. Ignore characters.',
+  overall:
+    'Describe the entire image as a complete AI image generation prompt covering all aspects.',
 }
 ```
 
-模板示例：
+用户选了 [画风, 背景] → system prompt 拼接两个维度指令 → LLM 返回 JSON `{ artStyle: "...", background: "..." }`
 
-- 赛博朋克街景（FLUX Pro, 16:9）
-- 浮世绘风景（SeedDream, 3:4）
-- 水彩人物（Gemini Flash, 1:1）
-- 胶片风街拍（FLUX Pro, 3:4）
-- 极简 Logo（Ideogram 3, 1:1）
-- 奇幻角色（NovelAI, 3:4）
-- 建筑摄影（Recraft, 16:9）
-- 漫画分镜（NovelAI, 1:1）
-- 产品渲染（OpenAI GPT Image, 1:1）
-- 油画风景（Gemini, 16:9）
+### A3. 类型 + API 更新
 
-### A3. 灵感模板 UI [前端]
+**文件**: `src/types/index.ts` + `src/app/api/image/analyze/route.ts`
 
-**修改文件**: `src/components/business/studio/StudioDockPanelArea.tsx`
+```ts
+export const AnalyzeImageRequestSchema = z.object({
+  imageData: z.string().min(1),
+  dimensions: z
+    .array(z.enum(['artStyle', 'character', 'background', 'overall']))
+    .min(1),
+  apiKeyId: z.string().optional(),
+})
+```
 
-在 prompt 输入区增加"灵感"按钮，点击展开模板面板：
+响应保持 `generatedPrompt`（兼容旧行为 = overall），新增 `dimensions` 结果：
 
-- 分类筛选（portrait/landscape/anime/...）
-- 每个模板卡片显示：缩略描述 + 推荐模型 badge + 宽高比
-- 点击 → 自动填入 prompt + 设置 aspectRatio + 建议模型
+```ts
+export interface AnalyzeImageResponseData {
+  id: string
+  generatedPrompt: string // 兼容：overall 维度的文本
+  dimensions: Record<string, string> | null // 新增：选中维度的结果
+  sourceImageUrl: string
+}
+```
 
-复用已有 panel 机制（`TOGGLE_PANEL` action），新增 panel name `'templates'`。
+### A4. ReverseEngineerPanel UI 改造 [前端]
 
-**改动链**:
+**文件**: `src/components/business/ReverseEngineerPanel.tsx`
 
-1. `src/constants/prompt-templates.ts` — 新建模板数据
-2. `src/contexts/studio-context.tsx` — PanelName 加 `'templates'`
-3. `src/components/business/studio/StudioToolbarPanels.tsx` — 添加灵感按钮
-4. `src/components/business/studio/StudioDockPanelArea.tsx` — 渲染模板面板
-5. `src/components/business/PromptTemplatePanel.tsx` — 新建模板选择面板
-6. `src/messages/en.json`, `ja.json`, `zh.json` — i18n
+两阶段 UI：
+
+1. **选择阶段**: 图片上传后显示 4 个 checkbox + [提取] 按钮
+2. **结果阶段**: 每个选中维度显示提取结果 + 独立 [填入 Prompt] 按钮
+
+[填入] 按钮行为：
+
+- 单个维度 → 直接填入 prompt 区
+- 多个维度勾选填入 → 用换行合并填入
+
+### A5. 风格迁移工作流 [串联]
+
+有了 A1-A4，风格迁移自然实现：
+
+1. 用户上传**风格源图** → 选 [🎨 画风] → 提取 → 点 [填入]
+2. artStyle prompt 自动填入 prompt 区
+3. 用户上传**内容源图**作为 reference image
+4. 点击生成 → 内容保留（reference image）+ 画风改变（artStyle prompt）
+
+无需新建功能，复用现有 UI 流程。
 
 ---
 
@@ -101,51 +127,42 @@ interface PromptTemplate {
 
 ### B1. 改进 LLM Fusion System Prompt [核心]
 
-**修改文件**: `src/services/recipe-compiler.service.ts`
+**文件**: `src/services/recipe-compiler.service.ts`
 
-当前 `buildFusionSystemPrompt()` (line 67-93) 的问题：
+`buildFusionSystemPrompt()` (line 67-93) 改进 Rules：
 
-- "Start with the subject/character, then integrate the action, background, and style naturally" — 风格排最后
-- 没有明确指示"用风格的视觉语言重新描述角色和背景"
-
-改为（自然语言版）：
+自然语言版（Gemini/OpenAI/FLUX 等）：
 
 ```
-Rules:
 - The STYLE input defines the visual language for the entire image.
   Apply the style's color palette, mood, medium, and aesthetic
   to how you describe the character AND the background.
-- For example, if the style is "watercolor painting," describe the
-  character with soft edges, transparent washes, and muted tones —
-  not just append "watercolor" at the end.
-- Start with the subject/character described IN the style's visual language,
-  then integrate the environment/background IN the same style.
-- The output should feel like a single cohesive prompt where every element
-  belongs to the same artistic world.
+- Do NOT just append style keywords. Instead, describe the character
+  and background IN the style's visual language from the start.
+- Example: if style is "watercolor," describe the character with
+  soft edges, transparent washes, muted tones — not "a girl, watercolor style."
+- The output should feel like a single cohesive prompt where every
+  element belongs to the same artistic world.
 ```
 
-Tag-based（NovelAI）版本：
+Tag-based 版（NovelAI）：
 
 ```
 - Style tags should MODIFY character and background tags, not just be appended.
-- Example: if style is "watercolor," use tags like "(watercolor:1.3), soft_edges,
-  transparent_colors" AND apply them to character (e.g., watercolor_portrait)
-  rather than just listing them separately.
+- Apply style modifiers to character tags (e.g., watercolor_portrait, ink_sketch_style).
+- Most important: subject + style-modified character tags first, then background + quality.
 ```
 
 ### B2. 传递结构化风格属性 [增强]
 
-**修改文件**: `src/services/recipe-compiler.service.ts`
+**文件**: `src/services/recipe-compiler.service.ts`
 
-当前 `compileWithLlm()` 只接收 `stylePrompt` 字符串。
-StyleCard 已有 `attributes`（artStyle, colorPalette, mood, influences），但没被用。
-
-改进 user message 构造：
+compileWithLlm() 的 user message 中增加结构化属性：
 
 ```
 STYLE: ${parts.stylePrompt}
 
-STYLE ATTRIBUTES (use these to harmonize all elements):
+STYLE ATTRIBUTES (apply these to ALL elements):
 - Art Style: ${attributes.artStyle}
 - Color Palette: ${attributes.colorPalette}
 - Mood: ${attributes.mood}
@@ -154,49 +171,72 @@ STYLE ATTRIBUTES (use these to harmonize all elements):
 
 **改动链**:
 
-1. `src/services/recipe-compiler.service.ts` — system prompt 改进 + 传入 attributes
+1. `src/services/recipe-compiler.service.ts` — system prompt + user message
 2. `src/services/card-recipe.service.ts` — compile 时传入 styleCard.attributes
 
-### B3. 风格关键词验证 [质量保障]
+---
 
-**修改文件**: `src/lib/llm-output-validator.ts`
+## Part C: 模型能力矩阵 + 增强感知
 
-已有 `validateFusionOutput()` 检查角色关键词保留。新增风格关键词检查：
+### C1. 模型能力矩阵 [新增]
 
-- 提取 style prompt 中的核心词（art style name, mood, palette）
-- 检查编译后 prompt 是否包含至少 2 个风格关键词
-- 不包含 → 警告日志（不拒绝，避免误杀）
+**新建文件**: `src/constants/model-strengths.ts`
+
+```ts
+export interface ModelStrength {
+  bestFor: string[] // ['photorealistic', 'portrait', 'product']
+  promptStyle: 'natural-language' | 'tag-based'
+  enhanceHint: string // 注入 prompt enhance 的模型特定指令
+}
+```
+
+提取现有 `MODEL_PROMPT_HINTS`（recipe-compiler.service.ts:50-65）为共享常量，
+并扩展到每个模型级别（不仅 adapter 级别）。
+
+### C2. 模型感知 Prompt Enhancement [后端]
+
+**文件**: `src/services/prompt-enhance.service.ts`
+
+enhancePrompt() 新增 `modelId` 参数，查 C1 的矩阵注入 hint：
+
+```ts
+const modelHint = getModelEnhanceHint(modelId)
+const systemPrompt = `${STYLE_SYSTEM_PROMPTS[style]}\n\n${modelHint}`
+```
 
 ---
 
 ## 执行顺序
 
-1. **Part B1** (30 min) — 改 fusion system prompt，立即提升卡片生成质量
-2. **Part B2** (20 min) — 传递结构化属性，进一步增强
-3. **Part A1** (30 min) — 模型感知增强，改善快速生成多样性
-4. **Part A2 + A3** (1-2 hr) — 场景模板数据 + UI
-5. **Part B3** (20 min) — 风格验证
-6. **i18n** (15 min) — en/ja/zh 三语言同步
+| 步骤 | 内容                                                 | 时间   |
+| ---- | ---------------------------------------------------- | ------ |
+| 1    | **B1** Fusion system prompt 风格渗透                 | 20 min |
+| 2    | **B2** 传递结构化风格属性                            | 15 min |
+| 3    | **A2** Image Reverse 后端：维度 system prompt + 类型 | 30 min |
+| 4    | **A3** Image Reverse API 路由更新                    | 10 min |
+| 5    | **A4** ReverseEngineerPanel UI：选择 → 提取 → 填入   | 1 hr   |
+| 6    | **C1** 模型能力矩阵                                  | 20 min |
+| 7    | **C2** 模型感知增强                                  | 20 min |
+| 8    | **i18n** en/ja/zh 同步                               | 15 min |
 
 ## 验证
 
 1. `npx tsc --noEmit` + `npx vitest run` 通过
-2. 快速生成：同一 prompt 用 FLUX vs NovelAI 增强 → 产出明显不同的增强结果
-3. 卡片生成：角色卡 + "浮世绘"风格卡 → 角色描述使用浮世绘视觉语言
-4. 模板：点击"赛博朋克"模板 → prompt 自动填充 + 模型建议 FLUX Pro
+2. Image Reverse: 上传图片 → 看到 4 个分类（画风/角色/背景/整体）
+3. 点 "画风 [使用]" → 只有画风描述填入 prompt
+4. 卡片生成: 角色卡 + "浮世绘"风格卡 → 输出 prompt 中角色描述使用浮世绘语言
+5. 增强: 选 FLUX Pro 增强 → 出现摄影术语；选 NovelAI → 出现 danbooru tag
 
 ## 关键文件
 
-| 文件                                                     | 改动                                     |
-| -------------------------------------------------------- | ---------------------------------------- |
-| `src/services/recipe-compiler.service.ts`                | fusion prompt 风格渗透 + 传入 attributes |
-| `src/services/prompt-enhance.service.ts`                 | 模型感知 system prompt                   |
-| `src/constants/prompt-templates.ts`                      | 新建 — 10+ 场景模板                      |
-| `src/app/api/prompt/enhance/route.ts`                    | request schema 加 modelId                |
-| `src/types/index.ts`                                     | PromptEnhanceRequestSchema               |
-| `src/hooks/use-prompt-enhance.ts`                        | enhance() 传 modelId                     |
-| `src/components/business/studio/StudioDockPanelArea.tsx` | 传 modelId + 模板面板                    |
-| `src/components/business/PromptTemplatePanel.tsx`        | 新建 — 模板选择 UI                       |
-| `src/contexts/studio-context.tsx`                        | PanelName 加 'templates'                 |
-| `src/lib/llm-output-validator.ts`                        | 风格关键词验证                           |
-| `src/messages/{en,ja,zh}.json`                           | i18n                                     |
+| 文件                                               | 改动                                |
+| -------------------------------------------------- | ----------------------------------- |
+| `src/services/image-analysis.service.ts`           | 结构化 system prompt + JSON 解析    |
+| `src/types/index.ts`                               | ImageAnalysisCategories schema      |
+| `src/components/business/ReverseEngineerPanel.tsx` | 分类展示 + 选择使用 UI              |
+| `src/hooks/use-reverse-image.ts`                   | 状态管理支持 categories             |
+| `src/services/recipe-compiler.service.ts`          | fusion prompt 风格渗透 + attributes |
+| `src/services/card-recipe.service.ts`              | 传入 styleCard.attributes           |
+| `src/constants/model-strengths.ts`                 | 新建 — 模型能力矩阵                 |
+| `src/services/prompt-enhance.service.ts`           | 模型感知 system prompt              |
+| `src/messages/{en,ja,zh}.json`                     | i18n                                |

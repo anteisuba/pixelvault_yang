@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       clerkId,
       parseResult.data.prompt,
       parseResult.data.style,
+      parseResult.data.modelId,
       parseResult.data.apiKeyId,
     )
 
@@ -66,7 +67,9 @@ export async function POST(request: NextRequest) {
       data: result,
     })
   } catch (error) {
-    logger.error('[API /api/prompt/enhance] Error', { error: error instanceof Error ? error.message : String(error) })
+    logger.error('[API /api/prompt/enhance] Error', {
+      error: error instanceof Error ? error.message : String(error),
+    })
 
     return NextResponse.json<EnhancePromptResponse>(
       { success: false, error: 'Prompt enhancement failed. Please try again.' },

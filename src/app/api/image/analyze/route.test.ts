@@ -97,6 +97,7 @@ describe('POST /api/image/analyze', () => {
     const analysisResult = {
       id: 'analysis_123',
       generatedPrompt: 'A scenic mountain landscape at sunset',
+      dimensions: null,
       sourceImageUrl: 'https://storage.example.com/uploaded.png',
     }
     vi.mocked(analyzeImage).mockResolvedValue(analysisResult)
@@ -112,6 +113,7 @@ describe('POST /api/image/analyze', () => {
     expect(analyzeImage).toHaveBeenCalledWith(
       'clerk_test_user',
       'data:image/png;base64,validbase64data',
+      undefined,
       undefined,
     )
   })

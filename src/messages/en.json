@@ -1056,7 +1056,13 @@
     "originalImage": "Original",
     "failedModels": "Failed: {models}",
     "reset": "Reset",
-    "useAsPrompt": "Use as Battle Prompt"
+    "useAsPrompt": "Use as Prompt",
+    "selectDimensions": "What do you want to extract from this image?",
+    "dimArtStyle": "Art Style",
+    "dimCharacter": "Character",
+    "dimBackground": "Background",
+    "dimOverall": "Overall",
+    "extract": "Extract"
   },
   "LayerDecompose": {
     "title": "Layer Decompose",

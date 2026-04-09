@@ -1056,7 +1056,13 @@
     "originalImage": "原图",
     "failedModels": "失败: {models}",
     "reset": "重置",
-    "useAsPrompt": "用作对战提示词"
+    "useAsPrompt": "填入提示词",
+    "selectDimensions": "你想从这张图片中提取什么？",
+    "dimArtStyle": "画风",
+    "dimCharacter": "角色",
+    "dimBackground": "背景",
+    "dimOverall": "整体",
+    "extract": "提取"
   },
   "LayerDecompose": {
     "title": "图层分解",

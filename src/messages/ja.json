@@ -1056,7 +1056,13 @@
     "originalImage": "オリジナル",
     "failedModels": "失敗: {models}",
     "reset": "リセット",
-    "useAsPrompt": "バトルプロンプトとして使用"
+    "useAsPrompt": "プロンプトとして使用",
+    "selectDimensions": "この画像から何を抽出しますか？",
+    "dimArtStyle": "画風",
+    "dimCharacter": "キャラクター",
+    "dimBackground": "背景",
+    "dimOverall": "全体",
+    "extract": "抽出"
   },
   "LayerDecompose": {
     "title": "レイヤー分解",

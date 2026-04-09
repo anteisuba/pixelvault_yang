@@ -23,6 +23,6 @@ export const POST = createApiRoute({
         },
       ])
     }
-    return analyzeImage(clerkId, data.imageData, data.apiKeyId)
+    return analyzeImage(clerkId, data.imageData, data.dimensions, data.apiKeyId)
   },
 })

@@ -570,6 +570,8 @@ export const EnhancePromptRequestSchema = z.object({
     .min(1, 'Prompt is required')
     .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
   style: z.enum(PROMPT_ENHANCE.STYLES),
+  /** Current model ID for model-aware enhancement hints */
+  modelId: z.string().optional(),
   apiKeyId: z.string().optional(),
 })
 
@@ -657,6 +659,15 @@ export interface GenerationFeedbackResponse {
 
 // ─── Image Reverse Engineering ───────────────────────────────────
 
+/** Dimensions available for selective image analysis */
+export const AnalysisDimensionEnum = z.enum([
+  'artStyle',
+  'character',
+  'background',
+  'overall',
+])
+export type AnalysisDimension = z.infer<typeof AnalysisDimensionEnum>
+
 export const AnalyzeImageRequestSchema = z.object({
   imageData: z
     .string()
@@ -670,6 +681,8 @@ export const AnalyzeImageRequestSchema = z.object({
         data.startsWith('https://'),
       'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTPS URL',
     ),
+  /** Which dimensions to extract. If omitted, returns a single combined prompt (legacy). */
+  dimensions: z.array(AnalysisDimensionEnum).min(1).optional(),
   apiKeyId: z.string().optional(),
 })
 
@@ -686,6 +699,8 @@ export interface ImageAnalysisRecord {
 export interface AnalyzeImageResponseData {
   id: string
   generatedPrompt: string
+  /** Extracted dimensions (null when legacy mode without dimensions param) */
+  dimensions: Partial<Record<AnalysisDimension, string>> | null
   sourceImageUrl: string
 }
 

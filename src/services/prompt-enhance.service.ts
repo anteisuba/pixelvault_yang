@@ -1,6 +1,8 @@
 import 'server-only'
 
 import type { PromptEnhanceStyle } from '@/constants/config'
+import { getModelEnhanceHint } from '@/constants/model-strengths'
+import { getModelById } from '@/constants/models'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,
@@ -25,12 +27,22 @@ export async function enhancePrompt(
   clerkId: string,
   prompt: string,
   style: PromptEnhanceStyle,
+  modelId?: string,
   apiKeyId?: string,
 ): Promise<{ original: string; enhanced: string; style: string }> {
   const dbUser = await ensureUser(clerkId)
 
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
-  const systemPrompt = STYLE_SYSTEM_PROMPTS[style]
+
+  // Build model-aware system prompt
+  let systemPrompt = STYLE_SYSTEM_PROMPTS[style]
+  if (modelId) {
+    const model = getModelById(modelId)
+    const hint = getModelEnhanceHint(modelId, model?.adapterType)
+    if (hint) {
+      systemPrompt = `${systemPrompt}\n\nModel-specific guidance: ${hint}`
+    }
+  }
 
   const rawEnhanced = await llmTextCompletion({
     systemPrompt,

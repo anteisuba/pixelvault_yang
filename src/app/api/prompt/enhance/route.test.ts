@@ -87,6 +87,7 @@ describe('POST /api/prompt/enhance', () => {
       'a cat',
       'detailed',
       undefined,
+      undefined,
     )
   })
 

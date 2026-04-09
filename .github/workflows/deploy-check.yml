@@ -3,6 +3,9 @@ name: Deploy Health Check
 on:
   deployment_status:
 
+permissions:
+  issues: write
+
 jobs:
   verify:
     name: Post-Deploy Smoke Test

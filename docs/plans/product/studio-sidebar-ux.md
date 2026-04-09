@@ -1,4 +1,12 @@
-# Studio 侧边栏 UX 优化
+# Studio 侧边栏 UX 优化 v2
+
+## 技术方案
+
+- **Tree View**: [shadcn-tree-view](https://github.com/MrLightful/shadcn-tree-view) — 树形折叠 + 图标 + 选中状态
+- **Drag & Drop**: [@atlaskit/pragmatic-drag-and-drop](https://github.com/atlassian/pragmatic-drag-and-drop) — Atlassian 拖拽库
+- 已安装: `src/components/ui/tree-view.tsx` + `@atlaskit/pragmatic-drag-and-drop`
+
+## 旧方案（已替代）
 
 ## 问题清单
 

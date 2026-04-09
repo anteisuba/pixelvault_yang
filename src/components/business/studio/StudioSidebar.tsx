@@ -1,7 +1,18 @@
 'use client'
 
 import { memo, useCallback, useMemo } from 'react'
-import { Key, Folder, FolderOpen, Images, Plus, Gift } from 'lucide-react'
+import {
+  Key,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Images,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Gift,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
@@ -22,13 +33,70 @@ interface TreeItem {
   selectedIcon?: React.ComponentType<{ className?: string }>
   openIcon?: React.ComponentType<{ className?: string }>
   children?: TreeItem[]
+  actions?: React.ReactNode
   onClick?: () => void
   droppable?: boolean
+}
+
+function ProjectActions({
+  projectId,
+  projectName,
+  onRename,
+  onAddSub,
+  onDelete,
+}: {
+  projectId: string
+  projectName: string
+  onRename: (id: string, name: string) => void
+  onAddSub: (parentName: string) => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          const newName = prompt('Rename project:', projectName)
+          if (newName?.trim()) onRename(projectId, newName.trim())
+        }}
+        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+        title="Rename"
+      >
+        <Pencil className="size-2.5" />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onAddSub(projectName)
+        }}
+        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+        title="Add sub-project"
+      >
+        <FolderPlus className="size-2.5" />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete(projectId)
+        }}
+        className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        title="Delete"
+      >
+        <Trash2 className="size-2.5" />
+      </button>
+    </div>
+  )
 }
 
 function buildProjectTree(
   projects: ProjectRecord[],
   onSelect: (id: string) => void,
+  onRename: (id: string, name: string) => void,
+  onAddSub: (parentName: string) => void,
+  onDelete: (id: string) => void,
 ): TreeItem[] {
   const roots: TreeItem[] = []
   const nodeMap = new Map<string, TreeItem>()
@@ -47,6 +115,15 @@ function buildProjectTree(
       onClick: () => onSelect(project.id),
       droppable: true,
       children: [],
+      actions: (
+        <ProjectActions
+          projectId={project.id}
+          projectName={project.name}
+          onRename={onRename}
+          onAddSub={onAddSub}
+          onDelete={onDelete}
+        />
+      ),
     }
 
     if (parts.length === 1) {
@@ -97,9 +174,43 @@ export const StudioSidebar = memo(function StudioSidebar() {
     [projects],
   )
 
+  const handleRenameProject = useCallback(
+    (id: string, newName: string) => {
+      void projects.update(id, { name: newName })
+    },
+    [projects],
+  )
+
+  const handleAddSubProject = useCallback(
+    (parentName: string) => {
+      void projects.create({ name: `${parentName} / ${t('newProject')}` })
+    },
+    [projects, t],
+  )
+
+  const handleDeleteProject = useCallback(
+    (id: string) => {
+      void projects.remove(id)
+    },
+    [projects],
+  )
+
   const treeData = useMemo(
-    () => buildProjectTree(projects.projects, handleSelectProject),
-    [projects.projects, handleSelectProject],
+    () =>
+      buildProjectTree(
+        projects.projects,
+        handleSelectProject,
+        handleRenameProject,
+        handleAddSubProject,
+        handleDeleteProject,
+      ),
+    [
+      projects.projects,
+      handleSelectProject,
+      handleRenameProject,
+      handleAddSubProject,
+      handleDeleteProject,
+    ],
   )
 
   return (

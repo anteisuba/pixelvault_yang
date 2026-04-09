@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   StudioModeSelector,
   StudioTopBar,
@@ -44,25 +44,33 @@ export function StudioWorkspace() {
 function StudioWorkspaceInner() {
   const { state } = useStudioForm()
   const { characters, onboarding } = useStudioData()
+  const isMobile = useIsMobile()
 
   return (
-    <SidebarProvider defaultOpen={false} className="!min-h-0 bg-background">
+    <div className="flex min-h-0 bg-background">
       {state.outputType === 'video' ? (
         /* ── Video mode: simple stack (no canvas layout) ──────── */
         <div
           role="tabpanel"
           id="studio-panel-video"
           aria-labelledby="studio-tab-video"
-          className="space-y-4 p-5"
+          className="w-full space-y-4 p-5"
         >
           <StudioModeSelector />
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
         </div>
       ) : (
-        /* ── Image mode: canvas-centric vertical layout ──────── */
+        /* ── Image mode: sidebar + canvas layout ─────────────── */
         <>
-          <StudioSidebar />
-          <SidebarInset>
+          {/* Sidebar — desktop only */}
+          {!isMobile && (
+            <div className="w-52 shrink-0">
+              <StudioSidebar />
+            </div>
+          )}
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
             <div
               role="tabpanel"
               id="studio-panel-image"
@@ -76,7 +84,7 @@ function StudioWorkspaceInner() {
                 gallery={<StudioGallery />}
               />
             </div>
-          </SidebarInset>
+          </div>
         </>
       )}
 
@@ -93,6 +101,6 @@ function StudioWorkspaceInner() {
         onSkip={onboarding.skip}
         onDismiss={onboarding.dismiss}
       />
-    </SidebarProvider>
+    </div>
   )
 }

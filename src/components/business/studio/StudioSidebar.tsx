@@ -1,45 +1,83 @@
 'use client'
 
-import { memo, useCallback, useState, useRef, useEffect } from 'react'
-import {
-  Key,
-  FolderOpen,
-  FolderPlus,
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-} from 'lucide-react'
+import { memo, useCallback, useMemo } from 'react'
+import { Key, Folder, FolderOpen, Images, Plus, Gift } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import { Gift } from 'lucide-react'
-import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupAction,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarSeparator,
-} from '@/components/ui/sidebar'
+import { TreeView } from '@/components/ui/tree-view'
+import type { ProjectRecord } from '@/types'
 import { cn } from '@/lib/utils'
+
+// ─── Project name → Tree structure ──────────────────────────────
+
+interface TreeItem {
+  id: string
+  name: string
+  icon?: React.ComponentType<{ className?: string }>
+  selectedIcon?: React.ComponentType<{ className?: string }>
+  openIcon?: React.ComponentType<{ className?: string }>
+  children?: TreeItem[]
+  onClick?: () => void
+  droppable?: boolean
+}
+
+function buildProjectTree(
+  projects: ProjectRecord[],
+  onSelect: (id: string) => void,
+): TreeItem[] {
+  const roots: TreeItem[] = []
+  const nodeMap = new Map<string, TreeItem>()
+
+  const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name))
+
+  for (const project of sorted) {
+    const parts = project.name.split(' / ').map((p) => p.trim())
+
+    const node: TreeItem = {
+      id: project.id,
+      name: parts[parts.length - 1],
+      icon: Folder,
+      selectedIcon: FolderOpen,
+      openIcon: FolderOpen,
+      onClick: () => onSelect(project.id),
+      droppable: true,
+      children: [],
+    }
+
+    if (parts.length === 1) {
+      roots.push(node)
+      nodeMap.set(project.name, node)
+    } else {
+      const parentName = parts.slice(0, -1).join(' / ')
+      const parent = nodeMap.get(parentName)
+
+      if (parent) {
+        if (!parent.children) parent.children = []
+        parent.children.push(node)
+      } else {
+        node.name = project.name
+        roots.push(node)
+      }
+      nodeMap.set(project.name, node)
+    }
+  }
+
+  function cleanEmpty(items: TreeItem[]) {
+    for (const item of items) {
+      if (item.children?.length === 0) delete item.children
+      else if (item.children) cleanEmpty(item.children)
+    }
+  }
+  cleanEmpty(roots)
+
+  return roots
+}
+
+// ─── Component ──────────────────────────────────────────────────
 
 export const StudioSidebar = memo(function StudioSidebar() {
   const { projects } = useStudioData()
@@ -48,317 +86,172 @@ export const StudioSidebar = memo(function StudioSidebar() {
   const { modelOptions } = useImageModelOptions()
   const { summary } = useUsageSummary()
   const t = useTranslations('StudioV3')
-  const tApiKeys = useTranslations('StudioApiKeys')
-
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const editInputRef = useRef<HTMLInputElement>(null)
 
   const activeKeys = keys.filter((k) => k.isActive)
 
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus()
-      editInputRef.current.select()
-    }
-  }, [editingId])
-
-  const handleStartRename = useCallback((id: string, currentName: string) => {
-    setEditingId(id)
-    setEditName(currentName)
-    setMenuOpenId(null)
-  }, [])
-
-  const handleConfirmRename = useCallback(
-    async (id: string) => {
-      if (editName.trim()) {
-        await projects.update(id, { name: editName.trim() })
-      }
-      setEditingId(null)
-      setEditName('')
-    },
-    [editName, projects],
-  )
-
-  const handleCancelRename = useCallback(() => {
-    setEditingId(null)
-    setEditName('')
-  }, [])
-
-  const handleDelete = useCallback(
-    async (id: string) => {
-      setMenuOpenId(null)
-      await projects.remove(id)
+  const handleSelectProject = useCallback(
+    (id: string) => {
+      projects.setActiveProjectId(id)
     },
     [projects],
   )
 
-  const handleAddSubProject = useCallback(
-    async (parentName: string) => {
-      setMenuOpenId(null)
-      await projects.create({ name: `${parentName} / ${t('newProject')}` })
-    },
-    [projects, t],
+  const treeData = useMemo(
+    () => buildProjectTree(projects.projects, handleSelectProject),
+    [projects.projects, handleSelectProject],
   )
 
   return (
-    <Sidebar
-      collapsible="offcanvas"
-      className="border-r border-border/50 !top-14 !h-[calc(100svh-3.5rem)]"
-    >
-      <SidebarContent>
-        {/* ── Projects Group ──────────────────── */}
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('projects')}</SidebarGroupLabel>
-          <SidebarGroupAction
-            title={t('newProject')}
-            onClick={() => void projects.create({ name: t('newProject') })}
+    <div className="flex h-full flex-col border-r border-border/40 bg-background/50">
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('projects')}
+        </h2>
+        <button
+          type="button"
+          onClick={() => void projects.create({ name: t('newProject') })}
+          className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          title={t('newProject')}
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+
+      {/* ── All Generations ────────────────────────────────── */}
+      <button
+        type="button"
+        onClick={() => projects.setActiveProjectId(null)}
+        className={cn(
+          'mx-2 mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors',
+          !projects.activeProjectId
+            ? 'bg-accent/70 text-accent-foreground font-medium'
+            : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground',
+        )}
+      >
+        <Images className="size-4 shrink-0" />
+        <span className="flex-1 truncate text-left">{t('allGenerations')}</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
+          {projects.historyTotal}
+        </span>
+      </button>
+
+      {/* ── Project Tree ───────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-1">
+        {treeData.length > 0 ? (
+          <TreeView
+            data={treeData}
+            initialSelectedItemId={projects.activeProjectId ?? undefined}
+            onSelectChange={(item) => {
+              if (item) handleSelectProject(item.id)
+            }}
+            defaultNodeIcon={Folder}
+            defaultLeafIcon={Folder}
+            expandAll
+            className="text-sm"
+          />
+        ) : (
+          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+            {t('noProjects')}
+          </p>
+        )}
+      </div>
+
+      {/* ── Separator ──────────────────────────────────────── */}
+      <div className="mx-3 h-px bg-border/40" />
+
+      {/* ── API Keys (compact) ─────────────────────────────── */}
+      <div className="px-3 py-2">
+        <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('apiKeys')}
+        </p>
+        <div className="space-y-0.5">
+          {/* Free tier */}
+          <button
+            type="button"
+            onClick={() => {
+              const workspaceOpt = modelOptions.find(
+                (o) => o.sourceType === 'workspace' && o.freeTier,
+              )
+              if (workspaceOpt) {
+                dispatch({
+                  type: 'SET_OPTION_ID',
+                  payload: workspaceOpt.optionId,
+                })
+              }
+            }}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+              (!state.selectedOptionId ||
+                state.selectedOptionId?.startsWith('workspace:')) &&
+                'bg-accent/60 font-medium',
+              'hover:bg-accent/40',
+            )}
           >
-            <Plus className="size-4" />
-          </SidebarGroupAction>
+            <Gift className="size-3 text-primary" />
+            <span className="flex-1 text-left">PixelVault</span>
+            <span className="text-2xs text-muted-foreground tabular-nums">
+              {summary.freeGenerationLimit - summary.freeGenerationsToday}/
+              {summary.freeGenerationLimit}
+            </span>
+          </button>
 
-          <SidebarMenu>
-            {/* All Generations */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={!projects.activeProjectId}
-                onClick={() => projects.setActiveProjectId(null)}
-              >
-                <FolderOpen className="size-4" />
-                <span>{t('allGenerations')}</span>
-                <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-2xs text-sidebar-foreground/60">
-                  {projects.historyTotal}
-                </span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+          {/* User keys */}
+          {activeKeys.map((key) => {
+            const matchingOption = modelOptions.find((o) => o.keyId === key.id)
+            const isSelected =
+              matchingOption?.optionId === state.selectedOptionId
 
-            {/* Project list */}
-            {projects.projects.map((project) => (
-              <SidebarMenuItem key={project.id}>
-                {editingId === project.id ? (
-                  /* ── Inline rename ──────────────── */
-                  <div className="flex items-center gap-1 px-1 py-0.5">
-                    <input
-                      ref={editInputRef}
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter')
-                          void handleConfirmRename(project.id)
-                        if (e.key === 'Escape') handleCancelRename()
-                      }}
-                      className="flex-1 rounded-md border border-primary/40 bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/30"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleConfirmRename(project.id)}
-                      className="flex size-7 items-center justify-center rounded-md text-primary hover:bg-primary/10 active:scale-90"
-                    >
-                      <Check className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelRename}
-                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:scale-90"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  /* ── Normal project row ─────────── */
-                  <div className="group relative">
-                    <SidebarMenuButton
-                      isActive={projects.activeProjectId === project.id}
-                      onClick={() => projects.setActiveProjectId(project.id)}
-                    >
-                      <FolderOpen className="size-4" />
-                      <span className="truncate">{project.name}</span>
-                    </SidebarMenuButton>
-
-                    {/* Actions button — visible on hover */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpenId(
-                          menuOpenId === project.id ? null : project.id,
-                        )
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sidebar-accent"
-                    >
-                      <MoreHorizontal className="size-3.5" />
-                    </button>
-
-                    {/* ── Context menu ──────────────── */}
-                    {menuOpenId === project.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setMenuOpenId(null)}
-                        />
-                        <div
-                          className="absolute right-2 top-full z-50 mt-1 min-w-[140px] rounded-lg border border-border/60 bg-background py-1 shadow-lg"
-                          style={{
-                            animation:
-                              'studio-dropdown-in 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleStartRename(project.id, project.name)
-                            }
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
-                          >
-                            <Pencil className="size-3" />
-                            {t('rename')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleAddSubProject(project.name)
-                            }
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
-                          >
-                            <FolderPlus className="size-3" />
-                            {t('addSubProject')}
-                          </button>
-                          <div className="my-1 h-px bg-border/50" />
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(project.id)}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
-                          >
-                            <Trash2 className="size-3" />
-                            {t('deleteProject')}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        {/* ── API Keys Group ──────────────────── */}
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('apiKeys')}</SidebarGroupLabel>
-
-          <SidebarMenu>
-            {/* Built-in free tier key */}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={
-                  !state.selectedOptionId ||
-                  state.selectedOptionId?.startsWith('workspace:')
-                }
+            return (
+              <button
+                key={key.id}
+                type="button"
                 onClick={() => {
-                  // Select first workspace model option
-                  const workspaceOpt = modelOptions.find(
-                    (o) => o.sourceType === 'workspace' && o.freeTier,
-                  )
-                  if (workspaceOpt) {
+                  if (matchingOption) {
                     dispatch({
                       type: 'SET_OPTION_ID',
-                      payload: workspaceOpt.optionId,
+                      payload: matchingOption.optionId,
                     })
                   }
                 }}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                  isSelected && 'bg-accent/60 font-medium',
+                  'hover:bg-accent/40',
+                )}
               >
-                <Gift className="size-4 text-primary" />
-                <span className="font-medium">PixelVault</span>
-                <span className="ml-auto text-2xs text-muted-foreground">
-                  {summary.freeGenerationLimit - summary.freeGenerationsToday}/
-                  {summary.freeGenerationLimit}
+                <span
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{
+                    background:
+                      healthMap[key.id] === 'failed'
+                        ? '#ef4444'
+                        : healthMap[key.id] === 'available'
+                          ? '#22c55e'
+                          : '#a0a0a0',
+                  }}
+                />
+                <span className="flex-1 truncate text-left">{key.label}</span>
+                <span className="text-2xs text-muted-foreground">
+                  {key.providerConfig.label}
                 </span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
-            {activeKeys.map((key) => {
-              // Find the model option that uses this key
-              const matchingOption = modelOptions.find(
-                (o) => o.keyId === key.id,
-              )
-              const isSelected =
-                matchingOption?.optionId === state.selectedOptionId
-
-              return (
-                <SidebarMenuItem key={key.id}>
-                  <SidebarMenuButton
-                    isActive={isSelected}
-                    onClick={() => {
-                      if (matchingOption) {
-                        dispatch({
-                          type: 'SET_OPTION_ID',
-                          payload: matchingOption.optionId,
-                        })
-                      }
-                    }}
-                  >
-                    <span
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{
-                        background:
-                          healthMap[key.id] === 'failed'
-                            ? '#ef4444'
-                            : healthMap[key.id] === 'available'
-                              ? '#22c55e'
-                              : '#a0a0a0',
-                      }}
-                    />
-                    <span className="font-medium">{key.label}</span>
-                    <span className="text-sidebar-foreground/60">
-                      {key.providerConfig.label}
-                    </span>
-                    {healthMap[key.id] === 'failed' ? (
-                      <span className="ml-auto rounded bg-red-50 px-1.5 py-0.5 text-2xs font-medium text-red-600 dark:bg-red-950 dark:text-red-400">
-                        {t('apiError')}
-                      </span>
-                    ) : healthMap[key.id] === 'available' ? (
-                      <span className="ml-auto rounded bg-emerald-50 px-1.5 py-0.5 text-2xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        {t('active')}
-                      </span>
-                    ) : (
-                      <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-2xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                        {t('apiUnverified')}
-                      </span>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
-
-      {/* ── Footer: Add API Key ──────────────── */}
-      <SidebarFooter>
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-sidebar-border px-3 py-1.5 text-xs text-sidebar-foreground/60 transition-all hover:border-primary/30 hover:text-primary active:scale-[0.97]"
-            >
-              <Key className="size-3" />
-              {t('addApiKey')}
-            </button>
-          </SheetTrigger>
-          <SheetContent className="w-[520px] sm:max-w-[640px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{tApiKeys('sheetTitle')}</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4">
-              <StudioQuickRouteSelector managementMode="inline" />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </SidebarFooter>
-    </Sidebar>
+      {/* ── Footer: Add API Key ────────────────────────────── */}
+      <div className="px-3 pb-3">
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'OPEN_PANEL', payload: 'civitai' })}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/30 hover:text-primary active:scale-[0.97]"
+        >
+          <Key className="size-3" />
+          {t('addApiKey')}
+        </button>
+      </div>
+    </div>
   )
 })

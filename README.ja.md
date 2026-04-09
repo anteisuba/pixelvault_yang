@@ -2,193 +2,144 @@
 
 # PixelVault — パーソナル AI ギャラリー
 
-マルチモデル AI 画像・動画生成プラットフォーム。永久アーカイブ、ブラインド投票アリーナ、ストーリーボード作成機能を搭載。
+20以上のAIモデルで画像・動画を生成。ブラインド投票で比較。すべてを永久保存。
 
-**ライブデモ:** [https://pixelvault-seven.vercel.app/](https://pixelvault-seven.vercel.app/)
+**今すぐ試す:** [pixelvault-seven.vercel.app](https://pixelvault-seven.vercel.app/)
+
+![PixelVault ランディングページ](docs/screenshots/hero.png)
+
+---
+
+## PixelVault とは？
+
+PixelVault は、マルチモデル対応の AI 画像・動画生成プラットフォームです。GPT-Image、Gemini、FLUX、Kling、Sora など、好きなモデルを選び、同じプロンプトから生成して比較。すべての作品は設定とメタデータとともに永久保存されます。
+
+---
+
+## はじめかた
+
+1. **サインアップ** — 登録時に無料クレジットが付与されます
+2. **Studio へ移動** — モデルを選んでプロンプトを入力
+3. **生成** — 画像や動画が作成され、自動的に永久保存されます
+
+以上です。セットアップ不要、APIキーも不要です（プレミアムモデルを使う場合を除く）。
 
 ---
 
 ## 機能
 
-- **マルチモデル AI 生成** — 6 プロバイダーから 11 の画像モデル + 10 の動画モデル
-- **アリーナ（ブラインド投票）** — ELO ランキングシステムによるサイドバイサイド比較
-- **ストーリーボード** — AI 生成のコミック風ナラティブシーケンス
-- **ギャラリー** — 検索・フィルター・無限スクロール付きの公開フィード
-- **プロフィール** — 統計情報付き個人ライブラリ、R2 クリーンアップ対応の完全削除
-- **プロンプト強化** — LLM によるプロンプト改善（OpenAI / Gemini / DeepSeek）
-- **リバースエンジニアリング** — 既存画像から生成パラメータを抽出・分析
-- **BYOK（Bring Your Own Key）** — プレミアムモデル向け暗号化 API キー管理
-- **永久保存** — 全生成物を Cloudflare R2 に保存
-- **クレジットシステム** — 新規ユーザーに無料クレジット付与、モデル別コスト階層
-- **多言語対応** — 英語・日本語・中国語（`/en`、`/ja`、`/zh`）
-- **モバイルファースト** — ボトムタブナビゲーション付きレスポンシブレイアウト
+### Studio — 画像・動画を作成
+
+クリエイティブワークスペース。プロンプトを書いて、モデルを選んで、生成。
+
+![Studio](docs/screenshots/studio.png)
+
+- **画像モデル11種 + 動画モデル10種**（6プロバイダー）
+- **プロンプト強化** — AIが5つのスタイル（詳細、アート、フォトリアル、アニメ、LoRA）でプロンプトを改善
+- **参考画像** — 画像をアップロードして生成のビジュアルガイドに
+- **イメージリバース** — 既存の画像から生成パラメータを抽出・分析
+- **画像から動画へ** — 生成した画像を動画クリップに変換
+- **キャラクターカード** — キャラクターのプリセットを保存して、生成間の一貫性を維持
+- **動画の長さ** 3秒〜120秒、最大1080p対応
+
+### Gallery — 発見と共有
+
+他のユーザーの作品を閲覧。インスピレーションを得る。自分の作品を共有。
+
+![Gallery](docs/screenshots/gallery.png)
+
+- プロンプトテキストで検索
+- モデル、タイプ（画像/動画）、期間でフィルタリング
+- お気に入りにいいね＆ブックマーク
+- 画像をクリックして詳細表示 — プロンプト、モデル、設定
+- ギャラリーの画像を次の生成の参考画像として使用可能
+
+### Arena — ブラインドモデルバトル
+
+どのモデルが本当に最強？ブラインド投票で確かめよう。
+
+![Arena](docs/screenshots/arena.png)
+
+1. 2〜4つのモデルを選択し、プロンプトを入力
+2. すべてのモデルが同じプロンプトから同時に生成
+3. **どのモデルが作ったか知らない状態で**最高の結果に投票
+4. 投票後、モデルの正体とELOレーティングの変動が表示
+5. **リーダーボード**でモデル全体のランキングを確認
+
+### Profile — パーソナルアーカイブ
+
+これまでのすべての生成作品が一箇所に。
+
+- すべての作品を検索・フィルターで表示
+- 画像ごとに公開/非公開を切り替え
+- 統計ダッシュボード — 総生成数、リクエスト数など
+- ストレージ完全クリーンアップ付きの完全削除
 
 ---
 
-## AI モデル
+## 利用可能なモデル
 
 ### 画像モデル
 
-| モデル | プロバイダー | ティア | クレジット |
-|--------|-------------|--------|-----------|
-| GPT-Image 1.5 | OpenAI | Premium | 3 |
-| Gemini Pro Image | Google | Premium | 2 |
-| FLUX 2 Pro | Fal | Premium | 2 |
-| Seedream 4.5 | Replicate | Premium | 2 |
-| Ideogram 3 | Replicate | Standard | 2 |
-| Recraft V3 | Replicate | Standard | 2 |
-| Gemini Flash | Google | Standard | 1 |
-| FLUX 2 Dev | Fal | Standard | 1 |
-| FLUX 2 Schnell | Fal | Budget | 1 |
-| Animagine XL 4.0 | HuggingFace | Budget | 1 |
-| Stable Diffusion XL | HuggingFace | Budget | 1 |
+| モデル              | ティア   | クレジット |
+| ------------------- | -------- | ---------- |
+| GPT-Image 1.5       | Premium  | 3          |
+| Gemini Pro Image    | Premium  | 2          |
+| FLUX 2 Pro          | Premium  | 2          |
+| Seedream 4.5        | Premium  | 2          |
+| Ideogram 3          | Standard | 2          |
+| Recraft V3          | Standard | 2          |
+| Gemini Flash        | Standard | 1          |
+| FLUX 2 Dev          | Standard | 1          |
+| FLUX 2 Schnell      | Budget   | 1          |
+| Animagine XL 4.0    | Budget   | 1          |
+| Stable Diffusion XL | Budget   | 1          |
 
 ### 動画モデル
 
-| モデル | プロバイダー | ティア | クレジット |
-|--------|-------------|--------|-----------|
-| Kling V3 Pro | Fal | Premium | 5 |
-| Veo 3 | Google | Premium | 5 |
-| Sora 2 | OpenAI | Premium | 5 |
-| Seedance Pro | Replicate | Premium | 4 |
-| MiniMax Hailuo | Fal | Standard | 3 |
-| Luma Ray 2 | Fal | Standard | 3 |
-| Pika 2.2 | Replicate | Standard | 3 |
-| Kling V2 | Fal | Budget | 2 |
-| Wan 2.2 | Fal | Budget | 2 |
-| HunyuanVideo | HuggingFace | Budget | 2 |
+| モデル         | ティア   | クレジット |
+| -------------- | -------- | ---------- |
+| Kling V3 Pro   | Premium  | 5          |
+| Veo 3          | Premium  | 5          |
+| Sora 2         | Premium  | 5          |
+| Seedance Pro   | Premium  | 4          |
+| MiniMax Hailuo | Standard | 3          |
+| Luma Ray 2     | Standard | 3          |
+| Pika 2.2       | Standard | 3          |
+| Kling V2       | Budget   | 2          |
+| Wan 2.2        | Budget   | 2          |
+| HunyuanVideo   | Budget   | 2          |
 
 ---
 
-## 技術スタック
+## プロのコツ
 
-| レイヤー | テクノロジー |
-|---------|-------------|
-| フレームワーク | Next.js 16 (App Router + Turbopack) |
-| 言語 | TypeScript (strict) |
-| スタイリング | Tailwind CSS + shadcn/ui |
-| 認証 | Clerk |
-| データベース | PostgreSQL (Neon) via Prisma 7 |
-| ストレージ | Cloudflare R2 |
-| AI プロバイダー | HuggingFace, Google Gemini, OpenAI, Fal, Replicate |
-| バリデーション | Zod |
-| テスト | Vitest (97 テスト) |
-| デプロイ | Vercel |
+**Bring Your Own Key (BYOK)** — クレジットを使わずにプレミアムモデルを使いたい？OpenAI、Google、Fal、Replicate、HuggingFace などの自分のAPIキーを追加できます。キーはAES-256-GCMで暗号化保存。
+
+**プロンプト強化** — 良いプロンプトの書き方がわからない？Studio で「Append」をクリックすれば、LLMがプロンプトを改善。5つの強化スタイルから選択可能。
+
+**イメージリバース** — 好きな画像を見つけた？「Image Reverse」にアップロードして、生成パラメータを抽出 — スタイルタグ、構図の詳細、すぐに使えるプロンプト。
+
+**キャラクターカード** — シリーズ制作中？キャラクターをカードとして保存（顔、衣装、全身ビュー）し、複数の生成で視覚的一貫性を維持。
 
 ---
 
-## プロジェクト構成
+## 多言語対応
 
-```
-src/
-├── app/
-│   ├── [locale]/
-│   │   ├── (auth)/              # サインイン・サインアップ
-│   │   └── (main)/
-│   │       ├── studio/          # 画像・動画生成
-│   │       ├── gallery/         # 公開ギャラリー + 詳細ビュー
-│   │       ├── arena/           # ブラインド投票 + リーダーボード
-│   │       ├── storyboard/      # AI ストーリーボード作成
-│   │       └── profile/         # 個人ライブラリ + 統計
-│   └── api/
-│       ├── generate/            # POST — AI 生成 → R2 → DB
-│       ├── arena/               # アリーナ対戦 + 投票
-│       ├── api-keys/            # BYOK キー管理
-│       ├── models/              # モデル一覧 + ヘルスチェック
-│       ├── admin/               # 管理者モデル設定 CRUD
-│       ├── credits/             # ユーザークレジット
-│       └── webhooks/clerk/      # Clerk user.created 同期
-│
-├── components/
-│   ├── ui/                      # shadcn/ui アトム（ステートレス）
-│   ├── business/                # ステートフル UI（hooks 使用、直接 API 呼出不可）
-│   └── layout/                  # Navbar, MobileTabBar
-│
-├── hooks/                       # クライアント側状態管理
-├── services/                    # サーバー専用ビジネスロジック
-├── constants/                   # 設定、enum、ルート
-├── types/                       # Zod スキーマ + TypeScript 型
-├── lib/                         # DB、API クライアント、ユーティリティ
-└── messages/                    # i18n (en, ja, zh)
-```
+PixelVault は3つの言語に対応。上部のナビゲーションバーからいつでも切り替え可能。
+
+- **English** — `/en`
+- **日本語** — `/ja`
+- **中文** — `/zh`
 
 ---
 
-## はじめに
+## クレジット
 
-### 前提条件
+新規ユーザーにはサインアップ時に無料クレジットが付与されます。各モデルのティアに応じて1回の生成につき1〜5クレジットが必要です。毎日無料クレジットがリフレッシュされます。
 
-- Node.js 20+
-- PostgreSQL データベース（Neon 推奨）
-- Cloudflare R2 バケット
-- Clerk アカウント
-- 少なくとも 1 つの AI プロバイダーの API キー
-
-### 環境変数
-
-```env
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
-CLERK_WEBHOOK_SECRET=whsec_...
-
-# Database
-DATABASE_URL=postgresql://...
-
-# Cloudflare R2
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-NEXT_PUBLIC_R2_PUBLIC_URL=
-
-# AI Providers（少なくとも 1 つ必要）
-HUGGINGFACE_API_KEY=hf_...
-GEMINI_API_KEY=AIza...
-OPENAI_API_KEY=sk-...
-FAL_KEY=...
-REPLICATE_API_TOKEN=r8_...
-```
-
-### インストール & 起動
-
-```bash
-npm install
-npx prisma generate
-npx prisma migrate deploy
-npm run dev
-```
-
----
-
-## 開発状況
-
-| フェーズ | ステータス | 内容 |
-|---------|----------|------|
-| Phase 1 | 完了 | MVP — コア生成フロー |
-| Phase 2 | 完了 | 永続化 — Prisma + Cloudflare R2 |
-| Phase 3 | 完了 | ユーザーシステム + クレジット |
-| Phase 4 | 完了 | ギャラリー、プロフィール、ストーリーボード、アリーナ |
-| Phase 5 | 完了 | UX 改善、セキュリティ強化、動画生成 |
-
----
-
-## セキュリティ
-
-- AES-256-GCM による API キー暗号化保存
-- トークンバケット方式レート制限（生成 10 req/min、動画 5 req/min）
-- 画像アップロードバリデーション（最大 10MB、MIME タイプチェック）
-- エラーメッセージのサニタイズ（内部情報の漏洩防止）
-- Webhook リプレイ保護
-- サーバーサイドのみのクレジット差引
-- `NEXT_PUBLIC_` プレフィックスで AI キーや DB 認証情報を公開しない
-
----
-
-## アーキテクチャ原則
-
-- **マジックバリュー禁止** — すべての設定は `src/constants/` に集約
-- **厳密な TypeScript** — `any` 禁止、Zod スキーマで型定義
-- **レイヤードアーキテクチャ** — constants → types → services → hooks → components
-- **薄い API ルート** — 認証チェック + Zod パース + サービス呼出のみ
-- **サーバーサイドクレジットロジック** — クライアントからのクレジット値を信頼しない
+| ティア   | 画像コスト      | 動画コスト      |
+| -------- | --------------- | --------------- |
+| Budget   | 1 クレジット    | 2 クレジット    |
+| Standard | 1〜2 クレジット | 3 クレジット    |
+| Premium  | 2〜3 クレジット | 4〜5 クレジット |

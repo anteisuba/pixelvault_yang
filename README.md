@@ -2,193 +2,144 @@
 
 # PixelVault — Personal AI Gallery
 
-A multi-model AI image & video generation platform with permanent archive, blind arena voting, and storyboard creation.
+Generate images and videos with 20+ AI models. Compare them blind. Archive everything forever.
 
-**Live Demo:** [https://pixelvault-seven.vercel.app/](https://pixelvault-seven.vercel.app/)
+**Try it now:** [pixelvault-seven.vercel.app](https://pixelvault-seven.vercel.app/)
+
+![PixelVault Landing Page](docs/screenshots/hero.png)
+
+---
+
+## What is PixelVault?
+
+PixelVault is a multi-model AI image & video generation platform. Pick any model — GPT-Image, Gemini, FLUX, Kling, Sora, and more — generate from the same prompt, and keep every creation permanently archived with its settings and metadata.
+
+---
+
+## Quick Start
+
+1. **Sign up** — Free credits are included on registration
+2. **Go to Studio** — Pick a model and enter your prompt
+3. **Generate** — Your image or video is created and permanently saved
+
+That's it. No setup, no API keys needed (unless you want premium models).
 
 ---
 
 ## Features
 
-- **Multi-model AI generation** — 11 image models + 10 video models across 6 providers
-- **Arena (blind voting)** — Compare outputs side-by-side with ELO ranking system
-- **Storyboard** — AI-generated comic-style narrative sequences
-- **Gallery** — Public feed with search, filter, and infinite scroll
-- **Profile** — Personal library with stats, hard-delete with R2 cleanup
-- **Prompt enhancement** — LLM-powered prompt improvement (OpenAI / Gemini / DeepSeek)
-- **Reverse engineering** — Analyze existing images to extract generation parameters
-- **BYOK (Bring Your Own Key)** — Encrypted API key management for premium models
-- **Permanent storage** — All generations stored on Cloudflare R2
-- **Credit system** — Free credits for new users; per-model cost tiers
-- **Multilingual** — English, Japanese, Chinese (`/en`, `/ja`, `/zh`)
-- **Mobile-first** — Responsive layout with bottom tab navigation
+### Studio — Create Images & Videos
+
+Your creative workspace. Write a prompt, pick a model, and generate.
+
+![Studio](docs/screenshots/studio.png)
+
+- **11 image models + 10 video models** across 6 providers
+- **Prompt Enhancement** — Let AI rewrite your prompt in 5 styles (detailed, artistic, photorealistic, anime, LoRA)
+- **Reference Images** — Upload an image as visual guidance for generation
+- **Image Reverse** — Analyze any image to extract its generation parameters
+- **Image-to-Video** — Turn any generated image into a video clip
+- **Character Cards** — Save character presets to maintain consistency across generations
+- **Video durations** from 3s to 120s, resolutions up to 1080p
+
+### Gallery — Discover & Share
+
+Browse what others have created. Find inspiration. Share your own work.
+
+![Gallery](docs/screenshots/gallery.png)
+
+- Search by prompt text
+- Filter by model, type (image/video), and time range
+- Like and bookmark your favorites
+- Click any image to see full details — prompt, model, settings
+- Use any gallery image as a reference for your next generation
+
+### Arena — Blind Model Battles
+
+Which model is actually the best? Find out by voting blind.
+
+![Arena](docs/screenshots/arena.png)
+
+1. Select 2–4 models and enter a prompt
+2. All models generate from the same prompt simultaneously
+3. Vote for the best result — **without knowing which model made it**
+4. After voting, model identities are revealed with ELO rating changes
+5. Check the **Leaderboard** to see overall model rankings
+
+### Profile — Your Personal Archive
+
+Every generation you've ever made, in one place.
+
+- View all your creations with search and filters
+- Toggle public/private visibility per image
+- Stats dashboard — total generations, requests, and more
+- Hard-delete with full storage cleanup when needed
 
 ---
 
-## AI Models
+## Available Models
 
 ### Image Models
 
-| Model | Provider | Tier | Credits |
-|-------|----------|------|---------|
-| GPT-Image 1.5 | OpenAI | Premium | 3 |
-| Gemini Pro Image | Google | Premium | 2 |
-| FLUX 2 Pro | Fal | Premium | 2 |
-| Seedream 4.5 | Replicate | Premium | 2 |
-| Ideogram 3 | Replicate | Standard | 2 |
-| Recraft V3 | Replicate | Standard | 2 |
-| Gemini Flash | Google | Standard | 1 |
-| FLUX 2 Dev | Fal | Standard | 1 |
-| FLUX 2 Schnell | Fal | Budget | 1 |
-| Animagine XL 4.0 | HuggingFace | Budget | 1 |
-| Stable Diffusion XL | HuggingFace | Budget | 1 |
+| Model               | Tier     | Credits |
+| ------------------- | -------- | ------- |
+| GPT-Image 1.5       | Premium  | 3       |
+| Gemini Pro Image    | Premium  | 2       |
+| FLUX 2 Pro          | Premium  | 2       |
+| Seedream 4.5        | Premium  | 2       |
+| Ideogram 3          | Standard | 2       |
+| Recraft V3          | Standard | 2       |
+| Gemini Flash        | Standard | 1       |
+| FLUX 2 Dev          | Standard | 1       |
+| FLUX 2 Schnell      | Budget   | 1       |
+| Animagine XL 4.0    | Budget   | 1       |
+| Stable Diffusion XL | Budget   | 1       |
 
 ### Video Models
 
-| Model | Provider | Tier | Credits |
-|-------|----------|------|---------|
-| Kling V3 Pro | Fal | Premium | 5 |
-| Veo 3 | Google | Premium | 5 |
-| Sora 2 | OpenAI | Premium | 5 |
-| Seedance Pro | Replicate | Premium | 4 |
-| MiniMax Hailuo | Fal | Standard | 3 |
-| Luma Ray 2 | Fal | Standard | 3 |
-| Pika 2.2 | Replicate | Standard | 3 |
-| Kling V2 | Fal | Budget | 2 |
-| Wan 2.2 | Fal | Budget | 2 |
-| HunyuanVideo | HuggingFace | Budget | 2 |
+| Model          | Tier     | Credits |
+| -------------- | -------- | ------- |
+| Kling V3 Pro   | Premium  | 5       |
+| Veo 3          | Premium  | 5       |
+| Sora 2         | Premium  | 5       |
+| Seedance Pro   | Premium  | 4       |
+| MiniMax Hailuo | Standard | 3       |
+| Luma Ray 2     | Standard | 3       |
+| Pika 2.2       | Standard | 3       |
+| Kling V2       | Budget   | 2       |
+| Wan 2.2        | Budget   | 2       |
+| HunyuanVideo   | Budget   | 2       |
 
 ---
 
-## Tech Stack
+## Pro Tips
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router + Turbopack) |
-| Language | TypeScript (strict) |
-| Styling | Tailwind CSS + shadcn/ui |
-| Auth | Clerk |
-| Database | PostgreSQL (Neon) via Prisma 7 |
-| Storage | Cloudflare R2 |
-| AI Providers | HuggingFace, Google Gemini, OpenAI, Fal, Replicate |
-| Validation | Zod |
-| Testing | Vitest (97 tests) |
-| Deployment | Vercel |
+**Bring Your Own Key (BYOK)** — Want to use premium models without spending credits? Add your own API keys for OpenAI, Google, Fal, Replicate, HuggingFace, and more. Keys are encrypted with AES-256-GCM.
+
+**Prompt Enhancement** — Not sure how to write a good prompt? Click "Append" in Studio and let an LLM rewrite your prompt. Choose from 5 enhancement styles.
+
+**Image Reverse** — Found an image you love? Upload it to "Image Reverse" and extract the generation parameters — style tags, composition details, and a ready-to-use prompt.
+
+**Character Cards** — Creating a series? Save your character as a card (face, outfit, full body views) and reuse it across generations for visual consistency.
 
 ---
 
-## Project Structure
+## Multilingual
 
-```
-src/
-├── app/
-│   ├── [locale]/
-│   │   ├── (auth)/              # sign-in, sign-up
-│   │   └── (main)/
-│   │       ├── studio/          # Image & video generation
-│   │       ├── gallery/         # Public gallery + detail view
-│   │       ├── arena/           # Blind voting + leaderboard
-│   │       ├── storyboard/      # AI storyboard creation
-│   │       └── profile/         # Personal library + stats
-│   └── api/
-│       ├── generate/            # POST — AI generation → R2 → DB
-│       ├── arena/               # Arena matches + voting
-│       ├── api-keys/            # BYOK key management
-│       ├── models/              # Model listing + health check
-│       ├── admin/               # Admin model config CRUD
-│       ├── credits/             # User credits
-│       └── webhooks/clerk/      # Clerk user.created sync
-│
-├── components/
-│   ├── ui/                      # shadcn/ui atoms (stateless)
-│   ├── business/                # Stateful UI (hooks, no direct API)
-│   └── layout/                  # Navbar, MobileTabBar
-│
-├── hooks/                       # Client-side state management
-├── services/                    # Server-only business logic
-├── constants/                   # Config, enums, routes
-├── types/                       # Zod schemas + TypeScript types
-├── lib/                         # DB, API client, utilities
-└── messages/                    # i18n (en, ja, zh)
-```
+PixelVault supports three languages. Switch anytime from the top navigation bar.
+
+- **English** — `/en`
+- **Japanese** — `/ja`
+- **Chinese** — `/zh`
 
 ---
 
-## Getting Started
+## Credits
 
-### Prerequisites
+New users receive free credits on signup. Each model costs 1–5 credits per generation depending on its tier. Free daily credits refresh every day.
 
-- Node.js 20+
-- PostgreSQL database (Neon recommended)
-- Cloudflare R2 bucket
-- Clerk account
-- API keys for at least one AI provider
-
-### Environment Variables
-
-```env
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
-CLERK_WEBHOOK_SECRET=whsec_...
-
-# Database
-DATABASE_URL=postgresql://...
-
-# Cloudflare R2
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-NEXT_PUBLIC_R2_PUBLIC_URL=
-
-# AI Providers (at least one required)
-HUGGINGFACE_API_KEY=hf_...
-GEMINI_API_KEY=AIza...
-OPENAI_API_KEY=sk-...
-FAL_KEY=...
-REPLICATE_API_TOKEN=r8_...
-```
-
-### Install & Run
-
-```bash
-npm install
-npx prisma generate
-npx prisma migrate deploy
-npm run dev
-```
-
----
-
-## Development Status
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1 | Done | MVP — core generation flow |
-| Phase 2 | Done | Persistence — Prisma + Cloudflare R2 |
-| Phase 3 | Done | User system + credits |
-| Phase 4 | Done | Gallery, profile, storyboard, arena |
-| Phase 5 | Done | UX refinement, security hardening, video generation |
-
----
-
-## Security
-
-- AES-256-GCM encrypted API key storage
-- Token bucket rate limiting (10 req/min generation, 5 req/min video)
-- Image upload validation (10MB max, MIME type check)
-- Error message sanitization (no internal details leaked)
-- Webhook replay protection
-- Server-side credit deduction only
-- No AI keys or DB credentials exposed via `NEXT_PUBLIC_`
-
----
-
-## Architecture Principles
-
-- **No magic values** — all config in `src/constants/`
-- **Strict TypeScript** — no `any`; types via Zod schemas
-- **Layered architecture** — constants → types → services → hooks → components
-- **Thin API routes** — auth check + Zod parse + service call only
-- **Server-side credit logic** — credits never trusted from client
+| Tier     | Image Cost  | Video Cost  |
+| -------- | ----------- | ----------- |
+| Budget   | 1 credit    | 2 credits   |
+| Standard | 1–2 credits | 3 credits   |
+| Premium  | 2–3 credits | 4–5 credits |

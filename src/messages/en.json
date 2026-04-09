@@ -1062,6 +1062,7 @@
     "dimCharacter": "Character",
     "dimBackground": "Background",
     "dimOverall": "Overall",
+    "dimTags": "Tags (NovelAI)",
     "extract": "Extract"
   },
   "LayerDecompose": {

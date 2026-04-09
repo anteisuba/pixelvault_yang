@@ -1062,6 +1062,7 @@
     "dimCharacter": "キャラクター",
     "dimBackground": "背景",
     "dimOverall": "全体",
+    "dimTags": "タグ (NovelAI)",
     "extract": "抽出"
   },
   "LayerDecompose": {

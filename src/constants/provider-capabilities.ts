@@ -149,15 +149,17 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
-  // Kontext: only seed, native reference image handling
+  // Kontext: seed + lora, native reference image handling
   [AI_MODELS.FLUX_KONTEXT_PRO]: {
-    capabilities: ['seed'] as const,
+    capabilities: ['seed', 'lora'] as const,
     maxReferenceImages: 1,
+    maxLoras: 5,
     referenceImageMode: 'native' as const,
   },
   [AI_MODELS.FLUX_KONTEXT_MAX]: {
-    capabilities: ['seed'] as const,
+    capabilities: ['seed', 'lora'] as const,
     maxReferenceImages: 4,
+    maxLoras: 5,
     referenceImageMode: 'native' as const,
   },
 }

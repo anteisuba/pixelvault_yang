@@ -21,6 +21,7 @@ export type AnalysisDimension =
   | 'character'
   | 'background'
   | 'overall'
+  | 'tags'
 
 const DIMENSION_PROMPTS: Record<AnalysisDimension, string> = {
   artStyle:
@@ -31,6 +32,7 @@ const DIMENSION_PROMPTS: Record<AnalysisDimension, string> = {
     'Focus ONLY on the environment and setting in this image. Describe: location, architecture, nature, weather, time of day, atmosphere, and spatial composition. Ignore any characters or people.',
   overall:
     'Describe this entire image as a complete, detailed AI image generation prompt that could recreate it. Include subject matter, composition, style, lighting, color palette, mood, textures, and artistic qualities.',
+  tags: 'Output danbooru-style comma-separated tags that describe this image for anime/illustration AI models like NovelAI. Start with quality tags (masterpiece, best quality, highres), then character tags (hair color, eye color, clothing, pose, expression), then style tags (art style, coloring technique, lighting), then background tags. Use lowercase with underscores. Example format: masterpiece, best quality, 1girl, pink_hair, purple_eyes, white_dress, standing, smile, watercolor, soft_lighting, garden',
 }
 
 function buildDimensionSystemPrompt(dimensions: AnalysisDimension[]): string {

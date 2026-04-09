@@ -65,6 +65,7 @@ const DIMENSION_CONFIG: {
   { key: 'character', icon: User, labelKey: 'dimCharacter' },
   { key: 'background', icon: Trees, labelKey: 'dimBackground' },
   { key: 'overall', icon: ImageIcon, labelKey: 'dimOverall' },
+  { key: 'tags', icon: Sparkles, labelKey: 'dimTags' },
 ]
 
 // ── Component ───────────────────────────────────────────────────

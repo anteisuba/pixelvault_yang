@@ -665,6 +665,7 @@ export const AnalysisDimensionEnum = z.enum([
   'character',
   'background',
   'overall',
+  'tags',
 ])
 export type AnalysisDimension = z.infer<typeof AnalysisDimensionEnum>
 

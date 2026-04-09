@@ -147,7 +147,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
 
       {/* Active route indicator */}
       {routeLabel && (
-        <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground ml-1">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-1">
           <ApiKeyHealthDot status={routeHealth} />
           <span className="font-medium text-foreground">{routeLabel}</span>
           {routeProvider && <span>{routeProvider}</span>}

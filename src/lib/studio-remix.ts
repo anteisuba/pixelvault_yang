@@ -1,16 +1,20 @@
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
-import type { GenerationRecord, GenerationSnapshot } from '@/types'
+import type {
+  AdvancedParams,
+  GenerationRecord,
+  GenerationSnapshot,
+} from '@/types'
 import { GenerationSnapshotSchema } from '@/types'
 
-type SupportedStudioAspectRatio =
-  (typeof STUDIO_IMAGE_ASPECT_RATIOS)[number]
+type SupportedStudioAspectRatio = (typeof STUDIO_IMAGE_ASPECT_RATIOS)[number]
 
 export interface StudioRemixPreset {
   prompt: string
   aspectRatio: SupportedStudioAspectRatio
   optionId: string | null
   snapshot: GenerationSnapshot | null
+  advancedParams?: AdvancedParams
 }
 
 export function parseGenerationSnapshot(
@@ -56,7 +60,9 @@ function resolveOptionId(
   options: StudioModelOption[],
 ): string | null {
   if (snapshot?.apiKeyId) {
-    const savedRoute = options.find((option) => option.keyId === snapshot.apiKeyId)
+    const savedRoute = options.find(
+      (option) => option.keyId === snapshot.apiKeyId,
+    )
     if (savedRoute) {
       return savedRoute.optionId
     }
@@ -67,7 +73,9 @@ function resolveOptionId(
   return matchedOption?.optionId ?? null
 }
 
-export function getGenerationPromptPreview(generation: GenerationRecord): string {
+export function getGenerationPromptPreview(
+  generation: GenerationRecord,
+): string {
   const snapshot = parseGenerationSnapshot(generation.snapshot)
   const prompt = snapshot?.freePrompt?.trim() || generation.prompt.trim()
   return prompt
@@ -88,5 +96,6 @@ export function buildStudioRemixPreset(
     aspectRatio,
     optionId: resolveOptionId(generation, snapshot, options),
     snapshot,
+    advancedParams: snapshot?.advancedParams,
   }
 }

@@ -108,6 +108,49 @@ describe('studio-remix helpers', () => {
     expect(preset.optionId).toBe('key:key_1')
   })
 
+  it('returns advancedParams from snapshot when present (V2)', () => {
+    const preset = buildStudioRemixPreset(
+      makeGeneration({
+        snapshot: {
+          freePrompt: 'test prompt',
+          compiledPrompt: 'test prompt enhanced',
+          modelId: 'gemini-3.1-flash-image-preview',
+          aspectRatio: '1:1',
+          advancedParams: {
+            negativePrompt: 'blurry',
+            guidanceScale: 7.5,
+            steps: 30,
+            seed: 12345,
+          },
+        },
+      }),
+      modelOptions,
+    )
+
+    expect(preset.advancedParams).toEqual({
+      negativePrompt: 'blurry',
+      guidanceScale: 7.5,
+      steps: 30,
+      seed: 12345,
+    })
+  })
+
+  it('returns undefined advancedParams when snapshot has none', () => {
+    const preset = buildStudioRemixPreset(
+      makeGeneration({
+        snapshot: {
+          freePrompt: 'test prompt',
+          compiledPrompt: 'test prompt enhanced',
+          modelId: 'gemini-3.1-flash-image-preview',
+          aspectRatio: '1:1',
+        },
+      }),
+      modelOptions,
+    )
+
+    expect(preset.advancedParams).toBeUndefined()
+  })
+
   it('uses the preview prompt derived from snapshot freePrompt when available', () => {
     const prompt = getGenerationPromptPreview(
       makeGeneration({

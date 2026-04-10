@@ -87,6 +87,15 @@ export const StudioGallery = memo(function StudioGallery() {
       if (preset.optionId) {
         dispatch({ type: 'SET_OPTION_ID', payload: preset.optionId })
       }
+      if (
+        preset.advancedParams &&
+        Object.keys(preset.advancedParams).length > 0
+      ) {
+        dispatch({
+          type: 'SET_ADVANCED_PARAMS',
+          payload: preset.advancedParams,
+        })
+      }
       const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
       if (promptField instanceof HTMLTextAreaElement) {
         promptField.focus()

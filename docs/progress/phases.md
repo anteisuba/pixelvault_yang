@@ -50,6 +50,7 @@
 > Branch: `claude/hardcore-fermi` — PR #5
 
 ### 5A: Image/Video Distinction
+
 - Gallery type filter (All / Images / Videos) with dynamic model list per type
 - Video playback in ImageDetailModal via VideoPlayer component
 - Video playback on gallery detail page `/gallery/[id]`
@@ -57,6 +58,7 @@
 - API layer `outputType` filter param on `GET /api/images`
 
 ### 5B: Profile Enhancement
+
 - Infinite scroll via ProfileFeed client component (reuses `use-gallery` hook with `mine=true`)
 - Search, type filter, and sort controls on profile page
 - Hard-delete generation with AlertDialog confirmation (DB + R2 cleanup)
@@ -64,11 +66,13 @@
 - `DELETE /api/generations/[id]` endpoint
 
 ### 5C: Mobile + Interaction
+
 - MobileTabBar expanded from 3 to 5 tabs (+Arena, +Stories)
 - Toast notifications (sonner) for generation success/failure
 - Toaster component added to main layout
 
 ### 5D: Security Hardening
+
 - In-memory token bucket rate limiter (`src/lib/rate-limit.ts`)
   - `POST /api/generate` — 10 req/min
   - `POST /api/generate-video` — 5 req/min
@@ -84,6 +88,7 @@
 - Story creation: validate all `generationIds` belong to requesting user
 
 ### 5E: Test Coverage
+
 - 97 Vitest tests across 16 API route test files
 - Shared test helpers: `src/test/api-helpers.ts` (Clerk auth mock, rate limit mock, request builders)
 - Coverage: auth, validation, rate limiting, success paths, error handling for all endpoints
@@ -108,20 +113,24 @@
 > Branch: `feat/workbench-w2-project-ui`
 
 ### D1: Prompt Sharing & Reuse — COMPLETE
+
 - Copy Prompt + Share Link buttons on Gallery/Detail
 - "Generate with this Prompt" one-click Studio prefill
 - URL parameter sharing (?prompt=&model=)
 
 ### D2: Arena Upgrade — COMPLETE
+
 - Personal arena: match history + model stats (/arena/history)
 - Leaderboard: podium Top 3 + model family filter + modelFamily field
 - API: GET /api/arena/history + GET /api/arena/personal-stats (8 new tests)
 
 ### D2.5: Landing Page Narrative — COMPLETE
+
 - "Your Key, Your Images, Zero Markup" core differentiation
 - BYOK + permanent archive + Arena three-in-one value prop (HomepageComparison)
 
 ### D3: Social Layer — COMPLETE
+
 - User model expansion: username, displayName, avatarUrl, bio, isPublic
 - Public creator profile `/u/[username]` with Polaroid scatter layout (SSR + OG tags)
 - PolaroidCard + PolaroidGrid + ProfileHeader components
@@ -136,8 +145,11 @@
 ## Phase W: Workbench Evolution — PARTIAL
 
 ### W0: VolcEngine Seedance — COMPLETE
+
 ### W1: Multi-Reference Images — COMPLETE
+
 ### W2: Project System — COMPLETE
+
 - See `../product/roadmap.md` Phase W for details
 
 ## Phase E: Unified Development Plan — IN PROGRESS
@@ -146,21 +158,24 @@
 > 详见: [`../plans/product/unified-development-plan.md`](../plans/product/unified-development-plan.md)
 
 ### Track A: 基础修复
+
 - [x] A1 — 数据层修复 (credit 成本/能力覆盖/计时器/Model ID)
 - [x] A2 — 新模型接入 (Gemini 2.5 Flash/FLUX 2 Max/Recraft V4/Kontext Pro+Max)
 - [x] A3 — 校验+持久化+并行化+超时
 
 ### Track B: Studio 重构
-- [ ] B0 — Generation 快照 DTO + ActiveRun 状态模型
-- [ ] B1 — 三栏布局重构 (删除 hero/模型排名，prompt 居中)
-- [ ] B2 — 状态补全+重试+快捷键 (合并 S4+Phase2+3)
-- [ ] B3 — 卡片优化+历史元数据+Remix (合并 S5+Phase4)
+
+- [x] B0 — Generation 快照 DTO + ActiveRun 状态模型
+- [x] B1 — 三栏布局重构 (删除 hero/模型排名，prompt 居中)
+- [x] B2 — 状态补全+重试+快捷键 (合并 S4+Phase2+3)
+- [x] B3 — 卡片优化+历史元数据+Remix (合并 S5+Phase4)
 - [ ] B4 — 多模型对比生成 (共享并发服务)
 - [ ] B5 — 批量变体 4选1
-- [ ] B6 — 智能 Prompt (模板库+模型建议+灵感按钮)
+- [x] B6 — 智能 Prompt (维度提取+模型感知增强+风格渗透)
 - [ ] B7 — 动效+无障碍
 
 ### Track C: 独立功能线
+
 - [ ] C1 — Storyboard 增量增强
 - [ ] C2 — 系列模式+角色一致性
 - [ ] C3 — 图片编辑 (Kontext 指令/Outpainting/Inpainting)

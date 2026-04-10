@@ -243,7 +243,7 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B3 — 卡片优化 + 历史元数据 + Remix（合并 S5 + Phase 4）
 
-**状态:** 进行中 ⏳
+**状态:** 已完成 ✅
 
 #### 来自 S5: 卡片功能
 
@@ -254,7 +254,7 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 #### 来自 Phase 4: Remix + 元数据
 
 - **Remix V1** — 回填 prompt + modelId（现有数据） ✅
-- **Remix V2** — 回填完整 snapshot（依赖 B0 数据积累） ⏳
+- **Remix V2** — 回填完整 snapshot（advancedParams 恢复） ✅
 - **历史默认态**: 缩略图 + model badge + prompt 前 30 字 ✅
 - **展开态**: 点击 → 完整 prompt + 参数 + Remix 按钮 ✅
 - **最近使用入口**: 左栏顶部 3 个最近配置组合 ✅
@@ -267,12 +267,14 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 - 管理面板内部已支持搜索、排序、复制
 - 最近配置入口已接到左栏和移动端设置面板
 
-#### 当前仍待补
+#### 2026-04-10 收尾
 
-- `Remix V2` 继续优先消费完整 snapshot
-- 浏览器级视觉和交互回归
+- Remix V2: advancedParams 从 snapshot 恢复 ✅
+- GenerationPreview 新增 Remix 按钮（桌面工具栏 + 移动端 peek row） ✅
+- 下载按钮修复（fetch+Blob 强制下载，解决跨域问题） ✅
+- 7 个测试全部通过 ✅
 
-**验证:** 卡片搜索可用 + Remix V1 回填 + 历史元数据正确
+**验证:** 卡片搜索可用 + Remix V2 回填(prompt+ratio+model+advancedParams) + 历史元数据正确
 
 ---
 
@@ -304,12 +306,15 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B6 — 智能 Prompt（可与 B4-B5 并行）
 
-**状态:** 未开始
+**状态:** 已完成 ✅
 
-- 模型感知建议（Animagine→Danbooru / Flux→自然语言 / Gemini→文字渲染）
-- 10+ 场景模板库
-- 灵感按钮（100+ 预置 prompt）
-- `prompt-templates.ts` / `prompt-suggestions.ts`
+- Image Reverse 结构化提取: 5 维度选择(artStyle/character/background/overall/tags) + 独立填入 ✅
+- Recipe Compiler 风格渗透: style 影响 character + background 描述，非简单拼接 ✅
+- StyleCard.attributes 结构化传递: palette/mood/medium/influences ✅
+- 模型能力矩阵 `model-strengths.ts`: 11 模型 + 7 adapter fallback hints ✅
+- 模型感知 Prompt 增强: enhancePrompt 按 modelId 注入模型特定指导 ✅
+- 5 种增强风格: detailed/artistic/photorealistic/anime/lora ✅
+- LLM 输出验证: meta-commentary 检测 + system leak 防护 ✅
 
 ---
 
@@ -368,7 +373,7 @@ Week 1-2:  A1 + A2 + A3 (基础修复，消除技术债) ✅ 已完成
 Week 2-3:  B0 (快照+ActiveRun，为后续功能打地基) ✅ 已完成
 Week 3-4:  B1 (三栏布局，最大视觉变化) ✅ 已完成
 Week 4-5:  B2 (合并 S4+Phase2+3: 状态/重试/快捷键/i18n) ✅ 已完成
-Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ⏳ 进行中
+Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ✅ 已完成
 ```
 
 ### 后续优先级重排（数据驱动评分, 2026-04-08 更新）
@@ -389,7 +394,7 @@ Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ⏳ 进行中
 **与 v1 的关键变化**: B6 提前到 B3 之后（原 v1 中 B4 先于 B5/B6）。理由是 B6 零外部依赖且 `prompt-presets.ts` 已有基础结构，而 B4 需要提取 Arena 的 parallel-generate 逻辑 + B5 先验证并行生成。
 
 ```
-Week 6:    B6 智能Prompt（模板 + 模型建议 + 灵感按钮）
+Week 6:    B6 智能Prompt（维度提取+模型感知增强+风格渗透） ✅ 已完成
 Week 7:    B5 变体4选1（同模型4种子 2x2 grid）
 Week 8-9:  B4 多模型对比（提取 parallel-generate，2-3 模型并排）
 Week 9-11: C3 图片编辑（Kontext 指令编辑 + 外扩 + 局部重绘）

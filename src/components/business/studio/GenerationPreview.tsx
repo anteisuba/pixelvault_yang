@@ -137,14 +137,22 @@ export const GenerationPreview = memo(function GenerationPreview({
   const canUseAsReference =
     generation.outputType === 'IMAGE' && typeof onUseAsReference === 'function'
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generation.url) return
-    const a = document.createElement('a')
-    a.href = generation.url
-    a.download = `pixelvault-${generation.id}.png`
-    a.target = '_blank'
-    a.rel = 'noopener noreferrer'
-    a.click()
+    try {
+      const res = await fetch(generation.url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      const ext = generation.outputType === 'VIDEO' ? 'mp4' : 'png'
+      a.download = `pixelvault-${generation.id}.${ext}`
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      // Fallback: open in new tab
+      window.open(generation.url, '_blank', 'noopener,noreferrer')
+    }
   }
 
   const handleShare = async () => {
@@ -266,6 +274,14 @@ export const GenerationPreview = memo(function GenerationPreview({
         onClick={handleShare}
         variant={variant}
       />
+      {onRemix && generation && (
+        <CanvasToolButton
+          icon={RotateCcw}
+          label={t('toolRemix')}
+          onClick={() => onRemix(generation)}
+          variant={variant}
+        />
+      )}
       {canUseAsReference && (
         <CanvasToolButton
           icon={ImagePlus}
@@ -337,6 +353,16 @@ export const GenerationPreview = memo(function GenerationPreview({
                 <Share2 className="size-3.5" />
                 {t('toolShare')}
               </button>
+              {onRemix && generation && (
+                <button
+                  type="button"
+                  onClick={() => onRemix(generation)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
+                >
+                  <RotateCcw className="size-3.5" />
+                  {t('toolRemix')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setToolDrawerOpen(true)}

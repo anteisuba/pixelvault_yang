@@ -88,7 +88,7 @@ export function Navbar() {
             key={link.href}
             href={link.href}
             className={cn(
-              'relative rounded-full px-3 py-1.5 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors duration-200 hover:text-foreground',
+              'relative rounded-full px-3 py-2.5 text-nav font-semibold uppercase tracking-nav text-muted-foreground transition-colors duration-200 hover:text-foreground',
               isActive && 'text-foreground',
             )}
           >

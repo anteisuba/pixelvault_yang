@@ -41,7 +41,7 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'relative z-10 rounded-full px-2.5 py-1 text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
+              'relative z-10 rounded-full px-2.5 py-2 text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
               isActive
                 ? 'text-background'
                 : 'text-muted-foreground hover:text-foreground',

@@ -1588,6 +1588,10 @@
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
     "generateFailed": "Generation failed",
+    "variantGenerate": "Generate Variants",
+    "variantGenerating": "Generating {count} variants...",
+    "variantSuccess": "Variants generated!",
+    "variantCredits": "Uses {count} credits",
     "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
@@ -1673,7 +1677,9 @@
     "toolLayers": "Layer decompose",
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
-    "toolDrawerTitle": "Tools"
+    "toolDrawerTitle": "Tools",
+    "variantSelectWinner": "Select as best",
+    "variantSelected": "Selected"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "Studio draft",

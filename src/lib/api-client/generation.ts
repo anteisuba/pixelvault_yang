@@ -561,6 +561,33 @@ export async function studioGenerateAPI(
   }
 }
 
+export async function studioSelectWinnerAPI(data: {
+  runGroupId: string
+  generationId: string
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(API_ENDPOINTS.STUDIO_SELECT_WINNER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function getCivitaiTokenStatusAPI(): Promise<CivitaiTokenStatusResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.CIVITAI_TOKEN)

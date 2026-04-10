@@ -30,6 +30,14 @@ export async function compileAndGenerate(
       hasApiKeyId: !!input.apiKeyId,
     })
 
+    // B5: Inject seed override into advancedParams
+    const mergedQuickAdvanced = {
+      ...(input.advancedParams
+        ? (input.advancedParams as Record<string, unknown>)
+        : {}),
+      ...(input.seed != null ? { seed: input.seed } : {}),
+    }
+
     const generation = await generateImageForUser(clerkId, {
       prompt: input.freePrompt ?? '',
       modelId: input.modelId,
@@ -39,11 +47,25 @@ export async function compileAndGenerate(
         input.referenceImages && input.referenceImages.length > 0
           ? input.referenceImages
           : undefined,
-      advancedParams: input.advancedParams
-        ? (input.advancedParams as Record<string, unknown>)
-        : undefined,
+      advancedParams:
+        Object.keys(mergedQuickAdvanced).length > 0
+          ? mergedQuickAdvanced
+          : undefined,
       projectId: input.projectId,
     })
+
+    // B5: Update batch metadata if part of a run group
+    if (input.runGroupId) {
+      await db.generation.update({
+        where: { id: generation.id },
+        data: {
+          runGroupId: input.runGroupId,
+          runGroupType: input.runGroupType ?? 'single',
+          runGroupIndex: input.runGroupIndex ?? 0,
+          seed: input.seed != null ? BigInt(input.seed) : generation.seed,
+        },
+      })
+    }
 
     return generation
   }
@@ -78,8 +100,12 @@ export async function compileAndGenerate(
 
   // Merge advanced params: compiled (from StyleCard) is base, input override takes precedence
   const mergedAdvancedParams =
-    input.advancedParams || compiled.advancedParams
-      ? { ...(compiled.advancedParams ?? {}), ...(input.advancedParams ?? {}) }
+    input.advancedParams || compiled.advancedParams || input.seed != null
+      ? {
+          ...(compiled.advancedParams ?? {}),
+          ...(input.advancedParams ?? {}),
+          ...(input.seed != null ? { seed: input.seed } : {}),
+        }
       : undefined
 
   const generation = await generateImageForUser(clerkId, {
@@ -94,6 +120,7 @@ export async function compileAndGenerate(
 
   // B0: Enrich snapshot with card-mode-specific fields
   // (generateImageForUser already saved the base snapshot)
+  // B5: Also update batch metadata if part of a run group
   await db.generation.update({
     where: { id: generation.id },
     data: {
@@ -104,6 +131,14 @@ export async function compileAndGenerate(
         backgroundCardId: input.backgroundCardId,
         styleCardId: input.styleCardId,
       },
+      ...(input.runGroupId
+        ? {
+            runGroupId: input.runGroupId,
+            runGroupType: input.runGroupType ?? 'single',
+            runGroupIndex: input.runGroupIndex ?? 0,
+            seed: input.seed != null ? BigInt(input.seed) : generation.seed,
+          }
+        : {}),
     },
   })
 

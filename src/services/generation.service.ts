@@ -594,3 +594,31 @@ export async function getGenerationsByCharacterCombination(
 
   return { generations, total }
 }
+
+// ── B5: Variant Winner Selection ──────────────────────────────────
+
+export async function selectVariantWinner(
+  userId: string,
+  runGroupId: string,
+  generationId: string,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const target = await tx.generation.findFirst({
+      where: { id: generationId, userId, runGroupId },
+      select: { id: true },
+    })
+    if (!target) {
+      throw new Error('Generation not found or not part of this run group')
+    }
+
+    await tx.generation.updateMany({
+      where: { runGroupId, userId },
+      data: { isWinner: false },
+    })
+
+    await tx.generation.update({
+      where: { id: generationId },
+      data: { isWinner: true },
+    })
+  })
+}

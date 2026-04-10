@@ -5,15 +5,18 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { VIDEO_GENERATION } from '@/constants/config'
+import { VARIANT_COUNT, VARIANT_MAX_SEED } from '@/constants/studio'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
   GenerationRecord,
+  RunGroupMode,
   StudioGenerateRequest,
   GenerateVideoRequest,
 } from '@/types'
 import {
   studioGenerateAPI,
+  studioSelectWinnerAPI,
   submitVideoAPI,
   checkVideoStatusAPI,
 } from '@/lib/api-client'
@@ -33,6 +36,8 @@ export interface UnifiedGenerateInput {
   mode: GenerationMode
   image?: StudioGenerateRequest
   video?: GenerateVideoRequest
+  /** B5: Run group mode — 'variant' triggers 4-seed parallel generation */
+  runMode?: RunGroupMode
 }
 
 export interface UseUnifiedGenerateReturn {
@@ -46,6 +51,8 @@ export interface UseUnifiedGenerateReturn {
   reset: () => void
   /** B0: Active generation run with per-item tracking */
   activeRun: ActiveRun | null
+  /** B5: Select a variant as winner */
+  selectWinner: (generationId: string) => Promise<void>
 }
 
 // ─── Hook ────────────────────────────────────────────────────────
@@ -167,7 +174,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           toast.success(tStudio('generateSuccess'))
           return result.data.generation
         }
-        const msg = getApiErrorMessage(tErrors, result, tStudio('generateFailed'))
+        const msg = getApiErrorMessage(
+          tErrors,
+          result,
+          tStudio('generateFailed'),
+        )
         setError(msg)
         setActiveRun((prev) =>
           prev
@@ -384,12 +395,162 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [tVideo, startTimer, finish],
   )
 
+  // ── B5: Variant generation (parallel seeds) ───────────────────
+
+  const generateVariants = useCallback(
+    async (input: StudioGenerateRequest): Promise<GenerationRecord | null> => {
+      setIsGenerating(true)
+      setStage('generating')
+      setError(null)
+      startTimer()
+
+      const runGroupId = crypto.randomUUID()
+      const seeds = Array.from({ length: VARIANT_COUNT }, () =>
+        Math.floor(Math.random() * VARIANT_MAX_SEED),
+      )
+      const items = seeds.map((seed, idx) => ({
+        id: crypto.randomUUID(),
+        modelId: input.modelId ?? 'unknown',
+        status: 'generating' as const,
+        generation: null,
+        error: null,
+        seed,
+        index: idx,
+      }))
+
+      setActiveRun({
+        id: runGroupId,
+        mode: 'variant',
+        items,
+        selectedItemId: null,
+        prompt: input.freePrompt ?? '',
+        startedAt: Date.now(),
+      })
+
+      try {
+        const results = await Promise.allSettled(
+          items.map((item) =>
+            studioGenerateAPI({
+              ...input,
+              seed: item.seed,
+              runGroupId,
+              runGroupType: 'variant',
+              runGroupIndex: item.index,
+            }),
+          ),
+        )
+
+        let firstSuccess: GenerationRecord | null = null
+
+        results.forEach((result, idx) => {
+          const itemId = items[idx].id
+          if (
+            result.status === 'fulfilled' &&
+            result.value.success &&
+            result.value.data?.generation
+          ) {
+            const gen = result.value.data.generation
+            if (!firstSuccess) firstSuccess = gen
+            setActiveRun((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    items: prev.items.map((item) =>
+                      item.id === itemId
+                        ? {
+                            ...item,
+                            status: 'completed' as const,
+                            generation: gen,
+                          }
+                        : item,
+                    ),
+                  }
+                : null,
+            )
+          } else {
+            const msg =
+              result.status === 'fulfilled'
+                ? getApiErrorMessage(
+                    tErrors,
+                    result.value,
+                    tStudio('generateFailed'),
+                  )
+                : tStudio('generateFailed')
+            setActiveRun((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    items: prev.items.map((item) =>
+                      item.id === itemId
+                        ? {
+                            ...item,
+                            status: 'failed' as const,
+                            error: msg,
+                          }
+                        : item,
+                    ),
+                  }
+                : null,
+            )
+          }
+        })
+
+        if (firstSuccess) {
+          setLastGeneration(firstSuccess)
+          toast.success(tStudio('variantSuccess'))
+        } else {
+          setError(tStudio('generateFailed'))
+        }
+
+        return firstSuccess
+      } finally {
+        stopTimer()
+        setIsGenerating(false)
+        setStage('idle')
+      }
+    },
+    [tErrors, tStudio, startTimer, stopTimer],
+  )
+
+  // ── B5: Select variant winner ─────────────────────────────────
+
+  const selectWinner = useCallback(
+    async (generationId: string): Promise<void> => {
+      const runGroupId = activeRun?.id
+      if (!runGroupId || activeRun?.mode !== 'variant') return
+
+      // Optimistic update
+      setActiveRun((prev) =>
+        prev ? { ...prev, selectedItemId: generationId } : null,
+      )
+
+      const selectedGen = activeRun.items.find(
+        (item) => item.generation?.id === generationId,
+      )?.generation
+      if (selectedGen) {
+        setLastGeneration(selectedGen)
+      }
+
+      const result = await studioSelectWinnerAPI({
+        runGroupId,
+        generationId,
+      })
+      if (!result.success) {
+        toast.error(result.error ?? tStudio('generateFailed'))
+      }
+    },
+    [activeRun, tStudio],
+  )
+
   // ── Unified entry point ───────────────────────────────────────
 
   const generate = useCallback(
     async (input: UnifiedGenerateInput): Promise<GenerationRecord | null> => {
       lastRequestRef.current = input
       if (input.mode === 'image' && input.image) {
+        if (input.runMode === 'variant') {
+          return generateVariants(input.image)
+        }
         return generateImage(input.image)
       }
       if (input.mode === 'video' && input.video) {
@@ -397,7 +558,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
       return null
     },
-    [generateImage, generateVideo],
+    [generateImage, generateVariants, generateVideo],
   )
 
   const retry = useCallback(async (): Promise<GenerationRecord | null> => {
@@ -429,5 +590,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     retry,
     reset,
     activeRun,
+    selectWinner,
   }
 }

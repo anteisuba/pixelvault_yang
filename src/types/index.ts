@@ -1924,6 +1924,14 @@ export const StudioGenerateSchema = z
     referenceImages: z.array(z.string()).optional(),
     /** Advanced params override from toolbar Advanced Settings panel */
     advancedParams: z.record(z.string(), z.unknown()).optional(),
+    /** B5: Seed override for variant generation */
+    seed: z.number().int().min(0).max(4294967295).optional(),
+    /** B5: Run group ID for variant/compare batches */
+    runGroupId: z.string().optional(),
+    /** B5: Run group type */
+    runGroupType: z.enum(['single', 'compare', 'variant']).default('single'),
+    /** B5: Position within run group (0-based) */
+    runGroupIndex: z.number().int().min(0).default(0),
   })
   .refine((data) => !!(data.modelId || data.styleCardId), {
     message: 'Either modelId or styleCardId is required',
@@ -1934,3 +1942,14 @@ export const StudioGenerateSchema = z
   })
 
 export type StudioGenerateRequest = z.infer<typeof StudioGenerateSchema>
+
+// ── B5: Select Variant Winner ───────────────────────────────────
+
+export const SelectVariantWinnerSchema = z.object({
+  runGroupId: z.string().min(1),
+  generationId: z.string().min(1),
+})
+
+export type SelectVariantWinnerRequest = z.infer<
+  typeof SelectVariantWinnerSchema
+>

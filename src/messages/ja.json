@@ -1581,6 +1581,10 @@
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
     "generateFailed": "生成失敗",
+    "variantGenerate": "バリアント生成",
+    "variantGenerating": "{count}個のバリアントを生成中...",
+    "variantSuccess": "バリアントが生成されました！",
+    "variantCredits": "{count}クレジット使用",
     "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
@@ -1673,7 +1677,9 @@
     "toolLayers": "レイヤー分解",
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
-    "toolDrawerTitle": "ツール"
+    "toolDrawerTitle": "ツール",
+    "variantSelectWinner": "ベストに選択",
+    "variantSelected": "選択済み"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "スタジオ草案",

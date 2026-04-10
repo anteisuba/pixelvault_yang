@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 import { GenerationPreview } from './GenerationPreview'
+import { VariantGrid } from './VariantGrid'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.
@@ -26,7 +27,7 @@ import { GenerationPreview } from './GenerationPreview'
 export const StudioCanvas = memo(function StudioCanvas() {
   const { dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { lastGeneration, retry } = useStudioGen()
+  const { lastGeneration, retry, activeRun, selectWinner } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
@@ -98,13 +99,21 @@ export const StudioCanvas = memo(function StudioCanvas() {
       )}
     >
       <div className="mx-auto w-full max-w-5xl">
-        <GenerationPreview
-          generation={lastGeneration}
-          isLatestResult
-          onUseAsReference={handleUseAsReference}
-          onRemix={handleRemix}
-          onRetry={retry}
-        />
+        {activeRun?.mode === 'variant' ? (
+          <VariantGrid
+            items={activeRun.items}
+            selectedItemId={activeRun.selectedItemId}
+            onSelect={selectWinner}
+          />
+        ) : (
+          <GenerationPreview
+            generation={lastGeneration}
+            isLatestResult
+            onUseAsReference={handleUseAsReference}
+            onRemix={handleRemix}
+            onRetry={retry}
+          />
+        )}
       </div>
     </div>
   )

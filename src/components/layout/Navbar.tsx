@@ -97,9 +97,9 @@ export function Navbar() {
                 layoutId="navbar-indicator"
                 className="absolute inset-0 rounded-full bg-primary/10"
                 transition={{
-                  type: 'spring',
-                  stiffness: 380,
-                  damping: 30,
+                  type: 'tween',
+                  ease: 'easeOut',
+                  duration: 0.3,
                 }}
               />
             )}

@@ -38,6 +38,16 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
   },
+  [AI_MODELS.SEEDANCE_20_VOLC]: {
+    supportedDurations: [5, 10],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_VOLC]: {
+    supportedDurations: [5, 10],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+  },
 }
 
 export function getVideoModelCapabilities(

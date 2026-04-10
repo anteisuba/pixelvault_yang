@@ -1253,6 +1253,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "字节跳动 — 快速版、原生音频、4-15秒"
     },
+    "seedance20Volc": {
+      "label": "Seedance 2.0（火山引擎）",
+      "description": "火山引擎 — 原生音频+口型同步、导演级镜头"
+    },
+    "seedance20FastVolc": {
+      "label": "Seedance 2.0 Fast（火山引擎）",
+      "description": "火山引擎 — 快速版、原生音频"
+    },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "字节跳动 — 原生音频、电影级镜头控制"

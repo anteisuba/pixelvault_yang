@@ -1253,6 +1253,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "ByteDance — 高速版、音声付き、4-15秒"
     },
+    "seedance20Volc": {
+      "label": "Seedance 2.0（火山引擎）",
+      "description": "火山引擎 — 音声+リップシンク、監督レベルのカメラ"
+    },
+    "seedance20FastVolc": {
+      "label": "Seedance 2.0 Fast（火山引擎）",
+      "description": "火山引擎 — 高速版、音声付き"
+    },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — 音声付き、映画的カメラコントロール"

@@ -1253,6 +1253,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "ByteDance — faster variant, native audio, 4-15s"
     },
+    "seedance20Volc": {
+      "label": "Seedance 2.0 (VolcEngine)",
+      "description": "VolcEngine — native audio + lipsync, director-level camera"
+    },
+    "seedance20FastVolc": {
+      "label": "Seedance 2.0 Fast (VolcEngine)",
+      "description": "VolcEngine — faster variant, native audio"
+    },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — native audio, cinematic camera controls"

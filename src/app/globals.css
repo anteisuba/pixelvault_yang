@@ -14,8 +14,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-app-sans);
-  --font-display: var(--font-app-sans);
-  --font-serif: var(--font-app-sans);
+  --font-display: var(--font-app-display);
+  --font-serif: var(--font-app-serif);
   --font-mono: var(--font-geist-mono);
   /* Custom scale tokens */
   --max-width-content: 75rem;
@@ -140,7 +140,9 @@
 
 :root {
   --font-app-sans: var(--font-app-sans), sans-serif;
-  --font-hero: var(--font-app-sans), sans-serif;
+  --font-app-display: var(--font-app-display), 'Space Grotesk', sans-serif;
+  --font-app-serif: var(--font-app-serif), 'Lora', Georgia, serif;
+  --font-hero: var(--font-app-display), 'Space Grotesk', sans-serif;
   --radius: 0.9rem;
 
   /* ── Light palette — warm amber/orange ────────────────────────────────── */
@@ -197,12 +199,16 @@
 
 html:lang(ja) {
   --font-app-sans: var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
-  --font-hero: var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
+  --font-app-display: var(--font-app-display), var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
+  --font-app-serif: var(--font-app-serif), var(--font-japanese-sans), 'Hiragino Sans', serif;
+  --font-hero: var(--font-app-display), var(--font-japanese-sans), 'Hiragino Sans', sans-serif;
 }
 
 html:lang(zh) {
   --font-app-sans: var(--font-chinese-sans), 'PingFang SC', sans-serif;
-  --font-hero: var(--font-chinese-sans), 'PingFang SC', sans-serif;
+  --font-app-display: var(--font-app-display), var(--font-chinese-sans), 'PingFang SC', sans-serif;
+  --font-app-serif: var(--font-app-serif), var(--font-chinese-sans), 'PingFang SC', serif;
+  --font-hero: var(--font-app-display), var(--font-chinese-sans), 'PingFang SC', sans-serif;
 }
 
 .dark {

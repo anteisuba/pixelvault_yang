@@ -26,7 +26,6 @@ import {
   buildSavedModelOptions,
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
-import type { ApiKeyHealthStatus } from '@/types'
 import type { GenerationRecord } from '@/types'
 
 export default function AudioGenerateForm() {

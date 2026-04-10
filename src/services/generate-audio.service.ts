@@ -250,7 +250,6 @@ export async function checkAudioGenerationStatus(
     requestCount: result.requestCount,
   })
 
-  const creditCost = model?.cost ?? 1
   const job = await createGenerationJob({
     userId,
     adapterType,

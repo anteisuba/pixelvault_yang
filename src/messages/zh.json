@@ -1245,6 +1245,14 @@
       "label": "可灵 3.0 Pro",
       "description": "多镜头分镜、原生音频、角色一致性"
     },
+    "seedance20": {
+      "label": "Seedance 2.0",
+      "description": "字节跳动 — 原生音频+口型同步、导演级镜头、4-15秒"
+    },
+    "seedance20Fast": {
+      "label": "Seedance 2.0 Fast",
+      "description": "字节跳动 — 快速版、原生音频、4-15秒"
+    },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "字节跳动 — 原生音频、电影级镜头控制"
@@ -1656,6 +1664,7 @@
     "toolSaveSuperRes": "保存超分结果",
     "toolLayers": "图层分解",
     "linkCopied": "链接已复制",
+    "toolRemix": "重混",
     "toolDrawerTitle": "工具"
   },
   "StudioWorkbenchDraft": {

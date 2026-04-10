@@ -1245,6 +1245,14 @@
       "label": "Kling 3.0 Pro",
       "description": "マルチショット絵コンテ、ネイティブ音声、キャラ一貫性"
     },
+    "seedance20": {
+      "label": "Seedance 2.0",
+      "description": "ByteDance — 音声+リップシンク、監督レベルのカメラ、4-15秒"
+    },
+    "seedance20Fast": {
+      "label": "Seedance 2.0 Fast",
+      "description": "ByteDance — 高速版、音声付き、4-15秒"
+    },
     "seedancePro": {
       "label": "Seedance Pro",
       "description": "ByteDance — 音声付き、映画的カメラコントロール"
@@ -1656,6 +1664,7 @@
     "toolSaveSuperRes": "超解像を保存",
     "toolLayers": "レイヤー分解",
     "linkCopied": "リンクをコピーしました",
+    "toolRemix": "リミックス",
     "toolDrawerTitle": "ツール"
   },
   "StudioWorkbenchDraft": {

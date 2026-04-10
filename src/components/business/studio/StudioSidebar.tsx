@@ -25,6 +25,8 @@ import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { TreeView, type TreeDataItem } from '@/components/ui/tree-view'
 import type { ProjectRecord } from '@/types'
 import { Sidebar, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
+import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
+import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { cn } from '@/lib/utils'
 
 // ─── Project name → Tree structure ──────────────────────────────
@@ -403,14 +405,9 @@ export const StudioSidebar = memo(function StudioSidebar() {
 
       {/* ── Footer: Add API Key ────────────────────────────── */}
       <SidebarFooter>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'OPEN_PANEL', payload: 'civitai' })}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/30 hover:text-primary active:scale-[0.97]"
-        >
-          <Key className="size-3" />
-          {t('addApiKey')}
-        </button>
+        <ApiKeyDrawerTrigger className="h-auto w-full rounded-lg border-dashed border-border/60 bg-transparent px-3 py-1.5 text-xs text-muted-foreground shadow-none hover:border-primary/30 hover:bg-transparent hover:text-primary">
+          <ApiKeyManager />
+        </ApiKeyDrawerTrigger>
       </SidebarFooter>
     </Sidebar>
   )

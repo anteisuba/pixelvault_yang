@@ -47,6 +47,8 @@ export enum AI_MODELS {
   LUMA_RAY_2 = 'luma-ray-2',
   WAN_VIDEO = 'wan-video',
   HUNYUAN_VIDEO = 'hunyuan-video',
+  SEEDANCE_20 = 'seedance-2.0',
+  SEEDANCE_20_FAST = 'seedance-2.0-fast',
   SEEDANCE_PRO = 'seedance-pro',
   SEEDANCE_15_PRO = 'seedance-1.5-pro',
   SEEDANCE_10_PRO = 'seedance-1.0-pro',
@@ -89,6 +91,8 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.LUMA_RAY_2]: 'lumaRay2',
   [AI_MODELS.WAN_VIDEO]: 'wanVideo',
   [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
+  [AI_MODELS.SEEDANCE_20]: 'seedance20',
+  [AI_MODELS.SEEDANCE_20_FAST]: 'seedance20Fast',
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
   [AI_MODELS.SEEDANCE_15_PRO]: 'seedance15Pro',
   [AI_MODELS.SEEDANCE_10_PRO]: 'seedance10Pro',
@@ -591,6 +595,43 @@ export const MODEL_OPTIONS: ModelOption[] = [
 
   // ═══ Video Models — Standard Tier ════════════════════════════════
 
+  // #3.8 — ByteDance Seedance 2.0, latest gen with native audio + director-level camera
+  {
+    id: AI_MODELS.SEEDANCE_20,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.0/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/bytedance/seedance-2.0/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    i2vModelId: 'bytedance/seedance-2.0/image-to-video',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  // #3.9 — ByteDance Seedance 2.0 Fast, cheaper + faster variant
+  {
+    id: AI_MODELS.SEEDANCE_20_FAST,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.0/fast/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    i2vModelId: 'bytedance/seedance-2.0/fast/image-to-video',
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
   // #4 — ByteDance Seedance, strong ELO from Seed family
   {
     id: AI_MODELS.SEEDANCE_PRO,
@@ -805,6 +846,8 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.KLING_VIDEO]: 'Kling',
   [AI_MODELS.VEO_3]: 'Veo',
+  [AI_MODELS.SEEDANCE_20]: 'Seedance',
+  [AI_MODELS.SEEDANCE_20_FAST]: 'Seedance',
   [AI_MODELS.SEEDANCE_PRO]: 'Seedance',
   [AI_MODELS.SEEDANCE_15_PRO]: 'Seedance',
   [AI_MODELS.SEEDANCE_10_PRO]: 'Seedance',

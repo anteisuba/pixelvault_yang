@@ -8,11 +8,13 @@ import { useStudioForm } from '@/contexts/studio-context'
 interface UseStudioShortcutsOptions {
   enabled?: boolean
   onGenerate?: () => void
+  onGenerateVariants?: () => void
 }
 
 export function useStudioShortcuts({
   enabled = true,
   onGenerate,
+  onGenerateVariants,
 }: UseStudioShortcutsOptions) {
   const { state, dispatch } = useStudioForm()
 
@@ -22,14 +24,19 @@ export function useStudioShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const key =
-        typeof event.key === 'string' ? event.key.toLowerCase() : ''
+      const key = typeof event.key === 'string' ? event.key.toLowerCase() : ''
 
       if (!key) {
         return
       }
 
       const hasModifier = event.metaKey || event.ctrlKey
+
+      if (hasModifier && event.shiftKey && key === 'enter') {
+        event.preventDefault()
+        onGenerateVariants?.()
+        return
+      }
 
       if (hasModifier && key === 'enter') {
         event.preventDefault()
@@ -65,5 +72,12 @@ export function useStudioShortcuts({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [dispatch, enabled, onGenerate, state.panels, state.prompt])
+  }, [
+    dispatch,
+    enabled,
+    onGenerate,
+    onGenerateVariants,
+    state.panels,
+    state.prompt,
+  ])
 }

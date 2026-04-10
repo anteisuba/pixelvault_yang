@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B5 Variant Mode — UI Draft</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Lora:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #faf9f5;
+    --text: #141413;
+    --accent: #d97757;
+    --accent-dark: #c4623f;
+    --border: #e8e6dc;
+    --muted: #b0aea5;
+    --surface: #f3f1ec;
+    --white: #fff;
+    --success: #788c5d;
+    --error: #d94f4f;
+  }
+
+  body {
+    font-family: 'Lora', serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+  }
+
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; margin: 40px 0 16px; color: var(--text); }
+  h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; margin: 24px 0 12px; color: var(--muted); }
+  .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+  .section { margin-bottom: 48px; }
+
+  /* ═══ Option Panels ═══ */
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 16px; }
+  .option-panel {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    background: var(--white);
+  }
+  .option-panel h3 { margin-top: 0; color: var(--accent); }
+  .option-label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+  .rec-badge { display: inline-block; font-family: 'Space Grotesk', sans-serif; font-size: 10px; background: var(--accent); color: var(--white); padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+
+  /* ═══ Generate Button Mockups ═══ */
+  .prompt-container {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px;
+    background: var(--white);
+    margin-top: 12px;
+  }
+  .prompt-textarea {
+    width: 100%;
+    min-height: 60px;
+    border: none;
+    outline: none;
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    color: var(--text);
+    resize: none;
+    background: transparent;
+  }
+  .prompt-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .hint-text { font-size: 11px; color: var(--muted); opacity: 0.6; }
+
+  /* Split button */
+  .split-btn-group { display: flex; gap: 1px; }
+  .btn-generate {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 12px 0 0 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-generate:hover { background: var(--accent-dark); }
+  .btn-dropdown {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--accent-dark);
+    color: var(--white);
+    border: none;
+    padding: 10px 12px;
+    border-radius: 0 12px 12px 0;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .btn-dropdown:hover { background: #b55535; }
+
+  /* Dropdown menu */
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    min-width: 220px;
+    overflow: hidden;
+    z-index: 10;
+  }
+  .dropdown-item {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+  }
+  .dropdown-item:hover { background: var(--surface); }
+  .dropdown-item.active { color: var(--accent); font-weight: 500; }
+  .dropdown-divider { height: 1px; background: var(--border); margin: 0 12px; }
+  .credit-hint { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  /* Toggle pill */
+  .mode-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 0;
+  }
+  .toggle-item {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    color: var(--muted);
+  }
+  .toggle-item.active {
+    background: var(--white);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .toggle-item.active-accent {
+    background: var(--accent);
+    color: var(--white);
+  }
+
+  /* ═══ Variant Grid ═══ */
+  .variant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .variant-cell {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 1;
+    background: #eeedea;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .variant-cell:hover { border-color: rgba(217, 119, 87, 0.3); }
+  .variant-cell.selected {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.1);
+  }
+  .variant-cell .placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .variant-cell .seed-label {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    background: rgba(250, 249, 245, 0.85);
+    padding: 2px 8px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+  .variant-cell .selected-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--accent);
+    color: var(--white);
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .variant-cell .hover-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px 16px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .variant-cell:hover .hover-btn { opacity: 1; }
+  .variant-cell.selected .hover-btn { display: none; }
+
+  /* Loading state */
+  .variant-cell.loading { background: var(--surface); }
+  .variant-cell.loading .placeholder { color: var(--muted); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+  /* Failed state */
+  .variant-cell.failed { background: #fdf5f5; border-color: rgba(217, 79, 79, 0.2); }
+  .variant-cell.failed .placeholder { color: var(--error); }
+
+  /* ═══ Mobile ═══ */
+  .mobile-frame {
+    width: 375px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    overflow: hidden;
+    background: var(--bg);
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .mobile-frame .variant-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mobile-frame .variant-cell { aspect-ratio: 1; }
+
+  /* ═══ Annotations ═══ */
+  .annotation {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(217, 119, 87, 0.08);
+    border: 1px dashed rgba(217, 119, 87, 0.3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>B5 Variant Mode — UI Draft</h1>
+<p class="subtitle">同模型 × 4 seed 并行生成 → 2×2 网格选最佳。基于当前 Studio V3 布局。</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>1. 入口：如何触发变体模式</h2>
+  <div class="options-grid">
+
+    <!-- Option A -->
+    <div class="option-panel">
+      <h3>Option A: Split Button + Dropdown <span class="rec-badge">推荐</span></h3>
+      <p class="option-label">Prompt 输入框内嵌</p>
+
+      <div class="prompt-container">
+        <textarea class="prompt-textarea" readonly>A girl with silver hair standing in a neon-lit Tokyo alley, cyberpunk style, rain reflections</textarea>
+        <div class="prompt-actions">
+          <span class="hint-text">Ctrl/⌘ + Enter</span>
+          <div style="position: relative;">
+            <div class="split-btn-group">
+              <button class="btn-generate">✨ Generate</button>
+              <button class="btn-dropdown">▾</button>
+            </div>
+            <div class="dropdown-menu">
+              <div class="dropdown-item active">✨ Generate <span class="credit-hint">1 credit</span></div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-item">🎲 4 Variants <span class="credit-hint">4 credits</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="annotation">
+        优点：不占额外空间，用户无需改变习惯<br>
+        实现：DropdownMenu 在 Generate 按钮旁<br>
+        快捷键：Ctrl+Shift+Enter = 直接变体模式
+      </div>
+    </div>
+
+    <!-- Option B -->
+    <div class="option-panel">
+      <h3>Option B: Toggle Pill</h3>
+      <p class="option-label">Prompt 区域上方</p>
+
+      <div style="margin-bottom: 8px;">
+        <div class="mode-toggle">
+          <button class="toggle-item active">Single</button>
+          <button class="toggle-item">4 Variants</button>
+        </div>
+      </div>
+
+      <div class="prompt-container">
+        <textarea class="prompt-textarea" readonly>A girl with silver hair standing in a neon-lit Tokyo alley</textarea>
+        <div class="prompt-actions">
+          <span class="hint-text">Ctrl/⌘ + Enter</span>
+          <button class="btn-generate" style="border-radius: 12px;">✨ Generate</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <p class="option-label">变体模式激活时</p>
+        <div class="mode-toggle">
+          <button class="toggle-item">Single</button>
+          <button class="toggle-item active-accent">4 Variants</button>
+        </div>
+        <div style="margin-top: 4px; font-family: 'Space Grotesk', sans-serif; font-size: 10px; color: var(--muted);">
+          Uses 4 credits · Same model, different seeds
+        </div>
+      </div>
+
+      <div class="annotation">
+        优点：模式状态一目了然<br>
+        缺点：占用纵向空间，需要记得切回
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>2. 结果展示：VariantGrid 2×2</h2>
+  <p style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">替换 Canvas 区域的 GenerationPreview，activeRun.mode === 'variant' 时显示</p>
+
+  <h3>完成态 — 选中第 1 张</h3>
+  <div class="variant-grid" style="max-width: 600px;">
+    <div class="variant-cell selected">
+      <div class="placeholder" style="background: linear-gradient(135deg, #e8d5cc, #d4c5b9); height: 100%;"></div>
+      <span class="seed-label">seed: 384721</span>
+      <div class="selected-badge">✓ Selected</div>
+    </div>
+    <div class="variant-cell">
+      <div class="placeholder" style="background: linear-gradient(135deg, #d5cec5, #c9bfb5); height: 100%;"></div>
+      <span class="seed-label">seed: 915243</span>
+      <div class="hover-btn">✓ Select as best</div>
+    </div>
+    <div class="variant-cell">
+      <div class="placeholder" style="background: linear-gradient(135deg, #cdd5c8, #bfc9b6); height: 100%;"></div>
+      <span class="seed-label">seed: 267891</span>
+      <div class="hover-btn">✓ Select as best</div>
+    </div>
+    <div class="variant-cell">
+      <div class="placeholder" style="background: linear-gradient(135deg, #c5cdd5, #b6c0c9); height: 100%;"></div>
+      <span class="seed-label">seed: 742156</span>
+      <div class="hover-btn">✓ Select as best</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>3. 加载态 — 混合状态</h2>
+  <p style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">4 个格子独立更新：已完成 / 生成中 / 失败</p>
+
+  <div class="variant-grid" style="max-width: 600px;">
+    <div class="variant-cell">
+      <div class="placeholder" style="background: linear-gradient(135deg, #e8d5cc, #d4c5b9); height: 100%;"></div>
+      <span class="seed-label">seed: 384721 · ✓ ready</span>
+    </div>
+    <div class="variant-cell loading">
+      <div class="placeholder">
+        <div class="spinner"></div>
+        <span>Generating...</span>
+      </div>
+    </div>
+    <div class="variant-cell loading">
+      <div class="placeholder">
+        <div class="spinner"></div>
+        <span>Generating...</span>
+      </div>
+    </div>
+    <div class="variant-cell failed">
+      <div class="placeholder">
+        <span style="font-size: 20px;">⚠</span>
+        <span>Timeout — retry?</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>4. 移动端</h2>
+  <div class="mobile-frame">
+    <div style="font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; margin-bottom: 12px;">4 Variants · seed: random</div>
+    <div class="variant-grid">
+      <div class="variant-cell selected" style="aspect-ratio: 1;">
+        <div class="placeholder" style="background: linear-gradient(135deg, #e8d5cc, #d4c5b9); height: 100%;"></div>
+        <div class="selected-badge" style="font-size: 10px; padding: 3px 8px;">✓</div>
+      </div>
+      <div class="variant-cell" style="aspect-ratio: 1;">
+        <div class="placeholder" style="background: linear-gradient(135deg, #d5cec5, #c9bfb5); height: 100%;"></div>
+      </div>
+      <div class="variant-cell" style="aspect-ratio: 1;">
+        <div class="placeholder" style="background: linear-gradient(135deg, #cdd5c8, #bfc9b6); height: 100%;"></div>
+      </div>
+      <div class="variant-cell" style="aspect-ratio: 1;">
+        <div class="placeholder" style="background: linear-gradient(135deg, #c5cdd5, #b6c0c9); height: 100%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>5. 设计决策总结</h2>
+  <table style="font-family: 'Space Grotesk', sans-serif; font-size: 13px; border-collapse: collapse; width: 100%; max-width: 700px;">
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 0; font-weight: 600; width: 140px;">入口方式</td>
+      <td style="padding: 8px 0;">推荐 Option A（Split Button），不增加 UI 复杂度</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 0; font-weight: 600;">结果区域</td>
+      <td style="padding: 8px 0;">替换 Canvas 的 GenerationPreview → VariantGrid 2×2</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 0; font-weight: 600;">选择交互</td>
+      <td style="padding: 8px 0;">点击整个格子 = 选择；hover 显示 "Select as best" 按钮</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 0; font-weight: 600;">选中态</td>
+      <td style="padding: 8px 0;">ring-2 ring-primary + 左上角赤陶 badge "✓ Selected"</td>
+    </tr>
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding: 8px 0; font-weight: 600;">积分提示</td>
+      <td style="padding: 8px 0;">下拉菜单每项显示消耗积分数</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; font-weight: 600;">退出变体模式</td>
+      <td style="padding: 8px 0;">下次点 Generate（非变体）自动回到 single 模式</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>

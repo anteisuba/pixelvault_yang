@@ -1,10 +1,10 @@
 'use client'
 
 import { memo, useCallback, useRef, useEffect } from 'react'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { ChevronDown, Dices, Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import { STUDIO_PROMPT_TEXTAREA_ID, VARIANT_COUNT } from '@/constants/studio'
 import {
   useStudioForm,
   useStudioData,
@@ -19,6 +19,13 @@ import {
   PromptInputTextarea,
   PromptInputActions,
 } from '@/components/ui/prompt-input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
@@ -69,57 +76,49 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   }, [selectedStyleCard?.adapterType, dispatch])
 
   // ── Generate handler ──────────────────────────────────────────
-  const handleGenerate = useCallback(async () => {
-    if (!canGenerate) return
-
+  const buildImageInput = useCallback(() => {
     if (state.workflowMode === 'quick' && selectedModel) {
-      await generate({
-        mode: 'image',
-        image: {
-          modelId: selectedModel.modelId,
-          apiKeyId: selectedModel.keyId,
-          freePrompt: state.prompt || undefined,
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams:
-            Object.keys(state.advancedParams).length > 0
-              ? state.advancedParams
-              : undefined,
-        },
-      })
-    } else if (state.workflowMode === 'card' && styles.activeCardId) {
-      await generate({
-        mode: 'image',
-        image: {
-          characterCardId: selectedCharId ?? undefined,
-          backgroundCardId: backgrounds.activeCardId ?? undefined,
-          styleCardId: styles.activeCardId,
-          freePrompt: state.prompt || undefined,
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams:
-            Object.keys(state.advancedParams).length > 0
-              ? state.advancedParams
-              : undefined,
-        },
-      })
+      return {
+        modelId: selectedModel.modelId,
+        apiKeyId: selectedModel.keyId,
+        freePrompt: state.prompt || undefined,
+        aspectRatio: state.aspectRatio,
+        projectId: projects.activeProjectId ?? undefined,
+        referenceImages:
+          imageUpload.referenceImages.length > 0
+            ? imageUpload.referenceImages
+            : undefined,
+        advancedParams:
+          Object.keys(state.advancedParams).length > 0
+            ? state.advancedParams
+            : undefined,
+      }
     }
+    if (state.workflowMode === 'card' && styles.activeCardId) {
+      return {
+        characterCardId: selectedCharId ?? undefined,
+        backgroundCardId: backgrounds.activeCardId ?? undefined,
+        styleCardId: styles.activeCardId,
+        freePrompt: state.prompt || undefined,
+        aspectRatio: state.aspectRatio,
+        projectId: projects.activeProjectId ?? undefined,
+        referenceImages:
+          imageUpload.referenceImages.length > 0
+            ? imageUpload.referenceImages
+            : undefined,
+        advancedParams:
+          Object.keys(state.advancedParams).length > 0
+            ? state.advancedParams
+            : undefined,
+      }
+    }
+    return null
   }, [
-    canGenerate,
     state.workflowMode,
     state.prompt,
     state.aspectRatio,
     state.advancedParams,
     selectedModel,
-    generate,
     selectedCharId,
     backgrounds.activeCardId,
     styles.activeCardId,
@@ -127,9 +126,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     imageUpload.referenceImages,
   ])
 
+  const handleGenerate = useCallback(async () => {
+    if (!canGenerate) return
+    const image = buildImageInput()
+    if (!image) return
+    await generate({ mode: 'image', image })
+  }, [canGenerate, buildImageInput, generate])
+
+  const handleGenerateVariants = useCallback(async () => {
+    if (!canGenerate) return
+    const image = buildImageInput()
+    if (!image) return
+    await generate({ mode: 'image', image, runMode: 'variant' })
+  }, [canGenerate, buildImageInput, generate])
+
   useStudioShortcuts({
     onGenerate: () => {
       void handleGenerate()
+    },
+    onGenerateVariants: () => {
+      void handleGenerateVariants()
     },
   })
 
@@ -168,41 +184,77 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             : null}
         </span>
 
-        {/* Generate button */}
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating || !canGenerate}
-          className={cn(
-            'flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium',
-            'transition-all duration-200',
-            canGenerate && !isGenerating
-              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 hover:scale-[1.03] active:scale-[0.95]'
-              : isGenerating
-                ? 'bg-primary text-primary-foreground studio-generating'
-                : 'bg-muted text-muted-foreground cursor-not-allowed',
-          )}
-          style={{
-            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              <span>{t('generating')}</span>
-              {elapsedSeconds > 0 && (
-                <span className="text-2xs opacity-70 tabular-nums">
-                  {elapsedSeconds}s
+        {/* Generate split button + variant dropdown */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isGenerating || !canGenerate}
+            className={cn(
+              'flex items-center gap-1.5 rounded-l-xl px-4 py-2 text-sm font-medium',
+              'transition-all duration-200',
+              canGenerate && !isGenerating
+                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
+                : isGenerating
+                  ? 'bg-primary text-primary-foreground studio-generating'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed',
+            )}
+            style={{
+              transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>{t('generating')}</span>
+                {elapsedSeconds > 0 && (
+                  <span className="text-2xs opacity-70 tabular-nums">
+                    {elapsedSeconds}s
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <Sparkles className="size-4" />
+                <span>{t('generate')}</span>
+              </>
+            )}
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={isGenerating || !canGenerate}
+                className={cn(
+                  'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
+                  'transition-all duration-200',
+                  canGenerate && !isGenerating
+                    ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed',
+                )}
+              >
+                <ChevronDown className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem onClick={handleGenerate}>
+                <Sparkles className="size-4" />
+                <span>{t('generate')}</span>
+                <span className="ml-auto text-2xs text-muted-foreground">
+                  1 credit
                 </span>
-              )}
-            </>
-          ) : (
-            <>
-              <Sparkles className="size-4" />
-              <span>{t('generate')}</span>
-            </>
-          )}
-        </button>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleGenerateVariants}>
+                <Dices className="size-4" />
+                <span>{t('variantGenerate')}</span>
+                <span className="ml-auto text-2xs text-muted-foreground">
+                  {t('variantCredits', { count: VARIANT_COUNT })}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </PromptInputActions>
     </PromptInput>
   )

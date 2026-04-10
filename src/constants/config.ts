@@ -122,6 +122,12 @@ export const API_ENDPOINTS = {
   STYLE_CARDS: '/api/style-cards',
   CARD_RECIPES: '/api/card-recipes',
 
+  /** Audio generation */
+  GENERATE_AUDIO: '/api/generate-audio',
+
+  /** Audio generation status polling */
+  GENERATE_AUDIO_STATUS: '/api/generate-audio/status',
+
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
@@ -217,6 +223,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
+  FISH_AUDIO: 'https://api.fish.audio',
 } as const
 
 /** Video generation configuration */
@@ -234,6 +241,16 @@ export const VIDEO_GENERATION = {
   MAX_PIPELINE_POLL_ATTEMPTS: 600,
   /** Number of early 404 responses to tolerate before treating as error */
   EARLY_POLL_TOLERANCE: 5,
+} as const
+
+/** Audio generation configuration */
+export const AUDIO_GENERATION = {
+  DEFAULT_FORMAT: 'mp3' as const,
+  DEFAULT_SAMPLE_RATE: 44100,
+  DEFAULT_SPEED: 1.0,
+  MAX_TEXT_LENGTH: 5000,
+  POLL_INTERVAL_MS: 2000,
+  MAX_POLL_ATTEMPTS: 100,
 } as const
 
 /** Health check configuration */
@@ -271,7 +288,7 @@ export const PAGINATION = {
 // ─── Studio Refactoring Constants ────────────────────────────────
 
 /** Studio generation modes */
-export const STUDIO_MODES = ['image', 'video'] as const
+export const STUDIO_MODES = ['image', 'video', 'audio'] as const
 export type StudioMode = (typeof STUDIO_MODES)[number]
 
 /** Centralized rate limit configs (previously scattered across route files) */
@@ -279,6 +296,7 @@ export const RATE_LIMIT_CONFIGS = {
   generate: { limit: 10, windowSeconds: 60 },
   studioGenerate: { limit: 10, windowSeconds: 60 },
   generateVideo: { limit: 5, windowSeconds: 60 },
+  generateAudio: { limit: 5, windowSeconds: 60 },
   generateLongVideo: { limit: 3, windowSeconds: 60 },
   longVideoCancel: { limit: 10, windowSeconds: 60 },
   longVideoRetry: { limit: 5, windowSeconds: 60 },
@@ -308,4 +326,6 @@ export const MAX_DURATION_CONFIGS = {
   imageDecompose: 300,
   /** Image analysis variations — 55s (multi-model parallel) */
   imageAnalyzeVariations: 55,
+  /** Audio generation — 2 min */
+  generateAudio: 120,
 } as const

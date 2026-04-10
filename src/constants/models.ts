@@ -40,6 +40,9 @@ export enum AI_MODELS {
   FLUX_KONTEXT_PRO = 'flux-kontext-pro',
   FLUX_KONTEXT_MAX = 'flux-kontext-max',
   PLAYGROUND_V25 = 'playground-v2.5',
+  // Audio models
+  FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
+  FAL_F5_TTS = 'fal-f5-tts',
   // Video models
   KLING_VIDEO = 'kling-video',
   KLING_V3_PRO = 'kling-v3-pro',
@@ -87,6 +90,8 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.FLUX_KONTEXT_PRO]: 'fluxKontextPro',
   [AI_MODELS.FLUX_KONTEXT_MAX]: 'fluxKontextMax',
   [AI_MODELS.PLAYGROUND_V25]: 'playgroundV25',
+  [AI_MODELS.FISH_AUDIO_S2_PRO]: 'fishAudioS2Pro',
+  [AI_MODELS.FAL_F5_TTS]: 'falF5Tts',
   [AI_MODELS.KLING_VIDEO]: 'klingVideo',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.MINIMAX_VIDEO]: 'minimaxVideo',
@@ -846,6 +851,37 @@ export const MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
+
+  // ─── Audio Models ────────────────────────────────────────────────
+
+  // #1 — Fish Audio S2 Pro, top-ranked TTS (81.88% win rate on EmergentTTS-Eval)
+  {
+    id: AI_MODELS.FISH_AUDIO_S2_PRO,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
+    externalModelId: 's2-pro',
+    outputType: 'AUDIO',
+    available: true,
+    officialUrl:
+      'https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech',
+    timeoutMs: 60_000,
+    qualityTier: 'premium',
+  },
+  // #2 — FAL F5-TTS, open-source zero-shot voice cloning
+  {
+    id: AI_MODELS.FAL_F5_TTS,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/f5-tts',
+    outputType: 'AUDIO',
+    available: true,
+    freeTier: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/f5-tts',
+    timeoutMs: 120_000,
+    qualityTier: 'standard',
+  },
 ]
 
 /**
@@ -897,6 +933,9 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.WAN_VIDEO]: 'Wan',
   [AI_MODELS.HUNYUAN_VIDEO]: 'Hunyuan',
   [AI_MODELS.RUNWAY_GEN3]: 'Runway',
+  // Audio families
+  [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
+  [AI_MODELS.FAL_F5_TTS]: 'F5-TTS',
 }
 
 /** Get the model family for a model ID */
@@ -947,6 +986,12 @@ export const getAvailableImageModels = (): ModelOption[] =>
     (model) => model.available && model.outputType === 'IMAGE',
   )
 
+/** Get only the currently available audio models */
+export const getAvailableAudioModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter(
+    (model) => model.available && model.outputType === 'AUDIO',
+  )
+
 /** Get only the free tier models */
 export const getFreeTierModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter((model) => model.available && model.freeTier)
@@ -964,6 +1009,7 @@ export type ProviderGroup =
   | 'volcengine'
   | 'opensource'
   | 'replicate'
+  | 'fish_audio'
 
 /** Display order for provider groups */
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
@@ -972,6 +1018,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'novelai',
   'fal',
   'volcengine',
+  'fish_audio',
   'opensource',
   'replicate',
 ]
@@ -993,6 +1040,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'opensource'
     case AI_ADAPTER_TYPES.REPLICATE:
       return 'replicate'
+    case AI_ADAPTER_TYPES.FISH_AUDIO:
+      return 'fish_audio'
   }
 }
 

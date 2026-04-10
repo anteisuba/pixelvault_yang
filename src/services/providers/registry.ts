@@ -3,6 +3,7 @@ import 'server-only'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { falAdapter } from '@/services/providers/fal.adapter'
+import { fishAudioAdapter } from '@/services/providers/fish-audio.adapter'
 import { geminiAdapter } from '@/services/providers/gemini.adapter'
 import { huggingFaceAdapter } from '@/services/providers/huggingface.adapter'
 import { novelAiAdapter } from '@/services/providers/novelai.adapter'
@@ -19,6 +20,7 @@ const PROVIDER_ADAPTERS: Record<AI_ADAPTER_TYPES, ProviderAdapter> = {
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
+  [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,
 }
 
 export function getProviderAdapter(

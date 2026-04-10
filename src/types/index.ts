@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
+import {
+  AUDIO_GENERATION,
+  PROFILE,
+  PROMPT_ENHANCE,
+  VIDEO_GENERATION,
+} from '@/constants/config'
+import { AUDIO_FORMATS, TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { CHARACTER_CARD } from '@/constants/character-card'
 import {
   BACKGROUND_CARD,
@@ -151,9 +157,9 @@ export interface GenerateResponse {
 
 // ─── Unified Generation Config (image + video) ──────────────────
 
-/** Unified generation config schema covering both image and video modes */
+/** Unified generation config schema covering image, video, and audio modes */
 export const GenerationConfigSchema = z.object({
-  outputType: z.enum(['image', 'video']),
+  outputType: z.enum(['image', 'video', 'audio']),
   prompt: z
     .string()
     .trim()
@@ -203,6 +209,40 @@ export const GenerateVideoRequestSchema = z.object({
 export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
 
 export type GenerateVideoResponse = GenerateResponse
+
+// ─── Audio Generate Request ─────────────────────────────────────
+
+export const GenerateAudioRequestSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Text is required')
+    .max(
+      TTS_MAX_TEXT_LENGTH,
+      `Text is too long (max ${TTS_MAX_TEXT_LENGTH} characters)`,
+    ),
+  modelId: z.string().trim().min(1, 'Model is required').max(160),
+  voiceId: z.string().trim().min(1).max(200).optional(),
+  speed: z.number().min(0.5).max(2.0).optional(),
+  format: z.enum(AUDIO_FORMATS).optional(),
+  sampleRate: z.number().int().min(8000).max(48000).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+})
+
+export type GenerateAudioRequest = z.infer<typeof GenerateAudioRequestSchema>
+
+export type GenerateAudioResponse = GenerateResponse
+
+export interface AudioStatusResponseData {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  generation?: GenerationRecord
+}
+
+export interface AudioStatusResponse {
+  success: boolean
+  data?: AudioStatusResponseData
+  error?: string
+}
 
 // ─── Image Edit ──────────────────────────────────────────────────
 // Moved from /api/image/edit/route.ts to centralize all schemas
@@ -505,7 +545,12 @@ export interface ToggleVisibilityResponse {
 export const GALLERY_SORT_OPTIONS = ['newest', 'oldest'] as const
 export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
 
-export const OUTPUT_TYPE_FILTER_OPTIONS = ['all', 'image', 'video'] as const
+export const OUTPUT_TYPE_FILTER_OPTIONS = [
+  'all',
+  'image',
+  'video',
+  'audio',
+] as const
 export type OutputTypeFilter = (typeof OUTPUT_TYPE_FILTER_OPTIONS)[number]
 
 export const GALLERY_TIME_RANGE_OPTIONS = ['all', 'today', 'week'] as const

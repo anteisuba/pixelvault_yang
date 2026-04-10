@@ -1,11 +1,14 @@
 import type {
   AnalyzeImageRequest,
   AnalyzeImageResponse,
+  AudioStatusResponse,
   CivitaiTokenStatusResponse,
   EnhancePromptRequest,
   EnhancePromptResponse,
   PromptAssistantRequest,
   PromptAssistantResponse,
+  GenerateAudioRequest,
+  GenerateAudioResponse,
   GenerateRequest,
   GenerateResponse,
   GenerateVariationsRequest,
@@ -111,6 +114,79 @@ export async function checkVideoStatusAPI(
         error: await getErrorMessage(
           response,
           `Status check failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function generateAudioAPI(
+  params: GenerateAudioRequest,
+): Promise<GenerateAudioResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_AUDIO, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Audio generation failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function checkAudioStatusAPI(
+  statusUrl: string,
+  responseUrl: string,
+  adapterType: string,
+  apiKey: string,
+  modelId: string,
+): Promise<AudioStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_AUDIO_STATUS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        statusUrl,
+        responseUrl,
+        adapterType,
+        apiKey,
+        modelId,
+      }),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Audio status check failed with status ${response.status}`,
         ),
       }
     }

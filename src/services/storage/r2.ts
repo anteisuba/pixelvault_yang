@@ -28,11 +28,19 @@ const r2 = new S3Client({
  * Format: generations/{userId}/image/YYYY-MM-DD_<24-char random>.png
  */
 export function generateStorageKey(
-  outputType: 'IMAGE' | 'VIDEO',
+  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO',
   userId: string,
+  audioFormat?: string,
 ): string {
   const date = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
   const random = randomBytes(12).toString('hex') // 24-char cryptographically secure
+
+  if (outputType === 'AUDIO') {
+    const ext =
+      audioFormat === 'wav' ? 'wav' : audioFormat === 'opus' ? 'opus' : 'mp3'
+    return `generations/${userId}/audio/${date}_${random}.${ext}`
+  }
+
   const subdir = outputType === 'VIDEO' ? 'video' : 'image'
   const ext = outputType === 'VIDEO' ? 'mp4' : 'png'
   return `generations/${userId}/${subdir}/${date}_${random}.${ext}`

@@ -112,6 +112,34 @@ export interface ProviderExtendVideoInput {
   duration?: number
 }
 
+// ─── Audio Provider Types ────────────────────────────────────────
+
+export interface ProviderAudioInput {
+  prompt: string
+  modelId: string
+  providerConfig: ProviderConfig
+  apiKey: string
+  voiceId?: string
+  speed?: number
+  format?: string
+  sampleRate?: number
+}
+
+export interface ProviderAudioResult {
+  audioUrl: string
+  duration: number
+  format: string
+  sampleRate: number
+  requestCount: number
+}
+
+export interface ProviderAudioQueueStatusResult {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  result?: ProviderAudioResult
+}
+
+// ─── Provider Adapter Interface ──────────────────────────────────
+
 export interface ProviderAdapter {
   readonly adapterType: AI_ADAPTER_TYPES
   generateImage(
@@ -127,5 +155,15 @@ export interface ProviderAdapter {
   checkVideoQueueStatus?(
     input: ProviderQueueStatusInput,
   ): Promise<ProviderQueueStatusResult>
+  /** Synchronous audio generation (e.g. Fish Audio — returns audio immediately) */
+  generateAudio?(input: ProviderAudioInput): Promise<ProviderAudioResult>
+  /** Async audio queue submission (e.g. FAL F5-TTS) */
+  submitAudioToQueue?(
+    input: ProviderAudioInput,
+  ): Promise<ProviderQueueSubmitResult>
+  /** Async audio queue status polling */
+  checkAudioQueueStatus?(
+    input: ProviderQueueStatusInput,
+  ): Promise<ProviderAudioQueueStatusResult>
   healthCheck?(input: HealthCheckInput): Promise<HealthCheckResult>
 }

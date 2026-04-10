@@ -54,7 +54,7 @@ export type PanelName =
   | 'layerDecompose'
   | 'aspectRatio'
 
-type OutputType = 'image' | 'video'
+type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
 
 export interface StudioFormState {

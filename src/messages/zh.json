@@ -330,6 +330,31 @@
     "modeLabel": "生成模式",
     "modeImage": "图片",
     "modeVideo": "视频",
+    "modeAudio": "语音",
+    "audioTitle": "文字转语音",
+    "audioSubtitle": "输入文本并选择声音来生成语音音频",
+    "audioModel": "模型",
+    "audioVoice": "声音",
+    "audioText": "文本",
+    "audioPlaceholder": "输入你想转换为语音的文本...",
+    "audioSpeed": "语速",
+    "audioGenerate": "生成语音",
+    "audioGenerating": "生成中...",
+    "audioResult": "结果",
+    "voices": {
+      "alloy": "Alloy",
+      "alloyDesc": "温暖自然的女声",
+      "echo": "Echo",
+      "echoDesc": "清晰自信的男声",
+      "fable": "Fable",
+      "fableDesc": "富有表现力的叙事声音",
+      "onyx": "Onyx",
+      "onyxDesc": "深沉权威的男声",
+      "nova": "Nova",
+      "novaDesc": "友好对话式女声",
+      "shimmer": "Shimmer",
+      "shimmerDesc": "柔和舒缓的女声"
+    },
     "advancedOptions": "高级选项",
     "freeQuota": "今日免费 {remaining}/{limit}",
     "freeQuotaLow": "即将用完",
@@ -1300,6 +1325,14 @@
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "行业标杆级电影视频，fal.ai 图生视频"
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "评测排名第一的 TTS，支持 30+ 语言声音克隆"
+    },
+    "falF5Tts": {
+      "label": "F5-TTS",
+      "description": "开源零样本语音克隆，基于 fal.ai"
     }
   },
   "PromptPresets": {

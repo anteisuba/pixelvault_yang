@@ -22,6 +22,7 @@ const ADAPTER_PROMPT_STYLES: Record<AI_ADAPTER_TYPES, PromptStyle> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'natural',
   [AI_ADAPTER_TYPES.OPENAI]: 'natural',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'natural',
+  [AI_ADAPTER_TYPES.FISH_AUDIO]: 'natural',
 }
 
 // ─── Tag-Based Prompt (NovelAI / Anime Models) ─────────────────

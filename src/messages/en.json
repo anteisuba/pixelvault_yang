@@ -330,6 +330,31 @@
     "modeLabel": "Generation mode",
     "modeImage": "Image",
     "modeVideo": "Video",
+    "modeAudio": "Audio",
+    "audioTitle": "Text to Speech",
+    "audioSubtitle": "Enter text and choose a voice to generate speech audio",
+    "audioModel": "Model",
+    "audioVoice": "Voice",
+    "audioText": "Text",
+    "audioPlaceholder": "Enter the text you want to convert to speech...",
+    "audioSpeed": "Speed",
+    "audioGenerate": "Generate Speech",
+    "audioGenerating": "Generating...",
+    "audioResult": "Result",
+    "voices": {
+      "alloy": "Alloy",
+      "alloyDesc": "Warm, natural female voice",
+      "echo": "Echo",
+      "echoDesc": "Clear, confident male voice",
+      "fable": "Fable",
+      "fableDesc": "Expressive storytelling voice",
+      "onyx": "Onyx",
+      "onyxDesc": "Deep, authoritative male voice",
+      "nova": "Nova",
+      "novaDesc": "Friendly, conversational female voice",
+      "shimmer": "Shimmer",
+      "shimmerDesc": "Soft, soothing female voice"
+    },
     "advancedOptions": "Advanced Options",
     "freeQuota": "{remaining}/{limit} free today",
     "freeQuotaLow": "Almost out",
@@ -1300,6 +1325,14 @@
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "Industry-standard cinematic video, image-to-video on fal.ai"
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "Top-ranked TTS, 30+ languages, natural voice cloning"
+    },
+    "falF5Tts": {
+      "label": "F5-TTS",
+      "description": "Open-source zero-shot voice cloning on fal.ai"
     }
   },
   "PromptPresets": {

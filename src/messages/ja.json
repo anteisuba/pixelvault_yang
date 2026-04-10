@@ -330,6 +330,31 @@
     "modeLabel": "生成モード",
     "modeImage": "画像",
     "modeVideo": "動画",
+    "modeAudio": "音声",
+    "audioTitle": "テキスト読み上げ",
+    "audioSubtitle": "テキストを入力し、声を選んで音声を生成",
+    "audioModel": "モデル",
+    "audioVoice": "声",
+    "audioText": "テキスト",
+    "audioPlaceholder": "音声に変換したいテキストを入力...",
+    "audioSpeed": "速度",
+    "audioGenerate": "音声を生成",
+    "audioGenerating": "生成中...",
+    "audioResult": "結果",
+    "voices": {
+      "alloy": "Alloy",
+      "alloyDesc": "温かく自然な女性の声",
+      "echo": "Echo",
+      "echoDesc": "はっきりとした自信のある男性の声",
+      "fable": "Fable",
+      "fableDesc": "表現力豊かなストーリーテリングの声",
+      "onyx": "Onyx",
+      "onyxDesc": "深く権威のある男性の声",
+      "nova": "Nova",
+      "novaDesc": "フレンドリーな会話調の女性の声",
+      "shimmer": "Shimmer",
+      "shimmerDesc": "柔らかく落ち着いた女性の声"
+    },
     "advancedOptions": "詳細設定",
     "freeQuota": "本日の無料回数 {remaining}/{limit}",
     "freeQuotaLow": "残りわずか",
@@ -1300,6 +1325,14 @@
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2 Pro",
+      "description": "評価トップのTTS、30以上の言語で音声クローニング対応"
+    },
+    "falF5Tts": {
+      "label": "F5-TTS",
+      "description": "オープンソースのゼロショット音声クローニング（fal.ai）"
     }
   },
   "PromptPresets": {

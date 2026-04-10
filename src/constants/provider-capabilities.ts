@@ -17,6 +17,9 @@ export type ProviderCapability =
   | 'style'
   | 'imageAnalysis'
   | 'lora'
+  | 'voiceSelection'
+  | 'speed'
+  | 'sampleRate'
 
 /**
  * How the adapter handles reference images:
@@ -138,6 +141,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       guidanceScale: { min: 1, max: 10, step: 0.5, default: 8.0 },
       maxReferenceImages: 10,
       referenceImageMode: 'native',
+    },
+
+    [AI_ADAPTER_TYPES.FISH_AUDIO]: {
+      capabilities: ['voiceSelection', 'speed', 'sampleRate'],
     },
   }
 

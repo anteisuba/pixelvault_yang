@@ -16,12 +16,7 @@ import { cn } from '@/lib/utils'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { MagicCard } from '@/components/ui/magic-card'
 import { TextAnimate } from '@/components/ui/text-animate'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const PROVIDER_LABELS: Record<ProviderGroup, string> = {
   openai: 'OpenAI',
@@ -29,6 +24,7 @@ const PROVIDER_LABELS: Record<ProviderGroup, string> = {
   novelai: 'NovelAI',
   fal: 'fal.ai',
   volcengine: 'VolcEngine',
+  fish_audio: 'Fish Audio',
   opensource: 'Open Source',
   replicate: 'Replicate',
 }
@@ -75,7 +71,7 @@ const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
   'nai-diffusion-3': { price: '~$0.020', unit: '/img' },
   'illustrious-xl': { price: '~$0.026', unit: '/img' },
   // HuggingFace
-  'sdxl': { price: '~$0.006', unit: '/img' },
+  sdxl: { price: '~$0.006', unit: '/img' },
   'animagine-xl-4.0': { price: '~$0.006', unit: '/img' },
   // Replicate
   'sd-3.5-large': { price: '~$0.065', unit: '/img' },
@@ -205,9 +201,7 @@ export function HomepageModels() {
                         {/* Model name + tags */}
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-display text-[0.95rem] font-medium leading-tight tracking-[-0.01em] truncate">
-                            {tModels(
-                              `${getModelMessageKey(model.id)}.label`,
-                            )}
+                            {tModels(`${getModelMessageKey(model.id)}.label`)}
                           </span>
                           {model.qualityTier === 'premium' && (
                             <Sparkles className="size-3.5 text-primary shrink-0" />
@@ -237,7 +231,12 @@ export function HomepageModels() {
                             .filter(({ key }) => caps[key])
                             .map(({ key, color }) => {
                               const labels = capabilityLabels[key]
-                              const capLabel = locale === 'ja' ? labels.ja : locale === 'zh' ? labels.zh : labels.en
+                              const capLabel =
+                                locale === 'ja'
+                                  ? labels.ja
+                                  : locale === 'zh'
+                                    ? labels.zh
+                                    : labels.en
                               return (
                                 <span
                                   key={key}

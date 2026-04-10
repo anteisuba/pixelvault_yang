@@ -16,6 +16,7 @@ import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
+import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 
 const COLS_WIDE = 5
 const COLS_DESKTOP = 4
@@ -92,22 +93,6 @@ export const StudioGallery = memo(function StudioGallery() {
       }
     },
     [dispatch, modelOptions],
-  )
-
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, gen: GenerationRecord) => {
-      if (gen.outputType !== 'IMAGE' || !gen.url) {
-        e.preventDefault()
-        return
-      }
-      e.dataTransfer.effectAllowed = 'copy'
-      e.dataTransfer.setData(
-        'application/x-studio-ref',
-        JSON.stringify({ url: gen.url, id: gen.id }),
-      )
-      e.dataTransfer.setData('text/uri-list', gen.url)
-    },
-    [],
   )
 
   const isEmpty = !isGenerating && allGenerations.length === 0
@@ -197,7 +182,6 @@ export const StudioGallery = memo(function StudioGallery() {
                   key={gen.id}
                   gen={gen}
                   isLatest={gen.id === lastGeneration?.id}
-                  onDragStart={handleDragStart}
                   onClick={() => setLightboxIndex(idx)}
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
@@ -219,7 +203,6 @@ export const StudioGallery = memo(function StudioGallery() {
                   key={gen.id}
                   gen={gen}
                   isLatest={gen.id === lastGeneration?.id}
-                  onDragStart={handleDragStart}
                   onClick={() => setLightboxIndex(idx)}
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
@@ -261,7 +244,6 @@ export const StudioGallery = memo(function StudioGallery() {
 interface GalleryItemProps {
   gen: GenerationRecord
   isLatest: boolean
-  onDragStart: (e: React.DragEvent, gen: GenerationRecord) => void
   onClick: () => void
   onRemix: (gen: GenerationRecord) => void
   onUseAsRef: (url: string) => Promise<void>
@@ -272,23 +254,27 @@ interface GalleryItemProps {
 const GalleryItem = memo(function GalleryItem({
   gen,
   isLatest,
-  onDragStart,
   onClick,
   onRemix,
   onUseAsRef,
   t,
   preserveAspectRatio,
 }: GalleryItemProps) {
+  const dragRef = useStudioDraggable({
+    url: gen.url ?? undefined,
+    generationId: gen.id,
+    outputType: gen.outputType,
+  })
+
   return (
     <div
+      ref={dragRef}
       className={cn(
         'group relative cursor-pointer overflow-hidden rounded-lg border transition-transform duration-200 hover:-translate-y-0.5',
         !preserveAspectRatio && 'aspect-square',
         preserveAspectRatio && 'break-inside-avoid mb-1.5',
         isLatest ? 'border-2 border-primary' : 'border-border/40',
       )}
-      draggable={gen.outputType === 'IMAGE' && !!gen.url}
-      onDragStart={(e) => onDragStart(e, gen)}
       onClick={onClick}
     >
       {gen.url ? (

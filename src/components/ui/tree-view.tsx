@@ -1,7 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import * as AccordionPrimitive from '@radix-ui/react-accordion'
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { ChevronRight } from 'lucide-react'
 import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
@@ -11,7 +12,7 @@ const treeVariants = cva(
 )
 
 const selectedTreeVariants = cva(
-  'before:opacity-100 before:bg-accent/70 text-accent-foreground',
+  'before:opacity-100 before:bg-primary/10 text-foreground font-medium',
 )
 
 const dragOverVariants = cva(
@@ -51,6 +52,13 @@ type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   defaultLeafIcon?: React.ComponentType<{ className?: string }>
   onDocumentDrag?: (sourceItem: TreeDataItem, targetItem: TreeDataItem) => void
   renderItem?: (params: TreeRenderItemParams) => React.ReactNode
+  /** Called when a Pragmatic DnD element drag is dropped on a tree node. */
+  onExternalDrop?: (
+    item: TreeDataItem,
+    sourceData: Record<string, unknown>,
+  ) => void
+  /** Predicate: can this Pragmatic DnD drag be dropped on tree nodes? */
+  canAcceptExternalDrop?: (sourceData: Record<string, unknown>) => boolean
 }
 
 const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
@@ -65,6 +73,8 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
       className,
       onDocumentDrag,
       renderItem,
+      onExternalDrop,
+      canAcceptExternalDrop,
       ...props
     },
     ref,
@@ -145,6 +155,8 @@ const TreeView = React.forwardRef<HTMLDivElement, TreeProps>(
           handleDrop={handleDrop}
           draggedItem={draggedItem}
           renderItem={renderItem}
+          onExternalDrop={onExternalDrop}
+          canAcceptExternalDrop={canAcceptExternalDrop}
           level={0}
           {...props}
         />
@@ -186,6 +198,8 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
       handleDrop,
       draggedItem,
       renderItem,
+      onExternalDrop,
+      canAcceptExternalDrop,
       level,
       onSelectChange,
       expandAll,
@@ -216,6 +230,8 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
                   handleDrop={handleDrop}
                   draggedItem={draggedItem}
                   renderItem={renderItem}
+                  onExternalDrop={onExternalDrop}
+                  canAcceptExternalDrop={canAcceptExternalDrop}
                 />
               ) : (
                 <TreeLeaf
@@ -228,6 +244,8 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
                   handleDrop={handleDrop}
                   draggedItem={draggedItem}
                   renderItem={renderItem}
+                  onExternalDrop={onExternalDrop}
+                  canAcceptExternalDrop={canAcceptExternalDrop}
                 />
               )}
             </li>
@@ -250,6 +268,8 @@ const TreeNode = ({
   handleDrop,
   draggedItem,
   renderItem,
+  onExternalDrop,
+  canAcceptExternalDrop,
   level = 0,
 }: {
   item: TreeDataItem
@@ -262,16 +282,39 @@ const TreeNode = ({
   handleDrop?: (item: TreeDataItem) => void
   draggedItem: TreeDataItem | null
   renderItem?: (params: TreeRenderItemParams) => React.ReactNode
+  onExternalDrop?: (
+    item: TreeDataItem,
+    sourceData: Record<string, unknown>,
+  ) => void
+  canAcceptExternalDrop?: (sourceData: Record<string, unknown>) => boolean
   level?: number
 }) => {
   const [value, setValue] = React.useState(
     expandedItemIds.includes(item.id) ? [item.id] : [],
   )
   const [isDragOver, setIsDragOver] = React.useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const hasChildren = !!item.children?.length
   const isSelected = selectedItemId === item.id
   const isOpen = value.includes(item.id)
 
+  // Pragmatic DnD: per-node drop target for external drags (gallery images)
+  useEffect(() => {
+    const el = triggerRef.current
+    if (!el || !onExternalDrop || item.droppable === false) return
+    return dropTargetForElements({
+      element: el,
+      canDrop: ({ source }) => canAcceptExternalDrop?.(source.data) ?? false,
+      onDragEnter: () => setIsDragOver(true),
+      onDragLeave: () => setIsDragOver(false),
+      onDrop: ({ source }) => {
+        setIsDragOver(false)
+        onExternalDrop(item, source.data)
+      },
+    })
+  }, [item, onExternalDrop, canAcceptExternalDrop])
+
+  // HTML5 native handlers for internal tree reorder (kept for backward compat)
   const onDragStart = (e: React.DragEvent) => {
     if (!item.draggable) {
       e.preventDefault()
@@ -306,6 +349,7 @@ const TreeNode = ({
     >
       <AccordionPrimitive.Item value={item.id}>
         <AccordionTrigger
+          ref={triggerRef}
           className={cn(
             treeVariants(),
             isSelected && selectedTreeVariants(),
@@ -356,6 +400,8 @@ const TreeNode = ({
             handleDrop={handleDrop}
             draggedItem={draggedItem}
             renderItem={renderItem}
+            onExternalDrop={onExternalDrop}
+            canAcceptExternalDrop={canAcceptExternalDrop}
             level={level + 1}
           />
         </AccordionContent>
@@ -376,6 +422,11 @@ const TreeLeaf = React.forwardRef<
     handleDrop?: (item: TreeDataItem) => void
     draggedItem: TreeDataItem | null
     renderItem?: (params: TreeRenderItemParams) => React.ReactNode
+    onExternalDrop?: (
+      item: TreeDataItem,
+      sourceData: Record<string, unknown>,
+    ) => void
+    canAcceptExternalDrop?: (sourceData: Record<string, unknown>) => boolean
   }
 >(
   (
@@ -390,13 +441,46 @@ const TreeLeaf = React.forwardRef<
       handleDrop,
       draggedItem,
       renderItem,
+      onExternalDrop,
+      canAcceptExternalDrop,
       ...props
     },
     ref,
   ) => {
     const [isDragOver, setIsDragOver] = React.useState(false)
+    const leafRef = useRef<HTMLDivElement>(null)
     const isSelected = selectedItemId === item.id
 
+    // Merge forwarded ref with local ref
+    const setRefs = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        ;(leafRef as React.MutableRefObject<HTMLDivElement | null>).current =
+          node
+        if (typeof ref === 'function') ref(node)
+        else if (ref)
+          (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+      },
+      [ref],
+    )
+
+    // Pragmatic DnD: per-node drop target for external drags
+    useEffect(() => {
+      const el = leafRef.current
+      if (!el || !onExternalDrop || item.droppable === false || item.disabled)
+        return
+      return dropTargetForElements({
+        element: el,
+        canDrop: ({ source }) => canAcceptExternalDrop?.(source.data) ?? false,
+        onDragEnter: () => setIsDragOver(true),
+        onDragLeave: () => setIsDragOver(false),
+        onDrop: ({ source }) => {
+          setIsDragOver(false)
+          onExternalDrop(item, source.data)
+        },
+      })
+    }, [item, onExternalDrop, canAcceptExternalDrop])
+
+    // HTML5 native handlers for internal tree reorder
     const onDragStart = (e: React.DragEvent) => {
       if (!item.draggable || item.disabled) {
         e.preventDefault()
@@ -431,7 +515,7 @@ const TreeLeaf = React.forwardRef<
 
     return (
       <div
-        ref={ref}
+        ref={setRefs}
         className={cn(
           'ml-5 flex text-left items-center py-2 cursor-pointer before:right-1',
           treeVariants(),

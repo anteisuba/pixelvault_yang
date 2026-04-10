@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback } from 'react'
+import { memo, useCallback } from 'react'
 import { Clock, ImageIcon, Film, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
+import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 
 interface HistoryPanelProps {
   generations: GenerationRecord[]
@@ -38,23 +39,6 @@ export function HistoryPanel({
     [onSelect],
   )
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, gen: GenerationRecord) => {
-      // Only allow dragging images, not videos
-      if (gen.outputType !== 'IMAGE' || !gen.url) {
-        e.preventDefault()
-        return
-      }
-      e.dataTransfer.effectAllowed = 'copy'
-      e.dataTransfer.setData(
-        'application/x-studio-ref',
-        JSON.stringify({ url: gen.url, id: gen.id }),
-      )
-      e.dataTransfer.setData('text/uri-list', gen.url)
-    },
-    [],
-  )
-
   if (!isLoading && generations.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
@@ -79,57 +63,13 @@ export function HistoryPanel({
       {/* Thumbnail grid — auto-fill adapts when preview is collapsed */}
       <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5">
         {generations.map((gen) => (
-          <button
+          <HistoryItem
             key={gen.id}
-            type="button"
-            onClick={() => handleSelect(gen)}
-            onDoubleClick={() => onOpenDetail?.(gen)}
-            draggable={gen.outputType === 'IMAGE' && !!gen.url}
-            onDragStart={(e) => handleDragStart(e, gen)}
-            className={cn(
-              'group relative aspect-square overflow-hidden rounded-md border border-border/40 bg-muted/30 transition-all',
-              'hover:border-primary/30 hover:shadow-sm',
-              onSelect && 'cursor-pointer',
-              gen.outputType === 'IMAGE' &&
-                gen.url &&
-                'cursor-grab active:cursor-grabbing',
-              selectedId === gen.id &&
-                'border-primary/40 ring-2 ring-primary/20 shadow-sm shadow-primary/10',
-            )}
-          >
-            {gen.url ? (
-              gen.outputType === 'VIDEO' ? (
-                <div className="relative size-full">
-                  <div className="flex size-full items-center justify-center bg-muted/50">
-                    <Film className="size-5 text-muted-foreground/60" />
-                  </div>
-                  <div className="absolute bottom-0.5 right-0.5 rounded bg-black/50 px-1 py-0.5">
-                    <Film className="size-2.5 text-white" />
-                  </div>
-                </div>
-              ) : (
-                <Image
-                  src={gen.url}
-                  alt={gen.prompt?.slice(0, 50) ?? ''}
-                  fill
-                  sizes="80px"
-                  className="object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
-                />
-              )
-            ) : (
-              <div className="flex size-full items-center justify-center">
-                <ImageIcon className="size-5 text-muted-foreground/40" />
-              </div>
-            )}
-
-            {/* Hover overlay with model name */}
-            <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
-              <span className="truncate px-1 pb-1 text-3xs text-white">
-                {gen.model}
-              </span>
-            </div>
-          </button>
+            gen={gen}
+            isSelected={selectedId === gen.id}
+            onSelect={onSelect ? handleSelect : undefined}
+            onOpenDetail={onOpenDetail}
+          />
         ))}
 
         {/* Loading skeletons */}
@@ -161,3 +101,75 @@ export function HistoryPanel({
     </div>
   )
 }
+
+// ── Per-item component (needed so useStudioDraggable can be called per item) ──
+
+const HistoryItem = memo(function HistoryItem({
+  gen,
+  isSelected,
+  onSelect,
+  onOpenDetail,
+}: {
+  gen: GenerationRecord
+  isSelected: boolean
+  onSelect?: (gen: GenerationRecord) => void
+  onOpenDetail?: (gen: GenerationRecord) => void
+}) {
+  const dragRef = useStudioDraggable<HTMLButtonElement>({
+    url: gen.url ?? undefined,
+    generationId: gen.id,
+    outputType: gen.outputType,
+  })
+
+  return (
+    <button
+      ref={dragRef}
+      type="button"
+      onClick={() => onSelect?.(gen)}
+      onDoubleClick={() => onOpenDetail?.(gen)}
+      className={cn(
+        'group relative aspect-square overflow-hidden rounded-md border border-border/40 bg-muted/30 transition-all',
+        'hover:border-primary/30 hover:shadow-sm',
+        onSelect && 'cursor-pointer',
+        gen.outputType === 'IMAGE' &&
+          gen.url &&
+          'cursor-grab active:cursor-grabbing',
+        isSelected &&
+          'border-primary/40 ring-2 ring-primary/20 shadow-sm shadow-primary/10',
+      )}
+    >
+      {gen.url ? (
+        gen.outputType === 'VIDEO' ? (
+          <div className="relative size-full">
+            <div className="flex size-full items-center justify-center bg-muted/50">
+              <Film className="size-5 text-muted-foreground/60" />
+            </div>
+            <div className="absolute bottom-0.5 right-0.5 rounded bg-black/50 px-1 py-0.5">
+              <Film className="size-2.5 text-white" />
+            </div>
+          </div>
+        ) : (
+          <Image
+            src={gen.url}
+            alt={gen.prompt?.slice(0, 50) ?? ''}
+            fill
+            sizes="80px"
+            className="object-cover transition-transform group-hover:scale-105"
+            loading="lazy"
+          />
+        )
+      ) : (
+        <div className="flex size-full items-center justify-center">
+          <ImageIcon className="size-5 text-muted-foreground/40" />
+        </div>
+      )}
+
+      {/* Hover overlay with model name */}
+      <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="truncate px-1 pb-1 text-3xs text-white">
+          {gen.model}
+        </span>
+      </div>
+    </button>
+  )
+})

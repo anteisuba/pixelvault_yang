@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Key,
   Folder,
@@ -15,29 +15,19 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
+
 import { assignToProjectAPI } from '@/lib/api-client'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import { TreeView } from '@/components/ui/tree-view'
+import { TreeView, type TreeDataItem } from '@/components/ui/tree-view'
 import type { ProjectRecord } from '@/types'
 import { Sidebar, SidebarContent, SidebarFooter } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 
 // ─── Project name → Tree structure ──────────────────────────────
-
-interface TreeItem {
-  id: string
-  name: string
-  icon?: React.ComponentType<{ className?: string }>
-  selectedIcon?: React.ComponentType<{ className?: string }>
-  openIcon?: React.ComponentType<{ className?: string }>
-  children?: TreeItem[]
-  actions?: React.ReactNode
-  onClick?: () => void
-  droppable?: boolean
-}
 
 function ProjectActions({
   projectId,
@@ -101,16 +91,16 @@ function buildProjectTree(
   onRename: (id: string, name: string) => void,
   onAddSub: (parentName: string) => void,
   onDelete: (id: string) => void,
-): TreeItem[] {
-  const roots: TreeItem[] = []
-  const nodeMap = new Map<string, TreeItem>()
+): TreeDataItem[] {
+  const roots: TreeDataItem[] = []
+  const nodeMap = new Map<string, TreeDataItem>()
 
   const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name))
 
   for (const project of sorted) {
     const parts = project.name.split(' / ').map((p) => p.trim())
 
-    const node: TreeItem = {
+    const node: TreeDataItem = {
       id: project.id,
       name: parts[parts.length - 1],
       icon: Folder,
@@ -148,7 +138,7 @@ function buildProjectTree(
     }
   }
 
-  function cleanEmpty(items: TreeItem[]) {
+  function cleanEmpty(items: TreeDataItem[]) {
     for (const item of items) {
       if (item.children?.length === 0) delete item.children
       else if (item.children) cleanEmpty(item.children)
@@ -199,47 +189,46 @@ export const StudioSidebar = memo(function StudioSidebar() {
     [projects],
   )
 
-  // ── Drag & Drop: move generation to project ───────────────────
+  // ── Drag & Drop: move generation to project (Pragmatic DnD) ──
 
-  const [dropTargetId, setDropTargetId] = useState<string | 'all' | null>(null)
-  const dropTargetRef = useRef<string | 'all' | null>(null)
+  const canAcceptExternalDrop = useCallback(
+    (data: Record<string, unknown>) => data.type === 'studio-generation',
+    [],
+  )
 
-  const makeDropHandlers = useCallback(
-    (projectId: string | null) => ({
-      onDragOver: (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes('application/x-studio-ref')) {
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'copy'
-          const key = projectId ?? 'all'
-          dropTargetRef.current = key
-          setDropTargetId(key)
-        }
-      },
-      onDragLeave: () => {
-        dropTargetRef.current = null
-        setDropTargetId(null)
-      },
-      onDrop: (e: React.DragEvent) => {
-        e.preventDefault()
-        dropTargetRef.current = null
-        setDropTargetId(null)
-
-        const raw = e.dataTransfer.getData('application/x-studio-ref')
-        if (!raw) return
-
-        try {
-          const { id: generationId } = JSON.parse(raw) as { id: string }
-          if (!generationId) return
-          void assignToProjectAPI(generationId, projectId).then(() =>
-            projects.refresh(),
-          )
-        } catch {
-          // silently fail
-        }
-      },
-    }),
+  const onExternalDrop = useCallback(
+    (item: TreeDataItem, data: Record<string, unknown>) => {
+      const generationId = data.generationId as string
+      if (!generationId) return
+      void assignToProjectAPI(generationId, item.id).then(() =>
+        projects.refresh(),
+      )
+    },
     [projects],
   )
+
+  // "All Generations" button — Pragmatic DnD drop target (unassign from project)
+  const allBtnRef = useRef<HTMLButtonElement>(null)
+  const [isDragOverAll, setIsDragOverAll] = useState(false)
+
+  useEffect(() => {
+    const el = allBtnRef.current
+    if (!el) return
+    return dropTargetForElements({
+      element: el,
+      canDrop: ({ source }) => source.data.type === 'studio-generation',
+      onDragEnter: () => setIsDragOverAll(true),
+      onDragLeave: () => setIsDragOverAll(false),
+      onDrop: ({ source }) => {
+        setIsDragOverAll(false)
+        const generationId = source.data.generationId as string
+        if (!generationId) return
+        void assignToProjectAPI(generationId, null).then(() =>
+          projects.refresh(),
+        )
+      },
+    })
+  }, [projects])
 
   const treeData = useMemo(
     () =>
@@ -282,12 +271,12 @@ export const StudioSidebar = memo(function StudioSidebar() {
 
         {/* ── All Generations (drop = unassign from project) ── */}
         <button
+          ref={allBtnRef}
           type="button"
           onClick={() => projects.setActiveProjectId(null)}
-          {...makeDropHandlers(null)}
           className={cn(
             'mx-2 mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors',
-            dropTargetId === 'all' && 'ring-2 ring-primary/40 bg-primary/5',
+            isDragOverAll && 'ring-2 ring-primary/40 bg-primary/5',
             !projects.activeProjectId
               ? 'bg-accent/70 text-accent-foreground font-medium'
               : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground',
@@ -302,23 +291,8 @@ export const StudioSidebar = memo(function StudioSidebar() {
           </span>
         </button>
 
-        {/* ── Project Tree (drop = move to active project) ──── */}
-        <div
-          className={cn(
-            'flex-1 overflow-y-auto px-1',
-            dropTargetId === 'tree' &&
-              'ring-2 ring-primary/40 rounded-lg bg-primary/5',
-          )}
-          {...makeDropHandlers(projects.activeProjectId)}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('application/x-studio-ref')) {
-              e.preventDefault()
-              e.dataTransfer.dropEffect = 'copy'
-              dropTargetRef.current = 'tree'
-              setDropTargetId('tree')
-            }
-          }}
-        >
+        {/* ── Project Tree (drop to specific project node) ──── */}
+        <div className="flex-1 overflow-y-auto px-1">
           {treeData.length > 0 ? (
             <TreeView
               data={treeData}
@@ -330,6 +304,8 @@ export const StudioSidebar = memo(function StudioSidebar() {
               defaultLeafIcon={Folder}
               expandAll
               className="text-sm"
+              onExternalDrop={onExternalDrop}
+              canAcceptExternalDrop={canAcceptExternalDrop}
             />
           ) : (
             <p className="px-3 py-4 text-center text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Download,
   Eraser,
@@ -36,6 +36,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 
 function formatDuration(seconds: number): string {
   const min = Math.floor(seconds / 60)
@@ -65,18 +66,11 @@ export const GenerationPreview = memo(function GenerationPreview({
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent) => {
-      if (!generation?.url) return
-      e.dataTransfer.effectAllowed = 'copy'
-      e.dataTransfer.setData(
-        'application/x-studio-ref',
-        JSON.stringify({ url: generation.url, id: generation.id }),
-      )
-      e.dataTransfer.setData('text/uri-list', generation.url)
-    },
-    [generation],
-  )
+  const dragRef = useStudioDraggable({
+    url: generation?.url ?? undefined,
+    generationId: generation?.id ?? '',
+    outputType: 'IMAGE',
+  })
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
@@ -177,9 +171,8 @@ export const GenerationPreview = memo(function GenerationPreview({
       disabled={isGenerating}
     >
       <div
+        ref={dragRef}
         className="group relative rounded-2xl border border-dashed border-border/60 bg-muted/10 overflow-hidden"
-        draggable={!isMobile && generation.outputType === 'IMAGE'}
-        onDragStart={handleDragStart}
       >
         <TransformComponent
           wrapperClass="!w-full"

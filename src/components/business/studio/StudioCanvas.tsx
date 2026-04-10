@@ -1,6 +1,8 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 
 import {
   useStudioForm,
@@ -10,6 +12,7 @@ import {
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 import { GenerationPreview } from './GenerationPreview'
@@ -26,31 +29,29 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const { lastGeneration, retry } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
 
-  // ── Drop handler: gallery images → open reference panel ────────
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes('application/x-studio-ref')) {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'copy'
-    }
-  }, [])
+  // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault()
-      const studioRef = e.dataTransfer.getData('application/x-studio-ref')
-      if (!studioRef) return
-      try {
-        const { url } = JSON.parse(studioRef) as { url: string }
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    return dropTargetForElements({
+      element: el,
+      canDrop: ({ source }) => source.data.type === 'studio-generation',
+      onDragEnter: () => setIsDragOver(true),
+      onDragLeave: () => setIsDragOver(false),
+      onDrop: ({ source }) => {
+        setIsDragOver(false)
+        const url = source.data.url as string
         if (url) {
-          await imageUpload.addFromUrl(url)
-          dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+          void imageUpload.addFromUrl(url).then(() => {
+            dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+          })
         }
-      } catch {
-        // Ignore invalid data
-      }
-    },
-    [imageUpload, dispatch],
-  )
+      },
+    })
+  }, [imageUpload, dispatch])
 
   const handleUseAsReference = useCallback(
     async (url: string) => {
@@ -81,9 +82,11 @@ export const StudioCanvas = memo(function StudioCanvas() {
 
   return (
     <div
-      className="studio-canvas"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      ref={canvasRef}
+      className={cn(
+        'studio-canvas transition-all',
+        isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
+      )}
     >
       <div className="mx-auto w-full max-w-5xl">
         <GenerationPreview

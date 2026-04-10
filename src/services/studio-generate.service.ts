@@ -62,7 +62,12 @@ export async function compileAndGenerate(
           runGroupId: input.runGroupId,
           runGroupType: input.runGroupType ?? 'single',
           runGroupIndex: input.runGroupIndex ?? 0,
-          seed: input.seed != null ? BigInt(input.seed) : generation.seed,
+          seed:
+            input.seed != null
+              ? BigInt(input.seed)
+              : generation.seed != null
+                ? BigInt(generation.seed)
+                : null,
         },
       })
     }
@@ -136,7 +141,12 @@ export async function compileAndGenerate(
             runGroupId: input.runGroupId,
             runGroupType: input.runGroupType ?? 'single',
             runGroupIndex: input.runGroupIndex ?? 0,
-            seed: input.seed != null ? BigInt(input.seed) : generation.seed,
+            seed:
+              input.seed != null
+                ? BigInt(input.seed)
+                : generation.seed != null
+                  ? BigInt(generation.seed)
+                  : null,
           }
         : {}),
     },

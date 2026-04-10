@@ -1929,9 +1929,9 @@ export const StudioGenerateSchema = z
     /** B5: Run group ID for variant/compare batches */
     runGroupId: z.string().optional(),
     /** B5: Run group type */
-    runGroupType: z.enum(['single', 'compare', 'variant']).default('single'),
+    runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
     /** B5: Position within run group (0-based) */
-    runGroupIndex: z.number().int().min(0).default(0),
+    runGroupIndex: z.number().int().min(0).optional(),
   })
   .refine((data) => !!(data.modelId || data.styleCardId), {
     message: 'Either modelId or styleCardId is required',

@@ -651,7 +651,9 @@
       "viewByProvider": "按提供商",
       "viewByStyle": "按风格",
       "searchPlaceholder": "搜索模型...",
-      "modelsSelected": "已选 {count}/{max}"
+      "modelsSelected": "已选 {count}/{max}",
+      "unlockMore": "添加 API Key 解锁 {count} 个更多模型",
+      "unlockHint": "在侧边栏添加 API Key 即可使用这些服务商。"
     }
   },
   "StudioApiKeys": {

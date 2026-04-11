@@ -651,7 +651,9 @@
       "viewByProvider": "プロバイダー別",
       "viewByStyle": "スタイル別",
       "searchPlaceholder": "モデルを検索...",
-      "modelsSelected": "{count}/{max} 選択済み"
+      "modelsSelected": "{count}/{max} 選択済み",
+      "unlockMore": "APIキーを追加して {count} 個のモデルを解放",
+      "unlockHint": "サイドバーでAPIキーを追加すると、これらのプロバイダーを利用できます。"
     }
   },
   "StudioApiKeys": {

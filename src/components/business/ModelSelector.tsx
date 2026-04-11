@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Gift, KeyRound, Search } from 'lucide-react'
+import { Check, ChevronDown, Gift, KeyRound, Plus, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
 import { COMPARE_MAX_MODELS } from '@/constants/studio'
 import {
+  getAvailableModels,
   getModelById,
   getModelMessageKey,
   getProviderGroup,
@@ -21,6 +22,7 @@ import {
   type AI_ADAPTER_TYPES,
   type ProviderConfig,
 } from '@/constants/providers'
+import { hasCapability } from '@/constants/provider-capabilities'
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -352,6 +354,45 @@ export function ModelSelector({
                             ? ` · ${option.maskedKey}`
                             : null}
                         </span>
+                        {/* Capability badges */}
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {hasCapability(
+                            option.adapterType,
+                            'seed',
+                            option.modelId,
+                          ) && (
+                            <span className="rounded-full bg-muted/60 px-1.5 py-0 text-3xs text-muted-foreground">
+                              Seed
+                            </span>
+                          )}
+                          {hasCapability(
+                            option.adapterType,
+                            'lora',
+                            option.modelId,
+                          ) && (
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0 text-3xs text-primary/70">
+                              LoRA
+                            </span>
+                          )}
+                          {hasCapability(
+                            option.adapterType,
+                            'negativePrompt',
+                            option.modelId,
+                          ) && (
+                            <span className="rounded-full bg-muted/60 px-1.5 py-0 text-3xs text-muted-foreground">
+                              Neg
+                            </span>
+                          )}
+                          {hasCapability(
+                            option.adapterType,
+                            'guidanceScale',
+                            option.modelId,
+                          ) && (
+                            <span className="rounded-full bg-muted/60 px-1.5 py-0 text-3xs text-muted-foreground">
+                              CFG
+                            </span>
+                          )}
+                        </span>
                         {description && isSelected ? (
                           <span className="mt-1 block font-serif text-xs leading-relaxed text-muted-foreground/70">
                             {description}
@@ -383,6 +424,9 @@ export function ModelSelector({
         })}
       </div>
 
+      {/* Unlock more models hint */}
+      {!multiSelect && <UnlockMoreModelsHint currentOptions={options} />}
+
       {/* B4: Multi-select count indicator */}
       {multiSelect && selectedValues && (
         <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/20 px-4 py-2">
@@ -394,6 +438,56 @@ export function ModelSelector({
           </span>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── "Unlock more models" hint ─────────────────────────────────────
+
+function UnlockMoreModelsHint({
+  currentOptions,
+}: {
+  currentOptions: StudioModelOption[]
+}) {
+  const t = useTranslations('StudioForm.modelSelector')
+
+  const missingProviders = useMemo(() => {
+    const configuredAdapters = new Set(currentOptions.map((o) => o.adapterType))
+    const allModels = getAvailableModels()
+    // Group unconfigured models by provider
+    const missing = new Map<string, number>()
+    for (const model of allModels) {
+      if (!configuredAdapters.has(model.adapterType)) {
+        const group = getProviderGroup(model.adapterType)
+        missing.set(group, (missing.get(group) ?? 0) + 1)
+      }
+    }
+    return Array.from(missing.entries())
+      .map(([group, count]) => ({ group, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [currentOptions])
+
+  if (missingProviders.length === 0) return null
+
+  const totalMissing = missingProviders.reduce((sum, p) => sum + p.count, 0)
+
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-3">
+      <Plus className="mt-0.5 size-4 shrink-0 text-primary/60" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-foreground">
+          {t('unlockMore', { count: totalMissing })}
+        </p>
+        <p className="mt-0.5 text-2xs text-muted-foreground">
+          {missingProviders
+            .slice(0, 3)
+            .map((p) => `${p.group} (${p.count})`)
+            .join(' · ')}
+        </p>
+        <p className="mt-1 text-2xs text-muted-foreground/70">
+          {t('unlockHint')}
+        </p>
+      </div>
     </div>
   )
 }

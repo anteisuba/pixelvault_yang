@@ -132,6 +132,8 @@ export function useApiKeys(): UseApiKeysReturn {
         setKeys((prev) =>
           prev.map((key) => (key.id === id ? response.data! : key)),
         )
+        // Auto-verify updated key (key value may have changed)
+        void verifyOne(id)
         toast.success(t('apiKeyUpdated'))
         return true
       }

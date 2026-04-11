@@ -501,7 +501,7 @@ export async function submitReplicateLoraTraining(input: {
   // Step 0: Get the Replicate account username for destination
   let owner = input.destinationOwner
   if (!owner) {
-    const accountRes = await fetch(`${baseUrl}/../account`, {
+    const accountRes = await fetch(`${baseUrl}/account`, {
       headers: { Authorization: `Bearer ${input.apiKey}` },
     })
     if (accountRes.ok) {

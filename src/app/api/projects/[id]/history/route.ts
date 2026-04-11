@@ -30,12 +30,27 @@ export async function GET(
     Number(searchParams.get('limit')) || PROJECT.HISTORY_PAGE_SIZE,
     50,
   )
+  const typeParam = searchParams.get('type')
+  const outputType =
+    typeParam === 'image'
+      ? ('IMAGE' as const)
+      : typeParam === 'video'
+        ? ('VIDEO' as const)
+        : typeParam === 'audio'
+          ? ('AUDIO' as const)
+          : undefined
 
   // "unassigned" is a special value for generations without a project
   const projectId = id === 'unassigned' ? null : id
 
   try {
-    const result = await getProjectHistory(clerkId, projectId, cursor, limit)
+    const result = await getProjectHistory(
+      clerkId,
+      projectId,
+      cursor,
+      limit,
+      outputType,
+    )
     return NextResponse.json({ success: true, data: result })
   } catch (err) {
     const message =

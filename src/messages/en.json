@@ -78,6 +78,10 @@
     "history": "History",
     "historyEmpty": "No generations in this project",
     "historyLoadMore": "Load more",
+    "filterAll": "All",
+    "filterImage": "Images",
+    "filterVideo": "Videos",
+    "filterAudio": "Audio",
     "cancel": "Cancel",
     "save": "Save",
     "create": "Create",
@@ -1718,6 +1722,7 @@
     "toolLayers": "Layer decompose",
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
+    "toolEdit": "Edit with AI",
     "toolDrawerTitle": "Tools",
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"

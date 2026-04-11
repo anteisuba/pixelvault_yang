@@ -61,6 +61,8 @@ export function StudioProjectHistory() {
             hasMore={projects.historyHasMore}
             isLoading={projects.isLoadingHistory}
             onLoadMore={projects.loadMoreHistory}
+            typeFilter={projects.historyTypeFilter}
+            onTypeFilterChange={projects.setHistoryTypeFilter}
           />
         </div>
       </AnimatedCollapse>

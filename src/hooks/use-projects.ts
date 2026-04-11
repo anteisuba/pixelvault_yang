@@ -36,6 +36,9 @@ export interface UseProjectsReturn {
   isLoadingHistory: boolean
   loadHistory: () => Promise<void>
   loadMoreHistory: () => Promise<void>
+  // History type filter
+  historyTypeFilter: string
+  setHistoryTypeFilter: (type: string) => void
 }
 
 export function useProjects(): UseProjectsReturn {
@@ -50,6 +53,7 @@ export function useProjects(): UseProjectsReturn {
   const [historyTotal, setHistoryTotal] = useState(0)
   const [historyHasMore, setHistoryHasMore] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [historyTypeFilter, setHistoryTypeFilter] = useState('all')
 
   // ─── Project CRUD ───────────────────────────────────────────────
 
@@ -134,26 +138,42 @@ export function useProjects(): UseProjectsReturn {
     if (activeProjectId === undefined) return
     setIsLoadingHistory(true)
     const pid = activeProjectId ?? 'unassigned'
-    const response = await getProjectHistoryAPI(pid)
+    const response = await getProjectHistoryAPI(
+      pid,
+      undefined,
+      undefined,
+      historyTypeFilter,
+    )
     if (response.success && response.data) {
       setHistory(response.data.generations)
       setHistoryTotal(response.data.total)
       setHistoryHasMore(response.data.hasMore)
     }
     setIsLoadingHistory(false)
-  }, [activeProjectId])
+  }, [activeProjectId, historyTypeFilter])
 
   const loadMoreHistory = useCallback(async () => {
     if (!historyHasMore || isLoadingHistory || history.length === 0) return
     const pid = activeProjectId ?? 'unassigned'
     const lastId = history[history.length - 1].id
-    const response = await getProjectHistoryAPI(pid, lastId)
+    const response = await getProjectHistoryAPI(
+      pid,
+      lastId,
+      undefined,
+      historyTypeFilter,
+    )
     if (response.success && response.data) {
       setHistory((prev) => [...prev, ...response.data!.generations])
       setHistoryTotal(response.data.total)
       setHistoryHasMore(response.data.hasMore)
     }
-  }, [activeProjectId, history, historyHasMore, isLoadingHistory])
+  }, [
+    activeProjectId,
+    history,
+    historyHasMore,
+    isLoadingHistory,
+    historyTypeFilter,
+  ])
 
   // Reload history when active project changes
   useEffect(() => {
@@ -178,5 +198,7 @@ export function useProjects(): UseProjectsReturn {
     isLoadingHistory,
     loadHistory,
     loadMoreHistory,
+    historyTypeFilter,
+    setHistoryTypeFilter,
   }
 }

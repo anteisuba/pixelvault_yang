@@ -111,11 +111,13 @@ export async function getProjectHistoryAPI(
   projectId: string,
   cursor?: string,
   limit?: number,
+  type?: string,
 ): Promise<ProjectHistoryResponse> {
   try {
     const params = new URLSearchParams()
     if (cursor) params.set('cursor', cursor)
     if (limit) params.set('limit', String(limit))
+    if (type && type !== 'all') params.set('type', type)
     const qs = params.toString()
     const url = `${API_ENDPOINTS.PROJECTS}/${projectId}/history${qs ? `?${qs}` : ''}`
     const response = await fetch(url)

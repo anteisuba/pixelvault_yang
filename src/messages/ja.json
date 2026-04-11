@@ -78,6 +78,10 @@
     "history": "履歴",
     "historyEmpty": "このプロジェクトに生成物はありません",
     "historyLoadMore": "もっと読み込む",
+    "filterAll": "すべて",
+    "filterImage": "画像",
+    "filterVideo": "動画",
+    "filterAudio": "音声",
     "cancel": "キャンセル",
     "save": "保存",
     "create": "作成",
@@ -1718,6 +1722,7 @@
     "toolLayers": "レイヤー分解",
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
+    "toolEdit": "AIで編集",
     "toolDrawerTitle": "ツール",
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"

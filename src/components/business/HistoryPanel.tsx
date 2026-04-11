@@ -1,13 +1,15 @@
 'use client'
 
 import { memo, useCallback } from 'react'
-import { Clock, ImageIcon, Film, Loader2 } from 'lucide-react'
+import { Clock, ImageIcon, Film, Loader2, Music } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
+
+const TYPE_FILTERS = ['all', 'image', 'video', 'audio'] as const
 
 interface HistoryPanelProps {
   generations: GenerationRecord[]
@@ -18,6 +20,8 @@ interface HistoryPanelProps {
   onSelect?: (generation: GenerationRecord) => void
   onOpenDetail?: (generation: GenerationRecord) => void
   selectedId?: string | null
+  typeFilter?: string
+  onTypeFilterChange?: (type: string) => void
 }
 
 export function HistoryPanel({
@@ -29,6 +33,8 @@ export function HistoryPanel({
   onSelect,
   onOpenDetail,
   selectedId,
+  typeFilter = 'all',
+  onTypeFilterChange,
 }: HistoryPanelProps) {
   const t = useTranslations('Projects')
 
@@ -59,6 +65,33 @@ export function HistoryPanel({
           </span>
         )}
       </div>
+
+      {/* Type filter tabs */}
+      {onTypeFilterChange && (
+        <div className="flex gap-1 rounded-lg bg-muted/30 p-0.5">
+          {TYPE_FILTERS.map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => onTypeFilterChange(type)}
+              className={cn(
+                'flex-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors',
+                typeFilter === type
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t(
+                `filter${type.charAt(0).toUpperCase()}${type.slice(1)}` as
+                  | 'filterAll'
+                  | 'filterImage'
+                  | 'filterVideo'
+                  | 'filterAudio',
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Thumbnail grid — auto-fill adapts when preview is collapsed */}
       <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5">
@@ -146,6 +179,15 @@ const HistoryItem = memo(function HistoryItem({
             </div>
             <div className="absolute bottom-0.5 right-0.5 rounded bg-black/50 px-1 py-0.5">
               <Film className="size-2.5 text-white" />
+            </div>
+          </div>
+        ) : gen.outputType === 'AUDIO' ? (
+          <div className="relative size-full">
+            <div className="flex size-full items-center justify-center bg-muted/50">
+              <Music className="size-5 text-muted-foreground/60" />
+            </div>
+            <div className="absolute bottom-0.5 right-0.5 rounded bg-black/50 px-1 py-0.5">
+              <Music className="size-2.5 text-white" />
             </div>
           </div>
         ) : (

@@ -78,6 +78,10 @@
     "history": "历史记录",
     "historyEmpty": "该项目暂无生成记录",
     "historyLoadMore": "加载更多",
+    "filterAll": "全部",
+    "filterImage": "图片",
+    "filterVideo": "视频",
+    "filterAudio": "音频",
     "cancel": "取消",
     "save": "保存",
     "create": "创建",
@@ -1718,6 +1722,7 @@
     "toolLayers": "图层分解",
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
+    "toolEdit": "AI 编辑",
     "toolDrawerTitle": "工具",
     "variantSelectWinner": "选为最佳",
     "variantSelected": "已选择"

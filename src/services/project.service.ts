@@ -125,6 +125,7 @@ export async function getProjectHistory(
   projectId: string | null,
   cursor?: string,
   limit: number = PROJECT.HISTORY_PAGE_SIZE,
+  outputType?: 'IMAGE' | 'VIDEO' | 'AUDIO',
 ): Promise<{
   generations: GenerationRecord[]
   total: number
@@ -134,6 +135,7 @@ export async function getProjectHistory(
   const where = {
     userId: dbUser.id,
     projectId: projectId,
+    ...(outputType && { outputType }),
   }
 
   const [generations, total] = await Promise.all([

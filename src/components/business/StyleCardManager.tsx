@@ -1,7 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Copy, Pencil, Trash2, Check } from 'lucide-react'
+import {
+  Copy,
+  Pencil,
+  Trash2,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Palette,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -15,10 +23,7 @@ import type {
 import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
 import { StyleCardEditor } from '@/components/business/StyleCardEditor'
 import type { CardManagerSortMode } from '@/lib/card-management'
-import {
-  matchesCardSearch,
-  sortCardManagerItems,
-} from '@/lib/card-management'
+import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
 interface StyleCardManagerProps {
   cards: StyleCardRecord[]
@@ -59,6 +64,7 @@ export function StyleCardManager({
   const tCard = useTranslations('CardSlot')
   const tV3 = useTranslations('StudioV3')
 
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [view, setView] = useState<ManagerView>({ type: 'list' })
   const [isSaving, setIsSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,7 +108,10 @@ export function StyleCardManager({
         description: card.description ?? undefined,
         stylePrompt: card.stylePrompt,
         attributes: card.attributes ?? undefined,
-        modelId: card.modelId && isBuiltInModel(card.modelId) ? card.modelId : undefined,
+        modelId:
+          card.modelId && isBuiltInModel(card.modelId)
+            ? card.modelId
+            : undefined,
         adapterType:
           card.adapterType && isAiAdapterType(card.adapterType)
             ? card.adapterType
@@ -180,102 +189,124 @@ export function StyleCardManager({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">
+    <div className="rounded-xl border border-border/60 bg-background/30">
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="flex w-full items-center gap-2.5 px-4 py-3 text-left"
+      >
+        <Palette className="size-4 text-chart-4" />
+        <span className="text-sm font-medium font-display text-foreground">
           {tStyle('title')}
-        </p>
-      </div>
+        </span>
+        <span className="text-xs text-muted-foreground">({cards.length})</span>
 
-      <CardManagerToolbar
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        sortMode={sortMode}
-        onSortModeChange={setSortMode}
-        createLabel={t('new')}
-        onCreate={() => setView({ type: 'create' })}
-        createDisabled={isLoading || isSaving}
-      />
+        {activeCardId && (
+          <span className="ml-auto mr-2 max-w-[120px] truncate text-xs text-primary">
+            {cards.find((c) => c.id === activeCardId)?.name}
+          </span>
+        )}
 
-      {cards.length === 0 && (
-        <p className="py-3 text-center text-xs text-muted-foreground">
-          {tStyle('empty')}
-        </p>
-      )}
+        {isCollapsed ? (
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="ml-auto size-4 text-muted-foreground" />
+        )}
+      </button>
 
-      <div className="space-y-1">
-        {cards.length > 0 && visibleCards.length === 0 ? (
-          <p className="py-3 text-center text-xs text-muted-foreground">
-            {t('cardSearchEmpty')}
-          </p>
-        ) : null}
-        {visibleCards.map((card) => {
-          const isActive = card.id === activeCardId
-          return (
-            <div
-              key={card.id}
-              className={cn(
-                'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
-                isActive
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-border/60 bg-background hover:bg-muted/30',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => onSelect(isActive ? null : card.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                {isActive && (
-                  <Check className="h-3 w-3 flex-shrink-0 text-primary" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {card.name}
-                  </p>
-                  {card.modelId ? (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {card.modelId}
-                      {card.advancedParams?.loras?.length
-                        ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
-                        : ''}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-amber-600">{t('noModel')}</p>
+      {!isCollapsed && (
+        <div className="border-t border-border/40 px-4 py-3 space-y-2">
+          <CardManagerToolbar
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            createLabel={t('new')}
+            onCreate={() => setView({ type: 'create' })}
+            createDisabled={isLoading || isSaving}
+          />
+
+          {cards.length === 0 && (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              {tStyle('empty')}
+            </p>
+          )}
+
+          <div className="space-y-1">
+            {cards.length > 0 && visibleCards.length === 0 ? (
+              <p className="py-3 text-center text-xs text-muted-foreground">
+                {t('cardSearchEmpty')}
+              </p>
+            ) : null}
+            {visibleCards.map((card) => {
+              const isActive = card.id === activeCardId
+              return (
+                <div
+                  key={card.id}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
+                    isActive
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border/60 bg-background hover:bg-muted/30',
                   )}
-                </div>
-              </button>
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(isActive ? null : card.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    {isActive && (
+                      <Check className="h-3 w-3 flex-shrink-0 text-primary" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {card.name}
+                      </p>
+                      {card.modelId ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {card.modelId}
+                          {card.advancedParams?.loras?.length
+                            ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
+                            : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600">{t('noModel')}</p>
+                      )}
+                    </div>
+                  </button>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setView({ type: 'edit', card })}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title={t('edit')}
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDuplicate(card)}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title={tCard('duplicate')}
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView({ type: 'confirmDelete', card })}
-                  className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
-                  title={tStyle('delete')}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setView({ type: 'edit', card })}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={t('edit')}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDuplicate(card)}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={tCard('duplicate')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setView({ type: 'confirmDelete', card })}
+                      className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                      title={tStyle('delete')}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

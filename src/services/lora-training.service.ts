@@ -13,6 +13,10 @@ import {
   submitReplicateLoraTraining,
   checkReplicateLoraTrainingStatus,
 } from '@/services/providers/replicate.adapter'
+import {
+  submitFalLoraTraining,
+  checkFalLoraTrainingStatus,
+} from '@/services/providers/fal.adapter'
 import { withRetry } from '@/lib/with-retry'
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -100,17 +104,38 @@ export async function submitLoraTraining(
     mimeType: 'application/zip',
   })
 
-  // Submit to Replicate
-  const { trainingId } = await withRetry(
-    () =>
-      submitReplicateLoraTraining({
-        apiKey,
-        inputImagesUrl: zipUrl,
-        triggerWord: data.triggerWord,
-        loraType: data.loraType,
-      }),
-    { maxAttempts: 3, label: 'submitReplicateLoraTraining' },
-  )
+  // Submit to provider
+  let externalId: string
+  let statusUrl: string | undefined
+  let responseUrl: string | undefined
+
+  if (data.provider === 'fal') {
+    const result = await withRetry(
+      () =>
+        submitFalLoraTraining({
+          apiKey,
+          inputImagesUrl: zipUrl,
+          triggerWord: data.triggerWord,
+          isStyle: data.loraType === 'style',
+        }),
+      { maxAttempts: 3, label: 'submitFalLoraTraining' },
+    )
+    externalId = result.requestId
+    statusUrl = result.statusUrl
+    // fal returns response_url via the submit schema; store in externalTrainingId as JSON
+  } else {
+    const result = await withRetry(
+      () =>
+        submitReplicateLoraTraining({
+          apiKey,
+          inputImagesUrl: zipUrl,
+          triggerWord: data.triggerWord,
+          loraType: data.loraType,
+        }),
+      { maxAttempts: 3, label: 'submitReplicateLoraTraining' },
+    )
+    externalId = result.trainingId
+  }
 
   // Create DB record
   const job = await db.loraTrainingJob.create({
@@ -119,8 +144,11 @@ export async function submitLoraTraining(
       name: data.name,
       triggerWord: data.triggerWord,
       loraType: data.loraType,
+      baseModel: data.provider === 'fal' ? 'flux-dev-fal' : 'flux-dev',
       trainingImageKeys: imageKeys,
-      externalTrainingId: trainingId,
+      externalTrainingId: statusUrl
+        ? JSON.stringify({ id: externalId, statusUrl, provider: 'fal' })
+        : externalId,
       status: 'TRAINING',
       startedAt: new Date(),
       characterCardId: data.characterCardId ?? null,
@@ -130,7 +158,8 @@ export async function submitLoraTraining(
   logger.info('LoRA training submitted', {
     jobId: job.id,
     userId: dbUser.id,
-    trainingId,
+    externalId,
+    provider: data.provider,
     imageCount: data.trainingImages.length,
   })
 
@@ -163,52 +192,90 @@ export async function checkLoraTrainingStatus(
     throw new Error('Training job has no external ID')
   }
 
-  // Decrypt API key to poll Replicate
+  // Detect provider from externalTrainingId format
+  let isFalProvider = false
+  let falMeta: { id: string; statusUrl: string } | null = null
+  try {
+    const parsed = JSON.parse(job.externalTrainingId) as {
+      provider?: string
+      id?: string
+      statusUrl?: string
+    }
+    if (parsed.provider === 'fal' && parsed.statusUrl) {
+      isFalProvider = true
+      falMeta = { id: parsed.id!, statusUrl: parsed.statusUrl }
+    }
+  } catch {
+    // Not JSON → Replicate training ID
+  }
+
+  // Find the right API key
+  const adapterType = isFalProvider ? 'fal' : 'replicate'
   const apiKeyRecord = await db.userApiKey.findFirst({
     where: {
       userId: dbUser.id,
-      adapterType: 'replicate',
+      adapterType,
       isActive: true,
     },
   })
   if (!apiKeyRecord) {
-    throw new Error('No active Replicate API key found')
+    throw new Error(`No active ${adapterType} API key found`)
   }
   const apiKey = decryptApiKey(apiKeyRecord.encryptedKey)
 
-  const result = await checkReplicateLoraTrainingStatus({
-    apiKey,
-    trainingId: job.externalTrainingId,
-  })
+  // Poll the right provider
+  let newStatus: string = job.status
+  let loraUrl: string | null = null
+  let errorMsg: string | null = null
 
-  // Map Replicate status → DB status
-  const statusMap: Record<string, string> = {
-    starting: 'TRAINING',
-    processing: 'TRAINING',
-    succeeded: 'COMPLETED',
-    failed: 'FAILED',
-    canceled: 'CANCELED',
+  if (isFalProvider && falMeta) {
+    const result = await checkFalLoraTrainingStatus({
+      apiKey,
+      statusUrl: falMeta.statusUrl,
+      responseUrl: falMeta.statusUrl.replace('/status', ''),
+    })
+    const falStatusMap: Record<string, string> = {
+      IN_QUEUE: 'TRAINING',
+      IN_PROGRESS: 'TRAINING',
+      COMPLETED: 'COMPLETED',
+      FAILED: 'FAILED',
+    }
+    newStatus = falStatusMap[result.status] ?? job.status
+    loraUrl = result.loraUrl
+  } else {
+    const result = await checkReplicateLoraTrainingStatus({
+      apiKey,
+      trainingId: job.externalTrainingId,
+    })
+    const repStatusMap: Record<string, string> = {
+      starting: 'TRAINING',
+      processing: 'TRAINING',
+      succeeded: 'COMPLETED',
+      failed: 'FAILED',
+      canceled: 'CANCELED',
+    }
+    newStatus = repStatusMap[result.status] ?? job.status
+    loraUrl = result.loraUrl
+    errorMsg = result.error
   }
-
-  const newStatus = statusMap[result.status] ?? job.status
 
   const updateData: Record<string, unknown> = {
     status: newStatus,
   }
 
-  if (result.status === 'succeeded' && result.loraUrl) {
-    updateData.loraUrl = result.loraUrl
+  if (newStatus === 'COMPLETED' && loraUrl) {
+    updateData.loraUrl = loraUrl
     updateData.completedAt = new Date()
     updateData.progress = 1
   }
 
-  if (result.status === 'failed') {
-    updateData.errorMessage = result.error
+  if (newStatus === 'FAILED') {
+    updateData.errorMessage = errorMsg
     updateData.completedAt = new Date()
   }
 
-  if (result.status === 'processing') {
-    updateData.progress = 0.5 // Approximate — Replicate doesn't report granular progress
+  if (newStatus === 'TRAINING') {
+    updateData.progress = 0.5
   }
 
   const updated = await db.loraTrainingJob.update({
@@ -217,17 +284,17 @@ export async function checkLoraTrainingStatus(
   })
 
   // If completed and linked to a character card, auto-bind the LoRA
-  if (newStatus === 'COMPLETED' && result.loraUrl && updated.characterCardId) {
+  if (newStatus === 'COMPLETED' && loraUrl && updated.characterCardId) {
     await db.characterCard.update({
       where: { id: updated.characterCardId },
       data: {
-        loras: [{ url: result.loraUrl, scale: 1.0 }],
+        loras: [{ url: loraUrl, scale: 1.0 }],
       },
     })
     logger.info('LoRA auto-bound to character card', {
       jobId,
       characterCardId: updated.characterCardId,
-      loraUrl: result.loraUrl,
+      loraUrl,
     })
   }
 

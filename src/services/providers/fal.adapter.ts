@@ -442,3 +442,86 @@ export const falAdapter: ProviderAdapter = {
     }
   },
 }
+
+// ─── LoRA Training (standalone functions, not part of ProviderAdapter) ──
+
+/**
+ * Submit a LoRA training job to fal.ai's flux-lora-fast-training.
+ * Returns the request_id for status polling.
+ */
+export async function submitFalLoraTraining(input: {
+  apiKey: string
+  inputImagesUrl: string
+  triggerWord: string
+  isStyle: boolean
+}): Promise<{ requestId: string; statusUrl: string }> {
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/flux-lora-fast-training`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Key ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: {
+        images_data_url: input.inputImagesUrl,
+        trigger_word: input.triggerWord,
+        is_style: input.isStyle,
+        create_masks: !input.isStyle,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError('fal.ai', response.status, errorBody)
+  }
+
+  const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+  return { requestId: data.request_id, statusUrl: data.status_url }
+}
+
+/**
+ * Check status of a fal.ai LoRA training job.
+ */
+export async function checkFalLoraTrainingStatus(input: {
+  apiKey: string
+  statusUrl: string
+  responseUrl: string
+}): Promise<{
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  loraUrl: string | null
+}> {
+  const response = await fetch(input.statusUrl, {
+    headers: { Authorization: `Key ${input.apiKey}` },
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError('fal.ai', response.status, errorBody)
+  }
+
+  const data = FAL_QUEUE_STATUS_SCHEMA.parse(await response.json())
+
+  if (data.status === 'COMPLETED') {
+    // Fetch the result from response URL
+    const resultResponse = await fetch(input.responseUrl, {
+      headers: { Authorization: `Key ${input.apiKey}` },
+    })
+    if (resultResponse.ok) {
+      const result = (await resultResponse.json()) as {
+        diffusers_lora_file?: { url?: string }
+      }
+      return {
+        status: 'COMPLETED',
+        loraUrl: result.diffusers_lora_file?.url ?? null,
+      }
+    }
+  }
+
+  return {
+    status: data.status === 'IN_QUEUE' ? 'IN_QUEUE' : 'IN_PROGRESS',
+    loraUrl: null,
+  }
+}

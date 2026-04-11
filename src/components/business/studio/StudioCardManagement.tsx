@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { CharacterCardManager } from '@/components/business/CharacterCardManager'
 import { SimpleCardManager } from '@/components/business/SimpleCardManager'
 import { StyleCardManager } from '@/components/business/StyleCardManager'
+import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { StudioErrorBoundary } from '@/components/business/studio/StudioErrorBoundary'
 import { AnimatedCollapse } from '@/components/ui/animated-collapse'
 
@@ -51,6 +52,9 @@ export function StudioCardManagement() {
             id="studio-card-management"
             className="border-t border-border/40 p-4 space-y-6"
           >
+            {/* Standalone LoRA Training entry */}
+            <LoraTrainingDialog />
+
             <CharacterCardManager
               cards={characters.cards}
               activeCardIds={characters.activeCardIds}

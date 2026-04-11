@@ -37,13 +37,20 @@ export function LoraTrainingDialog({
   const [name, setName] = useState('')
   const [triggerWord, setTriggerWord] = useState('')
   const [loraType, setLoraType] = useState<'subject' | 'style'>('subject')
+  const [provider, setProvider] = useState<'replicate' | 'fal'>('replicate')
   const [images, setImages] = useState<string[]>([])
 
-  // Find Replicate keys
-  const replicateKeys = keys.filter(
+  // Find keys for selected provider
+  const providerKeys = keys.filter(
+    (k) => k.adapterType === provider && k.isActive,
+  )
+  const selectedKeyId = providerKeys[0]?.id
+
+  // Check which providers have keys
+  const hasReplicateKey = keys.some(
     (k) => k.adapterType === 'replicate' && k.isActive,
   )
-  const selectedKeyId = replicateKeys[0]?.id
+  const hasFalKey = keys.some((k) => k.adapterType === 'fal' && k.isActive)
 
   const canSubmit =
     name.trim() &&
@@ -86,6 +93,7 @@ export function LoraTrainingDialog({
       trainingImages: images,
       characterCardId,
       apiKeyId: selectedKeyId,
+      provider,
     })
     if (result) {
       setOpen(false)
@@ -99,6 +107,7 @@ export function LoraTrainingDialog({
     name,
     triggerWord,
     loraType,
+    provider,
     images,
     characterCardId,
     submit,
@@ -186,6 +195,51 @@ export function LoraTrainingDialog({
             </div>
           </div>
 
+          {/* Provider selector */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{t('selectApiKey')}</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setProvider('replicate')}
+                className={cn(
+                  'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
+                  provider === 'replicate'
+                    ? 'border-primary/40 bg-primary/5 text-foreground'
+                    : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                  !hasReplicateKey && 'opacity-50',
+                )}
+                disabled={!hasReplicateKey}
+              >
+                Replicate
+                {!hasReplicateKey && (
+                  <span className="ml-1 text-2xs text-muted-foreground">
+                    (no key)
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setProvider('fal')}
+                className={cn(
+                  'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
+                  provider === 'fal'
+                    ? 'border-primary/40 bg-primary/5 text-foreground'
+                    : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                  !hasFalKey && 'opacity-50',
+                )}
+                disabled={!hasFalKey}
+              >
+                fal.ai
+                {!hasFalKey && (
+                  <span className="ml-1 text-2xs text-muted-foreground">
+                    (no key)
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Image upload */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -237,7 +291,7 @@ export function LoraTrainingDialog({
           </div>
 
           {/* API Key status */}
-          {!selectedKeyId && (
+          {!hasReplicateKey && !hasFalKey && (
             <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2">
               <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
                 {t('noApiKey')}

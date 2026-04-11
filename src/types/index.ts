@@ -2008,6 +2008,7 @@ export const SubmitLoraTrainingSchema = z.object({
   trainingImages: z.array(z.string()).min(5).max(50),
   characterCardId: z.string().uuid().optional(),
   apiKeyId: z.string().uuid(),
+  provider: z.enum(['replicate', 'fal']).default('replicate'),
 })
 export type SubmitLoraTrainingRequest = z.infer<typeof SubmitLoraTrainingSchema>
 

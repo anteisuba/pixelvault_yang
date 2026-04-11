@@ -262,6 +262,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               type="button"
               onClick={handleGenerate}
               disabled={isGenerating || !canGenerate}
+              aria-busy={isGenerating}
+              aria-disabled={!canGenerate}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
                 'transition-all duration-200',

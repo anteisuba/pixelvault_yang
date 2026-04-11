@@ -96,7 +96,10 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Generating (no image yet) ─────────────────────────────────────
   if (isGenerating && !generation) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10">
+      <div
+        className="rounded-2xl border border-dashed border-border/60 bg-muted/10"
+        aria-live="polite"
+      >
         <div className="flex flex-col items-center justify-center gap-3 py-12">
           <div className="relative">
             <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />

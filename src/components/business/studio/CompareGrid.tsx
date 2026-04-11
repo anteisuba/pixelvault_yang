@@ -31,7 +31,11 @@ export const CompareGrid = memo(function CompareGrid({
   const cols = items.length <= 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'
 
   return (
-    <div className={cn('grid grid-cols-1 gap-3', cols)}>
+    <div
+      className={cn('grid grid-cols-1 gap-3', cols)}
+      role="radiogroup"
+      aria-label={t('variantSelectWinner')}
+    >
       {items.map((item) => {
         const isSelected =
           selectedItemId != null && item.generation?.id === selectedItemId
@@ -46,6 +50,9 @@ export const CompareGrid = memo(function CompareGrid({
         return (
           <div
             key={item.id}
+            role="radio"
+            aria-checked={isSelected}
+            aria-label={`${modelLabel}: ${item.status}`}
             className={cn(
               'group relative overflow-hidden rounded-xl border border-border/60 bg-muted/10 transition-all',
               isSelected && 'ring-2 ring-primary border-primary/40',
@@ -86,7 +93,7 @@ export const CompareGrid = memo(function CompareGrid({
 
             {/* Completed */}
             {isCompleted && item.generation && (
-              <>
+              <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
                 <div className="[&_img]:object-contain">
                   <ImageCard generation={item.generation} />
                 </div>
@@ -118,7 +125,7 @@ export const CompareGrid = memo(function CompareGrid({
                     </Button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         )

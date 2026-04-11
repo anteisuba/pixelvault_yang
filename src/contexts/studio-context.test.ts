@@ -20,6 +20,7 @@ function makeInitialState(
     aspectRatio: '1:1',
     advancedParams: {},
     tokenInput: '',
+    voiceId: null,
     panels: {
       cardManagement: false,
       projectHistory: false,
@@ -31,6 +32,8 @@ function makeInitialState(
       refImage: false,
       layerDecompose: false,
       aspectRatio: false,
+      voiceSelector: false,
+      voiceTrainer: false,
     },
     ...overrides,
   }

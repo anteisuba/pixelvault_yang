@@ -1998,3 +1998,41 @@ export const SelectVariantWinnerSchema = z.object({
 export type SelectVariantWinnerRequest = z.infer<
   typeof SelectVariantWinnerSchema
 >
+
+// ─── LoRA Training ────────────────────────────────────────────────
+
+export const SubmitLoraTrainingSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  triggerWord: z.string().trim().min(1).max(50),
+  loraType: z.enum(['subject', 'style']).default('subject'),
+  trainingImages: z.array(z.string()).min(5).max(50),
+  characterCardId: z.string().uuid().optional(),
+  apiKeyId: z.string().uuid(),
+})
+export type SubmitLoraTrainingRequest = z.infer<typeof SubmitLoraTrainingSchema>
+
+export interface LoraTrainingRecord {
+  id: string
+  name: string
+  triggerWord: string
+  loraType: string
+  status: string
+  progress: number
+  loraUrl: string | null
+  errorMessage: string | null
+  characterCardId: string | null
+  createdAt: Date
+  completedAt: Date | null
+}
+
+export interface LoraTrainingResponse {
+  success: boolean
+  data?: LoraTrainingRecord
+  error?: string
+}
+
+export interface LoraTrainingListResponse {
+  success: boolean
+  data?: LoraTrainingRecord[]
+  error?: string
+}

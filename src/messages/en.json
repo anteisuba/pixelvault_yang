@@ -61,7 +61,11 @@
     "collectionUpdated": "Collection updated",
     "collectionUpdateFailed": "Failed to update collection",
     "collectionDeleted": "Collection deleted",
-    "collectionDeleteFailed": "Failed to delete collection"
+    "collectionDeleteFailed": "Failed to delete collection",
+    "loraTrainingSubmitted": "LoRA training started",
+    "loraTrainingSubmitFailed": "Failed to start LoRA training",
+    "loraTrainingComplete": "LoRA training complete! Model ready to use.",
+    "loraTrainingFailed": "LoRA training failed"
   },
   "Projects": {
     "title": "Projects",
@@ -1862,5 +1866,35 @@
       "avatarTooLarge": "Avatar must be under 5 MB.",
       "bannerTooLarge": "Cover image must be under 10 MB."
     }
+  },
+  "LoraTraining": {
+    "title": "Train LoRA",
+    "description": "Train a custom LoRA model from your images. Uses your Replicate API key.",
+    "name": "Model name",
+    "namePlaceholder": "e.g. My Character",
+    "triggerWord": "Trigger word",
+    "triggerWordPlaceholder": "e.g. sks_character",
+    "triggerWordHint": "A unique word to activate your LoRA in prompts",
+    "loraType": "Training type",
+    "subject": "Subject (character/object)",
+    "style": "Style (art style)",
+    "uploadImages": "Training images",
+    "uploadHint": "Upload 5–50 images of your subject/style (recommended: 10–20)",
+    "imageCount": "{count} images",
+    "selectApiKey": "Replicate API key",
+    "noApiKey": "No Replicate API key configured",
+    "addApiKeyHint": "Add a Replicate API key in the sidebar to use this feature",
+    "submit": "Start Training",
+    "submitting": "Submitting...",
+    "cost": "~$1–2 per training",
+    "estimatedTime": "~2 minutes",
+    "statusQueued": "Queued",
+    "statusTraining": "Training...",
+    "statusCompleted": "Completed",
+    "statusFailed": "Failed",
+    "statusCanceled": "Canceled",
+    "viewJobs": "Training Jobs",
+    "noJobs": "No training jobs yet",
+    "trainedLoraReady": "LoRA ready — select this character to use it"
   }
 }

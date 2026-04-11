@@ -61,7 +61,11 @@
     "collectionUpdated": "合集已更新",
     "collectionUpdateFailed": "更新合集失败",
     "collectionDeleted": "合集已删除",
-    "collectionDeleteFailed": "删除合集失败"
+    "collectionDeleteFailed": "删除合集失败",
+    "loraTrainingSubmitted": "LoRA 训练已开始",
+    "loraTrainingSubmitFailed": "LoRA 训练启动失败",
+    "loraTrainingComplete": "LoRA 训练完成！模型已可使用。",
+    "loraTrainingFailed": "LoRA 训练失败"
   },
   "Projects": {
     "title": "项目",
@@ -1862,5 +1866,35 @@
       "avatarTooLarge": "头像不能超过 5 MB。",
       "bannerTooLarge": "封面图片不能超过 10 MB。"
     }
+  },
+  "LoraTraining": {
+    "title": "训练 LoRA",
+    "description": "用你的图片训练自定义 LoRA 模型。需要 Replicate API Key。",
+    "name": "模型名称",
+    "namePlaceholder": "例如：我的角色",
+    "triggerWord": "触发词",
+    "triggerWordPlaceholder": "例如：sks_character",
+    "triggerWordHint": "在提示词中使用此词来激活 LoRA",
+    "loraType": "训练类型",
+    "subject": "角色/物体",
+    "style": "画风/风格",
+    "uploadImages": "训练图片",
+    "uploadHint": "上传 5-50 张图片（推荐 10-20 张）",
+    "imageCount": "{count} 张图片",
+    "selectApiKey": "Replicate API Key",
+    "noApiKey": "未配置 Replicate API Key",
+    "addApiKeyHint": "在侧边栏添加 Replicate API Key 以使用此功能",
+    "submit": "开始训练",
+    "submitting": "提交中...",
+    "cost": "约 $1-2/次",
+    "estimatedTime": "约 2 分钟",
+    "statusQueued": "排队中",
+    "statusTraining": "训练中...",
+    "statusCompleted": "已完成",
+    "statusFailed": "失败",
+    "statusCanceled": "已取消",
+    "viewJobs": "训练任务",
+    "noJobs": "暂无训练任务",
+    "trainedLoraReady": "LoRA 已就绪 — 选择此角色即可使用"
   }
 }

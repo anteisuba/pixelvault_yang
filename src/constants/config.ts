@@ -132,6 +132,18 @@ export const API_ENDPOINTS = {
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
   CIVITAI_TOKEN: '/api/civitai-token',
+
+  /** LoRA Training */
+  LORA_TRAINING: '/api/lora-training',
+} as const
+
+/** LoRA Training configuration */
+export const LORA_TRAINING = {
+  MIN_IMAGES: 5,
+  MAX_IMAGES: 50,
+  MAX_PER_USER: 10,
+  POLL_INTERVAL_MS: 5000,
+  TIMEOUT_MS: 600_000,
 } as const
 
 /** Project configuration */

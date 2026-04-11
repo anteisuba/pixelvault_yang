@@ -214,7 +214,7 @@ export type ModelEloRatingGroupByOutputType = {
   _max: ModelEloRatingMaxAggregateOutputType | null
 }
 
-type GetModelEloRatingGroupByPayload<T extends ModelEloRatingGroupByArgs> = Prisma.PrismaPromise<
+export type GetModelEloRatingGroupByPayload<T extends ModelEloRatingGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<ModelEloRatingGroupByOutputType, T['by']> &
       {
@@ -1074,6 +1074,11 @@ export type ModelEloRatingFindManyArgs<ExtArgs extends runtime.Types.Extensions.
    * Skip the first `n` ModelEloRatings.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ModelEloRatings.
+   */
   distinct?: Prisma.ModelEloRatingScalarFieldEnum | Prisma.ModelEloRatingScalarFieldEnum[]
 }
 

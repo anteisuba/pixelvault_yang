@@ -151,7 +151,7 @@ export type GenerationCharacterCardGroupByOutputType = {
   _max: GenerationCharacterCardMaxAggregateOutputType | null
 }
 
-type GetGenerationCharacterCardGroupByPayload<T extends GenerationCharacterCardGroupByArgs> = Prisma.PrismaPromise<
+export type GetGenerationCharacterCardGroupByPayload<T extends GenerationCharacterCardGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<GenerationCharacterCardGroupByOutputType, T['by']> &
       {
@@ -1207,6 +1207,11 @@ export type GenerationCharacterCardFindManyArgs<ExtArgs extends runtime.Types.Ex
    * Skip the first `n` GenerationCharacterCards.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of GenerationCharacterCards.
+   */
   distinct?: Prisma.GenerationCharacterCardScalarFieldEnum | Prisma.GenerationCharacterCardScalarFieldEnum[]
 }
 

@@ -47,6 +47,17 @@ export const CharacterCardStatus = {
 export type CharacterCardStatus = (typeof CharacterCardStatus)[keyof typeof CharacterCardStatus]
 
 
+export const LoraTrainingStatus = {
+  QUEUED: 'QUEUED',
+  TRAINING: 'TRAINING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELED: 'CANCELED'
+} as const
+
+export type LoraTrainingStatus = (typeof LoraTrainingStatus)[keyof typeof LoraTrainingStatus]
+
+
 export const VideoPipelineStatus = {
   RUNNING: 'RUNNING',
   PAUSED: 'PAUSED',

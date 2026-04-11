@@ -74,7 +74,8 @@ export const ModelName = {
   StyleCard: 'StyleCard',
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
-  VideoPipelineClip: 'VideoPipelineClip'
+  VideoPipelineClip: 'VideoPipelineClip',
+  LoraTrainingJob: 'LoraTrainingJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -520,6 +521,29 @@ export const VideoPipelineClipScalarFieldEnum = {
 } as const
 
 export type VideoPipelineClipScalarFieldEnum = (typeof VideoPipelineClipScalarFieldEnum)[keyof typeof VideoPipelineClipScalarFieldEnum]
+
+
+export const LoraTrainingJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  triggerWord: 'triggerWord',
+  loraType: 'loraType',
+  baseModel: 'baseModel',
+  trainingImageKeys: 'trainingImageKeys',
+  status: 'status',
+  externalTrainingId: 'externalTrainingId',
+  progress: 'progress',
+  errorMessage: 'errorMessage',
+  loraUrl: 'loraUrl',
+  loraStorageKey: 'loraStorageKey',
+  createdAt: 'createdAt',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  characterCardId: 'characterCardId'
+} as const
+
+export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
 
 
 export const SortOrder = {

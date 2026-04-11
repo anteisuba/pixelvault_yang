@@ -61,7 +61,11 @@
     "collectionUpdated": "コレクションを更新しました",
     "collectionUpdateFailed": "コレクションの更新に失敗しました",
     "collectionDeleted": "コレクションを削除しました",
-    "collectionDeleteFailed": "コレクションの削除に失敗しました"
+    "collectionDeleteFailed": "コレクションの削除に失敗しました",
+    "loraTrainingSubmitted": "LoRAトレーニングを開始しました",
+    "loraTrainingSubmitFailed": "LoRAトレーニングの開始に失敗しました",
+    "loraTrainingComplete": "LoRAトレーニング完了！モデルが使用可能です。",
+    "loraTrainingFailed": "LoRAトレーニングに失敗しました"
   },
   "Projects": {
     "title": "プロジェクト",
@@ -1862,5 +1866,35 @@
       "avatarTooLarge": "アバターは5MB以下にしてください。",
       "bannerTooLarge": "カバー画像は10MB以下にしてください。"
     }
+  },
+  "LoraTraining": {
+    "title": "LoRAトレーニング",
+    "description": "画像からカスタムLoRAモデルをトレーニングします。Replicate APIキーが必要です。",
+    "name": "モデル名",
+    "namePlaceholder": "例: マイキャラクター",
+    "triggerWord": "トリガーワード",
+    "triggerWordPlaceholder": "例: sks_character",
+    "triggerWordHint": "プロンプトでLoRAを有効にするユニークな単語",
+    "loraType": "トレーニングタイプ",
+    "subject": "サブジェクト（キャラクター/オブジェクト）",
+    "style": "スタイル（画風）",
+    "uploadImages": "トレーニング画像",
+    "uploadHint": "5〜50枚の画像をアップロード（推奨: 10〜20枚）",
+    "imageCount": "{count}枚",
+    "selectApiKey": "Replicate APIキー",
+    "noApiKey": "Replicate APIキーが未設定です",
+    "addApiKeyHint": "サイドバーでReplicate APIキーを追加してください",
+    "submit": "トレーニング開始",
+    "submitting": "送信中...",
+    "cost": "〜$1〜2/回",
+    "estimatedTime": "約2分",
+    "statusQueued": "キュー待ち",
+    "statusTraining": "トレーニング中...",
+    "statusCompleted": "完了",
+    "statusFailed": "失敗",
+    "statusCanceled": "キャンセル済み",
+    "viewJobs": "トレーニングジョブ",
+    "noJobs": "トレーニングジョブはまだありません",
+    "trainedLoraReady": "LoRA完成 — このキャラクターを選択して使用できます"
   }
 }

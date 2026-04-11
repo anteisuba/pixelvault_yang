@@ -469,3 +469,103 @@ export const replicateAdapter: ProviderAdapter = {
     }
   },
 }
+
+// ─── LoRA Training (standalone functions, not part of ProviderAdapter) ──
+
+const REPLICATE_TRAINING_SCHEMA = z.object({
+  id: z.string(),
+  status: z.enum(['starting', 'processing', 'succeeded', 'failed', 'canceled']),
+  output: z.unknown().optional(),
+  error: z.string().nullable().optional(),
+  logs: z.string().optional(),
+  metrics: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type ReplicateTrainingStatus = z.infer<
+  typeof REPLICATE_TRAINING_SCHEMA
+>['status']
+
+/**
+ * Submit a LoRA training job to Replicate's fast-flux-trainer.
+ * Returns the training ID for status polling.
+ */
+export async function submitReplicateLoraTraining(input: {
+  apiKey: string
+  inputImagesUrl: string
+  triggerWord: string
+  loraType: 'subject' | 'style'
+}): Promise<{ trainingId: string }> {
+  const baseUrl = AI_PROVIDER_ENDPOINTS.REPLICATE
+
+  // Use the latest version of fast-flux-trainer
+  const url = `${baseUrl}/models/replicate/fast-flux-trainer/trainings`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: {
+        input_images: input.inputImagesUrl,
+        trigger_word: input.triggerWord,
+        lora_type: input.loraType,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    logger.error('Replicate submitLoraTraining failed', {
+      status: response.status,
+      errorBody: errorBody.slice(0, 500),
+    })
+    throw new ProviderError('Replicate', response.status, errorBody)
+  }
+
+  const data = REPLICATE_TRAINING_SCHEMA.parse(await response.json())
+  return { trainingId: data.id }
+}
+
+/**
+ * Check status of a Replicate LoRA training job.
+ */
+export async function checkReplicateLoraTrainingStatus(input: {
+  apiKey: string
+  trainingId: string
+}): Promise<{
+  status: ReplicateTrainingStatus
+  loraUrl: string | null
+  error: string | null
+  logs: string | null
+}> {
+  const baseUrl = AI_PROVIDER_ENDPOINTS.REPLICATE
+
+  const url = `${baseUrl}/trainings/${input.trainingId}`
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${input.apiKey}` },
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError('Replicate', response.status, errorBody)
+  }
+
+  const data = REPLICATE_TRAINING_SCHEMA.parse(await response.json())
+
+  // Extract LoRA weights URL from output
+  let loraUrl: string | null = null
+  if (data.status === 'succeeded' && data.output) {
+    const output = data.output as Record<string, unknown>
+    loraUrl = (output.weights as string) ?? (output.version as string) ?? null
+  }
+
+  return {
+    status: data.status,
+    loraUrl,
+    error: data.error ?? null,
+    logs: data.logs ?? null,
+  }
+}

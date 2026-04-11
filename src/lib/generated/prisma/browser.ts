@@ -137,3 +137,8 @@ export type VideoPipeline = Prisma.VideoPipelineModel
  * 
  */
 export type VideoPipelineClip = Prisma.VideoPipelineClipModel
+/**
+ * Model LoraTrainingJob
+ * 
+ */
+export type LoraTrainingJob = Prisma.LoraTrainingJobModel

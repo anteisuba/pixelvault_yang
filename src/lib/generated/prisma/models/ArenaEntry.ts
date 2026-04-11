@@ -199,7 +199,7 @@ export type ArenaEntryGroupByOutputType = {
   _max: ArenaEntryMaxAggregateOutputType | null
 }
 
-type GetArenaEntryGroupByPayload<T extends ArenaEntryGroupByArgs> = Prisma.PrismaPromise<
+export type GetArenaEntryGroupByPayload<T extends ArenaEntryGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<ArenaEntryGroupByOutputType, T['by']> &
       {
@@ -1333,6 +1333,11 @@ export type ArenaEntryFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` ArenaEntries.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ArenaEntries.
+   */
   distinct?: Prisma.ArenaEntryScalarFieldEnum | Prisma.ArenaEntryScalarFieldEnum[]
 }
 

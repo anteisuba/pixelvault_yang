@@ -35,6 +35,14 @@ enum CharacterCardStatus {
   ARCHIVED
 }
 
+enum LoraTrainingStatus {
+  QUEUED
+  TRAINING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
 enum VideoPipelineStatus {
   RUNNING
   PAUSED
@@ -85,7 +93,8 @@ model User {
   backgroundCards BackgroundCard[]
   styleCards      StyleCard[]
   cardRecipes     CardRecipe[]
-  videoPipelines  VideoPipeline[]
+  videoPipelines      VideoPipeline[]
+  loraTrainingJobs    LoraTrainingJob[]
 
   @@index([username])
 }
@@ -395,7 +404,8 @@ model CharacterCard {
 
   generations     Generation[]
   generationLinks GenerationCharacterCard[]
-  recipesAsChar   CardRecipe[]  @relation("RecipeCharacter")
+  recipesAsChar      CardRecipe[]  @relation("RecipeCharacter")
+  loraTrainingJobs   LoraTrainingJob[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, status, isDeleted])
@@ -624,4 +634,31 @@ model VideoPipelineClip {
   @@unique([pipelineId, clipIndex])
   @@index([pipelineId, clipIndex])
   @@index([status, createdAt(sort: Desc)])
+}
+
+// ─── LoRA Training ────────────────────────────────────────────────
+
+model LoraTrainingJob {
+  id                 String             @id @default(uuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  triggerWord        String
+  loraType           String             @default("subject") // "subject" | "style"
+  baseModel          String             @default("flux-dev")
+  trainingImageKeys  String[]                                // R2 storage keys
+  status             LoraTrainingStatus @default(QUEUED)
+  externalTrainingId String?                                 // Replicate training ID
+  progress           Float              @default(0)          // 0-1
+  errorMessage       String?            @db.Text
+  loraUrl            String?                                 // Trained LoRA URL
+  loraStorageKey     String?                                 // R2 backup key
+  createdAt          DateTime           @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+
+  characterCardId    String?
+  characterCard      CharacterCard?     @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, createdAt(sort: Desc)])
 }

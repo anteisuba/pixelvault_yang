@@ -289,7 +289,7 @@ export type ApiUsageLedgerGroupByOutputType = {
   _max: ApiUsageLedgerMaxAggregateOutputType | null
 }
 
-type GetApiUsageLedgerGroupByPayload<T extends ApiUsageLedgerGroupByArgs> = Prisma.PrismaPromise<
+export type GetApiUsageLedgerGroupByPayload<T extends ApiUsageLedgerGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<ApiUsageLedgerGroupByOutputType, T['by']> &
       {
@@ -1961,6 +1961,11 @@ export type ApiUsageLedgerFindManyArgs<ExtArgs extends runtime.Types.Extensions.
    * Skip the first `n` ApiUsageLedgers.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ApiUsageLedgers.
+   */
   distinct?: Prisma.ApiUsageLedgerScalarFieldEnum | Prisma.ApiUsageLedgerScalarFieldEnum[]
 }
 

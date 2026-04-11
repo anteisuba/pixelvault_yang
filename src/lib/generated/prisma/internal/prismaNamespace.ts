@@ -80,12 +80,12 @@ export type PrismaVersion = {
 }
 
 /**
- * Prisma Client JS version: 7.4.0
- * Query Engine version: ab56fe763f921d033a6c195e7ddeb3e255bdbb57
+ * Prisma Client JS version: 7.7.0
+ * Query Engine version: 75cbdc1eb7150937890ad5465d861175c6624711
  */
 export const prismaVersion: PrismaVersion = {
-  client: "7.4.0",
-  engine: "ab56fe763f921d033a6c195e7ddeb3e255bdbb57"
+  client: "7.7.0",
+  engine: "75cbdc1eb7150937890ad5465d861175c6624711"
 }
 
 /**
@@ -407,7 +407,8 @@ export const ModelName = {
   StyleCard: 'StyleCard',
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
-  VideoPipelineClip: 'VideoPipelineClip'
+  VideoPipelineClip: 'VideoPipelineClip',
+  LoraTrainingJob: 'LoraTrainingJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2203,6 +2204,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    LoraTrainingJob: {
+      payload: Prisma.$LoraTrainingJobPayload<ExtArgs>
+      fields: Prisma.LoraTrainingJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.LoraTrainingJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.LoraTrainingJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        findFirst: {
+          args: Prisma.LoraTrainingJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.LoraTrainingJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        findMany: {
+          args: Prisma.LoraTrainingJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>[]
+        }
+        create: {
+          args: Prisma.LoraTrainingJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        createMany: {
+          args: Prisma.LoraTrainingJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.LoraTrainingJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>[]
+        }
+        delete: {
+          args: Prisma.LoraTrainingJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        update: {
+          args: Prisma.LoraTrainingJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.LoraTrainingJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.LoraTrainingJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.LoraTrainingJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.LoraTrainingJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraTrainingJobPayload>
+        }
+        aggregate: {
+          args: Prisma.LoraTrainingJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateLoraTrainingJob>
+        }
+        groupBy: {
+          args: Prisma.LoraTrainingJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LoraTrainingJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.LoraTrainingJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LoraTrainingJobCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2671,6 +2746,29 @@ export const VideoPipelineClipScalarFieldEnum = {
 export type VideoPipelineClipScalarFieldEnum = (typeof VideoPipelineClipScalarFieldEnum)[keyof typeof VideoPipelineClipScalarFieldEnum]
 
 
+export const LoraTrainingJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  triggerWord: 'triggerWord',
+  loraType: 'loraType',
+  baseModel: 'baseModel',
+  trainingImageKeys: 'trainingImageKeys',
+  status: 'status',
+  externalTrainingId: 'externalTrainingId',
+  progress: 'progress',
+  errorMessage: 'errorMessage',
+  loraUrl: 'loraUrl',
+  loraStorageKey: 'loraStorageKey',
+  createdAt: 'createdAt',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  characterCardId: 'characterCardId'
+} as const
+
+export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2899,6 +2997,20 @@ export type EnumPipelineClipStatusFieldRefInput<$PrismaModel> = FieldRefInputTyp
 export type ListEnumPipelineClipStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PipelineClipStatus[]'>
     
 
+
+/**
+ * Reference to a field of type 'LoraTrainingStatus'
+ */
+export type EnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoraTrainingStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'LoraTrainingStatus[]'
+ */
+export type ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoraTrainingStatus[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -3018,6 +3130,7 @@ export type GlobalOmitConfig = {
   cardRecipe?: Prisma.CardRecipeOmit
   videoPipeline?: Prisma.VideoPipelineOmit
   videoPipelineClip?: Prisma.VideoPipelineClipOmit
+  loraTrainingJob?: Prisma.LoraTrainingJobOmit
 }
 
 /* Types for Logging */

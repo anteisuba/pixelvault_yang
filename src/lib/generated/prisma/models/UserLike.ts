@@ -151,7 +151,7 @@ export type UserLikeGroupByOutputType = {
   _max: UserLikeMaxAggregateOutputType | null
 }
 
-type GetUserLikeGroupByPayload<T extends UserLikeGroupByArgs> = Prisma.PrismaPromise<
+export type GetUserLikeGroupByPayload<T extends UserLikeGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<UserLikeGroupByOutputType, T['by']> &
       {
@@ -1207,6 +1207,11 @@ export type UserLikeFindManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Skip the first `n` UserLikes.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of UserLikes.
+   */
   distinct?: Prisma.UserLikeScalarFieldEnum | Prisma.UserLikeScalarFieldEnum[]
 }
 

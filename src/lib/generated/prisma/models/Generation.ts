@@ -386,7 +386,7 @@ export type GenerationGroupByOutputType = {
   _max: GenerationMaxAggregateOutputType | null
 }
 
-type GetGenerationGroupByPayload<T extends GenerationGroupByArgs> = Prisma.PrismaPromise<
+export type GetGenerationGroupByPayload<T extends GenerationGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<GenerationGroupByOutputType, T['by']> &
       {
@@ -4816,6 +4816,11 @@ export type GenerationFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` Generations.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of Generations.
+   */
   distinct?: Prisma.GenerationScalarFieldEnum | Prisma.GenerationScalarFieldEnum[]
 }
 

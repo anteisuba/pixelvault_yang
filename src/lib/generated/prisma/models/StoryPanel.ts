@@ -213,7 +213,7 @@ export type StoryPanelGroupByOutputType = {
   _max: StoryPanelMaxAggregateOutputType | null
 }
 
-type GetStoryPanelGroupByPayload<T extends StoryPanelGroupByArgs> = Prisma.PrismaPromise<
+export type GetStoryPanelGroupByPayload<T extends StoryPanelGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<StoryPanelGroupByOutputType, T['by']> &
       {
@@ -1415,6 +1415,11 @@ export type StoryPanelFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` StoryPanels.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of StoryPanels.
+   */
   distinct?: Prisma.StoryPanelScalarFieldEnum | Prisma.StoryPanelScalarFieldEnum[]
 }
 

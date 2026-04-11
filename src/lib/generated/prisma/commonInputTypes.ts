@@ -487,6 +487,23 @@ export type EnumPipelineClipStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
 }
 
+export type EnumLoraTrainingStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel> | $Enums.LoraTrainingStatus
+}
+
+export type EnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel> | $Enums.LoraTrainingStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
+}
+
 export type NestedStringFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -895,6 +912,23 @@ export type NestedEnumPipelineClipStatusWithAggregatesFilter<$PrismaModel = neve
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumLoraTrainingStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel> | $Enums.LoraTrainingStatus
+}
+
+export type NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel> | $Enums.LoraTrainingStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
 }
 
 

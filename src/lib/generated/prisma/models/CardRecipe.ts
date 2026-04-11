@@ -200,7 +200,7 @@ export type CardRecipeGroupByOutputType = {
   _max: CardRecipeMaxAggregateOutputType | null
 }
 
-type GetCardRecipeGroupByPayload<T extends CardRecipeGroupByArgs> = Prisma.PrismaPromise<
+export type GetCardRecipeGroupByPayload<T extends CardRecipeGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<CardRecipeGroupByOutputType, T['by']> &
       {
@@ -2111,6 +2111,11 @@ export type CardRecipeFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Skip the first `n` CardRecipes.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of CardRecipes.
+   */
   distinct?: Prisma.CardRecipeScalarFieldEnum | Prisma.CardRecipeScalarFieldEnum[]
 }
 

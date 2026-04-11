@@ -486,6 +486,7 @@ export type CreateApiKeyRequest = z.infer<typeof CreateApiKeySchema>
 export const UpdateApiKeySchema = z.object({
   label: z.string().min(1).max(50).optional(),
   isActive: z.boolean().optional(),
+  keyValue: z.string().trim().min(10).optional(),
 })
 export type UpdateApiKeyRequest = z.infer<typeof UpdateApiKeySchema>
 

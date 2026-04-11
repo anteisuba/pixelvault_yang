@@ -183,19 +183,23 @@ export async function createApiKey(
 export async function updateApiKey(
   id: string,
   userId: string,
-  data: { label?: string; isActive?: boolean },
+  data: { label?: string; isActive?: boolean; keyValue?: string },
 ): Promise<UserApiKeyRecord> {
   const existing = await db.userApiKey.findUnique({ where: { id } })
   if (!existing || existing.userId !== userId) {
     throw new Error('API key not found or access denied')
   }
 
+  const updatePayload: Record<string, unknown> = {}
+  if (data.label !== undefined) updatePayload.label = data.label
+  if (data.isActive !== undefined) updatePayload.isActive = data.isActive
+  if (data.keyValue !== undefined) {
+    updatePayload.encryptedKey = encryptApiKey(data.keyValue)
+  }
+
   const updated = await db.userApiKey.update({
     where: { id },
-    data: {
-      ...(data.label !== undefined && { label: data.label }),
-      ...(data.isActive !== undefined && { isActive: data.isActive }),
-    },
+    data: updatePayload,
   })
 
   let maskedKey = '****'

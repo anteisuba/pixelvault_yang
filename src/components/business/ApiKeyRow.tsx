@@ -5,8 +5,11 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
+  Pencil,
   ShieldCheck,
   Trash2,
+  X,
+  Check,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -41,6 +44,17 @@ export function ApiKeyRow({
   const [isPending, setIsPending] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
+
+  const handleSaveKey = async () => {
+    if (!editValue.trim() || editValue.trim().length < 10) return
+    setIsPending(true)
+    await onToggle(record.id, { keyValue: editValue.trim() })
+    setIsPending(false)
+    setIsEditing(false)
+    setEditValue('')
+  }
 
   const handleToggle = async () => {
     setIsPending(true)
@@ -103,15 +117,66 @@ export function ApiKeyRow({
           </Badge>
           <ApiKeyHealthDot status={healthStatus} />
         </div>
-        <p className="font-mono text-xs text-muted-foreground">
-          {record.maskedKey}
-        </p>
+        {isEditing ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              placeholder={t('editKeyPlaceholder')}
+              className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 font-mono text-xs focus:border-primary/40 focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleSaveKey()
+                if (e.key === 'Escape') {
+                  setIsEditing(false)
+                  setEditValue('')
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSaveKey()}
+              disabled={isPending || editValue.trim().length < 10}
+              className="text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Check className="size-3.5" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditing(false)
+                setEditValue('')
+              }}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ) : (
+          <p className="font-mono text-xs text-muted-foreground">
+            {record.maskedKey}
+          </p>
+        )}
         <p className="truncate font-mono text-xs text-muted-foreground">
           {record.providerConfig.baseUrl}
         </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+          title={t('actions.editKey')}
+        >
+          <Pencil className="size-4" />
+        </button>
+
         <button
           type="button"
           onClick={handleVerify}

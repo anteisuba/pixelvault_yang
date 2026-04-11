@@ -497,8 +497,33 @@ export async function submitReplicateLoraTraining(input: {
 }): Promise<{ trainingId: string }> {
   const baseUrl = AI_PROVIDER_ENDPOINTS.REPLICATE
 
-  // Use the latest version of fast-flux-trainer
-  const url = `${baseUrl}/models/replicate/fast-flux-trainer/trainings`
+  // Step 1: Get latest version of fast-flux-trainer
+  const modelRes = await fetch(
+    `${baseUrl}/models/replicate/fast-flux-trainer`,
+    { headers: { Authorization: `Bearer ${input.apiKey}` } },
+  )
+  if (!modelRes.ok) {
+    const err = await modelRes.text().catch(() => 'Unknown error')
+    throw new ProviderError(
+      'Replicate',
+      modelRes.status,
+      `Failed to fetch trainer model: ${err}`,
+    )
+  }
+  const modelData = (await modelRes.json()) as {
+    latest_version?: { id?: string }
+  }
+  const versionId = modelData.latest_version?.id
+  if (!versionId) {
+    throw new ProviderError(
+      'Replicate',
+      500,
+      'Could not determine trainer version',
+    )
+  }
+
+  // Step 2: Submit training with version ID
+  const url = `${baseUrl}/models/replicate/fast-flux-trainer/versions/${versionId}/trainings`
 
   const response = await fetch(url, {
     method: 'POST',

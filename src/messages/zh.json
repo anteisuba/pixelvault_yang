@@ -1419,6 +1419,7 @@
     "variantLabel": "风格标签",
     "variantLabelPlaceholder": "例如：动漫风格、写实风格、Q版...",
     "addVariant": "添加变体",
+    "trainLora": "训练 LoRA",
     "variantsCount": "个变体",
     "save": "保存",
     "cancel": "取消",

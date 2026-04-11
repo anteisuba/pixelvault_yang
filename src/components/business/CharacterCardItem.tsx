@@ -10,6 +10,7 @@ import {
   Check,
   FolderPlus,
   Copy,
+  Sparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -22,6 +23,7 @@ import type {
 } from '@/types'
 import { CharacterCardCreateForm } from '@/components/business/CharacterCardCreateForm'
 import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
+import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { cn } from '@/lib/utils'
 
 // ─── Status Badge ──────────────────────────────────────────────
@@ -378,6 +380,18 @@ export function CharacterCardItem({
                 {t('addVariant')}
               </button>
             )}
+            <LoraTrainingDialog
+              characterCardId={card.id}
+              trigger={
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-md border border-chart-3/30 px-2.5 py-1 text-xs font-medium text-chart-3 transition-colors hover:bg-chart-3/5"
+                >
+                  <Sparkles className="size-3" />
+                  {t('trainLora')}
+                </button>
+              }
+            />
             {onDuplicateCard ? (
               <button
                 type="button"

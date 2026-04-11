@@ -1419,6 +1419,7 @@
     "variantLabel": "Style Label",
     "variantLabelPlaceholder": "e.g. Anime Style, Realistic, Chibi...",
     "addVariant": "Add Variant",
+    "trainLora": "Train LoRA",
     "variantsCount": "variants",
     "save": "Save",
     "cancel": "Cancel",

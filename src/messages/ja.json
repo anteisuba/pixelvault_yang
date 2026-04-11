@@ -1419,6 +1419,7 @@
     "variantLabel": "スタイルラベル",
     "variantLabelPlaceholder": "例：アニメ風、リアル風、ちび...",
     "addVariant": "バリアントを追加",
+    "trainLora": "LoRAトレーニング",
     "variantsCount": "{count}つのバリアント",
     "save": "保存",
     "cancel": "キャンセル",

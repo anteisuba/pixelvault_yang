@@ -170,7 +170,7 @@
 - [x] B2 — 状态补全+重试+快捷键 (合并 S4+Phase2+3)
 - [x] B3 — 卡片优化+历史元数据+Remix (合并 S5+Phase4)
 - [ ] B4 — 多模型对比生成 (共享并发服务)
-- [ ] B5 — 批量变体 4选1
+- [x] B5 — 批量变体 4选1 (Split Button + VariantGrid 2x2 + winner selection)
 - [x] B6 — 智能 Prompt (维度提取+模型感知增强+风格渗透)
 - [ ] B7 — 动效+无障碍
 

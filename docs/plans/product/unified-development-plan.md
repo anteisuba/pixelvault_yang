@@ -295,12 +295,17 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B5 — 批量变体 4选1
 
-**状态:** 未开始
+**状态:** 已完成 ✅
 
-- 2x2 网格，同模型不同 seed
-- 复用 parallel-generate 服务
-- runGroupType = 'variant'
-- 配额消耗 4 次
+- 2x2 网格，同模型 4 种随机 seed，Promise.allSettled 并行生成 ✅
+- StudioGenerateSchema 扩展: seed/runGroupId/runGroupType/runGroupIndex ✅
+- selectVariantWinner 事务: 重置组内所有 → 标记选中项 ✅
+- VariantGrid 组件: 2x2 响应式网格 + 选中高亮 + hover 按钮 ✅
+- StudioCanvas 条件渲染: variant mode → VariantGrid ✅
+- Split Button UI: Generate 按钮旁下拉菜单选择"4 Variants" ✅
+- 快捷键: Ctrl/⌘+Shift+Enter 触发变体模式 ✅
+- POST /api/studio/select-winner 路由 + 4 个测试 ✅
+- i18n 三语言同步 (en/ja/zh) ✅
 
 ---
 
@@ -395,7 +400,7 @@ Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ✅ 已完成
 
 ```
 Week 6:    B6 智能Prompt（维度提取+模型感知增强+风格渗透） ✅ 已完成
-Week 7:    B5 变体4选1（同模型4种子 2x2 grid）
+Week 7:    B5 变体4选1（同模型4种子 2x2 grid） ✅ 已完成
 Week 8-9:  B4 多模型对比（提取 parallel-generate，2-3 模型并排）
 Week 9-11: C3 图片编辑（Kontext 指令编辑 + 外扩 + 局部重绘）
 Week 11+:  B7 动效 → C2 系列 → C1 Storyboard → C4 漫画

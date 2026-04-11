@@ -646,7 +646,8 @@
       "modelCount": "models",
       "viewByProvider": "By provider",
       "viewByStyle": "By style",
-      "searchPlaceholder": "Search models..."
+      "searchPlaceholder": "Search models...",
+      "modelsSelected": "{count}/{max} selected"
     }
   },
   "StudioApiKeys": {
@@ -1629,6 +1630,9 @@
     "variantGenerating": "Generating {count} variants...",
     "variantSuccess": "Variants generated!",
     "variantCredits": "Uses {count} credits",
+    "compareGenerate": "Compare Models",
+    "compareSuccess": "Comparison generated!",
+    "compareSelectModels": "Select 2-3 models to compare",
     "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",

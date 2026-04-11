@@ -5,6 +5,7 @@ import { Check, ChevronDown, Gift, KeyRound, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
+import { COMPARE_MAX_MODELS } from '@/constants/studio'
 import {
   getModelById,
   getModelMessageKey,
@@ -42,6 +43,14 @@ interface ModelSelectorProps {
   value: string
   onChange: (value: string) => void
   options: StudioModelOption[]
+  /** B4: Enable multi-select mode for compare generation */
+  multiSelect?: boolean
+  /** B4: Selected option IDs in multi-select mode */
+  selectedValues?: Set<string>
+  /** B4: Toggle callback for multi-select mode */
+  onMultiChange?: (optionId: string) => void
+  /** B4: Maximum selections allowed in multi-select mode */
+  maxSelections?: number
 }
 
 function getOptionMessageId(modelId: string): string {
@@ -109,6 +118,10 @@ export function ModelSelector({
   value,
   onChange,
   options,
+  multiSelect = false,
+  selectedValues,
+  onMultiChange,
+  maxSelections,
 }: ModelSelectorProps) {
   const t = useTranslations('StudioForm.modelSelector')
   const tCommon = useTranslations('Common')
@@ -261,22 +274,35 @@ export function ModelSelector({
 
               {!isCollapsed &&
                 groupOptions.map((option) => {
-                  const isSelected = option.optionId === value
+                  const isSelected = multiSelect
+                    ? (selectedValues?.has(option.optionId) ?? false)
+                    : option.optionId === value
                   const isFree =
                     option.freeTier && option.sourceType === 'workspace'
                   const isSaved = option.sourceType === 'saved'
                   const description = getModelDescription(option, tModels)
+                  const atMax =
+                    multiSelect &&
+                    maxSelections != null &&
+                    (selectedValues?.size ?? 0) >= maxSelections &&
+                    !isSelected
 
                   return (
                     <button
                       key={option.optionId}
-                      ref={isSelected ? selectedRef : undefined}
+                      ref={isSelected && !multiSelect ? selectedRef : undefined}
                       type="button"
-                      role="radio"
+                      role={multiSelect ? 'checkbox' : 'radio'}
                       aria-checked={isSelected ? 'true' : 'false'}
-                      onClick={() => onChange(option.optionId)}
+                      disabled={atMax}
+                      onClick={() =>
+                        multiSelect
+                          ? onMultiChange?.(option.optionId)
+                          : onChange(option.optionId)
+                      }
                       className={cn(
                         'group relative flex w-full scroll-mt-3 scroll-mb-3 items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all',
+                        atMax && 'opacity-40 cursor-not-allowed',
                         isSelected
                           ? 'border-primary/40 bg-primary/5 shadow-sm shadow-primary/8'
                           : 'border-border/50 bg-background/50 hover:border-primary/20 hover:bg-primary/3',
@@ -285,7 +311,8 @@ export function ModelSelector({
                       {/* Selection indicator */}
                       <div
                         className={cn(
-                          'flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                          'flex size-5 shrink-0 items-center justify-center border transition-colors',
+                          multiSelect ? 'rounded-md' : 'rounded-full',
                           isSelected
                             ? 'border-primary bg-primary text-primary-foreground'
                             : 'border-border/70 bg-background/80 group-hover:border-primary/30',
@@ -355,6 +382,18 @@ export function ModelSelector({
           )
         })}
       </div>
+
+      {/* B4: Multi-select count indicator */}
+      {multiSelect && selectedValues && (
+        <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/20 px-4 py-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            {t('modelsSelected', {
+              count: selectedValues.size,
+              max: maxSelections ?? COMPARE_MAX_MODELS,
+            })}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

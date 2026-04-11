@@ -1,10 +1,20 @@
 'use client'
 
-import { memo, useCallback, useRef, useEffect } from 'react'
-import { ChevronDown, Dices, Sparkles, Loader2 } from 'lucide-react'
+import { memo, useCallback, useRef, useEffect, useState } from 'react'
+import {
+  ChevronDown,
+  Dices,
+  GitCompareArrows,
+  Sparkles,
+  Loader2,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { STUDIO_PROMPT_TEXTAREA_ID, VARIANT_COUNT } from '@/constants/studio'
+import {
+  STUDIO_PROMPT_TEXTAREA_ID,
+  VARIANT_COUNT,
+  COMPARE_MAX_MODELS,
+} from '@/constants/studio'
 import {
   useStudioForm,
   useStudioData,
@@ -28,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ModelSelector } from '@/components/business/ModelSelector'
 
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
@@ -44,9 +55,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
-  const { selectedModel: imageModel } = useImageModelOptions()
+  const { selectedModel: imageModel, modelOptions } = useImageModelOptions()
   const { selectedModel: audioModel } = useAudioModelOptions()
   const selectedModel = isAudioMode ? audioModel : imageModel
+
+  // B4: Compare mode state
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSelectedIds, setCompareSelectedIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const toggleCompareModel = useCallback((optionId: string) => {
+    setCompareSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(optionId)) {
+        next.delete(optionId)
+      } else {
+        next.add(optionId)
+      }
+      return next
+    })
+  }, [])
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -163,6 +191,23 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     await generate({ mode: 'image', image, runMode: 'variant' })
   }, [canGenerate, buildImageInput, generate])
 
+  const handleGenerateCompare = useCallback(async () => {
+    if (compareSelectedIds.size < 2) return
+    const image = buildImageInput()
+    if (!image) return
+    const compareModels = modelOptions
+      .filter((o) => compareSelectedIds.has(o.optionId))
+      .map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
+    setCompareMode(false)
+    setCompareSelectedIds(new Set())
+    await generate({ mode: 'image', image, runMode: 'compare', compareModels })
+  }, [compareSelectedIds, buildImageInput, modelOptions, generate])
+
+  const handleEnterCompareMode = useCallback(() => {
+    setCompareMode(true)
+    setCompareSelectedIds(new Set())
+  }, [])
+
   useStudioShortcuts({
     onGenerate: () => {
       void handleGenerate()
@@ -183,108 +228,159 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       : t('freePromptPlaceholder')
 
   return (
-    <PromptInput
-      isLoading={isGenerating}
-      value={state.prompt}
-      onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-      maxHeight={320}
-      onSubmit={handleGenerate}
-      disabled={isGenerating}
-      className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
-    >
-      <PromptInputTextarea
-        id={STUDIO_PROMPT_TEXTAREA_ID}
-        aria-label={tForm('promptLabel')}
-        placeholder={placeholder}
-        className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
-      />
-      <PromptInputActions className="justify-between px-2 pb-2">
-        {/* Contextual hint */}
-        <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
-          {!canGenerate && !isGenerating
-            ? state.workflowMode === 'quick' && !selectedModel?.modelId
-              ? t('noModelHint')
-              : state.workflowMode === 'quick' && !state.prompt.trim()
-                ? tV3('generateShortcutHint')
-                : null
-            : null}
-        </span>
+    <>
+      <PromptInput
+        isLoading={isGenerating}
+        value={state.prompt}
+        onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+        maxHeight={320}
+        onSubmit={handleGenerate}
+        disabled={isGenerating}
+        className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+      >
+        <PromptInputTextarea
+          id={STUDIO_PROMPT_TEXTAREA_ID}
+          aria-label={tForm('promptLabel')}
+          placeholder={placeholder}
+          className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
+        />
+        <PromptInputActions className="justify-between px-2 pb-2">
+          {/* Contextual hint */}
+          <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
+            {!canGenerate && !isGenerating
+              ? state.workflowMode === 'quick' && !selectedModel?.modelId
+                ? t('noModelHint')
+                : state.workflowMode === 'quick' && !state.prompt.trim()
+                  ? tV3('generateShortcutHint')
+                  : null
+              : null}
+          </span>
 
-        {/* Generate split button + variant dropdown (hidden in audio mode) */}
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isGenerating || !canGenerate}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
-              'transition-all duration-200',
-              isAudioMode ? 'rounded-xl' : 'rounded-l-xl',
-              canGenerate && !isGenerating
-                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
-                : isGenerating
-                  ? 'bg-primary text-primary-foreground studio-generating'
-                  : 'bg-muted text-muted-foreground cursor-not-allowed',
-            )}
-            style={{
-              transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            }}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>{t('generating')}</span>
-                {elapsedSeconds > 0 && (
-                  <span className="text-2xs opacity-70 tabular-nums">
-                    {elapsedSeconds}s
-                  </span>
-                )}
-              </>
-            ) : (
-              <>
-                <Sparkles className="size-4" />
-                <span>{t('generate')}</span>
-              </>
-            )}
-          </button>
-          {!isAudioMode && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  disabled={isGenerating || !canGenerate}
-                  className={cn(
-                    'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
-                    'transition-all duration-200',
-                    canGenerate && !isGenerating
-                      ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed',
+          {/* Generate split button + variant dropdown (hidden in audio mode) */}
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={isGenerating || !canGenerate}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
+                'transition-all duration-200',
+                isAudioMode ? 'rounded-xl' : 'rounded-l-xl',
+                canGenerate && !isGenerating
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
+                  : isGenerating
+                    ? 'bg-primary text-primary-foreground studio-generating'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed',
+              )}
+              style={{
+                transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>{t('generating')}</span>
+                  {elapsedSeconds > 0 && (
+                    <span className="text-2xs opacity-70 tabular-nums">
+                      {elapsedSeconds}s
+                    </span>
                   )}
-                >
-                  <ChevronDown className="size-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem onClick={handleGenerate}>
+                </>
+              ) : (
+                <>
                   <Sparkles className="size-4" />
                   <span>{t('generate')}</span>
-                  <span className="ml-auto text-2xs text-muted-foreground">
-                    1 credit
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleGenerateVariants}>
-                  <Dices className="size-4" />
-                  <span>{t('variantGenerate')}</span>
-                  <span className="ml-auto text-2xs text-muted-foreground">
-                    {t('variantCredits', { count: VARIANT_COUNT })}
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                </>
+              )}
+            </button>
+            {!isAudioMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isGenerating || !canGenerate}
+                    className={cn(
+                      'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
+                      'transition-all duration-200',
+                      canGenerate && !isGenerating
+                        ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
+                        : 'bg-muted text-muted-foreground cursor-not-allowed',
+                    )}
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  <DropdownMenuItem onClick={handleGenerate}>
+                    <Sparkles className="size-4" />
+                    <span>{t('generate')}</span>
+                    <span className="ml-auto text-2xs text-muted-foreground">
+                      1 credit
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleGenerateVariants}>
+                    <Dices className="size-4" />
+                    <span>{t('variantGenerate')}</span>
+                    <span className="ml-auto text-2xs text-muted-foreground">
+                      {t('variantCredits', { count: VARIANT_COUNT })}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleEnterCompareMode}>
+                    <GitCompareArrows className="size-4" />
+                    <span>{t('compareGenerate')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </PromptInputActions>
+      </PromptInput>
+
+      {/* B4: Compare mode — inline model multi-select */}
+      {compareMode && !isAudioMode && (
+        <div className="mt-2 rounded-xl border border-primary/20 bg-primary/3 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">
+              {t('compareSelectModels')}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setCompareMode(false)
+                setCompareSelectedIds(new Set())
+              }}
+              className="text-2xs text-muted-foreground hover:text-foreground"
+            >
+              {t('cancel')}
+            </button>
+          </div>
+          <ModelSelector
+            value=""
+            onChange={() => {}}
+            options={modelOptions}
+            multiSelect
+            selectedValues={compareSelectedIds}
+            onMultiChange={toggleCompareModel}
+            maxSelections={COMPARE_MAX_MODELS}
+          />
+          <button
+            type="button"
+            onClick={() => void handleGenerateCompare()}
+            disabled={compareSelectedIds.size < 2 || isGenerating}
+            className={cn(
+              'mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-all',
+              compareSelectedIds.size >= 2 && !isGenerating
+                ? 'bg-primary text-primary-foreground shadow-sm hover:shadow-md active:scale-[0.97]'
+                : 'bg-muted text-muted-foreground cursor-not-allowed',
+            )}
+          >
+            <GitCompareArrows className="size-4" />
+            {t('compareGenerate')} ({compareSelectedIds.size})
+          </button>
         </div>
-      </PromptInputActions>
-    </PromptInput>
+      )}
+    </>
   )
 })

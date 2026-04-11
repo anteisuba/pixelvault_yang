@@ -646,7 +646,8 @@
       "modelCount": "个模型",
       "viewByProvider": "按提供商",
       "viewByStyle": "按风格",
-      "searchPlaceholder": "搜索模型..."
+      "searchPlaceholder": "搜索模型...",
+      "modelsSelected": "已选 {count}/{max}"
     }
   },
   "StudioApiKeys": {
@@ -1629,6 +1630,9 @@
     "variantGenerating": "正在生成 {count} 个变体...",
     "variantSuccess": "变体已生成！",
     "variantCredits": "消耗 {count} 积分",
+    "compareGenerate": "对比模型",
+    "compareSuccess": "对比已生成！",
+    "compareSelectModels": "选择 2-3 个模型进行对比",
     "aspectRatioLabel": "宽高比",
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",

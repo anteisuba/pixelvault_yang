@@ -646,7 +646,8 @@
       "modelCount": "モデル",
       "viewByProvider": "プロバイダー別",
       "viewByStyle": "スタイル別",
-      "searchPlaceholder": "モデルを検索..."
+      "searchPlaceholder": "モデルを検索...",
+      "modelsSelected": "{count}/{max} 選択済み"
     }
   },
   "StudioApiKeys": {
@@ -1622,6 +1623,9 @@
     "variantGenerating": "{count}個のバリアントを生成中...",
     "variantSuccess": "バリアントが生成されました！",
     "variantCredits": "{count}クレジット使用",
+    "compareGenerate": "モデル比較",
+    "compareSuccess": "比較が生成されました！",
+    "compareSelectModels": "比較する2〜3つのモデルを選択",
     "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",

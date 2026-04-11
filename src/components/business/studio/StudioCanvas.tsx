@@ -15,6 +15,7 @@ import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
+import { CompareGrid } from './CompareGrid'
 import { GenerationPreview } from './GenerationPreview'
 import { VariantGrid } from './VariantGrid'
 
@@ -99,7 +100,13 @@ export const StudioCanvas = memo(function StudioCanvas() {
       )}
     >
       <div className="mx-auto w-full max-w-5xl">
-        {activeRun?.mode === 'variant' ? (
+        {activeRun?.mode === 'compare' ? (
+          <CompareGrid
+            items={activeRun.items}
+            selectedItemId={activeRun.selectedItemId}
+            onSelect={selectWinner}
+          />
+        ) : activeRun?.mode === 'variant' ? (
           <VariantGrid
             items={activeRun.items}
             selectedItemId={activeRun.selectedItemId}

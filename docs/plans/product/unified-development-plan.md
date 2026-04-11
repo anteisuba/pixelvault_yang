@@ -280,16 +280,15 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B4 — 多模型对比生成
 
-**状态:** 未开始
+**状态:** 已完成 ✅
 
-- 共享并发服务: `parallel-generate.service.ts`（从 Arena 提取，Arena + Studio 共用）
-- 中心区 2-3 模型并排展示
-- ActiveRun items[] 支持局部完成
-- 配额提示 "本次消耗 N 次"
-- isWinner 标记
-- API schema 扩展: `mode: 'compare'` + `modelIds[]`
-
-**验证:** parallel-generate service test + API schema test + 并排 UI
+- CompareGrid 组件: 动态 2-3 列网格 + 模型名 badge + 选中高亮 ✅
+- ModelSelector 多选模式: checkbox 样式 + maxSelections 限制 + 计数器 ✅
+- generateCompare hook: Promise.allSettled 并行生成 N 个模型 ✅
+- StudioPromptArea: dropdown 入口 "Compare Models" + 内联 ModelSelector 面板 ✅
+- StudioCanvas: compare mode → CompareGrid 条件渲染 ✅
+- selectWinner 复用 B5 事务（同时支持 variant + compare） ✅
+- i18n 三语言同步 ✅
 
 ---
 
@@ -401,7 +400,7 @@ Week 5-6:  B3 (合并 S5+Phase4: 卡片优化/Remix/元数据) ✅ 已完成
 ```
 Week 6:    B6 智能Prompt（维度提取+模型感知增强+风格渗透） ✅ 已完成
 Week 7:    B5 变体4选1（同模型4种子 2x2 grid） ✅ 已完成
-Week 8-9:  B4 多模型对比（提取 parallel-generate，2-3 模型并排）
+Week 8-9:  B4 多模型对比（CompareGrid + ModelSelector 多选） ✅ 已完成
 Week 9-11: C3 图片编辑（Kontext 指令编辑 + 外扩 + 局部重绘）
 Week 11+:  B7 动效 → C2 系列 → C1 Storyboard → C4 漫画
 ```

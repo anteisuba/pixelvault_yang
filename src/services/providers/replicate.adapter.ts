@@ -494,8 +494,29 @@ export async function submitReplicateLoraTraining(input: {
   inputImagesUrl: string
   triggerWord: string
   loraType: 'subject' | 'style'
+  destinationOwner?: string
 }): Promise<{ trainingId: string }> {
   const baseUrl = AI_PROVIDER_ENDPOINTS.REPLICATE
+
+  // Step 0: Get the Replicate account username for destination
+  let owner = input.destinationOwner
+  if (!owner) {
+    const accountRes = await fetch(`${baseUrl}/../account`, {
+      headers: { Authorization: `Bearer ${input.apiKey}` },
+    })
+    if (accountRes.ok) {
+      const accountData = (await accountRes.json()) as { username?: string }
+      owner = accountData.username
+    }
+    if (!owner) {
+      // Fallback: use trigger word slug as owner won't work, but we need something
+      throw new ProviderError(
+        'Replicate',
+        400,
+        'Could not determine Replicate username. Check your API key.',
+      )
+    }
+  }
 
   // Step 1: Get latest version of fast-flux-trainer
   const modelRes = await fetch(
@@ -532,6 +553,7 @@ export async function submitReplicateLoraTraining(input: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      destination: `${owner}/lora-${input.triggerWord.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`,
       input: {
         input_images: input.inputImagesUrl,
         trigger_word: input.triggerWord,

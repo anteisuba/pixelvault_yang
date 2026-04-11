@@ -557,7 +557,7 @@ export async function submitReplicateLoraTraining(input: {
       owner,
       name: destName,
       visibility: 'private',
-      hardware: 'gpu-t4-nano',
+      hardware: 'cpu',
       description: `LoRA trained via PixelVault (trigger: ${input.triggerWord})`,
     }),
   })

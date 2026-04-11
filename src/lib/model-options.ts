@@ -9,11 +9,10 @@ import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
 const API_KEY_HEALTH_PRIORITY: Record<ApiKeyHealthStatus, number> = {
   available: 0,
+  unknown: 1,
   no_key: 2,
   failed: 3,
 }
-
-const UNKNOWN_API_KEY_HEALTH_PRIORITY = 1
 
 /**
  * Build saved model options from user's active API keys.
@@ -49,13 +48,13 @@ export function sortSavedModelOptionsByHealth(
 ): StudioModelOption[] {
   const getHealthPriority = (keyId?: string): number => {
     if (!keyId) {
-      return UNKNOWN_API_KEY_HEALTH_PRIORITY
+      return API_KEY_HEALTH_PRIORITY.unknown
     }
 
     const healthStatus = healthMap[keyId]
     return healthStatus != null
       ? API_KEY_HEALTH_PRIORITY[healthStatus]
-      : UNKNOWN_API_KEY_HEALTH_PRIORITY
+      : API_KEY_HEALTH_PRIORITY.unknown
   }
 
   return [...savedOptions].sort((left, right) => {

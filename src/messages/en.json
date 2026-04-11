@@ -691,6 +691,10 @@
       "volcengine": {
         "label": "VolcEngine",
         "description": "Use VolcEngine (火山方舟) for ByteDance Seedream image and Seedance video models."
+      },
+      "fish_audio": {
+        "label": "Fish Audio",
+        "description": "Use Fish Audio for high-quality text-to-speech with 30+ language voice cloning."
       }
     },
     "summary": {

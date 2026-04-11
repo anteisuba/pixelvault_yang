@@ -691,6 +691,10 @@
       "volcengine": {
         "label": "VolcEngine",
         "description": "火山方舟で ByteDance Seedream 画像モデルと Seedance 動画モデルを使用。"
+      },
+      "fish_audio": {
+        "label": "Fish Audio",
+        "description": "Fish Audio で高品質なテキスト読み上げを使用。30以上の言語で音声クローニング対応。"
       }
     },
     "summary": {

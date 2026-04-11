@@ -691,6 +691,10 @@
       "volcengine": {
         "label": "火山引擎",
         "description": "使用火山方舟的字节跳动 Seedream 图像和 Seedance 视频模型。"
+      },
+      "fish_audio": {
+        "label": "Fish Audio",
+        "description": "使用 Fish Audio 进行高质量文字转语音，支持 30+ 语言声音克隆。"
       }
     },
     "summary": {

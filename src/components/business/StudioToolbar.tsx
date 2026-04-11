@@ -8,6 +8,7 @@ import {
   Key,
   Layers,
   RatioIcon,
+  Cpu,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -19,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 
 interface StudioToolbarProps {
   onEnhance?: () => void
@@ -159,6 +161,23 @@ export function StudioToolbar({
           onClick={onCivitaiToken}
           active={hasToken}
           disabled={disabled}
+        />
+        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
+        <LoraTrainingDialog
+          trigger={
+            <Toolbar.Button
+              type="button"
+              disabled={disabled}
+              className={cn(
+                'relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-200',
+                'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+                'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+              )}
+            >
+              <Cpu className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Train LoRA</span>
+            </Toolbar.Button>
+          }
         />
       </Toolbar.Root>
     </TooltipProvider>

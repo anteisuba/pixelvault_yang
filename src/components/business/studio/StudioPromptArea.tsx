@@ -11,6 +11,8 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
+import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { cn } from '@/lib/utils'
@@ -41,7 +43,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tForm = useTranslations('StudioForm')
 
   const selectedStyleCard = styles.activeCard
-  const { selectedModel } = useImageModelOptions()
+  const isAudioMode = state.outputType === 'audio'
+  const { selectedModel: imageModel } = useImageModelOptions()
+  const { selectedModel: audioModel } = useAudioModelOptions()
+  const selectedModel = isAudioMode ? audioModel : imageModel
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -128,10 +133,28 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return
+    if (isAudioMode && selectedModel) {
+      await generate({
+        mode: 'audio',
+        audio: {
+          modelId: selectedModel.modelId,
+          apiKeyId: selectedModel.keyId,
+          freePrompt: state.prompt || undefined,
+        },
+      })
+      return
+    }
     const image = buildImageInput()
     if (!image) return
     await generate({ mode: 'image', image })
-  }, [canGenerate, buildImageInput, generate])
+  }, [
+    canGenerate,
+    isAudioMode,
+    selectedModel,
+    state.prompt,
+    buildImageInput,
+    generate,
+  ])
 
   const handleGenerateVariants = useCallback(async () => {
     if (!canGenerate) return
@@ -149,10 +172,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     },
   })
 
-  const placeholder =
-    state.workflowMode === 'card' &&
-    selectedStyleCard?.modelId &&
-    modelSupportsLora(selectedStyleCard.modelId)
+  const tStudio = useTranslations('StudioPage')
+
+  const placeholder = isAudioMode
+    ? tStudio('audioPlaceholder')
+    : state.workflowMode === 'card' &&
+        selectedStyleCard?.modelId &&
+        modelSupportsLora(selectedStyleCard.modelId)
       ? t('freePromptPlaceholderLora')
       : t('freePromptPlaceholder')
 
@@ -184,15 +210,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             : null}
         </span>
 
-        {/* Generate split button + variant dropdown */}
+        {/* Generate split button + variant dropdown (hidden in audio mode) */}
         <div className="flex items-center">
           <button
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating || !canGenerate}
             className={cn(
-              'flex items-center gap-1.5 rounded-l-xl px-4 py-2 text-sm font-medium',
+              'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
               'transition-all duration-200',
+              isAudioMode ? 'rounded-xl' : 'rounded-l-xl',
               canGenerate && !isGenerating
                 ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
                 : isGenerating
@@ -220,40 +247,42 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               </>
             )}
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                disabled={isGenerating || !canGenerate}
-                className={cn(
-                  'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
-                  'transition-all duration-200',
-                  canGenerate && !isGenerating
-                    ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed',
-                )}
-              >
-                <ChevronDown className="size-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-48">
-              <DropdownMenuItem onClick={handleGenerate}>
-                <Sparkles className="size-4" />
-                <span>{t('generate')}</span>
-                <span className="ml-auto text-2xs text-muted-foreground">
-                  1 credit
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleGenerateVariants}>
-                <Dices className="size-4" />
-                <span>{t('variantGenerate')}</span>
-                <span className="ml-auto text-2xs text-muted-foreground">
-                  {t('variantCredits', { count: VARIANT_COUNT })}
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isAudioMode && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isGenerating || !canGenerate}
+                  className={cn(
+                    'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
+                    'transition-all duration-200',
+                    canGenerate && !isGenerating
+                      ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed',
+                  )}
+                >
+                  <ChevronDown className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuItem onClick={handleGenerate}>
+                  <Sparkles className="size-4" />
+                  <span>{t('generate')}</span>
+                  <span className="ml-auto text-2xs text-muted-foreground">
+                    1 credit
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleGenerateVariants}>
+                  <Dices className="size-4" />
+                  <span>{t('variantGenerate')}</span>
+                  <span className="ml-auto text-2xs text-muted-foreground">
+                    {t('variantCredits', { count: VARIANT_COUNT })}
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </PromptInputActions>
     </PromptInput>

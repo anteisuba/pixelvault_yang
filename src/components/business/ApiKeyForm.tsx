@@ -75,8 +75,10 @@ function validateKeyFormat(
       // VolcEngine ARK API keys — Bearer token format
       return trimmed.length > 10 ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.FISH_AUDIO:
-      // Fish Audio API keys start with "sk-"
-      return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
+      // Fish Audio API keys are hex strings (e.g. aaf42ad8...)
+      return trimmed.length >= 16 && /^[a-f0-9-]+$/i.test(trimmed)
+        ? 'valid'
+        : 'invalid'
     default:
       return 'valid'
   }

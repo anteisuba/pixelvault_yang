@@ -1,12 +1,13 @@
 'use client'
 
 import { memo } from 'react'
-import { ImageIcon, Film, Gift, PanelLeft } from 'lucide-react'
+import { ImageIcon, Film, Mic, Gift, PanelLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useSidebar } from '@/components/ui/sidebar'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
@@ -24,7 +25,9 @@ export const StudioTopBar = memo(function StudioTopBar() {
   const tModels = useTranslations('Models')
   const { summary } = useUsageSummary()
   const { toggleSidebar } = useSidebar()
-  const { selectedModel } = useImageModelOptions()
+  const { selectedModel: imageModel } = useImageModelOptions()
+  const { selectedModel: audioModel } = useAudioModelOptions()
+  const selectedModel = state.outputType === 'audio' ? audioModel : imageModel
   const { healthMap } = useApiKeysContext()
 
   const freeRemaining =
@@ -97,6 +100,23 @@ export const StudioTopBar = memo(function StudioTopBar() {
           <Film className="size-4" />
           {tStudio('modeVideo')}
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={state.outputType === 'audio'}
+          onClick={() =>
+            dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'audio' })
+          }
+          className={cn(
+            'flex items-center gap-1 sm:gap-1.5 rounded-md px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200',
+            state.outputType === 'audio'
+              ? 'bg-foreground text-background'
+              : 'text-muted-foreground hover:bg-muted/30',
+          )}
+        >
+          <Mic className="size-3.5 sm:size-4" />
+          {tStudio('modeAudio')}
+        </button>
       </div>
 
       {/* Divider */}
@@ -105,11 +125,14 @@ export const StudioTopBar = memo(function StudioTopBar() {
         aria-hidden="true"
       />
 
-      {/* Quick / Card workflow toggle — hidden on mobile */}
+      {/* Quick / Card workflow toggle — hidden on mobile and in audio mode */}
       <div
         role="tablist"
         aria-label={tV3('workflowModeLabel')}
-        className="hidden sm:flex rounded-lg border border-border/60 p-0.5"
+        className={cn(
+          'rounded-lg border border-border/60 p-0.5',
+          state.outputType === 'audio' ? 'hidden' : 'hidden sm:flex',
+        )}
       >
         <button
           type="button"

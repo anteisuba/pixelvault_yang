@@ -73,7 +73,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.REPLICATE]: 'r8_...',
   [AI_ADAPTER_TYPES.NOVELAI]: 'pst-...',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
-  [AI_ADAPTER_TYPES.FISH_AUDIO]: 'sk-...',
+  [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
@@ -147,8 +147,8 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
       'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key. 模型需要创建推理接入点 (endpoint), 将 endpoint ID (ep-xxx) 作为自定义模型 ID 使用。',
   },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
-    url: 'https://fish.audio/dashboard',
-    steps: 'Sign in → Dashboard → API Keys → Create key',
+    url: 'https://fish.audio/zh-CN/app/api-keys/',
+    steps: 'Sign in → 开发者 → API 密钥 → 创建新的密钥',
   },
 }
 

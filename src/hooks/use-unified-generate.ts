@@ -19,6 +19,7 @@ import {
   studioSelectWinnerAPI,
   submitVideoAPI,
   checkVideoStatusAPI,
+  generateAudioAPI,
 } from '@/lib/api-client'
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -30,14 +31,28 @@ export type GenerationStage =
   | 'processing'
   | 'uploading'
 
-export type GenerationMode = 'image' | 'video'
+export type GenerationMode = 'image' | 'video' | 'audio'
+
+export interface AudioGenerateInput {
+  modelId: string
+  apiKeyId?: string
+  freePrompt?: string
+}
+
+export interface CompareModelSelection {
+  modelId: string
+  apiKeyId?: string
+}
 
 export interface UnifiedGenerateInput {
   mode: GenerationMode
   image?: StudioGenerateRequest
   video?: GenerateVideoRequest
+  audio?: AudioGenerateInput
   /** B5: Run group mode — 'variant' triggers 4-seed parallel generation */
   runMode?: RunGroupMode
+  /** B4: Models to compare (used when runMode === 'compare') */
+  compareModels?: CompareModelSelection[]
 }
 
 export interface UseUnifiedGenerateReturn {
@@ -517,7 +532,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const selectWinner = useCallback(
     async (generationId: string): Promise<void> => {
       const runGroupId = activeRun?.id
-      if (!runGroupId || activeRun?.mode !== 'variant') return
+      if (
+        !runGroupId ||
+        (activeRun?.mode !== 'variant' && activeRun?.mode !== 'compare')
+      )
+        return
 
       // Optimistic update
       setActiveRun((prev) =>
@@ -542,6 +561,207 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [activeRun, tStudio],
   )
 
+  // ── B4: Compare generation (parallel models) ──────────────────
+
+  const generateCompare = useCallback(
+    async (
+      input: StudioGenerateRequest,
+      models: CompareModelSelection[],
+    ): Promise<GenerationRecord | null> => {
+      setIsGenerating(true)
+      setStage('generating')
+      setError(null)
+      startTimer()
+
+      const runGroupId = crypto.randomUUID()
+      const items = models.map((model, idx) => ({
+        id: crypto.randomUUID(),
+        modelId: model.modelId,
+        status: 'generating' as const,
+        generation: null,
+        error: null,
+        apiKeyId: model.apiKeyId,
+        index: idx,
+      }))
+
+      setActiveRun({
+        id: runGroupId,
+        mode: 'compare',
+        items,
+        selectedItemId: null,
+        prompt: input.freePrompt ?? '',
+        startedAt: Date.now(),
+      })
+
+      try {
+        const results = await Promise.allSettled(
+          items.map((item) =>
+            studioGenerateAPI({
+              ...input,
+              modelId: item.modelId,
+              apiKeyId: item.apiKeyId,
+              runGroupId,
+              runGroupType: 'compare',
+              runGroupIndex: item.index,
+            }),
+          ),
+        )
+
+        let firstSuccess: GenerationRecord | null = null
+
+        results.forEach((result, idx) => {
+          const itemId = items[idx].id
+          if (
+            result.status === 'fulfilled' &&
+            result.value.success &&
+            result.value.data?.generation
+          ) {
+            const gen = result.value.data.generation
+            if (!firstSuccess) firstSuccess = gen
+            setActiveRun((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    items: prev.items.map((item) =>
+                      item.id === itemId
+                        ? {
+                            ...item,
+                            status: 'completed' as const,
+                            generation: gen,
+                          }
+                        : item,
+                    ),
+                  }
+                : null,
+            )
+          } else {
+            const msg =
+              result.status === 'fulfilled'
+                ? getApiErrorMessage(
+                    tErrors,
+                    result.value,
+                    tStudio('generateFailed'),
+                  )
+                : tStudio('generateFailed')
+            setActiveRun((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    items: prev.items.map((item) =>
+                      item.id === itemId
+                        ? {
+                            ...item,
+                            status: 'failed' as const,
+                            error: msg,
+                          }
+                        : item,
+                    ),
+                  }
+                : null,
+            )
+          }
+        })
+
+        if (firstSuccess) {
+          setLastGeneration(firstSuccess)
+          toast.success(tStudio('compareSuccess'))
+        } else {
+          setError(tStudio('generateFailed'))
+        }
+
+        return firstSuccess
+      } finally {
+        stopTimer()
+        setIsGenerating(false)
+        setStage('idle')
+      }
+    },
+    [tErrors, tStudio, startTimer, stopTimer],
+  )
+
+  // ── Audio generation (synchronous — Fish Audio) ────────────────
+
+  const generateAudio = useCallback(
+    async (input: AudioGenerateInput): Promise<GenerationRecord | null> => {
+      setIsGenerating(true)
+      setStage('generating')
+      setError(null)
+      startTimer()
+
+      const itemId = crypto.randomUUID()
+      setActiveRun({
+        id: crypto.randomUUID(),
+        mode: 'single',
+        items: [
+          {
+            id: itemId,
+            modelId: input.modelId,
+            status: 'generating',
+            generation: null,
+            error: null,
+          },
+        ],
+        selectedItemId: itemId,
+        prompt: input.freePrompt ?? '',
+        startedAt: Date.now(),
+      })
+
+      try {
+        const result = await generateAudioAPI({
+          prompt: input.freePrompt ?? '',
+          modelId: input.modelId,
+          apiKeyId: input.apiKeyId,
+        })
+        if (result.success && result.data?.generation) {
+          setError(null)
+          setLastGeneration(result.data.generation)
+          setActiveRun((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  items: prev.items.map((item) =>
+                    item.id === itemId
+                      ? {
+                          ...item,
+                          status: 'completed' as const,
+                          generation: result.data!.generation,
+                        }
+                      : item,
+                  ),
+                }
+              : null,
+          )
+          toast.success(tStudio('generateSuccess'))
+          return result.data.generation
+        }
+        const msg = getApiErrorMessage(
+          tErrors,
+          result,
+          tStudio('generateFailed'),
+        )
+        setError(msg)
+        setActiveRun((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: prev.items.map((item) =>
+                  item.id === itemId
+                    ? { ...item, status: 'failed' as const, error: msg }
+                    : item,
+                ),
+              }
+            : null,
+        )
+        return null
+      } finally {
+        stopTimer()
+        setIsGenerating(false)
+        setStage('idle')
+      }
+    },
+    [tErrors, tStudio, startTimer, stopTimer],
+  )
+
   // ── Unified entry point ───────────────────────────────────────
 
   const generate = useCallback(
@@ -551,14 +771,26 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         if (input.runMode === 'variant') {
           return generateVariants(input.image)
         }
+        if (input.runMode === 'compare' && input.compareModels?.length) {
+          return generateCompare(input.image, input.compareModels)
+        }
         return generateImage(input.image)
       }
       if (input.mode === 'video' && input.video) {
         return generateVideo(input.video)
       }
+      if (input.mode === 'audio' && input.audio) {
+        return generateAudio(input.audio)
+      }
       return null
     },
-    [generateImage, generateVariants, generateVideo],
+    [
+      generateImage,
+      generateVariants,
+      generateCompare,
+      generateVideo,
+      generateAudio,
+    ],
   )
 
   const retry = useCallback(async (): Promise<GenerationRecord | null> => {

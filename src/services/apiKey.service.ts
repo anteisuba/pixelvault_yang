@@ -316,6 +316,18 @@ async function verifyAdapterKey(
         })
         break
       }
+      case AI_ADAPTER_TYPES.FISH_AUDIO: {
+        // GET /wallet/self/api-credit — lightweight auth check
+        response = await fetch(
+          `${baseUrl.replace(/\/$/, '')}/wallet/self/api-credit`,
+          {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(timeoutMs),
+          },
+        )
+        break
+      }
       default: {
         return { ok: false, latencyMs: 0, error: 'Unknown adapter' }
       }

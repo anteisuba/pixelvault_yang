@@ -19,10 +19,6 @@ const VideoGenerateForm = dynamic(
   () => import('@/components/business/VideoGenerateForm'),
 )
 
-const AudioGenerateForm = dynamic(
-  () => import('@/components/business/AudioGenerateForm'),
-)
-
 import {
   StudioProvider,
   useStudioForm,
@@ -62,26 +58,15 @@ function StudioWorkspaceInner() {
           <StudioModeSelector />
           <VideoGenerateForm activeCharacterCards={characters.activeCards} />
         </div>
-      ) : state.outputType === 'audio' ? (
-        /* ── Audio mode: simple stack (like video) ──────────── */
-        <div
-          role="tabpanel"
-          id="studio-panel-audio"
-          aria-labelledby="studio-tab-audio"
-          className="space-y-4 p-5"
-        >
-          <StudioModeSelector />
-          <AudioGenerateForm />
-        </div>
       ) : (
-        /* ── Image mode: canvas-centric vertical layout ──────── */
+        /* ── Image & Audio mode: canvas-centric vertical layout ── */
         <>
           <StudioSidebar />
           <SidebarInset>
             <div
               role="tabpanel"
-              id="studio-panel-image"
-              aria-labelledby="studio-tab-image"
+              id={`studio-panel-${state.outputType}`}
+              aria-labelledby={`studio-tab-${state.outputType}`}
               className="studio-layout-v2"
             >
               <StudioTopBar />

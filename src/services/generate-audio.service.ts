@@ -23,6 +23,7 @@ import {
   resolveGenerationRoute,
   GenerateImageServiceError,
 } from '@/services/generate-image.service'
+import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
@@ -32,9 +33,12 @@ import { getCircuitBreaker } from '@/lib/circuit-breaker'
  * Flow: validate → resolve route → call adapter.generateAudio() → upload R2 → create record.
  */
 export async function generateAudioForUser(
-  userId: string,
+  clerkId: string,
   request: GenerateAudioRequest,
 ): Promise<GenerationRecord> {
+  const dbUser = await ensureUser(clerkId)
+  const userId = dbUser.id
+
   const route = await resolveGenerationRoute(userId, {
     modelId: request.modelId,
     apiKeyId: request.apiKeyId,
@@ -146,9 +150,11 @@ export async function generateAudioForUser(
  * Returns a request ID for status polling.
  */
 export async function submitAudioGeneration(
-  userId: string,
+  clerkId: string,
   request: GenerateAudioRequest,
 ): Promise<{ requestId: string; statusUrl: string; responseUrl: string }> {
+  const dbUser = await ensureUser(clerkId)
+  const userId = dbUser.id
   const route = await resolveGenerationRoute(userId, {
     modelId: request.modelId,
     apiKeyId: request.apiKeyId,
@@ -194,13 +200,15 @@ export async function submitAudioGeneration(
  * When completed, downloads audio, uploads to R2, and creates generation record.
  */
 export async function checkAudioGenerationStatus(
-  userId: string,
+  clerkId: string,
   statusUrl: string,
   responseUrl: string,
   adapterType: string,
   apiKey: string,
   modelId: string,
 ): Promise<{ status: string; generation?: GenerationRecord }> {
+  const dbUser = await ensureUser(clerkId)
+  const userId = dbUser.id
   const adapter = getProviderAdapter(adapterType as never)
   if (!adapter.checkAudioQueueStatus) {
     throw new GenerateImageServiceError(

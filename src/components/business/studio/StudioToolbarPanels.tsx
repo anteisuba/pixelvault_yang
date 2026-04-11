@@ -19,6 +19,11 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { imageUpload, promptEnhance, civitai } = useStudioData()
   const { isGenerating } = useStudioGen()
 
+  // Audio mode: hide image-specific toolbar panels
+  if (state.outputType === 'audio') {
+    return null
+  }
+
   return (
     <StudioToolbar
       onEnhance={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}

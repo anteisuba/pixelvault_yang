@@ -37,7 +37,9 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
     return (
       <div className="studio-dock">
         <div className="space-y-2">
-          {state.workflowMode === 'card' && <StudioCardSection />}
+          {state.workflowMode === 'card' && state.outputType !== 'audio' && (
+            <StudioCardSection />
+          )}
           <StudioPromptArea />
           <StudioToolbarPanels />
         </div>
@@ -70,7 +72,9 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
       >
         {/* Left: input controls */}
         <div className="space-y-2">
-          {state.workflowMode === 'card' && <StudioCardSection />}
+          {state.workflowMode === 'card' && state.outputType !== 'audio' && (
+            <StudioCardSection />
+          )}
           <StudioPromptArea />
           <StudioToolbarPanels />
         </div>

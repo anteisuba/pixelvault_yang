@@ -21,6 +21,8 @@ import { assignToProjectAPI } from '@/lib/api-client'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
+import { getModelById } from '@/constants/models'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { TreeView, type TreeDataItem } from '@/components/ui/tree-view'
 import type { ProjectRecord } from '@/types'
@@ -157,7 +159,11 @@ export const StudioSidebar = memo(function StudioSidebar() {
   const { projects } = useStudioData()
   const { state, dispatch } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
-  const { modelOptions } = useImageModelOptions()
+  const { modelOptions: imageModelOptions } = useImageModelOptions()
+  const { modelOptions: audioModelOptions } = useAudioModelOptions()
+  const modelOptions =
+    state.outputType === 'audio' ? audioModelOptions : imageModelOptions
+  const allModelOptions = [...imageModelOptions, ...audioModelOptions]
   const { summary } = useUsageSummary()
   const t = useTranslations('StudioV3')
 
@@ -357,7 +363,7 @@ export const StudioSidebar = memo(function StudioSidebar() {
 
             {/* User keys */}
             {activeKeys.map((key) => {
-              const matchingOption = modelOptions.find(
+              const matchingOption = allModelOptions.find(
                 (o) => o.keyId === key.id,
               )
               const isSelected =
@@ -369,6 +375,18 @@ export const StudioSidebar = memo(function StudioSidebar() {
                   type="button"
                   onClick={() => {
                     if (matchingOption) {
+                      // Auto-switch outputType based on model
+                      const model = getModelById(matchingOption.modelId)
+                      if (model) {
+                        const targetMode =
+                          model.outputType === 'AUDIO' ? 'audio' : 'image'
+                        if (state.outputType !== targetMode) {
+                          dispatch({
+                            type: 'SET_OUTPUT_TYPE',
+                            payload: targetMode,
+                          })
+                        }
+                      }
                       dispatch({
                         type: 'SET_OPTION_ID',
                         payload: matchingOption.optionId,

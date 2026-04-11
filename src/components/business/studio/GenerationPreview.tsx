@@ -25,6 +25,7 @@ import {
 
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { AudioPlayer } from '@/components/ui/audio-player'
 import { ImageCard } from '@/components/business/ImageCard'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import {
@@ -145,7 +146,12 @@ export const GenerationPreview = memo(function GenerationPreview({
       const blobUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = blobUrl
-      const ext = generation.outputType === 'VIDEO' ? 'mp4' : 'png'
+      const ext =
+        generation.outputType === 'VIDEO'
+          ? 'mp4'
+          : generation.outputType === 'AUDIO'
+            ? 'mp3'
+            : 'png'
       a.download = `pixelvault-${generation.id}.${ext}`
       a.click()
       URL.revokeObjectURL(blobUrl)
@@ -232,6 +238,26 @@ export const GenerationPreview = memo(function GenerationPreview({
     </TransformWrapper>
   )
 
+  // ── Audio container ───────────────────────────────────────────────
+  const audioContainer = (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/60 bg-muted/10 py-12 sm:py-16">
+      <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
+        <Download className="size-7 text-primary/60" />
+      </div>
+      <div className="w-full max-w-md px-6">
+        <AudioPlayer src={generation.url} />
+      </div>
+      {generation.duration && (
+        <p className="font-serif text-xs text-muted-foreground">
+          {formatDuration(generation.duration)} · {generation.model}
+        </p>
+      )}
+    </div>
+  )
+
+  const isAudio = generation.outputType === 'AUDIO'
+  const previewContent = isAudio ? audioContainer : imageContainer
+
   // ── Error section ─────────────────────────────────────────────────
   const errorSection = error ? (
     <div className="mt-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-3">
@@ -290,31 +316,41 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       )}
-      {variant === 'icon' && <div className="my-1 h-px bg-border/40" />}
-      <CanvasToolButton
-        icon={Wand2}
-        label={t('toolSuperRes')}
-        disabled
-        variant={variant}
-      />
-      <CanvasToolButton
-        icon={Eraser}
-        label={t('toolRemoveBg')}
-        disabled
-        variant={variant}
-      />
-      <CanvasToolButton
-        icon={Save}
-        label={t('toolSaveSuperRes')}
-        disabled
-        variant={variant}
-      />
-      <CanvasToolButton
-        icon={Layers}
-        label={t('toolLayers')}
-        onClick={handleOpenLayers}
-        variant={variant}
-      />
+      {!isAudio && variant === 'icon' && (
+        <div className="my-1 h-px bg-border/40" />
+      )}
+      {!isAudio && (
+        <CanvasToolButton
+          icon={Wand2}
+          label={t('toolSuperRes')}
+          disabled
+          variant={variant}
+        />
+      )}
+      {!isAudio && (
+        <CanvasToolButton
+          icon={Eraser}
+          label={t('toolRemoveBg')}
+          disabled
+          variant={variant}
+        />
+      )}
+      {!isAudio && (
+        <CanvasToolButton
+          icon={Save}
+          label={t('toolSaveSuperRes')}
+          disabled
+          variant={variant}
+        />
+      )}
+      {!isAudio && (
+        <CanvasToolButton
+          icon={Layers}
+          label={t('toolLayers')}
+          onClick={handleOpenLayers}
+          variant={variant}
+        />
+      )}
     </>
   )
 
@@ -323,7 +359,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     return (
       <>
         <div className="space-y-2">
-          {imageContainer}
+          {previewContent}
           {errorSection}
 
           {/* Peek action row — always visible */}
@@ -404,7 +440,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     <>
       <div className="flex gap-3">
         <div className="flex-1 min-w-0">
-          {imageContainer}
+          {previewContent}
           {errorSection}
         </div>
 

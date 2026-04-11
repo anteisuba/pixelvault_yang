@@ -168,6 +168,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           modelId: selectedModel.modelId,
           apiKeyId: selectedModel.keyId,
           freePrompt: state.prompt || undefined,
+          voiceId: state.voiceId ?? undefined,
         },
       })
       return
@@ -180,6 +181,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isAudioMode,
     selectedModel,
     state.prompt,
+    state.voiceId,
     buildImageInput,
     generate,
   ])

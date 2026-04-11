@@ -324,13 +324,12 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### B7 — 动效 + 无障碍
 
-**状态:** 未开始
+**状态:** 已完成 ✅
 
-- MotionReveal: 面板展开 + 结果出现
-- 生成仪式感: opacity 0→1 + scale 0.95→1
-- 触摸目标 >= 44px
-- aria-label / aria-disabled / aria-expanded
-- 拖拽键盘替代
+- ARIA 属性: aria-busy/aria-disabled (Generate), aria-live (Preview), role=radiogroup + aria-checked (VariantGrid/CompareGrid) ✅
+- prefers-reduced-motion 全局守卫: 禁用所有动画和过渡 ✅
+- 生成结果 fade-in 仪式动画: animate-in + slide-in-from-bottom ✅
+- 触摸目标: 既有 44px 最小目标（A+7 已完成）✅
 
 ---
 

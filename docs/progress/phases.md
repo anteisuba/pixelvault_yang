@@ -172,7 +172,7 @@
 - [x] B4 — 多模型对比生成 (CompareGrid + ModelSelector 多选 + 并行生成)
 - [x] B5 — 批量变体 4选1 (Split Button + VariantGrid 2x2 + winner selection)
 - [x] B6 — 智能 Prompt (维度提取+模型感知增强+风格渗透)
-- [ ] B7 — 动效+无障碍
+- [x] B7 — 动效+无障碍 (ARIA attributes + prefers-reduced-motion + fade-in ceremony)
 
 ### Track C: 独立功能线
 

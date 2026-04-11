@@ -543,7 +543,34 @@ export async function submitReplicateLoraTraining(input: {
     )
   }
 
-  // Step 2: Submit training with version ID
+  // Step 2: Create destination model (ignore 409 = already exists)
+  const destName = `lora-${input.triggerWord.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`
+  const destination = `${owner}/${destName}`
+
+  const createModelRes = await fetch(`${baseUrl}/models`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      owner,
+      name: destName,
+      visibility: 'private',
+      hardware: 'gpu-t4-nano',
+      description: `LoRA trained via PixelVault (trigger: ${input.triggerWord})`,
+    }),
+  })
+  // 409 = model already exists, that's fine
+  if (!createModelRes.ok && createModelRes.status !== 409) {
+    const err = await createModelRes.text().catch(() => 'Unknown error')
+    logger.warn('Failed to create destination model (non-fatal)', {
+      status: createModelRes.status,
+      err: err.slice(0, 200),
+    })
+  }
+
+  // Step 3: Submit training with version ID
   const url = `${baseUrl}/models/replicate/fast-flux-trainer/versions/${versionId}/trainings`
 
   const response = await fetch(url, {
@@ -553,7 +580,7 @@ export async function submitReplicateLoraTraining(input: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      destination: `${owner}/lora-${input.triggerWord.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`,
+      destination,
       input: {
         input_images: input.inputImagesUrl,
         trigger_word: input.triggerWord,

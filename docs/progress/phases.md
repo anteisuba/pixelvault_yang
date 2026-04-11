@@ -178,5 +178,5 @@
 
 - [ ] C1 — Storyboard 增量增强
 - [ ] C2 — 系列模式+角色一致性
-- [ ] C3 — 图片编辑 (Kontext 指令/Outpainting/Inpainting)
+- [~] C3 — 图片编辑 (Kontext 指令编辑 ✅ / Outpainting 未开始 / Inpainting 未开始)
 - [ ] C4 — 漫画高级 (气泡/多模板导出/剧本模式)

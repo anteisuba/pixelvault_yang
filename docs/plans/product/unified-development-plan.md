@@ -354,11 +354,11 @@ Mobile (<768):       Prompt顶部 + Generate → 预览 → 设置 bottom sheet
 
 ### C3 — 图片编辑（原 S8，依赖 A2 Kontext + A3 持久化）
 
-**状态:** 未开始
+**状态:** 部分完成 ⏳
 
-- 指令式编辑（Kontext）
-- Outpainting（画布扩展）
-- Inpainting（局部重绘 + Canvas mask 编辑器）
+- 指令式编辑（Kontext）✅ — "Edit with AI" 按钮，自动切 Kontext Pro + 参考图 + prompt 聚焦
+- Outpainting（画布扩展）— 未开始
+- Inpainting（局部重绘 + Canvas mask 编辑器）— 未开始
 
 ### C4 — 漫画高级（原 S9，依赖 C1+C2）
 

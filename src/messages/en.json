@@ -764,7 +764,8 @@
     "health": {
       "available": "Available",
       "noKey": "No API key",
-      "failed": "Unavailable"
+      "failed": "Unavailable",
+      "unknown": "Not verified"
     },
     "collapse": {
       "showAll": "Show all models ({count})",

@@ -18,6 +18,60 @@ import {
   verifyApiKey,
 } from '@/lib/api-client'
 
+// ─── Health Cache (localStorage, 5-min TTL) ───────────────────────
+
+const HEALTH_CACHE_KEY = 'pixelvault:api-key-health'
+const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+interface HealthCacheEntry {
+  status: ApiKeyHealthStatus
+  ts: number
+}
+
+function loadHealthCache(): Record<string, ApiKeyHealthStatus> {
+  try {
+    const raw = localStorage.getItem(HEALTH_CACHE_KEY)
+    if (!raw) return {}
+    const entries = JSON.parse(raw) as Record<string, HealthCacheEntry>
+    const now = Date.now()
+    const result: Record<string, ApiKeyHealthStatus> = {}
+    for (const [id, entry] of Object.entries(entries)) {
+      if (now - entry.ts < HEALTH_CACHE_TTL_MS) {
+        result[id] = entry.status
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function saveHealthCache(map: Record<string, ApiKeyHealthStatus>) {
+  try {
+    const entries: Record<string, HealthCacheEntry> = {}
+    const now = Date.now()
+    // Merge with existing cache (keep non-expired entries for other keys)
+    const existing = localStorage.getItem(HEALTH_CACHE_KEY)
+    if (existing) {
+      const parsed = JSON.parse(existing) as Record<string, HealthCacheEntry>
+      for (const [id, entry] of Object.entries(parsed)) {
+        if (now - entry.ts < HEALTH_CACHE_TTL_MS) {
+          entries[id] = entry
+        }
+      }
+    }
+    // Overwrite with new values
+    for (const [id, status] of Object.entries(map)) {
+      entries[id] = { status, ts: now }
+    }
+    localStorage.setItem(HEALTH_CACHE_KEY, JSON.stringify(entries))
+  } catch {
+    // localStorage unavailable — silently skip
+  }
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────
+
 export interface UseApiKeysReturn {
   keys: UserApiKeyRecord[]
   isLoading: boolean
@@ -39,24 +93,16 @@ export function useApiKeys(): UseApiKeysReturn {
   >({})
   const t = useTranslations('Toasts')
 
-  const fetchKeys = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    const response = await listApiKeys()
-    if (response.success && response.data) {
-      setKeys(response.data)
-    } else {
-      setError(response.error ?? 'Failed to load API keys')
-    }
-    setIsLoading(false)
-  }, [])
-
   const verifyOne = useCallback(
     async (id: string): Promise<ApiKeyHealthStatus> => {
       const response = await verifyApiKey(id)
       const status: ApiKeyHealthStatus =
         response.success && response.data ? response.data.status : 'failed'
-      setHealthMap((prev) => ({ ...prev, [id]: status }))
+      setHealthMap((prev) => {
+        const next = { ...prev, [id]: status }
+        saveHealthCache(next)
+        return next
+      })
       return status
     },
     [],
@@ -73,25 +119,17 @@ export function useApiKeys(): UseApiKeysReturn {
         setKeys(response.data)
         setError(null)
 
-        // Auto-verify all active keys in parallel
+        // Load cached health results instead of re-verifying all keys
+        const cached = loadHealthCache()
         const activeKeys = response.data.filter((k) => k.isActive)
-        if (activeKeys.length > 0) {
-          const results = await Promise.allSettled(
-            activeKeys.map((k) => verifyApiKey(k.id)),
-          )
-          if (isCancelled) return
-          const newHealthMap: Record<string, ApiKeyHealthStatus> = {}
-          results.forEach((result, i) => {
-            const key = activeKeys[i]
-            newHealthMap[key.id] =
-              result.status === 'fulfilled' &&
-              result.value.success &&
-              result.value.data
-                ? result.value.data.status
-                : 'failed'
-          })
-          setHealthMap(newHealthMap)
+        const initialHealth: Record<string, ApiKeyHealthStatus> = {}
+
+        for (const key of activeKeys) {
+          // Use cache if available, otherwise show "unknown" (grey dot)
+          initialHealth[key.id] = cached[key.id] ?? 'unknown'
         }
+
+        setHealthMap(initialHealth)
       } else {
         setError(response.error ?? 'Failed to load API keys')
       }
@@ -105,6 +143,18 @@ export function useApiKeys(): UseApiKeysReturn {
     }
   }, [])
 
+  const fetchKeys = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    const response = await listApiKeys()
+    if (response.success && response.data) {
+      setKeys(response.data)
+    } else {
+      setError(response.error ?? 'Failed to load API keys')
+    }
+    setIsLoading(false)
+  }, [])
+
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<boolean> => {
       const response = await createApiKey(data)
@@ -112,7 +162,7 @@ export function useApiKeys(): UseApiKeysReturn {
         setError(null)
         const newKey = response.data
         setKeys((prev) => [newKey, ...prev])
-        // Auto-verify newly created key
+        // Auto-verify newly created key (user just entered it)
         void verifyOne(newKey.id)
         toast.success(t('apiKeyCreated'))
         return true
@@ -132,8 +182,10 @@ export function useApiKeys(): UseApiKeysReturn {
         setKeys((prev) =>
           prev.map((key) => (key.id === id ? response.data! : key)),
         )
-        // Auto-verify updated key (key value may have changed)
-        void verifyOne(id)
+        // Auto-verify if key value changed
+        if (data.keyValue) {
+          void verifyOne(id)
+        }
         toast.success(t('apiKeyUpdated'))
         return true
       }
@@ -141,7 +193,7 @@ export function useApiKeys(): UseApiKeysReturn {
       toast.error(t('apiKeyUpdateFailed'))
       return false
     },
-    [t],
+    [verifyOne, t],
   )
 
   const remove = useCallback(
@@ -153,6 +205,7 @@ export function useApiKeys(): UseApiKeysReturn {
         setHealthMap((prev) => {
           const next = { ...prev }
           delete next[id]
+          saveHealthCache(next)
           return next
         })
         toast.success(t('apiKeyDeleted'))

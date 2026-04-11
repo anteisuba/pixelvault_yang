@@ -764,7 +764,8 @@
     "health": {
       "available": "可用",
       "noKey": "无 API 密钥",
-      "failed": "不可用"
+      "failed": "不可用",
+      "unknown": "未验证"
     },
     "collapse": {
       "showAll": "展开全部模型（{count}）",

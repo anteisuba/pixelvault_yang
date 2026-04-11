@@ -514,7 +514,7 @@ export interface ApiKeyResponse {
 }
 
 /** Result of verifying a user's API key */
-export type ApiKeyHealthStatus = 'available' | 'no_key' | 'failed'
+export type ApiKeyHealthStatus = 'available' | 'no_key' | 'failed' | 'unknown'
 
 export interface ApiKeyVerifyResult {
   id: string

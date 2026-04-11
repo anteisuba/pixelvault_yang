@@ -9,6 +9,7 @@ const HEALTH_COLORS: Record<ApiKeyHealthStatus, string> = {
   available: 'bg-emerald-500',
   no_key: 'bg-amber-500',
   failed: 'bg-red-500',
+  unknown: 'bg-muted-foreground/40',
 }
 
 export function ApiKeyHealthDot({

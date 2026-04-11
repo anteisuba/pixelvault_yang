@@ -764,7 +764,8 @@
     "health": {
       "available": "利用可能",
       "noKey": "API キーなし",
-      "failed": "利用不可"
+      "failed": "利用不可",
+      "unknown": "未検証"
     },
     "collapse": {
       "showAll": "全モデルを表示（{count}）",

@@ -10,6 +10,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { AI_MODELS } from '@/constants/models'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
@@ -91,6 +92,33 @@ export const StudioCanvas = memo(function StudioCanvas() {
     [dispatch, modelOptions],
   )
 
+  // C3: Edit with Kontext — set reference image + switch to Kontext Pro + focus prompt
+  const handleEdit = useCallback(
+    async (generation: GenerationRecord) => {
+      await imageUpload.addFromUrl(generation.url)
+      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
+      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
+      dispatch({ type: 'SET_PROMPT', payload: '' })
+
+      // Find Kontext Pro option and select it
+      const kontextOption = modelOptions.find(
+        (o) => o.modelId === AI_MODELS.FLUX_KONTEXT_PRO,
+      )
+      if (kontextOption) {
+        dispatch({ type: 'SET_OPTION_ID', payload: kontextOption.optionId })
+      }
+
+      dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+
+      const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
+      if (promptField instanceof HTMLTextAreaElement) {
+        promptField.focus()
+        promptField.placeholder = 'Describe what to change...'
+      }
+    },
+    [imageUpload, dispatch, modelOptions],
+  )
+
   return (
     <div
       ref={canvasRef}
@@ -118,6 +146,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
             isLatestResult
             onUseAsReference={handleUseAsReference}
             onRemix={handleRemix}
+            onEdit={handleEdit}
             onRetry={retry}
           />
         )}

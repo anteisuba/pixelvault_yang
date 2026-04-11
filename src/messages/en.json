@@ -651,7 +651,9 @@
       "viewByProvider": "By provider",
       "viewByStyle": "By style",
       "searchPlaceholder": "Search models...",
-      "modelsSelected": "{count}/{max} selected"
+      "modelsSelected": "{count}/{max} selected",
+      "unlockMore": "Add API keys to unlock {count} more models",
+      "unlockHint": "Add your own API keys in the sidebar to access these providers."
     }
   },
   "StudioApiKeys": {

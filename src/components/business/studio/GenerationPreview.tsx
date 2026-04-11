@@ -8,6 +8,7 @@ import {
   ImagePlus,
   Layers,
   Maximize2,
+  PenTool,
   RotateCcw,
   Save,
   Share2,
@@ -50,6 +51,7 @@ interface GenerationPreviewProps {
   isLatestResult?: boolean
   onUseAsReference?: (url: string) => void
   onRemix?: (generation: GenerationRecord) => void
+  onEdit?: (generation: GenerationRecord) => void
   onRetry?: () => void
 }
 
@@ -58,6 +60,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   isLatestResult = false,
   onUseAsReference,
   onRemix,
+  onEdit,
   onRetry,
 }: GenerationPreviewProps) {
   const { error, isGenerating, elapsedSeconds } = useStudioGen()
@@ -308,6 +311,14 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       )}
+      {onEdit && generation && generation.outputType === 'IMAGE' && (
+        <CanvasToolButton
+          icon={PenTool}
+          label={t('toolEdit')}
+          onClick={() => onEdit(generation)}
+          variant={variant}
+        />
+      )}
       {canUseAsReference && (
         <CanvasToolButton
           icon={ImagePlus}
@@ -397,6 +408,16 @@ export const GenerationPreview = memo(function GenerationPreview({
                 >
                   <RotateCcw className="size-3.5" />
                   {t('toolRemix')}
+                </button>
+              )}
+              {onEdit && generation && generation.outputType === 'IMAGE' && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(generation)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border/40 bg-background/80 py-2 text-xs transition-colors active:scale-95"
+                >
+                  <PenTool className="size-3.5" />
+                  {t('toolEdit')}
                 </button>
               )}
               <button

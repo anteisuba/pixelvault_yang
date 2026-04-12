@@ -183,12 +183,38 @@ export async function checkLoraTrainingStatus(
     throw new Error('Training job not found')
   }
 
-  // If already terminal, return as-is
+  // If already terminal
   if (
     job.status === 'COMPLETED' ||
     job.status === 'FAILED' ||
     job.status === 'CANCELED'
   ) {
+    // If completed but not yet transferred to R2, do it now
+    if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
+      try {
+        const ext = job.loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
+        const loraKey = `lora-weights/${dbUser.id}/${jobId}.${ext}`
+        const { publicUrl } = await streamUploadToR2({
+          sourceUrl: job.loraUrl,
+          key: loraKey,
+          mimeType: 'application/octet-stream',
+        })
+        const updated = await db.loraTrainingJob.update({
+          where: { id: jobId },
+          data: { loraUrl: publicUrl, loraStorageKey: loraKey },
+        })
+        logger.info('LoRA weights retroactively transferred to R2', {
+          jobId,
+          loraKey,
+        })
+        return toRecord(updated)
+      } catch (err) {
+        logger.warn('Failed to retroactively transfer LoRA to R2', {
+          jobId,
+          error: err instanceof Error ? err.message : 'Unknown',
+        })
+      }
+    }
     return toRecord(job)
   }
 

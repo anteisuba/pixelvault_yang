@@ -1,7 +1,17 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { Loader2, Plus, Sparkles, Upload, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Plus,
+  Sparkles,
+  Upload,
+  X,
+  XCircle,
+  Copy,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -113,14 +123,8 @@ export function LoraTrainingDialog({
     submit,
   ])
 
-  // Active training jobs for this character
-  const activeJobs = characterCardId
-    ? jobs.filter(
-        (j) =>
-          j.characterCardId === characterCardId &&
-          (j.status === 'QUEUED' || j.status === 'TRAINING'),
-      )
-    : []
+  // All jobs — show recent ones
+  const recentJobs = jobs.slice(0, 5)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -309,21 +313,83 @@ export function LoraTrainingDialog({
             <span>{t('estimatedTime')}</span>
           </div>
 
-          {/* Active jobs */}
-          {activeJobs.length > 0 && (
-            <div className="space-y-1.5">
-              {activeJobs.map((job) => (
+          {/* Training jobs */}
+          {recentJobs.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('viewJobs')}
+              </p>
+              {recentJobs.map((job) => (
                 <div
                   key={job.id}
-                  className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2"
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5 space-y-1.5',
+                    job.status === 'COMPLETED'
+                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      : job.status === 'FAILED'
+                        ? 'border-destructive/30 bg-destructive/5'
+                        : 'border-primary/20 bg-primary/5',
+                  )}
                 >
-                  <Loader2 className="size-3.5 animate-spin text-primary" />
-                  <span className="flex-1 text-xs font-medium">{job.name}</span>
-                  <Badge variant="secondary" className="text-2xs">
-                    {job.status === 'QUEUED'
-                      ? t('statusQueued')
-                      : t('statusTraining')}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {job.status === 'COMPLETED' && (
+                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    )}
+                    {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                    )}
+                    {job.status === 'FAILED' && (
+                      <XCircle className="size-3.5 text-destructive" />
+                    )}
+                    {job.status === 'CANCELED' && (
+                      <Clock className="size-3.5 text-muted-foreground" />
+                    )}
+                    <span className="flex-1 text-xs font-medium">
+                      {job.name}
+                    </span>
+                    <Badge variant="secondary" className="text-2xs">
+                      {job.status === 'COMPLETED'
+                        ? t('statusCompleted')
+                        : job.status === 'FAILED'
+                          ? t('statusFailed')
+                          : job.status === 'CANCELED'
+                            ? t('statusCanceled')
+                            : job.status === 'QUEUED'
+                              ? t('statusQueued')
+                              : t('statusTraining')}
+                    </Badge>
+                  </div>
+
+                  {/* Usage guide for completed jobs */}
+                  {job.status === 'COMPLETED' && (
+                    <div className="space-y-1 rounded-md bg-background/60 p-2">
+                      <p className="text-2xs font-medium text-emerald-600 dark:text-emerald-400">
+                        {t('trainedLoraReady')}
+                      </p>
+                      <p className="text-2xs text-muted-foreground">
+                        {t('usageHint', { triggerWord: job.triggerWord })}
+                      </p>
+                      {job.loraUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(job.loraUrl!)
+                          }}
+                          className="flex items-center gap-1 text-2xs text-primary hover:underline"
+                        >
+                          <Copy className="size-3" />
+                          {t('copyLoraUrl')}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Error message for failed jobs */}
+                  {job.status === 'FAILED' && job.errorMessage && (
+                    <p className="text-2xs text-destructive">
+                      {job.errorMessage}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

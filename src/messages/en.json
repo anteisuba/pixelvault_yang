@@ -1923,6 +1923,8 @@
     "statusCanceled": "Canceled",
     "viewJobs": "Training Jobs",
     "noJobs": "No training jobs yet",
-    "trainedLoraReady": "LoRA ready — select this character to use it"
+    "trainedLoraReady": "LoRA ready — select this character to use it",
+    "usageHint": "Add \"{triggerWord}\" to your prompt when generating. The LoRA will automatically apply the trained style/character.",
+    "copyLoraUrl": "Copy LoRA URL"
   }
 }

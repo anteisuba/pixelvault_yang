@@ -1923,6 +1923,8 @@
     "statusCanceled": "キャンセル済み",
     "viewJobs": "トレーニングジョブ",
     "noJobs": "トレーニングジョブはまだありません",
-    "trainedLoraReady": "LoRA完成 — このキャラクターを選択して使用できます"
+    "trainedLoraReady": "LoRA完成 — このキャラクターを選択して使用できます",
+    "usageHint": "生成時にプロンプトに「{triggerWord}」を追加してください。トレーニングしたスタイル/キャラクターが自動的に適用されます。",
+    "copyLoraUrl": "LoRA URLをコピー"
   }
 }

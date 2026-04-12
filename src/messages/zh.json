@@ -1923,6 +1923,8 @@
     "statusCanceled": "已取消",
     "viewJobs": "训练任务",
     "noJobs": "暂无训练任务",
-    "trainedLoraReady": "LoRA 已就绪 — 选择此角色即可使用"
+    "trainedLoraReady": "LoRA 已就绪 — 选择此角色即可使用",
+    "usageHint": "生成时在提示词中加入「{triggerWord}」，训练的风格/角色会自动应用。",
+    "copyLoraUrl": "复制 LoRA URL"
   }
 }

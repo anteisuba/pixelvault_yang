@@ -7,8 +7,8 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 })
 
-// Arena reference images can exceed the proxy's default buffered body size.
-const PROXY_CLIENT_MAX_BODY_SIZE = '15mb'
+// LoRA training sends base64 images (up to 50 images), needs large body limit.
+const PROXY_CLIENT_MAX_BODY_SIZE = '100mb'
 
 const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
   ? new URL(process.env.NEXT_PUBLIC_STORAGE_BASE_URL).hostname

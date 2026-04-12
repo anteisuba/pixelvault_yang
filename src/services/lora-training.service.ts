@@ -272,7 +272,11 @@ export async function checkLoraTrainingStatus(
     job.status === 'CANCELED'
   ) {
     // If completed but not yet transferred to R2, do it now
-    if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
+    if (
+      job.status === 'COMPLETED' &&
+      job.loraUrl &&
+      (!job.loraStorageKey || job.loraStorageKey.endsWith('.tar'))
+    ) {
       try {
         const { publicUrl, storageKey } = await transferLoraToR2(
           job.loraUrl,
@@ -444,7 +448,11 @@ export async function listLoraTrainingJobs(
 
   // Auto-transfer completed jobs that still have provider URLs (not R2)
   for (const job of jobs) {
-    if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
+    if (
+      job.status === 'COMPLETED' &&
+      job.loraUrl &&
+      (!job.loraStorageKey || job.loraStorageKey.endsWith('.tar'))
+    ) {
       try {
         const { publicUrl, storageKey } = await transferLoraToR2(
           job.loraUrl,

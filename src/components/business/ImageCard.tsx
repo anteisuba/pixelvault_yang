@@ -13,6 +13,7 @@ import {
   Heart,
   ImageIcon,
   LockKeyhole,
+  Music,
   Pin,
   Play,
 } from 'lucide-react'
@@ -105,8 +106,13 @@ export const ImageCard = memo(function ImageCard({
     [generation, isDownloading, t, tErrors],
   )
 
+  const isAudio =
+    generation.outputType === 'AUDIO' ||
+    generation.url.endsWith('.mp3') ||
+    generation.url.endsWith('.wav')
   const isVideo =
-    generation.outputType === 'VIDEO' || generation.url.endsWith('.mp4')
+    !isAudio &&
+    (generation.outputType === 'VIDEO' || generation.url.endsWith('.mp4'))
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(
@@ -152,7 +158,21 @@ export const ImageCard = memo(function ImageCard({
             onClick={() => setDetailOpen(true)}
             aria-label={isVideo ? t('openVideo') : t('openImage')}
           >
-            {isVideo ? (
+            {isAudio ? (
+              <div
+                className="flex w-full flex-col items-center justify-center gap-3 bg-muted/30 px-4 py-8"
+                style={{ aspectRatio: '1 / 1' }}
+              >
+                <Music className="size-10 text-muted-foreground/40" />
+                <audio
+                  src={generation.url}
+                  controls
+                  preload="metadata"
+                  className="w-full max-w-[200px]"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            ) : isVideo ? (
               <video
                 src={`${generation.url}#t=0.1`}
                 muted

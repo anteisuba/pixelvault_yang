@@ -5,7 +5,11 @@ import JSZip from 'jszip'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { decryptApiKey } from '@/lib/crypto'
-import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
+import {
+  fetchAsBuffer,
+  uploadToR2,
+  streamUploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LORA_TRAINING } from '@/constants/config'
 import type { LoraTrainingRecord, SubmitLoraTrainingRequest } from '@/types'
@@ -264,9 +268,29 @@ export async function checkLoraTrainingStatus(
   }
 
   if (newStatus === 'COMPLETED' && loraUrl) {
-    updateData.loraUrl = loraUrl
+    // Transfer LoRA weights from provider CDN to R2 (provider URLs are temporary)
+    let persistedLoraUrl = loraUrl
+    try {
+      const ext = loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
+      const loraKey = `lora-weights/${dbUser.id}/${jobId}.${ext}`
+      const { publicUrl } = await streamUploadToR2({
+        sourceUrl: loraUrl,
+        key: loraKey,
+        mimeType: 'application/octet-stream',
+      })
+      persistedLoraUrl = publicUrl
+      updateData.loraStorageKey = loraKey
+      logger.info('LoRA weights transferred to R2', { jobId, loraKey })
+    } catch (transferErr) {
+      logger.warn('Failed to transfer LoRA to R2, using provider URL', {
+        jobId,
+        error: transferErr instanceof Error ? transferErr.message : 'Unknown',
+      })
+    }
+    updateData.loraUrl = persistedLoraUrl
     updateData.completedAt = new Date()
     updateData.progress = 1
+    loraUrl = persistedLoraUrl
   }
 
   if (newStatus === 'FAILED') {

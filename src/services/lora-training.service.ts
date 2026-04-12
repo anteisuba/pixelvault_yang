@@ -364,6 +364,36 @@ export async function listLoraTrainingJobs(
     take: 50,
   })
 
+  // Auto-transfer completed jobs that still have provider URLs (not R2)
+  for (const job of jobs) {
+    if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
+      try {
+        const ext = job.loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
+        const loraKey = `lora-weights/${dbUser.id}/${job.id}.${ext}`
+        const { publicUrl } = await streamUploadToR2({
+          sourceUrl: job.loraUrl,
+          key: loraKey,
+          mimeType: 'application/octet-stream',
+        })
+        await db.loraTrainingJob.update({
+          where: { id: job.id },
+          data: { loraUrl: publicUrl, loraStorageKey: loraKey },
+        })
+        job.loraUrl = publicUrl
+        job.loraStorageKey = loraKey
+        logger.info('LoRA weights auto-transferred to R2 on list', {
+          jobId: job.id,
+          loraKey,
+        })
+      } catch (err) {
+        logger.warn('Failed to auto-transfer LoRA on list', {
+          jobId: job.id,
+          error: err instanceof Error ? err.message : 'Unknown',
+        })
+      }
+    }
+  }
+
   return jobs.map(toRecord)
 }
 

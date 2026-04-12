@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import { Mic, Plus, SlidersHorizontal } from 'lucide-react'
 
 import {
   useStudioForm,
@@ -8,6 +9,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { StudioToolbar } from '@/components/business/StudioToolbar'
+import { cn } from '@/lib/utils'
 
 /**
  * StudioToolbarRow — renders ONLY the toolbar button row.
@@ -19,9 +21,50 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { imageUpload, promptEnhance, civitai } = useStudioData()
   const { isGenerating } = useStudioGen()
 
-  // Audio mode: hide image-specific toolbar panels
+  // Audio mode: show audio-specific toolbar
   if (state.outputType === 'audio') {
-    return null
+    return (
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            if (state.panels.voiceTrainer) {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'voiceTrainer' })
+            }
+            dispatch({ type: 'TOGGLE_PANEL', payload: 'voiceSelector' })
+          }}
+          disabled={isGenerating}
+          className={cn(
+            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+            state.panels.voiceSelector
+              ? 'bg-primary/10 text-primary border border-primary/30'
+              : 'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+          )}
+        >
+          <Mic className="size-3.5" />
+          {state.voiceId ? '✓ Voice' : 'Voice'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (state.panels.voiceSelector) {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'voiceSelector' })
+            }
+            dispatch({ type: 'TOGGLE_PANEL', payload: 'voiceTrainer' })
+          }}
+          disabled={isGenerating}
+          className={cn(
+            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+            state.panels.voiceTrainer
+              ? 'bg-primary/10 text-primary border border-primary/30'
+              : 'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+          )}
+        >
+          <Plus className="size-3.5" />
+          Clone
+        </button>
+      </div>
+    )
   }
 
   return (

@@ -28,7 +28,9 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
     state.panels.refImage ||
     state.panels.reverse ||
     state.panels.layerDecompose ||
-    state.panels.aspectRatio
+    state.panels.aspectRatio ||
+    state.panels.voiceSelector ||
+    state.panels.voiceTrainer
 
   const closeAllPanels = () => dispatch({ type: 'CLOSE_ALL_PANELS' })
 

@@ -53,6 +53,8 @@ export type PanelName =
   | 'refImage'
   | 'layerDecompose'
   | 'aspectRatio'
+  | 'voiceSelector'
+  | 'voiceTrainer'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -65,6 +67,8 @@ export interface StudioFormState {
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
   tokenInput: string
+  /** Fish Audio voice model ID for TTS */
+  voiceId: string | null
   panels: Record<PanelName, boolean>
 }
 
@@ -77,6 +81,7 @@ export type StudioAction =
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
+  | { type: 'SET_VOICE_ID'; payload: string | null }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -94,6 +99,8 @@ const initialPanels: Record<PanelName, boolean> = {
   refImage: false,
   layerDecompose: false,
   aspectRatio: false,
+  voiceSelector: false,
+  voiceTrainer: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -104,6 +111,7 @@ const initialFormState: StudioFormState = {
   aspectRatio: '1:1',
   advancedParams: {},
   tokenInput: '',
+  voiceId: null,
   panels: { ...initialPanels },
 }
 
@@ -114,6 +122,8 @@ export function studioFormReducer(
   switch (action.type) {
     case 'SET_OUTPUT_TYPE':
       return { ...state, outputType: action.payload }
+    case 'SET_VOICE_ID':
+      return { ...state, voiceId: action.payload }
     case 'SET_WORKFLOW_MODE':
       return { ...state, workflowMode: action.payload }
     case 'SET_OPTION_ID':

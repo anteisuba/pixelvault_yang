@@ -48,6 +48,16 @@ const LayerDecomposePanel = dynamic(() =>
     (mod) => mod.LayerDecomposePanel,
   ),
 )
+const VoiceSelector = dynamic(() =>
+  import('@/components/business/studio/VoiceSelector').then(
+    (mod) => mod.VoiceSelector,
+  ),
+)
+const VoiceTrainer = dynamic(() =>
+  import('@/components/business/studio/VoiceTrainer').then(
+    (mod) => mod.VoiceTrainer,
+  ),
+)
 
 /**
  * StudioDockPanelArea — renders ALL 6 tool panels inline in the right
@@ -120,7 +130,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     state.panels.refImage ||
     state.panels.reverse ||
     state.panels.layerDecompose ||
-    state.panels.aspectRatio
+    state.panels.aspectRatio ||
+    state.panels.voiceSelector ||
+    state.panels.voiceTrainer
 
   if (!hasOpenPanel) return null
 
@@ -259,6 +271,12 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
       {/* ── Aspect Ratio ─────────────────────────────────────── */}
       {state.panels.aspectRatio && <StudioGenerateBar />}
+
+      {/* ── Voice Selector (audio mode) ───────────────────────── */}
+      {state.panels.voiceSelector && <VoiceSelector />}
+
+      {/* ── Voice Trainer (audio mode) ────────────────────────── */}
+      {state.panels.voiceTrainer && <VoiceTrainer />}
     </div>
   )
 })

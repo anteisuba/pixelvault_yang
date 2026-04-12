@@ -37,6 +37,7 @@ export interface AudioGenerateInput {
   modelId: string
   apiKeyId?: string
   freePrompt?: string
+  voiceId?: string
 }
 
 export interface CompareModelSelection {
@@ -711,6 +712,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           prompt: input.freePrompt ?? '',
           modelId: input.modelId,
           apiKeyId: input.apiKeyId,
+          voiceId: input.voiceId,
         })
         if (result.success && result.data?.generation) {
           setError(null)

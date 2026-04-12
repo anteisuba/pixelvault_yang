@@ -5,11 +5,7 @@ import JSZip from 'jszip'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { decryptApiKey } from '@/lib/crypto'
-import {
-  fetchAsBuffer,
-  uploadToR2,
-  streamUploadToR2,
-} from '@/services/storage/r2'
+import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LORA_TRAINING } from '@/constants/config'
 import type { LoraTrainingRecord, SubmitLoraTrainingRequest } from '@/types'
@@ -22,6 +18,92 @@ import {
   checkFalLoraTrainingStatus,
 } from '@/services/providers/fal.adapter'
 import { withRetry } from '@/lib/with-retry'
+
+// ─── Tar → Safetensors extraction ─────────────────────────────────
+
+/**
+ * Download a .tar URL, extract the first .safetensors file, upload to R2.
+ * Replicate training outputs .tar containing e.g. flux-lora/flux-lora.safetensors.
+ * fal.ai needs the raw .safetensors URL.
+ */
+async function transferLoraToR2(
+  sourceUrl: string,
+  userId: string,
+  jobId: string,
+): Promise<{ publicUrl: string; storageKey: string }> {
+  const response = await fetch(sourceUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to download LoRA: ${response.status}`)
+  }
+  const fullBuffer = Buffer.from(await response.arrayBuffer())
+
+  // Check if it's a tar file (starts with a filename followed by null bytes in header)
+  // and contains .safetensors — if so, extract it
+  let loraBuffer: Buffer = fullBuffer
+  let ext = 'safetensors'
+
+  if (sourceUrl.endsWith('.tar') || sourceUrl.includes('.tar')) {
+    // Simple tar extraction: find .safetensors entry
+    const extracted = extractSafetensorsFromTar(fullBuffer)
+    if (extracted) {
+      loraBuffer = extracted
+    } else {
+      // No .safetensors found inside tar — upload tar as-is
+      ext = 'tar'
+    }
+  }
+
+  const storageKey = `lora-weights/${userId}/${jobId}.${ext}`
+  const publicUrl = await uploadToR2({
+    data: loraBuffer,
+    key: storageKey,
+    mimeType: 'application/octet-stream',
+  })
+
+  return { publicUrl, storageKey }
+}
+
+/**
+ * Extract first .safetensors file from a tar archive buffer.
+ * Tar format: 512-byte header blocks, filename at offset 0 (100 bytes),
+ * file size at offset 124 (12 bytes, octal), followed by data blocks.
+ */
+function extractSafetensorsFromTar(tarBuffer: Buffer): Buffer | null {
+  let offset = 0
+  while (offset + 512 <= tarBuffer.length) {
+    // Read filename (null-terminated string, first 100 bytes)
+    const nameEnd = tarBuffer.indexOf(0, offset)
+    const name = tarBuffer
+      .subarray(offset, Math.min(nameEnd, offset + 100))
+      .toString('utf8')
+
+    if (!name || name.length === 0) break // End of archive
+
+    // Read size (octal string at offset+124, 12 bytes)
+    const sizeStr = tarBuffer
+      .subarray(offset + 124, offset + 136)
+      .toString('utf8')
+      .trim()
+    const size = parseInt(sizeStr, 8)
+
+    if (isNaN(size)) break
+
+    // Data starts after 512-byte header
+    const dataStart = offset + 512
+    const dataEnd = dataStart + size
+
+    if (name.endsWith('.safetensors') && size > 0) {
+      const out = Buffer.alloc(size)
+      tarBuffer.copy(out, 0, dataStart, dataEnd)
+      return out
+    }
+
+    // Move to next entry (data + padding to 512-byte boundary)
+    offset = dataStart + Math.ceil(size / 512) * 512
+  }
+
+  return null
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -192,20 +274,18 @@ export async function checkLoraTrainingStatus(
     // If completed but not yet transferred to R2, do it now
     if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
       try {
-        const ext = job.loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
-        const loraKey = `lora-weights/${dbUser.id}/${jobId}.${ext}`
-        const { publicUrl } = await streamUploadToR2({
-          sourceUrl: job.loraUrl,
-          key: loraKey,
-          mimeType: 'application/octet-stream',
-        })
+        const { publicUrl, storageKey } = await transferLoraToR2(
+          job.loraUrl,
+          dbUser.id,
+          jobId,
+        )
         const updated = await db.loraTrainingJob.update({
           where: { id: jobId },
-          data: { loraUrl: publicUrl, loraStorageKey: loraKey },
+          data: { loraUrl: publicUrl, loraStorageKey: storageKey },
         })
         logger.info('LoRA weights retroactively transferred to R2', {
           jobId,
-          loraKey,
+          storageKey,
         })
         return toRecord(updated)
       } catch (err) {
@@ -294,19 +374,17 @@ export async function checkLoraTrainingStatus(
   }
 
   if (newStatus === 'COMPLETED' && loraUrl) {
-    // Transfer LoRA weights from provider CDN to R2 (provider URLs are temporary)
+    // Transfer LoRA weights from provider CDN to R2 (extract .safetensors from .tar)
     let persistedLoraUrl = loraUrl
     try {
-      const ext = loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
-      const loraKey = `lora-weights/${dbUser.id}/${jobId}.${ext}`
-      const { publicUrl } = await streamUploadToR2({
-        sourceUrl: loraUrl,
-        key: loraKey,
-        mimeType: 'application/octet-stream',
-      })
+      const { publicUrl, storageKey } = await transferLoraToR2(
+        loraUrl,
+        dbUser.id,
+        jobId,
+      )
       persistedLoraUrl = publicUrl
-      updateData.loraStorageKey = loraKey
-      logger.info('LoRA weights transferred to R2', { jobId, loraKey })
+      updateData.loraStorageKey = storageKey
+      logger.info('LoRA weights transferred to R2', { jobId, storageKey })
     } catch (transferErr) {
       logger.warn('Failed to transfer LoRA to R2, using provider URL', {
         jobId,
@@ -368,22 +446,20 @@ export async function listLoraTrainingJobs(
   for (const job of jobs) {
     if (job.status === 'COMPLETED' && job.loraUrl && !job.loraStorageKey) {
       try {
-        const ext = job.loraUrl.includes('.safetensors') ? 'safetensors' : 'tar'
-        const loraKey = `lora-weights/${dbUser.id}/${job.id}.${ext}`
-        const { publicUrl } = await streamUploadToR2({
-          sourceUrl: job.loraUrl,
-          key: loraKey,
-          mimeType: 'application/octet-stream',
-        })
+        const { publicUrl, storageKey } = await transferLoraToR2(
+          job.loraUrl,
+          dbUser.id,
+          job.id,
+        )
         await db.loraTrainingJob.update({
           where: { id: job.id },
-          data: { loraUrl: publicUrl, loraStorageKey: loraKey },
+          data: { loraUrl: publicUrl, loraStorageKey: storageKey },
         })
         job.loraUrl = publicUrl
-        job.loraStorageKey = loraKey
+        job.loraStorageKey = storageKey
         logger.info('LoRA weights auto-transferred to R2 on list', {
           jobId: job.id,
-          loraKey,
+          storageKey,
         })
       } catch (err) {
         logger.warn('Failed to auto-transfer LoRA on list', {

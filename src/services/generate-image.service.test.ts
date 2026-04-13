@@ -265,6 +265,7 @@ describe('generateImageForUser', () => {
     vi.mocked(validatePrompt).mockReturnValue({
       valid: false,
       reason: 'Prompt is too short',
+      warnings: [],
     })
 
     await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(

@@ -4,6 +4,8 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
   ProviderError,
+  type HealthCheckInput,
+  type HealthCheckResult,
   type ProviderAdapter,
   type ProviderAudioInput,
   type ProviderAudioResult,
@@ -81,6 +83,35 @@ export const fishAudioAdapter: ProviderAdapter = {
       format: outputFormat,
       sampleRate: outputSampleRate,
       requestCount: 1,
+    }
+  },
+
+  async healthCheck({
+    apiKey,
+    timeoutMs,
+  }: HealthCheckInput): Promise<HealthCheckResult> {
+    const start = Date.now()
+    try {
+      const response = await fetch('https://api.fish.audio/model', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      const latencyMs = Date.now() - start
+      if (response.ok) {
+        return { status: 'available' as const, latencyMs }
+      }
+      return {
+        status: 'unavailable' as const,
+        latencyMs,
+        error: `HTTP ${response.status}`,
+      }
+    } catch (err) {
+      return {
+        status: 'unavailable' as const,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err),
+      }
     }
   },
 }

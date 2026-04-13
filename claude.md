@@ -117,6 +117,25 @@ See `docs/frontend/design-system.md` for full spec. Key constraints:
 - **Component**: 渲染、用户交互、条件显示
 - **Zod schema**: safeParse 有效/无效输入、边界值
 
+## Change Safety Protocol
+
+修改任何文件前，必须执行：
+
+1. Grep 确认谁依赖了这个模块（`grep -r "import.*from.*<模块名>" src/`）
+2. 如果被引用 >5 处，只做向后兼容的修改（加 optional 字段，不改已有签名）
+3. 修改 `types/index.ts` 的核心类型需要列出所有受影响文件
+
+高风险模块（改动前必须确认影响范围）：
+
+- `src/types/index.ts` — 189 files depend on it (see `src/types/CLAUDE.md`)
+- `src/services/user.service.ts` — 22 files depend on it
+- `src/services/generate-image.service.ts` — orchestrator, 8+ service deps
+- `src/contexts/studio-context.tsx` — 23+ studio components (see `src/contexts/CLAUDE.md`)
+- `src/constants/models.ts` — 178 files import from constants (see `src/constants/CLAUDE.md`)
+- `src/services/storage/r2.ts` — 15 services depend on it
+
+Per-directory CLAUDE.md files exist in: `types/`, `contexts/`, `components/business/studio/`, `hooks/`, `constants/`
+
 ## Common Pitfalls
 
 1. **Adding a model** — must update: `AI_MODELS` enum + model config + i18n (3 files) + provider adapter
@@ -132,6 +151,17 @@ See `docs/frontend/design-system.md` for full spec. Key constraints:
 2. Reuse `src/components/ui/` before creating new primitives
 3. Follow: Service → Hook → UI order
 4. Use Zod for types, never `as` assertions
+
+## Memory Maintenance
+
+完成重大功能变更后，检查并更新以下 memory 文件：
+
+- 新增/删除 service → 更新 `ref_services_map.md`
+- 新增/删除 hook → 更新 `ref_hooks_map.md`
+- 修改 DB schema → 更新 `ref_db_schema.md`
+- 修改 constants → 更新 `ref_constants_map.md`
+- 发现新的模块陷阱 → 更新 `ref_module_gotchas.md`
+- 改变模块依赖关系 → 更新 `ref_change_impact_map.md`
 
 ## Skill routing
 

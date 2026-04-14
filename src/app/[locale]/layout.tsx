@@ -33,10 +33,12 @@ export async function generateMetadata({
 
   const title = t('title')
   const description = t('description')
+  const keywords = t.has('keywords') ? t('keywords') : undefined
 
   return {
     title,
     description,
+    ...(keywords ? { keywords } : {}),
     metadataBase: new URL(APP_URL),
     openGraph: {
       title,
@@ -47,7 +49,7 @@ export async function generateMetadata({
       url: `${APP_URL}/${locale}`,
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title,
       description,
     },

@@ -93,7 +93,8 @@
   },
   "Metadata": {
     "title": "PixelVault | パーソナルAIギャラリー",
-    "description": "複数の AI 画像モデルで生成し、すべての結果をひとつの個人ギャラリーに保存できます。",
+    "description": "Gemini・FLUXなど主要AIモデルで画像・動画・音声を生成し、すべての結果をひとつの個人ギャラリーに永久保存。",
+    "keywords": "AI画像生成, AIアート, Gemini画像, FLUX AI, パーソナルAIギャラリー, AI動画生成, テキストから画像",
     "studio": {
       "title": "スタジオ — PixelVault",
       "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。"

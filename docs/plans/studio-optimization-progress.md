@@ -21,7 +21,7 @@
 | W4  | @ts-nocheck 清理 + audio async 路径修复 | ✅ 完成已推送 (`7830a0b`) |
 | W5  | API 路由错误格式统一 + 高优先级路由迁移 | ✅ 完成已推送             |
 | W6  | Video UI 骨架屏 + CollapsiblePanel 动画 | ✅ 完成已推送             |
-| W7  | 减轻 AI 感 + SEO 基础                   | ⏳ 未开始                 |
+| W7  | SEO 基础 — OG 图 + keywords + 优化描述  | ✅ 完成已推送             |
 
 ---
 

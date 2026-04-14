@@ -1,9 +1,38 @@
+import type { Metadata } from 'next'
 import { auth } from '@clerk/nextjs/server'
 import { getTranslations } from 'next-intl/server'
 
 import { HomepageShell } from '@/components/business/HomepageShell'
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 import type { AppLocale } from '@/i18n/routing'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: AppLocale }>
+}): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+
+  const title = t('title')
+  const description = t('description')
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${APP_URL}/${locale}`,
+      type: 'website',
+    },
+    alternates: {
+      canonical: `${APP_URL}/${locale}`,
+    },
+  }
+}
 
 interface LocalizedRootPageProps {
   params: Promise<{ locale: AppLocale }>

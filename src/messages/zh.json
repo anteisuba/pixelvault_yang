@@ -93,7 +93,8 @@
   },
   "Metadata": {
     "title": "PixelVault | 个人 AI 画廊",
-    "description": "使用多个 AI 图像模型生成图像，并将每次结果归档到同一个个人画廊中。",
+    "description": "使用 Gemini、FLUX 等顶级 AI 模型生成图像、视频和音频，并将每次结果永久归档到同一个个人画廊中。",
+    "keywords": "AI 图像生成, AI 绘画, Gemini 图像, FLUX AI, 个人 AI 画廊, AI 视频生成, 文字生成图片",
     "studio": {
       "title": "工作台 — PixelVault",
       "description": "在同一工作区使用多个 AI 模型生成图像和视频。"

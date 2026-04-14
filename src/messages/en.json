@@ -93,7 +93,8 @@
   },
   "Metadata": {
     "title": "PixelVault | Personal AI Gallery",
-    "description": "Generate with multiple AI image models, then archive every result in one personal gallery.",
+    "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
+    "keywords": "AI image generator, AI art, Gemini image, FLUX AI, personal AI gallery, AI video generator, text to image",
     "studio": {
       "title": "Studio — PixelVault",
       "description": "Generate images and videos with multiple AI models in one workspace."

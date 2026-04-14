@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { validateKeyFormat } from '@/lib/validate-api-key'
 
 type EntryMode = 'preset' | 'custom'
 
@@ -45,43 +46,6 @@ interface ApiKeyFormProps {
   onAdd: (data: CreateApiKeyRequest) => Promise<void>
   onCancel: () => void
   isSubmitting: boolean
-}
-
-/** Validate API key format based on adapter type prefix patterns */
-function validateKeyFormat(
-  adapterType: AI_ADAPTER_TYPES,
-  key: string,
-): 'valid' | 'invalid' | 'empty' {
-  const trimmed = key.trim()
-  if (!trimmed) return 'empty'
-
-  switch (adapterType) {
-    case AI_ADAPTER_TYPES.HUGGINGFACE:
-      return trimmed.startsWith('hf_') ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.GEMINI:
-      return trimmed.startsWith('AIza') ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.OPENAI:
-      return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.FAL:
-      return trimmed.length > 10 ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.REPLICATE:
-      return trimmed.startsWith('r8_') ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.NOVELAI:
-      // NovelAI persistent API tokens start with "pst-" or are JWT-like (eyJhbGci...)
-      return trimmed.startsWith('pst-') || trimmed.startsWith('eyJhbGci')
-        ? 'valid'
-        : 'invalid'
-    case AI_ADAPTER_TYPES.VOLCENGINE:
-      // VolcEngine ARK API keys — Bearer token format
-      return trimmed.length > 10 ? 'valid' : 'invalid'
-    case AI_ADAPTER_TYPES.FISH_AUDIO:
-      // Fish Audio API keys are hex strings (e.g. aaf42ad8...)
-      return trimmed.length >= 16 && /^[a-f0-9-]+$/i.test(trimmed)
-        ? 'valid'
-        : 'invalid'
-    default:
-      return 'valid'
-  }
 }
 
 export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {

@@ -3,20 +3,11 @@
 import { memo, useCallback, useState } from 'react'
 import Image from 'next/image'
 
-import { OptimizedImage } from '@/components/ui/optimized-image'
+import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
+import { ImageCardActions } from '@/components/business/image-card/ImageCardActions'
+import { ImageCardVisibility } from '@/components/business/image-card/ImageCardVisibility'
 
-import {
-  ArrowUpRight,
-  Coins,
-  Download,
-  Globe2,
-  Heart,
-  ImageIcon,
-  LockKeyhole,
-  Music,
-  Pin,
-  Play,
-} from 'lucide-react'
+import { ArrowUpRight, Coins, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
@@ -152,95 +143,27 @@ export const ImageCard = memo(function ImageCard({
     <>
       <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
         <div className="relative overflow-hidden bg-secondary/18">
-          <button
-            type="button"
-            className="block w-full cursor-pointer"
-            onClick={() => setDetailOpen(true)}
-            aria-label={isVideo ? t('openVideo') : t('openImage')}
-          >
-            {isAudio ? (
-              <div
-                className="flex w-full flex-col items-center justify-center gap-3 bg-muted/30 px-4 py-8"
-                style={{ aspectRatio: '1 / 1' }}
-              >
-                <Music className="size-10 text-muted-foreground/40" />
-                <audio
-                  src={generation.url}
-                  controls
-                  preload="metadata"
-                  className="w-full max-w-[200px]"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-            ) : isVideo ? (
-              <video
-                src={`${generation.url}#t=0.1`}
-                muted
-                playsInline
-                preload="metadata"
-                className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                style={{ aspectRatio }}
-              />
-            ) : (
-              <OptimizedImage
-                src={generation.url}
-                alt={generation.prompt}
-                width={generation.width}
-                height={generation.height}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                loading="lazy"
-              />
-            )}
-          </button>
-          {generation.referenceImageUrl && (
-            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">
-              <ImageIcon className="size-3" />
-              {t('referenceImageLabel')}
-            </span>
-          )}
-          {isVideo && (
-            <>
-              <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md">
-                <Play className="ml-0.5 size-3.5" fill="currentColor" />
-              </span>
-              {generation.duration != null && (
-                <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-xs text-white backdrop-blur-md">
-                  0:{String(Math.round(generation.duration)).padStart(2, '0')}
-                </span>
-              )}
-            </>
-          )}
-
-          {/* Hover action buttons */}
-          <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <button
-              type="button"
-              onClick={handleLike}
-              disabled={isLikePending}
-              className="flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
-              aria-label={liked ? t('unlike') : t('like')}
-            >
-              <Heart
-                className={cn(
-                  'size-3.5 transition-colors',
-                  liked && 'fill-red-500 text-red-500',
-                )}
-              />
-              {likeCount > 0 && <span>{likeCount}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => void handleDownload(e)}
-              disabled={isDownloading}
-              className="flex items-center rounded-full bg-black/50 p-1.5 text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none"
-              aria-label={t('download')}
-            >
-              <Download
-                className={cn('size-3.5', isDownloading && 'animate-pulse')}
-              />
-            </button>
-          </div>
+          <ImageCardMedia
+            generation={generation}
+            isAudio={isAudio}
+            isVideo={isVideo}
+            aspectRatio={aspectRatio}
+            onOpenDetail={() => setDetailOpen(true)}
+            openImageLabel={t('openImage')}
+            openVideoLabel={t('openVideo')}
+            referenceImageLabel={t('referenceImageLabel')}
+          />
+          <ImageCardActions
+            liked={liked}
+            likeCount={likeCount}
+            isLikePending={isLikePending}
+            isDownloading={isDownloading}
+            onLike={handleLike}
+            onDownload={(e) => void handleDownload(e)}
+            likeLabel={t('like')}
+            unlikeLabel={t('unlike')}
+            downloadLabel={t('download')}
+          />
         </div>
 
         <div className="space-y-4 p-4 sm:p-5">
@@ -323,92 +246,28 @@ export const ImageCard = memo(function ImageCard({
           <MetadataList items={metadata} labelClassName={labelClass} />
 
           {showVisibility ? (
-            <dl className="grid gap-2">
-              <div className="flex items-start justify-between gap-3 pt-0.5">
-                <dt className={labelClass}>{t('imageVisibilityLabel')}</dt>
-                <dd className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-sm text-foreground">
-                    {isPublic ? (
-                      <Globe2 className="size-3 text-chart-2" />
-                    ) : (
-                      <LockKeyhole className="size-3 text-muted-foreground" />
-                    )}
-                    {isPublic ? t('publicLabel') : t('privateLabel')}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={togglingField !== null}
-                    onClick={() => void handleToggle('isPublic')}
-                    className={cn(
-                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-nav-dense',
-                      togglingField !== null && 'opacity-50',
-                    )}
-                  >
-                    {isPublic ? t('makePrivateAction') : t('makePublicAction')}
-                  </button>
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <dt className={labelClass}>{t('promptVisibilityLabel')}</dt>
-                <dd className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-sm text-foreground">
-                    {isPromptPublic ? (
-                      <Globe2 className="size-3 text-chart-2" />
-                    ) : (
-                      <LockKeyhole className="size-3 text-muted-foreground" />
-                    )}
-                    {isPromptPublic ? t('publicLabel') : t('privateLabel')}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={togglingField !== null}
-                    onClick={() => void handleToggle('isPromptPublic')}
-                    className={cn(
-                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-nav-dense',
-                      togglingField !== null && 'opacity-50',
-                    )}
-                  >
-                    {isPromptPublic
-                      ? t('makePrivateAction')
-                      : t('makePublicAction')}
-                  </button>
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <dt className={labelClass}>{t('featuredLabel')}</dt>
-                <dd className="flex items-center gap-3">
-                  <span className="flex items-center gap-1.5 text-sm text-foreground">
-                    <Pin
-                      className={cn(
-                        'size-3',
-                        isFeatured ? 'text-primary' : 'text-muted-foreground',
-                      )}
-                    />
-                    {isFeatured ? t('featuredOn') : t('featuredOff')}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={togglingField !== null}
-                    onClick={() => void handleToggle('isFeatured')}
-                    className={cn(
-                      'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
-                      isDenseLocale
-                        ? 'tracking-normal normal-case'
-                        : 'uppercase tracking-nav-dense',
-                      togglingField !== null && 'opacity-50',
-                    )}
-                  >
-                    {isFeatured ? t('unpinAction') : t('pinAction')}
-                  </button>
-                </dd>
-              </div>
-            </dl>
+            <ImageCardVisibility
+              isPublic={isPublic}
+              isPromptPublic={isPromptPublic}
+              isFeatured={isFeatured}
+              togglingField={togglingField}
+              onToggle={handleToggle}
+              labelClass={labelClass}
+              isDenseLocale={isDenseLocale}
+              labels={{
+                imageVisibilityLabel: t('imageVisibilityLabel'),
+                promptVisibilityLabel: t('promptVisibilityLabel'),
+                featuredLabel: t('featuredLabel'),
+                publicLabel: t('publicLabel'),
+                privateLabel: t('privateLabel'),
+                makePublicAction: t('makePublicAction'),
+                makePrivateAction: t('makePrivateAction'),
+                featuredOn: t('featuredOn'),
+                featuredOff: t('featuredOff'),
+                pinAction: t('pinAction'),
+                unpinAction: t('unpinAction'),
+              }}
+            />
           ) : null}
         </div>
       </article>

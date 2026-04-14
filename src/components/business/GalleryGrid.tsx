@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import type { Route } from '@/constants/routes'
@@ -58,6 +58,29 @@ export function GalleryGrid({
 
   const visibleGenerations = generations.slice(0, visibleCount)
 
+  // Keyboard navigation: arrow keys move focus between gallery items
+  const handleGalleryKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      const items =
+        e.currentTarget.querySelectorAll<HTMLElement>('[role="article"]')
+      const current = document.activeElement as HTMLElement
+      const idx = Array.from(items).indexOf(current)
+      if (idx === -1) return
+
+      let next = -1
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        next = Math.min(idx + 1, items.length - 1)
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        next = Math.max(idx - 1, 0)
+      }
+      if (next >= 0 && next !== idx) {
+        e.preventDefault()
+        items[next].focus()
+      }
+    },
+    [],
+  )
+
   if (generations.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 px-6 py-16 text-center sm:px-10">
@@ -89,6 +112,7 @@ export function GalleryGrid({
       aria-label="Gallery"
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
       onMouseLeave={() => setHoveredId(null)}
+      onKeyDown={handleGalleryKeyDown}
     >
       {visibleGenerations.map((generation, index) => {
         const isHovered = hoveredId === generation.id
@@ -102,9 +126,11 @@ export function GalleryGrid({
           >
             <div
               role="article"
+              tabIndex={0}
               aria-posinset={index + 1}
               aria-setsize={generations.length}
-              className="transition-all duration-300 hover:z-10"
+              aria-label={generation.prompt?.slice(0, 80) || 'Gallery item'}
+              className="transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none rounded-xl"
               style={{
                 perspective: '1000px',
                 transform: isHovered ? 'scale(1.02)' : 'scale(1)',
@@ -112,6 +138,7 @@ export function GalleryGrid({
                 filter: isSomethingHovered && !isHovered ? 'blur(1px)' : 'none',
               }}
               onMouseEnter={() => setHoveredId(generation.id)}
+              onFocus={() => setHoveredId(generation.id)}
             >
               <ImageCard
                 generation={generation}

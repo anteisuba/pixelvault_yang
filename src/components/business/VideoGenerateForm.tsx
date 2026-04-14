@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Check, Film, Loader2, User } from 'lucide-react'
+import { Check, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { VIDEO_GENERATION } from '@/constants/config'
@@ -17,12 +17,10 @@ import { isCjkLocale } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 
 import type { CharacterCardRecord } from '@/types'
-import { HistoryPanel } from '@/components/business/HistoryPanel'
 import {
   ModelSelector,
   type StudioModelOption,
 } from '@/components/business/ModelSelector'
-import { StudioApiRoutesSection } from '@/components/business/studio'
 
 const PromptEnhancer = dynamic(() =>
   import('@/components/business/PromptEnhancer').then(
@@ -30,13 +28,12 @@ const PromptEnhancer = dynamic(() =>
   ),
 )
 import VideoPlayer from '@/components/business/VideoPlayer'
-import { PipelineProgress } from '@/components/business/PipelineProgress'
+import { VideoFormSettings } from '@/components/business/video/VideoFormSettings'
+import { VideoGenerationProgress } from '@/components/business/video/VideoGenerationProgress'
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ErrorAlert } from '@/components/ui/error-alert'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
-import { OptionGroup } from '@/components/ui/option-group'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioData } from '@/contexts/studio-context'
@@ -50,13 +47,7 @@ import {
   mergeModelOptionsWithPreferredSavedRoutes,
 } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
-import {
-  formatDuration,
-  resizeImageToDataUrl,
-  VIDEO_SIZES,
-} from '@/lib/video-utils'
-
-const RESOLUTION_OPTIONS = ['480p', '720p', '1080p'] as const
+import { resizeImageToDataUrl, VIDEO_SIZES } from '@/lib/video-utils'
 
 interface VideoGenerateFormProps {
   activeCharacterCards?: CharacterCardRecord[]
@@ -71,8 +62,6 @@ export default function VideoGenerateForm({
   const tCard = useTranslations('VideoGenerate.characterCard')
   const tLong = useTranslations('LongVideo')
   const tModels = useTranslations('Models')
-  const tProjects = useTranslations('Projects')
-  const tStudio = useTranslations('StudioV3')
   const { keys, healthMap } = useApiKeysContext()
   const { projects } = useStudioData()
   const {
@@ -173,7 +162,7 @@ export default function VideoGenerateForm({
       ),
     [projects.history],
   )
-  const previewGeneration = useMemo(() => {
+  const _previewGeneration = useMemo(() => {
     if (
       selectedGenerationId &&
       selectedGenerationId !== currentGeneration?.id
@@ -187,7 +176,7 @@ export default function VideoGenerateForm({
 
     return currentGeneration ?? videoHistory[0] ?? null
   }, [currentGeneration, selectedGenerationId, videoHistory])
-  const selectedModelLabel = selectedModel
+  const _selectedModelLabel = selectedModel
     ? getTranslatedModelLabel(tModels, selectedModel.modelId)
     : t('modelPlaceholder')
 
@@ -286,7 +275,7 @@ export default function VideoGenerateForm({
   }
 
   const tierLabel = selectedModelConfig?.qualityTier
-  const sessionDurationLabel = longVideoMode
+  const _sessionDurationLabel = longVideoMode
     ? `${targetDuration}s`
     : `${duration}s`
 
@@ -365,76 +354,24 @@ export default function VideoGenerateForm({
       )}
 
       {/* Duration + Aspect Ratio + Resolution */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
-          <label
-            className={cn(
-              'mb-3 block text-xs font-semibold text-muted-foreground',
-              !cjk && 'uppercase tracking-nav',
-            )}
-          >
-            {longVideoMode ? tLong('targetDuration') : t('durationLabel')}
-          </label>
-          {longVideoMode ? (
-            <OptionGroup
-              options={VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS.map(
-                (d) => ({
-                  value: String(d),
-                  label: `${d}s`,
-                }),
-              )}
-              value={String(targetDuration)}
-              onChange={(v) => setTargetDuration(Number(v))}
-              variant="neutral"
-            />
-          ) : (
-            <OptionGroup
-              options={VIDEO_GENERATION.DURATION_OPTIONS.map((d) => ({
-                value: String(d),
-                label: `${d}s`,
-              }))}
-              value={String(duration)}
-              onChange={(v) => setDuration(Number(v))}
-              variant="neutral"
-            />
-          )}
-        </div>
-
-        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
-          <label
-            className={cn(
-              'mb-3 block text-xs font-semibold text-muted-foreground',
-              !cjk && 'uppercase tracking-nav',
-            )}
-          >
-            {t('aspectRatioLabel')}
-          </label>
-          <OptionGroup
-            options={['16:9', '9:16', '1:1']}
-            value={aspectRatio}
-            onChange={setAspectRatio}
-            variant="neutral"
-          />
-        </div>
-
-        <div className="min-w-0 rounded-3xl border border-border/75 bg-card/82 p-5">
-          <label
-            className={cn(
-              'mb-3 block text-xs font-semibold text-muted-foreground',
-              !cjk && 'uppercase tracking-nav',
-            )}
-          >
-            {t('resolutionLabel')}
-          </label>
-          <OptionGroup
-            options={RESOLUTION_OPTIONS.map((r) => r)}
-            value={resolution ?? ''}
-            onChange={(v) => setResolution(v || undefined)}
-            allowDeselect
-            variant="neutral"
-          />
-        </div>
-      </div>
+      <VideoFormSettings
+        cjk={cjk}
+        duration={duration}
+        setDuration={setDuration}
+        aspectRatio={aspectRatio}
+        setAspectRatio={setAspectRatio}
+        resolution={resolution}
+        setResolution={setResolution}
+        longVideoMode={longVideoMode}
+        targetDuration={targetDuration}
+        setTargetDuration={setTargetDuration}
+        labels={{
+          durationLabel: t('durationLabel'),
+          targetDuration: tLong('targetDuration'),
+          aspectRatioLabel: t('aspectRatioLabel'),
+          resolutionLabel: t('resolutionLabel'),
+        }}
+      />
 
       {/* Reference Image */}
       <div className="rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
@@ -611,92 +548,26 @@ export default function VideoGenerateForm({
         />
       </CollapsiblePanel>
 
-      {/* Submit */}
-      <div className="rounded-3xl border border-border/75 bg-primary/6 p-5 sm:p-6">
-        <div className="flex flex-col items-center gap-4 lg:flex-row lg:justify-between">
-          <p className="font-serif text-sm text-muted-foreground">
-            {t('submitHint')}
-          </p>
-          <Button
-            type="submit"
-            disabled={isAnyGenerating || !selectedModel || !prompt.trim()}
-            className="w-full rounded-full lg:w-auto"
-          >
-            {isAnyGenerating ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                {longVideoMode
-                  ? tLong('clipGenerating', {
-                      index: longVideo.currentClipIndex + 1,
-                    })
-                  : (stageLabels[stage] ?? t('generating'))}
-              </>
-            ) : (
-              <>
-                <Film className="mr-2 size-4" />
-                {t('generateButton')}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Long Video Pipeline Progress */}
-      {longVideoMode && longVideo.isGenerating && longVideo.pipelineStatus && (
-        <div className="rounded-3xl border border-border/75 bg-card/82 p-6">
-          <p className="mb-4 text-center font-display text-lg font-medium">
-            {tLong('clipGenerating', { index: longVideo.currentClipIndex + 1 })}
-          </p>
-          <PipelineProgress
-            status={longVideo.pipelineStatus}
-            onRetryClip={longVideo.retryClip}
-            onCancel={longVideo.cancel}
-          />
-          <p className="mt-3 text-center font-serif text-sm text-muted-foreground">
-            {t('elapsed', {
-              seconds: formatDuration(longVideo.elapsedSeconds),
-            })}
-          </p>
-        </div>
-      )}
-
-      {/* Normal video generation progress */}
-      {!longVideoMode && isGenerating && stage !== 'idle' && (
-        <div className="rounded-3xl border border-border/75 bg-card/82 p-6">
-          <p className="mb-4 text-center font-display text-lg font-medium">
-            {t('generatingTitle')}
-          </p>
-          <div className="mb-3 flex items-center justify-center gap-3 text-sm">
-            {(['queued', 'generating', 'uploading'] as const).map((s, i) => (
-              <span key={s} className="flex items-center gap-1.5">
-                {i > 0 && <span className="mx-1 h-px w-4 bg-border" />}
-                <span
-                  className={cn(
-                    'size-2 rounded-full',
-                    stage === s
-                      ? 'bg-primary'
-                      : s < stage
-                        ? 'bg-foreground'
-                        : 'bg-border',
-                  )}
-                />
-                <span
-                  className={cn(
-                    stage === s
-                      ? 'font-medium text-primary'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {stageLabels[s]}
-                </span>
-              </span>
-            ))}
-          </div>
-          <p className="text-center font-serif text-sm text-muted-foreground">
-            {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
-          </p>
-        </div>
-      )}
+      {/* Submit + Progress */}
+      <VideoGenerationProgress
+        isGenerating={isGenerating}
+        stage={stage}
+        elapsedSeconds={elapsedSeconds}
+        stageLabels={stageLabels}
+        longVideoMode={longVideoMode}
+        longVideo={longVideo}
+        isAnyGenerating={isAnyGenerating}
+        canSubmit={!!selectedModel && !!prompt.trim()}
+        submitLabel={t('generateButton')}
+        generatingLabel={
+          longVideoMode
+            ? tLong('clipGenerating', {
+                index: longVideo.currentClipIndex + 1,
+              })
+            : (stageLabels[stage] ?? t('generating'))
+        }
+        submitHint={t('submitHint')}
+      />
 
       {/* Error */}
       {currentError && <ErrorAlert message={currentError} />}

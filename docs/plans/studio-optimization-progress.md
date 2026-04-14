@@ -20,7 +20,7 @@
 | W3  | Quick Mode 简化入口                     | ✅ 完成已推送 (`6a5a07e`) |
 | W4  | @ts-nocheck 清理 + audio async 路径修复 | ✅ 完成已推送 (`7830a0b`) |
 | W5  | API 路由错误格式统一 + 高优先级路由迁移 | ✅ 完成已推送             |
-| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一 | ⏳ 未开始                 |
+| W6  | Video UI 骨架屏 + CollapsiblePanel 动画 | ✅ 完成已推送             |
 | W7  | 减轻 AI 感 + SEO 基础                   | ⏳ 未开始                 |
 
 ---
@@ -194,14 +194,27 @@ feat: W3 Quick Mode — 简化入口 + 内联模型选择 + API key 快速引导
 **迁移模式:** POST 路由 → `createApiRoute({ schema, handler })`，GET 路由 → `createApiGetRoute({ schema, handler })`
 **当前覆盖:** 17/79 → 目标 19/79（本次迁移 2 个）
 
-### W6: Video UI 统一 + 骨架屏
+### W6: Video UI 骨架屏 + CollapsiblePanel 动画
 
-- [ ] 将 `src/components/business/VideoGenerateForm.tsx` (763行) 核心逻辑迁入 `src/components/business/studio/StudioVideoMode.tsx` (当前 32 行 wrapper)
-- [ ] Video 使用与 Image 相同的 Studio 布局（TopBar + Canvas + BottomDock）
-- [ ] 废弃独立的 `VideoGenerateForm.tsx`
-- [ ] 模型选择器统一（当前有 dropdown + pills 两种模式）
-- [ ] 添加生成结果骨架屏（当前无 loading 状态）
-- [ ] 面板展开/收起添加动画（fade-in + translate-up，300-600ms ease-out）
+> **Scope 说明（2026-04-14）**: Video 布局全量迁移（VideoGenerateForm → Studio canvas layout）
+> 属于高风险架构变更，需要独立规划。本次 W6 聚焦高价值低风险改进。
+
+**任务清单:**
+
+- [x] `src/components/ui/collapsible-panel.tsx` — 添加 CSS grid-rows 动画（300ms ease-out）
+  - chevron icon 旋转替代 ChevronUp/Down 切换
+  - `grid-rows-[0fr]` → `grid-rows-[1fr]` 高度过渡，overflow-hidden 防内容溢出
+- [x] `src/components/business/VideoGenerateForm.tsx` — 生成中骨架屏
+  - 当 `isAnyGenerating && !currentGeneration` 时：aspect-video Skeleton + 标题/badge 骨架
+  - 结果出现时 `animate-in fade-in-0 zoom-in-95` 入场动画（已有）
+
+**推迟项（需独立规划）:**
+
+- [ ] VideoGenerateForm → StudioVideoMode 布局迁移（sidebar + canvas 架构）
+  - 依赖: StudioContext 需扩展支持视频状态（duration、longVideoMode、negativePrompt）
+  - 依赖: StudioCanvas 需支持 outputType=video 时渲染 VideoPlayer
+  - 风险: 会影响 Studio 的所有三种 output type 渲染路径
+- [ ] 模型选择器统一（dropdown vs pills 两种模式）
 
 ### W7: 减轻 AI 感 + SEO
 

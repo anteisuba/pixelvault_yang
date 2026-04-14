@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface CollapsiblePanelProps {
   title: string
@@ -13,8 +14,8 @@ interface CollapsiblePanelProps {
 }
 
 /**
- * Collapsible panel with toggle button, used across generation forms
- * for reference image, advanced settings, reverse engineer, etc.
+ * Collapsible panel with smooth height animation.
+ * Uses CSS grid-rows trick for height: 0 → 1fr transition.
  */
 export function CollapsiblePanel({
   title,
@@ -25,6 +26,7 @@ export function CollapsiblePanel({
   children,
 }: CollapsiblePanelProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   return (
     <div
@@ -35,6 +37,7 @@ export function CollapsiblePanel({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen ? 'true' : 'false'}
         className="flex w-full items-center justify-between gap-4 text-left"
       >
         <div className="space-y-1">
@@ -47,17 +50,27 @@ export function CollapsiblePanel({
         </div>
         <div className="flex items-center gap-2">
           {badge}
-          {isOpen ? (
-            <ChevronUp className="size-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-4 text-muted-foreground" />
-          )}
+          <ChevronDown
+            className={cn(
+              'size-4 text-muted-foreground transition-transform duration-300 ease-out',
+              isOpen && 'rotate-180',
+            )}
+          />
         </div>
       </button>
 
-      {isOpen && (
-        <div className="mt-4 border-t border-border/70 pt-4">{children}</div>
-      )}
+      {/* Grid-rows trick: height animates from 0 to auto smoothly */}
+      <div
+        ref={contentRef}
+        className={cn(
+          'grid transition-[grid-template-rows] duration-300 ease-out',
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-4 border-t border-border/70 pt-4">{children}</div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -33,6 +33,7 @@ import { VideoGenerationProgress } from '@/components/business/video/VideoGenera
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 import { ErrorAlert } from '@/components/ui/error-alert'
 import { ReferenceImageSection } from '@/components/ui/reference-image-section'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -571,6 +572,18 @@ export default function VideoGenerateForm({
 
       {/* Error */}
       {currentError && <ErrorAlert message={currentError} />}
+
+      {/* Result skeleton while generating (no result yet) */}
+      {isAnyGenerating && !currentGeneration && (
+        <div className="space-y-3 rounded-3xl border border-border/75 bg-card/82 p-5 sm:p-6">
+          <Skeleton className="h-3 w-16 rounded-full" />
+          <Skeleton className="aspect-video w-full rounded-2xl" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-10 rounded-full" />
+          </div>
+        </div>
+      )}
 
       {/* Result */}
       {currentGeneration && (

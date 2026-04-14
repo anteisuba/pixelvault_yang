@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
@@ -25,6 +26,8 @@ import {
   useStudioData,
 } from '@/contexts/studio-context'
 
+const STUDIO_MODE_KEY = 'studio-workflow-mode'
+
 /**
  * StudioWorkspace — wrapped with StudioProvider for state management.
  * Canvas-centric layout: TopBar → Canvas → BottomDock → Gallery.
@@ -42,8 +45,22 @@ export function StudioWorkspace() {
 // ═══════════════════════════════════════════════════════════════════
 
 function StudioWorkspaceInner() {
-  const { state } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { characters, onboarding } = useStudioData()
+  const isQuickMode = state.workflowMode === 'quick'
+
+  // Restore workflow mode from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STUDIO_MODE_KEY)
+    if (saved === 'card' || saved === 'quick') {
+      dispatch({ type: 'SET_WORKFLOW_MODE', payload: saved })
+    }
+  }, [dispatch])
+
+  // Persist workflow mode changes
+  useEffect(() => {
+    localStorage.setItem(STUDIO_MODE_KEY, state.workflowMode)
+  }, [state.workflowMode])
 
   return (
     <SidebarProvider defaultOpen={false} className="!min-h-0 bg-background">

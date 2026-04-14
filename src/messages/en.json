@@ -1683,7 +1683,10 @@
     "tokenPlaceholder": "Enter Civitai API token",
     "removeToken": "Remove",
     "cardManagement": "Card Management",
-    "projectHistory": "Project & History"
+    "projectHistory": "Project & History",
+    "proModeNudge": "Unlock style cards and character presets for more control",
+    "tryProMode": "Try it",
+    "noModelHint": "Select a model first"
   },
   "StudioPanels": {
     "reference": "Reference Images",
@@ -1769,6 +1772,19 @@
     "watercolor": "Watercolor",
     "pixel": "Pixel Art",
     "cyberpunk": "Cyberpunk"
+  },
+  "QuickSetup": {
+    "title": "Set up {model}",
+    "description": "Get your API key in 2 minutes to unlock this model.",
+    "step1": "1. Get your API key",
+    "step2": "2. Paste it here",
+    "keyPlaceholder": "Paste your API key...",
+    "verify": "Verify & activate",
+    "verifying": "Verifying...",
+    "verifyFailed": "Invalid API key. Please check and try again.",
+    "success": "API key verified! Model ready to use.",
+    "available": "Available",
+    "needsKey": "Needs API key"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "Studio draft",

@@ -36,6 +36,8 @@ interface StudioToolbarProps {
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
+  /** Quick mode hides advanced tools */
+  quickMode?: boolean
 }
 
 interface ToolButtonProps {
@@ -102,6 +104,7 @@ export function StudioToolbar({
   onCivitaiToken,
   hasToken,
   disabled,
+  quickMode,
 }: StudioToolbarProps) {
   const t = useTranslations('StudioV2')
 
@@ -127,13 +130,15 @@ export function StudioToolbar({
           onClick={onReverse}
           disabled={disabled}
         />
-        <ToolButton
-          icon={<Settings2 className="h-3.5 w-3.5" />}
-          label={t('advanced')}
-          onClick={onAdvanced}
-          active={advancedOpen}
-          disabled={disabled}
-        />
+        {!quickMode && (
+          <ToolButton
+            icon={<Settings2 className="h-3.5 w-3.5" />}
+            label={t('advanced')}
+            onClick={onAdvanced}
+            active={advancedOpen}
+            disabled={disabled}
+          />
+        )}
         <ToolButton
           icon={<ImageIcon className="h-3.5 w-3.5" />}
           label={t('referenceImage')}
@@ -141,12 +146,14 @@ export function StudioToolbar({
           badge={referenceImageCount}
           disabled={disabled}
         />
-        <ToolButton
-          icon={<Layers className="h-3.5 w-3.5" />}
-          label={t('layerDecompose')}
-          onClick={onLayerDecompose}
-          disabled={disabled}
-        />
+        {!quickMode && (
+          <ToolButton
+            icon={<Layers className="h-3.5 w-3.5" />}
+            label={t('layerDecompose')}
+            onClick={onLayerDecompose}
+            disabled={disabled}
+          />
+        )}
         <ToolButton
           icon={<RatioIcon className="h-3.5 w-3.5" />}
           label={t('aspectRatioLabel')}
@@ -154,31 +161,35 @@ export function StudioToolbar({
           active={aspectRatioOpen}
           disabled={disabled}
         />
-        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
-        <ToolButton
-          icon={<Key className="h-3.5 w-3.5" />}
-          label={t('civitaiToken')}
-          onClick={onCivitaiToken}
-          active={hasToken}
-          disabled={disabled}
-        />
-        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
-        <LoraTrainingDialog
-          trigger={
-            <Toolbar.Button
-              type="button"
+        {!quickMode && (
+          <>
+            <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
+            <ToolButton
+              icon={<Key className="h-3.5 w-3.5" />}
+              label={t('civitaiToken')}
+              onClick={onCivitaiToken}
+              active={hasToken}
               disabled={disabled}
-              className={cn(
-                'relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-200',
-                'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-                'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              )}
-            >
-              <Cpu className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Train LoRA</span>
-            </Toolbar.Button>
-          }
-        />
+            />
+            <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
+            <LoraTrainingDialog
+              trigger={
+                <Toolbar.Button
+                  type="button"
+                  disabled={disabled}
+                  className={cn(
+                    'relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-200',
+                    'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                  )}
+                >
+                  <Cpu className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Train LoRA</span>
+                </Toolbar.Button>
+              }
+            />
+          </>
+        )}
       </Toolbar.Root>
     </TooltipProvider>
   )

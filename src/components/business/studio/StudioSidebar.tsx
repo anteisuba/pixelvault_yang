@@ -262,68 +262,73 @@ export const StudioSidebar = memo(function StudioSidebar() {
       className="border-r border-border/50 !top-14 !h-[calc(100svh-3.5rem)]"
     >
       <SidebarContent className="flex flex-col">
-        {/* ── Header ─────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-3 py-2.5">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('projects')}
-          </h2>
-          <button
-            type="button"
-            onClick={() => void projects.create({ name: t('newProject') })}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title={t('newProject')}
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
+        {/* ── Projects section (hidden in quick mode) ────────── */}
+        {state.workflowMode !== 'quick' && (
+          <>
+            {/* ── Header ─────────────────────────────────────────── */}
+            <div className="flex items-center justify-between px-3 py-2.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('projects')}
+              </h2>
+              <button
+                type="button"
+                onClick={() => void projects.create({ name: t('newProject') })}
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={t('newProject')}
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
 
-        {/* ── All Generations (drop = unassign from project) ── */}
-        <button
-          ref={allBtnRef}
-          type="button"
-          onClick={() => projects.setActiveProjectId(null)}
-          className={cn(
-            'mx-2 mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors',
-            isDragOverAll && 'ring-2 ring-primary/40 bg-primary/5',
-            !projects.activeProjectId
-              ? 'bg-accent/70 text-accent-foreground font-medium'
-              : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground',
-          )}
-        >
-          <Images className="size-4 shrink-0" />
-          <span className="flex-1 truncate text-left">
-            {t('allGenerations')}
-          </span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
-            {projects.historyTotal}
-          </span>
-        </button>
+            {/* ── All Generations (drop = unassign from project) ── */}
+            <button
+              ref={allBtnRef}
+              type="button"
+              onClick={() => projects.setActiveProjectId(null)}
+              className={cn(
+                'mx-2 mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                isDragOverAll && 'ring-2 ring-primary/40 bg-primary/5',
+                !projects.activeProjectId
+                  ? 'bg-accent/70 text-accent-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground',
+              )}
+            >
+              <Images className="size-4 shrink-0" />
+              <span className="flex-1 truncate text-left">
+                {t('allGenerations')}
+              </span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
+                {projects.historyTotal}
+              </span>
+            </button>
 
-        {/* ── Project Tree (drop to specific project node) ──── */}
-        <div className="flex-1 overflow-y-auto px-1">
-          {treeData.length > 0 ? (
-            <TreeView
-              data={treeData}
-              initialSelectedItemId={projects.activeProjectId ?? undefined}
-              onSelectChange={(item) => {
-                if (item) handleSelectProject(item.id)
-              }}
-              defaultNodeIcon={Folder}
-              defaultLeafIcon={Folder}
-              expandAll
-              className="text-sm"
-              onExternalDrop={onExternalDrop}
-              canAcceptExternalDrop={canAcceptExternalDrop}
-            />
-          ) : (
-            <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-              {t('noProjects')}
-            </p>
-          )}
-        </div>
+            {/* ── Project Tree (drop to specific project node) ──── */}
+            <div className="flex-1 overflow-y-auto px-1">
+              {treeData.length > 0 ? (
+                <TreeView
+                  data={treeData}
+                  initialSelectedItemId={projects.activeProjectId ?? undefined}
+                  onSelectChange={(item) => {
+                    if (item) handleSelectProject(item.id)
+                  }}
+                  defaultNodeIcon={Folder}
+                  defaultLeafIcon={Folder}
+                  expandAll
+                  className="text-sm"
+                  onExternalDrop={onExternalDrop}
+                  canAcceptExternalDrop={canAcceptExternalDrop}
+                />
+              ) : (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                  {t('noProjects')}
+                </p>
+              )}
+            </div>
 
-        {/* ── Separator ──────────────────────────────────────── */}
-        <div className="mx-3 h-px bg-border/40" />
+            {/* ── Separator ──────────────────────────────────────── */}
+            <div className="mx-3 h-px bg-border/40" />
+          </>
+        )}
 
         {/* ── API Keys (compact) ─────────────────────────────── */}
         <div className="px-3 py-2">

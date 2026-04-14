@@ -1683,7 +1683,9 @@
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください",
     "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください",
     "promptHint": "プロンプトを入力して生成",
-    "noModelHint": "まずモデルを選択してください"
+    "noModelHint": "まずモデルを選択してください",
+    "proModeNudge": "スタイルカードやキャラクタープリセットでより細かくコントロール",
+    "tryProMode": "試す"
   },
   "StudioPanels": {
     "reference": "参照画像",
@@ -1769,6 +1771,19 @@
     "watercolor": "水彩画",
     "pixel": "ドット絵",
     "cyberpunk": "サイバーパンク"
+  },
+  "QuickSetup": {
+    "title": "{model} を設定",
+    "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",
+    "step1": "1. APIキーを取得",
+    "step2": "2. ここに貼り付け",
+    "keyPlaceholder": "APIキーを貼り付け...",
+    "verify": "検証して有効化",
+    "verifying": "検証中...",
+    "verifyFailed": "無効なAPIキーです。確認してもう一度お試しください。",
+    "success": "APIキー検証完了！モデルが使えます。",
+    "available": "利用可能",
+    "needsKey": "APIキーが必要"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "スタジオ草案",

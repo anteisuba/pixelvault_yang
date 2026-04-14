@@ -90,6 +90,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       }
       hasToken={civitai.hasToken}
       disabled={isGenerating}
+      quickMode={state.workflowMode === 'quick'}
     />
   )
 })

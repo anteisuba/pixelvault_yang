@@ -1,10 +1,12 @@
 'use client'
 
 import { memo, useCallback, useMemo, useRef, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import {
   ChevronDown,
   Dices,
   GitCompareArrows,
+  Key,
   Sparkles,
   Loader2,
 } from 'lucide-react'
@@ -24,12 +26,16 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   STYLE_PRESETS,
   getStylePresetById,
   NO_STYLE_PRESET_ID,
 } from '@/constants/style-presets'
+import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { cn } from '@/lib/utils'
 import {
   PromptInput,
@@ -43,7 +49,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DropdownMenuLabel } from '@/components/ui/dropdown-menu'
 import { ModelSelector } from '@/components/business/ModelSelector'
+import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
@@ -57,6 +65,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
+  const tModels = useTranslations('Models')
+  const { healthMap } = useApiKeysContext()
 
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
@@ -80,6 +90,38 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       return next
     })
   }, [])
+
+  // ── Quick Setup Dialog state ────────────────────────────────────
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    modelId: string
+    modelLabel: string
+    adapterType: AI_ADAPTER_TYPES
+    optionId: string
+  }>({
+    open: false,
+    modelId: '',
+    modelLabel: '',
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    optionId: '',
+  })
+
+  const tSetup = useTranslations('QuickSetup')
+
+  // ── Model options: split into available / needs key ─────────────
+  const { availableModels, lockedModels } = useMemo(() => {
+    const available: typeof modelOptions = []
+    const locked: typeof modelOptions = []
+    for (const opt of modelOptions) {
+      // Models with a saved key, or free-tier models → available
+      if (opt.sourceType === 'saved' || opt.freeTier) {
+        available.push(opt)
+      } else {
+        locked.push(opt)
+      }
+    }
+    return { availableModels: available, lockedModels: locked }
+  }, [modelOptions])
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -202,15 +244,42 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     }
     const image = buildImageInput()
     if (!image) return
-    await generate({ mode: 'image', image })
+    const result = await generate({ mode: 'image', image })
+
+    // Nudge: after 3 successful quick-mode generations, suggest Pro mode
+    if (result && state.workflowMode === 'quick') {
+      const NUDGE_KEY = 'studio-quick-gen-count'
+      const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
+      if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
+        const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
+        localStorage.setItem(NUDGE_KEY, String(count))
+        if (count === 3) {
+          toast(tV3('cardMode'), {
+            description: t('proModeNudge'),
+            action: {
+              label: t('tryProMode'),
+              onClick: () => {
+                dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
+                localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
+              },
+            },
+            onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
+          })
+        }
+      }
+    }
   }, [
     canGenerate,
     isAudioMode,
     selectedModel,
     state.prompt,
     state.voiceId,
+    state.workflowMode,
     buildImageInput,
     generate,
+    dispatch,
+    t,
+    tV3,
   ])
 
   const handleGenerateVariants = useCallback(async () => {
@@ -322,16 +391,137 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
         />
         <PromptInputActions className="justify-between px-2 pb-2">
-          {/* Contextual hint */}
-          <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
-            {!canGenerate && !isGenerating
-              ? state.workflowMode === 'quick' && !selectedModel?.modelId
-                ? t('noModelHint')
-                : state.workflowMode === 'quick' && !state.prompt.trim()
-                  ? tV3('generateShortcutHint')
-                  : null
-              : null}
-          </span>
+          {/* Quick mode: grouped model selector | Card mode: contextual hint */}
+          {state.workflowMode === 'quick' && !isAudioMode ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50"
+                  >
+                    {selectedModel?.keyId && (
+                      <ApiKeyHealthDot
+                        status={healthMap[selectedModel.keyId]}
+                      />
+                    )}
+                    <span className="font-medium max-w-32 truncate">
+                      {selectedModel
+                        ? (selectedModel.keyLabel ??
+                          getTranslatedModelLabel(
+                            tModels,
+                            selectedModel.modelId,
+                          ))
+                        : t('noModelHint')}
+                    </span>
+                    {selectedModel && (
+                      <span className="text-muted-foreground/50">
+                        {getProviderLabel(selectedModel.providerConfig)}
+                      </span>
+                    )}
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="min-w-56 max-h-72 overflow-y-auto"
+                >
+                  {/* Available models */}
+                  {availableModels.length > 0 && (
+                    <>
+                      <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
+                        {tSetup('available')}
+                      </DropdownMenuLabel>
+                      {availableModels.map((option) => (
+                        <DropdownMenuItem
+                          key={option.optionId}
+                          onClick={() =>
+                            dispatch({
+                              type: 'SET_OPTION_ID',
+                              payload: option.optionId,
+                            })
+                          }
+                          className={cn(
+                            option.optionId === state.selectedOptionId &&
+                              'bg-accent/60',
+                          )}
+                        >
+                          {option.keyId && (
+                            <ApiKeyHealthDot status={healthMap[option.keyId]} />
+                          )}
+                          {option.freeTier && !option.keyId && (
+                            <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
+                          )}
+                          <span className="font-medium">
+                            {option.keyLabel ??
+                              getTranslatedModelLabel(tModels, option.modelId)}
+                          </span>
+                          <span className="ml-auto text-2xs text-muted-foreground">
+                            {getProviderLabel(option.providerConfig)}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                  {/* Locked models (need API key) */}
+                  {lockedModels.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
+                        {tSetup('needsKey')}
+                      </DropdownMenuLabel>
+                      {lockedModels.map((option) => (
+                        <DropdownMenuItem
+                          key={option.optionId}
+                          onClick={() =>
+                            setQuickSetup({
+                              open: true,
+                              modelId: option.modelId,
+                              modelLabel: getTranslatedModelLabel(
+                                tModels,
+                                option.modelId,
+                              ),
+                              adapterType: option.adapterType,
+                              optionId: option.optionId,
+                            })
+                          }
+                          className="text-muted-foreground/70"
+                        >
+                          <Key className="size-3 shrink-0" />
+                          <span>
+                            {getTranslatedModelLabel(tModels, option.modelId)}
+                          </span>
+                          <span className="ml-auto text-2xs">
+                            {getProviderLabel(option.providerConfig)}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <QuickSetupDialog
+                open={quickSetup.open}
+                onOpenChange={(v) =>
+                  setQuickSetup((prev) => ({ ...prev, open: v }))
+                }
+                modelId={quickSetup.modelId}
+                modelLabel={quickSetup.modelLabel}
+                adapterType={quickSetup.adapterType}
+                optionId={quickSetup.optionId}
+              />
+            </>
+          ) : (
+            <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
+              {!canGenerate && !isGenerating
+                ? state.workflowMode === 'quick' && !selectedModel?.modelId
+                  ? t('noModelHint')
+                  : state.workflowMode === 'quick' && !state.prompt.trim()
+                    ? tV3('generateShortcutHint')
+                    : null
+                : null}
+            </span>
+          )}
 
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
           <div className="flex items-center">

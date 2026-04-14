@@ -1683,7 +1683,10 @@
     "tokenPlaceholder": "输入 Civitai API Token",
     "removeToken": "删除",
     "cardManagement": "卡片管理",
-    "projectHistory": "项目与历史"
+    "projectHistory": "项目与历史",
+    "proModeNudge": "解锁风格卡片和角色预设，获得更精细的控制",
+    "tryProMode": "试试看",
+    "noModelHint": "请先选择模型"
   },
   "StudioPanels": {
     "reference": "参考图",
@@ -1769,6 +1772,19 @@
     "watercolor": "水彩",
     "pixel": "像素风",
     "cyberpunk": "赛博朋克"
+  },
+  "QuickSetup": {
+    "title": "设置 {model}",
+    "description": "2 分钟获取 API key，解锁该模型。",
+    "step1": "1. 获取 API key",
+    "step2": "2. 粘贴到这里",
+    "keyPlaceholder": "粘贴你的 API key...",
+    "verify": "验证并激活",
+    "verifying": "验证中...",
+    "verifyFailed": "API key 无效，请检查后重试。",
+    "success": "验证通过！模型已可用。",
+    "available": "可用",
+    "needsKey": "需要 API key"
   },
   "StudioWorkbenchDraft": {
     "eyebrow": "工作台草稿",

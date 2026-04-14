@@ -1171,11 +1171,7 @@
     "steps": {
       "welcome": {
         "title": "Welcome to PixelVault",
-        "description": "Let's walk through the basics so you can start generating images right away."
-      },
-      "quickStart": {
-        "title": "Start free — no API key needed",
-        "description": "Gemini Flash Image is free for 5 generations per day. Try it first, then bind your own API keys to unlock all models and unlimited usage."
+        "description": "You can start for free — 5 generations/day with no API key. Bind your own keys later to unlock all models and unlimited usage."
       },
       "model": {
         "title": "Choose a model",

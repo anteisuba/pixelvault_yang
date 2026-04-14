@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import type { Route } from '@/constants/routes'
@@ -34,6 +34,30 @@ export function GalleryGrid({
 }: GalleryGridProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
+  // Progressive rendering: render in batches via IntersectionObserver
+  const BATCH_SIZE = 20
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((prev) =>
+            Math.min(prev + BATCH_SIZE, generations.length),
+          )
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [generations.length])
+
+  const visibleGenerations = generations.slice(0, visibleCount)
+
   if (generations.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 px-6 py-16 text-center sm:px-10">
@@ -66,7 +90,7 @@ export function GalleryGrid({
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
       onMouseLeave={() => setHoveredId(null)}
     >
-      {generations.map((generation, index) => {
+      {visibleGenerations.map((generation, index) => {
         const isHovered = hoveredId === generation.id
         const isSomethingHovered = hoveredId !== null
         return (
@@ -99,6 +123,10 @@ export function GalleryGrid({
           </BlurFade>
         )
       })}
+      {/* Sentinel for progressive loading */}
+      {visibleCount < generations.length && (
+        <div ref={sentinelRef} className="h-px" />
+      )}
     </section>
   )
 }

@@ -543,7 +543,7 @@ html:lang(zh) {
   /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
 
   .studio-layout-v2 {
-    min-height: calc(100svh - 3.5rem);
+    min-height: calc(100dvh - 3.5rem);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -570,6 +570,15 @@ html:lang(zh) {
     backdrop-filter: blur(12px);
     position: relative;
     z-index: 10;
+  }
+
+  /* Mobile: fix dock above virtual keyboard */
+  @media (max-width: 768px) {
+    .studio-dock {
+      position: sticky;
+      bottom: 0;
+      padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    }
   }
 
   /* ── Touch-device utility: make hover-only elements always visible ── */

@@ -1,20 +1,20 @@
-"use client"
+'use client'
 
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
+} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import React, {
   createContext,
   useContext,
   useLayoutEffect,
   useRef,
   useState,
-} from "react"
+} from 'react'
 
 type PromptInputContextType = {
   isLoading: boolean
@@ -28,7 +28,7 @@ type PromptInputContextType = {
 
 const PromptInputContext = createContext<PromptInputContextType>({
   isLoading: false,
-  value: "",
+  value: '',
   setValue: () => {},
   maxHeight: 240,
   onSubmit: undefined,
@@ -49,7 +49,7 @@ export type PromptInputProps = {
   children: React.ReactNode
   className?: string
   disabled?: boolean
-} & React.ComponentProps<"div">
+} & React.ComponentProps<'div'>
 
 function PromptInput({
   className,
@@ -63,7 +63,7 @@ function PromptInput({
   onClick,
   ...props
 }: PromptInputProps) {
-  const [internalValue, setInternalValue] = useState(value || "")
+  const [internalValue, setInternalValue] = useState(value || '')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleChange = (newValue: string) => {
@@ -92,9 +92,9 @@ function PromptInput({
         <div
           onClick={handleClick}
           className={cn(
-            "border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs",
-            disabled && "cursor-not-allowed opacity-60",
-            className
+            'border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs',
+            disabled && 'cursor-not-allowed opacity-60',
+            className,
           )}
           {...props}
         >
@@ -121,9 +121,9 @@ function PromptInputTextarea({
   const adjustHeight = (el: HTMLTextAreaElement | null) => {
     if (!el || disableAutosize) return
 
-    el.style.height = "auto"
+    el.style.height = 'auto'
 
-    if (typeof maxHeight === "number") {
+    if (typeof maxHeight === 'number') {
       el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
     } else {
       el.style.height = `min(${el.scrollHeight}px, ${maxHeight})`
@@ -139,9 +139,9 @@ function PromptInputTextarea({
     if (!textareaRef.current || disableAutosize) return
 
     const el = textareaRef.current
-    el.style.height = "auto"
+    el.style.height = 'auto'
 
-    if (typeof maxHeight === "number") {
+    if (typeof maxHeight === 'number') {
       el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
     } else {
       el.style.height = `min(${el.scrollHeight}px, ${maxHeight})`
@@ -155,11 +155,20 @@ function PromptInputTextarea({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       onSubmit?.()
     }
     onKeyDown?.(e)
+  }
+
+  // On mobile, scroll the input into view when keyboard appears
+  const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    props.onFocus?.(e)
+    // Small delay to let the virtual keyboard finish animating
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
   }
 
   return (
@@ -168,9 +177,10 @@ function PromptInputTextarea({
       value={value}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
+      onFocus={handleFocus}
       className={cn(
-        "text-primary min-h-[44px] w-full resize-none border-none bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
-        className
+        'text-primary min-h-[44px] w-full resize-none border-none bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+        className,
       )}
       rows={1}
       disabled={disabled}
@@ -187,7 +197,7 @@ function PromptInputActions({
   ...props
 }: PromptInputActionsProps) {
   return (
-    <div className={cn("flex items-center gap-2", className)} {...props}>
+    <div className={cn('flex items-center gap-2', className)} {...props}>
       {children}
     </div>
   )
@@ -197,14 +207,14 @@ export type PromptInputActionProps = {
   className?: string
   tooltip: React.ReactNode
   children: React.ReactNode
-  side?: "top" | "bottom" | "left" | "right"
+  side?: 'top' | 'bottom' | 'left' | 'right'
 } & React.ComponentProps<typeof Tooltip>
 
 function PromptInputAction({
   tooltip,
   children,
   className,
-  side = "top",
+  side = 'top',
   ...props
 }: PromptInputActionProps) {
   const { disabled } = usePromptInput()

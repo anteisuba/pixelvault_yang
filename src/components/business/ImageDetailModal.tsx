@@ -351,7 +351,7 @@ export function ImageDetailModal({
               <a
                 href={generation.referenceImageUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="block w-fit"
               >
                 <img
@@ -383,7 +383,11 @@ export function ImageDetailModal({
               className="rounded-full"
               asChild
             >
-              <a href={generation.url} target="_blank" rel="noreferrer">
+              <a
+                href={generation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <ArrowUpRight className="size-3.5" />
                 {t('openOriginal')}
               </a>

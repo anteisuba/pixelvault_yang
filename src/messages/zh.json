@@ -1171,11 +1171,7 @@
     "steps": {
       "welcome": {
         "title": "欢迎来到 PixelVault",
-        "description": "让我们快速了解基本操作，帮助你立即开始生成图像。"
-      },
-      "quickStart": {
-        "title": "免费开始 — 无需 API 密钥",
-        "description": "Gemini Flash Image 每天免费 5 次生成。先试用，之后绑定自己的 API 密钥即可解锁全部模型和无限使用。"
+        "description": "无需 API 密钥即可免费开始，每天 5 次免费生成。之后绑定自己的密钥即可解锁全部模型和无限使用。"
       },
       "model": {
         "title": "选择模型",

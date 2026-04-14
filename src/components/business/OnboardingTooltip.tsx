@@ -29,7 +29,6 @@ interface Position {
 function getTargetSelector(step: OnboardingStep): string | null {
   switch (step) {
     case 'welcome':
-    case 'quickStart':
       return null // no target, center on screen
     case 'model':
       return '[data-onboarding="model"]'

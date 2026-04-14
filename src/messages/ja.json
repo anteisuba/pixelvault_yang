@@ -1171,11 +1171,7 @@
     "steps": {
       "welcome": {
         "title": "PixelVault へようこそ",
-        "description": "基本操作を確認して、すぐに画像生成を始めましょう。"
-      },
-      "quickStart": {
-        "title": "無料で始めよう — API キー不要",
-        "description": "Gemini Flash Image は1日5回まで無料で生成できます。まず試してみて、全モデルと無制限利用には自分の API キーを追加してください。"
+        "description": "API キー不要で無料スタート。1日5回まで無料生成できます。あとから自分のキーを追加すれば全モデル＆無制限利用が可能です。"
       },
       "model": {
         "title": "モデルを選択",

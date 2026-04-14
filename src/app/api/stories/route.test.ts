@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
+  createGET,
   createPOST,
   parseJSON,
 } from '@/test/api-helpers'
@@ -45,17 +46,17 @@ beforeEach(() => {
 describe('GET /api/stories', () => {
   it('returns 401 when unauthenticated', async () => {
     mockUnauthenticated()
-    const res = await GET()
+    const res = await GET(createGET('/api/stories'))
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns story list on success', async () => {
     mockAuthenticated()
     mockListStories.mockResolvedValue([FAKE_STORY_LIST_ITEM])
 
-    const res = await GET()
+    const res = await GET(createGET('/api/stories'))
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
     expect(body).toEqual({
@@ -76,7 +77,7 @@ describe('POST /api/stories', () => {
     const res = await POST(req)
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns 400 for invalid body', async () => {

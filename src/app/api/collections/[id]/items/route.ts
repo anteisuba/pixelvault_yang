@@ -1,5 +1,7 @@
+import 'server-only'
+
 import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 import {
   addToCollection,
@@ -7,62 +9,45 @@ import {
 } from '@/services/collection.service'
 import { ensureUser } from '@/services/user.service'
 import { AddToCollectionSchema } from '@/types'
-import type { CollectionItemsResponse } from '@/types'
+import { ApiRequestError } from '@/lib/errors'
+import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
+export const POST = createApiPostByIdRoute({
+  schema: AddToCollectionSchema,
+  routeName: 'POST /api/collections/[id]/items',
+  handler: async (clerkId, id, data) => {
+    const user = await ensureUser(clerkId)
+    try {
+      const added = await addToCollection(id, user.id, data.generationIds)
+      return { added }
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'COLLECTION_NOT_FOUND') {
+          throw new ApiRequestError(
+            'COLLECTION_NOT_FOUND',
+            404,
+            'errors.collections.notFound',
+            'Collection not found',
+          )
+        }
+        if (error.message === 'MAX_ITEMS_EXCEEDED') {
+          throw new ApiRequestError(
+            'MAX_ITEMS_EXCEEDED',
+            422,
+            'errors.collections.maxItems',
+            'Collection is full',
+          )
+        }
+      }
+      throw error
+    }
+  },
+})
 
-export async function POST(
-  request: Request,
-  { params }: RouteContext,
-): Promise<NextResponse<CollectionItemsResponse>> {
-  const { userId: clerkId } = await auth()
-
-  if (!clerkId) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
-
-  const user = await ensureUser(clerkId)
-  const { id } = await params
-  const body = await request.json().catch(() => null)
-  const parsed = AddToCollectionSchema.safeParse(body)
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: parsed.error.issues[0]?.message ?? 'Invalid request',
-      },
-      { status: 400 },
-    )
-  }
-
-  try {
-    const added = await addToCollection(id, user.id, parsed.data.generationIds)
-    return NextResponse.json({ success: true, data: { added } })
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message === 'COLLECTION_NOT_FOUND'
-          ? 'Collection not found'
-          : error.message === 'MAX_ITEMS_EXCEEDED'
-            ? 'Collection is full'
-            : 'Failed to add items'
-        : 'Failed to add items'
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 422 },
-    )
-  }
-}
-
+// DELETE is intentionally manual: requires JSON body (generationId), factory does not support this
 export async function DELETE(
-  request: Request,
-  { params }: RouteContext,
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<{ success: boolean; error?: string }>> {
   const { userId: clerkId } = await auth()
 

@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,15 +10,16 @@ import {
 } from '@/services/collection.service'
 import { ensureUser, getUserByClerkId } from '@/services/user.service'
 import { UpdateCollectionSchema } from '@/types'
-import type { CollectionDetailResponse, CollectionResponse } from '@/types'
+import {
+  createApiPutRoute,
+  createApiDeleteRoute,
+} from '@/lib/api-route-factory'
+import type { CollectionDetailResponse } from '@/types'
 
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
-
+// GET is intentionally manual: optional-auth with pagination query params
 export async function GET(
   request: NextRequest,
-  { params }: RouteContext,
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<CollectionDetailResponse>> {
   const { id } = await params
   const { userId: clerkId } = await auth()
@@ -42,70 +45,19 @@ export async function GET(
   return NextResponse.json({ success: true, data: collection })
 }
 
-export async function PUT(
-  request: Request,
-  { params }: RouteContext,
-): Promise<NextResponse<CollectionResponse>> {
-  const { userId: clerkId } = await auth()
+export const PUT = createApiPutRoute({
+  schema: UpdateCollectionSchema,
+  routeName: 'PUT /api/collections/[id]',
+  handler: async (clerkId, id, data) => {
+    const user = await ensureUser(clerkId)
+    return updateCollection(id, user.id, data)
+  },
+})
 
-  if (!clerkId) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
-
-  const user = await ensureUser(clerkId)
-  const { id } = await params
-  const body = await request.json().catch(() => null)
-  const parsed = UpdateCollectionSchema.safeParse(body)
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: parsed.error.issues[0]?.message ?? 'Invalid request',
-      },
-      { status: 400 },
-    )
-  }
-
-  const result = await updateCollection(id, user.id, parsed.data)
-
-  if (!result) {
-    return NextResponse.json(
-      { success: false, error: 'Collection not found or access denied' },
-      { status: 404 },
-    )
-  }
-
-  return NextResponse.json({ success: true, data: result })
-}
-
-export async function DELETE(
-  _request: Request,
-  { params }: RouteContext,
-): Promise<NextResponse<{ success: boolean; error?: string }>> {
-  const { userId: clerkId } = await auth()
-
-  if (!clerkId) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
-
-  const user = await ensureUser(clerkId)
-  const { id } = await params
-
-  const deleted = await deleteCollection(id, user.id)
-
-  if (!deleted) {
-    return NextResponse.json(
-      { success: false, error: 'Collection not found or access denied' },
-      { status: 404 },
-    )
-  }
-
-  return NextResponse.json({ success: true })
-}
+export const DELETE = createApiDeleteRoute({
+  routeName: 'DELETE /api/collections/[id]',
+  handler: async (clerkId, id) => {
+    const user = await ensureUser(clerkId)
+    return deleteCollection(id, user.id)
+  },
+})

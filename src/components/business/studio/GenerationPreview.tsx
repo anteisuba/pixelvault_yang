@@ -27,6 +27,7 @@ import {
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
+import VideoPlayer from '@/components/business/VideoPlayer'
 import { ImageCard } from '@/components/business/ImageCard'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import {
@@ -312,8 +313,20 @@ export const GenerationPreview = memo(function GenerationPreview({
     </div>
   )
 
+  // ── Video container ───────────────────────────────────────────────
+  const videoContainer = (
+    <div className="rounded-2xl border border-border/60 bg-muted/10 p-2">
+      <VideoPlayer src={generation.url ?? ''} className="rounded-xl" />
+    </div>
+  )
+
   const isAudio = generation.outputType === 'AUDIO'
-  const previewContent = isAudio ? audioContainer : imageContainer
+  const isVideo = generation.outputType === 'VIDEO'
+  const previewContent = isAudio
+    ? audioContainer
+    : isVideo
+      ? videoContainer
+      : imageContainer
 
   // ── Error section ─────────────────────────────────────────────────
   const errorSection = error ? (

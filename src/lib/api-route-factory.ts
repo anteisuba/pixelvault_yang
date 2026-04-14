@@ -287,6 +287,161 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
   }
 }
 
+// ─── Path-param route configs ─────────────────────────────────────
+
+type IdContext = { params: Promise<Record<string, string>> }
+
+interface GetByIdConfig<TResult> {
+  routeName: string
+  notFoundMessage?: string
+  handler: (clerkId: string, id: string) => Promise<TResult | null | undefined>
+}
+
+interface PutByIdConfig<TSchema extends z.ZodType, TResult> {
+  schema: TSchema
+  routeName: string
+  notFoundMessage?: string
+  handler: (
+    clerkId: string,
+    id: string,
+    data: z.infer<TSchema>,
+  ) => Promise<TResult | null | undefined>
+}
+
+interface DeleteByIdConfig {
+  routeName: string
+  notFoundMessage?: string
+  /** Return false to produce a 404. Return void/true for success (→ 200 { success: true }). */
+  handler: (clerkId: string, id: string) => Promise<boolean | void>
+}
+
+export function createApiGetByIdRoute<TResult>(config: GetByIdConfig<TResult>) {
+  return async function handler(
+    _request: NextRequest,
+    context: IdContext,
+  ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
+    const startedAt = Date.now()
+    try {
+      const clerkId = await getClerkId(true)
+      const { id } = await context.params
+      const result = await config.handler(clerkId!, id)
+      if (result == null) {
+        return NextResponse.json<ErrorResponse>(
+          {
+            success: false,
+            error: config.notFoundMessage ?? 'Not found',
+            errorCode: 'NOT_FOUND',
+          },
+          { status: 404 },
+        )
+      }
+      logger.info(config.routeName, {
+        userId: clerkId,
+        durationMs: Date.now() - startedAt,
+      })
+      return NextResponse.json<SuccessResponse<TResult>>({
+        success: true,
+        data: toJsonSafe(result),
+      })
+    } catch (error) {
+      return handleRouteError(config.routeName, startedAt, error)
+    }
+  }
+}
+
+export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
+  config: PutByIdConfig<TSchema, TResult>,
+) {
+  return async function handler(
+    request: NextRequest,
+    context: IdContext,
+  ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
+    const startedAt = Date.now()
+    try {
+      const clerkId = await getClerkId(true)
+      const { id } = await context.params
+
+      const body = await request.json().catch(() => null)
+      if (!body) {
+        return buildJsonErrorResponse(
+          new ApiRequestError(
+            'INVALID_JSON',
+            400,
+            'errors.validation.invalidJson',
+            'Invalid JSON body',
+          ),
+        )
+      }
+
+      const parseResult = config.schema.safeParse(body)
+      if (!parseResult.success) {
+        const fieldErrors = parseResult.error.issues.map((issue) => ({
+          field: String(issue.path?.join('.') ?? ''),
+          message: issue.message,
+        }))
+        throw new GenerationValidationError(fieldErrors)
+      }
+
+      const result = await config.handler(clerkId!, id, parseResult.data)
+      if (result == null) {
+        return NextResponse.json<ErrorResponse>(
+          {
+            success: false,
+            error: config.notFoundMessage ?? 'Not found',
+            errorCode: 'NOT_FOUND',
+          },
+          { status: 404 },
+        )
+      }
+
+      logger.info(config.routeName, {
+        userId: clerkId,
+        durationMs: Date.now() - startedAt,
+      })
+      return NextResponse.json<SuccessResponse<TResult>>({
+        success: true,
+        data: toJsonSafe(result),
+      })
+    } catch (error) {
+      return handleRouteError(config.routeName, startedAt, error)
+    }
+  }
+}
+
+export function createApiDeleteRoute(config: DeleteByIdConfig) {
+  return async function handler(
+    _request: NextRequest,
+    context: IdContext,
+  ): Promise<NextResponse<SuccessResponse<null> | ErrorResponse>> {
+    const startedAt = Date.now()
+    try {
+      const clerkId = await getClerkId(true)
+      const { id } = await context.params
+      const result = await config.handler(clerkId!, id)
+      if (result === false) {
+        return NextResponse.json<ErrorResponse>(
+          {
+            success: false,
+            error: config.notFoundMessage ?? 'Not found',
+            errorCode: 'NOT_FOUND',
+          },
+          { status: 404 },
+        )
+      }
+      logger.info(config.routeName, {
+        userId: clerkId,
+        durationMs: Date.now() - startedAt,
+      })
+      return NextResponse.json<SuccessResponse<null>>({
+        success: true,
+        data: null,
+      })
+    } catch (error) {
+      return handleRouteError(config.routeName, startedAt, error)
+    }
+  }
+}
+
 export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
   config: GetRouteConfig<TSchema, TResult>,
 ) {

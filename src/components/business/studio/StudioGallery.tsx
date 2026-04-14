@@ -421,7 +421,6 @@ const GalleryItem = memo(function GalleryItem({
         <p className="truncate text-3xs leading-snug text-white">
           {gen.prompt?.slice(0, 60)}
         </p>
-        <p className="text-3xs text-white/70">{gen.model}</p>
       </div>
     </div>
   )

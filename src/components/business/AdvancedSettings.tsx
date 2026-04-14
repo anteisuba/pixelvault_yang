@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, X } from 'lucide-react'
+import { ChevronDown, Plus, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -47,6 +49,7 @@ export function AdvancedSettings({
   const config = getCapabilityConfig(adapterType, modelId)
   const has = (cap: Parameters<typeof hasCapability>[1]) =>
     hasCapability(adapterType, cap, modelId)
+  const [techOpen, setTechOpen] = useState(false)
 
   // Only show panel if adapter has user-configurable capabilities (not just imageAnalysis)
   const USER_CONFIGURABLE: ProviderCapability[] = [
@@ -100,32 +103,60 @@ export function AdvancedSettings({
           </div>
         )}
 
-        {/* ─── Guidance Scale (CFG) ───────────────────────── */}
-        {has('guidanceScale') && config.guidanceScale && (
-          <ParamSlider
-            label={t('guidanceScale')}
-            hint={t('guidanceScaleHint')}
-            value={params.guidanceScale ?? config.guidanceScale.default}
-            onChange={(v) => update({ guidanceScale: v })}
-            min={config.guidanceScale.min}
-            max={config.guidanceScale.max}
-            step={config.guidanceScale.step}
-            disabled={disabled}
-          />
-        )}
-
-        {/* ─── Inference Steps ────────────────────────────── */}
-        {has('steps') && config.steps && (
-          <ParamSlider
-            label={t('steps')}
-            hint={t('stepsHint')}
-            value={params.steps ?? config.steps.default}
-            onChange={(v) => update({ steps: v })}
-            min={config.steps.min}
-            max={config.steps.max}
-            step={config.steps.step}
-            disabled={disabled}
-          />
+        {/* ─── Technical Parameters (collapsed by default) ── */}
+        {(has('guidanceScale') || has('steps')) && (
+          <div className="border-t border-border/40 pt-3">
+            <button
+              type="button"
+              onClick={() => setTechOpen((p) => !p)}
+              className="flex w-full items-center justify-between text-xs text-muted-foreground"
+            >
+              <span>{t('technicalParams')}</span>
+              <ChevronDown
+                className={cn(
+                  'size-3.5 transition-transform duration-300 ease-out',
+                  techOpen && 'rotate-180',
+                )}
+              />
+            </button>
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows] duration-300 ease-out',
+                techOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+              )}
+            >
+              <div className="overflow-hidden">
+                <div className="space-y-5 pt-4">
+                  {has('guidanceScale') && config.guidanceScale && (
+                    <ParamSlider
+                      label={t('guidanceScale')}
+                      hint={t('guidanceScaleHint')}
+                      value={
+                        params.guidanceScale ?? config.guidanceScale.default
+                      }
+                      onChange={(v) => update({ guidanceScale: v })}
+                      min={config.guidanceScale.min}
+                      max={config.guidanceScale.max}
+                      step={config.guidanceScale.step}
+                      disabled={disabled}
+                    />
+                  )}
+                  {has('steps') && config.steps && (
+                    <ParamSlider
+                      label={t('steps')}
+                      hint={t('stepsHint')}
+                      value={params.steps ?? config.steps.default}
+                      onChange={(v) => update({ steps: v })}
+                      min={config.steps.min}
+                      max={config.steps.max}
+                      step={config.steps.step}
+                      disabled={disabled}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ─── Reference Image Strength ───────────────────── */}

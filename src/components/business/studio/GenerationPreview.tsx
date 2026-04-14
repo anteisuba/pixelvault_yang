@@ -107,10 +107,11 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
+    const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4'] as const
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 py-16 sm:py-24">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 px-6 py-12 sm:py-16">
         <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-          <ImagePlus className="size-6 text-primary/60" />
+          <Sparkles className="size-6 text-primary/60" />
         </div>
         <p className="mt-4 text-sm font-medium text-foreground">
           {t('emptyStateTitle')}
@@ -118,6 +119,23 @@ export const GenerationPreview = memo(function GenerationPreview({
         <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
           {t('emptyStateHint')}
         </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {SUGGESTION_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() =>
+                dispatch({
+                  type: 'SET_PROMPT',
+                  payload: t(`suggestion.${key}`),
+                })
+              }
+              className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 font-serif text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              {t(`suggestion.${key}`)}
+            </button>
+          ))}
+        </div>
       </div>
     )
   }
@@ -288,7 +306,7 @@ export const GenerationPreview = memo(function GenerationPreview({
       </div>
       {generation.duration && (
         <p className="font-serif text-xs text-muted-foreground">
-          {formatDuration(generation.duration)} · {generation.model}
+          {formatDuration(generation.duration)}
         </p>
       )}
     </div>

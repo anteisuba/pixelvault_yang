@@ -665,7 +665,7 @@
       "actionPromptPlaceholder": "例如：站在花田中，微笑，风吹动头发..."
     },
     "modelSelector": {
-      "label": "AI 模型",
+      "label": "创意风格",
       "hint": "选择内置模型，或你当前启用的已保存路由。",
       "placeholder": "选择模型",
       "customBadge": "自定义",
@@ -1111,7 +1111,8 @@
     "loraAdd": "添加",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... 或 HuggingFace 链接",
     "loraScale": "权重",
-    "noConfigurable": "该模型没有可配置的高级设置"
+    "noConfigurable": "该模型没有可配置的高级设置",
+    "technicalParams": "技术参数"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -1706,6 +1707,12 @@
     "generationComplete": "生成完成",
     "emptyStateTitle": "预览结果会显示在这里",
     "emptyStateHint": "在左侧写下描述，开始你的第一次创作",
+    "suggestion": {
+      "s1": "黄昏时分宁静的日本庭院",
+      "s2": "暖土色调的几何抽象艺术",
+      "s3": "清晨柔光下温馨的咖啡馆内景",
+      "s4": "戏剧性阴影的极简主义肖像"
+    },
     "generating": "正在生成...",
     "elapsed": "已等待 {seconds}",
     "previewErrorTitle": "这次生成需要再试一次",

@@ -665,7 +665,7 @@
       "actionPromptPlaceholder": "例：花畑に立って笑っている、風が髪をなびかせている..."
     },
     "modelSelector": {
-      "label": "AIモデル",
+      "label": "クリエイティブスタイル",
       "hint": "組み込みモデル、または現在有効な保存済みルートから選んでください。",
       "placeholder": "モデルを選択",
       "customBadge": "カスタム",
@@ -1111,7 +1111,8 @@
     "loraAdd": "追加",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... または HuggingFace URL",
     "loraScale": "重み",
-    "noConfigurable": "このモデルには設定可能な詳細パラメータがありません"
+    "noConfigurable": "このモデルには設定可能な詳細パラメータがありません",
+    "technicalParams": "テクニカルパラメーター"
   },
   "ReverseEngineer": {
     "title": "リバースエンジニアリング",
@@ -1705,6 +1706,12 @@
     "generationComplete": "生成が完了しました",
     "emptyStateTitle": "ここにプレビューが表示されます",
     "emptyStateHint": "左側に説明を書いて作成を開始",
+    "suggestion": {
+      "s1": "黄昏時の静かな日本庭園",
+      "s2": "暖かい土の色調の抽象幾何学アート",
+      "s3": "朝の柔らかな光が差し込む居心地よいカフェ",
+      "s4": "ドラマチックな影のミニマリストポートレート"
+    },
     "generating": "生成中...",
     "elapsed": "経過時間: {seconds}",
     "previewErrorTitle": "生成に再試行が必要です",

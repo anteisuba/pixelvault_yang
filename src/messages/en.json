@@ -665,7 +665,7 @@
       "actionPromptPlaceholder": "e.g. standing in a field of flowers, smiling, wind blowing hair..."
     },
     "modelSelector": {
-      "label": "AI model",
+      "label": "Creative style",
       "hint": "Choose a built-in model or one of your active saved routes.",
       "placeholder": "Select a model",
       "customBadge": "Custom",
@@ -1111,7 +1111,8 @@
     "loraAdd": "Add",
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... or HuggingFace URL",
     "loraScale": "Weight",
-    "noConfigurable": "This model has no configurable advanced settings"
+    "noConfigurable": "This model has no configurable advanced settings",
+    "technicalParams": "Technical parameters"
   },
   "ReverseEngineer": {
     "title": "Reverse Engineer",
@@ -1706,6 +1707,12 @@
     "generationComplete": "Generation complete",
     "emptyStateTitle": "Your preview will appear here",
     "emptyStateHint": "Write a description on the left to start creating",
+    "suggestion": {
+      "s1": "A serene Japanese garden at golden hour",
+      "s2": "Abstract geometric art in warm earth tones",
+      "s3": "A cozy café interior with soft morning light",
+      "s4": "Minimalist portrait with dramatic shadows"
+    },
     "generating": "Generating...",
     "elapsed": "Elapsed: {seconds}",
     "previewErrorTitle": "Generation needs another try",

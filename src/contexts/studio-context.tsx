@@ -22,6 +22,7 @@ import {
 } from 'react'
 
 import type { AdvancedParams } from '@/types'
+import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
 import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useBackgroundCards } from '@/hooks/use-background-cards'
@@ -69,6 +70,8 @@ export interface StudioFormState {
   tokenInput: string
   /** Fish Audio voice model ID for TTS */
   voiceId: string | null
+  /** Style preset ID (empty string = no preset) */
+  stylePresetId: string
   panels: Record<PanelName, boolean>
 }
 
@@ -82,6 +85,7 @@ export type StudioAction =
   | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'SET_VOICE_ID'; payload: string | null }
+  | { type: 'SET_STYLE_PRESET'; payload: string }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -112,6 +116,7 @@ const initialFormState: StudioFormState = {
   advancedParams: {},
   tokenInput: '',
   voiceId: null,
+  stylePresetId: NO_STYLE_PRESET_ID,
   panels: { ...initialPanels },
 }
 
@@ -124,6 +129,8 @@ export function studioFormReducer(
       return { ...state, outputType: action.payload }
     case 'SET_VOICE_ID':
       return { ...state, voiceId: action.payload }
+    case 'SET_STYLE_PRESET':
+      return { ...state, stylePresetId: action.payload }
     case 'SET_WORKFLOW_MODE':
       return { ...state, workflowMode: action.payload }
     case 'SET_OPTION_ID':
@@ -183,6 +190,7 @@ export function studioFormReducer(
         aspectRatio: '1:1',
         advancedParams: {},
         selectedOptionId: null,
+        stylePresetId: NO_STYLE_PRESET_ID,
         panels: { ...initialPanels },
       }
     default:

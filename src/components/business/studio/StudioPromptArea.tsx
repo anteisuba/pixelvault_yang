@@ -25,6 +25,11 @@ import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { getModelById, modelSupportsLora } from '@/constants/models'
+import {
+  STYLE_PRESETS,
+  getStylePresetById,
+  NO_STYLE_PRESET_ID,
+} from '@/constants/style-presets'
 import { cn } from '@/lib/utils'
 import {
   PromptInput,
@@ -108,23 +113,47 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     prevAdapterRef.current = currentAdapter
   }, [selectedStyleCard?.adapterType, dispatch])
 
+  // ── Style preset prompt composition ────────────────────────────
+  const activePreset = useMemo(
+    () => getStylePresetById(state.stylePresetId),
+    [state.stylePresetId],
+  )
+
+  /** Prepend style preset prefix to user prompt */
+  const composePrompt = useCallback(
+    (userPrompt: string): string | undefined => {
+      const trimmed = userPrompt.trim()
+      if (!activePreset || !trimmed) return trimmed || undefined
+      return `${activePreset.promptPrefix} ${trimmed}`
+    },
+    [activePreset],
+  )
+
+  /** Merge style preset negative prompt into advancedParams */
+  const composeAdvancedParams = useCallback(() => {
+    const params = { ...state.advancedParams }
+    if (activePreset?.negativePrompt) {
+      params.negativePrompt = params.negativePrompt
+        ? `${params.negativePrompt}, ${activePreset.negativePrompt}`
+        : activePreset.negativePrompt
+    }
+    return Object.keys(params).length > 0 ? params : undefined
+  }, [state.advancedParams, activePreset])
+
   // ── Generate handler ──────────────────────────────────────────
   const buildImageInput = useCallback(() => {
     if (state.workflowMode === 'quick' && selectedModel) {
       return {
         modelId: selectedModel.modelId,
         apiKeyId: selectedModel.keyId,
-        freePrompt: state.prompt || undefined,
+        freePrompt: composePrompt(state.prompt),
         aspectRatio: state.aspectRatio,
         projectId: projects.activeProjectId ?? undefined,
         referenceImages:
           imageUpload.referenceImages.length > 0
             ? imageUpload.referenceImages
             : undefined,
-        advancedParams:
-          Object.keys(state.advancedParams).length > 0
-            ? state.advancedParams
-            : undefined,
+        advancedParams: composeAdvancedParams(),
       }
     }
     if (state.workflowMode === 'card' && styles.activeCardId) {
@@ -132,17 +161,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         characterCardId: selectedCharId ?? undefined,
         backgroundCardId: backgrounds.activeCardId ?? undefined,
         styleCardId: styles.activeCardId,
-        freePrompt: state.prompt || undefined,
+        freePrompt: composePrompt(state.prompt),
         aspectRatio: state.aspectRatio,
         projectId: projects.activeProjectId ?? undefined,
         referenceImages:
           imageUpload.referenceImages.length > 0
             ? imageUpload.referenceImages
             : undefined,
-        advancedParams:
-          Object.keys(state.advancedParams).length > 0
-            ? state.advancedParams
-            : undefined,
+        advancedParams: composeAdvancedParams(),
       }
     }
     return null
@@ -150,7 +176,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     state.workflowMode,
     state.prompt,
     state.aspectRatio,
-    state.advancedParams,
+    composePrompt,
+    composeAdvancedParams,
     selectedModel,
     selectedCharId,
     backgrounds.activeCardId,
@@ -220,6 +247,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   })
 
   const tStudio = useTranslations('StudioPage')
+  const tPresets = useTranslations('StylePresets')
 
   const placeholder = isAudioMode
     ? tStudio('audioPlaceholder')
@@ -231,6 +259,50 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   return (
     <>
+      {/* Style preset chips — image/card mode only */}
+      {!isAudioMode && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-2xs font-medium text-muted-foreground/70 mr-0.5">
+            {tPresets('label')}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              dispatch({
+                type: 'SET_STYLE_PRESET',
+                payload: NO_STYLE_PRESET_ID,
+              })
+            }
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
+              state.stylePresetId === NO_STYLE_PRESET_ID
+                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+            )}
+          >
+            {tPresets('none')}
+          </button>
+          {STYLE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() =>
+                dispatch({ type: 'SET_STYLE_PRESET', payload: preset.id })
+              }
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
+                state.stylePresetId === preset.id
+                  ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+              )}
+            >
+              <span>{preset.icon}</span>
+              <span>{tPresets(preset.messageKey)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <PromptInput
         id="studio-prompt"
         isLoading={isGenerating}

@@ -45,7 +45,26 @@ vi.mock('@/lib/circuit-breaker', () => ({
 vi.mock('@/lib/prompt-guard', () => ({
   validatePrompt: vi.fn(() => ({ valid: true })),
 }))
+const { modelsMock } = vi.hoisted(() => ({
+  modelsMock: {
+    realGetModelById: undefined as
+      | ((
+          id: string,
+        ) => ReturnType<(typeof import('@/constants/models'))['getModelById']>)
+      | undefined,
+  },
+}))
 
+vi.mock('@/constants/models', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/constants/models')>(
+      '@/constants/models',
+    )
+  modelsMock.realGetModelById = actual.getModelById
+  return { ...actual, getModelById: vi.fn(actual.getModelById) }
+})
+
+import { getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { GenerateRequest } from '@/types'
 import {
@@ -114,6 +133,8 @@ function setupBYOKRoute() {
 }
 
 function setupHappyPath() {
+  // Restore getModelById to real implementation (previous test may have overridden it)
+  vi.mocked(getModelById).mockImplementation(modelsMock.realGetModelById!)
   vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
   vi.mocked(getFreeGenerationCountToday).mockResolvedValue(0)
   vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
@@ -237,6 +258,29 @@ describe('resolveGenerationRoute', () => {
       expect.objectContaining({ code: 'CUSTOM_MODEL_REQUIRES_ROUTE' }),
     )
   })
+
+  it('throws MISSING_API_KEY when no user key and model is not free-tier', async () => {
+    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
+
+    // flux-2-pro is a built-in model but not free-tier
+    await expect(
+      resolveGenerationRoute('user-1', {
+        modelId: 'flux-2-pro',
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
+  })
+
+  it('throws PLATFORM_KEY_MISSING when free tier enabled but platform key absent', async () => {
+    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
+    vi.mocked(getFreeGenerationCountToday).mockResolvedValue(0)
+    vi.mocked(getSystemApiKey).mockReturnValue(undefined as never)
+
+    await expect(
+      resolveGenerationRoute('user-1', {
+        modelId: 'gemini-3.1-flash-image-preview',
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }))
+  })
 })
 
 describe('generateImageForUser', () => {
@@ -346,5 +390,80 @@ describe('generateImageForUser', () => {
 
     // ensureUser is called only once (no recursive fallback call)
     expect(ensureUser).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws VALIDATION_ERROR when model requires reference image but none provided', async () => {
+    vi.mocked(getModelById).mockReturnValue({
+      id: 'gemini-3.1-flash-image-preview',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.api' },
+      cost: 1,
+      freeTier: true,
+      requiresReferenceImage: true,
+    } as never)
+
+    await expect(
+      generateImageForUser('clerk-1', {
+        ...BASE_INPUT,
+        referenceImage: undefined,
+        referenceImages: undefined,
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR' }))
+  })
+
+  it('throws UNSUPPORTED_MODEL when no provider adapter found', async () => {
+    vi.mocked(getProviderAdapter).mockReturnValue(null as never)
+
+    await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
+      expect.objectContaining({ code: 'UNSUPPORTED_MODEL' }),
+    )
+  })
+
+  it('marks job as failed when R2 upload throws', async () => {
+    vi.mocked(fetchAsBuffer).mockRejectedValue(new Error('R2 fetch failed'))
+
+    await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
+      'R2 fetch failed',
+    )
+
+    expect(failGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ errorMessage: 'R2 fetch failed' }),
+    )
+  })
+
+  it('attempts provider fallback for free-tier transient failures', async () => {
+    // Make fallback model (gpt-image-1.5) also free-tier eligible
+    const realImpl = modelsMock.realGetModelById!
+    vi.mocked(getModelById).mockImplementation((id: string) => {
+      const model = realImpl(id)
+      if (!model) return undefined
+      // Mark both primary and fallback models as free-tier for this test
+      return { ...model, freeTier: true } as never
+    })
+
+    const generateImage = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('Gemini', 500, 'Server error'))
+      .mockResolvedValueOnce({
+        imageUrl: 'https://provider.com/fallback.png',
+        width: 1024,
+        height: 1024,
+        requestCount: 1,
+      })
+
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      generateImage,
+    } as never)
+
+    // Also need platform key for the fallback model's adapter (OpenAI)
+    vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
+
+    // ensureUser called twice (original + recursive fallback)
+    const result = await generateImageForUser('clerk-1', BASE_INPUT)
+
+    expect(result.id).toBe('gen-1')
+    expect(ensureUser).toHaveBeenCalledTimes(2)
   })
 })

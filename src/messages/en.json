@@ -1760,6 +1760,16 @@
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"
   },
+  "StylePresets": {
+    "label": "Style",
+    "none": "No style",
+    "anime": "Anime",
+    "realistic": "Photo",
+    "illustration": "Illustration",
+    "watercolor": "Watercolor",
+    "pixel": "Pixel Art",
+    "cyberpunk": "Cyberpunk"
+  },
   "StudioWorkbenchDraft": {
     "eyebrow": "Studio draft",
     "title": "Workbench direction for a denser, ComfyUI-like studio.",

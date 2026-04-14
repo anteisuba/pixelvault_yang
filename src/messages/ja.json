@@ -1760,6 +1760,16 @@
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"
   },
+  "StylePresets": {
+    "label": "スタイル",
+    "none": "スタイルなし",
+    "anime": "アニメ",
+    "realistic": "写真",
+    "illustration": "イラスト",
+    "watercolor": "水彩画",
+    "pixel": "ドット絵",
+    "cyberpunk": "サイバーパンク"
+  },
   "StudioWorkbenchDraft": {
     "eyebrow": "スタジオ草案",
     "title": "より高密度で ComfyUI 的な Studio ワークベンチ案。",

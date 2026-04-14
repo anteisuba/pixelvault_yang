@@ -21,6 +21,7 @@ function makeInitialState(
     advancedParams: {},
     tokenInput: '',
     voiceId: null,
+    stylePresetId: '',
     panels: {
       cardManagement: false,
       projectHistory: false,

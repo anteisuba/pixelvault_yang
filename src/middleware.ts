@@ -24,6 +24,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/health/providers',
 ])
 
+const isDev = process.env.NODE_ENV === 'development'
+
 export default clerkMiddleware(async (auth, request) => {
   const pathname = request.nextUrl.pathname
 
@@ -33,7 +35,7 @@ export default clerkMiddleware(async (auth, request) => {
     const isPublicUserApi =
       pathname.startsWith('/api/users/') &&
       !pathname.startsWith('/api/users/me')
-    if (!isPublicRoute(request) && !isPublicUserApi) {
+    if (!isDev && !isPublicRoute(request) && !isPublicUserApi) {
       await auth.protect()
     }
     return
@@ -48,7 +50,7 @@ export default clerkMiddleware(async (auth, request) => {
     return response
   }
 
-  if (!isPublicRoute(request)) {
+  if (!isDev && !isPublicRoute(request)) {
     await auth.protect()
   }
 

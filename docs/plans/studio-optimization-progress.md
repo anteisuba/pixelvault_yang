@@ -13,15 +13,15 @@
 
 测试和 UX 交替进行，每周有可见进展。
 
-| 周  | 内容                                       | 状态                 |
-| --- | ------------------------------------------ | -------------------- |
-| W1  | 核心生成路径测试                           | ✅ 完成              |
-| W2  | 风格预设 + unified-generate hook 测试      | ✅ 完成              |
-| W3  | Quick Mode 简化入口                        | ✅ 完成（待 commit） |
-| W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ⏳ 未开始            |
-| W5  | 管道测试 + API 路由迁移到 createApiRoute   | ⏳ 未开始            |
-| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始            |
-| W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始            |
+| 周  | 内容                                     | 状态                      |
+| --- | ---------------------------------------- | ------------------------- |
+| W1  | 核心生成路径测试                         | ✅ 完成                   |
+| W2  | 风格预设 + unified-generate hook 测试    | ✅ 完成                   |
+| W3  | Quick Mode 简化入口                      | ✅ 完成已推送 (`6a5a07e`) |
+| W4  | @ts-nocheck 清理 + audio async 路径修复  | ⏳ 未开始                 |
+| W5  | 管道测试 + API 路由迁移到 createApiRoute | ⏳ 未开始                 |
+| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一  | ⏳ 未开始                 |
+| W7  | 减轻 AI 感 + SEO 基础                    | ⏳ 未开始                 |
 
 ---
 
@@ -134,42 +134,44 @@ feat: W3 Quick Mode — 简化入口 + 内联模型选择 + API key 快速引导
 
 ## 四、W4-W7 待办详情
 
-### W4: 生成管道抽取（组合函数模式）
+### W4: @ts-nocheck 清理 + audio async 路径修复（精简版）
 
-**前置条件:**
+> **Scope 调整说明（2026-04-14 eng-review）**: 原计划的 `generation-pipeline.ts` 已被推迟。
+> `resolveGenerationRoute` 和 `uploadToR2` 已经存在，无需重新抽取。
+> 更重要的是发现了 audio async 路径有功能性 bug + 安全问题需优先修复。
 
-- [ ] 移除 `src/services/generate-audio.service.ts` 第 2 行的 `@ts-nocheck`，修复所有类型错误
+**任务清单:**
 
-**目标: 创建 `src/services/generation-pipeline.ts`**
+- [ ] `src/services/generate-audio.service.ts`
+  - 删除第 2 行 `@ts-nocheck`，修复所有类型错误
+  - 修 `generateAudioForUser`：补充 `sampleRate` 字段转发给 adapter（当前缺失，Fish Audio adapter 期望此字段）
+  - 修 `createApiUsageEntry` 调用：统一用 `generationJobId` 模式（与 image service 一致）
+  - 修 `getProviderAdapter(adapterType as never)`：改为有类型的 `AI_ADAPTER_TYPES` 转换
+  - `submitAudioGeneration` + `checkAudioGenerationStatus`：添加 TODO 注释，说明需等 FAL adapter 实现 `submitAudioToQueue`/`checkAudioQueueStatus` 后再修 job lifecycle
 
-从 image/video/audio 三个 service 中提取共享步骤:
+- [ ] `src/services/generate-audio.service.test.ts`（新建，目前 0 个测试）
+  - `generateAudioForUser` 同步路径: 成功 / UNSUPPORTED_MODEL / ProviderError / R2失败
+  - 不测试 submit/status 异步路径（adapter 层未实现，留到后续）
 
-```typescript
-// 组合函数，非 class 继承
-async function resolveRoute(params) // 已存在于 generate-image，提升为独立导出
-async function uploadReferenceImage(params) // 从 image + video 两处提取
-async function createGenerationRecord(params) // 从三个 service 中提取
-async function uploadToR2(params) // 封装通用上传逻辑
+**遵循模式:** 参考 `generate-image.service.test.ts` 的 mock 模式
 
-// 调用模式:
-// Image: resolveRoute → provider.generate → uploadToR2 → createRecord
-// Video: resolveRoute → provider.submit → (poll) → uploadToR2 → createRecord
-// Audio: resolveRoute → provider.generate → uploadToR2 → createRecord
-```
+**已推迟（等 FAL adapter 实现 audio queue 后）:**
 
-**注意:**
+- `submitAudioGeneration` job lifecycle 修复
+- `checkAudioGenerationStatus` 改为 jobId 接收 + 幂等锁
+- API key 前端暴露安全问题（status route）
+- 相关类型修复：`GenerateAudioResponse` 应有 `jobId`、`AudioStatusResponseData` 应有 `jobId`
 
-- `generate-video.service.ts` 已经从 image service 导入 `resolveGenerationRoute` 和 `GenerateImageServiceError`
-- 保留原有 service 的导出接口不变（向后兼容）
-- 重构后 image/video/audio service 变成薄包装，调用管道函数
+**已推迟时的注意事项:**
 
-**高风险模块:**
+- Re-resolve route 有 key 漂移风险：应存 `apiKeyId` 到 externalRequestId，poll 时按 ID 查找
+- 幂等锁：参考 `generate-video.service.ts:277` 的 optimistic lock 实现
+
+**高风险模块（改动前确认影响范围）:**
 | 模块 | 导入文件数 | 规则 |
 |------|-----------|------|
-| `src/types/index.ts` (barrel `@/types`) | ~146 | 只加 optional 字段 |
-| `src/constants/models.ts` 单文件 | ~42 | 加模型不删模型 |
-| `src/services/generate-image.service.ts` | 13 | 保留原接口 |
-| `src/services/storage/r2.ts` | 15 | 只加新方法 |
+| `src/services/generate-audio.service.ts` | 2 文件调用 | 只有 route.ts 和 status route，同步改 |
+| `src/services/generate-image.service.ts` | 20 文件 | 本次不改此文件 |
 
 ### W5: 管道测试 + API 路由迁移
 
@@ -278,7 +280,21 @@ npx vitest run --reporter=verbose
 
 ## 九、接续步骤
 
-1. **先 commit + push W3** — 当前 working tree 有未提交的改动
-2. **用户确认 W3 UI** — localhost:3000 检查 Quick Mode 效果
-3. **W4 开始前跑 `/plan-eng-review`** — 锁定 generation-pipeline.ts 接口设计
-4. **从 W4 开始** — 先修 `@ts-nocheck`，再抽管道函数
+1. ~~先 commit + push W3~~ — 已完成（`6a5a07e`）
+2. ~~W4 前跑 /plan-eng-review~~ — 已完成（2026-04-14），scope 调整为精简版
+3. **开始 W4** — 按上方任务清单实施（同步音频路径：@ts-nocheck + sampleRate + 测试）
+4. W4 完成后：`npx tsc --noEmit` + `npx vitest run --reporter=verbose`
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review        | Trigger               | Why                             | Runs | Status       | Findings                                                                       |
+| ------------- | --------------------- | ------------------------------- | ---- | ------------ | ------------------------------------------------------------------------------ |
+| CEO Review    | `/plan-ceo-review`    | Scope & strategy                | 2    | CLEAR        | 6 proposals, 6 accepted, 0 deferred                                            |
+| Codex Review  | `/codex review`       | Independent 2nd opinion         | 1    | issues_found | FAL audio queue 未实现（可行性）; sampleRate 未转发; async path key drift 风险 |
+| Eng Review    | `/plan-eng-review`    | Architecture & tests (required) | 4    | CLEAR (PLAN) | 4 issues, 1 critical gap — scope 已精简                                        |
+| Design Review | `/plan-design-review` | UI/UX gaps                      | 1    | CLEAR        | score: 3/10 → 8/10, 7 decisions                                                |
+| DX Review     | `/plan-devex-review`  | Developer experience gaps       | 0    | —            | —                                                                              |
+
+**VERDICT:** ENG CLEARED — 可以开始 W4 实现。Codex 发现的 FAL audio queue 未实现已纳入推迟计划，不阻塞 W4。

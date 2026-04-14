@@ -1,8 +1,7 @@
 import 'server-only'
-// @ts-nocheck — WIP audio service, not yet production-ready
 
 import { getModelById } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type { GenerateAudioRequest, GenerationRecord } from '@/types'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
@@ -75,6 +74,7 @@ export async function generateAudioForUser(
             voiceId: request.voiceId,
             speed: request.speed,
             format: request.format,
+            sampleRate: request.sampleRate,
           }),
         { maxAttempts: 3, label: `${providerLabel}/audio` },
       ),
@@ -113,7 +113,7 @@ export async function generateAudioForUser(
     })
     const usageEntry = await createApiUsageEntry({
       userId,
-      generationId: generation.id,
+      generationJobId: job.id,
       adapterType: route.adapterType,
       provider: providerLabel,
       modelId: request.modelId,
@@ -148,6 +148,15 @@ export async function generateAudioForUser(
 /**
  * Submit async audio generation (FAL F5-TTS — queue-based).
  * Returns a request ID for status polling.
+ *
+ * TODO: This function's job lifecycle is incomplete.
+ * It should follow the video service pattern:
+ *   1. Call submitAudioToQueue first
+ *   2. On success: createGenerationJob + store {statusUrl, responseUrl, apiKeyId} in externalRequestId
+ *   3. Return {jobId, requestId}
+ * Prerequisite: fal.adapter.ts must implement submitAudioToQueue + checkAudioQueueStatus.
+ * Also update GenerateAudioResponse type (add jobId) and AudioStatusResponseData (add jobId).
+ * Security note: once job-based, /api/generate-audio/status should accept only jobId (no apiKey from client).
  */
 export async function submitAudioGeneration(
   clerkId: string,
@@ -198,6 +207,14 @@ export async function submitAudioGeneration(
 /**
  * Check the status of an async audio generation job.
  * When completed, downloads audio, uploads to R2, and creates generation record.
+ *
+ * TODO: This function needs a complete redesign once submitAudioGeneration is job-based:
+ *   - Accept (clerkId: string, jobId: string) instead of raw queue params
+ *   - Re-resolve API key server-side via resolveGenerationRoute (never accept apiKey from client)
+ *   - Add optimistic lock (see generate-video.service.ts:277) to prevent duplicate finalization
+ *   - Add cached-return for already-COMPLETED/FAILED jobs (see generate-video.service.ts:182)
+ *   - Handle empty audioUrl on COMPLETED (currently would crash at fetchAsBuffer)
+ * Key drift note: store apiKeyId (not keyValue) in externalRequestId so re-resolve always uses correct key.
  */
 export async function checkAudioGenerationStatus(
   clerkId: string,
@@ -209,7 +226,7 @@ export async function checkAudioGenerationStatus(
 ): Promise<{ status: string; generation?: GenerationRecord }> {
   const dbUser = await ensureUser(clerkId)
   const userId = dbUser.id
-  const adapter = getProviderAdapter(adapterType as never)
+  const adapter = getProviderAdapter(adapterType as AI_ADAPTER_TYPES)
   if (!adapter.checkAudioQueueStatus) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',

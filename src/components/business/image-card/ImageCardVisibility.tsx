@@ -8,7 +8,7 @@ interface ImageCardVisibilityProps {
   isPublic: boolean
   isPromptPublic: boolean
   isFeatured: boolean
-  togglingField: ToggleField | null
+  togglingField: string | null
   onToggle: (field: ToggleField) => void
   labelClass: string
   isDenseLocale: boolean

@@ -237,6 +237,12 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
+    // Surface user-friendly message for common API errors
+    if (response.status === 503 || response.status === 429) {
+      throw new Error(
+        'AI model is temporarily unavailable due to high demand. Please try again in a moment.',
+      )
+    }
     throw new Error(`Gemini text API error (${response.status}): ${errorBody}`)
   }
 

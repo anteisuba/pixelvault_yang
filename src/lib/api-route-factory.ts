@@ -77,7 +77,9 @@ function buildRateLimitHeaders(
   return headers
 }
 
-function buildJsonErrorResponse(error: GenerationError): NextResponse<ErrorResponse> {
+function buildJsonErrorResponse(
+  error: GenerationError,
+): NextResponse<ErrorResponse> {
   return NextResponse.json<ErrorResponse>(error.toJSON(), {
     status: error.httpStatus,
   })
@@ -87,9 +89,7 @@ function toJsonSafe<T>(value: T): T {
   const serialized = JSON.stringify(value, (_key, currentValue) => {
     if (typeof currentValue === 'bigint') {
       const asNumber = Number(currentValue)
-      return Number.isSafeInteger(asNumber)
-        ? asNumber
-        : currentValue.toString()
+      return Number.isSafeInteger(asNumber) ? asNumber : currentValue.toString()
     }
 
     return currentValue
@@ -168,17 +168,27 @@ function handleRouteError(
     )
   }
 
+  const errorMessage = error instanceof Error ? error.message : String(error)
+
   logger.error(`${routeName} unhandled error`, {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     durationMs: Date.now() - startedAt,
   })
+
+  // For known temporary errors (503, rate limit), surface the actual message
+  const isTemporaryError =
+    errorMessage.includes('temporarily unavailable') ||
+    errorMessage.includes('high demand') ||
+    errorMessage.includes('rate limit')
 
   return buildJsonErrorResponse(
     new ApiRequestError(
       'INTERNAL_ERROR',
       500,
       'errors.common.unexpected',
-      'An unexpected error occurred. Please try again.',
+      isTemporaryError
+        ? errorMessage
+        : 'An unexpected error occurred. Please try again.',
     ),
   )
 }

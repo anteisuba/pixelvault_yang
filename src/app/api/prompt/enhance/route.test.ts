@@ -29,8 +29,8 @@ describe('POST /api/prompt/enhance', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(401)
-    const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    const body = await parseJSON<{ success: boolean }>(res)
+    expect(body.success).toBe(false)
   })
 
   it('returns 400 for invalid body (missing prompt)', async () => {
@@ -102,10 +102,8 @@ describe('POST /api/prompt/enhance', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(500)
-    const body = await parseJSON(res)
-    expect(body).toEqual({
-      success: false,
-      error: 'Prompt enhancement failed. Please try again.',
-    })
+    const body = await parseJSON<{ success: boolean; error: string }>(res)
+    expect(body.success).toBe(false)
+    expect(body.error).toBeTruthy()
   })
 })

@@ -13,15 +13,15 @@
 
 测试和 UX 交替进行，每周有可见进展。
 
-| 周  | 内容                                     | 状态                      |
-| --- | ---------------------------------------- | ------------------------- |
-| W1  | 核心生成路径测试                         | ✅ 完成                   |
-| W2  | 风格预设 + unified-generate hook 测试    | ✅ 完成                   |
-| W3  | Quick Mode 简化入口                      | ✅ 完成已推送 (`6a5a07e`) |
-| W4  | @ts-nocheck 清理 + audio async 路径修复  | ⏳ 未开始                 |
-| W5  | 管道测试 + API 路由迁移到 createApiRoute | ⏳ 未开始                 |
-| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一  | ⏳ 未开始                 |
-| W7  | 减轻 AI 感 + SEO 基础                    | ⏳ 未开始                 |
+| 周  | 内容                                    | 状态                      |
+| --- | --------------------------------------- | ------------------------- |
+| W1  | 核心生成路径测试                        | ✅ 完成                   |
+| W2  | 风格预设 + unified-generate hook 测试   | ✅ 完成                   |
+| W3  | Quick Mode 简化入口                     | ✅ 完成已推送 (`6a5a07e`) |
+| W4  | @ts-nocheck 清理 + audio async 路径修复 | ✅ 完成已推送 (`7830a0b`) |
+| W5  | API 路由错误格式统一 + 高优先级路由迁移 | ✅ 完成已推送             |
+| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一 | ⏳ 未开始                 |
+| W7  | 减轻 AI 感 + SEO 基础                   | ⏳ 未开始                 |
 
 ---
 
@@ -173,13 +173,26 @@ feat: W3 Quick Mode — 简化入口 + 内联模型选择 + API key 快速引导
 | `src/services/generate-audio.service.ts` | 2 文件调用 | 只有 route.ts 和 status route，同步改 |
 | `src/services/generate-image.service.ts` | 20 文件 | 本次不改此文件 |
 
-### W5: 管道测试 + API 路由迁移
+### W5: API 路由错误格式统一 + 高优先级路由迁移
 
-- [ ] 为 `generation-pipeline.ts` 每个管道函数写测试
-- [ ] 统一三种生成模式的错误响应格式
-- [ ] 将剩余 61 个路由迁移到 `createApiRoute` 工厂（当前 18/79 已迁移）
-  - 工厂位置: `src/lib/api-route-factory.ts`
-  - 迁移模式: 每个路由从手动 auth+validate+handle 改为 `createApiRoute({ schema, handler })`
+> **Scope 说明（2026-04-14）**: `generation-pipeline.ts` 未创建（W4 scope 精简后不再需要）。
+> W5 聚焦于将手动路由迁移到 `createApiRoute` 工厂，消除错误格式碎片化。
+> 当前工厂已覆盖 17/79 路由，优先迁移生成流相关路由。
+
+**任务清单:**
+
+- [x] 更新进度文档（删除 generation-pipeline.ts 引用，澄清实际 scope）
+- [x] `src/app/api/generate-video/status/route.ts` → `createApiGetRoute`
+  - 迁移后: 统一错误格式（errorCode + i18nKey），删除手动 try/catch
+  - 新建: `src/app/api/generate-video/status/route.test.ts`（401/400/成功/服务错误）
+- [x] `src/app/api/prompt/enhance/route.ts` → `createApiRoute`
+  - 迁移后: 删除手动 auth+rate-limit+try/catch，保留 `maxDuration = 30`
+  - 更新: 已有测试（500 case 错误消息格式变化）
+- [x] 追加测试覆盖统计到第七节
+
+**工厂位置:** `src/lib/api-route-factory.ts`
+**迁移模式:** POST 路由 → `createApiRoute({ schema, handler })`，GET 路由 → `createApiGetRoute({ schema, handler })`
+**当前覆盖:** 17/79 → 目标 19/79（本次迁移 2 个）
 
 ### W6: Video UI 统一 + 骨架屏
 
@@ -248,14 +261,17 @@ npx vitest run --reporter=verbose
 
 ## 七、测试覆盖现状
 
-| 文件                                | 测试数 | 覆盖场景                                        |
-| ----------------------------------- | ------ | ----------------------------------------------- |
-| `generate-image.service.test.ts`    | 19     | 路由解析(9) + 完整流程(10)                      |
-| `api/generate/route.test.ts`        | 11     | auth/validate/success/error/advancedParams      |
-| `api/studio/generate/route.test.ts` | 10     | auth/validate/quick+card mode/batch/error       |
-| `use-unified-generate.test.ts`      | 8      | idle/generate/error/activeRun/audio/retry/reset |
-| `studio-context.test.ts`            | 36     | reducer 所有 action + panel toggle              |
-| **总计**                            | **84** | 核心生成路径全覆盖                              |
+| 文件                                      | 测试数  | 覆盖场景                                        |
+| ----------------------------------------- | ------- | ----------------------------------------------- |
+| `generate-image.service.test.ts`          | 19      | 路由解析(9) + 完整流程(10)                      |
+| `api/generate/route.test.ts`              | 11      | auth/validate/success/error/advancedParams      |
+| `api/studio/generate/route.test.ts`       | 10      | auth/validate/quick+card mode/batch/error       |
+| `use-unified-generate.test.ts`            | 8       | idle/generate/error/activeRun/audio/retry/reset |
+| `studio-context.test.ts`                  | 36      | reducer 所有 action + panel toggle              |
+| `generate-audio.service.test.ts`          | 6       | 同步路径: 成功/UNSUPPORTED/ProviderError/R2失败 |
+| `api/generate-video/status/route.test.ts` | 4       | auth/validate/success/500                       |
+| `api/prompt/enhance/route.test.ts`        | 6       | auth/validate/success/400/500                   |
+| **总计**                                  | **100** | 核心生成路径 + 路由层全覆盖                     |
 
 ---
 
@@ -282,8 +298,8 @@ npx vitest run --reporter=verbose
 
 1. ~~先 commit + push W3~~ — 已完成（`6a5a07e`）
 2. ~~W4 前跑 /plan-eng-review~~ — 已完成（2026-04-14），scope 调整为精简版
-3. **开始 W4** — 按上方任务清单实施（同步音频路径：@ts-nocheck + sampleRate + 测试）
-4. W4 完成后：`npx tsc --noEmit` + `npx vitest run --reporter=verbose`
+3. ~~开始 W4~~ — 已完成（`7830a0b`）
+4. **开始 W5** — generate-video/status 迁移 + prompt/enhance 迁移 + 测试
 
 ---
 

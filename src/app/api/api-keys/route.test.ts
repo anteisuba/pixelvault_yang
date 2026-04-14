@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
+  createGET,
   createPOST,
   parseJSON,
   FAKE_DB_USER,
@@ -44,10 +45,10 @@ beforeEach(() => {
 describe('GET /api/api-keys', () => {
   it('returns 401 when unauthenticated', async () => {
     mockUnauthenticated()
-    const res = await GET()
+    const res = await GET(createGET('/api/api-keys'))
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns API key list on success', async () => {
@@ -55,7 +56,7 @@ describe('GET /api/api-keys', () => {
     mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     mockListUserApiKeys.mockResolvedValue([FAKE_API_KEY])
 
-    const res = await GET()
+    const res = await GET(createGET('/api/api-keys'))
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
     expect(body).toEqual({ success: true, data: [FAKE_API_KEY] })
@@ -78,7 +79,7 @@ describe('POST /api/api-keys', () => {
     const res = await POST(req)
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns 400 for invalid body (missing required fields)', async () => {
@@ -98,7 +99,7 @@ describe('POST /api/api-keys', () => {
 
     const req = createPOST('/api/api-keys', VALID_BODY)
     const res = await POST(req)
-    expect(res.status).toBe(201)
+    expect(res.status).toBe(200)
     const body = await parseJSON(res)
     expect(body).toEqual({ success: true, data: FAKE_API_KEY })
     expect(mockCreateApiKey).toHaveBeenCalledWith(

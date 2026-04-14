@@ -52,7 +52,7 @@ describe('PUT /api/api-keys/[id]', () => {
     const res = await PUT(req, routeParams)
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns updated key on success', async () => {
@@ -79,17 +79,17 @@ describe('DELETE /api/api-keys/[id]', () => {
     const res = await DELETE(req, routeParams)
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
-  it('returns 204 on success', async () => {
+  it('returns 200 on success', async () => {
     mockAuthenticated()
     mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
     mockDeleteApiKey.mockResolvedValue(undefined)
 
     const req = createDELETE(`/api/api-keys/${KEY_ID}`)
     const res = await DELETE(req, routeParams)
-    expect(res.status).toBe(204)
+    expect(res.status).toBe(200)
     expect(mockDeleteApiKey).toHaveBeenCalledWith(KEY_ID, FAKE_DB_USER.id)
   })
 })

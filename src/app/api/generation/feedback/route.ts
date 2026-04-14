@@ -1,82 +1,22 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import 'server-only'
 
 import { GenerationFeedbackRequestSchema } from '@/types'
-import type { GenerationFeedbackResponse } from '@/types'
 import { conversationalRefine } from '@/services/generation-feedback.service'
-import { rateLimit } from '@/lib/rate-limit'
+import { createApiRoute } from '@/lib/api-route-factory'
 
 export const maxDuration = 30
 
-// ─── POST /api/generation/feedback ─────────────────────────────────
-
-export async function POST(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<GenerationFeedbackResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
-    const { success: allowed } = await rateLimit(`gen-feedback:${clerkId}`, {
-      limit: 20,
-      windowSeconds: 60,
-    })
-    if (!allowed) {
-      return NextResponse.json<GenerationFeedbackResponse>(
-        { success: false, error: 'Too many requests. Please wait a moment.' },
-        { status: 429 },
-      )
-    }
-
-    const body = await request.json().catch(() => null)
-
-    if (!body) {
-      return NextResponse.json<GenerationFeedbackResponse>(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
-
-    const parseResult = GenerationFeedbackRequestSchema.safeParse(body)
-
-    if (!parseResult.success) {
-      return NextResponse.json<GenerationFeedbackResponse>(
-        {
-          success: false,
-          error: parseResult.error.issues
-            .map((e: { message: string }) => e.message)
-            .join(', '),
-        },
-        { status: 400 },
-      )
-    }
-
-    const result = await conversationalRefine(
+export const POST = createApiRoute({
+  schema: GenerationFeedbackRequestSchema,
+  routeName: 'POST /api/generation/feedback',
+  rateLimit: { limit: 20, windowSeconds: 60 },
+  handler: async (clerkId, data) =>
+    conversationalRefine(
       clerkId,
-      parseResult.data.imageUrl,
-      parseResult.data.originalPrompt,
-      parseResult.data.messages,
-      parseResult.data.locale,
-      parseResult.data.apiKeyId,
-    )
-
-    return NextResponse.json<GenerationFeedbackResponse>({
-      success: true,
-      data: result,
-    })
-  } catch (error) {
-    logger.error('[API /api/generation/feedback] Error', { error: error instanceof Error ? error.message : String(error) })
-
-    return NextResponse.json<GenerationFeedbackResponse>(
-      {
-        success: false,
-        error: 'Generation feedback failed. Please try again.',
-      },
-      { status: 500 },
-    )
-  }
-}
+      data.imageUrl,
+      data.originalPrompt,
+      data.messages,
+      data.locale,
+      data.apiKeyId,
+    ),
+})

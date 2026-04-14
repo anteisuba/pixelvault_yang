@@ -9,17 +9,17 @@ export async function toggleLike(
   userId: string,
   generationId: string,
 ): Promise<{ liked: boolean; likeCount: number }> {
-  // Verify generation exists and is public
+  // Verify generation exists; allow owner to like their own private generations
   const generation = await db.generation.findUnique({
     where: { id: generationId },
-    select: { id: true, isPublic: true },
+    select: { id: true, isPublic: true, userId: true },
   })
 
   if (!generation) {
     throw new Error('Generation not found')
   }
 
-  if (!generation.isPublic) {
+  if (!generation.isPublic && generation.userId !== userId) {
     throw new Error('Cannot like a private generation')
   }
 

@@ -7,6 +7,8 @@
 
 ## 依赖关系图
 
+> Status note (2026-04-13): treat this as the merged planning document, not the source of truth for shipped behavior. Track A and most of Track B are already implemented, and the live Studio also includes audio mode, voice selection/cloning, and LoRA-training API foundations not fully reflected below. Start with `../frontend/studio-feature-map.md` for current behavior.
+
 ```
 Track A: 基础修复
 A1 数据修复 ──→ A2 新模型 ──→ A3 校验+持久化

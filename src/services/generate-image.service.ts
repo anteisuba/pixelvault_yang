@@ -97,6 +97,10 @@ export async function resolveGenerationRoute(
     const selectedApiKey = await getApiKeyValueById(apiKeyId, userId)
 
     if (!selectedApiKey) {
+      logger.warn('[resolveGenerationRoute] API key not found or inactive', {
+        apiKeyId,
+        userId,
+      })
       throw new GenerateImageServiceError(
         'INVALID_ROUTE_SELECTION',
         'Selected API key is unavailable',
@@ -104,16 +108,27 @@ export async function resolveGenerationRoute(
       )
     }
 
-    if (selectedApiKey.modelId !== modelId) {
+    // Validate adapter compatibility: the key's adapter must match the
+    // model's adapter. Provider keys (Replicate, fal, etc.) are universal
+    // within their adapter type — they work for any model on that platform.
+    const expectedAdapter = builtInModel?.adapterType
+    logger.info('[resolveGenerationRoute] Route resolution', {
+      apiKeyId,
+      keyAdapterType: selectedApiKey.adapterType,
+      keyModelId: selectedApiKey.modelId,
+      requestedModelId: modelId,
+      expectedAdapter: expectedAdapter ?? 'N/A (custom model)',
+    })
+    if (expectedAdapter && selectedApiKey.adapterType !== expectedAdapter) {
       throw new GenerateImageServiceError(
         'INVALID_ROUTE_SELECTION',
-        'Selected API key does not match the chosen model',
+        `API key adapter (${selectedApiKey.adapterType}) does not match model adapter (${expectedAdapter})`,
         400,
       )
     }
 
     return {
-      modelId: selectedApiKey.modelId,
+      modelId,
       adapterType: selectedApiKey.adapterType,
       providerConfig: selectedApiKey.providerConfig,
       apiKey: selectedApiKey.keyValue,

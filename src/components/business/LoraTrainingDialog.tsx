@@ -32,18 +32,26 @@ import { cn } from '@/lib/utils'
 interface LoraTrainingDialogProps {
   characterCardId?: string
   trigger?: React.ReactNode
+  /** Controlled open state (optional — uses internal state if omitted) */
+  open?: boolean
+  /** Callback when open state changes (required when `open` is provided) */
+  onOpenChange?: (open: boolean) => void
 }
 
 export function LoraTrainingDialog({
   characterCardId,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: LoraTrainingDialogProps) {
   const t = useTranslations('LoraTraining')
   const { keys } = useApiKeysContext()
   const { submit, isSubmitting, jobs } = useLoraTraining()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   const [name, setName] = useState('')
   const [triggerWord, setTriggerWord] = useState('')
   const [loraType, setLoraType] = useState<'subject' | 'style'>('subject')
@@ -121,6 +129,7 @@ export function LoraTrainingDialog({
     images,
     characterCardId,
     submit,
+    setOpen,
   ])
 
   // All jobs — show recent ones
@@ -128,14 +137,16 @@ export function LoraTrainingDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Sparkles className="size-3.5" />
-            {t('title')}
-          </Button>
-        )}
-      </DialogTrigger>
+      {controlledOpen === undefined && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Sparkles className="size-3.5" />
+              {t('title')}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">{t('title')}</DialogTitle>

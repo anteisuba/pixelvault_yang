@@ -105,6 +105,11 @@ async function pollPrediction(
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
       const rawError = prediction.error ?? 'Unknown error'
+      logger.error('[Replicate] Prediction failed — raw error from Replicate', {
+        predictionUrl,
+        rawError:
+          typeof rawError === 'string' ? rawError : JSON.stringify(rawError),
+      })
       throw new ProviderError(
         'Replicate',
         502,
@@ -187,6 +192,29 @@ function buildFluxInput(
  * Resolve Civitai download URLs to CDN URLs with .safetensors extension.
  * NoobAI requires the file extension in the URL.
  */
+/**
+ * Rewrite R2 storage URLs to go through the Worker proxy.
+ * Replicate's GPU servers can't download from r2.dev or custom CDN domains
+ * (Cloudflare blocks datacenter IPs), but Workers serve files directly from R2.
+ */
+const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
+const R2_WORKER_BASE = 'https://r2.anteisuba.com'
+
+function toWorkerUrl(url: string): string {
+  // Legacy r2.dev URL → extract key → worker URL
+  if (OLD_R2_DEV_PATTERN.test(url)) {
+    const key = url.replace(OLD_R2_DEV_PATTERN, '')
+    return `${R2_WORKER_BASE}/${key}`
+  }
+  // Current CDN URL → extract key → worker URL
+  const base = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+  if (base && url.startsWith(base)) {
+    const key = url.slice(base.length + 1)
+    return `${R2_WORKER_BASE}/${key}`
+  }
+  return url
+}
+
 async function resolveCivitaiUrl(url: string): Promise<string> {
   if (!url.includes('civitai.com/api/download')) return url
   try {
@@ -199,6 +227,23 @@ async function resolveCivitaiUrl(url: string): Promise<string> {
   return url
 }
 
+/**
+ * Pre-flight check: verify that a LoRA URL is publicly accessible.
+ * Currently unused — kept for future use when non-Worker URLs need validation.
+ */
+async function _checkLoraUrlAccessible(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10_000),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 /** Apply LoRA parameters to the input object (mutates in place) */
 async function applyLoraParams(
   input: Record<string, unknown>,
@@ -206,17 +251,21 @@ async function applyLoraParams(
   isNoobAI: boolean,
 ): Promise<void> {
   if (isNoobAI) {
-    // NoobAI: JSON array of {url, strength}. Resolve Civitai URLs first.
     const resolved = await Promise.all(
-      loras.map(async (lora) => ({
-        url: await resolveCivitaiUrl(lora.url),
-        strength: lora.scale ?? 1.0,
-      })),
+      loras.map(async (lora) => {
+        let url = await resolveCivitaiUrl(lora.url)
+        url = toWorkerUrl(url)
+        return { url, strength: lora.scale ?? 1.0 }
+      }),
     )
+
     input.loras = JSON.stringify(resolved)
+    logger.info('[Replicate] Final LoRA payload', {
+      loras: input.loras,
+    })
   } else {
-    // FLUX: single hf_lora field
-    input.hf_lora = loras[0].url
+    const url = toWorkerUrl(loras[0].url)
+    input.hf_lora = url
     if (loras[0].scale != null) input.lora_scale = loras[0].scale
   }
 }
@@ -287,6 +336,13 @@ export const replicateAdapter: ProviderAdapter = {
     }
 
     if (advancedParams?.loras?.length) {
+      logger.info('[Replicate] Applying LoRA params', {
+        loraCount: advancedParams.loras.length,
+        urls: advancedParams.loras.map((l: { url: string }) =>
+          l.url.slice(0, 80),
+        ),
+        isNoobAI,
+      })
       await applyLoraParams(input, advancedParams.loras, isNoobAI)
     }
 

@@ -1753,6 +1753,8 @@
     "toolSuperRes": "超分辨率",
     "toolRemoveBg": "去背景",
     "toolSaveSuperRes": "保存超分结果",
+    "upscaling": "超分中...",
+    "removingBg": "去背景中...",
     "toolLayers": "图层分解",
     "linkCopied": "链接已复制",
     "toolRemix": "重混",

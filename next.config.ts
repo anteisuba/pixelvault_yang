@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
     imageSizes: [32, 48, 64, 96, 200, 384],
     remotePatterns: [
       { protocol: 'https', hostname: storageHost },
+      // Legacy R2 dev domain — existing images in DB still reference this
+      {
+        protocol: 'https',
+        hostname: 'pub-5346558f8dc549f9ba5217489fe5395e.r2.dev',
+      },
       { protocol: 'https', hostname: '*.fal.media' },
       { protocol: 'https', hostname: 'replicate.delivery' },
       { protocol: 'https', hostname: 'img.clerk.com' },

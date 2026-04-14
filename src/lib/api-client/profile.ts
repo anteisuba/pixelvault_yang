@@ -66,7 +66,10 @@ export async function updateProfileAPI(
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(response, 'Failed to update profile')
+      const payload = await getErrorPayload(
+        response,
+        'Failed to update profile',
+      )
       return {
         success: false,
         error: payload.error,
@@ -177,6 +180,29 @@ export async function toggleLikeAPI(
         success: false,
         error: await getErrorMessage(response, 'Failed to toggle like'),
       }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function batchGetLikesAPI(generationIds: string[]): Promise<{
+  success: boolean
+  data?: { likedIds: string[] }
+  error?: string
+}> {
+  try {
+    const ids = generationIds.join(',')
+    const response = await fetch(
+      `${API_ENDPOINTS.LIKES}?ids=${encodeURIComponent(ids)}`,
+    )
+    if (!response.ok) {
+      return { success: false, error: 'Failed to fetch likes' }
     }
     return await response.json()
   } catch (error) {

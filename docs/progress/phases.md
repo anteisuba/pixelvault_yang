@@ -1,182 +1,158 @@
 # Development Phases
 
+> Last synced: 2026-04-13
+> This file is the milestone-level status view.
+> For the current Studio implementation map, start with `../plans/frontend/studio-feature-map.md`.
+
 ## Phase 1: MVP (Core Generation) — COMPLETE
 
 - Single-model image generation
-- Prompt input + result display
-- Basic UI
+- Prompt input plus result display
+- Basic Studio entry flow
 
 ## Phase 2: Persistent Storage — COMPLETE
 
-- Prisma + PostgreSQL (Neon) integration
-- Cloudflare R2 image upload and permanent hosting
-- Generation records saved to database
+- Prisma plus PostgreSQL persistence
+- Cloudflare R2 upload and permanent hosting
+- Generation records saved to the database
 
 ## Phase 3: User System + Credits — COMPLETE
 
-- Clerk sign-in / sign-up + Navbar UserButton
-- Clerk webhook syncs `user.created` to database
-- Server-side credit deduction/addition + `GET /api/credits`
+- Clerk sign-in and sign-up
+- Clerk webhook sync into the application database
+- Server-side credit deduction and balance APIs
 - Route protection middleware
-- Gallery page (GalleryFeed + GalleryGrid + ImageCard + use-gallery hook + API)
-- Profile page (Library/Archive — metric cards + user collection + visibility toggle)
+- Gallery route
+- Profile route
 
 ## Phase 4: UI Polish + Gallery Enhancements — COMPLETE
 
-- Hero section redesign (two-column + metrics bar + Gallery Preview as standalone section)
-- Landing page rhythm (section spacing 80–128px, staggered animation, CTA hierarchy)
-- Mobile responsive pass (LocaleSwitcher, MobileTabBar, Navbar, Hero small-screen spacing)
-- ImageCard + GalleryGrid waterfall layout (CSS columns)
-- MobileTabBar navigation coherence (3-tab alignment with Navbar, auth state consistency)
-- Standalone auth pages (removed HomepageShell auth coupling)
-- Image detail modal (full prompt, metadata, download, open original)
-- Multi-provider architecture (HuggingFace, Google Gemini, OpenAI, fal.ai, Replicate)
-- Per-user API key management (AES-256-GCM encrypted storage)
-- Image-to-image generation (reference image support)
-- Prompt enhancement (detailed / artistic / photorealistic styles via LLM)
-- Image reverse engineering (upload → extract prompt → generate variations)
-- AI Model Arena with ELO ranking (blind comparison + voting)
-- Storyboard with AI narrative (comic view, drag reorder, PNG export, public share)
-- Video generation (5 models via fal.ai — Kling, MiniMax, Luma, WAN, Hunyuan)
-- 9 image models + 5 video models across 5 providers
-- Gallery search & filter (keyword search, model dropdown, sort by date)
-- Image detail page `/gallery/[id]` (shareable permalink + OG/Twitter cards + JSON-LD)
-- SEO & metadata (per-page generateMetadata, sitemap.xml, robots.txt, alternate languages)
-- Deployment hardening (security headers, remote image patterns, public route config)
-- Landing page scroll animations (CSS View Transitions API, staggered hero entrance)
+- Landing page redesign and responsive pass
+- Gallery search and detail flows
+- Multi-provider architecture
+- Per-user API key management
+- Image-to-image generation
+- Prompt enhancement and reverse engineering
+- Arena
+- Storyboard
+- Video generation
+- SEO and deployment hardening
 
 ## Phase 5: UX Refinement + Security — COMPLETE
 
-> Branch: `claude/hardcore-fermi` — PR #5
+- Image and video distinction across gallery/detail flows
+- Profile enhancement and hard-delete
+- Mobile navigation and toast feedback
+- API rate limiting and request hardening
+- API route test coverage
 
-### 5A: Image/Video Distinction
+## Phase A+: Code Quality, Model UX, Performance — COMPLETE
 
-- Gallery type filter (All / Images / Videos) with dynamic model list per type
-- Video playback in ImageDetailModal via VideoPlayer component
-- Video playback on gallery detail page `/gallery/[id]`
-- VideoObject JSON-LD schema for video generations
-- API layer `outputType` filter param on `GET /api/images`
-
-### 5B: Profile Enhancement
-
-- Infinite scroll via ProfileFeed client component (reuses `use-gallery` hook with `mine=true`)
-- Search, type filter, and sort controls on profile page
-- Hard-delete generation with AlertDialog confirmation (DB + R2 cleanup)
-- Split stats: total / images / videos / public / private / API requests
-- `DELETE /api/generations/[id]` endpoint
-
-### 5C: Mobile + Interaction
-
-- MobileTabBar expanded from 3 to 5 tabs (+Arena, +Stories)
-- Toast notifications (sonner) for generation success/failure
-- Toaster component added to main layout
-
-### 5D: Security Hardening
-
-- In-memory token bucket rate limiter (`src/lib/rate-limit.ts`)
-  - `POST /api/generate` — 10 req/min
-  - `POST /api/generate-video` — 5 req/min
-  - `POST /api/image/analyze` — 10 req/min
-  - `POST /api/prompt/enhance` — 10 req/min
-  - `POST /api/arena/matches` — 5 req/min
-  - `POST /api/stories/[id]/narrative` — 5 req/min
-- Image upload size validation (10MB limit) + MIME type validation (PNG/JPEG/WebP/GIF)
-- Error message sanitization — all API routes return generic messages, no `error.message` leakage
-- Public story access — unauthenticated `GET /api/stories/[id]` when `isPublic=true`
-- Webhook replay protection — reject svix events older than 5 minutes
-- R2 storage key: `Math.random()` → `crypto.randomBytes(12)` (non-enumerable)
-- Story creation: validate all `generationIds` belong to requesting user
-
-### 5E: Test Coverage
-
-- 97 Vitest tests across 16 API route test files
-- Shared test helpers: `src/test/api-helpers.ts` (Clerk auth mock, rate limit mock, request builders)
-- Coverage: auth, validation, rate limiting, success paths, error handling for all endpoints
-
-## Phase A–C: Code Quality, Model UX, Performance — COMPLETE
-
-> See `../product/roadmap.md` Phase A–C for full breakdown.
-
-- Design system compliance fixes + form deduplication + Error Boundary
-- Dynamic imports & lazy loading (PromptEnhancer, ReverseEngineerPanel, AdvancedSettings)
-- Toast notifications, provider error unification, Prisma index optimization
-- Prompt visibility transparency, API key format hints, mobile locale switcher
-- Keyboard navigation & ARIA, Next.js AVIF/WebP optimization
-- Model metadata enhancement (styleTag, qualityTier, descriptions)
-- ModelSelector purpose-based grouping + prompt preset templates
-- React.memo / useCallback rendering optimization
-- Gallery skeleton loading + ISR (60s revalidate)
+- Design-system compliance cleanup and form deduplication
+- Error boundaries
+- Dynamic imports and lazy loading
+- Toast consistency and provider error unification
+- Prisma index optimization
+- Prompt visibility and API key hints
+- Keyboard navigation and ARIA improvements
+- Model metadata and selector UX improvements
+- Rendering optimization and gallery ISR
 - Free quota display in Studio
 
 ## Phase D: Community & Growth — IN PROGRESS
 
-> Branch: `feat/workbench-w2-project-ui`
-
 ### D1: Prompt Sharing & Reuse — COMPLETE
 
-- Copy Prompt + Share Link buttons on Gallery/Detail
-- "Generate with this Prompt" one-click Studio prefill
-- URL parameter sharing (?prompt=&model=)
+- Copy prompt and share-link flows
+- One-click Studio prefill from Gallery and detail views
+- URL parameter sharing for prompt/model reuse
 
 ### D2: Arena Upgrade — COMPLETE
 
-- Personal arena: match history + model stats (/arena/history)
-- Leaderboard: podium Top 3 + model family filter + modelFamily field
-- API: GET /api/arena/history + GET /api/arena/personal-stats (8 new tests)
+- Personal arena history and model stats
+- Leaderboard podium and model-family grouping
+- Dedicated arena history and stats APIs
 
 ### D2.5: Landing Page Narrative — COMPLETE
 
-- "Your Key, Your Images, Zero Markup" core differentiation
-- BYOK + permanent archive + Arena three-in-one value prop (HomepageComparison)
+- "Your Key, Your Images, Zero Markup" differentiation
+- BYOK plus permanent archive plus Arena value framing
 
 ### D3: Social Layer — COMPLETE
 
-- User model expansion: username, displayName, avatarUrl, bio, isPublic
-- Public creator profile `/u/[username]` with Polaroid scatter layout (SSR + OG tags)
-- PolaroidCard + PolaroidGrid + ProfileHeader components
-- Gallery ImageCard creator attribution with avatar + link
-- Like/Favorite (UserLike model + toggle API + optimistic update)
-- Follow (UserFollow model + toggle API + optimistic update)
-- Prompt feedback system (PromptFeedback model + rating API)
-- Profile editing: PUT /api/users/me/profile (bio/username)
-- Clerk webhook: user.updated event syncs displayName + avatarUrl
-- i18n: en/ja/zh synchronized
+- Public creator profiles
+- Creator attribution in gallery cards
+- Likes, follows, and prompt feedback
+- Profile editing
+- Clerk `user.updated` sync
+- i18n synchronization
+
+### D4: Collections / Albums — COMPLETE
+
+- `Collection` and `CollectionItem` Prisma models
+- Collection CRUD service and ownership checks
+- Collection APIs and client helpers
+- `useCollections` hook
+- i18n synchronization
+
+### Remaining
+
+- Publish-to-earn and broader creator-growth loops are still pending
 
 ## Phase W: Workbench Evolution — PARTIAL
 
 ### W0: VolcEngine Seedance — COMPLETE
 
+- VolcEngine adapter integration
+- Seedance models registered in provider capabilities
+
 ### W1: Multi-Reference Images — COMPLETE
+
+- `referenceImages[]` request support
+- Provider-specific capability limits
+- Shared reference-image UI across image/video flows
 
 ### W2: Project System — COMPLETE
 
-- See `../product/roadmap.md` Phase W for details
+- Project model and generation-to-project relation
+- Project CRUD APIs and client helpers
+- Active project selection in Studio
+- Project-aware history and drag-and-drop assignment
+
+### W3: Video Style Continuity — NOT STARTED
+
+- Project-aware clip continuation and style continuity are still planned, but not yet shipped in the main Studio route
+
+### W4: Audio & Assembly — PARTIAL
+
+- Audio mode is now shipped inside `/studio`
+- `/api/generate-audio` and `/api/voices` are live
+- Voice selection and voice cloning are wired into the Studio workbench
+- Final clip + TTS + BGM assembly flow is still pending
 
 ## Phase E: Unified Development Plan — IN PROGRESS
 
-> 合并 development-plan.md (S1-S9) + Studio Redesign Plan + 两轮 Codex Review。
-> 详见: [`../plans/product/unified-development-plan.md`](../plans/product/unified-development-plan.md)
+> Treat `../plans/product/unified-development-plan.md` as the merged planning document, not the source of truth for shipped behavior.
+> Current Studio code is ahead of parts of that plan, especially in audio/voice flows and LoRA-training foundations.
 
-### Track A: 基础修复
+### Track A: Hardening — MOSTLY COMPLETE
 
-- [x] A1 — 数据层修复 (credit 成本/能力覆盖/计时器/Model ID)
-- [x] A2 — 新模型接入 (Gemini 2.5 Flash/FLUX 2 Max/Recraft V4/Kontext Pro+Max)
-- [x] A3 — 校验+持久化+并行化+超时
+- Shared constants cleanup
+- New model intake
+- Editing persistence and performance work
 
-### Track B: Studio 重构
+### Track B: Studio Upgrade — MOSTLY COMPLETE
 
-- [x] B0 — Generation 快照 DTO + ActiveRun 状态模型
-- [x] B1 — 三栏布局重构 (删除 hero/模型排名，prompt 居中)
-- [x] B2 — 状态补全+重试+快捷键 (合并 S4+Phase2+3)
-- [x] B3 — 卡片优化+历史元数据+Remix (合并 S5+Phase4)
-- [x] B4 — 多模型对比生成 (CompareGrid + ModelSelector 多选 + 并行生成)
-- [x] B5 — 批量变体 4选1 (Split Button + VariantGrid 2x2 + winner selection)
-- [x] B6 — 智能 Prompt (维度提取+模型感知增强+风格渗透)
-- [x] B7 — 动效+无障碍 (ARIA attributes + prefers-reduced-motion + fade-in ceremony)
+- Snapshot DTO and `activeRun`
+- Rebuilt Studio workspace shell
+- Better status visibility and action flow
+- Remix and project-aware history
+- Compare and 4-variant workflows
+- Prompt tooling and accessibility polish
 
-### Track C: 独立功能线
+### Track C: Advanced Creative Tooling — PARTIAL
 
-- [ ] C1 — Storyboard 增量增强
-- [ ] C2 — 系列模式+角色一致性
-- [~] C3 — 图片编辑 (Kontext 指令编辑 ✅ / Outpainting 未开始 / Inpainting 未开始)
-- [ ] C4 — 漫画高级 (气泡/多模板导出/剧本模式)
+- Storyboard polish is still pending
+- Stronger card-binding continuity is still pending
+- Editing foundations exist, but outpainting and inpainting are not fully surfaced
+- LoRA-training APIs and hooks exist, but not yet as a first-class Studio route flow

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Heart, RefreshCw, Download, Grid3X3, LayoutGrid } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { OptimizedImage } from '@/components/ui/optimized-image'
@@ -12,6 +12,8 @@ import {
 } from '@/contexts/studio-context'
 import { StudioLightbox } from './StudioLightbox'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useLike } from '@/hooks/use-like'
+import { batchGetLikesAPI } from '@/lib/api-client/profile'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
@@ -60,6 +62,8 @@ export const StudioGallery = memo(function StudioGallery() {
   const [lightboxIndex, setLightboxIndex] = useState(-1)
   const [filter, setFilter] = useState<'all' | 'favorites' | 'today'>('all')
   const [layout, setLayout] = useState<'grid' | 'masonry'>('masonry')
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
+  const fetchedIdsRef = useRef<string>('')
 
   // Merge latest generation into history
   const allGenerations = useMemo(() => {
@@ -67,6 +71,49 @@ export const StudioGallery = memo(function StudioGallery() {
     const filtered = projects.history.filter((g) => g.id !== lastGeneration.id)
     return [lastGeneration, ...filtered]
   }, [lastGeneration, projects.history])
+
+  // Batch-fetch liked status when generations change
+  useEffect(() => {
+    const ids = allGenerations.map((g) => g.id)
+    const key = ids.join(',')
+    if (!ids.length || key === fetchedIdsRef.current) return
+    fetchedIdsRef.current = key
+    void batchGetLikesAPI(ids).then((res) => {
+      if (res.success && res.data) {
+        setLikedIds(new Set(res.data.likedIds))
+      }
+    })
+  }, [allGenerations])
+
+  // Like toggle handler
+  const handleLikeSuccess = useCallback(
+    (generationId: string, liked: boolean) => {
+      setLikedIds((prev) => {
+        const next = new Set(prev)
+        if (liked) next.add(generationId)
+        else next.delete(generationId)
+        return next
+      })
+    },
+    [],
+  )
+  const { toggle: toggleLike, isPending: isLikePending } =
+    useLike(handleLikeSuccess)
+
+  // Apply filter
+  const filteredGenerations = useMemo(() => {
+    if (filter === 'all') return allGenerations
+    if (filter === 'favorites')
+      return allGenerations.filter((g) => likedIds.has(g.id))
+    // today
+    const todayStr = new Date().toISOString().slice(0, 10)
+    return allGenerations.filter((g) => {
+      const created = g.createdAt
+        ? new Date(g.createdAt).toISOString().slice(0, 10)
+        : ''
+      return created === todayStr
+    })
+  }, [allGenerations, filter, likedIds])
 
   const handleUseAsRef = useCallback(
     async (url: string) => {
@@ -186,11 +233,14 @@ export const StudioGallery = memo(function StudioGallery() {
               className="studio-masonry-grid"
               style={{ columns: COLS, gap: GAP }}
             >
-              {allGenerations.map((gen, idx) => (
+              {filteredGenerations.map((gen, idx) => (
                 <GalleryItem
                   key={gen.id}
                   gen={gen}
                   isLatest={gen.id === lastGeneration?.id}
+                  isLiked={likedIds.has(gen.id)}
+                  onToggleLike={toggleLike}
+                  isLikePending={isLikePending}
                   onClick={() => setLightboxIndex(idx)}
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
@@ -207,11 +257,14 @@ export const StudioGallery = memo(function StudioGallery() {
                 gap: GAP,
               }}
             >
-              {allGenerations.map((gen, idx) => (
+              {filteredGenerations.map((gen, idx) => (
                 <GalleryItem
                   key={gen.id}
                   gen={gen}
                   isLatest={gen.id === lastGeneration?.id}
+                  isLiked={likedIds.has(gen.id)}
+                  onToggleLike={toggleLike}
+                  isLikePending={isLikePending}
                   onClick={() => setLightboxIndex(idx)}
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
@@ -239,7 +292,7 @@ export const StudioGallery = memo(function StudioGallery() {
 
       {/* Lightbox */}
       <StudioLightbox
-        generations={allGenerations}
+        generations={filteredGenerations}
         index={lightboxIndex}
         open={lightboxIndex >= 0}
         onClose={() => setLightboxIndex(-1)}
@@ -253,6 +306,9 @@ export const StudioGallery = memo(function StudioGallery() {
 interface GalleryItemProps {
   gen: GenerationRecord
   isLatest: boolean
+  isLiked: boolean
+  onToggleLike: (generationId: string) => Promise<void>
+  isLikePending: boolean
   onClick: () => void
   onRemix: (gen: GenerationRecord) => void
   onUseAsRef: (url: string) => Promise<void>
@@ -263,6 +319,9 @@ interface GalleryItemProps {
 const GalleryItem = memo(function GalleryItem({
   gen,
   isLatest,
+  isLiked,
+  onToggleLike,
+  isLikePending,
   onClick,
   onRemix,
   onUseAsRef,
@@ -286,7 +345,11 @@ const GalleryItem = memo(function GalleryItem({
       )}
       onClick={onClick}
     >
-      {gen.url ? (
+      {gen.outputType === 'AUDIO' ? (
+        <div className="flex size-full items-center justify-center bg-muted/20 p-3">
+          <span className="text-2xl">🎵</span>
+        </div>
+      ) : gen.url ? (
         preserveAspectRatio ? (
           <OptimizedImage
             src={gen.url}
@@ -329,8 +392,10 @@ const GalleryItem = memo(function GalleryItem({
       >
         <GalleryAction
           icon={Heart}
+          active={isLiked}
           onClick={(e) => {
             e.stopPropagation()
+            if (!isLikePending) void onToggleLike(gen.id)
           }}
         />
         <GalleryAction
@@ -367,18 +432,25 @@ const GalleryItem = memo(function GalleryItem({
 function GalleryAction({
   icon: Icon,
   onClick,
+  active,
 }: {
   icon: React.ComponentType<{ className?: string }>
   onClick: (e: React.MouseEvent) => void
+  active?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm transition-all hover:bg-primary/80 hover:scale-110 active:scale-90"
+      className={cn(
+        'flex size-7 items-center justify-center rounded-md backdrop-blur-sm transition-all hover:scale-110 active:scale-90',
+        active
+          ? 'bg-primary/80 text-white'
+          : 'bg-black/50 text-white hover:bg-primary/80',
+      )}
       style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
     >
-      <Icon className="size-3.5" />
+      <Icon className={cn('size-3.5', active && 'fill-current')} />
     </button>
   )
 }

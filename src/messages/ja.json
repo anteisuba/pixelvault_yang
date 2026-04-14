@@ -1753,6 +1753,8 @@
     "toolSuperRes": "超解像",
     "toolRemoveBg": "背景除去",
     "toolSaveSuperRes": "超解像を保存",
+    "upscaling": "処理中...",
+    "removingBg": "背景除去中...",
     "toolLayers": "レイヤー分解",
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",

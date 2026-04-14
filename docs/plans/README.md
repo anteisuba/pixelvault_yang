@@ -1,53 +1,45 @@
-# 探索计划目录
+# Plans Directory
 
-`docs/plans/` 用来存放 `探索` thread 产出的任务拆解、架构理解和执行计划。
+`docs/plans/` stores exploration output, implementation plans, and design/code
+analysis that should remain available for future work.
 
-这类文档的目标是把“不确定”变成“可执行”，让 `前端` 和 `后端` thread 在进入实现前有稳定参照。
+These files are not all "current state" documents.
+Some are historical plans, some are still active, and some are superseded by
+newer implementation maps.
 
-## 适合放在这里的内容
+## How To Use This Directory
 
-- 大功能拆解
-- 架构重构方案
-- 跨层改动的依赖顺序
-- 对外部仓库或竞品实现的分析结论
-- 执行前必须先澄清的风险和验证方法
+- use `frontend/` for UI and Studio exploration/plans
+- use `backend/` for service/API plans
+- use `product/` for cross-cutting roadmap or product implementation plans
+- prefer adding a new plan/map here instead of scattering temporary notes
+- when a plan becomes historical, keep it but add a status note instead of silently rewriting history
 
-## 建议结构
+## Recommended Files
 
-计划文档建议至少包含这些部分：
+### Current Studio references
 
-- 背景
-- 现状
-- 目标
-- 非目标
-- 约束
-- 拆解步骤
-- 风险
-- 验证
+- `frontend/studio-feature-map.md`
+- `frontend/studio-workbench-redesign.md`
+- `frontend/studio-v3-redesign.md`
+- `product/unified-development-plan.md`
 
-## 使用规则
+### Frontend
 
-- 在 `前端` 或 `后端` thread 做大改动前，优先先读相关计划文档。
-- 如果实现改变了任务边界、依赖顺序或方案判断，应回写更新计划，而不是让计划失效。
-- 计划文档可以迭代，但要保留清晰的状态和结论，避免变成无结构笔记。
+- `frontend/gallery-page-implementation.md`
+- `frontend/jimeng-studio-ui-audit.md`
+- `frontend/studio-feature-map.md`
+- `frontend/studio-refactor.md`
+- `frontend/studio-runtime-manual-checklist.md`
+- `frontend/studio-v3-redesign.md`
+- `frontend/studio-workbench-redesign.md`
 
-## 当前计划
+### Backend
 
-### `frontend/`
+- `backend/jimeng-google-video-integration.md`
 
-- `gallery-page-implementation.md`
-- `jimeng-studio-ui-audit.md`
-- `studio-refactor.md`
-- `studio-runtime-manual-checklist.md`
-- `studio-v3-redesign.md`
-- `studio-workbench-redesign.md`
+### Product
 
-### `backend/`
-
-- `jimeng-google-video-integration.md`
-
-### `product/`
-
-- `development-plan-legacy.md`
-- `optimization-plan.md`
-- `unified-development-plan.md`
+- `product/development-plan-legacy.md`
+- `product/optimization-plan.md`
+- `product/unified-development-plan.md`

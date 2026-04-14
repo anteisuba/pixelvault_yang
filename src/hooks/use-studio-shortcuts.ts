@@ -54,7 +54,13 @@ export function useStudioShortcuts({
         return
       }
 
-      if (hasModifier && key === 'k') {
+      // `/` focuses prompt (only when not already in an input/textarea)
+      if (
+        key === '/' &&
+        !hasModifier &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
         event.preventDefault()
         const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
         if (promptField instanceof HTMLTextAreaElement) {

@@ -1,5 +1,7 @@
 # Studio Workbench Redesign Plan
 
+> Status note (2026-04-13): keep this file as the layout-direction document, but use `./studio-feature-map.md` as the source of truth for shipped behavior. The current Studio route already ships the canvas shell, project history, compare/variant runs, video mode, and audio mode.
+
 > Status: draft plan aligned to the current `studio` codebase as of 2026-04-04
 
 ## Background

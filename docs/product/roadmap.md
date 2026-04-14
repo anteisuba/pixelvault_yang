@@ -1,303 +1,223 @@
-# Roadmap — Future Features
+# Product Roadmap
 
-Items ordered by execution priority. Work top-down.
+> Last synced: 2026-04-13
+> This file tracks roadmap-level priorities and current status.
+> For the current shipped Studio behavior, start with `../plans/frontend/studio-feature-map.md`.
 
----
+## Phase A — Code Quality & Design Compliance — COMPLETE
 
-## Phase A — Code Quality & Design Compliance (技术债清理)
+### A1. Design System Cleanup — COMPLETE
 
-> 先还债再加功能，避免问题越积越多。
+- Removed one-off visual drift in form controls and supporting UI
+- Consolidated repeated reference-image and aspect-ratio UI
+- Filled key alt-text and accessibility gaps
 
-### A1. 设计系统违规修复 ✅
-- [x] `slider.tsx` 的 `bg-white` → `bg-background`
-- [x] 7+ 文件的 `text-[10px]`/`text-[11px]` 任意值 → globals.css 定义 `text-2xs`(11px)/`text-3xs`(10px)，全局替换
-- [x] ArenaForm 参考图 alt text（已有 i18n key）
+### A2. Reusable UI Extraction — COMPLETE
 
-### A2. 三大表单重复代码抽取 ✅
-- [x] 抽取 `<ReferenceImageSection>` 到 `components/ui/`，三个表单统一引用
-- [x] `<AspectRatioSelector>` 已是独立组件
+- Moved repeated UI patterns toward shared components
+- Reduced duplicated image-generation form structure
 
-### A3. Error Boundary ✅
-- [x] 创建 `(main)/error.tsx` — 覆盖 Studio、Gallery、Arena、Profile、Storyboard
-- [x] i18n 支持（en/ja/zh）
+### A3. Error Boundaries — COMPLETE
 
-### A4. 动态导入 & 懒加载 ✅
-- [x] PromptEnhancer → `next/dynamic`（GenerateForm, VideoGenerateForm）
-- [x] ReverseEngineerPanel → `next/dynamic`（GenerateForm, ArenaForm）
-- [x] AdvancedSettings → `next/dynamic`（GenerateForm, ArenaForm）
-- [x] VideoGenerateForm (tab 切换后才加载) → `next/dynamic`（StudioWorkspace）
+- Added route-level error handling for primary product surfaces
+- Synchronized error copy across `en`, `ja`, and `zh`
 
----
+### A4. Lazy Loading — COMPLETE
 
-## Phase A+ — UX 打磨 & 可靠性加固 (CEO Review 新增)
+- Dynamically loaded heavier prompt and analysis panels
+- Reduced initial Studio and generation-form bundle weight
 
-> Cherry-picked from CEO review — 低成本高回报的改善项。
+### A+ UX / Reliability Follow-ups — COMPLETE
 
-### A+1. Toast 通知补全 ✅
-- [x] 删除生成、切换可见性、API Key CRUD 等操作补全成功/失败 toast
-- [x] 统一 toast 风格和持续时间
+- Toast consistency
+- Provider error normalization
+- Prisma index optimization
+- Prompt transparency
+- API key format hints
+- Mobile locale switcher
+- Keyboard navigation and ARIA cleanup
+- AVIF / WebP optimization
 
-### A+2. Provider 错误类型统一 ✅
-- [x] 各 adapter 统一使用 `ProviderError`（带 status），不再抛裸 `Error`
-- [x] Service 层 catch 保留 provider 原始状态码，避免 500 白屏
+## Phase B — Model Catalog & Selector Intelligence — COMPLETE
 
-### A+3. Prisma Schema 索引优化 ✅
-- [x] Generation 加 `(userId, isPublic, createdAt)` 复合索引
-- [x] UserApiKey 加 `(userId, adapterType, modelId)` 唯一约束防重复
-- [x] Story 加 `(userId, isPublic, createdAt)` 索引
+### B1. Richer Model Metadata — COMPLETE
 
-### A+4. Prompt 可见性逻辑透明化 ✅
-- [x] 公开图片加 "prompt 可见" 标签
-- [x] 私密图片加 "prompt 仅自己可见" 提示
-- [x] ImageCard 和 Modal 逻辑统一
+- Added model purpose metadata such as style tags and quality tiers
+- Added localized descriptions across supported languages
 
-### A+5. API Key 格式错误文字提示 ✅
-- [x] 验证失败时显示帮助文字（如 "OpenAI key 以 sk- 开头"）
-- [x] 引导用户到正确的 key 获取页面
+### B2. Better Model Selector UX — COMPLETE
 
-### A+6. 移动端语言切换入口 ✅
-- [x] MobileTabBar 顶部加 LocaleSwitcher
+- Purpose-based grouping
+- Better sorting and discoverability
+- Clearer provider/model presentation
 
-### A+7. 键盘导航 & 基础无障碍 ✅
-- [x] Gallery/Arena/Studio 关键交互加 ARIA 描述
-- [x] 模态框焦点管理（Radix Dialog 自带焦点捕获）
-- [x] 自定义控件加 role（radiogroup/radio/tablist/tab）
+### B3. Prompt Presets — PARTIAL
 
-### A+8. Next.js Image 格式优化 ✅
-- [x] next.config.ts 加 `formats: ['image/avif', 'image/webp']`
+- Preset structure and categories exist
+- Deeper project-aware preset reuse is still limited
 
----
+## Phase C — Performance Optimization — COMPLETE
 
-## Phase B — 模型选择体验升级 (PixAI 分组学习)
+- Rendering optimization (`React.memo`, callback cleanup)
+- Gallery skeletons and ISR
+- Better image delivery defaults
+- Studio free-quota visibility
 
-> 让用户按"我想做什么"找模型，而非按 Provider 技术分组。
+## Phase D — Community & Growth — IN PROGRESS
 
-### B1. 模型元数据增强 ✅
-- [x] ModelOption 加 `styleTag`: `'photorealistic' | 'anime' | 'design' | 'artistic' | 'general'`
-- [x] 图片模型也加 `qualityTier`: `'premium' | 'standard' | 'budget'`
-- [x] i18n 给每个模型加 `description` 一行描述（en/ja/zh 同步）
+### D1. Prompt Sharing & Reuse — COMPLETE
 
-### B2. ModelSelector 分组重构 ✅
-- [x] 默认按用途分组（写实 / 动漫 / 设计 / 通用），保留 Provider 视图作为高级切换
-- [x] 分组支持折叠/展开
-- [ ] Arena ELO 前 3 的模型加"推荐"标签
-- [x] 加搜索/过滤框
+- Copy prompt and share-link flows
+- One-click Studio prefill from Gallery/detail surfaces
+- URL parameter sharing for prompt/model reuse
 
-### B3. Prompt 预设模板 ✅
-- [x] 5 个内置模板（人像 / 风景 / 动漫 / Logo / 电影）
-- [x] 点击自动填入 模型 + Prompt + 宽高比
-- [ ] 用户可保存自定义预设
+### D2. Arena Upgrade — COMPLETE
 
----
+- Personal history and stats
+- Leaderboard improvements
+- Model-family grouping
 
-## Phase C — 性能优化
+### D2.5. Landing Page Narrative — COMPLETE
 
-### C1. 渲染优化 ✅
-- [x] ImageCard 加 `React.memo`
-- [x] 大型表单 handler 加 `useCallback`（GenerateForm、ArenaForm）
+- "Your Key, Your Images, Zero Markup" positioning
+- BYOK plus archive plus Arena differentiation
 
-### C2. 图片优化 ✅
-- [x] 关键位置 `<img>` → Next.js `<Image>`（ImageCard、ArenaGrid、GenerateForm）
-- [ ] Image blur placeholder (blurhash)
-- [ ] Video 加 poster 图
+### D3. Creator Profiles & Social Graph — COMPLETE
 
-### C3. 加载优化 ✅
-- [x] Gallery skeleton loading grid（loading.tsx）
-- [x] ISR for gallery pages（revalidate = 60s）
-- [x] Image CDN optimization（WebP/AVIF 已在 next.config.ts 配置）
+- Public creator profiles
+- Gallery attribution
+- Likes, follows, prompt feedback
+- Profile editing
+- Featured / pinned images
+- Dynamic OG generation
 
-### C4. 免费额度剩余显示 ✅
-- [x] Studio 页显示 "今天还能免费生成 X 次"（StudioWorkspace 已实现）
-- [x] 复用已有的 `useUsageSummary()` hook
+### D4. Collections / Albums — COMPLETE
 
----
+- Collection models
+- CRUD service and APIs
+- Client helpers and hook
+- i18n coverage
 
-## Phase D — 社区 & 增长功能
+### Remaining D Work
 
-### D1. Prompt 分享 & 复用 (零成本增长杠杆) ✅
-- [x] Gallery/Detail 页加 "复制 Prompt" 和 "分享链接" 按钮
-- [x] Gallery 图片加 "用这个 Prompt 生成" 按钮（一键跳转 Studio 并填入）
-- [x] 分享链接携带 Prompt 参数（Studio 读取 URL ?prompt=&model= 预填）
+- Publish-to-earn
+- Broader social-discovery and growth loops
 
-### D2. Arena 升级 ✅
-- [x] **个人竞技场** — 对战历史 + 个人模型统计（/arena/history 页面，含 ArenaHistory + ArenaPersonalStats 组件）
-- [x] Arena 排行升级 — 领奖台卡片 Top 3 + 模型系列筛选 + modelFamily 字段
-- [x] **模型系列追踪** — ModelEloRating 新增 modelFamily 字段 + MODEL_FAMILIES 常量映射
-- [x] API 路由：GET /api/arena/history + GET /api/arena/personal-stats（含 8 个新测试）
-- [x] i18n 三语言同步（ArenaHistory / ArenaPersonalStats / ArenaLeaderboard 增强）
-
-### D2.5. Landing Page 叙事强化 ✅
-- [x] 突出"你的 Key、你的图、零加价"核心差异化
-- [x] 增加 BYOK + 永久存档 + Arena 三合一价值主张 section（HomepageComparison）
-- [x] 对比竞品优势可视化（"为什么不用 Midjourney/OpenArt"）
-
-### D3. 社交层 — Creator Profile + Social Graph ✅
-- [x] User model 扩展 — username, displayName, avatarUrl, bio, isPublic
-- [x] 公开创作者主页 `/u/[username]` — Polaroid 散落布局 + SSR + OG tags
-- [x] PolaroidCard + PolaroidGrid 组件（随机旋转、点击展开、分页加载）
-- [x] ProfileHeader 组件（头像 + 用户名 + bio + 公开统计）
-- [x] Gallery ImageCard 创作者归属 — 头像 + 名字链接到 `/u/[username]`
-- [x] Like / Favorite 公共图片（UserLike model + toggle API + 乐观更新）
-- [x] Follow 创作者（UserFollow model + toggle API + 乐观更新）
-- [x] Prompt 反馈系统（PromptFeedback model + 评分 API）
-- [x] Profile 编辑 — PUT `/api/users/me/profile`（bio/username 可编辑）
-- [x] Clerk webhook 扩展 — user.updated 事件同步 displayName + avatarUrl
-- [x] i18n 三语言同步（en/ja/zh）
-- [x] Featured/Pinned images（isFeatured toggle + API + Profile UI + i18n）
-- [x] Dynamic OG image generation（/api/og route with ImageResponse — generation + profile cards）
-- [ ] Publish-to-earn — 公开分享返还部分积分（依赖 Phase E 积分系统）
-
-### D4. Collections / Albums ✅
-- [x] `Collection` + `CollectionItem` Prisma models (soft delete, cover auto-update)
-- [x] `collection.service.ts` CRUD + add/remove items + ownership checks
-- [x] API routes: GET/POST `/api/collections`, GET/PUT/DELETE `/api/collections/[id]`, POST/DELETE `/api/collections/[id]/items`
-- [x] `api-client.ts` 客户端函数 (list, create, get, update, delete, addItems, removeItem)
-- [x] `useCollections` hook (CRUD + toast 通知)
-- [x] Constants: `API_ENDPOINTS.COLLECTIONS`, `COLLECTION` config, `ROUTES.COLLECTIONS`
-- [x] Types: Zod schemas + record types
-- [x] i18n 三语言同步 (en/ja/zh)
-
----
-
-## Phase E — 商业化
+## Phase E — Monetization & Platform Credits — NOT STARTED
 
 ### E1. Credits & Billing
-- [ ] Credit purchase / top-up flow (Stripe or LemonSqueezy)
-- [ ] Credit balance display in Navbar
-- [ ] Usage analytics dashboard in Profile
+
+- Credit purchase / top-up flow
+- Credit balance visibility outside Studio
+- Usage analytics dashboard
 
 ### E2. Platform Credits Mode
-- [ ] 用户直接付费给平台，平台用自己的 key 调用 Provider
-- [ ] 需要成本核算 + 利润率计算
 
----
+- Platform-owned provider usage mode
+- Provider cost and margin controls
 
-## Phase F — 产品深化
+## Phase F — Creator Workflow Expansion — PARTIAL
 
-### F1. Storyboard Enhancement
-- [ ] Character binding — 角色预设 + 跨帧一致性
-- [ ] Character presets library
-- [x] 视频播放器全屏支持（HTML5 requestFullscreen）
+### F1. Storyboard Enhancement — PARTIAL
 
-### F2. Advanced Generation ✅
-- [ ] Batch generation (multiple prompts in one run)
-- [ ] Generation history comparison (side-by-side)
-- [x] Batch operations on profile (bulk public/private/delete)
+- Fullscreen support is shipped
+- Character binding and preset continuity are still pending
 
-### F3. 图片编辑工具 ✅
-- [x] Upscale（fal.ai Aura SR 4x）
-- [ ] Inpainting 局部重绘（fal.ai API）
-- [x] Remove background 去背景（fal.ai BiRefNet V2）
-- [x] 复用现有 adapter 架构（独立 image-edit.service）
+### F2. Advanced Generation — PARTIAL
 
-### F4. Workflow/Pipeline 多步生成
-- [ ] 串联多模型：生成 → 编辑 → 放大
-- [ ] 可视化 pipeline 编辑器
-- [ ] 保存和分享 workflow 模板
+- Compare and 4-variant runs are already shipped in Studio
+- Batch generation across multiple prompts is still pending
+- Side-by-side history comparison is still pending
+- Bulk profile operations are shipped
 
-### F5. UX — Lower API Key Barrier
-- [ ] OAuth provider login (Google, GitHub)
-- [ ] Guided video tutorials per provider
-- [ ] API key auto-import (browser extension)
+### F3. Image Edit Tools — PARTIAL
 
----
+- Upscale and remove-background service foundations are shipped
+- Shared edit-service plumbing exists
+- Inpainting is still pending
+- Some Studio preview actions are still placeholder buttons
 
-## Phase G — 基础设施 & 长期
+### F4. Workflow / Pipeline Productization — NOT STARTED
 
-### Security — Production Readiness
-- [ ] **Replace in-memory rate limiter with upstash/ratelimit + Redis**
-- [ ] API key encryption key entropy validation
-- [ ] API key decryption failure alerting
-- [ ] R2 orphan cleanup job
-- [ ] Database connection pooling tuning
+- Reusable saved pipelines
+- Better workflow presets
+- End-to-end creative pipeline composition
+
+### F5. Lower API Key Barrier — NOT STARTED
+
+- OAuth provider login
+- Guided provider onboarding
+- API key import assistance
+
+## Phase G — Production Readiness & Scale — NOT STARTED
+
+### Security / Reliability
+
+- Replace in-memory rate limiter with durable shared infrastructure
+- API key decryption alerting
+- R2 orphan cleanup
+- Database tuning
 
 ### Observability
-- [ ] Structured logging (generation success/failure rates)
-- [ ] Grafana dashboard for API latency
-- [ ] Alerting on AI provider errors
 
-### Data
-- [ ] Database backup automation
-- [ ] R2 lifecycle policies
-- [ ] GDPR data export / deletion flow
+- Structured logging
+- Latency dashboards
+- Provider error alerting
 
-### Mobile App (PWA first)
-- [ ] PWA support — manifest.json + service worker
-- [ ] Push notifications for generation completion
-- [ ] Offline gallery viewing
+### Data / Compliance
 
-### Multi-tenant / Team
-- [ ] Shared workspaces for teams
-- [ ] Role-based access (admin, editor, viewer)
-- [ ] Team billing
+- Backup automation
+- Lifecycle policies
+- Data export / deletion flow
 
-### CI/CD (when project stabilizes)
-- [ ] GitHub Actions: `tsc --noEmit` + `vitest run`
+### Mobile / Team
 
----
+- PWA support
+- Push notifications
+- Shared workspaces
+- Role-based access
+- Team billing
 
-## Phase W — 工作台进化 (Workbench Evolution)
+## Phase W — Workbench Evolution — PARTIAL
 
-> 核心目标：减少随机性、增加可控性。用户从即梦迁移，痛点是"生成像抽盲盒"。
+### W0. VolcEngine Seedance — COMPLETE
 
-### W0. 火山引擎 Seedance 接入 ✅
-- [x] 新增 `AI_ADAPTER_TYPES.VOLCENGINE` + `volcengine.adapter.ts`
-- [x] Bearer Token 认证，异步轮询模式
-- [x] Seedance 1.5 Pro + 1.0 Pro 两个模型
-- [x] Provider registry 注册 + provider-capabilities 配置
+- VolcEngine adapter integration
+- Seedance models registered and routed
 
-### W1. 多参考图支持 ✅
-- [x] `useImageUpload` hook 改为多图（`referenceImages[]`、逐张删除、批量清除）
-- [x] `GenerateRequestSchema` 新增 `referenceImages` 字段
-- [x] Gemini adapter 支持多图输入
-- [x] `provider-capabilities` 新增 `maxReferenceImages`（Gemini 14 / VolcEngine 4 / 其他 1）
-- [x] `ReferenceImageSection` 重写：缩略图网格 + 内联添加按钮 + 计数器
-- [x] GenerateForm / ArenaForm / VideoGenerateForm 全部适配
+### W1. Multi-Reference Images — COMPLETE
 
-### W2. 项目系统 ✅
-- [x] Prisma: `Project` model + `Generation.projectId` nullable FK
-- [x] Migration 已部署
-- [x] `project.service.ts` — CRUD + 历史查询 + 软删除
-- [x] Types: `CreateProjectSchema` / `UpdateProjectSchema` / `ProjectRecord`
-- [x] Constants: `API_ENDPOINTS.PROJECTS` / `PROJECT` config
-- [x] API route: `GET/POST /api/projects` + `PUT/DELETE /api/projects/[id]` + `GET /api/projects/[id]/history`
-- [x] `api-client.ts` 客户端函数（list / create / update / delete / history）
-- [x] `useProjects` hook（CRUD + 历史分页 + activeProjectId 状态）
-- [x] ProjectSelector UI（Studio 顶部项目切换器，含内联新建/重命名/删除确认）
-- [x] HistoryPanel（当前项目生成历史缩略图网格，支持分页加载）
-- [x] i18n 三语言同步（en/ja/zh）
+- Shared multi-reference upload flow
+- Provider capability limits
+- Studio and video references support
 
-### W3. 视频风格统一 + 续接（未开始）
-- [ ] 项目级风格参考图锚定
-- [ ] 尾帧提取 + "续接"按钮
-- [ ] Storyboard 自动续接模式
+### W2. Project System — COMPLETE
 
-### W4. 成片 + 音频（未开始）
-- [ ] WebCodecs + mp4box.js 视频拼接
-- [ ] ElevenLabs 声音克隆（BYOK）
-- [ ] 台词 TTS + BGM + 音视频合并
+- Project CRUD
+- Project-aware history
+- Drag-and-drop generation assignment
+- Studio sidebar integration
 
----
+### W3. Video Style Continuity — NOT STARTED
 
-## Already Completed (moved from roadmap)
+- Project-aware clip continuity and continuation UX are still pending
 
-- ~~Video Generation~~ — 5 models via fal.ai (Kling, MiniMax, Luma, WAN, Hunyuan)
-- ~~API Key Management~~ — Full CRUD with AES-256-GCM encryption per user per provider
-- ~~Image-to-Image~~ — Reference image support in generation
-- ~~Prompt Enhancement~~ — LLM-based enhancement (4 styles)
-- ~~Image Reverse Engineering~~ — Upload → extract prompt → generate variations
-- ~~AI Model Arena~~ — Blind comparison with ELO ranking system
-- ~~Storyboard~~ — AI narrative generation, comic/scroll view, drag reorder, PNG export
-- ~~Landing Page~~ — Hero redesign, metrics bar, gallery preview section
-- ~~Gallery Search & Filter~~ — Keyword search, model filter, type filter, date sort
-- ~~Image Detail Page~~ — `/gallery/[id]` with OG/Twitter cards, JSON-LD, video playback
-- ~~SEO & Metadata~~ — Per-page generateMetadata, sitemap.xml, robots.txt, alternate languages
-- ~~Deployment Hardening~~ — Security headers, remote image patterns, public route config
-- ~~Landing Page Animations~~ — CSS View Transitions scroll reveal, staggered hero entrance
-- ~~Image/Video Distinction~~ — Type filter, VideoPlayer in modal/detail, VideoObject JSON-LD
-- ~~Profile Enhancement~~ — Infinite scroll, search/filter, hard-delete, split stats
-- ~~Mobile Navigation~~ — 5-tab MobileTabBar (Gallery/Studio/Arena/Stories/Archive)
-- ~~Toast Notifications~~ — Sonner integration for generation feedback
-- ~~Rate Limiting~~ — Token bucket per-user on all generation/AI endpoints
-- ~~Security Hardening~~ — Error sanitization, MIME validation, webhook replay protection, storage key crypto
-- ~~API Tests~~ — 97 Vitest tests covering all GET/POST/PUT/DELETE endpoints
+### W4. Audio & Final Assembly — PARTIAL
+
+- Audio mode is already shipped in the main `/studio` route
+- `/api/generate-audio` is live
+- `/api/voices` is live
+- Voice selection and voice cloning are already wired into Studio
+- Final clip + TTS + BGM assembly workflow is still pending
+
+## Current Studio Highlights
+
+- Image quick workflow
+- Image card workflow
+- Compare generation across 2-3 models
+- 4-variant generation with winner selection
+- Project-scoped history
+- Prompt/reference tooling
+- Video generation form
+- Audio generation mode
+- Voice library and voice cloning

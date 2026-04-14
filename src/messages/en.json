@@ -1753,6 +1753,8 @@
     "toolSuperRes": "Super resolution",
     "toolRemoveBg": "Remove background",
     "toolSaveSuperRes": "Save super-res",
+    "upscaling": "Upscaling...",
+    "removingBg": "Removing...",
     "toolLayers": "Layer decompose",
     "linkCopied": "Link copied",
     "toolRemix": "Remix",

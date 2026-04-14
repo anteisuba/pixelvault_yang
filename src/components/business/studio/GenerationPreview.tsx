@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import {
   Download,
   Eraser,
@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { editImageAPI } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 
@@ -57,7 +58,7 @@ interface GenerationPreviewProps {
 
 export const GenerationPreview = memo(function GenerationPreview({
   generation,
-  isLatestResult = false,
+  isLatestResult: _isLatestResult = false,
   onUseAsReference,
   onRemix,
   onEdit,
@@ -69,6 +70,39 @@ export const GenerationPreview = memo(function GenerationPreview({
   const isMobile = useIsMobile()
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
+  const [editingAction, setEditingAction] = useState<
+    'upscale' | 'remove-background' | null
+  >(null)
+  const [editedUrl, setEditedUrl] = useState<string | null>(null)
+
+  const handleImageEdit = useCallback(
+    async (action: 'upscale' | 'remove-background') => {
+      if (!generation?.url || editingAction) return
+      setEditingAction(action)
+      try {
+        const result = await editImageAPI(action, generation.url)
+        if (result.success && result.data) {
+          setEditedUrl(result.data.imageUrl)
+        }
+      } finally {
+        setEditingAction(null)
+      }
+    },
+    [generation?.url, editingAction],
+  )
+
+  const handleSaveEditedImage = useCallback(async () => {
+    if (!editedUrl || !generation?.url) return
+    setEditingAction('upscale')
+    try {
+      await editImageAPI('upscale', generation.url, {
+        persist: true,
+        generationId: generation.id,
+      })
+    } finally {
+      setEditingAction(null)
+    }
+  }, [editedUrl, generation?.url, generation?.id])
 
   const dragRef = useStudioDraggable({
     url: generation?.url ?? undefined,
@@ -204,7 +238,11 @@ export const GenerationPreview = memo(function GenerationPreview({
               isMobile ? 'max-h-[45vh]' : 'max-h-[60vh]',
             )}
           >
-            <ImageCard generation={generation} />
+            <ImageCard
+              generation={
+                editedUrl ? { ...generation, url: editedUrl } : generation
+              }
+            />
           </div>
         </TransformComponent>
 
@@ -336,16 +374,24 @@ export const GenerationPreview = memo(function GenerationPreview({
       {!isAudio && (
         <CanvasToolButton
           icon={Wand2}
-          label={t('toolSuperRes')}
-          disabled
+          label={
+            editingAction === 'upscale' ? t('upscaling') : t('toolSuperRes')
+          }
+          disabled={editingAction !== null}
+          onClick={() => void handleImageEdit('upscale')}
           variant={variant}
         />
       )}
       {!isAudio && (
         <CanvasToolButton
           icon={Eraser}
-          label={t('toolRemoveBg')}
-          disabled
+          label={
+            editingAction === 'remove-background'
+              ? t('removingBg')
+              : t('toolRemoveBg')
+          }
+          disabled={editingAction !== null}
+          onClick={() => void handleImageEdit('remove-background')}
           variant={variant}
         />
       )}
@@ -353,7 +399,8 @@ export const GenerationPreview = memo(function GenerationPreview({
         <CanvasToolButton
           icon={Save}
           label={t('toolSaveSuperRes')}
-          disabled
+          disabled={!editedUrl || editingAction !== null}
+          onClick={() => void handleSaveEditedImage()}
           variant={variant}
         />
       )}

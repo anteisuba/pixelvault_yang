@@ -30,12 +30,11 @@ import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
 import {
-  decomposeImageAPI,
   downloadRemoteAsset,
-  editImageAPI,
   toggleGenerationVisibility,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { useImageEditing } from '@/hooks/use-image-editing'
 import type { GenerationRecord } from '@/types'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -70,9 +69,6 @@ export function ImageDetailModal({
 }: ImageDetailModalProps) {
   const [isDownloading, setIsDownloading] = useState(false)
   const [copied, setCopied] = useState<'prompt' | 'link' | null>(null)
-  const [editingAction, setEditingAction] = useState<
-    'upscale' | 'remove-background' | 'decompose' | null
-  >(null)
   const [isPinned, setIsPinned] = useState(generation.isFeatured ?? false)
   const [isPinning, setIsPinning] = useState(false)
   const format = useFormatter()
@@ -85,6 +81,26 @@ export function ImageDetailModal({
   const tToasts = useTranslations('Toasts')
   const tErrors = useTranslations('Errors')
   const closeLabel = tCommon.has('close') ? tCommon('close') : t('close')
+
+  const {
+    editingAction,
+    editAndDownload,
+    editAndSave,
+    decomposeAndDownload,
+    decomposeAndSave,
+  } = useImageEditing({
+    generationId: generation.id,
+    generationUrl: generation.url,
+    tErrors,
+    labels: {
+      editFailed: t('editFailed'),
+      downloadFailed: t('downloadFailed'),
+      editSuccess: t('editSuccess'),
+      editSavedToGallery: t('editSavedToGallery'),
+      decomposeFailed: t('decomposeFailed'),
+      decomposeSuccess: t('decomposeSuccess'),
+    },
+  })
 
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
@@ -113,92 +129,11 @@ export function ImageDetailModal({
     }
   }
 
-  const handleEditDownload = async (
-    action: 'upscale' | 'remove-background',
-    fileName: string,
-  ) => {
-    setEditingAction(action)
-    const result = await editImageAPI(action, generation.url)
-    setEditingAction(null)
-
-    if (!result.success || !result.data) {
-      toast.error(getApiErrorMessage(tErrors, result, t('editFailed')))
-      return
-    }
-
-    const downloadResult = await downloadRemoteAsset(
-      result.data.imageUrl,
-      fileName,
-    )
-
-    if (!downloadResult.success) {
-      toast.error(
-        getApiErrorMessage(tErrors, downloadResult, t('downloadFailed')),
-      )
-      window.open(result.data.imageUrl, '_blank', 'noopener,noreferrer')
-      return
-    }
-
-    toast.success(t('editSuccess'))
-  }
-
-  const handleEditSave = async (action: 'upscale' | 'remove-background') => {
-    setEditingAction(action)
-    const result = await editImageAPI(action, generation.url, {
-      persist: true,
-      generationId: generation.id,
-    })
-    setEditingAction(null)
-
-    if (!result.success || !result.data) {
-      toast.error(getApiErrorMessage(tErrors, result, t('editFailed')))
-      return
-    }
-
-    toast.success(t('editSavedToGallery'))
-  }
-
-  const handleDecomposeDownload = async () => {
-    setEditingAction('decompose')
-    const result = await decomposeImageAPI(generation.url)
-    setEditingAction(null)
-
-    if (!result.success || !result.data) {
-      toast.error(getApiErrorMessage(tErrors, result, t('decomposeFailed')))
-      return
-    }
-
-    const downloadResult = await downloadRemoteAsset(
-      result.data.psdUrl,
-      `pixelvault-${generation.id.slice(0, 8)}-layers.psd`,
-    )
-
-    if (!downloadResult.success) {
-      toast.error(
-        getApiErrorMessage(tErrors, downloadResult, t('downloadFailed')),
-      )
-      window.open(result.data.psdUrl, '_blank', 'noopener,noreferrer')
-      return
-    }
-
-    toast.success(t('decomposeSuccess'))
-  }
-
-  const handleDecomposeSave = async () => {
-    setEditingAction('decompose')
-    const result = await decomposeImageAPI(generation.url, {
-      persist: true,
-      generationId: generation.id,
-    })
-    setEditingAction(null)
-
-    if (!result.success || !result.data) {
-      toast.error(getApiErrorMessage(tErrors, result, t('decomposeFailed')))
-      return
-    }
-
-    toast.success(t('editSavedToGallery'))
-  }
+  // Aliases for backward compatibility with JSX references
+  const handleEditDownload = editAndDownload
+  const handleEditSave = editAndSave
+  const handleDecomposeDownload = decomposeAndDownload
+  const handleDecomposeSave = decomposeAndSave
 
   const labelClass = getLabelClassName(isDenseLocale)
 

@@ -180,14 +180,19 @@ export const StudioTopBar = memo(function StudioTopBar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Free credits badge */}
-      <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-muted-foreground">
-        <Gift className="size-4 text-chart-3" />
+      {/* Free credits badge — compact on mobile */}
+      <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-border/60 bg-background/80 px-2 sm:px-3 py-1 sm:py-1.5 text-2xs sm:text-xs text-muted-foreground">
+        <Gift className="size-3.5 sm:size-4 text-chart-3" />
         <span className="font-serif font-medium">
-          {tStudio('freeQuota', {
-            remaining: Math.max(0, freeRemaining),
-            limit: summary.freeGenerationLimit,
-          })}
+          <span className="hidden sm:inline">
+            {tStudio('freeQuota', {
+              remaining: Math.max(0, freeRemaining),
+              limit: summary.freeGenerationLimit,
+            })}
+          </span>
+          <span className="sm:hidden">
+            {Math.max(0, freeRemaining)}/{summary.freeGenerationLimit}
+          </span>
         </span>
       </div>
     </div>

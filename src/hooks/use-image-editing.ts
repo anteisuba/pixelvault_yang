@@ -113,10 +113,27 @@ export function useImageEditing({
     toast.success(labels.decomposeSuccess)
   }
 
+  const decomposeAndSave = async () => {
+    setEditingAction('decompose')
+    const result = await decomposeImageAPI(generationUrl, {
+      persist: true,
+      generationId,
+    })
+    setEditingAction(null)
+
+    if (!result.success || !result.data) {
+      toast.error(getApiErrorMessage(tErrors, result, labels.decomposeFailed))
+      return
+    }
+
+    toast.success(labels.editSavedToGallery)
+  }
+
   return {
     editingAction,
     editAndDownload,
     editAndSave,
     decomposeAndDownload,
+    decomposeAndSave,
   }
 }

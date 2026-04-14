@@ -232,6 +232,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   return (
     <>
       <PromptInput
+        id="studio-prompt"
         isLoading={isGenerating}
         value={state.prompt}
         onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}

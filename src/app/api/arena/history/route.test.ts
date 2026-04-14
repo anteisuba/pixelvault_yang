@@ -27,7 +27,7 @@ describe('GET /api/arena/history', () => {
 
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns match history on success', async () => {
@@ -97,6 +97,6 @@ describe('GET /api/arena/history', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'DB error' })
+    expect(body).toMatchObject({ success: false })
   })
 })

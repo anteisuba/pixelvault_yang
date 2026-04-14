@@ -1,43 +1,10 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import type { ArenaMatchResponse } from '@/types'
+import 'server-only'
+
 import { getArenaMatch } from '@/services/arena.service'
+import { createApiGetByIdRoute } from '@/lib/api-route-factory'
 
-// ─── GET /api/arena/matches/[id] — Poll match status ─────────────
-
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<ArenaMatchResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
-    const { id } = await params
-    const match = await getArenaMatch(id, clerkId)
-
-    if (!match) {
-      return NextResponse.json<ArenaMatchResponse>(
-        { success: false, error: 'Match not found' },
-        { status: 404 },
-      )
-    }
-
-    return NextResponse.json<ArenaMatchResponse>({
-      success: true,
-      data: match,
-    })
-  } catch (error) {
-    logger.error('[API /api/arena/matches/[id]] Error', { error: error instanceof Error ? error.message : String(error) })
-    return NextResponse.json<ArenaMatchResponse>(
-      { success: false, error: 'Failed to fetch match.' },
-      { status: 500 },
-    )
-  }
-}
+export const GET = createApiGetByIdRoute({
+  routeName: 'GET /api/arena/matches/[id]',
+  notFoundMessage: 'Match not found',
+  handler: async (clerkId, id) => getArenaMatch(id, clerkId),
+})

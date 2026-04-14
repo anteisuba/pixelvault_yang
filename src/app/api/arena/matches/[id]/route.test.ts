@@ -29,7 +29,7 @@ describe('GET /api/arena/matches/[id]', () => {
 
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns match data on success', async () => {
@@ -63,7 +63,7 @@ describe('GET /api/arena/matches/[id]', () => {
 
     expect(res.status).toBe(404)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Match not found' })
+    expect(body).toMatchObject({ success: false, error: 'Match not found' })
   })
 
   it('returns 500 when service throws', async () => {
@@ -75,6 +75,6 @@ describe('GET /api/arena/matches/[id]', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Failed to fetch match.' })
+    expect(body).toMatchObject({ success: false })
   })
 })

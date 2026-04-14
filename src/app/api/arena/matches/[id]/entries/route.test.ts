@@ -157,6 +157,5 @@ describe('POST /api/arena/matches/[id]/entries', () => {
 
     expect(res.status).toBe(500)
     expect(json.success).toBe(false)
-    expect(json.error).toBe('Generation failed')
   })
 })

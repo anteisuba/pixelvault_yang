@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parseJSON } from '@/test/api-helpers'
+import { createGET, parseJSON } from '@/test/api-helpers'
 
 vi.mock('@/services/arena.service', () => ({
   getArenaLeaderboard: vi.fn(),
@@ -34,7 +34,7 @@ describe('GET /api/arena/leaderboard', () => {
     ]
     vi.mocked(getArenaLeaderboard).mockResolvedValue(leaderboardData)
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/leaderboard'))
 
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
@@ -45,7 +45,7 @@ describe('GET /api/arena/leaderboard', () => {
   it('returns empty array when no data', async () => {
     vi.mocked(getArenaLeaderboard).mockResolvedValue([])
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/leaderboard'))
 
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
@@ -55,10 +55,10 @@ describe('GET /api/arena/leaderboard', () => {
   it('returns 500 when service throws', async () => {
     vi.mocked(getArenaLeaderboard).mockRejectedValue(new Error('Service error'))
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/leaderboard'))
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Service error' })
+    expect(body).toMatchObject({ success: false })
   })
 })

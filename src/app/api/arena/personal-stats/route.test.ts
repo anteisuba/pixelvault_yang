@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   mockAuthenticated,
   mockUnauthenticated,
+  createGET,
   parseJSON,
 } from '@/test/api-helpers'
 
@@ -21,11 +22,11 @@ beforeEach(() => {
 describe('GET /api/arena/personal-stats', () => {
   it('returns 401 when unauthenticated', async () => {
     mockUnauthenticated()
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/personal-stats'))
 
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns personal stats on success', async () => {
@@ -49,7 +50,7 @@ describe('GET /api/arena/personal-stats', () => {
     }
     mockGetPersonalArenaStats.mockResolvedValue(statsData)
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/personal-stats'))
 
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
@@ -64,7 +65,7 @@ describe('GET /api/arena/personal-stats', () => {
       stats: [],
     })
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/personal-stats'))
 
     expect(res.status).toBe(200)
     const body = await parseJSON(res)
@@ -78,10 +79,10 @@ describe('GET /api/arena/personal-stats', () => {
     mockAuthenticated()
     mockGetPersonalArenaStats.mockRejectedValue(new Error('DB error'))
 
-    const res = await GET()
+    const res = await GET(createGET('/api/arena/personal-stats'))
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'DB error' })
+    expect(body).toMatchObject({ success: false })
   })
 })

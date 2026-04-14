@@ -301,6 +301,7 @@ interface PutByIdConfig<TSchema extends z.ZodType, TResult> {
   schema: TSchema
   routeName: string
   notFoundMessage?: string
+  rateLimit?: { limit: number; windowSeconds: number }
   handler: (
     clerkId: string,
     id: string,
@@ -359,6 +360,16 @@ export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
     const startedAt = Date.now()
     try {
       const clerkId = await getClerkId(true)
+
+      if (config.rateLimit) {
+        const { errorResponse } = await applyUserRateLimit(
+          config.routeName,
+          clerkId!,
+          config.rateLimit,
+        )
+        if (errorResponse) return errorResponse
+      }
+
       const { id } = await context.params
 
       const body = await request.json().catch(() => null)

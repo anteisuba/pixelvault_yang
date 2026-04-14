@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 
 import {
   mockAuthenticated,
@@ -58,7 +59,14 @@ describe('PATCH /api/generations/[id]/visibility', () => {
 
   it('returns 404 when generation not found or not owned', async () => {
     mockToggle.mockResolvedValue(null)
-    const req = createPATCH('/api/generations/gen_999/visibility')
+    const req = new NextRequest(
+      new URL('/api/generations/gen_999/visibility', 'http://localhost:3000'),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'isPublic' }),
+      },
+    )
     const res = await PATCH(req, routeParams('gen_999'))
     const json = await parseJSON<{ success: boolean; error: string }>(res)
 
@@ -73,7 +81,14 @@ describe('PATCH /api/generations/[id]/visibility', () => {
       isPublic: false,
       isPromptPublic: false,
     })
-    const req = createPATCH('/api/generations/gen_123/visibility')
+    const req = new NextRequest(
+      new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'isPublic' }),
+      },
+    )
     const res = await PATCH(req, routeParams('gen_123'))
     const json = await parseJSON<{
       success: boolean
@@ -100,7 +115,7 @@ describe('PATCH /api/generations/[id]/visibility', () => {
       isPublic: true,
       isPromptPublic: true,
     })
-    const req = new Request(
+    const req = new NextRequest(
       new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
       {
         method: 'PATCH',
@@ -123,8 +138,8 @@ describe('PATCH /api/generations/[id]/visibility', () => {
     )
   })
 
-  it('defaults to isPublic when body has invalid field', async () => {
-    const req = new Request(
+  it('returns 400 for invalid field value', async () => {
+    const req = new NextRequest(
       new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
       {
         method: 'PATCH',
@@ -132,12 +147,9 @@ describe('PATCH /api/generations/[id]/visibility', () => {
         body: JSON.stringify({ field: 'somethingElse' }),
       },
     )
-    await PATCH(req, routeParams('gen_123'))
+    const res = await PATCH(req, routeParams('gen_123'))
 
-    expect(mockToggle).toHaveBeenCalledWith(
-      'gen_123',
-      FAKE_DB_USER.id,
-      'isPublic',
-    )
+    expect(res.status).toBe(400)
+    expect(mockToggle).not.toHaveBeenCalled()
   })
 })

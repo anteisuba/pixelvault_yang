@@ -1,16 +1,15 @@
+import 'server-only'
+
 import { logger } from '@/lib/logger'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { ToggleLikeSchema } from '@/types'
-import type { ToggleLikeResponse } from '@/types'
 import { ensureUser } from '@/services/user.service'
 import { toggleLike, getUserLikes } from '@/services/like.service'
+import { createApiRoute } from '@/lib/api-route-factory'
 
-/**
- * GET /api/likes?ids=id1,id2,...
- * Batch query which generations the current user has liked.
- */
+// GET is intentionally manual: custom comma-separated `ids` query param
 export async function GET(request: NextRequest) {
   try {
     const { userId: clerkId } = await auth()
@@ -52,53 +51,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<ToggleLikeResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
-    const body = await request.json().catch(() => null)
-    if (!body) {
-      return NextResponse.json<ToggleLikeResponse>(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
-
-    const parseResult = ToggleLikeSchema.safeParse(body)
-    if (!parseResult.success) {
-      return NextResponse.json<ToggleLikeResponse>(
-        {
-          success: false,
-          error: parseResult.error.issues
-            .map((e: { message: string }) => e.message)
-            .join(', '),
-        },
-        { status: 400 },
-      )
-    }
-
+export const POST = createApiRoute({
+  schema: ToggleLikeSchema,
+  routeName: 'POST /api/likes',
+  handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
-    const result = await toggleLike(user.id, parseResult.data.generationId)
-
-    return NextResponse.json<ToggleLikeResponse>({
-      success: true,
-      data: result,
-    })
-  } catch (error) {
-    logger.error('[API /api/likes POST] Error', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return NextResponse.json<ToggleLikeResponse>(
-      { success: false, error: message },
-      { status: 400 },
-    )
-  }
-}
+    return toggleLike(user.id, data.generationId)
+  },
+})

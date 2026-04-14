@@ -1,47 +1,26 @@
-import { logger } from '@/lib/logger'
-import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import 'server-only'
 
 import { deleteGeneration } from '@/services/generation.service'
 import { deleteFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import type { DeleteGenerationResponse } from '@/types'
+import { logger } from '@/lib/logger'
+import { createApiDeleteRoute } from '@/lib/api-route-factory'
 
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
+export const DELETE = createApiDeleteRoute({
+  routeName: 'DELETE /api/generations/[id]',
+  notFoundMessage: 'Generation not found or access denied',
+  handler: async (clerkId, id) => {
+    const user = await ensureUser(clerkId)
+    const result = await deleteGeneration(id, user.id)
+    if (!result) return false
 
-export async function DELETE(
-  _request: Request,
-  { params }: RouteContext,
-): Promise<NextResponse<DeleteGenerationResponse>> {
-  const { userId: clerkId } = await auth()
+    // R2 cleanup in background (best-effort)
+    deleteFromR2(result.storageKey).catch((error) => {
+      logger.error('DELETE /api/generations/[id] R2 cleanup failed', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
 
-  if (!clerkId) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
-
-  const user = await ensureUser(clerkId)
-
-  const { id } = await params
-  const result = await deleteGeneration(id, user.id)
-
-  if (!result) {
-    return NextResponse.json(
-      { success: false, error: 'Generation not found or access denied' },
-      { status: 404 },
-    )
-  }
-
-  // Clean up R2 storage in the background (best-effort)
-  try {
-    await deleteFromR2(result.storageKey)
-  } catch (error) {
-    logger.error('[API DELETE /api/generations] R2 cleanup failed', { error: error instanceof Error ? error.message : String(error) })
-  }
-
-  return NextResponse.json({ success: true })
-}
+    return true
+  },
+})

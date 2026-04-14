@@ -1,6 +1,5 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import 'server-only'
+
 import { z } from 'zod'
 
 import {
@@ -9,6 +8,7 @@ import {
 } from '@/services/generation.service'
 import { deleteFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
+import { createApiRoute } from '@/lib/api-route-factory'
 
 const BatchDeleteSchema = z.object({
   action: z.literal('delete'),
@@ -27,73 +27,29 @@ const BatchRequestSchema = z.discriminatedUnion('action', [
   BatchVisibilitySchema,
 ])
 
-// ─── POST /api/generations/batch ─────────────────────────────────
-
-export async function POST(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
-    const body = await request.json().catch(() => null)
-    if (!body) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
-
-    const parseResult = BatchRequestSchema.safeParse(body)
-    if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: parseResult.error.issues.map((e) => e.message).join(', '),
-        },
-        { status: 400 },
-      )
-    }
-
+export const POST = createApiRoute({
+  schema: BatchRequestSchema,
+  routeName: 'POST /api/generations/batch',
+  handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
 
-    if (parseResult.data.action === 'delete') {
+    if (data.action === 'delete') {
       const { deletedCount, storageKeys } = await batchDeleteGenerations(
-        parseResult.data.ids,
+        data.ids,
         user.id,
       )
-
-      // Cleanup R2 in background
       for (const key of storageKeys) {
         deleteFromR2(key).catch(() => {})
       }
-
-      return NextResponse.json({
-        success: true,
-        data: { deletedCount },
-      })
+      return { deletedCount }
     }
 
-    // visibility
     const updatedCount = await batchUpdateVisibility(
-      parseResult.data.ids,
+      data.ids,
       user.id,
-      parseResult.data.field,
-      parseResult.data.value,
+      data.field,
+      data.value,
     )
-
-    return NextResponse.json({
-      success: true,
-      data: { updatedCount },
-    })
-  } catch (error) {
-    logger.error('[API /api/generations/batch] Error', { error: error instanceof Error ? error.message : String(error) })
-    return NextResponse.json(
-      { success: false, error: 'Batch operation failed' },
-      { status: 500 },
-    )
-  }
-}
+    return { updatedCount }
+  },
+})

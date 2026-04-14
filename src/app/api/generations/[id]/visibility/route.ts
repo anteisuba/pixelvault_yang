@@ -1,59 +1,34 @@
-import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import 'server-only'
 
-import {
-  toggleGenerationVisibility,
-  type ToggleableField,
-} from '@/services/generation.service'
+import { z } from 'zod'
+
+import { toggleGenerationVisibility } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
-import type { ToggleVisibilityResponse } from '@/types'
+import { ApiRequestError } from '@/lib/errors'
+import { createApiPatchByIdRoute } from '@/lib/api-route-factory'
 
-const ALLOWED_FIELDS: ToggleableField[] = [
-  'isPublic',
-  'isPromptPublic',
-  'isFeatured',
-]
+const VisibilitySchema = z.object({
+  field: z
+    .enum(['isPublic', 'isPromptPublic', 'isFeatured'])
+    .default('isPublic'),
+})
 
-interface RouteContext {
-  params: Promise<{ id: string }>
-}
-
-export async function PATCH(
-  request: Request,
-  { params }: RouteContext,
-): Promise<NextResponse<ToggleVisibilityResponse>> {
-  const { userId: clerkId } = await auth()
-
-  if (!clerkId) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 },
-    )
-  }
-
-  const user = await ensureUser(clerkId)
-
-  const { id } = await params
-  const body = await request.json().catch(() => ({}))
-  const field: ToggleableField = ALLOWED_FIELDS.includes(body.field)
-    ? body.field
-    : 'isPublic'
-  const result = await toggleGenerationVisibility(id, user.id, field)
-
-  if (!result) {
-    return NextResponse.json(
-      { success: false, error: 'Generation not found or access denied' },
-      { status: 404 },
-    )
-  }
-
-  // Handle service-level errors (e.g. featured limit exceeded)
-  if ('error' in result) {
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 422 },
-    )
-  }
-
-  return NextResponse.json({ success: true, data: result })
-}
+export const PATCH = createApiPatchByIdRoute({
+  schema: VisibilitySchema,
+  routeName: 'PATCH /api/generations/[id]/visibility',
+  notFoundMessage: 'Generation not found or access denied',
+  handler: async (clerkId, id, data) => {
+    const user = await ensureUser(clerkId)
+    const result = await toggleGenerationVisibility(id, user.id, data.field)
+    if (!result) return null
+    if ('error' in result) {
+      throw new ApiRequestError(
+        'VISIBILITY_ERROR',
+        422,
+        'errors.generation.visibilityError',
+        result.error,
+      )
+    }
+    return result
+  },
+})

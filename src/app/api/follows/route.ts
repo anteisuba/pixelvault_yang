@@ -1,61 +1,32 @@
-import { logger } from '@/lib/logger'
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import 'server-only'
 
 import { ToggleFollowSchema } from '@/types'
-import type { ToggleFollowResponse } from '@/types'
 import { ensureUser } from '@/services/user.service'
 import { toggleFollow } from '@/services/follow.service'
+import { ApiRequestError } from '@/lib/errors'
+import { createApiRoute } from '@/lib/api-route-factory'
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json<ToggleFollowResponse>(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
-    const body = await request.json().catch(() => null)
-    if (!body) {
-      return NextResponse.json<ToggleFollowResponse>(
-        { success: false, error: 'Invalid JSON body' },
-        { status: 400 },
-      )
-    }
-
-    const parseResult = ToggleFollowSchema.safeParse(body)
-    if (!parseResult.success) {
-      return NextResponse.json<ToggleFollowResponse>(
-        {
-          success: false,
-          error: parseResult.error.issues
-            .map((e: { message: string }) => e.message)
-            .join(', '),
-        },
-        { status: 400 },
-      )
-    }
-
+export const POST = createApiRoute({
+  schema: ToggleFollowSchema,
+  routeName: 'POST /api/follows',
+  handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
-    const result = await toggleFollow(user.id, parseResult.data.targetUserId)
-
-    return NextResponse.json<ToggleFollowResponse>({
-      success: true,
-      data: result,
-    })
-  } catch (error) {
-    logger.error('[API /api/follows POST] Error', { error: error instanceof Error ? error.message : String(error) })
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-
-    const status =
-      message.includes('yourself') || message.includes('not found') ? 400 : 500
-
-    return NextResponse.json<ToggleFollowResponse>(
-      { success: false, error: message },
-      { status },
-    )
-  }
-}
+    try {
+      return await toggleFollow(user.id, data.targetUserId)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('yourself') ||
+          error.message.includes('not found'))
+      ) {
+        throw new ApiRequestError(
+          'INVALID_FOLLOW',
+          400,
+          'errors.follow.invalid',
+          error.message,
+        )
+      }
+      throw error
+    }
+  },
+})

@@ -443,10 +443,11 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
 }
 
 /**
- * Alias of createApiPutRoute for POST routes that also carry a path param.
+ * Aliases of createApiPutRoute for routes that carry a path param.
  * The HTTP method is determined by the route file's export name, not here.
  */
 export const createApiPostByIdRoute = createApiPutRoute
+export const createApiPatchByIdRoute = createApiPutRoute
 
 export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
   config: GetRouteConfig<TSchema, TResult>,

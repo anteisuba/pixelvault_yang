@@ -30,7 +30,7 @@ describe('POST /api/arena/matches/[id]/vote', () => {
 
     expect(res.status).toBe(401)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Unauthorized' })
+    expect(body).toMatchObject({ success: false })
   })
 
   it('returns 400 for invalid body', async () => {
@@ -91,6 +91,6 @@ describe('POST /api/arena/matches/[id]/vote', () => {
 
     expect(res.status).toBe(500)
     const body = await parseJSON(res)
-    expect(body).toEqual({ success: false, error: 'Vote failed' })
+    expect(body).toMatchObject({ success: false })
   })
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useRef, useEffect, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import {
   ChevronDown,
   Dices,
@@ -235,7 +235,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         isLoading={isGenerating}
         value={state.prompt}
         onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-        maxHeight={320}
+        maxHeight={
+          typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 320
+        }
         onSubmit={handleGenerate}
         disabled={isGenerating}
         className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all"

@@ -40,12 +40,7 @@ import { cn } from '@/lib/utils'
 import { editImageAPI } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
-
-function formatDuration(seconds: number): string {
-  const min = Math.floor(seconds / 60)
-  const sec = seconds % 60
-  return min > 0 ? `${min}:${String(sec).padStart(2, '0')}` : `${sec}s`
-}
+import { formatDuration } from '@/lib/video-utils'
 
 interface GenerationPreviewProps {
   generation: GenerationRecord | null

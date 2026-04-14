@@ -495,7 +495,8 @@
       "type": {
         "all": "All types",
         "image": "Images",
-        "video": "Videos"
+        "video": "Videos",
+        "audio": "Audio"
       },
       "tabs": {
         "all": "All",

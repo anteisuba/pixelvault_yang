@@ -495,7 +495,8 @@
       "type": {
         "all": "全部类型",
         "image": "图片",
-        "video": "视频"
+        "video": "视频",
+        "audio": "音频"
       },
       "tabs": {
         "all": "全部",

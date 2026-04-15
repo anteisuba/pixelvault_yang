@@ -192,7 +192,22 @@
       "Bash(curl -s -X POST http://localhost:3000/api/image/analyze -H 'Content-Type: application/json' -d '{\"imageData\":\"data:image/png;base64,iVBORw0KGgo=\",\"dimensions\":[\"artStyle\"]}')",
       "Bash(npx puppeteer:*)",
       "mcp__d36426df-0ad8-44c1-9ef6-9ac92b91086f__get_access_to_vercel_url",
-      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object LocalPort,State,OwningProcess | Format-Table -AutoSize\")"
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object LocalPort,State,OwningProcess | Format-Table -AutoSize\")",
+      "Bash(findstr 3000)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(curl -sI \"https://pub-5346558f8dc549f9ba5217489fe5395e.r2.dev\")",
+      "Bash(grep -n \"uploadToR2\\\\|streamUploadToR2\" /c/work/ecplise/yang/personal-ai-gallery/src/services/*.ts)",
+      "Bash(curl -sI \"https://cdn.anteisuba.com/lora-weights/8e3b7e40-c662-487b-b29f-7e16dd563e64/42516c38-78b9-4909-b8a9-97f4399f26c0.safetensors\")",
+      "Bash(curl -s \"https://api.replicate.com/v1/models/delta-lock/noobai-xl\" -H \"Authorization: Bearer r8_1Y9$\\(grep R8 .env.local)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); schema=d.get\\('latest_version',{}\\).get\\('openapi_schema',{}\\).get\\('components',{}\\).get\\('schemas',{}\\).get\\('Input',{}\\); props=schema.get\\('properties',{}\\); lora=props.get\\('loras',{}\\); print\\(json.dumps\\(lora, indent=2\\)\\)\")",
+      "Bash(curl -s \"https://api.replicate.com/v1/models/delta-lock/noobai-xl/versions\")",
+      "WebFetch(domain:www.aimodels.fyi)",
+      "WebFetch(domain:dev.to)",
+      "Bash(curl -s \"https://api.replicate.com/v1/models/delta-lock/noobai-xl/versions/d09db5fc24b8b6573b095c2bd845b58242dce8f996b034fa865130bf1075858f\" -H \"Authorization: Bearer r8_R5X\")",
+      "Bash(gh issue:*)",
+      "Bash(timeout 3 bash -c \"while [ -f .git/index.lock ]; do sleep 0.5; done\")",
+      "Bash(rm -f .git/index.lock)",
+      "Bash(cat src/app/[locale]/layout.tsx)"
     ]
   },
   "hooks": {

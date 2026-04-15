@@ -13,15 +13,15 @@
 
 测试和 UX 交替进行，每周有可见进展。
 
-| 周  | 内容                                    | 状态                      |
-| --- | --------------------------------------- | ------------------------- |
-| W1  | 核心生成路径测试                        | ✅ 完成                   |
-| W2  | 风格预设 + unified-generate hook 测试   | ✅ 完成                   |
-| W3  | Quick Mode 简化入口                     | ✅ 完成已推送 (`6a5a07e`) |
-| W4  | @ts-nocheck 清理 + audio async 路径修复 | ✅ 完成已推送 (`7830a0b`) |
-| W5  | API 路由错误格式统一 + 高优先级路由迁移 | ✅ 完成已推送             |
-| W6  | Video UI 骨架屏 + CollapsiblePanel 动画 | ✅ 完成已推送             |
-| W7  | SEO 基础 — OG 图 + keywords + 优化描述  | ✅ 完成已推送             |
+| 周  | 内容                                       | 状态                         |
+| --- | ------------------------------------------ | ---------------------------- |
+| W1  | 核心生成路径测试                           | ✅ 完成                      |
+| W2  | 风格预设 + unified-generate hook 测试      | ✅ 完成                      |
+| W3  | Quick Mode 简化入口                        | ✅ 完成（commit: `6a5a07e`） |
+| W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ⏳ 未开始                    |
+| W5  | 管道测试 + API 路由迁移到 createApiRoute   | ⏳ 未开始                    |
+| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始                    |
+| W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                    |
 
 ---
 
@@ -59,7 +59,7 @@
 - `src/messages/{en,ja,zh}.json` — `StylePresets` namespace
 - `src/middleware.ts` — 开发环境跳过 Clerk auth.protect()
 
-### W3: Quick Mode（待 commit — 当前 working tree 中）
+### W3: Quick Mode（已 commit + push: `6a5a07e`）
 
 **新文件：**
 
@@ -99,7 +99,7 @@
 
 ---
 
-## 三、待 commit 的文件清单
+## 三、W3 已包含的文件（commit `6a5a07e`）
 
 ```
 Modified:
@@ -116,105 +116,63 @@ New:
   src/components/business/studio/QuickSetupDialog.tsx
 ```
 
-**建议 commit message:**
-
-```
-feat: W3 Quick Mode — 简化入口 + 内联模型选择 + API key 快速引导
-
-- Quick Mode 工具栏: 隐藏 Advanced/LayerDecompose/CivitAI/LoRA，保留 Enhance/Reverse/RefImage/AspectRatio
-- 侧边栏: Quick Mode 隐藏项目树，保留 API Keys
-- 内联模型选择器: 输入框底部，分"可用/需要 API key"两组
-- QuickSetupDialog: 选锁定模型 → 显示获取链接 → 输入 key → 验证 → 自动激活
-- localStorage 持久化 workflowMode
-- 渐进引导: 3 次生成后 toast 提示卡片模式
-- i18n: en/ja/zh QuickSetup namespace
-```
-
 ---
 
 ## 四、W4-W7 待办详情
 
-### W4: @ts-nocheck 清理 + audio async 路径修复（精简版）
+### W4: 生成管道抽取（组合函数模式）
 
-> **Scope 调整说明（2026-04-14 eng-review）**: 原计划的 `generation-pipeline.ts` 已被推迟。
-> `resolveGenerationRoute` 和 `uploadToR2` 已经存在，无需重新抽取。
-> 更重要的是发现了 audio async 路径有功能性 bug + 安全问题需优先修复。
+**前置条件:**
 
-**任务清单:**
+- [ ] 移除 `src/services/generate-audio.service.ts` 第 2 行的 `@ts-nocheck`，修复所有类型错误
 
-- [ ] `src/services/generate-audio.service.ts`
-  - 删除第 2 行 `@ts-nocheck`，修复所有类型错误
-  - 修 `generateAudioForUser`：补充 `sampleRate` 字段转发给 adapter（当前缺失，Fish Audio adapter 期望此字段）
-  - 修 `createApiUsageEntry` 调用：统一用 `generationJobId` 模式（与 image service 一致）
-  - 修 `getProviderAdapter(adapterType as never)`：改为有类型的 `AI_ADAPTER_TYPES` 转换
-  - `submitAudioGeneration` + `checkAudioGenerationStatus`：添加 TODO 注释，说明需等 FAL adapter 实现 `submitAudioToQueue`/`checkAudioQueueStatus` 后再修 job lifecycle
+**目标: 创建 `src/services/generation-pipeline.ts`**
 
-- [ ] `src/services/generate-audio.service.test.ts`（新建，目前 0 个测试）
-  - `generateAudioForUser` 同步路径: 成功 / UNSUPPORTED_MODEL / ProviderError / R2失败
-  - 不测试 submit/status 异步路径（adapter 层未实现，留到后续）
+从 image/video/audio 三个 service 中提取共享步骤:
 
-**遵循模式:** 参考 `generate-image.service.test.ts` 的 mock 模式
+```typescript
+// 组合函数，非 class 继承
+async function resolveRoute(params) // 已存在于 generate-image，提升为独立导出
+async function uploadReferenceImage(params) // 从 image + video 两处提取
+async function createGenerationRecord(params) // 从三个 service 中提取
+async function uploadToR2(params) // 封装通用上传逻辑
 
-**已推迟（等 FAL adapter 实现 audio queue 后）:**
+// 调用模式:
+// Image: resolveRoute → provider.generate → uploadToR2 → createRecord
+// Video: resolveRoute → provider.submit → (poll) → uploadToR2 → createRecord
+// Audio: resolveRoute → provider.generate → uploadToR2 → createRecord
+```
 
-- `submitAudioGeneration` job lifecycle 修复
-- `checkAudioGenerationStatus` 改为 jobId 接收 + 幂等锁
-- API key 前端暴露安全问题（status route）
-- 相关类型修复：`GenerateAudioResponse` 应有 `jobId`、`AudioStatusResponseData` 应有 `jobId`
+**注意:**
 
-**已推迟时的注意事项:**
+- `generate-video.service.ts` 已经从 image service 导入 `resolveGenerationRoute` 和 `GenerateImageServiceError`
+- 保留原有 service 的导出接口不变（向后兼容）
+- 重构后 image/video/audio service 变成薄包装，调用管道函数
 
-- Re-resolve route 有 key 漂移风险：应存 `apiKeyId` 到 externalRequestId，poll 时按 ID 查找
-- 幂等锁：参考 `generate-video.service.ts:277` 的 optimistic lock 实现
-
-**高风险模块（改动前确认影响范围）:**
+**高风险模块:**
 | 模块 | 导入文件数 | 规则 |
 |------|-----------|------|
-| `src/services/generate-audio.service.ts` | 2 文件调用 | 只有 route.ts 和 status route，同步改 |
-| `src/services/generate-image.service.ts` | 20 文件 | 本次不改此文件 |
+| `src/types/index.ts` (barrel `@/types`) | ~146 | 只加 optional 字段 |
+| `src/constants/models.ts` 单文件 | ~42 | 加模型不删模型 |
+| `src/services/generate-image.service.ts` | 13 | 保留原接口 |
+| `src/services/storage/r2.ts` | 15 | 只加新方法 |
 
-### W5: API 路由错误格式统一 + 高优先级路由迁移
+### W5: 管道测试 + API 路由迁移
 
-> **Scope 说明（2026-04-14）**: `generation-pipeline.ts` 未创建（W4 scope 精简后不再需要）。
-> W5 聚焦于将手动路由迁移到 `createApiRoute` 工厂，消除错误格式碎片化。
-> 当前工厂已覆盖 17/79 路由，优先迁移生成流相关路由。
+- [ ] 为 `generation-pipeline.ts` 每个管道函数写测试
+- [ ] 统一三种生成模式的错误响应格式
+- [ ] 将剩余 61 个路由迁移到 `createApiRoute` 工厂（当前 18/79 已迁移）
+  - 工厂位置: `src/lib/api-route-factory.ts`
+  - 迁移模式: 每个路由从手动 auth+validate+handle 改为 `createApiRoute({ schema, handler })`
 
-**任务清单:**
+### W6: Video UI 统一 + 骨架屏
 
-- [x] 更新进度文档（删除 generation-pipeline.ts 引用，澄清实际 scope）
-- [x] `src/app/api/generate-video/status/route.ts` → `createApiGetRoute`
-  - 迁移后: 统一错误格式（errorCode + i18nKey），删除手动 try/catch
-  - 新建: `src/app/api/generate-video/status/route.test.ts`（401/400/成功/服务错误）
-- [x] `src/app/api/prompt/enhance/route.ts` → `createApiRoute`
-  - 迁移后: 删除手动 auth+rate-limit+try/catch，保留 `maxDuration = 30`
-  - 更新: 已有测试（500 case 错误消息格式变化）
-- [x] 追加测试覆盖统计到第七节
-
-**工厂位置:** `src/lib/api-route-factory.ts`
-**迁移模式:** POST 路由 → `createApiRoute({ schema, handler })`，GET 路由 → `createApiGetRoute({ schema, handler })`
-**当前覆盖:** 17/79 → 目标 19/79（本次迁移 2 个）
-
-### W6: Video UI 骨架屏 + CollapsiblePanel 动画
-
-> **Scope 说明（2026-04-14）**: Video 布局全量迁移（VideoGenerateForm → Studio canvas layout）
-> 属于高风险架构变更，需要独立规划。本次 W6 聚焦高价值低风险改进。
-
-**任务清单:**
-
-- [x] `src/components/ui/collapsible-panel.tsx` — 添加 CSS grid-rows 动画（300ms ease-out）
-  - chevron icon 旋转替代 ChevronUp/Down 切换
-  - `grid-rows-[0fr]` → `grid-rows-[1fr]` 高度过渡，overflow-hidden 防内容溢出
-- [x] `src/components/business/VideoGenerateForm.tsx` — 生成中骨架屏
-  - 当 `isAnyGenerating && !currentGeneration` 时：aspect-video Skeleton + 标题/badge 骨架
-  - 结果出现时 `animate-in fade-in-0 zoom-in-95` 入场动画（已有）
-
-**推迟项（需独立规划）:**
-
-- [ ] VideoGenerateForm → StudioVideoMode 布局迁移（sidebar + canvas 架构）
-  - 依赖: StudioContext 需扩展支持视频状态（duration、longVideoMode、negativePrompt）
-  - 依赖: StudioCanvas 需支持 outputType=video 时渲染 VideoPlayer
-  - 风险: 会影响 Studio 的所有三种 output type 渲染路径
-- [ ] 模型选择器统一（dropdown vs pills 两种模式）
+- [ ] 将 `src/components/business/VideoGenerateForm.tsx` (763行) 核心逻辑迁入 `src/components/business/studio/StudioVideoMode.tsx` (当前 32 行 wrapper)
+- [ ] Video 使用与 Image 相同的 Studio 布局（TopBar + Canvas + BottomDock）
+- [ ] 废弃独立的 `VideoGenerateForm.tsx`
+- [ ] 模型选择器统一（当前有 dropdown + pills 两种模式）
+- [ ] 添加生成结果骨架屏（当前无 loading 状态）
+- [ ] 面板展开/收起添加动画（fade-in + translate-up，300-600ms ease-out）
 
 ### W7: 减轻 AI 感 + SEO
 
@@ -274,17 +232,14 @@ npx vitest run --reporter=verbose
 
 ## 七、测试覆盖现状
 
-| 文件                                      | 测试数  | 覆盖场景                                        |
-| ----------------------------------------- | ------- | ----------------------------------------------- |
-| `generate-image.service.test.ts`          | 19      | 路由解析(9) + 完整流程(10)                      |
-| `api/generate/route.test.ts`              | 11      | auth/validate/success/error/advancedParams      |
-| `api/studio/generate/route.test.ts`       | 10      | auth/validate/quick+card mode/batch/error       |
-| `use-unified-generate.test.ts`            | 8       | idle/generate/error/activeRun/audio/retry/reset |
-| `studio-context.test.ts`                  | 36      | reducer 所有 action + panel toggle              |
-| `generate-audio.service.test.ts`          | 6       | 同步路径: 成功/UNSUPPORTED/ProviderError/R2失败 |
-| `api/generate-video/status/route.test.ts` | 4       | auth/validate/success/500                       |
-| `api/prompt/enhance/route.test.ts`        | 6       | auth/validate/success/400/500                   |
-| **总计**                                  | **100** | 核心生成路径 + 路由层全覆盖                     |
+| 文件                                | 测试数 | 覆盖场景                                        |
+| ----------------------------------- | ------ | ----------------------------------------------- |
+| `generate-image.service.test.ts`    | 19     | 路由解析(9) + 完整流程(10)                      |
+| `api/generate/route.test.ts`        | 11     | auth/validate/success/error/advancedParams      |
+| `api/studio/generate/route.test.ts` | 10     | auth/validate/quick+card mode/batch/error       |
+| `use-unified-generate.test.ts`      | 8      | idle/generate/error/activeRun/audio/retry/reset |
+| `studio-context.test.ts`            | 36     | reducer 所有 action + panel toggle              |
+| **总计**                            | **84** | 核心生成路径全覆盖                              |
 
 ---
 
@@ -309,21 +264,6 @@ npx vitest run --reporter=verbose
 
 ## 九、接续步骤
 
-1. ~~先 commit + push W3~~ — 已完成（`6a5a07e`）
-2. ~~W4 前跑 /plan-eng-review~~ — 已完成（2026-04-14），scope 调整为精简版
-3. ~~开始 W4~~ — 已完成（`7830a0b`）
-4. **开始 W5** — generate-video/status 迁移 + prompt/enhance 迁移 + 测试
-
----
-
-## GSTACK REVIEW REPORT
-
-| Review        | Trigger               | Why                             | Runs | Status       | Findings                                                                       |
-| ------------- | --------------------- | ------------------------------- | ---- | ------------ | ------------------------------------------------------------------------------ |
-| CEO Review    | `/plan-ceo-review`    | Scope & strategy                | 2    | CLEAR        | 6 proposals, 6 accepted, 0 deferred                                            |
-| Codex Review  | `/codex review`       | Independent 2nd opinion         | 1    | issues_found | FAL audio queue 未实现（可行性）; sampleRate 未转发; async path key drift 风险 |
-| Eng Review    | `/plan-eng-review`    | Architecture & tests (required) | 4    | CLEAR (PLAN) | 4 issues, 1 critical gap — scope 已精简                                        |
-| Design Review | `/plan-design-review` | UI/UX gaps                      | 1    | CLEAR        | score: 3/10 → 8/10, 7 decisions                                                |
-| DX Review     | `/plan-devex-review`  | Developer experience gaps       | 0    | —            | —                                                                              |
-
-**VERDICT:** ENG CLEARED — 可以开始 W4 实现。Codex 发现的 FAL audio queue 未实现已纳入推迟计划，不阻塞 W4。
+1. ✅ **W3 已 commit + push** (`6a5a07e`)
+2. **W4 开始前跑 `/plan-eng-review`** — 锁定 generation-pipeline.ts 接口设计
+3. **从 W4 开始** — 先修 `@ts-nocheck`（`src/services/generate-audio.service.ts` 第2行），再抽管道函数

@@ -11,7 +11,11 @@ jobs:
     name: Post-Deploy Smoke Test
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    if: github.event.deployment_status.state == 'success'
+    # Only run on Production deployments — Vercel preview URLs have deployment
+    # protection enabled and will always return 401 without a bypass token.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
 
     steps:
       - name: Wait for CDN propagation

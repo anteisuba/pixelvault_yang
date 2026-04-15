@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 import createIntlMiddleware from 'next-intl/middleware'
 
 import { ROUTES } from '@/constants/routes'
@@ -38,7 +39,9 @@ export default clerkMiddleware(async (auth, request) => {
     if (!isDev && !isPublicRoute(request) && !isPublicUserApi) {
       await auth.protect()
     }
-    return
+    // Explicit NextResponse.next() ensures public API routes (e.g. /api/health)
+    // are not inadvertently blocked by Clerk when returning void.
+    return NextResponse.next()
   }
 
   const response = handleI18nRouting(request)

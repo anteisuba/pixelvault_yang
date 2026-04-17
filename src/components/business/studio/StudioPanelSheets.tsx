@@ -29,6 +29,11 @@ const ReferenceImageSection = dynamic(() =>
     (mod) => mod.ReferenceImageSection,
   ),
 )
+const StudioTransformPanel = dynamic(() =>
+  import('@/components/business/studio/StudioTransformPanel').then(
+    (mod) => mod.StudioTransformPanel,
+  ),
+)
 const LayerDecomposePanel = dynamic(() =>
   import('@/components/business/LayerDecomposePanel').then(
     (mod) => mod.LayerDecomposePanel,
@@ -68,7 +73,7 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
   }, [maxRefImages, imageUpload])
 
   const closePanel = useCallback(
-    (panel: 'refImage' | 'reverse' | 'layerDecompose') => {
+    (panel: 'refImage' | 'reverse' | 'layerDecompose' | 'transform') => {
       dispatch({ type: 'CLOSE_PANEL', payload: panel })
     },
     [dispatch],
@@ -160,6 +165,28 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Transform Sheet ──────────────────────────────────────── */}
+      <Sheet
+        open={state.panels.transform}
+        onOpenChange={(open) => {
+          if (!open) closePanel('transform')
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="w-full sm:w-[380px] sm:max-w-[420px] flex flex-col"
+        >
+          <SheetHeader>
+            <SheetTitle className="font-display">
+              {tPanels('transform')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <StudioTransformPanel />
           </div>
         </SheetContent>
       </Sheet>

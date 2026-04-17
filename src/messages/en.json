@@ -1679,6 +1679,7 @@
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
     "layerDecompose": "Layers",
+    "transform": "Transform",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
@@ -1694,6 +1695,7 @@
     "reference": "Reference Images",
     "reverse": "Image Reverse Engineer",
     "layers": "Layer Decompose",
+    "transform": "Image Transform",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Enhancement",
     "civitai": "Civitai Token"

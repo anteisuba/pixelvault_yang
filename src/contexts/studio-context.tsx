@@ -56,6 +56,7 @@ export type PanelName =
   | 'aspectRatio'
   | 'voiceSelector'
   | 'voiceTrainer'
+  | 'transform'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -105,6 +106,7 @@ const initialPanels: Record<PanelName, boolean> = {
   aspectRatio: false,
   voiceSelector: false,
   voiceTrainer: false,
+  transform: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -157,6 +159,7 @@ export function studioFormReducer(
         'layerDecompose',
         'civitai',
         'aspectRatio',
+        'transform',
       ]
       const isToolbarPanel = toolbarPanels.includes(target)
       const newPanels = { ...state.panels }

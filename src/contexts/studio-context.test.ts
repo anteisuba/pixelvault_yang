@@ -35,6 +35,7 @@ function makeInitialState(
       aspectRatio: false,
       voiceSelector: false,
       voiceTrainer: false,
+      transform: false,
     },
     ...overrides,
   }

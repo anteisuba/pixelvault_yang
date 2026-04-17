@@ -93,6 +93,19 @@
 | ----------- | ---- | ---------- | ------------------------------------------------------- |
 | WP-Usage-02 | EP-4 | ✅ 7 tests | `src/services/free-tier-boundary.test.ts` — 并发 + 边界 |
 
+### Round 4 · StudioTransformPanel 接入 Studio 页面（2026-04-17）
+
+> 将 Transform 面板挂入 Studio 工具栏 + 桌面 Popover + 移动 Sheet
+
+| 任务                       | 状态 | 修改文件                                        |
+| -------------------------- | ---- | ----------------------------------------------- |
+| PanelName 加 `'transform'` | ✅   | `studio-context.tsx`（3 处）                    |
+| Toolbar 加 Transform 按钮  | ✅   | `StudioToolbar.tsx` + `StudioToolbarPanels.tsx` |
+| 桌面 Popover 面板          | ✅   | `StudioPanelPopovers.tsx`                       |
+| 移动 Sheet 面板            | ✅   | `StudioPanelSheets.tsx`                         |
+| 上下文测试修复             | ✅   | `studio-context.test.ts`                        |
+| i18n 三语                  | ✅   | `en/ja/zh.json`（StudioV2 + StudioPanels）      |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

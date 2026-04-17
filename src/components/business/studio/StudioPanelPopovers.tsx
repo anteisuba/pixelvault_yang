@@ -25,6 +25,11 @@ const AdvancedSettings = dynamic(() =>
     (mod) => mod.AdvancedSettings,
   ),
 )
+const StudioTransformPanel = dynamic(() =>
+  import('@/components/business/studio/StudioTransformPanel').then(
+    (mod) => mod.StudioTransformPanel,
+  ),
+)
 
 /**
  * StudioPanelPopovers — renders 3 small/medium panels as Popovers.
@@ -79,7 +84,7 @@ export const StudioPanelPopovers = memo(function StudioPanelPopovers() {
   }, [state.tokenInput, civitai, dispatch])
 
   const closePanel = useCallback(
-    (panel: 'enhance' | 'advanced' | 'civitai') => {
+    (panel: 'enhance' | 'advanced' | 'civitai' | 'transform') => {
       dispatch({ type: 'CLOSE_PANEL', payload: panel })
     },
     [dispatch],
@@ -221,6 +226,24 @@ export const StudioPanelPopovers = memo(function StudioPanelPopovers() {
               )}
             </div>
           </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* ── Transform Popover ─────────────────────────────────── */}
+      <Popover
+        open={state.panels.transform}
+        onOpenChange={(open) => {
+          if (!open) closePanel('transform')
+        }}
+      >
+        <PopoverAnchor className="fixed bottom-36 left-1/2 -translate-x-1/2" />
+        <PopoverContent
+          side="top"
+          align="center"
+          sideOffset={8}
+          className="w-96 max-h-[28rem] overflow-y-auto"
+        >
+          <StudioTransformPanel />
         </PopoverContent>
       </Popover>
     </>

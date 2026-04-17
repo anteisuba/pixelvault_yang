@@ -1679,6 +1679,7 @@
     "referenceImage": "参考图",
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "图层分解",
+    "transform": "变换",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
@@ -1694,6 +1695,7 @@
     "reference": "参考图",
     "reverse": "图片反向工程",
     "layers": "图层分解",
+    "transform": "图像变换",
     "advanced": "高级设置",
     "enhance": "提示词增强",
     "civitai": "Civitai Token"

@@ -78,6 +78,10 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         dispatch({ type: 'TOGGLE_PANEL', payload: 'refImage' })
       }
       referenceImageCount={imageUpload.referenceImages.length}
+      onTransform={() =>
+        dispatch({ type: 'TOGGLE_PANEL', payload: 'transform' })
+      }
+      transformOpen={state.panels.transform}
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }

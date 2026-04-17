@@ -8,6 +8,7 @@ import {
   Key,
   Layers,
   RatioIcon,
+  Wand2,
   Cpu,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -31,6 +32,8 @@ interface StudioToolbarProps {
   onReferenceImage?: () => void
   referenceImageCount?: number
   onLayerDecompose?: () => void
+  onTransform?: () => void
+  transformOpen?: boolean
   onAspectRatio?: () => void
   aspectRatioOpen?: boolean
   onCivitaiToken?: () => void
@@ -99,6 +102,8 @@ export function StudioToolbar({
   onReferenceImage,
   referenceImageCount,
   onLayerDecompose,
+  onTransform,
+  transformOpen,
   onAspectRatio,
   aspectRatioOpen,
   onCivitaiToken,
@@ -144,6 +149,13 @@ export function StudioToolbar({
           label={t('referenceImage')}
           onClick={onReferenceImage}
           badge={referenceImageCount}
+          disabled={disabled}
+        />
+        <ToolButton
+          icon={<Wand2 className="h-3.5 w-3.5" />}
+          label={t('transform')}
+          onClick={onTransform}
+          active={transformOpen}
           disabled={disabled}
         />
         {!quickMode && (

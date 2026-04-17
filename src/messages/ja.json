@@ -1672,6 +1672,7 @@
     "referenceImage": "参照画像",
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "レイヤー分解",
+    "transform": "変換",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
@@ -1693,6 +1694,7 @@
     "reference": "参照画像",
     "reverse": "画像リバースエンジニア",
     "layers": "レイヤー分解",
+    "transform": "画像変換",
     "advanced": "詳細設定",
     "enhance": "プロンプト強化",
     "civitai": "Civitai トークン"

@@ -18,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CardDrawer } from '@/components/business/CardDrawer'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
@@ -159,6 +160,7 @@ export function Navbar() {
           <LocaleSwitcher />
 
           <SignedIn>
+            <CardDrawer />
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>

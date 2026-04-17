@@ -54,6 +54,20 @@
 | Service 单测               | ✅ 6 tests | `src/services/image-transform.service.test.ts`                         |
 | Route 单测                 | ✅ 8 tests | `src/app/api/image-transform/route.test.ts`                            |
 
+### Phase 1 Studio Transform UI（2026-04-17）
+
+> 5 个新组件 + 2 个组件测试文件
+
+| 任务                   | 状态       | 产出文件                                                  |
+| ---------------------- | ---------- | --------------------------------------------------------- |
+| StudioInputImage       | ✅ 完成    | 拖拽/点击上传 + 预览 + 删除 + 文件验证                    |
+| StudioFaceConsentModal | ✅ 完成    | shadcn Dialog 人脸 consent 弹窗                           |
+| StudioTransformToggle  | ✅ 完成    | 4 Variants / Fast (1×) 切换                               |
+| StudioVariantsGrid     | ✅ 完成    | 2×2 / 1×1 网格 + skeleton + 失败重试                      |
+| StudioTransformPanel   | ✅ 完成    | 编排器：preset 选择 + 保留度切换 + useImageTransform 调用 |
+| InputImage 单测        | ✅ 4 tests | 上传区渲染 / 预览 / 删除回调 / disabled                   |
+| VariantsGrid 单测      | ✅ 5 tests | skeleton / 空态 / 成功图片 / 失败重试 / 单列模式          |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

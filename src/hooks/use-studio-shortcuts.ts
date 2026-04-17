@@ -24,6 +24,9 @@ export function useStudioShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Skip during IME composition (CJK input methods use Enter/Escape internally)
+      if (event.isComposing) return
+
       const key = typeof event.key === 'string' ? event.key.toLowerCase() : ''
 
       if (!key) {

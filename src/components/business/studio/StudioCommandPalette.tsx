@@ -41,6 +41,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   // Listen for Cmd+K / Ctrl+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.isComposing) return
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         setOpen((v) => !v)

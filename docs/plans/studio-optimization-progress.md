@@ -127,9 +127,10 @@
 
 ### EP-6 Studio 修复（2026-04-17）
 
-| WP           | 状态 | 产出 / 改动                                                                   |
-| ------------ | ---- | ----------------------------------------------------------------------------- |
-| WP-Studio-04 | ✅   | `use-studio-shortcuts.ts` + `StudioCommandPalette.tsx` — IME isComposing 守护 |
+| WP           | 状态 | 产出 / 改动                                                                       |
+| ------------ | ---- | --------------------------------------------------------------------------------- |
+| WP-Studio-03 | ✅   | 删除死代码 `use-generate.ts` + `generateImageAPI` — useUnifiedGenerate 已完全覆盖 |
+| WP-Studio-04 | ✅   | `use-studio-shortcuts.ts` + `StudioCommandPalette.tsx` — IME isComposing 守护     |
 
 ---
 

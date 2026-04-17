@@ -1,6 +1,6 @@
 # Current Status Audit
 
-> Last updated: 2026-04-13
+> Last updated: 2026-04-17
 > This file replaces the older MVP-era audit snapshot.
 
 ## Executive Summary
@@ -31,6 +31,7 @@ Current Studio capabilities include:
 - card-based image workflow
 - compare generation
 - 4-variant generation
+- image transform (style + pose dimensions, preset-based)
 - project tree and project-scoped history
 - drag-and-drop reference image flow
 - remix and Kontext edit entry
@@ -62,9 +63,22 @@ The current codebase still has some Studio-adjacent partial areas:
 - preview actions for super resolution / remove background / save edited output are present but disabled in Studio preview
 - LoRA training APIs and hook exist, but the main `/studio` route does not yet expose them as a first-class workflow
 - some long-video and audio/video assembly ideas are still roadmap work rather than finished product
+- Image transform: 3 of 5 dimensions (background/garment/detail) are schema-defined but not yet implemented
+
+## Quality and Testing Status (as of 2026-04-17)
+
+- 7-week Studio optimization plan fully completed (W1-W7)
+- 61 test files, 479 tests, all passing
+- Generation pipeline refactored into 3 composable stages
+- SEO fundamentals: metadata on all pages, noindex on private pages, robots.txt + sitemap
+- Design system compliance: no pure white backgrounds, shadow levels standardized, Skeleton component usage unified
+- Accessibility: keyboard shortcuts have IME guard, Particles respect prefers-reduced-motion
+- Dead code removed: useGenerateImage hook + generateImageAPI (-108 lines)
+- Gallery sentinel double-fetch race fixed
 
 ## Recommended Up-To-Date References
 
+- 7-week optimization progress: `docs/plans/studio-optimization-progress.md`
 - overall phase tracking: `docs/progress/phases.md`
 - forward-looking roadmap: `docs/product/roadmap.md`
 - system architecture: `docs/architecture/system-architecture.md`

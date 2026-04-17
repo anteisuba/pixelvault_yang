@@ -1,6 +1,6 @@
 # Development Phases
 
-> Last synced: 2026-04-13
+> Last synced: 2026-04-17
 > This file is the milestone-level status view.
 > For the current Studio implementation map, start with `../plans/frontend/studio-feature-map.md`.
 
@@ -156,3 +156,57 @@
 - Stronger card-binding continuity is still pending
 - Editing foundations exist, but outpainting and inpainting are not fully surfaced
 - LoRA-training APIs and hooks exist, but not yet as a first-class Studio route flow
+
+## Phase F: Studio Optimization (7-Week Plan) — COMPLETE
+
+> Full details: `../plans/studio-optimization-progress.md`
+
+### W1: Core Generation Path Tests — COMPLETE
+
+- `generate-image.service.test.ts` extended to 19 tests
+- `studio/generate/route.test.ts` and `generate/route.test.ts` added
+
+### W2: Style Presets + Unified Generate Hook — COMPLETE
+
+- 6 style presets with prompt injection
+- `use-unified-generate.test.ts` (8 tests)
+
+### W3: Quick Mode — COMPLETE
+
+- Simplified Studio entry for fast generation
+
+### W4: Generation Pipeline Extraction — COMPLETE
+
+- `generateImageForUser` split into 3 composable stages
+- Discriminated union return type prevents fallback double-persist
+
+### W5: Pipeline Tests + API Route Migration — COMPLETE
+
+- All API routes migrated to `createApiRoute` factory (Batch 1-6)
+- Route test coverage for 27 of 79 endpoints
+
+### W6: Video UI + Skeleton Standardization — COMPLETE
+
+- `use-video-model-options.ts` extracted (mirrors image/audio pattern)
+- Inline `animate-pulse` replaced with `<Skeleton>` component (3 files)
+
+### W7: De-AI Aesthetic + SEO — COMPLETE
+
+- `bg-white` → `bg-card` (audio-player)
+- `shadow-lg` → `shadow-md` (ImageCard, ArenaGrid, PolaroidCard)
+- Auth pages metadata + noindex added
+- Studio and profile pages noindex added
+
+### Image Transform System (Phase 1-2) — COMPLETE
+
+- 5-dimension Zod schema (style + pose implemented, 3 planned)
+- Full stack: types → constants → service → route → client → hook → UI
+- 6 transform presets, preservation system, StudioTransformPanel integration
+
+### Test Coverage Summary (as of 2026-04-17)
+
+- 61 test files, 479 tests, all passing
+- Service coverage: 9/33 (27%)
+- Route coverage: 27/79 (34%)
+- Component tests: 9 files
+- Hook tests: 2 files

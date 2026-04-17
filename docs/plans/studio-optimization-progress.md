@@ -78,6 +78,15 @@
 | WP-Gallery-06 Like     | EP-5 | ✅ 5 tests  | `src/hooks/use-like.test.ts` — inflight guard + 回滚         |
 | WP-StyleConsistency-02 | EP-1 | ✅ 6 tests  | `src/services/recipe-compiler.service.test.ts` — LoRA 6 路径 |
 
+### Round 2 · EP-1/4 核心业务测试（2026-04-17）
+
+> Usage Job↔Ledger + compileRecipe 两阶段
+
+| WP                     | EP   | 状态       | 产出文件                                            |
+| ---------------------- | ---- | ---------- | --------------------------------------------------- |
+| WP-Usage-01            | EP-4 | ✅ 6 tests | `src/services/usage.service.test.ts` — 5 函数全覆盖 |
+| WP-StyleConsistency-01 | EP-1 | ✅ 7 tests | `recipe-compiler.service.test.ts` — 两阶段 7 路径   |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

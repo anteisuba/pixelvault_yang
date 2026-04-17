@@ -32,7 +32,12 @@ vi.mock('@/services/llm-text.service', () => ({
 }))
 
 vi.mock('@/lib/llm-output-validator', () => ({
-  validateRecipeFusion: vi.fn((text: string) => text),
+  validateRecipeFusion: vi.fn((text: string) => ({
+    usable: true,
+    output: text,
+    reason: '',
+    warnings: [],
+  })),
 }))
 
 vi.mock('@/services/civitai-token.service', () => ({
@@ -48,13 +53,19 @@ vi.mock('@/services/civitai-token.service', () => ({
 import { db } from '@/lib/db'
 import { compileRecipe } from './recipe-compiler.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
-import { llmTextCompletion } from '@/services/llm-text.service'
+import {
+  llmTextCompletion,
+  resolveLlmTextRoute,
+} from '@/services/llm-text.service'
+import { validateRecipeFusion } from '@/lib/llm-output-validator'
 
 const mockCharFind = vi.mocked(db.characterCard.findFirst)
 const mockBgFind = vi.mocked(db.backgroundCard.findFirst)
 const mockStyleFind = vi.mocked(db.styleCard.findFirst)
 const mockCivitaiToken = vi.mocked(getCivitaiTokenByInternalUserId)
 const mockLlm = vi.mocked(llmTextCompletion)
+const mockLlmRoute = vi.mocked(resolveLlmTextRoute)
+const mockValidator = vi.mocked(validateRecipeFusion)
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
@@ -65,6 +76,7 @@ const mkStyleCard = (overrides: Record<string, unknown> = {}) => ({
   name: 'Test Style',
   userId: 'user-1',
   prompt: 'anime style',
+  stylePrompt: 'anime style',
   modelId: 'fal-ai/flux-2-pro',
   adapterType: 'fal',
   loras: [],
@@ -100,7 +112,12 @@ const mkBgCard = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockLlm.mockResolvedValue('compiled test prompt')
+  mockLlmRoute.mockResolvedValue({
+    adapterType: 'gemini',
+    apiKey: 'test-key',
+    providerConfig: { label: 'Gemini', baseUrl: 'https://api.gemini' },
+  } as never)
+  mockLlm.mockResolvedValue('LLM fused prompt output')
   mockCivitaiToken.mockResolvedValue(null)
 })
 
@@ -238,5 +255,148 @@ describe('LoRA merge in compileRecipe', () => {
 
     expect(result.advancedParams?.loras).toBeUndefined()
     expect(result.advancedParams?.guidanceScale).toBe(7)
+  })
+})
+
+// ─── WP-StyleConsistency-01 · compileRecipe two-stage tests ─────
+
+describe('compileRecipe two-stage compilation', () => {
+  it('uses LLM fusion output when available', async () => {
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ characterPrompt: 'a knight' }) as never,
+    )
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({ stylePrompt: 'oil painting' }) as never,
+    )
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      freePrompt: 'llm-success-test',
+    })
+
+    expect(mockLlm).toHaveBeenCalledOnce()
+    expect(result.compiledPrompt).toBe('LLM fused prompt output')
+  })
+
+  it('falls back to template when LLM returns null', async () => {
+    mockLlm.mockResolvedValue(null as never)
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ characterPrompt: 'a warrior' }) as never,
+    )
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({ stylePrompt: 'watercolor' }) as never,
+    )
+    mockBgFind.mockResolvedValue(
+      mkBgCard({ backgroundPrompt: 'forest' }) as never,
+    )
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      backgroundCardId: 'bg-1',
+      freePrompt: 'llm-null-test',
+    })
+
+    // Template: char, free, bg, style joined by ', '
+    expect(result.compiledPrompt).toBe(
+      'a warrior, llm-null-test, forest, watercolor',
+    )
+  })
+
+  it('falls back to template when LLM throws', async () => {
+    mockLlm.mockRejectedValue(new Error('LLM fusion timeout'))
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ characterPrompt: 'elf' }) as never,
+    )
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      freePrompt: 'llm-throw-test',
+    })
+
+    // Template fallback
+    expect(result.compiledPrompt).toBe('elf, llm-throw-test, anime style')
+  })
+
+  it('falls back to template when validation rejects', async () => {
+    mockValidator.mockReturnValue({
+      usable: false,
+      output: '',
+      reason: 'Character keywords lost',
+      warnings: [],
+    } as never)
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ characterPrompt: 'samurai' }) as never,
+    )
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({ stylePrompt: 'cyberpunk' }) as never,
+    )
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      freePrompt: 'validation-reject-test',
+    })
+
+    expect(result.compiledPrompt).toBe(
+      'samurai, validation-reject-test, cyberpunk',
+    )
+  })
+
+  it('includes freePrompt in template output', async () => {
+    mockLlm.mockResolvedValue(null as never)
+    mockCharFind.mockResolvedValue(null as never)
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      styleCardId: 'style-1',
+      freePrompt: 'standing on cliff unique',
+    })
+
+    expect(result.compiledPrompt).toBe('standing on cliff unique, anime style')
+  })
+
+  it('returns modelId and adapterType from styleCard', async () => {
+    mockCharFind.mockResolvedValue(null as never)
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({
+        modelId: 'custom-model',
+        adapterType: 'replicate',
+      }) as never,
+    )
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      styleCardId: 'style-1',
+      freePrompt: 'test',
+    })
+
+    expect(result.modelId).toBe('custom-model')
+    expect(result.adapterType).toBe('replicate')
+  })
+
+  it('throws when styleCard has no modelId', async () => {
+    mockCharFind.mockResolvedValue(null as never)
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({ modelId: null, adapterType: null }) as never,
+    )
+    mockBgFind.mockResolvedValue(null as never)
+
+    await expect(
+      compileRecipe({ userId: 'user-1', styleCardId: 'style-1' }),
+    ).rejects.toThrow('MISSING_MODEL_IN_STYLE')
   })
 })

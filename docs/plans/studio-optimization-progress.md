@@ -21,7 +21,7 @@
 | W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ✅ 完成（`6e5a63d`）                |
 | W5  | 管道测试 + API 路由迁移到 createApiRoute   | ✅ 完成（路由迁移已在之前批次完成） |
 | W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ✅ 完成（`3700ee6`）                |
-| W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                           |
+| W7  | 减轻 AI 感 + SEO 基础                      | ✅ 完成（`6e49cb6`）                |
 
 ### Phase 1 基础层奠基（2026-04-17）
 
@@ -162,7 +162,19 @@
 | 骨架屏标准化             | ✅   | CardDropdown / ProjectSelector / HistoryPanel → `<Skeleton>` 组件替换 |
 | 模型选择器统一           | N/A  | ModelSelector 组件已统一（image/audio/video/arena 共用）              |
 
+### W7 · 减轻 AI 感 + SEO 基础（2026-04-17）
+
+| 任务                  | 状态 | 改动                                                                     |
+| --------------------- | ---- | ------------------------------------------------------------------------ |
+| bg-white → bg-card    | ✅   | `audio-player.tsx` 纯白背景 → 设计系统卡片色                             |
+| shadow-lg → shadow-md | ✅   | ImageCard / ArenaGrid / PolaroidCard 降级（shadcn 原语不动）             |
+| auth 页面 metadata    | ✅   | sign-in + sign-up 新增 generateMetadata（title + description + noindex） |
+| 私有页面 noindex      | ✅   | studio + profile + auth 页面加 `robots: 'noindex, nofollow'`             |
+| i18n Metadata 扩展    | ✅   | en/ja/zh 新增 `Metadata.signIn` + `Metadata.signUp`                      |
+
 ---
+
+## 🎉 7 周优化计划全部完成（W1-W7）
 
 ## 二、已完成的工作（W1-W3）
 

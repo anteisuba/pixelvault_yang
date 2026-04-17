@@ -61,6 +61,9 @@ export const API_ENDPOINTS = {
   /** Image layer decomposition (See-Through) */
   IMAGE_DECOMPOSE: '/api/image/decompose',
 
+  /** Image transform (style / pose / background — Phase 1: style only) */
+  IMAGE_TRANSFORM: '/api/image-transform',
+
   /** Arena */
   ARENA_MATCHES: '/api/arena/matches',
   ARENA_LEADERBOARD: '/api/arena/leaderboard',
@@ -318,6 +321,7 @@ export const RATE_LIMIT_CONFIGS = {
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
+  imageTransform: { limit: 10, windowSeconds: 60 },
 } as const
 
 /** Centralized maxDuration configs for serverless functions */

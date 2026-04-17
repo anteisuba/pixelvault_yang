@@ -39,6 +39,21 @@
 | with-retry 单测（WP-Infra-01）          | ✅ 9 tests | `src/lib/with-retry.test.ts`（新建）                          |
 | i18n Transform namespace                | ✅ 完成    | `src/messages/{en,ja,zh}.json`（三语扩展）                    |
 
+### Phase 1 Service 编排层（2026-04-17）
+
+> image-transform 全栈：service → API route → client → hook → tests
+
+| 任务                       | 状态       | 产出文件                                                               |
+| -------------------------- | ---------- | ---------------------------------------------------------------------- |
+| handle-style-transform.ts  | ✅ 完成    | `src/services/image-transform/handle-style-transform.ts`（新建）       |
+| image-transform.service.ts | ✅ 完成    | `src/services/image-transform.service.ts`（新建，Strategy Pattern）    |
+| API route                  | ✅ 完成    | `src/app/api/image-transform/route.ts`（新建，createApiRoute factory） |
+| API client                 | ✅ 完成    | `src/lib/api-client/transform.ts`（新建）+ barrel re-export            |
+| Hook                       | ✅ 完成    | `src/hooks/use-image-transform.ts`（新建，submit + retry + reset）     |
+| Config 扩展                | ✅ 完成    | `RATE_LIMIT_CONFIGS.imageTransform` + `API_ENDPOINTS.IMAGE_TRANSFORM`  |
+| Service 单测               | ✅ 6 tests | `src/services/image-transform.service.test.ts`                         |
+| Route 单测                 | ✅ 8 tests | `src/app/api/image-transform/route.test.ts`                            |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

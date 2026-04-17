@@ -13,15 +13,15 @@
 
 测试和 UX 交替进行，每周有可见进展。
 
-| 周  | 内容                                       | 状态                         |
-| --- | ------------------------------------------ | ---------------------------- |
-| W1  | 核心生成路径测试                           | ✅ 完成                      |
-| W2  | 风格预设 + unified-generate hook 测试      | ✅ 完成                      |
-| W3  | Quick Mode 简化入口                        | ✅ 完成（commit: `6a5a07e`） |
-| W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ⏳ 未开始                    |
-| W5  | 管道测试 + API 路由迁移到 createApiRoute   | ⏳ 未开始                    |
-| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始                    |
-| W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                    |
+| 周  | 内容                                       | 状态                                |
+| --- | ------------------------------------------ | ----------------------------------- |
+| W1  | 核心生成路径测试                           | ✅ 完成                             |
+| W2  | 风格预设 + unified-generate hook 测试      | ✅ 完成                             |
+| W3  | Quick Mode 简化入口                        | ✅ 完成（commit: `6a5a07e`）        |
+| W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ✅ 完成（`6e5a63d`）                |
+| W5  | 管道测试 + API 路由迁移到 createApiRoute   | ✅ 完成（路由迁移已在之前批次完成） |
+| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始                           |
+| W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                           |
 
 ### Phase 1 基础层奠基（2026-04-17）
 
@@ -139,6 +139,20 @@
 | WP-Profile-04 | ✅ 18 tests | me/profile GET+PUT (8) + me/avatar POST (5) + [username] GET (5)        |
 | WP-Profile-03 | ✅ 11 tests | me/banner POST (5) + PrivateProfileView (6)                             |
 | WP-Profile-02 | ✅ 5 tests  | ProfileFeed batch ops: select mode / action bar / visibility API / exit |
+
+### W4 · 生成管道抽取（2026-04-17）
+
+| 任务                          | 状态 | 改动                                                      |
+| ----------------------------- | ---- | --------------------------------------------------------- |
+| generateImageForUser 管道拆分 | ✅   | 250 行→3 阶段函数 + 45 行编排器                           |
+| @ts-nocheck 清理              | N/A  | 用户代码零处（全在 Prisma 自动生成目录）                  |
+| W5 API 路由迁移               | N/A  | 已在之前 Batch 1-6 完成（6 commits: `20912e3`→`c9e9f04`） |
+
+**提取的阶段函数：**
+
+- `callProviderWithFallback` — circuit breaker + retry + free-tier 递归 fallback
+- `persistGeneratedImage` — R2 上传 + DB 记录 + usage 关联
+- discriminated union 返回类型防止 fallback 双重持久化
 
 ---
 

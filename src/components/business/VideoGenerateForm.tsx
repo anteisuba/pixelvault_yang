@@ -6,21 +6,14 @@ import { Check, User } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { VIDEO_GENERATION } from '@/constants/config'
-import {
-  getAvailableVideoModels,
-  getModelById,
-  supportsLongVideo,
-} from '@/constants/models'
+import { getModelById, supportsLongVideo } from '@/constants/models'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { isCjkLocale } from '@/i18n/routing'
 
 import dynamic from 'next/dynamic'
 
 import type { CharacterCardRecord } from '@/types'
-import {
-  ModelSelector,
-  type StudioModelOption,
-} from '@/components/business/ModelSelector'
+import { ModelSelector } from '@/components/business/ModelSelector'
 
 const PromptEnhancer = dynamic(() =>
   import('@/components/business/PromptEnhancer').then(
@@ -36,17 +29,12 @@ import { ReferenceImageSection } from '@/components/ui/reference-image-section'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioData } from '@/contexts/studio-context'
 import { useGenerateVideo } from '@/hooks/use-generate-video'
 import { useGenerateLongVideo } from '@/hooks/use-generate-long-video'
 import { useGenerationForm } from '@/hooks/use-generation-form'
-import {
-  buildSavedModelOptions,
-  findSelectedModel,
-  getTranslatedModelLabel,
-  mergeModelOptionsWithPreferredSavedRoutes,
-} from '@/lib/model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { resizeImageToDataUrl, VIDEO_SIZES } from '@/lib/video-utils'
 
@@ -63,7 +51,6 @@ export default function VideoGenerateForm({
   const tCard = useTranslations('VideoGenerate.characterCard')
   const tLong = useTranslations('LongVideo')
   const tModels = useTranslations('Models')
-  const { keys, healthMap } = useApiKeysContext()
   const { projects } = useStudioData()
   const {
     isGenerating,
@@ -119,27 +106,7 @@ export default function VideoGenerateForm({
     string | null
   >(null)
 
-  const videoModels = getAvailableVideoModels()
-
-  const builtInOptions: StudioModelOption[] = videoModels.map((model) => ({
-    optionId: `workspace:${model.id}`,
-    modelId: model.id,
-    adapterType: model.adapterType,
-    providerConfig: model.providerConfig,
-    requestCount: model.cost,
-    isBuiltIn: true,
-    sourceType: 'workspace',
-  }))
-  const savedOptions = buildSavedModelOptions(
-    keys.filter((key) => key.isActive),
-    (key) => videoModels.some((m) => m.id === key.modelId),
-  )
-  const modelOptions = mergeModelOptionsWithPreferredSavedRoutes(
-    savedOptions,
-    builtInOptions,
-    healthMap,
-  )
-  const selectedModel = findSelectedModel(modelOptions, selectedOptionId)
+  const { modelOptions, selectedModel } = useVideoModelOptions(selectedOptionId)
 
   const selectedApiKeyId = selectedModel?.keyId
   const selectedModelConfig = selectedModel

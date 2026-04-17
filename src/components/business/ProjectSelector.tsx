@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl'
 import type { ProjectRecord, CreateProjectRequest } from '@/types'
 import { PROJECT } from '@/constants/config'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface ProjectSelectorProps {
   projects: ProjectRecord[]
@@ -284,10 +285,7 @@ export function ProjectSelector({
             {isLoading && projects.length === 0 && (
               <div className="space-y-1 px-3 py-2">
                 {[1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-8 animate-pulse rounded bg-muted/50"
-                  />
+                  <Skeleton key={i} className="h-8 rounded" />
                 ))}
               </div>
             )}

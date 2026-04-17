@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { STUDIO_CARD_SORT_OPTIONS } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface CardItem {
   id: string
@@ -85,10 +86,7 @@ export function CardDropdown({
         return true
       }
 
-      const searchTarget = [
-        card.name,
-        ...(card.tags ?? []),
-      ]
+      const searchTarget = [card.name, ...(card.tags ?? [])]
         .join(' ')
         .toLowerCase()
 
@@ -155,9 +153,9 @@ export function CardDropdown({
       {isLoading ? (
         /* Loading skeleton */
         <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2">
-          <span className="w-5 h-5 rounded bg-muted animate-pulse flex-shrink-0" />
+          <Skeleton className="size-5 rounded flex-shrink-0" />
           <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="w-16 h-4 rounded bg-muted animate-pulse" />
+          <Skeleton className="h-4 w-16 rounded" />
         </div>
       ) : (
         <button

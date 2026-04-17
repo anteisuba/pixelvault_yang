@@ -7,6 +7,7 @@ import Image from 'next/image'
 
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 
 const TYPE_FILTERS = ['all', 'image', 'video', 'audio'] as const
@@ -109,9 +110,9 @@ export function HistoryPanel({
         {isLoading &&
           generations.length === 0 &&
           Array.from({ length: 6 }).map((_, i) => (
-            <div
+            <Skeleton
               key={`skeleton-${i}`}
-              className="aspect-square animate-pulse rounded-md bg-muted/50"
+              className="aspect-square rounded-md"
             />
           ))}
       </div>

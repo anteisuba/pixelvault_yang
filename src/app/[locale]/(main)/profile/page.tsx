@@ -38,6 +38,7 @@ export async function generateMetadata({
   return {
     title: t('profile.title'),
     description: t('profile.description'),
+    robots: 'noindex, nofollow',
   }
 }
 

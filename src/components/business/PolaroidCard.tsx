@@ -124,7 +124,7 @@ export function PolaroidCard({
         onKeyDown={handleKeyDown}
       >
         <div
-          className="rounded-sm shadow-lg overflow-hidden"
+          className="rounded-sm shadow-md overflow-hidden"
           style={{
             border: `8px solid ${PROFILE.POLAROID_BORDER_COLOR}`,
             borderBottom: `32px solid ${PROFILE.POLAROID_BORDER_COLOR}`,

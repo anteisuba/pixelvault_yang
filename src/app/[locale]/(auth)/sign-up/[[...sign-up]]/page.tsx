@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { SignUp } from '@clerk/nextjs'
 import { getTranslations } from 'next-intl/server'
 
@@ -7,6 +8,18 @@ import type { AppLocale } from '@/i18n/routing'
 
 interface SignUpPageProps {
   params: Promise<{ locale: AppLocale }>
+}
+
+export async function generateMetadata({
+  params,
+}: SignUpPageProps): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+  return {
+    title: t('signUp.title'),
+    description: t('signUp.description'),
+    robots: 'noindex, nofollow',
+  }
 }
 
 export default async function SignUpPage({ params }: SignUpPageProps) {

@@ -122,6 +122,14 @@
     "storyboard": {
       "title": "ストーリーボード — PixelVault",
       "description": "AI生成画像からビジュアルナラティブを作成。"
+    },
+    "signIn": {
+      "title": "ログイン — PixelVault",
+      "description": "ログインしてパーソナルAIギャラリーとクリエイティブツールにアクセス。"
+    },
+    "signUp": {
+      "title": "アカウント作成 — PixelVault",
+      "description": "PixelVaultに参加してAI画像を生成・保存・共有。"
     }
   },
   "Navbar": {

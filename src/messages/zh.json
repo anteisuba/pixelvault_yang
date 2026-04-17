@@ -122,6 +122,14 @@
     "storyboard": {
       "title": "故事板 — PixelVault",
       "description": "用 AI 生成的图像创建视觉叙事。"
+    },
+    "signIn": {
+      "title": "登录 — PixelVault",
+      "description": "登录以访问您的个人 AI 画廊和创作工具。"
+    },
+    "signUp": {
+      "title": "创建账户 — PixelVault",
+      "description": "加入 PixelVault，生成、存档和分享 AI 图像。"
     }
   },
   "Navbar": {

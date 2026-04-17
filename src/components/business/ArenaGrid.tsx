@@ -74,7 +74,7 @@ export function ArenaGrid({
               className={cn(
                 'group relative overflow-hidden rounded-2xl border transition-all',
                 isWinner
-                  ? 'border-primary shadow-lg shadow-primary/10'
+                  ? 'border-primary shadow-md shadow-primary/10'
                   : 'border-border/75',
               )}
             >

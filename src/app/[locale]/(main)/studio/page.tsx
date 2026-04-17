@@ -17,6 +17,7 @@ export async function generateMetadata({
   return {
     title: t('studio.title'),
     description: t('studio.description'),
+    robots: 'noindex, nofollow',
   }
 }
 

@@ -122,6 +122,14 @@
     "storyboard": {
       "title": "Storyboard — PixelVault",
       "description": "Create visual narratives from your AI-generated images."
+    },
+    "signIn": {
+      "title": "Sign In — PixelVault",
+      "description": "Sign in to access your personal AI gallery and creative tools."
+    },
+    "signUp": {
+      "title": "Create Account — PixelVault",
+      "description": "Join PixelVault to generate, archive, and share AI-created images."
     }
   },
   "Navbar": {

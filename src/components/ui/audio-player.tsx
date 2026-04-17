@@ -74,7 +74,7 @@ export function AudioPlayer({ src, className, compact }: AudioPlayerProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-xl border border-border bg-white p-3',
+        'flex items-center gap-3 rounded-xl border border-border bg-card p-3',
         compact && 'p-2 gap-2',
         className,
       )}

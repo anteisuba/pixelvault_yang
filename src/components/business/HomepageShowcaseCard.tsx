@@ -3,6 +3,7 @@
 import Image from 'next/image'
 
 import { MagicCard } from '@/components/ui/magic-card'
+import { BRAND_ACCENT, BRAND_ACCENT_DARK } from '@/lib/design-tokens'
 
 interface HomepageShowcaseCardProps {
   src: string
@@ -17,8 +18,8 @@ export function HomepageShowcaseCard({
 }: HomepageShowcaseCardProps) {
   return (
     <MagicCard
-      gradientFrom="#d97757"
-      gradientTo="#b85c3a"
+      gradientFrom={BRAND_ACCENT}
+      gradientTo={BRAND_ACCENT_DARK}
       gradientColor="rgba(217, 119, 87, 0.06)"
       gradientOpacity={0.8}
       className="homepage-showcase-card homepage-showcase-surface overflow-hidden rounded-2xl"

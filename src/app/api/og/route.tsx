@@ -6,12 +6,20 @@ import { getCreatorProfile } from '@/services/user.service'
 
 export const runtime = 'nodejs'
 
+import {
+  BRAND_ACCENT,
+  BRAND_BG,
+  BRAND_BORDER,
+  BRAND_FG,
+  BRAND_MUTED,
+} from '@/lib/design-tokens'
+
 const BRAND = 'PixelVault'
-const BG = '#faf9f5'
-const FG = '#141413'
-const MUTED = '#b0aea5'
-const ACCENT = '#d97757'
-const BORDER = '#e8e6dc'
+const BG = BRAND_BG
+const FG = BRAND_FG
+const MUTED = BRAND_MUTED
+const ACCENT = BRAND_ACCENT
+const BORDER = BRAND_BORDER
 
 /**
  * Dynamic OG image generation.

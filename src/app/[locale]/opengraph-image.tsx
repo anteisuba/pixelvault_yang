@@ -1,5 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { getTranslations } from 'next-intl/server'
+
+import { BRAND_ACCENT, BRAND_BG, BRAND_FG } from '@/lib/design-tokens'
 import { isAppLocale } from '@/i18n/routing'
 
 export const runtime = 'edge'
@@ -29,7 +31,7 @@ export default async function OGImage({
         flexDirection: 'column',
         alignItems: 'flex-start',
         justifyContent: 'flex-end',
-        backgroundColor: '#faf9f5',
+        backgroundColor: BRAND_BG,
         padding: '72px 80px',
         fontFamily: 'sans-serif',
         position: 'relative',
@@ -58,7 +60,7 @@ export default async function OGImage({
           width: 14,
           height: 14,
           borderRadius: '50%',
-          backgroundColor: '#d97757',
+          backgroundColor: BRAND_ACCENT,
         }}
       />
 
@@ -70,7 +72,7 @@ export default async function OGImage({
           left: 108,
           fontSize: 28,
           fontWeight: 700,
-          color: '#141413',
+          color: BRAND_FG,
           letterSpacing: '-0.03em',
         }}
       >
@@ -82,7 +84,7 @@ export default async function OGImage({
         style={{
           fontSize: 44,
           fontWeight: 600,
-          color: '#141413',
+          color: BRAND_FG,
           letterSpacing: '-0.03em',
           lineHeight: 1.15,
           maxWidth: 780,
@@ -98,7 +100,7 @@ export default async function OGImage({
           width: 48,
           height: 4,
           borderRadius: 2,
-          backgroundColor: '#d97757',
+          backgroundColor: BRAND_ACCENT,
         }}
       />
     </div>,

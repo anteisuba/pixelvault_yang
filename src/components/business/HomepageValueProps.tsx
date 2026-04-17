@@ -16,6 +16,7 @@ import {
   type HomepageValuePropIcon,
 } from '@/constants/homepage'
 import { isCjkLocale } from '@/i18n/routing'
+import { BRAND_ACCENT, BRAND_ACCENT_DARK } from '@/lib/design-tokens'
 import { cn } from '@/lib/utils'
 
 import { BlurFade } from '@/components/ui/blur-fade'
@@ -81,8 +82,8 @@ export function HomepageValueProps() {
               className={bentoSpans[index]}
             >
               <MagicCard
-                gradientFrom="#d97757"
-                gradientTo="#b85c3a"
+                gradientFrom={BRAND_ACCENT}
+                gradientTo={BRAND_ACCENT_DARK}
                 gradientColor="rgba(217, 119, 87, 0.06)"
                 gradientOpacity={0.8}
                 className="h-full rounded-2xl border-border/60 bg-transparent p-6"

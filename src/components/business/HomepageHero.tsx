@@ -6,6 +6,7 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { TextRepel } from '@/components/ui/text-repel'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { BRAND_ACCENT } from '@/lib/design-tokens'
 import { Link } from '@/i18n/navigation'
 
 interface HomepageHeroProps {
@@ -63,7 +64,7 @@ export function HomepageHero({
 
         <Link href={secondaryActionHref}>
           <ShimmerButton
-            shimmerColor="#d97757"
+            shimmerColor={BRAND_ACCENT}
             borderRadius="9999px"
             background="transparent"
             className="h-[2.85rem] min-w-48 px-6 text-sm font-semibold text-foreground border-border/80"

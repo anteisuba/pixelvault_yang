@@ -23,6 +23,22 @@
 | W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始                    |
 | W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                    |
 
+### Phase 1 基础层奠基（2026-04-17）
+
+> 基于 01-UI / 02-功能 决策书启动 Phase 1。此批次聚焦数据层和基础设施。
+
+| 任务                                    | 状态       | 产出文件                                                      |
+| --------------------------------------- | ---------- | ------------------------------------------------------------- |
+| Design Tokens 基础                      | ✅ 完成    | `src/lib/design-tokens.ts`（新建）                            |
+| 硬编码 hex 清理（15 处）                | ✅ 完成    | Homepage\*.tsx, MagicCard, TextRepel 等 9 个文件迁移至 tokens |
+| Transform Types & Schema                | ✅ 完成    | `src/types/transform.ts`（新建，5 维度 Zod schema）           |
+| Transform Presets（6 个 seed）          | ✅ 完成    | `src/constants/transform-presets.ts`（新建）                  |
+| Transform Dimensions（5 维度 Provider） | ✅ 完成    | `src/constants/transform-dimensions.ts`（新建）               |
+| NotImplementedError                     | ✅ 完成    | `src/lib/errors.ts`（扩展）                                   |
+| Toast Helper                            | ✅ 完成    | `src/lib/toast.ts`（新建，封装 sonner）                       |
+| with-retry 单测（WP-Infra-01）          | ✅ 9 tests | `src/lib/with-retry.test.ts`（新建）                          |
+| i18n Transform namespace                | ✅ 完成    | `src/messages/{en,ja,zh}.json`（三语扩展）                    |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

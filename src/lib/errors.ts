@@ -136,6 +136,16 @@ export class ApiKeyError extends GenerationError {
   }
 }
 
+export class NotImplementedError extends GenerationError {
+  readonly errorCode = 'NOT_IMPLEMENTED' as const
+  readonly httpStatus = 501
+  readonly i18nKey = 'Errors.notImplemented' as const
+
+  constructor(feature: string) {
+    super(`${feature} is not yet implemented`)
+  }
+}
+
 // ─── Type Guard ──────────────────────────────────────────────────
 
 export function isGenerationError(error: unknown): error is GenerationError {

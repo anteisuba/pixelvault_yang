@@ -1,7 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, type ComponentPropsWithoutRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ComponentPropsWithoutRef,
+} from 'react'
 
+import { BRAND_FG } from '@/lib/design-tokens'
 import { cn } from '@/lib/utils'
 
 interface CharParticle {
@@ -33,7 +39,7 @@ export function TextRepel({
   fontSize = 18,
   fontFamily = '"Space Grotesk", sans-serif',
   fontWeight = '400',
-  color = '#141413',
+  color = BRAND_FG,
   repelRadius = 80,
   repelForce = 0.4,
   lineHeight = 1.6,
@@ -67,7 +73,8 @@ export function TextRepel({
     // Resolve CSS variables for canvas
     const computedStyle = getComputedStyle(container)
     const resolvedFamily = fontFamily.startsWith('var(')
-      ? computedStyle.getPropertyValue(fontFamily.slice(4, -1)).trim() || 'sans-serif'
+      ? computedStyle.getPropertyValue(fontFamily.slice(4, -1)).trim() ||
+        'sans-serif'
       : fontFamily
     resolvedFontRef.current = resolvedFamily
     const font = `${fontWeight} ${fontSize}px ${resolvedFamily}`
@@ -120,9 +127,23 @@ export function TextRepel({
   }, [text, fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, dpr])
 
   const resolvedFontRef = useRef('sans-serif')
-  const configRef = useRef({ fontSize, fontWeight, color, repelRadius, repelForce, dpr })
+  const configRef = useRef({
+    fontSize,
+    fontWeight,
+    color,
+    repelRadius,
+    repelForce,
+    dpr,
+  })
   useEffect(() => {
-    configRef.current = { fontSize, fontWeight, color, repelRadius, repelForce, dpr }
+    configRef.current = {
+      fontSize,
+      fontWeight,
+      color,
+      repelRadius,
+      repelForce,
+      dpr,
+    }
   }, [fontSize, fontWeight, color, repelRadius, repelForce, dpr])
 
   useEffect(() => {
@@ -194,14 +215,11 @@ export function TextRepel({
     }
   }, [buildParticles])
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      mouseRef.current.x = e.clientX - rect.left
-      mouseRef.current.y = e.clientY - rect.top
-    },
-    [],
-  )
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    mouseRef.current.x = e.clientX - rect.left
+    mouseRef.current.y = e.clientY - rect.top
+  }, [])
 
   const handleMouseLeave = useCallback(() => {
     mouseRef.current.x = -9999
@@ -216,11 +234,7 @@ export function TextRepel({
       className={cn('relative overflow-hidden', className)}
       {...props}
     >
-      <canvas
-        ref={canvasRef}
-        className="block size-full"
-        aria-label={text}
-      />
+      <canvas ref={canvasRef} className="block size-full" aria-label={text} />
     </div>
   )
 }

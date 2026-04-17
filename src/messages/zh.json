@@ -1926,7 +1926,48 @@
       "unsupportedImageType": "请使用 JPEG、PNG 或 WebP 格式。",
       "avatarTooLarge": "头像不能超过 5 MB。",
       "bannerTooLarge": "封面图片不能超过 10 MB。"
+    },
+    "notImplemented": "此功能即将推出。"
+  },
+  "Transform": {
+    "title": "图像变换",
+    "description": "使用 AI 风格迁移变换你的图像",
+    "errors": {
+      "notImplemented": "此变换类型暂未开放，敬请期待！",
+      "uploadRequired": "请上传一张图片进行变换。",
+      "styleRequired": "请选择一个风格或预设。",
+      "partialSuccess": "{total} 个变体中有 {count} 个生成成功。",
+      "allFailed": "所有变体均生成失败，请重试。",
+      "inputTooLarge": "图片不能超过 10 MB，分辨率不能超过 2048×2048。"
+    },
+    "variants": {
+      "fast": "快速 (1×)",
+      "full": "4 变体",
+      "retry": "重试"
+    },
+    "preservation": {
+      "light": "轻度",
+      "medium": "中度",
+      "heavy": "重度",
+      "structure": "结构",
+      "text": "文字",
+      "composition": "构图",
+      "people": "人物"
+    },
+    "faceConsent": {
+      "title": "检测到人脸",
+      "description": "此图片似乎包含人脸。请确认你有权变换此图片。",
+      "confirm": "确认",
+      "cancel": "取消"
     }
+  },
+  "TransformPresets": {
+    "watercolor": "水彩画",
+    "oilPainting": "油画",
+    "ghibli": "吉卜力动画",
+    "cyberpunk": "赛博朋克",
+    "pixel": "像素艺术",
+    "photoRealistic": "照片级写实"
   },
   "LoraTraining": {
     "title": "训练 LoRA",

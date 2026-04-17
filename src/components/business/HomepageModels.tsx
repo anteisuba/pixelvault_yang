@@ -11,6 +11,7 @@ import {
   type ProviderGroup,
 } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
+import { BRAND_ACCENT, BRAND_ACCENT_DARK } from '@/lib/design-tokens'
 import { cn } from '@/lib/utils'
 
 import { BlurFade } from '@/components/ui/blur-fade'
@@ -166,8 +167,8 @@ export function HomepageModels() {
           return (
             <TabsContent key={group} value={group} className="mt-4">
               <MagicCard
-                gradientFrom="#d97757"
-                gradientTo="#b85c3a"
+                gradientFrom={BRAND_ACCENT}
+                gradientTo={BRAND_ACCENT_DARK}
                 gradientColor="rgba(217, 119, 87, 0.04)"
                 gradientOpacity={0.6}
                 className="rounded-2xl border-border/60 bg-transparent overflow-hidden"

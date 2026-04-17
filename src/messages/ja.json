@@ -1925,7 +1925,48 @@
       "unsupportedImageType": "JPEG、PNG、WebP形式を使用してください。",
       "avatarTooLarge": "アバターは5MB以下にしてください。",
       "bannerTooLarge": "カバー画像は10MB以下にしてください。"
+    },
+    "notImplemented": "この機能は近日公開予定です。"
+  },
+  "Transform": {
+    "title": "画像変換",
+    "description": "AIスタイル転送で画像を変換します",
+    "errors": {
+      "notImplemented": "この変換タイプはまだ利用できません。お楽しみに！",
+      "uploadRequired": "変換する画像をアップロードしてください。",
+      "styleRequired": "スタイルまたはプリセットを選択してください。",
+      "partialSuccess": "{total}件中{count}件のバリアントが正常に生成されました。",
+      "allFailed": "すべてのバリアントの生成に失敗しました。もう一度お試しください。",
+      "inputTooLarge": "画像は10MB以下、2048×2048ピクセル以下にしてください。"
+    },
+    "variants": {
+      "fast": "高速 (1×)",
+      "full": "4バリアント",
+      "retry": "リトライ"
+    },
+    "preservation": {
+      "light": "ライト",
+      "medium": "ミディアム",
+      "heavy": "ヘビー",
+      "structure": "構造",
+      "text": "テキスト",
+      "composition": "構図",
+      "people": "人物"
+    },
+    "faceConsent": {
+      "title": "顔を検出",
+      "description": "この画像には顔が含まれているようです。この画像を変換する権利があることを確認してください。",
+      "confirm": "確認する",
+      "cancel": "キャンセル"
     }
+  },
+  "TransformPresets": {
+    "watercolor": "水彩画",
+    "oilPainting": "油絵",
+    "ghibli": "ジブリアニメ",
+    "cyberpunk": "サイバーパンク",
+    "pixel": "ピクセルアート",
+    "photoRealistic": "フォトリアリスティック"
   },
   "LoraTraining": {
     "title": "LoRAトレーニング",

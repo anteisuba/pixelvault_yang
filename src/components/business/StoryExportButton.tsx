@@ -5,6 +5,7 @@ import { Download, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { BRAND_BG } from '@/lib/design-tokens'
 
 interface StoryExportButtonProps {
   storyTitle: string
@@ -28,7 +29,7 @@ export function StoryExportButton({
         useCORS: true,
         allowTaint: true,
         scale: 2,
-        backgroundColor: '#faf9f5',
+        backgroundColor: BRAND_BG,
       })
 
       const link = document.createElement('a')

@@ -3,10 +3,19 @@
   "configurations": [
     {
       "name": "nextjs-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": [
+        "-c",
+        "source ~/.nvm/nvm.sh && nvm use 22 && npm run dev"
+      ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "mockup-server",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8899", "--directory", ".claude"],
+      "port": 8899
     }
   ]
 }

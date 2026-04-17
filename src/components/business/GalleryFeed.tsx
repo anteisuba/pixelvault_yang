@@ -7,7 +7,7 @@ import { useCallback } from 'react'
 import { ROUTES } from '@/constants/routes'
 import { buildGalleryQueryString } from '@/lib/gallery-query'
 
-import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
+import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
 import { PulsatingButton } from '@/components/ui/pulsating-button'
@@ -65,7 +65,7 @@ export function GalleryFeed({
 
   return (
     <div className="space-y-7">
-      <GalleryFilterBar
+      <GalleryHeader
         filters={filters}
         onFiltersChange={handleFiltersChange}
         isLoading={isLoading}

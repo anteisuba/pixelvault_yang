@@ -68,6 +68,16 @@
 | InputImage 单测        | ✅ 4 tests | 上传区渲染 / 预览 / 删除回调 / disabled                   |
 | VariantsGrid 单测      | ✅ 5 tests | skeleton / 空态 / 成功图片 / 失败重试 / 单列模式          |
 
+### Round 1 · EP-1/3/5 测试底盘（2026-04-17）
+
+> 三项并行：R2 wrapper + Like 竞态 + LoRA 合并
+
+| WP                     | EP   | 状态        | 产出文件                                                     |
+| ---------------------- | ---- | ----------- | ------------------------------------------------------------ |
+| WP-Storage-01 R2       | EP-3 | ✅ 15 tests | `src/services/storage/r2.test.ts` — 5 export 全覆盖          |
+| WP-Gallery-06 Like     | EP-5 | ✅ 5 tests  | `src/hooks/use-like.test.ts` — inflight guard + 回滚         |
+| WP-StyleConsistency-02 | EP-1 | ✅ 6 tests  | `src/services/recipe-compiler.service.test.ts` — LoRA 6 路径 |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

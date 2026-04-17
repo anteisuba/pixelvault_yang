@@ -87,6 +87,12 @@
 | WP-Usage-01            | EP-4 | ✅ 6 tests | `src/services/usage.service.test.ts` — 5 函数全覆盖 |
 | WP-StyleConsistency-01 | EP-1 | ✅ 7 tests | `recipe-compiler.service.test.ts` — 两阶段 7 路径   |
 
+### Round 3 · EP-4 FreeTier 并发边界（2026-04-17）
+
+| WP          | EP   | 状态       | 产出文件                                                |
+| ----------- | ---- | ---------- | ------------------------------------------------------- |
+| WP-Usage-02 | EP-4 | ✅ 7 tests | `src/services/free-tier-boundary.test.ts` — 并发 + 边界 |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

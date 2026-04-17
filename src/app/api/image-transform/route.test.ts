@@ -87,10 +87,10 @@ describe('POST /api/image-transform', () => {
     expect(json.success).toBe(false)
   })
 
-  it('returns 400 when transformation.type is not style (Phase 1 refinement)', async () => {
+  it('returns 400 when transformation.type is not implemented (background)', async () => {
     const body = {
       ...VALID_BODY,
-      transformation: { type: 'pose' },
+      transformation: { type: 'background' },
     }
     const req = createPOST('/api/image-transform', body)
     const res = await POST(req)

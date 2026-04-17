@@ -33,7 +33,7 @@ export const DIMENSION_PROVIDERS: Record<TransformationType, DimensionConfig> =
     pose: {
       defaultModelId: 'fal-ai/flux-pro/kontext',
       defaultAdapterType: 'fal' as AI_ADAPTER_TYPES,
-      status: 'planned',
+      status: 'implemented',
       phase: 2,
     },
     background: {

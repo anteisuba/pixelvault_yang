@@ -5,13 +5,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/services/image-transform/handle-style-transform', () => ({
   handleStyleTransform: vi.fn(),
 }))
+vi.mock('@/services/image-transform/handle-pose-transform', () => ({
+  handlePoseTransform: vi.fn(),
+}))
 
 import { transformImage } from '@/services/image-transform.service'
 import { handleStyleTransform } from '@/services/image-transform/handle-style-transform'
+import { handlePoseTransform } from '@/services/image-transform/handle-pose-transform'
 import { NotImplementedError } from '@/lib/errors'
 import type { TransformInput, TransformOutput } from '@/types/transform'
 
 const mockHandleStyle = vi.mocked(handleStyleTransform)
+const mockHandlePose = vi.mocked(handlePoseTransform)
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
@@ -56,16 +61,18 @@ describe('transformImage', () => {
     expect(result).toEqual(MOCK_OUTPUT)
   })
 
-  it('throws NotImplementedError for pose type', async () => {
+  it('routes pose type to handlePoseTransform', async () => {
+    mockHandlePose.mockResolvedValue(MOCK_OUTPUT)
     const input = {
       ...STYLE_INPUT,
       transformation: { type: 'pose' as const },
     }
 
-    await expect(transformImage('user_clerk_123', input)).rejects.toThrow(
-      NotImplementedError,
-    )
+    const result = await transformImage('user_clerk_123', input)
+
+    expect(mockHandlePose).toHaveBeenCalledWith('user_clerk_123', input)
     expect(mockHandleStyle).not.toHaveBeenCalled()
+    expect(result).toEqual(MOCK_OUTPUT)
   })
 
   it('throws NotImplementedError for background type', async () => {

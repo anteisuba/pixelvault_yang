@@ -14,6 +14,7 @@ import { NotImplementedError } from '@/lib/errors'
 import type { TransformInput, TransformOutput } from '@/types/transform'
 
 import { handleStyleTransform } from './image-transform/handle-style-transform'
+import { handlePoseTransform } from './image-transform/handle-pose-transform'
 
 export async function transformImage(
   clerkId: string,
@@ -24,6 +25,8 @@ export async function transformImage(
       return handleStyleTransform(clerkId, input)
 
     case 'pose':
+      return handlePoseTransform(clerkId, input)
+
     case 'background':
     case 'garment':
     case 'detail':

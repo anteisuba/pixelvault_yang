@@ -106,6 +106,17 @@
 | 上下文测试修复             | ✅   | `studio-context.test.ts`                        |
 | i18n 三语                  | ✅   | `en/ja/zh.json`（StudioV2 + StudioPanels）      |
 
+### Phase 2 · GalleryHeader + CardDrawer + Pose Transform（2026-04-17）
+
+| 任务                     | 状态 | 产出文件 / 改动                                            |
+| ------------------------ | ---- | ---------------------------------------------------------- |
+| GalleryHeader            | ✅   | `gallery/GalleryHeader.tsx` + `GalleryAdvancedFilters.tsx` |
+| CardDrawer               | ✅   | `CardDrawer.tsx` + Navbar 入口                             |
+| handle-pose-transform    | ✅   | `image-transform/handle-pose-transform.ts`                 |
+| service switch 开放 pose | ✅   | `image-transform.service.ts` 路由 + schema 放行            |
+| dimensions 状态更新      | ✅   | `transform-dimensions.ts` pose → implemented               |
+| 测试更新                 | ✅   | service test: pose 路由测试替换 NotImplementedError        |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

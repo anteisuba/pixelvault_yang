@@ -86,15 +86,18 @@ export const TransformInputSchema = z
   })
   .refine(
     (data) => {
-      // Phase 1: only 'style' is implemented
-      if (data.transformation.type !== 'style') {
+      // Phase 2: style + pose are implemented
+      if (
+        data.transformation.type !== 'style' &&
+        data.transformation.type !== 'pose'
+      ) {
         return false
       }
       return true
     },
     {
       message:
-        'Only "style" transformation is currently supported. Other types (pose, background, garment, detail) will be available in future phases.',
+        'Only "style" and "pose" transformations are currently supported. Other types (background, garment, detail) will be available in future phases.',
       path: ['transformation', 'type'],
     },
   )

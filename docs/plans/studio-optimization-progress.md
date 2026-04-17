@@ -132,6 +132,14 @@
 | WP-Studio-03 | ✅   | 删除死代码 `use-generate.ts` + `generateImageAPI` — useUnifiedGenerate 已完全覆盖 |
 | WP-Studio-04 | ✅   | `use-studio-shortcuts.ts` + `StudioCommandPalette.tsx` — IME isComposing 守护     |
 
+### EP-7 Profile 测试覆盖（2026-04-17）
+
+| WP            | 状态        | 产出 / 改动                                                             |
+| ------------- | ----------- | ----------------------------------------------------------------------- |
+| WP-Profile-04 | ✅ 18 tests | me/profile GET+PUT (8) + me/avatar POST (5) + [username] GET (5)        |
+| WP-Profile-03 | ✅ 11 tests | me/banner POST (5) + PrivateProfileView (6)                             |
+| WP-Profile-02 | ✅ 5 tests  | ProfileFeed batch ops: select mode / action bar / visibility API / exit |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

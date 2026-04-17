@@ -117,6 +117,20 @@
 | dimensions 状态更新      | ✅   | `transform-dimensions.ts` pose → implemented               |
 | 测试更新                 | ✅   | service test: pose 路由测试替换 NotImplementedError        |
 
+### EP-5 Gallery 收口（2026-04-17）
+
+| WP            | 状态        | 产出 / 改动                                                  |
+| ------------- | ----------- | ------------------------------------------------------------ |
+| WP-Gallery-02 | ✅ 14 tests | `ImageDetailModal.test.tsx` (8) + `ImageCard.test.tsx` (6)   |
+| WP-Gallery-01 | ✅ 完成     | `particles.tsx` — prefers-reduced-motion 守护，静态粒子降级  |
+| WP-Gallery-04 | ✅ 完成     | `use-gallery.ts` — sentinel 竞态修复，isFetchingRef 同步设置 |
+
+### EP-6 Studio 修复（2026-04-17）
+
+| WP           | 状态 | 产出 / 改动                                                                   |
+| ------------ | ---- | ----------------------------------------------------------------------------- |
+| WP-Studio-04 | ✅   | `use-studio-shortcuts.ts` + `StudioCommandPalette.tsx` — IME isComposing 守护 |
+
 ---
 
 ## 二、已完成的工作（W1-W3）

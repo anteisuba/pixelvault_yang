@@ -26,9 +26,8 @@ export function toastPromise<T>(
     success: string | ((data: T) => string)
     error: string | ((error: unknown) => string)
   },
-  options?: ExternalToast,
 ) {
-  return toast.promise(promise, messages, options)
+  return toast.promise(promise, messages)
 }
 
 /** Dismiss a specific toast or all toasts */

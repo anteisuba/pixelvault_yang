@@ -56,7 +56,7 @@ export type TransformStyle = z.infer<typeof TransformStyleSchema>
 
 export const TransformationSchema = z.object({
   type: TransformationTypeSchema,
-  params: z.record(z.unknown()).optional(),
+  params: z.record(z.string(), z.unknown()).optional(),
 })
 export type Transformation = z.infer<typeof TransformationSchema>
 

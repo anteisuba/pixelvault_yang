@@ -237,71 +237,34 @@ export async function recordFailedUsage(params: {
   ])
 }
 
-export async function generateImageForUser(
-  clerkId: string,
-  input: GenerateRequest,
-): Promise<GenerationRecord> {
-  const dbUser = await ensureUser(clerkId)
+// ─── Stage B: Call Provider with resilience + fallback ──────────
 
-  // Validate prompt before processing
-  const promptCheck = validatePrompt(input.prompt)
-  if (!promptCheck.valid) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      promptCheck.reason ?? 'Invalid prompt',
-      400,
-    )
-  }
-
-  const executionRoute = await resolveGenerationRoute(dbUser.id, input)
-
-  // Validate: models that require reference images must have at least one
-  const builtInModel = getModelById(input.modelId)
-  if (builtInModel?.requiresReferenceImage) {
-    const hasRef =
-      input.referenceImage || (input.referenceImages?.length ?? 0) > 0
-    if (!hasRef) {
-      throw new GenerateImageServiceError(
-        'VALIDATION_ERROR',
-        'This model requires at least one reference image',
-        400,
-      )
-    }
-  }
-
-  const provider = getProviderLabel(executionRoute.providerConfig)
-  const providerAdapter = getProviderAdapter(executionRoute.adapterType)
-
-  if (!providerAdapter) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      `Unsupported model: ${executionRoute.modelId}`,
-      400,
-    )
-  }
-
-  const generationJob = await createGenerationJob({
-    userId: dbUser.id,
-    adapterType: executionRoute.adapterType,
-    provider,
-    modelId: executionRoute.modelId,
-  })
-
-  const providerCallStartedAt = Date.now()
-  let generatedAsset: ProviderGenerationResult
-
-  const breaker = getCircuitBreaker(executionRoute.adapterType)
+async function callProviderWithFallback(params: {
+  clerkId: string
+  input: GenerateRequest
+  route: ResolvedGenerationRoute
+  userId: string
+  provider: string
+  generationJobId: string
+}): Promise<
+  | { fallbackUsed: false; asset: ProviderGenerationResult; durationMs: number }
+  | { fallbackUsed: true; generation: GenerationRecord }
+> {
+  const { clerkId, input, route, userId, provider, generationJobId } = params
+  const providerAdapter = getProviderAdapter(route.adapterType)!
+  const breaker = getCircuitBreaker(route.adapterType)
+  const startedAt = Date.now()
 
   try {
-    generatedAsset = await breaker.call(() =>
+    const asset = await breaker.call(() =>
       withRetry(
         () =>
           providerAdapter.generateImage({
             prompt: input.prompt,
-            modelId: executionRoute.modelId,
+            modelId: route.modelId,
             aspectRatio: input.aspectRatio,
-            providerConfig: executionRoute.providerConfig,
-            apiKey: executionRoute.apiKey,
+            providerConfig: route.providerConfig,
+            apiKey: route.apiKey,
             referenceImage: input.referenceImage,
             referenceImages: input.referenceImages,
             advancedParams: input.advancedParams,
@@ -309,33 +272,38 @@ export async function generateImageForUser(
         {
           maxAttempts: 2,
           baseDelayMs: 1500,
-          label: `${executionRoute.adapterType}.generateImage`,
+          label: `${route.adapterType}.generateImage`,
         },
       ),
     )
 
     logger.info('Image generated successfully', {
-      adapter: executionRoute.adapterType,
-      modelId: executionRoute.modelId,
-      durationMs: Date.now() - providerCallStartedAt,
+      adapter: route.adapterType,
+      modelId: route.modelId,
+      durationMs: Date.now() - startedAt,
     })
+
+    return {
+      fallbackUsed: false as const,
+      asset,
+      durationMs: Date.now() - startedAt,
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Image generation failed'
 
     await recordFailedUsage({
-      userId: dbUser.id,
-      generationJobId: generationJob.id,
-      adapterType: executionRoute.adapterType,
+      userId,
+      generationJobId,
+      adapterType: route.adapterType,
       provider,
-      modelId: executionRoute.modelId,
-      creditCost: executionRoute.creditCost,
-      durationMs: Date.now() - providerCallStartedAt,
+      modelId: route.modelId,
+      creditCost: route.creditCost,
+      durationMs: Date.now() - startedAt,
       referenceImage: input.referenceImage,
       errorMessage: message,
     })
 
-    // Wrap raw provider errors so API routes can return proper status codes
     if (error instanceof GenerateImageServiceError) {
       throw error
     }
@@ -346,20 +314,20 @@ export async function generateImageForUser(
       (error instanceof Error &&
         /timeout|econnreset|fetch failed/i.test(error.message))
 
-    if (isTransient && executionRoute.isFreeGeneration) {
-      const fallbackModelId = PROVIDER_FALLBACK_MAP[executionRoute.modelId]
+    if (isTransient && route.isFreeGeneration) {
+      const fallbackModelId = PROVIDER_FALLBACK_MAP[route.modelId]
       if (fallbackModelId) {
         logger.warn('Primary provider failed, attempting fallback', {
-          failedModel: executionRoute.modelId,
+          failedModel: route.modelId,
           fallbackModel: fallbackModelId,
           error: message,
         })
         try {
-          // Recursive call with fallback model — will resolve a new route
-          return await generateImageForUser(clerkId, {
+          const generation = await generateImageForUser(clerkId, {
             ...input,
             modelId: fallbackModelId,
           })
+          return { fallbackUsed: true as const, generation }
         } catch (fallbackError) {
           logger.error('Fallback provider also failed', {
             fallbackModel: fallbackModelId,
@@ -368,55 +336,65 @@ export async function generateImageForUser(
                 ? fallbackError.message
                 : String(fallbackError),
           })
-          // Fall through to throw original error
         }
       }
     }
 
     const status = error instanceof ProviderError ? error.status : 502
-    // Map known provider error patterns to specific service error codes
     const code =
       error instanceof ProviderError && error.status === 403
         ? 'NOVELAI_TIER_LIMIT'
         : 'PROVIDER_ERROR'
     throw new GenerateImageServiceError(code, message, status)
   }
+}
+
+// ─── Stage C: Persist generated image to R2 + DB ────────────────
+
+async function persistGeneratedImage(params: {
+  userId: string
+  input: GenerateRequest
+  route: ResolvedGenerationRoute
+  provider: string
+  generationJobId: string
+  asset: ProviderGenerationResult
+  durationMs: number
+}): Promise<GenerationRecord> {
+  const { userId, input, route, provider, generationJobId, asset, durationMs } =
+    params
 
   const usageEntry = await createApiUsageEntry({
-    userId: dbUser.id,
-    generationJobId: generationJob.id,
-    adapterType: executionRoute.adapterType,
+    userId,
+    generationJobId,
+    adapterType: route.adapterType,
     provider,
-    modelId: executionRoute.modelId,
-    requestCount: executionRoute.creditCost,
+    modelId: route.modelId,
+    requestCount: route.creditCost,
     inputImageCount: input.referenceImage
       ? 1
       : (input.referenceImages?.length ?? 0),
     outputImageCount: 1,
-    width: generatedAsset.width,
-    height: generatedAsset.height,
-    durationMs: Date.now() - providerCallStartedAt,
+    width: asset.width,
+    height: asset.height,
+    durationMs,
     wasSuccessful: true,
   })
 
-  const storageKey = generateStorageKey('IMAGE', dbUser.id)
-  // Use single referenceImage if available, otherwise take first from referenceImages array
+  const storageKey = generateStorageKey('IMAGE', userId)
   const effectiveRefImage =
     input.referenceImage || input.referenceImages?.[0] || undefined
   const refKey = effectiveRefImage
-    ? generateStorageKey('IMAGE', dbUser.id)
+    ? generateStorageKey('IMAGE', userId)
     : undefined
 
   try {
-    // Fetch reference image and generated image in parallel
     const [refData, genData] = await Promise.all([
       effectiveRefImage
         ? fetchAsBuffer(effectiveRefImage)
         : Promise.resolve(null),
-      fetchAsBuffer(generatedAsset.imageUrl),
+      fetchAsBuffer(asset.imageUrl),
     ])
 
-    // Upload both to R2 in parallel
     const [referenceImageUrl, permanentUrl] = await Promise.all([
       refData && refKey
         ? uploadToR2({
@@ -437,28 +415,28 @@ export async function generateImageForUser(
       url: permanentUrl,
       storageKey,
       mimeType,
-      width: generatedAsset.width,
-      height: generatedAsset.height,
+      width: asset.width,
+      height: asset.height,
       referenceImageUrl,
       prompt: input.prompt,
-      model: executionRoute.modelId,
+      model: route.modelId,
       provider,
-      requestCount: executionRoute.creditCost,
-      isFreeGeneration: executionRoute.isFreeGeneration,
-      userId: dbUser.id,
+      requestCount: route.creditCost,
+      isFreeGeneration: route.isFreeGeneration,
+      userId,
       characterCardIds: input.characterCardIds,
       projectId: input.projectId,
       snapshot: JSON.parse(
         JSON.stringify({
           compiledPrompt: input.prompt,
-          modelId: executionRoute.modelId,
+          modelId: route.modelId,
           aspectRatio: input.aspectRatio,
           advancedParams: input.advancedParams,
           referenceImages: input.referenceImages,
           apiKeyId: input.apiKeyId,
           projectId: input.projectId,
-          isFreeGeneration: executionRoute.isFreeGeneration,
-          creditCost: executionRoute.creditCost,
+          isFreeGeneration: route.isFreeGeneration,
+          creditCost: route.creditCost,
           seed: input.advancedParams?.seed,
         }),
       ),
@@ -470,9 +448,9 @@ export async function generateImageForUser(
 
     await Promise.all([
       attachUsageEntryToGeneration(usageEntry.id, generation.id),
-      completeGenerationJob(generationJob.id, {
+      completeGenerationJob(generationJobId, {
         generationId: generation.id,
-        requestCount: executionRoute.creditCost,
+        requestCount: route.creditCost,
       }),
     ])
 
@@ -481,11 +459,83 @@ export async function generateImageForUser(
     const message =
       error instanceof Error ? error.message : 'Failed to persist generation'
 
-    await failGenerationJob(generationJob.id, {
-      requestCount: executionRoute.creditCost,
+    await failGenerationJob(generationJobId, {
+      requestCount: route.creditCost,
       errorMessage: message,
     })
 
     throw error
   }
+}
+
+// ─── Orchestrator ───────────────────────────────────────────────
+
+export async function generateImageForUser(
+  clerkId: string,
+  input: GenerateRequest,
+): Promise<GenerationRecord> {
+  const dbUser = await ensureUser(clerkId)
+
+  const promptCheck = validatePrompt(input.prompt)
+  if (!promptCheck.valid) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      promptCheck.reason ?? 'Invalid prompt',
+      400,
+    )
+  }
+
+  const route = await resolveGenerationRoute(dbUser.id, input)
+
+  const builtInModel = getModelById(input.modelId)
+  if (builtInModel?.requiresReferenceImage) {
+    const hasRef =
+      input.referenceImage || (input.referenceImages?.length ?? 0) > 0
+    if (!hasRef) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'This model requires at least one reference image',
+        400,
+      )
+    }
+  }
+
+  const provider = getProviderLabel(route.providerConfig)
+  const providerAdapter = getProviderAdapter(route.adapterType)
+  if (!providerAdapter) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      `Unsupported model: ${route.modelId}`,
+      400,
+    )
+  }
+
+  const job = await createGenerationJob({
+    userId: dbUser.id,
+    adapterType: route.adapterType,
+    provider,
+    modelId: route.modelId,
+  })
+
+  const result = await callProviderWithFallback({
+    clerkId,
+    input,
+    route,
+    userId: dbUser.id,
+    provider,
+    generationJobId: job.id,
+  })
+
+  // Fallback already ran the full pipeline via recursive generateImageForUser
+  if (result.fallbackUsed) return result.generation
+
+  return persistGeneratedImage({
+    userId: dbUser.id,
+    input,
+    route,
+    provider,
+    generationJobId: job.id,
+    asset: result.asset,
+    durationMs: result.durationMs,
+  })
 }

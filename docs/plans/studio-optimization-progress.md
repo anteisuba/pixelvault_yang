@@ -20,7 +20,7 @@
 | W3  | Quick Mode 简化入口                        | ✅ 完成（commit: `6a5a07e`）        |
 | W4  | 生成管道抽取（组合函数）+ @ts-nocheck 清理 | ✅ 完成（`6e5a63d`）                |
 | W5  | 管道测试 + API 路由迁移到 createApiRoute   | ✅ 完成（路由迁移已在之前批次完成） |
-| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ⏳ 未开始                           |
+| W6  | Video UI 统一 + 骨架屏 + 模型选择器统一    | ✅ 完成（`3700ee6`）                |
 | W7  | 减轻 AI 感 + SEO 基础                      | ⏳ 未开始                           |
 
 ### Phase 1 基础层奠基（2026-04-17）
@@ -153,6 +153,14 @@
 - `callProviderWithFallback` — circuit breaker + retry + free-tier 递归 fallback
 - `persistGeneratedImage` — R2 上传 + DB 记录 + usage 关联
 - discriminated union 返回类型防止 fallback 双重持久化
+
+### W6 · Video UI 统一 + 骨架屏 + 模型选择器统一（2026-04-17）
+
+| 任务                     | 状态 | 改动                                                                  |
+| ------------------------ | ---- | --------------------------------------------------------------------- |
+| Video model options hook | ✅   | 新建 `use-video-model-options.ts`，VideoGenerateForm -18 行           |
+| 骨架屏标准化             | ✅   | CardDropdown / ProjectSelector / HistoryPanel → `<Skeleton>` 组件替换 |
+| 模型选择器统一           | N/A  | ModelSelector 组件已统一（image/audio/video/arena 共用）              |
 
 ---
 

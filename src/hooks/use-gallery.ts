@@ -112,16 +112,13 @@ export function useGallery({
   }, [hasMore])
 
   useEffect(() => {
-    isFetchingRef.current = isFetching
-  }, [isFetching])
-
-  useEffect(() => {
     filtersRef.current = filters
   }, [filters])
 
   const fetchPage = useCallback(
     async (targetPage: number, append: boolean) => {
       if (isFetchingRef.current) return
+      isFetchingRef.current = true
 
       setIsFetching(true)
 
@@ -166,6 +163,7 @@ export function useGallery({
           error instanceof Error ? error.message : 'Failed to load gallery',
         )
       }
+      isFetchingRef.current = false
       setIsFetching(false)
     },
     [limit, mine, startTransition, tErrors],

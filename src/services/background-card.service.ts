@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { BACKGROUND_CARD } from '@/constants/card-types'
 import type {
   BackgroundCardRecord,
@@ -118,7 +119,7 @@ export async function createBackgroundCard(
         backgroundPrompt = extracted.prompt
       } catch {
         // LLM unavailable — card still created with user's manual prompt and uploaded image
-        console.warn(
+        logger.warn(
           '[BackgroundCard] Attribute extraction failed, using manual prompt',
         )
       }

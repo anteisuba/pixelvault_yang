@@ -22,6 +22,7 @@ import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getModelById } from '@/constants/models'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { TreeView, type TreeDataItem } from '@/components/ui/tree-view'
@@ -161,9 +162,20 @@ export const StudioSidebar = memo(function StudioSidebar() {
   const { keys, healthMap } = useApiKeysContext()
   const { modelOptions: imageModelOptions } = useImageModelOptions()
   const { modelOptions: audioModelOptions } = useAudioModelOptions()
+  const { modelOptions: videoModelOptions } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
   const modelOptions =
-    state.outputType === 'audio' ? audioModelOptions : imageModelOptions
-  const allModelOptions = [...imageModelOptions, ...audioModelOptions]
+    state.outputType === 'audio'
+      ? audioModelOptions
+      : state.outputType === 'video'
+        ? videoModelOptions
+        : imageModelOptions
+  const allModelOptions = [
+    ...imageModelOptions,
+    ...audioModelOptions,
+    ...videoModelOptions,
+  ]
   const { summary } = useUsageSummary()
   const t = useTranslations('StudioV3')
 
@@ -384,7 +396,11 @@ export const StudioSidebar = memo(function StudioSidebar() {
                       const model = getModelById(matchingOption.modelId)
                       if (model) {
                         const targetMode =
-                          model.outputType === 'AUDIO' ? 'audio' : 'image'
+                          model.outputType === 'AUDIO'
+                            ? 'audio'
+                            : model.outputType === 'VIDEO'
+                              ? 'video'
+                              : 'image'
                         if (state.outputType !== targetMode) {
                           dispatch({
                             type: 'SET_OUTPUT_TYPE',

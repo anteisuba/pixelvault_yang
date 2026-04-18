@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import {
-  StudioModeSelector,
   StudioTopBar,
   StudioCanvas,
   StudioBottomDock,
@@ -70,38 +69,34 @@ function StudioWorkspaceInner() {
       >
         Skip to prompt
       </a>
-      {state.outputType === 'video' ? (
-        /* ── Video mode: simple stack (no canvas layout) ──────── */
+      <StudioSidebar />
+      <SidebarInset>
         <div
           role="tabpanel"
-          id="studio-panel-video"
-          aria-labelledby="studio-tab-video"
-          className="space-y-4 p-5"
+          id={`studio-panel-${state.outputType}`}
+          aria-labelledby={`studio-tab-${state.outputType}`}
+          className="studio-layout-v2"
         >
-          <StudioModeSelector />
-          <VideoGenerateForm activeCharacterCards={characters.activeCards} />
-        </div>
-      ) : (
-        /* ── Image & Audio mode: canvas-centric vertical layout ── */
-        <>
-          <StudioSidebar />
-          <SidebarInset>
-            <div
-              role="tabpanel"
-              id={`studio-panel-${state.outputType}`}
-              aria-labelledby={`studio-tab-${state.outputType}`}
-              className="studio-layout-v2"
-            >
-              <StudioTopBar />
-              <StudioFlowLayout
-                canvas={<StudioCanvas />}
-                dock={<StudioBottomDock />}
-                gallery={<StudioGallery />}
-              />
+          <StudioTopBar />
+          {state.outputType === 'video' ? (
+            /* ── Video mode: form inside shared shell ──────────── */
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="mx-auto max-w-3xl space-y-4">
+                <VideoGenerateForm
+                  activeCharacterCards={characters.activeCards}
+                />
+              </div>
             </div>
-          </SidebarInset>
-        </>
-      )}
+          ) : (
+            /* ── Image & Audio mode: canvas-centric layout ──── */
+            <StudioFlowLayout
+              canvas={<StudioCanvas />}
+              dock={<StudioBottomDock />}
+              gallery={<StudioGallery />}
+            />
+          )}
+        </div>
+      </SidebarInset>
 
       <StudioCommandPalette />
 

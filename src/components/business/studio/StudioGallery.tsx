@@ -428,7 +428,7 @@ const GalleryItem = memo(function GalleryItem({
 
 // ── Gallery Action Button ────────────────────────────────────────────
 
-function GalleryAction({
+const GalleryAction = memo(function GalleryAction({
   icon: Icon,
   onClick,
   active,
@@ -452,4 +452,4 @@ function GalleryAction({
       <Icon className={cn('size-3.5', active && 'fill-current')} />
     </button>
   )
-}
+})

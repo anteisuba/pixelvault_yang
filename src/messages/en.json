@@ -1910,7 +1910,8 @@
   },
   "Errors": {
     "common": {
-      "unexpected": "An unexpected error occurred. Please try again."
+      "unexpected": "An unexpected error occurred. Please try again.",
+      "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
     },
     "provider": {
       "failed": "AI provider error. Please try again.",

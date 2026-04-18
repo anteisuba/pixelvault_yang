@@ -279,6 +279,28 @@ describe('createApiRoute', () => {
     expect(json.error).toBe('An unexpected error occurred. Please try again.')
   })
 
+  it('returns 503 for database quota errors', async () => {
+    mockHandler.mockRejectedValue(
+      new Error(
+        'Your project has exceeded the data transfer quota. Upgrade your plan to increase limits.',
+      ),
+    )
+
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode: string
+      i18nKey: string
+    }>(res)
+
+    expect(res.status).toBe(503)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('DATABASE_QUOTA_EXCEEDED')
+    expect(json.i18nKey).toBe('errors.common.databaseUnavailable')
+  })
+
   it('returns 500 for non-Error thrown values', async () => {
     mockHandler.mockRejectedValue('string error')
     const req = createPOST('/api/test', { name: 'a', count: 1 })

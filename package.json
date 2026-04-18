@@ -3,17 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check:node": "node ./scripts/check-node-version.cjs",
+    "predev": "npm run check:node",
     "dev": "next dev",
+    "prebuild": "npm run check:node",
     "build": "prisma generate && next build",
+    "prestart": "npm run check:node",
     "start": "next start",
+    "prelint": "npm run check:node",
     "lint": "eslint",
+    "pretest": "npm run check:node",
     "test": "vitest",
+    "pretest:run": "npm run check:node",
     "test:run": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "analyze": "ANALYZE=true npm run build",
     "db:seed": "npx tsx --tsconfig tsconfig.json prisma/seed.ts",
     "prepare": "husky"
+  },
+  "engines": {
+    "node": "22.x",
+    "npm": ">=10"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

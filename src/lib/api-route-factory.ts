@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs/server'
 import type { z } from 'zod'
 
 import { logger } from '@/lib/logger'
+import { isDatabaseQuotaExceededError } from '@/lib/database-utils'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   AuthError,
@@ -165,6 +166,22 @@ function handleRouteError(
         errorCode: error.code,
       },
       { status: error.status },
+    )
+  }
+
+  if (isDatabaseQuotaExceededError(error)) {
+    logger.error(`${routeName} database quota exceeded`, {
+      error: error instanceof Error ? error.message : String(error),
+      durationMs: Date.now() - startedAt,
+    })
+
+    return buildJsonErrorResponse(
+      new ApiRequestError(
+        'DATABASE_QUOTA_EXCEEDED',
+        503,
+        'errors.common.databaseUnavailable',
+        'Database service is temporarily unavailable. The project database quota has been exceeded.',
+      ),
     )
   }
 

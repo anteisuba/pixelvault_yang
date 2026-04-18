@@ -4,6 +4,8 @@ import { auth } from '@clerk/nextjs/server'
 import type { ProjectHistoryResponse } from '@/types'
 import { getProjectHistory } from '@/services/project.service'
 import { PROJECT } from '@/constants/config'
+import { logger } from '@/lib/logger'
+import { isDatabaseQuotaExceededError } from '@/lib/database-utils'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -55,6 +57,22 @@ export async function GET(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Failed to fetch history'
+
+    if (isDatabaseQuotaExceededError(err)) {
+      logger.error('GET /api/projects/[id]/history database quota exceeded', {
+        error: message,
+      })
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Database service is temporarily unavailable. The project database quota has been exceeded.',
+        },
+        { status: 503 },
+      )
+    }
+
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 },

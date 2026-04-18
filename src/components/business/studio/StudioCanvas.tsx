@@ -27,10 +27,29 @@ import { VariantGrid } from './VariantGrid'
  * Accepts gallery image drops — adds as reference and opens the ref panel.
  */
 export const StudioCanvas = memo(function StudioCanvas() {
-  const { dispatch } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { lastGeneration, retry, activeRun, selectWinner } = useStudioGen()
+  const {
+    lastGeneration: rawLastGeneration,
+    retry,
+    activeRun,
+    selectWinner,
+  } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
+
+  // Only show the latest generation if it matches the current output type.
+  // Prevents Canvas from displaying an image result after user switches to
+  // video/audio mode (and vice versa).
+  const expectedOutputType =
+    state.outputType === 'video'
+      ? 'VIDEO'
+      : state.outputType === 'audio'
+        ? 'AUDIO'
+        : 'IMAGE'
+  const lastGeneration =
+    rawLastGeneration && rawLastGeneration.outputType === expectedOutputType
+      ? rawLastGeneration
+      : null
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
   const canvasRef = useRef<HTMLDivElement>(null)

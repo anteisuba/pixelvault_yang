@@ -14,6 +14,46 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { invertReferenceStrength } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 
+/**
+ * Normalize fal.ai error responses into user-friendly messages.
+ * fal.ai returns FastAPI validation errors with a `detail: [{ type, msg, ... }]` shape;
+ * the most common non-HTTP error is content_policy_violation.
+ */
+function formatFalError(status: number, errorBody: string): string {
+  let parsed: unknown = null
+  try {
+    parsed = JSON.parse(errorBody)
+  } catch {
+    // not JSON
+  }
+  const detail =
+    parsed && typeof parsed === 'object' && 'detail' in parsed
+      ? (parsed as { detail: unknown }).detail
+      : undefined
+  const firstError =
+    Array.isArray(detail) && detail.length > 0
+      ? (detail[0] as { type?: unknown; msg?: unknown })
+      : undefined
+  const type =
+    typeof firstError?.type === 'string' ? firstError.type : undefined
+  const msg = typeof firstError?.msg === 'string' ? firstError.msg : undefined
+
+  if (type === 'content_policy_violation') {
+    return 'fal.ai 内容审核拒绝：生成结果被判定为敏感内容。请调整 prompt 或参考图（常见触发：暴力、裸露、真人脸特征、特定角色等）后重试。'
+  }
+  if (status === 401 || status === 403) {
+    return 'fal.ai API Key 无效或权限不足，请检查 Key 是否正确。'
+  }
+  if (status === 429) {
+    return 'fal.ai 触发限流，请稍后重试。'
+  }
+  if (status === 404) {
+    return 'fal.ai 找不到对应模型或任务。请检查模型 ID。'
+  }
+  if (msg) return `fal.ai 错误：${msg}`
+  return `fal.ai 错误 (HTTP ${status})：${errorBody.slice(0, 200)}`
+}
+
 import {
   ProviderError,
   type HealthCheckInput,
@@ -164,7 +204,11 @@ export const falAdapter: ProviderAdapter = {
         endpoint,
         errorBody: errorBody.slice(0, 500),
       })
-      throw new ProviderError('fal.ai', response.status, errorBody)
+      throw new ProviderError(
+        'fal.ai',
+        response.status,
+        formatFalError(response.status, errorBody),
+      )
     }
 
     const data = FAL_RESPONSE_SCHEMA.parse(await response.json())
@@ -223,7 +267,11 @@ export const falAdapter: ProviderAdapter = {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'Unknown error')
-        throw new ProviderError('fal.ai', response.status, errorBody)
+        throw new ProviderError(
+          'fal.ai',
+          response.status,
+          formatFalError(response.status, errorBody),
+        )
       }
 
       const data = FAL_VIDEO_RESPONSE_SCHEMA.parse(await response.json())
@@ -308,7 +356,11 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new ProviderError('fal.ai', response.status, errorBody)
+      throw new ProviderError(
+        'fal.ai',
+        response.status,
+        formatFalError(response.status, errorBody),
+      )
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -350,7 +402,11 @@ export const falAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unknown error')
-      throw new ProviderError('fal.ai', response.status, errorBody)
+      throw new ProviderError(
+        'fal.ai',
+        response.status,
+        formatFalError(response.status, errorBody),
+      )
     }
 
     const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -374,7 +430,16 @@ export const falAdapter: ProviderAdapter = {
 
     if (!statusResponse.ok) {
       const errorBody = await statusResponse.text().catch(() => 'Unknown error')
-      throw new ProviderError('fal.ai', statusResponse.status, errorBody)
+      logger.error('fal.ai checkVideoQueueStatus (status poll) failed', {
+        status: statusResponse.status,
+        statusUrl,
+        errorBody: errorBody.slice(0, 1000),
+      })
+      throw new ProviderError(
+        'fal.ai',
+        statusResponse.status,
+        formatFalError(statusResponse.status, errorBody),
+      )
     }
 
     const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
@@ -394,7 +459,16 @@ export const falAdapter: ProviderAdapter = {
 
     if (!resultResponse.ok) {
       const errorBody = await resultResponse.text().catch(() => 'Unknown error')
-      throw new ProviderError('fal.ai', resultResponse.status, errorBody)
+      logger.error('fal.ai checkVideoQueueStatus (result fetch) failed', {
+        status: resultResponse.status,
+        responseUrl,
+        errorBody: errorBody.slice(0, 1000),
+      })
+      throw new ProviderError(
+        'fal.ai',
+        resultResponse.status,
+        formatFalError(resultResponse.status, errorBody),
+      )
     }
 
     const resultData = FAL_VIDEO_RESPONSE_SCHEMA.parse(
@@ -475,7 +549,11 @@ export async function submitFalLoraTraining(input: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new ProviderError('fal.ai', response.status, errorBody)
+    throw new ProviderError(
+      'fal.ai',
+      response.status,
+      formatFalError(response.status, errorBody),
+    )
   }
 
   const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
@@ -499,7 +577,11 @@ export async function checkFalLoraTrainingStatus(input: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new ProviderError('fal.ai', response.status, errorBody)
+    throw new ProviderError(
+      'fal.ai',
+      response.status,
+      formatFalError(response.status, errorBody),
+    )
   }
 
   const data = FAL_QUEUE_STATUS_SCHEMA.parse(await response.json())

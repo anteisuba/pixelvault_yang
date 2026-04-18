@@ -161,6 +161,10 @@ export const VoiceSelector = memo(function VoiceSelector() {
                       src={voice.coverImage}
                       alt=""
                       className="size-9 rounded-full object-cover"
+                      onError={(e) => {
+                        // Fall back to Mic icon if cover_image fails (404/CORS/empty)
+                        e.currentTarget.style.display = 'none'
+                      }}
                     />
                   ) : (
                     <Mic className="size-4" />

@@ -25,7 +25,6 @@ import {
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
@@ -74,7 +73,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const isVideoMode = state.outputType === 'video'
   const { selectedModel: imageModel, modelOptions: imageModelOptions } =
     useImageModelOptions()
-  const { selectedModel: audioModel } = useAudioModelOptions()
+  const { selectedModel: audioModel, modelOptions: audioModelOptions } =
+    useAudioModelOptions()
   const { selectedModel: videoModel, modelOptions: videoModelOptions } =
     useVideoModelOptions(state.selectedOptionId ?? '')
   const selectedModel = isAudioMode
@@ -82,7 +82,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     : isVideoMode
       ? videoModel
       : imageModel
-  const modelOptions = isVideoMode ? videoModelOptions : imageModelOptions
+  const modelOptions = isAudioMode
+    ? audioModelOptions
+    : isVideoMode
+      ? videoModelOptions
+      : imageModelOptions
 
   // B4: Compare mode state
   const [compareMode, setCompareMode] = useState(false)
@@ -152,6 +156,31 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       ? !!styles.activeCardId && !!selectedStyleCard?.modelId
       : !!selectedModel?.modelId && !!state.prompt.trim()) &&
     (!modelRequiresRef || hasRefImage)
+
+  // ── Reset selectedOptionId when outputType changes ─────────────
+  // image/video/audio each have their own model pools; carrying a stale
+  // image model id into audio mode causes UNSUPPORTED_MODEL on generate.
+  // If the current selection doesn't exist in the active mode's options,
+  // clear it so the UI / backend pick a sensible default.
+  const prevOutputTypeRef = useRef(state.outputType)
+  useEffect(() => {
+    if (prevOutputTypeRef.current !== state.outputType) {
+      prevOutputTypeRef.current = state.outputType
+      const stillValid =
+        state.selectedOptionId &&
+        modelOptions.some((o) => o.optionId === state.selectedOptionId)
+      if (!stillValid) {
+        // Prefer the first available option in the new mode, or clear.
+        const fallback = modelOptions.find(
+          (o) => o.sourceType === 'saved' || o.freeTier,
+        )
+        dispatch({
+          type: 'SET_OPTION_ID',
+          payload: fallback?.optionId ?? null,
+        })
+      }
+    }
+  }, [state.outputType, state.selectedOptionId, modelOptions, dispatch])
 
   // ── Reset advancedParams when adapter changes ─────────────────
   const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
@@ -477,7 +506,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         />
         <PromptInputActions className="justify-between px-2 pb-2">
           {/* Quick mode: grouped model selector | Card mode: contextual hint */}
-          {state.workflowMode === 'quick' && !isAudioMode ? (
+          {state.workflowMode === 'quick' ? (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -597,15 +626,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               />
             </>
           ) : (
-            <span className="text-2xs text-muted-foreground/60 max-w-48 truncate">
-              {!canGenerate && !isGenerating
-                ? state.workflowMode === 'quick' && !selectedModel?.modelId
-                  ? t('noModelHint')
-                  : state.workflowMode === 'quick' && !state.prompt.trim()
-                    ? tV3('generateShortcutHint')
-                    : null
-                : null}
-            </span>
+            // Card mode: reserve the row so layout stays balanced
+            <span className="text-2xs text-muted-foreground/60 max-w-48 truncate" />
           )}
 
           {/* Generate split button + variant dropdown (hidden in audio mode) */}

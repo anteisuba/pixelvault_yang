@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -24,6 +30,20 @@ interface Position {
   top: number
   left: number
   placement: 'top' | 'bottom'
+}
+
+/**
+ * SSR-safe mount guard. `useOnboarding` reads localStorage to decide
+ * if the tooltip should show, producing different output between server
+ * (always false) and client (true on first visit) — which breaks
+ * hydration. Return null until mounted on the client.
+ */
+const EMPTY_SUBSCRIBE = () => () => {}
+const GET_TRUE = () => true
+const GET_FALSE = () => false
+
+function useHasMounted(): boolean {
+  return useSyncExternalStore(EMPTY_SUBSCRIBE, GET_TRUE, GET_FALSE)
 }
 
 function getTargetSelector(step: OnboardingStep): string | null {
@@ -92,6 +112,7 @@ export function OnboardingTooltip({
   onDismiss,
 }: OnboardingTooltipProps) {
   const t = useTranslations('Onboarding')
+  const hasMounted = useHasMounted()
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>({
     top: 0,
@@ -135,7 +156,7 @@ export function OnboardingTooltip({
     }
   }, [active, step, updatePosition])
 
-  if (!active) return null
+  if (!hasMounted || !active) return null
 
   return (
     <>

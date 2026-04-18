@@ -21,6 +21,46 @@ import {
 
 import { logger } from '@/lib/logger'
 
+/**
+ * Normalize VolcEngine error responses into user-friendly messages.
+ * Falls back to a truncated raw body for unknown errors.
+ */
+function formatVolcEngineError(status: number, errorBody: string): string {
+  let parsed: unknown = null
+  try {
+    parsed = JSON.parse(errorBody)
+  } catch {
+    // not JSON — fall through
+  }
+  const errObj =
+    parsed && typeof parsed === 'object' && 'error' in parsed
+      ? (parsed as { error?: { code?: unknown; message?: unknown } }).error
+      : undefined
+  const code = typeof errObj?.code === 'string' ? errObj.code : undefined
+  const rawMessage =
+    typeof errObj?.message === 'string' ? errObj.message : undefined
+  const message = rawMessage?.replace(/\s*Request id:.*$/, '').trim()
+
+  if (code === 'ModelNotOpen') {
+    return (
+      '此模型尚未在火山 Ark 开通。请访问 console.volcengine.com → 模型广场 → 找到对应模型并点击"开通服务"，然后重试。' +
+      (message ? ` (${message})` : '')
+    )
+  }
+  if (code === 'AuthenticationError' || status === 401 || status === 403) {
+    return '火山引擎 API Key 无效或权限不足，请检查 Key 是否正确、是否已开通相应服务。'
+  }
+  if (code === 'InvalidParameter' && message) {
+    return `参数错误：${message}`
+  }
+  if (status === 404 && !code) {
+    return '找不到指定模型。火山引擎可能需要使用 endpoint ID（ep-xxx）。请确认模型 ID 或在 Ark 控制台创建 endpoint。'
+  }
+  // Fallback: show cleaned message if we have one, else truncated raw body
+  if (message) return `火山引擎错误：${message}`
+  return `火山引擎错误 (HTTP ${status})：${errorBody.slice(0, 200)}`
+}
+
 // ─── Image Generation Constants ─────────────────────────────────
 
 /** VolcEngine Seedream 2K-tier resolution mapping */
@@ -170,14 +210,12 @@ export const volcengineAdapter: ProviderAdapter = {
         status: response.status,
         modelId,
         endpoint,
-        errorBody: errorBody.slice(0, 500),
+        errorBody: errorBody.slice(0, 1000),
       })
       throw new ProviderError(
         'VolcEngine',
         response.status,
-        response.status === 404
-          ? `Model not found. VolcEngine requires an endpoint ID (ep-xxx), not a model name. Create an endpoint at console.volcengine.com, then add it as a custom model in your API key settings. Raw: ${errorBody}`
-          : errorBody,
+        formatVolcEngineError(response.status, errorBody),
       )
     }
 
@@ -287,14 +325,12 @@ export const volcengineAdapter: ProviderAdapter = {
         status: response.status,
         modelId,
         endpoint,
-        errorBody: errorBody.slice(0, 500),
+        errorBody: errorBody.slice(0, 1000),
       })
       throw new ProviderError(
         'VolcEngine',
         response.status,
-        response.status === 404
-          ? `Model not found. VolcEngine requires an endpoint ID (ep-xxx), not a model name. Create an endpoint at console.volcengine.com, then add it as a custom model in your API key settings. Raw: ${errorBody}`
-          : errorBody,
+        formatVolcEngineError(response.status, errorBody),
       )
     }
 
@@ -323,9 +359,13 @@ export const volcengineAdapter: ProviderAdapter = {
       logger.error('VolcEngine checkVideoQueueStatus failed', {
         status: response.status,
         statusUrl,
-        errorBody: errorBody.slice(0, 500),
+        errorBody: errorBody.slice(0, 1000),
       })
-      throw new ProviderError('VolcEngine', response.status, errorBody)
+      throw new ProviderError(
+        'VolcEngine',
+        response.status,
+        formatVolcEngineError(response.status, errorBody),
+      )
     }
 
     const data = VOLCENGINE_TASK_STATUS_SCHEMA.parse(await response.json())

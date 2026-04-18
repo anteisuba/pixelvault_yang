@@ -30,7 +30,8 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
     state.panels.layerDecompose ||
     state.panels.aspectRatio ||
     state.panels.voiceSelector ||
-    state.panels.voiceTrainer
+    state.panels.voiceTrainer ||
+    state.panels.videoParams
 
   const closeAllPanels = () => dispatch({ type: 'CLOSE_ALL_PANELS' })
 

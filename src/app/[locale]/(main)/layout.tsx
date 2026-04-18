@@ -1,3 +1,4 @@
+import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { Navbar } from '@/components/layout/Navbar'
 import { Toaster } from '@/components/ui/sonner'
@@ -15,11 +16,13 @@ export default function MainLayout({
       >
         Skip to main content
       </a>
-      <Navbar />
-      <main id="main-content" className="pb-14 md:pb-0">
-        {children}
-      </main>
-      <MobileTabBar />
+      <MainProviders>
+        <Navbar />
+        <main id="main-content" className="pb-14 md:pb-0">
+          {children}
+        </main>
+        <MobileTabBar />
+      </MainProviders>
       <Toaster />
     </div>
   )

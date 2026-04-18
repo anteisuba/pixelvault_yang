@@ -22,6 +22,10 @@ function makeInitialState(
     tokenInput: '',
     voiceId: null,
     stylePresetId: '',
+    videoDuration: 5,
+    videoResolution: null,
+    longVideoMode: false,
+    longVideoTargetDuration: 30,
     panels: {
       cardManagement: false,
       projectHistory: false,
@@ -36,6 +40,7 @@ function makeInitialState(
       voiceSelector: false,
       voiceTrainer: false,
       transform: false,
+      videoParams: false,
     },
     ...overrides,
   }

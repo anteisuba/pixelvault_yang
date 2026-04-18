@@ -51,7 +51,7 @@ function useResponsiveCols() {
 }
 
 export const StudioGallery = memo(function StudioGallery() {
-  const { dispatch } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { projects, imageUpload } = useStudioData()
   const { isGenerating, lastGeneration } = useStudioGen()
   const { modelOptions } = useImageModelOptions()
@@ -65,12 +65,37 @@ export const StudioGallery = memo(function StudioGallery() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const fetchedIdsRef = useRef<string>('')
 
-  // Merge latest generation into history
+  // Drive the server-side history filter from the current outputType so each
+  // mode only fetches its own type. (A stale-response guard in useProjects
+  // prevents the initial default 'all' fetch from overwriting the first
+  // mode-specific fetch — see use-projects.ts loadHistoryReqIdRef.)
+  const setHistoryTypeFilter = projects.setHistoryTypeFilter
+  useEffect(() => {
+    setHistoryTypeFilter(state.outputType)
+  }, [state.outputType, setHistoryTypeFilter])
+
+  // Belt-and-suspenders client filter (case-insensitive) — covers:
+  // 1. In-flight server fetch race on mode switch (stale data briefly visible).
+  // 2. Any legacy records with non-canonical casing (e.g. "image" vs "IMAGE").
+  const expectedType =
+    state.outputType === 'video'
+      ? 'VIDEO'
+      : state.outputType === 'audio'
+        ? 'AUDIO'
+        : 'IMAGE'
+  const matchesMode = useCallback(
+    (g: GenerationRecord) =>
+      String(g.outputType).toUpperCase() === expectedType,
+    [expectedType],
+  )
   const allGenerations = useMemo(() => {
-    if (!lastGeneration) return projects.history
-    const filtered = projects.history.filter((g) => g.id !== lastGeneration.id)
+    const historyByType = projects.history.filter(matchesMode)
+    if (!lastGeneration || !matchesMode(lastGeneration)) {
+      return historyByType
+    }
+    const filtered = historyByType.filter((g) => g.id !== lastGeneration.id)
     return [lastGeneration, ...filtered]
-  }, [lastGeneration, projects.history])
+  }, [lastGeneration, projects.history, matchesMode])
 
   // Batch-fetch liked status when generations change
   useEffect(() => {
@@ -126,7 +151,14 @@ export const StudioGallery = memo(function StudioGallery() {
   const handleRemix = useCallback(
     (generation: GenerationRecord) => {
       const preset = buildStudioRemixPreset(generation, modelOptions)
-      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
+      // Preserve source outputType so remixing a video/audio stays in that mode
+      const sourceOutputType =
+        generation.outputType === 'VIDEO'
+          ? 'video'
+          : generation.outputType === 'AUDIO'
+            ? 'audio'
+            : 'image'
+      dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
       dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
       dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
       dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
@@ -349,6 +381,18 @@ const GalleryItem = memo(function GalleryItem({
         <div className="flex size-full items-center justify-center bg-muted/20 p-3">
           <span className="text-2xl">🎵</span>
         </div>
+      ) : gen.outputType === 'VIDEO' && gen.url ? (
+        <video
+          src={gen.url}
+          muted
+          playsInline
+          preload="metadata"
+          className={cn(
+            preserveAspectRatio
+              ? 'w-full h-auto'
+              : 'w-full h-full object-cover',
+          )}
+        />
       ) : gen.url ? (
         preserveAspectRatio ? (
           <OptimizedImage

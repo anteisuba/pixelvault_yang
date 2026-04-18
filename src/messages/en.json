@@ -1707,7 +1707,16 @@
     "transform": "Image Transform",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Enhancement",
-    "civitai": "Civitai Token"
+    "civitai": "Civitai Token",
+    "videoSettings": "Video Settings"
+  },
+  "StudioToolbar": {
+    "enhance": "Enhance",
+    "reference": "Reference",
+    "video": "Video",
+    "voice": "Voice",
+    "voiceSelected": "✓ Voice",
+    "clone": "Clone"
   },
   "StudioV3": {
     "quickMode": "Quick Generate",

@@ -24,6 +24,7 @@ import {
 import type { AdvancedParams } from '@/types'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
+import { VIDEO_GENERATION } from '@/constants/config'
 import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useBackgroundCards } from '@/hooks/use-background-cards'
 import { useStyleCards } from '@/hooks/use-style-cards'
@@ -57,6 +58,7 @@ export type PanelName =
   | 'voiceSelector'
   | 'voiceTrainer'
   | 'transform'
+  | 'videoParams'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -73,6 +75,14 @@ export interface StudioFormState {
   voiceId: string | null
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
+  /** Video-specific — duration in seconds per clip */
+  videoDuration: number
+  /** Video-specific — output resolution; null means provider default */
+  videoResolution: string | null
+  /** Video-specific — long-video pipeline on/off */
+  longVideoMode: boolean
+  /** Video-specific — total target duration when long-video is on */
+  longVideoTargetDuration: number
   panels: Record<PanelName, boolean>
 }
 
@@ -87,6 +97,10 @@ export type StudioAction =
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'SET_VOICE_ID'; payload: string | null }
   | { type: 'SET_STYLE_PRESET'; payload: string }
+  | { type: 'SET_VIDEO_DURATION'; payload: number }
+  | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
+  | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
+  | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -107,6 +121,7 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceSelector: false,
   voiceTrainer: false,
   transform: false,
+  videoParams: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -119,6 +134,10 @@ const initialFormState: StudioFormState = {
   tokenInput: '',
   voiceId: null,
   stylePresetId: NO_STYLE_PRESET_ID,
+  videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
+  videoResolution: null,
+  longVideoMode: false,
+  longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
   panels: { ...initialPanels },
 }
 
@@ -147,6 +166,14 @@ export function studioFormReducer(
       return { ...state, advancedParams: {} }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
+    case 'SET_VIDEO_DURATION':
+      return { ...state, videoDuration: action.payload }
+    case 'SET_VIDEO_RESOLUTION':
+      return { ...state, videoResolution: action.payload }
+    case 'SET_LONG_VIDEO_MODE':
+      return { ...state, longVideoMode: action.payload }
+    case 'SET_LONG_VIDEO_TARGET_DURATION':
+      return { ...state, longVideoTargetDuration: action.payload }
     case 'TOGGLE_PANEL': {
       const target = action.payload
       const isOpening = !state.panels[target]
@@ -194,6 +221,11 @@ export function studioFormReducer(
         advancedParams: {},
         selectedOptionId: null,
         stylePresetId: NO_STYLE_PRESET_ID,
+        videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
+        videoResolution: null,
+        longVideoMode: false,
+        longVideoTargetDuration:
+          VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],
         panels: { ...initialPanels },
       }
     default:

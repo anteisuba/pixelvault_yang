@@ -73,6 +73,7 @@ export interface GalleryQueryOptions {
 function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
   if (type === 'image') return 'IMAGE'
   if (type === 'video') return 'VIDEO'
+  if (type === 'audio') return 'AUDIO'
   return undefined
 }
 

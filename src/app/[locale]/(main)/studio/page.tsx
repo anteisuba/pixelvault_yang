@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { StudioWorkspace } from '@/components/business/StudioWorkspace'
-import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioPageProps {
@@ -22,9 +21,6 @@ export async function generateMetadata({
 }
 
 export default async function StudioPage() {
-  return (
-    <ApiKeysProvider>
-      <StudioWorkspace />
-    </ApiKeysProvider>
-  )
+  // ApiKeysProvider is hoisted to MainLayout so Navbar's card drawer can use it.
+  return <StudioWorkspace />
 }

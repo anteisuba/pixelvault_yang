@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'pub-5346558f8dc549f9ba5217489fe5395e.r2.dev',
       },
+      // Production CDN domain — existing avatar/asset URLs in DB reference this
+      { protocol: 'https', hostname: 'cdn.anteisuba.com' },
       { protocol: 'https', hostname: '*.fal.media' },
       { protocol: 'https', hostname: 'replicate.delivery' },
       { protocol: 'https', hostname: 'img.clerk.com' },

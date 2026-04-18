@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import dynamic from 'next/dynamic'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
@@ -14,10 +13,6 @@ import {
   StudioFlowLayout,
   StudioCommandPalette,
 } from '@/components/business/studio'
-
-const VideoGenerateForm = dynamic(
-  () => import('@/components/business/VideoGenerateForm'),
-)
 
 import {
   StudioProvider,
@@ -45,8 +40,7 @@ export function StudioWorkspace() {
 
 function StudioWorkspaceInner() {
   const { state, dispatch } = useStudioForm()
-  const { characters, onboarding } = useStudioData()
-  const isQuickMode = state.workflowMode === 'quick'
+  const { onboarding } = useStudioData()
 
   // Restore workflow mode from localStorage on mount
   useEffect(() => {
@@ -78,23 +72,12 @@ function StudioWorkspaceInner() {
           className="studio-layout-v2"
         >
           <StudioTopBar />
-          {state.outputType === 'video' ? (
-            /* ── Video mode: form inside shared shell ──────────── */
-            <div className="flex-1 overflow-y-auto p-5">
-              <div className="mx-auto max-w-3xl space-y-4">
-                <VideoGenerateForm
-                  activeCharacterCards={characters.activeCards}
-                />
-              </div>
-            </div>
-          ) : (
-            /* ── Image & Audio mode: canvas-centric layout ──── */
-            <StudioFlowLayout
-              canvas={<StudioCanvas />}
-              dock={<StudioBottomDock />}
-              gallery={<StudioGallery />}
-            />
-          )}
+          {/* Unified canvas-centric layout for image / video / audio */}
+          <StudioFlowLayout
+            canvas={<StudioCanvas />}
+            dock={<StudioBottomDock />}
+            gallery={<StudioGallery />}
+          />
         </div>
       </SidebarInset>
 

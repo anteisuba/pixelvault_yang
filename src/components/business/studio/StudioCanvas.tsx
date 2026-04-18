@@ -67,7 +67,14 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const handleRemix = useCallback(
     (generation: GenerationRecord) => {
       const preset = buildStudioRemixPreset(generation, modelOptions)
-      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
+      // Preserve source outputType so remixing a video/audio stays in that mode
+      const sourceOutputType =
+        generation.outputType === 'VIDEO'
+          ? 'video'
+          : generation.outputType === 'AUDIO'
+            ? 'audio'
+            : 'image'
+      dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
       dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
       dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
       dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })

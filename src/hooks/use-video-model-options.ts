@@ -20,8 +20,8 @@ export interface UseVideoModelOptionsReturn {
  * Shared hook for building video model options from available models + user API keys.
  * Mirrors use-image-model-options and use-audio-model-options patterns.
  *
- * Unlike image/audio hooks, accepts selectedOptionId as param because
- * VideoGenerateForm manages selection in local state (not StudioFormContext).
+ * Accepts `selectedOptionId` as a parameter so it can be reused from any
+ * caller that owns its own selection state (e.g. Studio context, legacy forms).
  */
 export function useVideoModelOptions(
   selectedOptionId: string,

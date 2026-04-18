@@ -58,6 +58,11 @@ const VoiceTrainer = dynamic(() =>
     (mod) => mod.VoiceTrainer,
   ),
 )
+const StudioVideoParams = dynamic(() =>
+  import('@/components/business/studio/StudioVideoParams').then(
+    (mod) => mod.StudioVideoParams,
+  ),
+)
 
 /**
  * StudioDockPanelArea — renders ALL 6 tool panels inline in the right
@@ -132,7 +137,8 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     state.panels.layerDecompose ||
     state.panels.aspectRatio ||
     state.panels.voiceSelector ||
-    state.panels.voiceTrainer
+    state.panels.voiceTrainer ||
+    state.panels.videoParams
 
   if (!hasOpenPanel) return null
 
@@ -277,6 +283,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
       {/* ── Voice Trainer (audio mode) ────────────────────────── */}
       {state.panels.voiceTrainer && <VoiceTrainer />}
+
+      {/* ── Video Params (video mode) ─────────────────────────── */}
+      {state.panels.videoParams && <StudioVideoParams />}
     </div>
   )
 })

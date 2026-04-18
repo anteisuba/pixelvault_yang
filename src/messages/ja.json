@@ -1706,7 +1706,16 @@
     "transform": "画像変換",
     "advanced": "詳細設定",
     "enhance": "プロンプト強化",
-    "civitai": "Civitai トークン"
+    "civitai": "Civitai トークン",
+    "videoSettings": "ビデオ設定"
+  },
+  "StudioToolbar": {
+    "enhance": "強化",
+    "reference": "参照",
+    "video": "ビデオ",
+    "voice": "音声",
+    "voiceSelected": "✓ 音声",
+    "clone": "クローン"
   },
   "StudioV3": {
     "quickMode": "クイック生成",

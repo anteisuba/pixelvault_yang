@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -54,6 +54,10 @@ export function useProjects(): UseProjectsReturn {
   const [historyHasMore, setHistoryHasMore] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [historyTypeFilter, setHistoryTypeFilter] = useState('all')
+  // Monotonically-increasing request ID — stale responses are dropped.
+  // Prevents the default 'all' fetch on mount from overwriting a later
+  // mode-specific fetch when consumers call setHistoryTypeFilter immediately.
+  const loadHistoryReqIdRef = useRef(0)
 
   // ─── Project CRUD ───────────────────────────────────────────────
 
@@ -136,6 +140,7 @@ export function useProjects(): UseProjectsReturn {
 
   const loadHistory = useCallback(async () => {
     if (activeProjectId === undefined) return
+    const reqId = ++loadHistoryReqIdRef.current
     setIsLoadingHistory(true)
     const pid = activeProjectId ?? 'unassigned'
     const response = await getProjectHistoryAPI(
@@ -144,6 +149,8 @@ export function useProjects(): UseProjectsReturn {
       undefined,
       historyTypeFilter,
     )
+    // Drop stale responses — only the latest request wins.
+    if (reqId !== loadHistoryReqIdRef.current) return
     if (response.success && response.data) {
       setHistory(response.data.generations)
       setHistoryTotal(response.data.total)
@@ -154,6 +161,7 @@ export function useProjects(): UseProjectsReturn {
 
   const loadMoreHistory = useCallback(async () => {
     if (!historyHasMore || isLoadingHistory || history.length === 0) return
+    const reqId = ++loadHistoryReqIdRef.current
     const pid = activeProjectId ?? 'unassigned'
     const lastId = history[history.length - 1].id
     const response = await getProjectHistoryAPI(
@@ -162,6 +170,8 @@ export function useProjects(): UseProjectsReturn {
       undefined,
       historyTypeFilter,
     )
+    // Drop if a newer request was issued (e.g. user switched mode mid-pagination)
+    if (reqId !== loadHistoryReqIdRef.current) return
     if (response.success && response.data) {
       setHistory((prev) => [...prev, ...response.data!.generations])
       setHistoryTotal(response.data.total)

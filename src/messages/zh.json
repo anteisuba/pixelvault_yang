@@ -1707,7 +1707,16 @@
     "transform": "图像变换",
     "advanced": "高级设置",
     "enhance": "提示词增强",
-    "civitai": "Civitai Token"
+    "civitai": "Civitai Token",
+    "videoSettings": "视频设置"
+  },
+  "StudioToolbar": {
+    "enhance": "增强",
+    "reference": "参考图",
+    "video": "视频",
+    "voice": "音色",
+    "voiceSelected": "✓ 音色",
+    "clone": "克隆"
   },
   "StudioV3": {
     "quickMode": "快速生成",

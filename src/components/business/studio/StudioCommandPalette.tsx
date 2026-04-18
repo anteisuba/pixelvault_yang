@@ -13,6 +13,7 @@ import {
 import {
   ImageIcon,
   Film,
+  Mic,
   Wand2,
   Layers,
   Settings2,
@@ -60,7 +61,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   )
 
   const switchMode = useCallback(
-    (mode: 'image' | 'video') => {
+    (mode: 'image' | 'video' | 'audio') => {
       dispatch({ type: 'SET_OUTPUT_TYPE', payload: mode })
       setOpen(false)
     },
@@ -114,6 +115,16 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               <Film className="size-4 text-muted-foreground" />
               <span>Video Mode</span>
               {state.outputType === 'video' && (
+                <span className="ml-auto text-xs text-primary">Active</span>
+              )}
+            </CommandItem>
+            <CommandItem
+              onSelect={() => switchMode('audio')}
+              className="studio-command-item"
+            >
+              <Mic className="size-4 text-muted-foreground" />
+              <span>Audio Mode</span>
+              {state.outputType === 'audio' && (
                 <span className="ml-auto text-xs text-primary">Active</span>
               )}
             </CommandItem>

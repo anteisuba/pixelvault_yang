@@ -24,6 +24,7 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -70,9 +71,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
-  const { selectedModel: imageModel, modelOptions } = useImageModelOptions()
+  const isVideoMode = state.outputType === 'video'
+  const { selectedModel: imageModel, modelOptions: imageModelOptions } =
+    useImageModelOptions()
   const { selectedModel: audioModel } = useAudioModelOptions()
-  const selectedModel = isAudioMode ? audioModel : imageModel
+  const { selectedModel: videoModel, modelOptions: videoModelOptions } =
+    useVideoModelOptions(state.selectedOptionId ?? '')
+  const selectedModel = isAudioMode
+    ? audioModel
+    : isVideoMode
+      ? videoModel
+      : imageModel
+  const modelOptions = isVideoMode ? videoModelOptions : imageModelOptions
 
   // B4: Compare mode state
   const [compareMode, setCompareMode] = useState(false)
@@ -127,18 +137,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
 
   // ── canGenerate ────────────────────────────────────────────────
-  const currentModelId =
-    state.workflowMode === 'quick'
-      ? selectedModel?.modelId
-      : selectedStyleCard?.modelId
+  // Video / audio always use the quick-picked model (no style-card routing).
+  const usesStyleCardForModel =
+    !isVideoMode && !isAudioMode && state.workflowMode === 'card'
+  const currentModelId = usesStyleCardForModel
+    ? selectedStyleCard?.modelId
+    : selectedModel?.modelId
   const modelRequiresRef = currentModelId
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
   const hasRefImage = imageUpload.referenceImages.length > 0
   const canGenerate =
-    (state.workflowMode === 'quick'
-      ? !!selectedModel?.modelId && !!state.prompt.trim()
-      : !!styles.activeCardId && !!selectedStyleCard?.modelId) &&
+    (usesStyleCardForModel
+      ? !!styles.activeCardId && !!selectedStyleCard?.modelId
+      : !!selectedModel?.modelId && !!state.prompt.trim()) &&
     (!modelRequiresRef || hasRefImage)
 
   // ── Reset advancedParams when adapter changes ─────────────────
@@ -183,6 +195,71 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   }, [state.advancedParams, activePreset])
 
   // ── Generate handler ──────────────────────────────────────────
+  // ── Video input builder ──────────────────────────────────────
+  const buildVideoInput = useCallback(() => {
+    if (!selectedModel) return null
+    // Video accepts a single reference image (i2v); pick the first if present.
+    const firstRef =
+      imageUpload.referenceImages.length > 0
+        ? imageUpload.referenceImages[0]
+        : undefined
+
+    // When workflowMode='card' with character cards applied, prepend character prompt.
+    let finalPrompt = composePrompt(state.prompt) ?? ''
+    const appliedCharacterIds: string[] = []
+    if (
+      state.workflowMode === 'card' &&
+      characters.activeCards.length > 0 &&
+      finalPrompt
+    ) {
+      const charPrompts = characters.activeCards
+        .map((c) => c.characterPrompt?.trim())
+        .filter((p): p is string => !!p)
+      if (charPrompts.length > 0) {
+        const base =
+          charPrompts.length === 1
+            ? charPrompts[0]
+            : charPrompts
+                .map(
+                  (p, i) =>
+                    `[Character ${i + 1}: ${characters.activeCards[i].name}]\n${p}`,
+                )
+                .join('\n\n')
+        finalPrompt = `${base}\n\n${finalPrompt}`
+        appliedCharacterIds.push(...characters.activeCards.map((c) => c.id))
+      }
+    }
+
+    return {
+      prompt: finalPrompt,
+      modelId: selectedModel.modelId,
+      apiKeyId: selectedModel.keyId,
+      aspectRatio: state.aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
+      duration: state.videoDuration,
+      referenceImage: firstRef,
+      negativePrompt: state.advancedParams.negativePrompt ?? undefined,
+      resolution: (state.videoResolution ?? undefined) as
+        | '480p'
+        | '540p'
+        | '720p'
+        | '1080p'
+        | undefined,
+      characterCardIds:
+        appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
+    }
+  }, [
+    selectedModel,
+    state.prompt,
+    state.aspectRatio,
+    state.videoDuration,
+    state.videoResolution,
+    state.advancedParams.negativePrompt,
+    state.workflowMode,
+    characters.activeCards,
+    composePrompt,
+    imageUpload.referenceImages,
+  ])
+
   const buildImageInput = useCallback(() => {
     if (state.workflowMode === 'quick' && selectedModel) {
       return {
@@ -242,6 +319,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       })
       return
     }
+    if (isVideoMode && selectedModel) {
+      const video = buildVideoInput()
+      if (!video) return
+      await generate({ mode: 'video', video })
+      return
+    }
     const image = buildImageInput()
     if (!image) return
     const result = await generate({ mode: 'image', image })
@@ -271,11 +354,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   }, [
     canGenerate,
     isAudioMode,
+    isVideoMode,
     selectedModel,
     state.prompt,
     state.voiceId,
     state.workflowMode,
     buildImageInput,
+    buildVideoInput,
     generate,
     dispatch,
     t,
@@ -534,7 +619,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
                 'transition-all duration-200',
-                isAudioMode ? 'rounded-xl' : 'rounded-l-xl',
+                isAudioMode || isVideoMode ? 'rounded-xl' : 'rounded-l-xl',
                 canGenerate && !isGenerating
                   ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
                   : isGenerating
@@ -562,7 +647,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 </>
               )}
             </button>
-            {!isAudioMode && (
+            {!isAudioMode && !isVideoMode && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -608,7 +693,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       </PromptInput>
 
       {/* B4: Compare mode — inline model multi-select */}
-      {compareMode && !isAudioMode && (
+      {compareMode && !isAudioMode && !isVideoMode && (
         <div className="mt-2 rounded-xl border border-primary/20 bg-primary/3 p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">

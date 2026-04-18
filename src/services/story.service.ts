@@ -1,12 +1,21 @@
 import 'server-only'
 
+import { z } from 'zod'
+
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { StoryRecord, StoryListItem, NarrativeTone } from '@/types'
 import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
+
+const NarrativeItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  caption: z.string(),
+  narration: z.string(),
+})
 
 // ─── Narrative Prompts ───────────────────────────────────────────
 
@@ -87,6 +96,11 @@ export async function createStory(
   generationIds: string[],
 ): Promise<StoryRecord> {
   const dbUser = await ensureUser(clerkId)
+
+  // Reject duplicate generation IDs
+  if (new Set(generationIds).size !== generationIds.length) {
+    throw new Error('Duplicate generation IDs are not allowed')
+  }
 
   // Verify all generation IDs belong to this user
   const ownedCount = await db.generation.count({
@@ -224,21 +238,23 @@ export async function reorderPanels(
     throw new Error('Story not found')
   }
 
-  // Update orderIndex for each panel using a unique temporary offset to avoid constraint conflicts
-  const offset = 10000
-  for (let i = 0; i < panelIds.length; i++) {
-    await db.storyPanel.update({
-      where: { id: panelIds[i] },
-      data: { orderIndex: offset + i },
-    })
-  }
-
-  for (let i = 0; i < panelIds.length; i++) {
-    await db.storyPanel.update({
-      where: { id: panelIds[i] },
-      data: { orderIndex: i },
-    })
-  }
+  // Atomic reorder: offset all to temp range, then set final indices
+  await db.$transaction([
+    // Phase 1: move all to offset range to avoid unique constraint conflicts
+    ...panelIds.map((id, i) =>
+      db.storyPanel.update({
+        where: { id },
+        data: { orderIndex: 10000 + i },
+      }),
+    ),
+    // Phase 2: set final indices
+    ...panelIds.map((id, i) =>
+      db.storyPanel.update({
+        where: { id },
+        data: { orderIndex: i },
+      }),
+    ),
+  ])
 
   const story = await db.story.findUnique({
     where: { id: storyId },
@@ -288,37 +304,62 @@ export async function generateNarrative(
     apiKey: route.apiKey,
   })
 
-  // Parse JSON from response
+  // Parse JSON from LLM response with validation
   const jsonMatch = rawResponse.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) throw new Error('Failed to parse narrative response')
-
-  const narrativeItems = JSON.parse(jsonMatch[0]) as Array<{
-    index: number
-    caption: string
-    narration: string
-  }>
-
-  // Update panels with generated narrative
-  const results: Array<{ id: string; narration: string; caption: string }> = []
-
-  for (const item of narrativeItems) {
-    const panel = story.panels[item.index]
-    if (!panel) continue
-
-    await db.storyPanel.update({
-      where: { id: panel.id },
-      data: {
-        caption: item.caption,
-        narration: item.narration,
-      },
+  if (!jsonMatch) {
+    logger.error('[generateNarrative] No JSON array found in LLM response', {
+      storyId,
+      responseLength: rawResponse.length,
     })
-
-    results.push({
-      id: panel.id,
-      narration: item.narration,
-      caption: item.caption,
-    })
+    throw new Error('Failed to parse narrative response')
   }
 
-  return results
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonMatch[0])
+  } catch {
+    logger.error('[generateNarrative] Invalid JSON in LLM response', {
+      storyId,
+    })
+    throw new Error('LLM returned malformed JSON')
+  }
+
+  const validated = z.array(NarrativeItemSchema).safeParse(parsed)
+  if (!validated.success) {
+    logger.error('[generateNarrative] Schema validation failed', {
+      storyId,
+      errors: validated.error.issues,
+    })
+    throw new Error('LLM response did not match expected narrative format')
+  }
+
+  const narrativeItems = validated.data
+
+  // Batch update panels in a single transaction
+  const validUpdates = narrativeItems
+    .map((item) => {
+      const panel = story.panels[item.index]
+      if (!panel) return null
+      return {
+        panelId: panel.id,
+        caption: item.caption,
+        narration: item.narration,
+      }
+    })
+    .filter((u): u is NonNullable<typeof u> => u !== null)
+
+  await db.$transaction(
+    validUpdates.map((u) =>
+      db.storyPanel.update({
+        where: { id: u.panelId },
+        data: { caption: u.caption, narration: u.narration },
+      }),
+    ),
+  )
+
+  return validUpdates.map((u) => ({
+    id: u.panelId,
+    narration: u.narration,
+    caption: u.caption,
+  }))
 }

@@ -45,6 +45,7 @@
     "storyDeleted": "ストーリーを削除しました",
     "storyDeleteFailed": "ストーリーの削除に失敗しました",
     "storyCreated": "ストーリーを作成しました",
+    "narrativeGenerated": "ナラティブを生成しました",
     "projectCreated": "プロジェクトを作成しました",
     "projectUpdated": "プロジェクトを更新しました",
     "projectDeleted": "プロジェクトを削除しました",

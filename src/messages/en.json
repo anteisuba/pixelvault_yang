@@ -45,6 +45,7 @@
     "storyDeleted": "Story deleted",
     "storyDeleteFailed": "Failed to delete story",
     "storyCreated": "Story created",
+    "narrativeGenerated": "Narrative generated",
     "projectCreated": "Project created",
     "projectUpdated": "Project updated",
     "projectDeleted": "Project deleted",

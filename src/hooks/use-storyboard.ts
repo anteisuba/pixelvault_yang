@@ -70,6 +70,7 @@ export function useStoryEditor(storyId: string) {
   const [loading, setLoading] = useState(true)
   const [isGeneratingNarrative, setIsGeneratingNarrative] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const t = useTranslations('Toasts')
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -110,14 +111,17 @@ export function useStoryEditor(storyId: string) {
         if (refreshed.success && refreshed.data) {
           setStory(refreshed.data)
         }
+        toast.success(t('narrativeGenerated'))
       } else {
-        setError(result.error ?? 'Failed to generate narrative')
+        const msg = result.error ?? 'Failed to generate narrative'
+        setError(msg)
+        toast.error(msg)
       }
 
       setIsGeneratingNarrative(false)
       return result
     },
-    [storyId],
+    [storyId, t],
   )
 
   const reorderPanels = useCallback(

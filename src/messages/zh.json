@@ -1705,6 +1705,7 @@
     "reverse": "图片反向工程",
     "layers": "图层分解",
     "transform": "图像变换",
+    "script": "视频剧本",
     "advanced": "高级设置",
     "enhance": "提示词增强",
     "civitai": "Civitai Token",

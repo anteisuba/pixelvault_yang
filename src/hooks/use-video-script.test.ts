@@ -21,7 +21,7 @@ import {
   useVideoScript,
   useVideoScriptList,
 } from '@/hooks/use-video-script'
-import { VideoScriptStatus } from '@/lib/generated/prisma/client'
+import { VideoScriptStatus } from '@/lib/generated/prisma/enums'
 import type { VideoScriptRecord } from '@/types/video-script'
 
 const SCRIPT_ID = 'script-1'

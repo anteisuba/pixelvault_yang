@@ -59,6 +59,7 @@ export type PanelName =
   | 'voiceTrainer'
   | 'transform'
   | 'videoParams'
+  | 'script'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -122,6 +123,7 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceTrainer: false,
   transform: false,
   videoParams: false,
+  script: false,
 }
 
 const initialFormState: StudioFormState = {
@@ -187,6 +189,7 @@ export function studioFormReducer(
         'civitai',
         'aspectRatio',
         'transform',
+        'script',
       ]
       const isToolbarPanel = toolbarPanels.includes(target)
       const newPanels = { ...state.panels }

@@ -39,6 +39,11 @@ const LayerDecomposePanel = dynamic(() =>
     (mod) => mod.LayerDecomposePanel,
   ),
 )
+const StudioScriptPanel = dynamic(() =>
+  import('@/components/business/studio/StudioScriptPanel').then(
+    (mod) => mod.StudioScriptPanel,
+  ),
+)
 
 /**
  * StudioPanelSheets — renders 3 large panels as right-side Sheet overlays.
@@ -73,7 +78,9 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
   }, [maxRefImages, imageUpload])
 
   const closePanel = useCallback(
-    (panel: 'refImage' | 'reverse' | 'layerDecompose' | 'transform') => {
+    (
+      panel: 'refImage' | 'reverse' | 'layerDecompose' | 'transform' | 'script',
+    ) => {
       dispatch({ type: 'CLOSE_PANEL', payload: panel })
     },
     [dispatch],
@@ -165,6 +172,28 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Video Script Sheet ───────────────────────────────────── */}
+      <Sheet
+        open={state.panels.script}
+        onOpenChange={(open) => {
+          if (!open) closePanel('script')
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col sm:w-[440px] sm:max-w-[480px]"
+        >
+          <SheetHeader>
+            <SheetTitle className="font-display">
+              {tPanels('script')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <StudioScriptPanel />
           </div>
         </SheetContent>
       </Sheet>

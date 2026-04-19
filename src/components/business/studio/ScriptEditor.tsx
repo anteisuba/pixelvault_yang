@@ -28,7 +28,7 @@ import {
   SCENE_DURATION_RANGE,
   type CameraShot,
 } from '@/constants/video-script'
-import { VideoScriptStatus } from '@/lib/generated/prisma/client'
+import { VideoScriptStatus } from '@/lib/generated/prisma/enums'
 import type { VideoScriptRecord, VideoScriptScene } from '@/types/video-script'
 
 interface ScriptEditorProps {

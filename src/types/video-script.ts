@@ -3,7 +3,7 @@ import { z } from 'zod'
 import {
   VideoScriptStatus,
   VideoScriptSceneStatus,
-} from '@/lib/generated/prisma/client'
+} from '@/lib/generated/prisma/enums'
 import {
   CAMERA_SHOTS,
   CONSISTENCY_MODES,

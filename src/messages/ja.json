@@ -1704,6 +1704,7 @@
     "reverse": "画像リバースエンジニア",
     "layers": "レイヤー分解",
     "transform": "画像変換",
+    "script": "動画脚本",
     "advanced": "詳細設定",
     "enhance": "プロンプト強化",
     "civitai": "Civitai トークン",

@@ -1705,6 +1705,7 @@
     "reverse": "Image Reverse Engineer",
     "layers": "Layer Decompose",
     "transform": "Image Transform",
+    "script": "Video Script",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Enhancement",
     "civitai": "Civitai Token",

@@ -2,6 +2,7 @@
 
 import { memo } from 'react'
 import {
+  FileText,
   Image as ImageIcon,
   Mic,
   Plus,
@@ -30,6 +31,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { imageUpload, promptEnhance, civitai } = useStudioData()
   const { isGenerating } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
+  const tScript = useTranslations('VideoScript')
 
   // Video mode: show video-specific toolbar (enhance, refImage, aspectRatio, videoParams)
   if (state.outputType === 'video') {
@@ -99,6 +101,18 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         >
           <SlidersHorizontal className="size-3.5" />
           {tBar('video')}
+        </button>
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })}
+          disabled={isGenerating}
+          className={cn(
+            pillBase,
+            state.panels.script ? pillActive : pillInactive,
+          )}
+        >
+          <FileText className="size-3.5" />
+          {tScript('panelTitle')}
         </button>
       </div>
     )

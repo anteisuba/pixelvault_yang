@@ -9,7 +9,7 @@ import {
   listVideoScriptsAPI,
   updateVideoScriptAPI,
 } from '@/lib/api-client'
-import { VideoScriptStatus } from '@/lib/generated/prisma/client'
+import { VideoScriptStatus } from '@/lib/generated/prisma/enums'
 import type {
   CreateVideoScriptInput,
   VideoScriptRecord,

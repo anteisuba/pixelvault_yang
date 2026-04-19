@@ -41,6 +41,7 @@ function makeInitialState(
       voiceTrainer: false,
       transform: false,
       videoParams: false,
+      script: false,
     },
     ...overrides,
   }

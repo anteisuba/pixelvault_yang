@@ -181,7 +181,14 @@
       "Bash(awk '/CREATE TABLE \"StyleCard\"/,/^\\\\\\);/' prisma/migrations/20260328000000_baseline_align_schema/migration.sql)",
       "Bash(awk ' *)",
       "Bash(python3 -c ' *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(curl -sf -o /dev/null -w \"%{http_code}\" http://localhost:58369)",
+      "Bash(curl -sf -o /dev/null -w \"%{http_code}\" http://localhost:63473)",
+      "Bash(curl -sf -o /dev/null -w \"localhost:3000 → HTTP %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -sf -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -sf -o /dev/null -w \"%{http_code}\" http://localhost:3000/en/studio)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} in %{time_total}s\\\\n\" http://localhost:3000/en/studio --max-time 30)",
+      "Bash(curl -sI http://localhost:3000/en/studio)"
     ]
   },
   "hooks": {

@@ -63,6 +63,11 @@ const StudioVideoParams = dynamic(() =>
     (mod) => mod.StudioVideoParams,
   ),
 )
+const StudioScriptPanel = dynamic(() =>
+  import('@/components/business/studio/StudioScriptPanel').then(
+    (mod) => mod.StudioScriptPanel,
+  ),
+)
 
 /**
  * StudioDockPanelArea — renders ALL 6 tool panels inline in the right
@@ -138,7 +143,8 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     state.panels.aspectRatio ||
     state.panels.voiceSelector ||
     state.panels.voiceTrainer ||
-    state.panels.videoParams
+    state.panels.videoParams ||
+    state.panels.script
 
   if (!hasOpenPanel) return null
 
@@ -286,6 +292,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
       {/* ── Video Params (video mode) ─────────────────────────── */}
       {state.panels.videoParams && <StudioVideoParams />}
+
+      {/* ── Video Script (video mode) ─────────────────────────── */}
+      {state.panels.script && <StudioScriptPanel />}
     </div>
   )
 })

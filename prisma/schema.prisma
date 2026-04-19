@@ -59,42 +59,61 @@ enum PipelineClipStatus {
   FAILED
 }
 
+enum VideoScriptStatus {
+  DRAFT
+  SCRIPT_READY
+  FRAMES_READY
+  CLIPS_READY
+  COMPLETED
+  FAILED
+}
+
+enum VideoScriptSceneStatus {
+  PENDING
+  FRAME_GENERATING
+  FRAME_READY
+  CLIP_GENERATING
+  CLIP_READY
+  FAILED
+}
+
 // ─── Models ───────────────────────────────────────────────────────
 
 model User {
-  id          String   @id @default(uuid())
-  clerkId     String   @unique
-  email       String   @unique
-  username    String?  @unique
-  displayName String?
+  id               String   @id @default(uuid())
+  clerkId          String   @unique
+  email            String   @unique
+  username         String?  @unique
+  displayName      String?
   avatarUrl        String?
   avatarStorageKey String?
   bannerUrl        String?
   bannerStorageKey String?
   bio              String?  @db.Text
-  civitaiToken     String?             // AES-256-GCM encrypted Civitai API token
-  isPublic    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  civitaiToken     String? // AES-256-GCM encrypted Civitai API token
+  isPublic         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  generations    Generation[]
-  userApiKeys    UserApiKey[]
-  generationJobs GenerationJob[]
-  apiUsageLedger ApiUsageLedger[]
-  imageAnalyses  ImageAnalysis[]
-  arenaMatches   ArenaMatch[]
-  stories        Story[]
-  projects       Project[]
-  characterCards CharacterCard[]
-  likesGiven     UserLike[]     @relation("LikesGiven")
-  followsGiven   UserFollow[]   @relation("FollowsGiven")
-  followsReceived UserFollow[]  @relation("FollowsReceived")
-  collections    Collection[]
-  backgroundCards BackgroundCard[]
-  styleCards      StyleCard[]
-  cardRecipes     CardRecipe[]
-  videoPipelines      VideoPipeline[]
-  loraTrainingJobs    LoraTrainingJob[]
+  generations      Generation[]
+  userApiKeys      UserApiKey[]
+  generationJobs   GenerationJob[]
+  apiUsageLedger   ApiUsageLedger[]
+  imageAnalyses    ImageAnalysis[]
+  arenaMatches     ArenaMatch[]
+  stories          Story[]
+  projects         Project[]
+  characterCards   CharacterCard[]
+  likesGiven       UserLike[]        @relation("LikesGiven")
+  followsGiven     UserFollow[]      @relation("FollowsGiven")
+  followsReceived  UserFollow[]      @relation("FollowsReceived")
+  collections      Collection[]
+  backgroundCards  BackgroundCard[]
+  styleCards       StyleCard[]
+  cardRecipes      CardRecipe[]
+  videoPipelines   VideoPipeline[]
+  loraTrainingJobs LoraTrainingJob[]
+  videoScripts     VideoScript[]
 
   @@index([username])
 }
@@ -131,8 +150,8 @@ model UserApiKey {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([userId, modelId, adapterType])
   @@unique([userId, adapterType, modelId])
+  @@index([userId, modelId, adapterType])
 }
 
 model Generation {
@@ -174,30 +193,30 @@ model Generation {
   isFeatured     Boolean @default(false)
 
   // ── 關聯 ──────────────────────────────────────────────────────
-  userId         String?
-  user           User?            @relation(fields: [userId], references: [id])
-  projectId      String?
-  project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId          String?
+  user            User?                     @relation(fields: [userId], references: [id])
+  projectId       String?
+  project         Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   characterCardId String?
-  characterCard   CharacterCard?   @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  characterCard   CharacterCard?            @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   characterCards  GenerationCharacterCard[]
   cardRecipeId    String?
-  cardRecipe      CardRecipe?      @relation(fields: [cardRecipeId], references: [id], onDelete: SetNull)
+  cardRecipe      CardRecipe?               @relation(fields: [cardRecipeId], references: [id], onDelete: SetNull)
   recipeSnapshot  Json?
 
   // ── B0: Generation Snapshot ────────────────────────────────────
-  snapshot       Json?                       // Full input parameter snapshot
-  runGroupId     String?                     // Groups compare/variant runs
-  runGroupType   String  @default("single")  // "single" | "compare" | "variant"
-  runGroupIndex  Int     @default(0)         // Position within group (0-based)
-  isWinner       Boolean @default(false)     // Winner flag for compare mode
-  seed           BigInt?                     // Seed for reproducibility
+  snapshot      Json? // Full input parameter snapshot
+  runGroupId    String? // Groups compare/variant runs
+  runGroupType  String  @default("single") // "single" | "compare" | "variant"
+  runGroupIndex Int     @default(0) // Position within group (0-based)
+  isWinner      Boolean @default(false) // Winner flag for compare mode
+  seed          BigInt? // Seed for reproducibility
 
-  generationJob  GenerationJob?   @relation("GenerationToJob")
-  apiUsageLedger ApiUsageLedger[] @relation("GenerationToUsage")
-  arenaEntries   ArenaEntry[]
-  storyPanels    StoryPanel[]
-  likes          UserLike[]
+  generationJob   GenerationJob?   @relation("GenerationToJob")
+  apiUsageLedger  ApiUsageLedger[] @relation("GenerationToUsage")
+  arenaEntries    ArenaEntry[]
+  storyPanels     StoryPanel[]
+  likes           UserLike[]
   collectionItems CollectionItem[]
   videoPipeline   VideoPipeline?
 
@@ -212,23 +231,23 @@ model Generation {
 }
 
 model GenerationJob {
-  id           String              @id @default(uuid())
-  userId       String
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generationId String?             @unique
-  generation   Generation?         @relation("GenerationToJob", fields: [generationId], references: [id], onDelete: SetNull)
-  adapterType  String
-  provider     String
-  modelId      String
-  status       GenerationJobStatus @default(QUEUED)
-  requestCount Int                 @default(0)
+  id                String              @id @default(uuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId      String?             @unique
+  generation        Generation?         @relation("GenerationToJob", fields: [generationId], references: [id], onDelete: SetNull)
+  adapterType       String
+  provider          String
+  modelId           String
+  status            GenerationJobStatus @default(QUEUED)
+  requestCount      Int                 @default(0)
   prompt            String?             @db.Text
   errorMessage      String?             @db.Text
   externalRequestId String?
   startedAt         DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  completedAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   apiUsageLedger ApiUsageLedger[] @relation("GenerationJobToUsage")
 
@@ -339,16 +358,16 @@ model ModelConfig {
 }
 
 model Story {
-  id          String       @id @default(uuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
+  id           String       @id @default(uuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
   coverImageId String?
-  displayMode String       @default("scroll")
-  isPublic    Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  panels      StoryPanel[]
+  displayMode  String       @default("scroll")
+  isPublic     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  panels       StoryPanel[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([isPublic, createdAt(sort: Desc)])
@@ -372,40 +391,40 @@ model StoryPanel {
 }
 
 model CharacterCard {
-  id               String              @id @default(uuid())
-  userId           String
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId        String?
-  project          Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name             String
-  description      String?             @db.Text
-  sourceImageUrl   String              // Primary source image URL (first uploaded)
-  sourceStorageKey String
-  sourceImages     Json?               // string[] — all uploaded source image URLs (legacy flat)
-  sourceImageEntries Json?             // SourceImageEntry[] — structured with viewType
-  characterPrompt  String              @db.Text
-  modelPrompts     Json?               // Record<adapterType, optimizedPrompt>
-  referenceImages  Json?               // string[] — best generation R2 URLs
-  attributes       Json?               // CharacterAttributes structured data
-  loras            Json?               // Lora[] — character-specific LoRA models [{url, scale}]
-  tags             String[]            @default([])
-  status           CharacterCardStatus @default(DRAFT)
-  stabilityScore   Float?
-  isDeleted        Boolean             @default(false)
+  id                 String              @id @default(uuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId          String?
+  project            Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name               String
+  description        String?             @db.Text
+  sourceImageUrl     String // Primary source image URL (first uploaded)
+  sourceStorageKey   String
+  sourceImages       Json? // string[] — all uploaded source image URLs (legacy flat)
+  sourceImageEntries Json? // SourceImageEntry[] — structured with viewType
+  characterPrompt    String              @db.Text
+  modelPrompts       Json? // Record<adapterType, optimizedPrompt>
+  referenceImages    Json? // string[] — best generation R2 URLs
+  attributes         Json? // CharacterAttributes structured data
+  loras              Json? // Lora[] — character-specific LoRA models [{url, scale}]
+  tags               String[]            @default([])
+  status             CharacterCardStatus @default(DRAFT)
+  stabilityScore     Float?
+  isDeleted          Boolean             @default(false)
 
   // ── Variant system (folder-like) ────────────────────────────
-  parentId         String?             // null = root card, set = variant of parent
-  parent           CharacterCard?      @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
-  variants         CharacterCard[]     @relation("CharacterCardVariants")
-  variantLabel     String?             // e.g. "Anime Style", "3D Model", "Chibi"
+  parentId     String? // null = root card, set = variant of parent
+  parent       CharacterCard?  @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
+  variants     CharacterCard[] @relation("CharacterCardVariants")
+  variantLabel String? // e.g. "Anime Style", "3D Model", "Chibi"
 
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  generations     Generation[]
-  generationLinks GenerationCharacterCard[]
-  recipesAsChar      CardRecipe[]  @relation("RecipeCharacter")
-  loraTrainingJobs   LoraTrainingJob[]
+  generations      Generation[]
+  generationLinks  GenerationCharacterCard[]
+  recipesAsChar    CardRecipe[]              @relation("RecipeCharacter")
+  loraTrainingJobs LoraTrainingJob[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, status, isDeleted])
@@ -498,7 +517,7 @@ model BackgroundCard {
   sourceStorageKey String?
   backgroundPrompt String   @db.Text
   attributes       Json?
-  loras            Json?               // Lora[] — background-specific LoRA models
+  loras            Json? // Lora[] — background-specific LoRA models
   tags             String[] @default([])
   isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
@@ -521,10 +540,10 @@ model StyleCard {
   sourceStorageKey String?
   stylePrompt      String   @db.Text
   attributes       Json?
-  loras            Json?               // Lora[] — style-specific LoRA models
-  modelId          String?             // AI_MODELS enum value (replaces ModelCard)
-  adapterType      String?             // AI_ADAPTER_TYPES value
-  advancedParams   Json?               // AdvancedParams (guidance, steps, seed, loras)
+  loras            Json? // Lora[] — style-specific LoRA models
+  modelId          String? // AI_MODELS enum value (replaces ModelCard)
+  adapterType      String? // AI_ADAPTER_TYPES value
+  advancedParams   Json? // AdvancedParams (guidance, steps, seed, loras)
   tags             String[] @default([])
   isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
@@ -561,75 +580,75 @@ model CardRecipe {
 // ─── Long Video Pipeline ────────────────────────────────────────
 
 model VideoPipeline {
-  id                 String              @id @default(uuid())
-  userId             String
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status             VideoPipelineStatus @default(RUNNING)
+  id     String              @id @default(uuid())
+  userId String
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status VideoPipelineStatus @default(RUNNING)
 
   // Generation parameters (frozen at pipeline creation)
-  prompt             String              @db.Text
-  modelId            String
-  adapterType        String
-  aspectRatio        String              @default("16:9")
-  resolution         String?
-  negativePrompt     String?             @db.Text
+  prompt         String  @db.Text
+  modelId        String
+  adapterType    String
+  aspectRatio    String  @default("16:9")
+  resolution     String?
+  negativePrompt String? @db.Text
 
   // Extension method: "native_extend" | "last_frame_chain"
-  extensionMethod    String              @default("native_extend")
+  extensionMethod String @default("native_extend")
 
   // Target & progress
   targetDurationSec  Int
-  currentDurationSec Float               @default(0)
-  totalClips         Int                 @default(1)
-  completedClips     Int                 @default(0)
+  currentDurationSec Float @default(0)
+  totalClips         Int   @default(1)
+  completedClips     Int   @default(0)
 
   // Final output
-  finalVideoUrl      String?
-  finalStorageKey    String?
-  generationId       String?             @unique
-  generation         Generation?         @relation(fields: [generationId], references: [id], onDelete: SetNull)
+  finalVideoUrl   String?
+  finalStorageKey String?
+  generationId    String?     @unique
+  generation      Generation? @relation(fields: [generationId], references: [id], onDelete: SetNull)
 
   // Reference for character consistency
-  characterCardIds   String[]            @default([])
-  referenceImageUrl  String?
-  apiKeyId           String?
+  characterCardIds  String[] @default([])
+  referenceImageUrl String?
+  apiKeyId          String?
 
-  errorMessage       String?             @db.Text
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  clips              VideoPipelineClip[]
+  clips VideoPipelineClip[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
 }
 
 model VideoPipelineClip {
-  id                String             @id @default(uuid())
-  pipelineId        String
-  pipeline          VideoPipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  clipIndex         Int
-  status            PipelineClipStatus @default(PENDING)
+  id         String             @id @default(uuid())
+  pipelineId String
+  pipeline   VideoPipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  clipIndex  Int
+  status     PipelineClipStatus @default(PENDING)
 
   // Job tracking
   generationJobId   String?
-  externalRequestId String?            @db.Text
+  externalRequestId String? @db.Text
 
   // Clip result
-  videoUrl          String?
-  storageKey        String?
-  lastFrameUrl      String?
-  durationSec       Float?
+  videoUrl     String?
+  storageKey   String?
+  lastFrameUrl String?
+  durationSec  Float?
 
   // Extension input
-  inputVideoUrl     String?            // For native extend: previous clip's video URL
-  inputFrameUrl     String?            // For last-frame chain: previous clip's last frame
+  inputVideoUrl String? // For native extend: previous clip's video URL
+  inputFrameUrl String? // For last-frame chain: previous clip's last frame
 
-  errorMessage      String?            @db.Text
-  startedAt         DateTime?
-  completedAt       DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  errorMessage String?   @db.Text
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@unique([pipelineId, clipIndex])
   @@index([pipelineId, clipIndex])
@@ -646,19 +665,64 @@ model LoraTrainingJob {
   triggerWord        String
   loraType           String             @default("subject") // "subject" | "style"
   baseModel          String             @default("flux-dev")
-  trainingImageKeys  String[]                                // R2 storage keys
+  trainingImageKeys  String[] // R2 storage keys
   status             LoraTrainingStatus @default(QUEUED)
-  externalTrainingId String?                                 // Replicate training ID
-  progress           Float              @default(0)          // 0-1
+  externalTrainingId String? // Replicate training ID
+  progress           Float              @default(0) // 0-1
   errorMessage       String?            @db.Text
-  loraUrl            String?                                 // Trained LoRA URL
-  loraStorageKey     String?                                 // R2 backup key
+  loraUrl            String? // Trained LoRA URL
+  loraStorageKey     String? // R2 backup key
   createdAt          DateTime           @default(now())
   startedAt          DateTime?
   completedAt        DateTime?
 
-  characterCardId    String?
-  characterCard      CharacterCard?     @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  characterCardId String?
+  characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
 
   @@index([userId, status, createdAt(sort: Desc)])
+}
+
+// ─── Video Script (VS1-VS11) ──────────────────────────────────────
+
+model VideoScript {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic           String             @db.Text
+  targetDuration  Int // 30 | 60 | 120 (seconds)
+  totalScenes     Int // derived from targetDuration
+  status          VideoScriptStatus  @default(DRAFT)
+  consistencyMode String // 'character_card' | 'first_frame_ref'
+  characterCardId String? // required when consistencyMode = 'character_card'
+  styleCardId     String? // optional global style
+  videoModelId    String // 'seedance-2-fast' | 'kling-pro'
+  finalVideoUrl   String?
+  scenes          VideoScriptScene[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, status, createdAt(sort: Desc)])
+}
+
+model VideoScriptScene {
+  id                String                 @id @default(cuid())
+  scriptId          String
+  script            VideoScript            @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  orderIndex        Int
+  duration          Int
+  cameraShot        String
+  action            String                 @db.Text
+  dialogue          String?                @db.Text
+  transition        String // 'cut' | 'fade' | 'dissolve' (Phase 1 only 'cut')
+  frameGenerationId String? // VS10: plain string, no FK
+  clipGenerationId  String? // VS10: plain string, no FK
+  status            VideoScriptSceneStatus @default(PENDING)
+  errorMessage      String?                @db.Text
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([scriptId, orderIndex])
+  @@index([scriptId, orderIndex])
+  @@index([status, createdAt(sort: Desc)])
 }

@@ -75,7 +75,9 @@ export const ModelName = {
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip',
-  LoraTrainingJob: 'LoraTrainingJob'
+  LoraTrainingJob: 'LoraTrainingJob',
+  VideoScript: 'VideoScript',
+  VideoScriptScene: 'VideoScriptScene'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -544,6 +546,45 @@ export const LoraTrainingJobScalarFieldEnum = {
 } as const
 
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
+
+
+export const VideoScriptScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  topic: 'topic',
+  targetDuration: 'targetDuration',
+  totalScenes: 'totalScenes',
+  status: 'status',
+  consistencyMode: 'consistencyMode',
+  characterCardId: 'characterCardId',
+  styleCardId: 'styleCardId',
+  videoModelId: 'videoModelId',
+  finalVideoUrl: 'finalVideoUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoScriptScalarFieldEnum = (typeof VideoScriptScalarFieldEnum)[keyof typeof VideoScriptScalarFieldEnum]
+
+
+export const VideoScriptSceneScalarFieldEnum = {
+  id: 'id',
+  scriptId: 'scriptId',
+  orderIndex: 'orderIndex',
+  duration: 'duration',
+  cameraShot: 'cameraShot',
+  action: 'action',
+  dialogue: 'dialogue',
+  transition: 'transition',
+  frameGenerationId: 'frameGenerationId',
+  clipGenerationId: 'clipGenerationId',
+  status: 'status',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
 
 
 export const SortOrder = {

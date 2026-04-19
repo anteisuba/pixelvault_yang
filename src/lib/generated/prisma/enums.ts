@@ -78,3 +78,27 @@ export const PipelineClipStatus = {
 } as const
 
 export type PipelineClipStatus = (typeof PipelineClipStatus)[keyof typeof PipelineClipStatus]
+
+
+export const VideoScriptStatus = {
+  DRAFT: 'DRAFT',
+  SCRIPT_READY: 'SCRIPT_READY',
+  FRAMES_READY: 'FRAMES_READY',
+  CLIPS_READY: 'CLIPS_READY',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type VideoScriptStatus = (typeof VideoScriptStatus)[keyof typeof VideoScriptStatus]
+
+
+export const VideoScriptSceneStatus = {
+  PENDING: 'PENDING',
+  FRAME_GENERATING: 'FRAME_GENERATING',
+  FRAME_READY: 'FRAME_READY',
+  CLIP_GENERATING: 'CLIP_GENERATING',
+  CLIP_READY: 'CLIP_READY',
+  FAILED: 'FAILED'
+} as const
+
+export type VideoScriptSceneStatus = (typeof VideoScriptSceneStatus)[keyof typeof VideoScriptSceneStatus]

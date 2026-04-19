@@ -408,7 +408,9 @@ export const ModelName = {
   CardRecipe: 'CardRecipe',
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip',
-  LoraTrainingJob: 'LoraTrainingJob'
+  LoraTrainingJob: 'LoraTrainingJob',
+  VideoScript: 'VideoScript',
+  VideoScriptScene: 'VideoScriptScene'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -424,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2278,6 +2280,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    VideoScript: {
+      payload: Prisma.$VideoScriptPayload<ExtArgs>
+      fields: Prisma.VideoScriptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VideoScriptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VideoScriptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        findFirst: {
+          args: Prisma.VideoScriptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VideoScriptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        findMany: {
+          args: Prisma.VideoScriptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
+        }
+        create: {
+          args: Prisma.VideoScriptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        createMany: {
+          args: Prisma.VideoScriptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VideoScriptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
+        }
+        delete: {
+          args: Prisma.VideoScriptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        update: {
+          args: Prisma.VideoScriptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        deleteMany: {
+          args: Prisma.VideoScriptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VideoScriptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VideoScriptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
+        }
+        upsert: {
+          args: Prisma.VideoScriptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
+        }
+        aggregate: {
+          args: Prisma.VideoScriptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoScript>
+        }
+        groupBy: {
+          args: Prisma.VideoScriptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VideoScriptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VideoScriptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VideoScriptCountAggregateOutputType> | number
+        }
+      }
+    }
+    VideoScriptScene: {
+      payload: Prisma.$VideoScriptScenePayload<ExtArgs>
+      fields: Prisma.VideoScriptSceneFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VideoScriptSceneFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VideoScriptSceneFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        findFirst: {
+          args: Prisma.VideoScriptSceneFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VideoScriptSceneFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        findMany: {
+          args: Prisma.VideoScriptSceneFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
+        }
+        create: {
+          args: Prisma.VideoScriptSceneCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        createMany: {
+          args: Prisma.VideoScriptSceneCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VideoScriptSceneCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
+        }
+        delete: {
+          args: Prisma.VideoScriptSceneDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        update: {
+          args: Prisma.VideoScriptSceneUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        deleteMany: {
+          args: Prisma.VideoScriptSceneDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VideoScriptSceneUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VideoScriptSceneUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
+        }
+        upsert: {
+          args: Prisma.VideoScriptSceneUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
+        }
+        aggregate: {
+          args: Prisma.VideoScriptSceneAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoScriptScene>
+        }
+        groupBy: {
+          args: Prisma.VideoScriptSceneGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VideoScriptSceneGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VideoScriptSceneCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VideoScriptSceneCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2769,6 +2919,45 @@ export const LoraTrainingJobScalarFieldEnum = {
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
 
 
+export const VideoScriptScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  topic: 'topic',
+  targetDuration: 'targetDuration',
+  totalScenes: 'totalScenes',
+  status: 'status',
+  consistencyMode: 'consistencyMode',
+  characterCardId: 'characterCardId',
+  styleCardId: 'styleCardId',
+  videoModelId: 'videoModelId',
+  finalVideoUrl: 'finalVideoUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoScriptScalarFieldEnum = (typeof VideoScriptScalarFieldEnum)[keyof typeof VideoScriptScalarFieldEnum]
+
+
+export const VideoScriptSceneScalarFieldEnum = {
+  id: 'id',
+  scriptId: 'scriptId',
+  orderIndex: 'orderIndex',
+  duration: 'duration',
+  cameraShot: 'cameraShot',
+  action: 'action',
+  dialogue: 'dialogue',
+  transition: 'transition',
+  frameGenerationId: 'frameGenerationId',
+  clipGenerationId: 'clipGenerationId',
+  status: 'status',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3011,6 +3200,34 @@ export type EnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInputTyp
 export type ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoraTrainingStatus[]'>
     
 
+
+/**
+ * Reference to a field of type 'VideoScriptStatus'
+ */
+export type EnumVideoScriptStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'VideoScriptStatus[]'
+ */
+export type ListEnumVideoScriptStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'VideoScriptSceneStatus'
+ */
+export type EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptSceneStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'VideoScriptSceneStatus[]'
+ */
+export type ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptSceneStatus[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -3131,6 +3348,8 @@ export type GlobalOmitConfig = {
   videoPipeline?: Prisma.VideoPipelineOmit
   videoPipelineClip?: Prisma.VideoPipelineClipOmit
   loraTrainingJob?: Prisma.LoraTrainingJobOmit
+  videoScript?: Prisma.VideoScriptOmit
+  videoScriptScene?: Prisma.VideoScriptSceneOmit
 }
 
 /* Types for Logging */

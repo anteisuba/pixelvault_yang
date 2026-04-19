@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Studio — Video · PixelVault</title>
+<link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="studio_video.css">
+</head>
+<body>
+<div class="studio" id="studio-root"></div>
+
+<script src="studio_shell.js"></script>
+<script>
+const root = document.getElementById('studio-root');
+root.innerHTML = renderShell({ mode: 'video' }) + `
+  <main class="workspace" style="position:relative">
+    <div class="video-ws">
+
+      <!-- Header -->
+      <div class="ws-header">
+        <div class="ws-title-group">
+          <div class="eyebrow">Project · Espresso Bar Short</div>
+          <div class="ws-title">Video Studio</div>
+        </div>
+        <div class="ws-tools">
+          <button class="btn ghost">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M9 3v18"/></svg>
+            Timeline view
+          </button>
+          <button class="btn ghost">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Version
+          </button>
+          <button class="btn">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M5 5v14l14-7z"/></svg>
+            Play all
+          </button>
+          <button class="btn" style="background:#9b59b6;color:white;border-color:transparent">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+            Export MP4
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="vd-tabs">
+        <button class="vd-tab">
+          <svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="m17 10 4-2v8l-4-2"/></svg>
+          Shot
+        </button>
+        <button class="vd-tab on">
+          <svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h2"/></svg>
+          Script → Storyboard
+          <span class="badge">NEW</span>
+        </button>
+        <button class="vd-tab">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/><rect x="5" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="11" y="10" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="7" y="16" width="10" height="4" rx="1" fill="currentColor" stroke="none"/></svg>
+          Timeline
+          <span class="badge" style="background:var(--secondary);color:var(--muted-foreground)">8 clips</span>
+        </button>
+      </div>
+
+      <!-- Body: assets rail + main -->
+      <div class="vd-body">
+
+        <!-- Assets rail -->
+        <aside class="vd-rail">
+          <section>
+            <div class="vd-rail-head">
+              <span class="ttl">Cast · 3</span>
+              <button class="add" title="New character"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="cast-card on" id="open-cast">
+              <div class="cast-portrait"><div class="art v3"></div></div>
+              <div class="cast-info">
+                <div class="nm">Elena</div>
+                <div class="sub">BARISTA · LEAD</div>
+              </div>
+              <span class="cast-status locked">3-view</span>
+            </div>
+            <div class="cast-card">
+              <div class="cast-portrait"><div class="art v5"></div></div>
+              <div class="cast-info">
+                <div class="nm">Marco</div>
+                <div class="sub">REGULAR · SUPPORT</div>
+              </div>
+              <span class="cast-status locked">3-view</span>
+            </div>
+            <div class="cast-card">
+              <div class="cast-portrait"><div class="art a3"></div></div>
+              <div class="cast-info">
+                <div class="nm">Ada (dog)</div>
+                <div class="sub">CAMEO</div>
+              </div>
+              <span class="cast-status draft">draft</span>
+            </div>
+          </section>
+
+          <section>
+            <div class="vd-rail-head">
+              <span class="ttl">Locations · 2</span>
+              <button class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="loc-card">
+              <div class="lc-thumb"><div class="art a2"></div></div>
+              <div class="lc-info"><div class="nm">Café interior</div><div class="sub">WARM · MORNING</div></div>
+            </div>
+            <div class="loc-card">
+              <div class="lc-thumb"><div class="art a5"></div></div>
+              <div class="lc-info"><div class="nm">Alley outside</div><div class="sub">SHADED · WET</div></div>
+            </div>
+          </section>
+
+          <section>
+            <div class="vd-rail-head">
+              <span class="ttl">Props</span>
+              <button class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="loc-card">
+              <div class="lc-thumb"><div class="art a8"></div></div>
+              <div class="lc-info"><div class="nm">Espresso cup</div><div class="sub">CERAMIC · CHIPPED</div></div>
+            </div>
+          </section>
+        </aside>
+
+        <!-- Main: script doctor tab -->
+        <div class="vd-main">
+
+          <!-- Script intake (collapsible, top) -->
+          <div class="sd-intake">
+            <div class="sd-intake-head">
+              <div>
+                <div class="ttl">Script input</div>
+                <div class="sub">Paste raw prose. AI will reshape into shots with camera, duration, motion.</div>
+              </div>
+              <button class="btn ghost" style="font-size:11px">
+                <svg class="ico" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                Collapse
+              </button>
+            </div>
+            <textarea class="sd-script">Elena opens the café at dawn. She grinds beans, the machine hisses, the room smells of yesterday's toast. Marco walks in, shakes rain from his jacket. They don't talk. She already knows his order. The cup lands on the counter. He smiles, for the first time that week.</textarea>
+            <div class="sd-intake-foot">
+              <div class="sd-knob-group">
+                <span class="lbl">Tone</span>
+                <div class="mini-group">
+                  <button class="on">Quiet</button>
+                  <button>Warm</button>
+                  <button>Tense</button>
+                  <button>Kinetic</button>
+                </div>
+              </div>
+              <div class="sd-knob-group">
+                <span class="lbl">Shots</span>
+                <div class="mini-group">
+                  <button>Auto</button>
+                  <button class="on">6</button>
+                  <button>8</button>
+                  <button>12</button>
+                </div>
+              </div>
+              <div class="sd-knob-group">
+                <span class="lbl">Length</span>
+                <div class="mini-group">
+                  <button>15s</button>
+                  <button class="on">30s</button>
+                  <button>60s</button>
+                </div>
+              </div>
+              <button class="sd-run">
+                <svg viewBox="0 0 24 24"><path d="M4 4l16 8-16 8V4z"/></svg>
+                Re-doctor script
+              </button>
+            </div>
+          </div>
+
+          <!-- Storyboard -->
+          <div class="sd-board">
+            <div class="sd-board-head">
+              <div class="ttl">Storyboard · 6 shots</div>
+              <div class="meta">Est. runtime 30s · 2 shots locked · 4 pending generation</div>
+            </div>
+
+            <!-- SHOT 01 (locked) -->
+            <div class="shot-row locked">
+              <div class="shot-index">
+                <div class="num">01</div>
+                <div class="dur">0–4s</div>
+                <div class="drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></div>
+              </div>
+              <div class="shot-preview">
+                <div class="art v2"></div>
+                <span class="shot-badge lock">◆ LOCKED · v3</span>
+                <div class="play-overlay"><button class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button></div>
+              </div>
+              <div class="shot-detail">
+                <div class="shot-label">
+                  <span class="slug">EXT · CAFÉ DOOR · DAWN</span>
+                  <span class="chip loc"><span class="sw"><div class="art a2"></div></span>Café interior</span>
+                  <span class="chip motion">Slow push-in</span>
+                </div>
+                <div class="shot-script" contenteditable="true">
+                  <strong>WIDE.</strong> Empty café, steam rising off a fresh cloth on the counter. Pale grey light spills through front glass. Street outside still wet from rain. <em>Ambient: distant traffic, fan hum.</em>
+                </div>
+                <div class="shot-meta-row">
+                  <span>Kling 1.6</span><span class="dot"></span>
+                  <span>24fps</span><span class="dot"></span>
+                  <span>seed 4019</span><span class="dot"></span>
+                  <span>$0.18</span>
+                </div>
+              </div>
+              <div class="shot-actions">
+                <div class="row"><button class="shot-btn lock on"><svg viewBox="0 0 24 24"><path d="M6 10V7a6 6 0 0 1 12 0v3"/><rect x="4" y="10" width="16" height="11" rx="2"/></svg>Locked</button></div>
+                <div class="row"><button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>Regenerate</button></div>
+                <div class="row">
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>Vary</button>
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>DL</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="shot-connector">
+              <span class="line"></span>
+              <button class="transition">Cut</button>
+              <span class="line"></span>
+            </div>
+
+            <!-- SHOT 02 -->
+            <div class="shot-row">
+              <div class="shot-index">
+                <div class="num">02</div>
+                <div class="dur">4–9s</div>
+                <div class="drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></div>
+              </div>
+              <div class="shot-preview">
+                <div class="art v4"></div>
+                <span class="shot-badge">READY · v1</span>
+                <div class="play-overlay"><button class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button></div>
+              </div>
+              <div class="shot-detail">
+                <div class="shot-label">
+                  <span class="slug">INT · GRINDER · CU</span>
+                  <span class="chip cast"><span class="sw"><div class="art v3"></div></span>Elena</span>
+                  <span class="chip motion">Macro, rack focus</span>
+                </div>
+                <div class="shot-script" contenteditable="true">
+                  <strong>CLOSE ON ELENA'S HANDS.</strong> Thumb on the grinder dose, ring finger tapping twice — a private rhythm. Coffee falls into a steel basket, the sound dark and percussive. Her face stays out of frame.
+                </div>
+                <div class="shot-meta-row">
+                  <span>Kling 1.6</span><span class="dot"></span>
+                  <span>Ref: Elena 3-view</span><span class="dot"></span>
+                  <span>seed 4020</span>
+                </div>
+              </div>
+              <div class="shot-actions">
+                <div class="row"><button class="shot-btn lock"><svg viewBox="0 0 24 24"><path d="M6 10V7a6 6 0 0 1 12 0v3"/><rect x="4" y="10" width="16" height="11" rx="2"/></svg>Lock</button></div>
+                <div class="row"><button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>Regenerate</button></div>
+                <div class="row">
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>Vary</button>
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>DL</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="shot-connector">
+              <span class="line"></span>
+              <button class="transition">Hard cut · sound bridge</button>
+              <span class="line"></span>
+            </div>
+
+            <!-- SHOT 03 (empty, queued) -->
+            <div class="shot-row">
+              <div class="shot-index">
+                <div class="num">03</div>
+                <div class="dur">9–14s</div>
+                <div class="drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></div>
+              </div>
+              <div class="shot-preview">
+                <div class="empty-state">not generated</div>
+              </div>
+              <div class="shot-detail">
+                <div class="shot-label">
+                  <span class="slug">EXT · ALLEY · MED</span>
+                  <span class="chip cast"><span class="sw"><div class="art v5"></div></span>Marco</span>
+                  <span class="chip loc"><span class="sw"><div class="art a5"></div></span>Alley outside</span>
+                  <span class="chip motion">Handheld</span>
+                </div>
+                <div class="shot-script" contenteditable="true">
+                  <strong>MEDIUM, HANDHELD.</strong> Marco steps off the curb, shakes rain from his jacket in one practiced snap. His breath shows. The café's neon reflection paints a strip of red on the puddle beside his shoe.
+                </div>
+                <div class="shot-meta-row">
+                  <span>Kling 1.6</span><span class="dot"></span>
+                  <span>Ref: Marco 3-view</span><span class="dot"></span>
+                  <span>queued</span>
+                </div>
+              </div>
+              <div class="shot-actions">
+                <div class="row"><button class="shot-btn primary">
+                  <svg viewBox="0 0 24 24"><path d="M5 3v18l15-9L5 3z"/></svg>Generate · $0.22
+                </button></div>
+                <div class="row"><button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add variant</button></div>
+                <div class="row"><button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6"/></svg>Delete shot</button></div>
+              </div>
+            </div>
+
+            <div class="shot-connector">
+              <span class="line"></span>
+              <button class="transition">+ Add transition</button>
+              <span class="line"></span>
+            </div>
+
+            <!-- SHOT 04 -->
+            <div class="shot-row">
+              <div class="shot-index">
+                <div class="num">04</div>
+                <div class="dur">14–19s</div>
+                <div class="drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></div>
+              </div>
+              <div class="shot-preview">
+                <div class="art v1"></div>
+                <span class="shot-badge">READY · v2</span>
+                <div class="play-overlay"><button class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button></div>
+              </div>
+              <div class="shot-detail">
+                <div class="shot-label">
+                  <span class="slug">INT · TWO-SHOT · EYELINE</span>
+                  <span class="chip cast"><span class="sw"><div class="art v3"></div></span>Elena</span>
+                  <span class="chip cast"><span class="sw"><div class="art v5"></div></span>Marco</span>
+                  <span class="chip motion">Static · 50mm</span>
+                </div>
+                <div class="shot-script" contenteditable="true">
+                  <strong>TWO-SHOT.</strong> Elena and Marco across the counter, no words. She slides a cup over. He catches it without looking. <em>Camera holds a beat longer than comfortable.</em>
+                </div>
+                <div class="shot-meta-row">
+                  <span>Kling 1.6</span><span class="dot"></span>
+                  <span>Refs: Elena + Marco</span><span class="dot"></span>
+                  <span>seed 4022</span>
+                </div>
+              </div>
+              <div class="shot-actions">
+                <div class="row"><button class="shot-btn lock"><svg viewBox="0 0 24 24"><path d="M6 10V7a6 6 0 0 1 12 0v3"/><rect x="4" y="10" width="16" height="11" rx="2"/></svg>Lock</button></div>
+                <div class="row"><button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>Regenerate</button></div>
+                <div class="row">
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>Vary</button>
+                  <button class="shot-btn"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>DL</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="shot-connector">
+              <span class="line"></span>
+              <button class="transition">+ Add shot · or drag here</button>
+              <span class="line"></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Character turnaround workbench (opens from any cast card) -->
+    <section class="cast-workbench" id="cast-wb" style="display:none">
+      <header class="cw-head">
+        <div class="ttl-group">
+          <span class="eye">Character · Turnaround</span>
+          <span class="nm">Elena — Barista · Lead</span>
+        </div>
+        <button class="close" id="close-wb"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </header>
+
+      <div class="cw-canvas">
+        <div class="cw-stage">
+          <div class="cw-src">
+            <div class="thumb"><div class="art v3" style="position:absolute;inset:0"></div></div>
+            <div class="label">Source · photo</div>
+            <div class="name">elena_ref_01.jpg</div>
+          </div>
+
+          <div class="cw-triptych">
+            <div class="cw-view locked">
+              <div class="view-head"><span class="vn">Front</span><span class="angle">0°</span></div>
+              <div class="view-img"><div class="art v3"></div></div>
+              <div class="view-foot"><button class="lock on">◆ locked</button><button>Vary</button></div>
+            </div>
+            <div class="cw-view locked">
+              <div class="view-head"><span class="vn">3/4</span><span class="angle">45°</span></div>
+              <div class="view-img"><div class="art v5"></div></div>
+              <div class="view-foot"><button class="lock on">◆ locked</button><button>Vary</button></div>
+            </div>
+            <div class="cw-view">
+              <div class="view-head"><span class="vn">Profile</span><span class="angle">90°</span></div>
+              <div class="view-img"><div class="art v1"></div></div>
+              <div class="view-foot"><button class="lock">Lock</button><button>Vary</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="cw-side">
+        <div class="cw-panel">
+          <h4>Character</h4>
+          <label>Name</label>
+          <input value="Elena" />
+          <label>Role</label>
+          <input value="Barista, late 20s, quiet hands" />
+          <label>Wardrobe · permanent</label>
+          <div class="tag-row">
+            <span class="tag">oat apron <span class="x">×</span></span>
+            <span class="tag">rolled denim shirt <span class="x">×</span></span>
+            <span class="tag">steel watch <span class="x">×</span></span>
+            <span class="tag">hair loose <span class="x">×</span></span>
+          </div>
+          <label>Description</label>
+          <textarea>Tall, olive skin, hazel eyes. Flour-dusted freckles. Moves slowly, deliberately. Never rushes even at rush hour.</textarea>
+        </div>
+
+        <div class="cw-panel">
+          <h4>Turnaround settings</h4>
+          <label>Model</label>
+          <select><option>FLUX Pro 1.1 · character lock</option><option>Gemini 3.1</option><option>Ideogram 3</option></select>
+          <label>Background</label>
+          <select><option>Neutral studio grey</option><option>Transparent</option><option>Keep source</option></select>
+          <label>Lighting match</label>
+          <select><option>Soft key from left</option><option>Flat studio</option><option>Match source</option></select>
+
+          <button class="cw-gen-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18l15-9L5 3z"/></svg>
+            Regenerate profile view
+          </button>
+          <button class="cw-use-btn">◆ Use as reference in all Elena shots</button>
+        </div>
+
+        <div class="cw-panel">
+          <h4>Usage</h4>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);letter-spacing:.04em;line-height:1.7">
+            Used in <b style="color:var(--foreground)">4 shots</b><br>
+            shots 02, 04, 05, 06
+          </div>
+        </div>
+      </aside>
+    </section>
+
+  </main>
+`;
+
+// open/close cast workbench
+document.getElementById('open-cast').addEventListener('click', () => {
+  document.getElementById('cast-wb').style.display = 'grid';
+});
+document.getElementById('close-wb').addEventListener('click', () => {
+  document.getElementById('cast-wb').style.display = 'none';
+});
+</script>
+</body>
+</html>

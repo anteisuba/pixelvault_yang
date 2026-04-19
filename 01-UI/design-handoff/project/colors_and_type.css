@@ -1,0 +1,422 @@
+/* =========================================================================
+   PixelVault Design System — colors & typography
+   ========================================================================= */
+
+/* ── Webfont imports ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Geist+Mono:wght@400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap');
+
+/* =========================================================================
+   Base tokens
+   ========================================================================= */
+:root {
+  /* ── Font families ───────────────────────────────────────────────── */
+  --font-display: 'Space Grotesk', 'Satoshi', system-ui, sans-serif;
+  --font-sans: 'Satoshi', 'Space Grotesk', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-hero: var(--font-display);
+
+  /* ── Core palette (LIGHT — warm amber/cream) ─────────────────────── */
+  --background: oklch(0.975 0.008 75.4); /* warm cream #faf9f5 */
+  --foreground: oklch(0.245 0.017 58.1); /* warm near-black #141413 */
+
+  --card: oklch(0.986 0.006 77.5);
+  --card-foreground: oklch(0.245 0.017 58.1);
+  --popover: oklch(0.986 0.006 77.5);
+  --popover-foreground: oklch(0.245 0.017 58.1);
+
+  --primary: oklch(0.64 0.112 42.3); /* terracotta #d97757 */
+  --primary-foreground: oklch(0.987 0.004 88.4);
+  --primary-dark: oklch(0.56 0.115 38); /* gradient endpoint #b85c3a */
+
+  --secondary: oklch(0.952 0.011 73.2);
+  --secondary-foreground: oklch(0.245 0.017 58.1);
+  --muted: oklch(0.949 0.009 76.8);
+  --muted-foreground: oklch(0.53 0.017 61.2);
+  --accent: oklch(0.937 0.016 65.4);
+  --accent-foreground: oklch(0.245 0.017 58.1);
+  --destructive: oklch(0.577 0.245 27.325);
+
+  --border: oklch(0.866 0.013 72.7);
+  --input: oklch(0.866 0.013 72.7);
+  --ring: oklch(0.63 0.05 42.1);
+
+  /* ── Data-viz (muted, never fluorescent) ─────────────────────────── */
+  --chart-1: oklch(0.64 0.112 42.3); /* primary amber */
+  --chart-2: oklch(0.66 0.065 231.4); /* cool blue */
+  --chart-3: oklch(0.61 0.05 146.7); /* sage */
+  --chart-4: oklch(0.79 0.034 80.7); /* sand */
+  --chart-5: oklch(0.57 0.04 33.9); /* warm brown */
+
+  /* ── Derived surfaces ────────────────────────────────────────────── */
+  --surface-elevated: color-mix(in oklab, var(--card) 92%, var(--background));
+  --surface-soft: color-mix(in oklab, var(--secondary) 78%, var(--background));
+  --surface-highlight: color-mix(
+    in oklab,
+    var(--primary) 8%,
+    var(--background)
+  );
+  --page-border: color-mix(in oklab, var(--border) 85%, transparent);
+
+  /* ── Radii ──────────────────────────────────────────────────────── */
+  --radius: 0.9rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-pill: 9999px;
+
+  /* ── Typography scale ────────────────────────────────────────────── */
+  --text-3xs: 0.625rem; /* 10 */
+  --text-2xs: 0.6875rem; /* 11 */
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.875rem; /* 14 */
+  --text-base: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: 1.25rem; /* 20 */
+  --text-2xl: 1.5rem; /* 24 */
+  --text-3xl: 2rem; /* 32 */
+  --text-4xl: 2.5rem; /* 40 */
+  --text-5xl: 3.5rem; /* 56 */
+  --text-brand: 1.12rem;
+  --text-nav: 0.6875rem;
+  --text-tab: 0.6875rem;
+
+  --tracking-brand: -0.04em;
+  --tracking-tight: -0.04em;
+  --tracking-display: -0.05em;
+  --tracking-nav: 0.16em;
+  --tracking-nav-dense: 0.14em;
+  --tracking-eyebrow: 0.18em;
+
+  /* ── Spacing ─────────────────────────────────────────────────────── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --max-width-content: 75rem;
+
+  /* ── Shadows (color-mixed from foreground — never hard black) ────── */
+  --shadow-sm: 0 1px 2px color-mix(in oklab, var(--foreground) 3%, transparent);
+  --shadow-card:
+    0 1px 2px color-mix(in oklab, var(--foreground) 3%, transparent),
+    0 4px 16px color-mix(in oklab, var(--foreground) 2%, transparent);
+  --shadow-hover:
+    0 8px 24px color-mix(in oklab, var(--foreground) 7%, transparent),
+    0 20px 48px color-mix(in oklab, var(--foreground) 4%, transparent);
+  --shadow-primary-btn:
+    0 1px 2px color-mix(in oklab, var(--primary) 25%, transparent),
+    0 4px 12px color-mix(in oklab, var(--primary) 15%, transparent);
+  --shadow-primary-btn-hover:
+    0 2px 4px color-mix(in oklab, var(--primary) 30%, transparent),
+    0 8px 20px color-mix(in oklab, var(--primary) 18%, transparent);
+
+  /* ── Motion ──────────────────────────────────────────────────────── */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --dur-reveal: 600ms;
+}
+
+/* =========================================================================
+   Dark palette — warm cocoa, not cool navy
+   ========================================================================= */
+.dark,
+[data-theme='dark'] {
+  --background: oklch(0.19 0.012 52.4);
+  --foreground: oklch(0.955 0.008 84.1);
+  --card: oklch(0.228 0.013 50.3);
+  --card-foreground: oklch(0.955 0.008 84.1);
+  --popover: oklch(0.228 0.013 50.3);
+  --popover-foreground: oklch(0.955 0.008 84.1);
+  --primary: oklch(0.7 0.109 43.3);
+  --primary-foreground: oklch(0.18 0.012 52.4);
+  --secondary: oklch(0.272 0.015 49.7);
+  --secondary-foreground: oklch(0.955 0.008 84.1);
+  --muted: oklch(0.272 0.015 49.7);
+  --muted-foreground: oklch(0.735 0.014 71.1);
+  --accent: oklch(0.312 0.018 56.6);
+  --accent-foreground: oklch(0.955 0.008 84.1);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.109 43.3);
+}
+
+/* =========================================================================
+   Base styles
+   ========================================================================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      color-mix(in oklab, var(--primary) 6%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--primary) 3%, transparent),
+      transparent 24rem
+    ),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
+  color: var(--foreground);
+}
+
+/* =========================================================================
+   Semantic type classes
+   ========================================================================= */
+.pv-hero {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 5.5vw, 4.2rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+  margin: 0;
+}
+.pv-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+  margin: 0;
+}
+.pv-h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+  margin: 0;
+}
+.pv-h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.pv-body {
+  font-family: var(--font-serif);
+  font-size: 1.03rem;
+  line-height: 1.78;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+.pv-body-sans {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.pv-lede {
+  font-family: var(--font-serif);
+  font-size: clamp(1.03rem, 1.65vw, 1.18rem);
+  line-height: 1.8;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+.pv-eyebrow {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+  opacity: 0.82;
+}
+.pv-nav-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-nav);
+  font-weight: 600;
+  letter-spacing: var(--tracking-nav);
+  text-transform: uppercase;
+}
+.pv-label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--muted-foreground) 92%, var(--background));
+}
+.pv-mono {
+  font-family: var(--font-mono);
+  font-feature-settings:
+    'tnum' 1,
+    'ss01' 1;
+}
+.pv-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   Utility primitives used across kits
+   ========================================================================= */
+.pv-card {
+  background: var(--card);
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform var(--dur-slow) var(--ease-out-expo),
+    box-shadow var(--dur-slow) var(--ease-out-expo),
+    border-color var(--dur-base) var(--ease-standard);
+}
+.pv-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: color-mix(in oklab, var(--primary) 20%, var(--border));
+}
+
+.pv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--page-border);
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--dur-base) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard);
+}
+.pv-btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-primary-btn);
+}
+.pv-btn-primary:hover {
+  background: color-mix(in oklab, var(--primary) 88%, black);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-primary-btn-hover);
+}
+.pv-btn-outline {
+  background: color-mix(in oklab, var(--background) 70%, transparent);
+  border-color: var(--page-border);
+  color: var(--foreground);
+  backdrop-filter: blur(8px);
+}
+.pv-btn-outline:hover {
+  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
+}
+.pv-btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+}
+.pv-btn-ghost:hover {
+  background: var(--accent);
+}
+.pv-btn-lg {
+  height: 2.85rem;
+  padding: 0 1.45rem;
+}
+
+.pv-input {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--page-border);
+  background: color-mix(in oklab, var(--background) 76%, var(--card));
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--dur-base) var(--ease-standard);
+}
+.pv-input:focus-visible {
+  border-color: color-mix(in oklab, var(--primary) 60%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 28%, transparent);
+}
+.pv-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* =========================================================================
+   Noise & gradient backgrounds
+   ========================================================================= */
+.pv-bg-hero {
+  position: relative;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -8%,
+      color-mix(in oklab, var(--primary) 7%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--primary) 3%, transparent),
+      transparent 22rem
+    ),
+    var(--background);
+}
+.pv-bg-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}

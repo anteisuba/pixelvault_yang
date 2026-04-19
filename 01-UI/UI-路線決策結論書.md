@@ -27,22 +27,28 @@
 
 ## 1. 全部 Confirmed Decisions
 
-| #   | 主題                 | 決策                                                                                       | 來源     |
-| --- | -------------------- | ------------------------------------------------------------------------------------------ | -------- |
-| D1  | 全域設計語言         | Editorial warm minimal（全域）+ Quiet gallery（Gallery / Profile `/u` 局部）               | Q1       |
-| D2  | Studio 佈局骨架      | 可折疊控制台，基於現有三欄漸進升級（不重寫）                                               | Q2       |
-| D3  | 風格控制顯性層級     | Studio 上方工具條（選卡片） + 左欄保留（管理卡片）互補                                     | Q6       |
-| D4  | UI 組件策略          | External first → Reuse Internal → Wrap Internally → Build Custom                           | 通用原則 |
-| D5  | 核心自定義邊界       | 只做產品差異化組件（非通用交互）                                                           | 通用原則 |
-| D6  | Gallery 定位         | 篩選 pill 化藝廊 + 高級篩選 popover 收納低頻字段                                           | Q3       |
-| D7  | Profile 雙形態差異   | 中等區分：`/u` = Quiet gallery 瀑布流 · `/profile` = dashboard 感                          | Q4       |
-| D8  | Card IA 演進         | 階段驅動：Phase 1 Studio 內嵌 → Phase 2 末加 nav 級 CardDrawer → Phase 4 可選獨立 `/cards` | Q5       |
-| D9  | StudioRecipeBar 視覺 | 3-slot 組合：縮略圖 + 名稱 + 未選「+ Add」；保持 Canvas 主導                               | Q7       |
-| D10 | 響應式退化策略       | 選擇性降級：≥1024 三欄 / <1024 側欄折疊為 icon / <768 側欄變 Sheet + RecipeBar stack       | Q8       |
-| D11 | Dark mode 策略       | Phase 4 之後才考慮；token 層預留 CSS variables 結構（`var(--color-*)`，不硬編碼）          | Q9       |
-| D12 | 篩選 pill 分界       | 3 pill 常駐：sort / type / timeRange；Advanced popover：model / liked；search 用 cmdk      | Q10      |
-| D13 | 批量操作 bar 行為    | 選擇時觸發：0 選中隱藏、有選中 fade + translateY 150-200ms 淡入                            | Q11      |
-| D14 | 組件庫基線           | shadcn/ui 為唯一通用組件來源；3 個特例補充（見 §5）                                        | Q12      |
+| #   | 主題                 | 決策                                                                                                                                                          | 來源       |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| D1  | 全域設計語言         | Editorial warm minimal（全域）+ Quiet gallery（Gallery / Profile `/u` 局部）                                                                                  | Q1         |
+| D2  | Studio 佈局骨架      | 可折疊控制台，基於現有三欄漸進升級（不重寫）                                                                                                                  | Q2         |
+| D3  | 風格控制顯性層級     | Studio 上方工具條（選卡片） + 左欄保留（管理卡片）互補                                                                                                        | Q6         |
+| D4  | UI 組件策略          | External first → Reuse Internal → Wrap Internally → Build Custom                                                                                              | 通用原則   |
+| D5  | 核心自定義邊界       | 只做產品差異化組件（非通用交互）                                                                                                                              | 通用原則   |
+| D6  | Gallery 定位         | 篩選 pill 化藝廊 + 高級篩選 popover 收納低頻字段                                                                                                              | Q3         |
+| D7  | Profile 雙形態差異   | 中等區分：`/u` = Quiet gallery 瀑布流 · `/profile` = dashboard 感                                                                                             | Q4         |
+| D8  | Card IA 演進         | 階段驅動：Phase 1 Studio 內嵌 → Phase 2 末加 nav 級 CardDrawer → Phase 4 可選獨立 `/cards`                                                                    | Q5         |
+| D9  | StudioRecipeBar 視覺 | 3-slot 組合：縮略圖 + 名稱 + 未選「+ Add」；保持 Canvas 主導                                                                                                  | Q7         |
+| D10 | 響應式退化策略       | 選擇性降級：≥1024 三欄 / <1024 側欄折疊為 icon / <768 側欄變 Sheet + RecipeBar stack                                                                          | Q8         |
+| D11 | Dark mode 策略       | Phase 4 之後才考慮；token 層預留 CSS variables 結構（`var(--color-*)`，不硬編碼）                                                                             | Q9         |
+| D12 | 篩選 pill 分界       | 3 pill 常駐：sort / type / timeRange；Advanced popover：model / liked；search 用 cmdk                                                                         | Q10        |
+| D13 | 批量操作 bar 行為    | 選擇時觸發：0 選中隱藏、有選中 fade + translateY 150-200ms 淡入                                                                                               | Q11        |
+| D14 | 組件庫基線           | shadcn/ui 為唯一通用組件來源；3 個特例補充（見 §5）                                                                                                           | Q12        |
+| D15 | Studio 路由結構      | 折中漸進：`/studio` 預設 = Image mode，新增 `/studio/video` 獨立路由（視頻劇本工作線隔離），`/studio/audio` Phase 4 再開；共用 `StudioShell` + mode-switch UI | Handoff Q1 |
+| D16 | Image mode Composer  | 漸進過渡：Phase 1 先做 RecipeBar（D9 不變），Phase 2 加浮動 Composer 作為 Image mode alt 入口；用戶選擇偏好                                                   | Handoff Q2 |
+| D17 | Character Turnaround | MVP **不含**；推遲到 Phase 2 再引入（依賴 Shot → Ref 鏈路穩定）                                                                                               | Handoff Q3 |
+| D18 | Studio 歷史組件演進  | 合併演進：`HistoryPanel` 演進成 run archive，不新增組件                                                                                                       | Handoff Q4 |
+| D19 | `pv-*` 工具類範圍    | Marketing-only（Landing 頁可直用），業務代碼仍走 shadcn 封裝層 + Tailwind 語義類                                                                              | Handoff Q5 |
+| D20 | 色彩空間遷移         | 全面遷移到 `oklch()`（Safari 15.4+ / Chrome 111+ 已普及，Next.js 16 browserlist 兼容）                                                                        | Handoff Q6 |
 
 ---
 

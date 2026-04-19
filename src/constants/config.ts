@@ -91,6 +91,9 @@ export const API_ENDPOINTS = {
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
 
+  /** Video Script (VS1-VS11) */
+  VIDEO_SCRIPT: '/api/video-script',
+
   /** Public model list (merged DB + hardcoded) */
   MODELS: '/api/models',
 

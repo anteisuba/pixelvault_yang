@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Studio — Image · PixelVault</title>
+<link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="studio_image.css">
+</head>
+<body>
+<div class="studio" id="studio-root"></div>
+
+<script src="studio_shell.js"></script>
+<script>
+const root = document.getElementById('studio-root');
+root.innerHTML = renderShell({ mode: 'image' }) + `
+  <main class="workspace" style="position:relative">
+
+    <!-- Header -->
+    <div class="ws-header">
+      <div class="ws-title-group">
+        <div class="eyebrow">Project · Golden Hour</div>
+        <div class="ws-title">Image Studio</div>
+      </div>
+      <div class="ws-tools">
+        <button class="btn ghost">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+          Filters
+        </button>
+        <div class="mini-group">
+          <button class="on">Compare</button>
+          <button>Gallery</button>
+          <button>Archive</button>
+        </div>
+        <button class="btn">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Share link
+        </button>
+      </div>
+    </div>
+
+    <!-- Canvas / archive feed -->
+    <div class="img-canvas" id="canvas">
+      <div class="img-canvas-inner">
+
+        <!-- RUN 1 (in progress) -->
+        <section class="run" id="run-1">
+          <header class="run-header">
+            <span class="run-time">14:32 · Now</span>
+            <span class="run-prompt">"golden hour on a hillside, lone cypress, grain of 35mm, quiet"</span>
+            <span class="run-meta">
+              <span>1:1</span><span class="sep">·</span><span>4 models</span><span class="sep">·</span><span>seed 8421</span>
+            </span>
+          </header>
+
+          <div class="compare-grid">
+            <!-- Gemini -->
+            <article class="compare-card">
+              <div class="compare-head">
+                <div>
+                  <div class="mdl-name">Gemini 3.1 Flash</div>
+                  <span class="mdl-vendor">Google · via Nano API</span>
+                </div>
+                <div class="cost free">free</div>
+              </div>
+              <div class="compare-img">
+                <div class="art a1"></div>
+                <div class="act-row">
+                  <button class="act-btn fav on" title="Favorite">
+                    <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z"/></svg>
+                  </button>
+                  <button class="act-btn" title="Variations">
+                    <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>
+                  </button>
+                  <button class="act-btn" title="Upscale">
+                    <svg viewBox="0 0 24 24"><path d="M4 12V4h8M20 12v8h-8"/></svg>
+                  </button>
+                  <button class="act-btn" title="Download">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="compare-foot">
+                <span>1024×1024</span>
+                <span>3.2s</span>
+              </div>
+            </article>
+
+            <!-- OpenAI -->
+            <article class="compare-card">
+              <div class="compare-head">
+                <div>
+                  <div class="mdl-name">GPT Image 1.5</div>
+                  <span class="mdl-vendor">OpenAI · your key</span>
+                </div>
+                <div class="cost">$0.040</div>
+              </div>
+              <div class="compare-img">
+                <div class="art a2"></div>
+                <div class="act-row">
+                  <button class="act-btn" title="Favorite">
+                    <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z"/></svg>
+                  </button>
+                  <button class="act-btn" title="Variations">
+                    <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>
+                  </button>
+                  <button class="act-btn" title="Upscale">
+                    <svg viewBox="0 0 24 24"><path d="M4 12V4h8M20 12v8h-8"/></svg>
+                  </button>
+                  <button class="act-btn" title="Download">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="compare-foot">
+                <span>1024×1024</span>
+                <span>5.8s</span>
+              </div>
+            </article>
+
+            <!-- Flux (loading) -->
+            <article class="compare-card">
+              <div class="compare-head">
+                <div>
+                  <div class="mdl-name">FLUX Pro 1.1</div>
+                  <span class="mdl-vendor">Black Forest · PixelVault</span>
+                </div>
+                <div class="cost">$0.055</div>
+              </div>
+              <div class="compare-img loading">
+                <div class="film"></div>
+                <div class="progress-hud">
+                  <span class="dot"></span>
+                  <span>Developing · 68%</span>
+                  <span class="bar"><span class="bar-fill"></span></span>
+                </div>
+              </div>
+              <div class="compare-foot">
+                <span>—</span>
+                <span>~2s left</span>
+              </div>
+            </article>
+
+            <!-- Ideogram (loading) -->
+            <article class="compare-card">
+              <div class="compare-head">
+                <div>
+                  <div class="mdl-name">Ideogram 3</div>
+                  <span class="mdl-vendor">Ideogram · PixelVault</span>
+                </div>
+                <div class="cost">$0.080</div>
+              </div>
+              <div class="compare-img loading">
+                <div class="film"></div>
+                <div class="progress-hud">
+                  <span class="dot"></span>
+                  <span>Queued · waiting</span>
+                  <span class="bar"><span class="bar-fill" style="width:12%;animation:none"></span></span>
+                </div>
+              </div>
+              <div class="compare-foot">
+                <span>—</span>
+                <span>in queue</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Variation tray -->
+        <section class="variant-tray">
+          <div class="variant-tray-head">
+            <div class="title">You liked <b>Gemini 3.1</b> — here are variations of seed <b>8421</b></div>
+            <div class="meta">Auto-generated · 5 variants</div>
+          </div>
+          <div class="variant-row">
+            <div class="variant-card"><div class="art a1"></div><span class="seed-tag">8421·a</span></div>
+            <div class="variant-card"><div class="art a6"></div><span class="seed-tag">8421·b</span></div>
+            <div class="variant-card"><div class="art a4"></div><span class="seed-tag">8421·c</span></div>
+            <div class="variant-card"><div class="art a3"></div><span class="seed-tag">8421·d</span></div>
+            <div class="variant-card"><div class="art a7"></div><span class="seed-tag">8421·e</span></div>
+            <div class="variant-card add">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+          </div>
+        </section>
+
+        <!-- RUN 2 (earlier) -->
+        <section class="run">
+          <header class="run-header">
+            <span class="run-time">14:18 · 14m ago</span>
+            <span class="run-prompt">"portrait of a ceramicist, studio light, hands caked with clay"</span>
+            <span class="run-meta">
+              <span>3:4</span><span class="sep">·</span><span>3 models</span><span class="sep">·</span><span>seed 2099</span>
+            </span>
+          </header>
+          <div class="compare-grid" style="grid-template-columns:repeat(3,1fr)">
+            <article class="compare-card">
+              <div class="compare-head">
+                <div><div class="mdl-name">Gemini 3.1 Flash</div><span class="mdl-vendor">Google</span></div>
+                <div class="cost free">free</div>
+              </div>
+              <div class="compare-img"><div class="art a5"></div></div>
+              <div class="compare-foot"><span>768×1024</span><span>3.4s</span></div>
+            </article>
+            <article class="compare-card">
+              <div class="compare-head">
+                <div><div class="mdl-name">GPT Image 1.5</div><span class="mdl-vendor">OpenAI</span></div>
+                <div class="cost">$0.040</div>
+              </div>
+              <div class="compare-img"><div class="art a8"></div></div>
+              <div class="compare-foot"><span>768×1024</span><span>5.1s</span></div>
+            </article>
+            <article class="compare-card">
+              <div class="compare-head">
+                <div><div class="mdl-name">FLUX Pro 1.1</div><span class="mdl-vendor">Black Forest</span></div>
+                <div class="cost">$0.055</div>
+              </div>
+              <div class="compare-img"><div class="art a3"></div></div>
+              <div class="compare-foot"><span>768×1024</span><span>4.2s</span></div>
+            </article>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Run minimap -->
+    <div class="run-map">
+      <span class="dot on" title="14:32"></span>
+      <span class="dot" title="14:18"></span>
+      <span class="dot" title="13:55"></span>
+      <span class="dot" title="13:40"></span>
+      <span class="dot" title="earlier"></span>
+    </div>
+
+    <!-- Floating composer -->
+    <div class="composer-wrap">
+      <div class="composer">
+        <!-- Reference row -->
+        <div class="ref-row">
+          <span class="ref-chip">
+            <span class="thumb"><div class="art a2" style="width:100%;height:100%"></div></span>
+            reference_01.jpg
+            <span class="x"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+          </span>
+          <span class="ref-chip">
+            <span class="thumb"><div class="art a5" style="width:100%;height:100%"></div></span>
+            mood_board.png
+            <span class="x"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+          </span>
+          <button class="ref-drop">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add reference
+          </button>
+          <span class="ref-hint">drag anywhere on canvas</span>
+        </div>
+
+        <!-- Prompt -->
+        <textarea class="prompt-input" placeholder="Describe a scene, a feeling, a frame…">golden hour on a hillside, lone cypress, grain of 35mm, quiet</textarea>
+
+        <!-- Preset strip -->
+        <div class="preset-strip">
+          <span class="preset-label">Style</span>
+          <button class="preset-chip plain on">— none —</button>
+          <button class="preset-chip"><span class="sw"><div class="art a2" style="width:100%;height:100%"></div></span>Warm film</button>
+          <button class="preset-chip"><span class="sw"><div class="art a6" style="width:100%;height:100%"></div></span>Cinematic</button>
+          <button class="preset-chip"><span class="sw"><div class="art a5" style="width:100%;height:100%"></div></span>Riso print</button>
+          <button class="preset-chip"><span class="sw"><div class="art a8" style="width:100%;height:100%"></div></span>Studio portrait</button>
+          <button class="preset-chip"><span class="sw"><div class="art a7" style="width:100%;height:100%"></div></span>Architectural</button>
+          <button class="preset-chip"><span class="sw"><div class="art a3" style="width:100%;height:100%"></div></span>Ink wash</button>
+        </div>
+
+        <!-- Foot -->
+        <div class="composer-foot">
+          <button class="model-trigger">
+            <span class="mark multi"></span>
+            <span>Compare · 4 models</span>
+            <svg class="chev ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <div class="mini-group" role="tablist" aria-label="Aspect">
+            <button class="on">1:1</button>
+            <button>3:4</button>
+            <button>16:9</button>
+            <button>9:16</button>
+          </div>
+
+          <div class="mini-group" role="tablist" aria-label="Batch">
+            <button>1×</button>
+            <button class="on">4×</button>
+            <button>8×</button>
+          </div>
+
+          <button class="btn ghost" title="Advanced">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h8"/><circle cx="18" cy="6" r="2"/><circle cx="14" cy="18" r="2"/></svg>
+            Advanced
+          </button>
+
+          <button class="gen-btn">
+            Generate
+            <span class="cost">· ~0.175</span>
+            <span class="kbd">⌘↵</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+`;
+</script>
+</body>
+</html>

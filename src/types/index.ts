@@ -2038,3 +2038,6 @@ export interface LoraTrainingListResponse {
   data?: LoraTrainingRecord[]
   error?: string
 }
+
+// ─── Video Script (VS1-VS11) ─────────────────────────────────────
+export * from './video-script'

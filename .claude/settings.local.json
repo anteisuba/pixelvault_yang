@@ -161,7 +161,27 @@
       "mcp__Claude_in_Chrome__tabs_create_mcp",
       "Bash(grep -l \"studio-context\\\\|videoDuration\\\\|panels:\" src/contexts/*.test.tsx src/contexts/*.test.ts)",
       "Bash(grep -n \"thumbnail\\\\|poster\\\\|coverUrl\" src/types/index.ts src/lib/generated/prisma/models/*.ts)",
-      "Bash(grep -n \"getProjectHistoryAPI\" src/lib/api-client/*.ts src/lib/api-client.ts)"
+      "Bash(grep -n \"getProjectHistoryAPI\" src/lib/api-client/*.ts src/lib/api-client.ts)",
+      "Read(//c/Users/15620/AppData/Local/Temp/claude/C--workspace-pixelvault-yang/5f338c28-7411-4613-bb89-5af0c9881191/tasks/**)",
+      "WebFetch(domain:neon.com)",
+      "Bash(grep -rn \"verifyAdapterKey\\\\|function verifyKey\\\\|verifyKey:\" src/services/providers/*.ts)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} in %{time_total}s\\\\n\" -H \"x-goog-api-key: FAKEKEYTEST\" \"https://generativelanguage.googleapis.com/v1beta/models\" --max-time 20)",
+      "Bash(curl -s -o /tmp/gemini_resp.txt -w \"HTTP %{http_code}\\\\n\" \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaFAKE\" --max-time 20)",
+      "Bash(rm -f /tmp/gemini_resp.txt)",
+      "Bash(gh repo *)",
+      "Bash(cat .lintstagedrc*)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /c/tmp/pixelvault_design)",
+      "Bash(unzip -o \"/c/Users/15620/OneDrive/Desktop/PixelVault Design System-handoff.zip\")",
+      "Bash(npx claude-mem:*)",
+      "Bash(awk '{print $2}')",
+      "Bash(npx prisma *)",
+      "Bash(echo \"--- EXIT: $? ---\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(awk '/CREATE TABLE \"StyleCard\"/,/^\\\\\\);/' prisma/migrations/20260328000000_baseline_align_schema/migration.sql)",
+      "Bash(awk ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)"
     ]
   },
   "hooks": {

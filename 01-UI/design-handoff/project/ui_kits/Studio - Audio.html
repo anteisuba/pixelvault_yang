@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Studio — Audio · PixelVault</title>
+<link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="studio_audio.css">
+</head>
+<body>
+<div class="studio" id="studio-root"></div>
+
+<script src="studio_shell.js"></script>
+<script>
+const root = document.getElementById('studio-root');
+
+// helper: random waveform bars
+function waveBars(n, seed) {
+  let s = seed;
+  return Array.from({length: n}).map(() => {
+    s = (s * 9301 + 49297) % 233280;
+    const h = 20 + (s / 233280) * 80;
+    return `<span class="b" style="height:${h}%"></span>`;
+  }).join('');
+}
+
+root.innerHTML = renderShell({ mode: 'audio' }) + `
+  <main class="workspace" style="position:relative">
+    <div class="audio-ws">
+
+      <div class="ws-header">
+        <div class="ws-title-group">
+          <div class="eyebrow">Project · Field Notes Podcast</div>
+          <div class="ws-title">Audio Studio</div>
+        </div>
+        <div class="ws-tools">
+          <button class="btn ghost">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            New chapter
+          </button>
+          <button class="btn ghost">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4"/></svg>
+            Mix settings
+          </button>
+          <button class="btn">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+            Export all
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="au-tabs">
+        <button class="au-tab on">
+          <svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h2"/></svg>
+          Script → Voice
+          <span class="badge">NEW</span>
+        </button>
+        <button class="au-tab">
+          <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Music
+        </button>
+        <button class="au-tab">
+          <svg viewBox="0 0 24 24"><path d="M3 12h3l3-9 6 18 3-9h3"/></svg>
+          SFX mix
+        </button>
+        <button class="au-tab">
+          <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="2"/><path d="M7 8v8M11 8v8M15 8v8"/></svg>
+          Stems
+        </button>
+      </div>
+
+      <div class="au-body">
+
+        <!-- Voice cast rail -->
+        <aside class="au-voices">
+          <div class="vd-rail-head">
+            <span class="ttl">Voices · 4</span>
+            <button class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+          <div class="voice-card on">
+            <div class="voice-avatar a">E</div>
+            <div class="voice-info"><div class="nm">Emma</div><div class="sub">HOST · WARM · 34</div></div>
+            <button class="voice-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="voice-card">
+            <div class="voice-avatar b">R</div>
+            <div class="voice-info"><div class="nm">Rafael</div><div class="sub">GUEST · DEEP · 42</div></div>
+            <button class="voice-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="voice-card">
+            <div class="voice-avatar c">N</div>
+            <div class="voice-info"><div class="nm">Nola</div><div class="sub">NARRATOR · COOL</div></div>
+            <button class="voice-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+          <div class="voice-card">
+            <div class="voice-avatar d">S</div>
+            <div class="voice-info"><div class="nm">Sam</div><div class="sub">AD · PUNCHY</div></div>
+            <button class="voice-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+          </div>
+
+          <div class="vd-rail-head" style="margin-top:22px">
+            <span class="ttl">Clone a voice</span>
+          </div>
+          <div style="padding:10px 8px; border: 1px dashed var(--border); border-radius: var(--radius-md); font-family: var(--font-serif); font-size: 12px; color: var(--muted-foreground); font-style: italic; line-height:1.5">
+            Drop a 30-second clean recording to create a new cast member.
+          </div>
+        </aside>
+
+        <!-- Main doc -->
+        <div class="au-main">
+          <div class="au-doc-head">
+            <div class="ttl-group">
+              <div class="ttl">Ep 14 · The Last Espresso Bar</div>
+              <div class="meta">3 voices · 2 chapters · est. 8:24 · $1.62</div>
+            </div>
+            <div class="tool-row">
+              <button class="btn ghost">
+                <svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M4 12h16"/></svg>
+                AI rewrite for voice
+              </button>
+              <button class="btn ghost">
+                <svg class="ico" viewBox="0 0 24 24"><path d="M3 12h3l3-9 6 18 3-9h3"/></svg>
+                Auto-pace
+              </button>
+            </div>
+          </div>
+
+          <!-- CHAPTER 1 -->
+          <div class="chap-label">
+            <span class="n">Ch. 01</span>
+            <span class="t" contenteditable="true">Cold open</span>
+            <span class="line"></span>
+            <span class="del">remove</span>
+          </div>
+
+          <div class="au-block active">
+            <div class="avatar-col">
+              <div class="voice-avatar a">E</div>
+              <div class="speaker-nm">Emma</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text" contenteditable="true">
+                <span class="dir">warm, slow</span> There's a café in Trieste that has pulled exactly one drink, every day, for ninety-one years. <span class="pause">⏸ 0.4s</span> I went to find out what happens when the man who makes it <span class="emph">finally</span> retires.
+              </div>
+              <div class="au-wave playing">${waveBars(80, 17)}</div>
+              <div class="au-block-foot">
+                <button class="play-pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play · 0:12</button>
+                <span>rendered</span><span class="dot"></span>
+                <span>ElevenLabs v3</span><span class="dot"></span>
+                <span>$0.08</span>
+                <div class="au-insert-bar" style="margin-left:auto">
+                  <button>+ pause</button>
+                  <button>+ direction</button>
+                  <button>+ SFX</button>
+                  <button>↻</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="au-block">
+            <div class="avatar-col">
+              <div class="voice-avatar c">N</div>
+              <div class="speaker-nm">Nola</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text" contenteditable="true">
+                <span class="dir">narrator, cool</span> The café is called Café San Marco. It opens at 6:12. Every morning. Not 6:00, not 6:15. <span class="pause">⏸ 0.3s</span> Six-twelve.
+              </div>
+              <div class="au-wave">${waveBars(60, 42)}</div>
+              <div class="au-block-foot">
+                <button class="play-pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play · 0:08</button>
+                <span>rendered</span><span class="dot"></span>
+                <span>ElevenLabs v3</span><span class="dot"></span>
+                <span>$0.05</span>
+                <div class="au-insert-bar" style="margin-left:auto">
+                  <button>+ pause</button>
+                  <button>+ direction</button>
+                  <button>+ SFX</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SFX inline block -->
+          <div class="au-block" style="background:color-mix(in oklab, #d97757 4%, transparent)">
+            <div class="avatar-col">
+              <div class="voice-avatar" style="background:linear-gradient(135deg, #d97757, #8b4a30); width:34px; height:34px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2"><path d="M3 12h3l3-9 6 18 3-9h3"/></svg>
+              </div>
+              <div class="speaker-nm" style="color:#d97757">SFX</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text">
+                <span class="dir" style="background:color-mix(in oklab, #d97757 12%, transparent); color:#d97757; border-color:color-mix(in oklab, #d97757 28%, transparent)">ambient</span>
+                Café interior · morning, distant conversation, ceramic clatter · <b>loop 45s · -18db</b>
+              </div>
+              <div class="au-wave" style="height:20px">${waveBars(100, 88)}</div>
+              <div class="au-block-foot">
+                <button class="play-pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Preview</button>
+                <span>Freesound · cafe_morning_03</span><span class="dot"></span>
+                <span>licensed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CHAPTER 2 -->
+          <div class="chap-label">
+            <span class="n">Ch. 02</span>
+            <span class="t" contenteditable="true">Interview · Giacomo</span>
+            <span class="line"></span>
+            <span class="del">remove</span>
+          </div>
+
+          <div class="au-block">
+            <div class="avatar-col">
+              <div class="voice-avatar a">E</div>
+              <div class="speaker-nm">Emma</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text" contenteditable="true">
+                <span class="dir">conversational</span> Giacomo, you've been here since — sorry, since when?
+              </div>
+              <div class="au-wave">${waveBars(50, 99)}</div>
+              <div class="au-block-foot">
+                <button class="play-pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play · 0:06</button>
+                <span>rendered</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="au-block">
+            <div class="avatar-col">
+              <div class="voice-avatar b">R</div>
+              <div class="speaker-nm">Rafael</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text" contenteditable="true">
+                <span class="dir">elderly, gravelly, italian-accented english</span> Since… <span class="pause">⏸ 0.6s</span> nineteen fifty-six. My father taught me on the same machine. It still works. <span class="emph">I</span> still work.
+              </div>
+              <div class="au-wave">${waveBars(75, 144)}</div>
+              <div class="au-block-foot">
+                <button class="play-pill"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play · 0:14</button>
+                <span>rendered</span><span class="dot"></span>
+                <span>ElevenLabs v3</span><span class="dot"></span>
+                <span>$0.09</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- pending generate -->
+          <div class="au-block" style="border: 1px dashed var(--border)">
+            <div class="avatar-col">
+              <div class="voice-avatar a">E</div>
+              <div class="speaker-nm">Emma</div>
+            </div>
+            <div class="body-col">
+              <div class="au-text" contenteditable="true" style="color:var(--muted-foreground); font-style: italic">
+                Type the next line here… <span class="pause">or press ⏎ to add a block</span>
+              </div>
+              <div class="au-block-foot">
+                <button class="play-pill" style="background:#6d8f5c;color:white;border-color:#6d8f5c">
+                  <svg viewBox="0 0 24 24"><path d="M5 3v18l15-9L5 3z"/></svg>
+                  Render block
+                </button>
+                <span>~$0.06</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right inspector -->
+        <aside class="au-inspector">
+          <div>
+            <div class="ins-head">Selected voice</div>
+            <div class="ins-panel">
+              <h4><span class="voice-avatar a">E</span> Emma — Host</h4>
+              <div class="knob-row">
+                <label>Pace</label>
+                <div class="slider"><div class="fill" style="width:56%"></div><div class="handle" style="left:56%"></div></div>
+                <span class="val">0.94×</span>
+              </div>
+              <div class="knob-row">
+                <label>Warmth</label>
+                <div class="slider"><div class="fill" style="width:72%"></div><div class="handle" style="left:72%"></div></div>
+                <span class="val">72</span>
+              </div>
+              <div class="knob-row">
+                <label>Energy</label>
+                <div class="slider"><div class="fill" style="width:34%"></div><div class="handle" style="left:34%"></div></div>
+                <span class="val">34</span>
+              </div>
+              <div class="knob-row">
+                <label>Stability</label>
+                <div class="slider"><div class="fill" style="width:68%"></div><div class="handle" style="left:68%"></div></div>
+                <span class="val">68</span>
+              </div>
+
+              <div class="ins-head" style="margin:16px 0 6px">Direction presets</div>
+              <div class="dir-chip-row">
+                <span class="dir-chip on">warm</span>
+                <span class="dir-chip">whisper</span>
+                <span class="dir-chip">curious</span>
+                <span class="dir-chip">flat</span>
+                <span class="dir-chip">excited</span>
+                <span class="dir-chip">somber</span>
+                <span class="dir-chip">laugh</span>
+                <span class="dir-chip">sigh</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="ins-head">SFX library · drag to timeline</div>
+            <div class="ins-panel" style="padding:10px">
+              <div class="sfx-card">
+                <div class="ico-tile"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M4 10v4M16 7v10M20 10v4"/></svg></div>
+                <div><div class="sfx-nm">Café ambience</div><div class="sfx-sub">0:45 · LOOP · -18db</div></div>
+                <button class="tiny-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+              </div>
+              <div class="sfx-card">
+                <div class="ico-tile"><svg viewBox="0 0 24 24"><path d="M3 12c3-8 6-8 9 0s6 8 9 0"/></svg></div>
+                <div><div class="sfx-nm">Espresso hiss</div><div class="sfx-sub">0:04 · ONE-SHOT</div></div>
+                <button class="tiny-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+              </div>
+              <div class="sfx-card">
+                <div class="ico-tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg></div>
+                <div><div class="sfx-nm">Clock ticking</div><div class="sfx-sub">0:12 · LOOP · -24db</div></div>
+                <button class="tiny-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+              </div>
+              <div class="sfx-card">
+                <div class="ico-tile"><svg viewBox="0 0 24 24"><path d="M4 20c4-10 12-10 16 0"/><path d="M8 12c2-4 6-4 8 0"/></svg></div>
+                <div><div class="sfx-nm">Rain on awning</div><div class="sfx-sub">0:30 · LOOP</div></div>
+                <button class="tiny-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+              </div>
+              <div class="sfx-card">
+                <div class="ico-tile"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 14l4-9 3 7 2-4 5 6"/></svg></div>
+                <div><div class="sfx-nm">Piano score · Aria</div><div class="sfx-sub">2:14 · LICENSED</div></div>
+                <button class="tiny-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+
+    <!-- Transport bar -->
+    <div class="transport-wrap">
+      <div class="transport">
+        <div class="tr-left">
+          <button class="tr-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5l-3 7 3 7zM9 5h2v14H9z"/></svg></button>
+          <button class="tr-btn play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <button class="tr-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5l3 7-3 7zM13 5h2v14h-2z"/></svg></button>
+        </div>
+        <div class="tr-center">
+          <div class="tr-time-row">
+            <span>00:12 / 08:24</span>
+            <span>Ch. 01 · Cold open</span>
+          </div>
+          <div class="tr-wave">
+            ${waveBars(120, 7).replace(/class="b"/g, (m, i) => Math.random() > 0.7 ? 'class="b on"' : m)}
+            <span class="chap-mark" data-lbl="Ch.01" style="left:2%"></span>
+            <span class="chap-mark" data-lbl="Ch.02" style="left:42%"></span>
+            <span class="playhead" style="left:12%"></span>
+          </div>
+        </div>
+        <div class="tr-right">
+          <div class="tr-cost">Next render <b>$0.14</b></div>
+          <button class="tr-export">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+            MP3
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+`;
+</script>
+</body>
+</html>

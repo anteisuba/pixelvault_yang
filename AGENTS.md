@@ -1282,6 +1282,154 @@ do not hardcode user-facing copy
 
 do not invent a second architecture pattern
 
+32.1 Dev server ownership rule
+
+For this project, the user owns local dev server startup and log inspection.
+
+Codex must not run:
+
+npm run dev
+
+npx next dev
+
+other equivalent local app startup commands for interactive development
+
+When page inspection or local interaction requires the app to be running:
+
+ask the user to start it manually
+
+ask for the local URL when needed
+
+use the user-run server for inspection instead of attempting startup locally
+
+If the user-run startup fails:
+
+do not retry startup on Codex's side
+
+ask the user to inspect or share the relevant log output
+
+32.2 Required context loading order
+
+For non-trivial tasks, Codex must build context in this order:
+
+1. `AGENTS.md` and relevant `docs/guides/*.md`
+2. the closest current-state map documents:
+   - `01-UI/02-現狀映射.md`
+   - `02-功能/02-現狀映射.md`
+   - `03-功能測試/02-現狀映射.md`
+   - `04-UI測試/02-現狀映射.md`
+   - `docs/progress/current-status-audit.md`
+   - `docs/tooling/ai-context.md`
+3. relevant `docs/plans/...`
+4. relevant `src/**/CLAUDE.md`
+5. target code and test files
+
+For this repository, `01-UI`, `02-功能`, `03-功能測試`, and `04-UI測試` are closer to the current codebase than most historical planning docs.
+
+When they conflict with older roadmap or redesign notes, prefer the mapping documents unless direct code inspection proves they are stale.
+
+32.3 First-project read vs later chats
+
+When Codex is first taking over the project, it should do one broader orientation pass across:
+
+- `AGENTS.md`
+- `docs/guides/*.md`
+- `01/02/03/04` README + 現狀映射 documents
+- the highest-risk core files:
+  - `src/types/index.ts`
+  - `src/contexts/studio-context.tsx`
+  - `src/hooks/use-unified-generate.ts`
+  - `src/lib/api-route-factory.ts`
+  - `src/constants/models.ts`
+
+After that first orientation, new chats must not re-read the whole repository by default.
+
+They should read:
+
+- the laws
+- the relevant maps
+- the task slice
+
+Only re-run a broader repo read when:
+
+- the user explicitly asks for a global review
+- the map documents have become stale
+- the architecture has materially changed
+- the task is a cross-cutting refactor
+
+32.4 Required task packet before substantial work
+
+Before non-trivial implementation or review work, Codex should establish a task packet containing:
+
+- goal
+- non-goals
+- documents to read first
+- allowed file scope
+- validation commands
+- definition of done
+
+If the task crosses layers, the packet should also state:
+
+- which layers are changing
+- which `01/02/03/04` entries are affected
+
+32.5 Required development workflow
+
+For meaningful work, Codex should follow this sequence:
+
+1. classify the task domain
+2. read the relevant map documents
+3. inspect the target code slice
+4. create or update the plan before implementation
+5. implement with minimal architectural drift
+6. self-review the diff
+7. hand the result to `探索` for independent review when feasible
+8. run validation
+9. update maps, plans, or guides if the change altered the documented reality
+
+Implementation must not be treated as final review.
+
+For UI work, read `01-UI` together with `04-UI測試`.
+
+For backend/business work, read `02-功能` together with `03-功能測試`.
+
+32.6 Required project stability gates
+
+Codex should not judge the project as "stable" based only on ad hoc manual inspection.
+
+Use these gates:
+
+- type/static gates:
+  - `npx tsc --noEmit`
+  - `npm run lint`
+- change-related tests:
+  - relevant unit, route, hook, or component tests
+- pre-merge gates for meaningful changes:
+  - `npx vitest run`
+  - `npm run build`
+- smoke paths:
+  - landing
+  - studio auth / generate
+  - gallery
+  - mobile
+  - i18n
+- health endpoints:
+  - `/api/health`
+  - `/api/health/providers`
+- documentation freshness:
+  - `01/02/03/04` still match the code
+  - plans are not silently stale
+
+If code, maps, and rules are out of sync, the project should not be described as fully stable.
+
+32.7 Detailed workflow guide
+
+Codex must follow:
+
+- `docs/guides/codex-development-workflow.md`
+
+for the detailed rules covering context loading, planning, implementation flow, independent review, and stability judgment.
+
 33. Required Behavior for Page Upgrade Tasks
 
 When the task is "upgrade page UI", Codex must:
@@ -1395,13 +1543,15 @@ Purpose:
 
 - understand this repository and external repositories
 - break large tasks into executable plans
+- perform independent review on completed implementation work
 - write exploration output into `docs/plans/`
 
 Rules:
 
-- use this thread for investigation, decomposition, comparison, and architecture reading
+- use this thread for investigation, decomposition, comparison, architecture reading, and post-implementation review
 - keep implementation out unless a tiny probe is required to confirm understanding
 - when a plan becomes stale, update the plan document instead of letting execution drift silently
+- when reviewing implementation, read the relevant `03-功能測試` and/or `04-UI測試` documents as the checklist source instead of relying only on ad hoc intuition
 
 ## A.3 `前端`
 
@@ -1415,6 +1565,7 @@ Rules:
 - read the relevant plan in `docs/plans/` before substantial implementation when one exists
 - if durable frontend rules emerge, feed them back into `规范`
 - if the implementation changes task shape, feed that back into `探索`
+- after meaningful implementation, hand the resulting diff and the relevant `01-UI` / `04-UI測試` entries back to `探索` for independent review when feasible
 
 ## A.4 `后端`
 
@@ -1428,6 +1579,7 @@ Rules:
 - read the relevant plan in `docs/plans/` before substantial implementation when one exists
 - if durable backend rules emerge, feed them back into `规范`
 - if the implementation changes task shape, feed that back into `探索`
+- after meaningful implementation, hand the resulting diff and the relevant `02-功能` / `03-功能測試` entries back to `探索` for independent review when feasible
 
 ## A.5 Cross-Layer Work
 
@@ -1453,3 +1605,4 @@ Every durable rule document created under `docs/guides/` must be indexed here.
 
 - `docs/guides/README.md` — guide directory purpose, update rules, and current catalog
 - `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, output locations, and feedback loop
+- `docs/guides/codex-development-workflow.md` — context loading order, task packets, plan/implement/review flow, and stability gates

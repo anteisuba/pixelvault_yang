@@ -1,6 +1,8 @@
 # 03 · 功能測試（按服務 / API / 核心流程拆）
 
 > 範疇：後端與業務邏輯的正確性驗證。不含 UI 交互測試。
+>
+> 狀態說明：本目錄聚焦 backend / service / route 正確性；倉庫中已存在的 component / hook / context 測試不作為本目錄的主體規劃，相關 UI 向測試盤點以 `04-UI測試` 為主。
 
 ## L2 拆解
 
@@ -27,7 +29,7 @@
 
 ### 3.3 核心 E2E 流程
 
-- 3.3.1 新用戶首次生成（註冊 → 扣費 → 產出 → 歸檔）
+- 3.3.1 新用戶首次生成（註冊 → Free Tier / BYOK 路由 → 產出 → 歸檔）
 - 3.3.2 Studio 多步編排（T2I → Edit → 儲存）
 - 3.3.3 Character Card 創建 → 使用 → 精修
 - 3.3.4 Arena 對戰 → 投票 → 排行更新
@@ -40,7 +42,7 @@
 - 3.4.2 Prompt Guard 攔截
 - 3.4.3 LLM Output Validator 失敗路徑
 - 3.4.4 Provider 超時 / 降級
-- 3.4.5 Credit 不足 / 並發扣費
+- 3.4.5 Free Tier 上限 / requestCount 並發
 
 ### 3.5 合約 & Schema 測試
 

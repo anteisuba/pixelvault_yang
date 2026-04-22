@@ -4,6 +4,12 @@
 > **先做哪些組件 / 落在哪些文件 / 哪些直接用 shadcn / 哪些要包一層 / 哪些是自定義核心組件**
 >
 > 所有規則**以 `UI-路線決策結論書.md` 為準**，本清單僅執行落地。如需變更，先改結論書。
+>
+> Status note（2026-04-22）：
+> 這份清單仍保留大量路線圖性質，**不是當前 shipped UI 的單一事實來源**。
+> 當前已確認落地：`GalleryHeader`、`GalleryAdvancedFilters`、`CardDrawer`、`Toaster`、`lib/toast.ts`、Particles 的 reduced-motion 守護。
+> 當前仍未落地：`StudioRecipeBar`、`StudioRecipeSlot`、`StudioShell`、`ProfileShellPublic`、`ProfileShellPrivate`、`BulkActionBar`。
+> 對於「現在代碼裡到底有什麼」，應優先看 `01-UI/02-現狀映射.md`。
 
 ---
 
@@ -164,11 +170,11 @@ Phase 1 **不動**以下（避免與 EP-1 測試交叉影響）：
 
 ### 2.7 Phase 2 完成檢查
 
-- [ ] `GalleryHeader` + `GalleryAdvancedFilters` 替代 `GalleryFilterBar`
+- [x] `GalleryHeader` + `GalleryAdvancedFilters` 替代 `GalleryFilterBar`
 - [ ] `ImageDetailModal` 使用 `ui/dialog` 基線
 - [ ] `Lightbox` 可用於 Gallery 詳情放大
-- [ ] `CardDrawer` 從 Navbar 可打開，內部 3 Tab 可切換
-- [ ] `Particles` 性能降級守護生效（`prefers-reduced-motion` 測試通過）
+- [x] `CardDrawer` 從 Navbar 可打開，內部 3 Tab 可切換
+- [x] `Particles` 性能降級守護生效（`prefers-reduced-motion` 守護已落地）
 
 ---
 

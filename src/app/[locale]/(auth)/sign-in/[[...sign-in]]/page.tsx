@@ -3,7 +3,7 @@ import { SignIn } from '@clerk/nextjs'
 import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
-import { Link } from '@/i18n/navigation'
+import { getPathname, Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 
 interface SignInPageProps {
@@ -26,6 +26,18 @@ export default async function SignInPage({ params }: SignInPageProps) {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Homepage' })
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
+  const signInPath = getPathname({
+    locale,
+    href: ROUTES.SIGN_IN,
+  })
+  const signUpPath = getPathname({
+    locale,
+    href: ROUTES.SIGN_UP,
+  })
+  const studioPath = getPathname({
+    locale,
+    href: ROUTES.STUDIO,
+  })
 
   return (
     <div className="flex min-h-svh flex-col items-center bg-background">
@@ -53,7 +65,13 @@ export default async function SignInPage({ params }: SignInPageProps) {
           </p>
         </div>
 
-        <SignIn />
+        <SignIn
+          path={signInPath}
+          routing="path"
+          signUpUrl={signUpPath}
+          fallbackRedirectUrl={studioPath}
+          signUpFallbackRedirectUrl={studioPath}
+        />
 
         <p className="max-w-sm text-center font-serif text-xs leading-relaxed text-muted-foreground">
           {t('auth.note')}

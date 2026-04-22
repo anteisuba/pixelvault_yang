@@ -21,6 +21,18 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const locale = await getLocale()
+  const signInUrl = getPathname({
+    locale,
+    href: ROUTES.SIGN_IN,
+  })
+  const signUpUrl = getPathname({
+    locale,
+    href: ROUTES.SIGN_UP,
+  })
+  const studioUrl = getPathname({
+    locale,
+    href: ROUTES.STUDIO,
+  })
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -29,14 +41,10 @@ export default async function RootLayout({
       >
         <ClerkProvider
           localization={CLERK_LOCALIZATIONS[locale] ?? CLERK_LOCALIZATIONS.en}
-          signInFallbackRedirectUrl={getPathname({
-            locale,
-            href: ROUTES.STUDIO,
-          })}
-          signUpFallbackRedirectUrl={getPathname({
-            locale,
-            href: ROUTES.STUDIO,
-          })}
+          signInUrl={signInUrl}
+          signUpUrl={signUpUrl}
+          signInFallbackRedirectUrl={studioUrl}
+          signUpFallbackRedirectUrl={studioUrl}
         >
           {children}
         </ClerkProvider>

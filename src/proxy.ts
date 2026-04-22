@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import createIntlMiddleware from 'next-intl/middleware'
 
 import { ROUTES } from '@/constants/routes'
-import { LOCALES, routing } from '@/i18n/routing'
+import { DEFAULT_LOCALE, LOCALES, routing } from '@/i18n/routing'
 
 const handleI18nRouting = createIntlMiddleware(routing)
 
@@ -27,38 +27,56 @@ const isPublicRoute = createRouteMatcher([
 
 const isDev = process.env.NODE_ENV === 'development'
 
-export default clerkMiddleware(async (auth, request) => {
-  const pathname = request.nextUrl.pathname
+function resolveLocale(pathname: string) {
+  return (
+    LOCALES.find(
+      (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+    ) ?? DEFAULT_LOCALE
+  )
+}
 
-  // Skip i18n handling for API routes
-  if (pathname.startsWith('/api')) {
-    // /api/users/:username is public, but /api/users/me/* requires auth
-    const isPublicUserApi =
-      pathname.startsWith('/api/users/') &&
-      !pathname.startsWith('/api/users/me')
-    if (!isDev && !isPublicRoute(request) && !isPublicUserApi) {
+export default clerkMiddleware(
+  async (auth, request) => {
+    const pathname = request.nextUrl.pathname
+
+    // Skip i18n handling for API routes
+    if (pathname.startsWith('/api')) {
+      // /api/users/:username is public, but /api/users/me/* requires auth
+      const isPublicUserApi =
+        pathname.startsWith('/api/users/') &&
+        !pathname.startsWith('/api/users/me')
+      if (!isDev && !isPublicRoute(request) && !isPublicUserApi) {
+        await auth.protect()
+      }
+      // Explicit NextResponse.next() ensures public API routes (e.g. /api/health)
+      // are not inadvertently blocked by Clerk when returning void.
+      return NextResponse.next()
+    }
+
+    const response = handleI18nRouting(request)
+    const hasLocalePrefix = LOCALES.some(
+      (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+    )
+
+    if (!hasLocalePrefix) {
+      return response
+    }
+
+    if (!isDev && !isPublicRoute(request)) {
       await auth.protect()
     }
-    // Explicit NextResponse.next() ensures public API routes (e.g. /api/health)
-    // are not inadvertently blocked by Clerk when returning void.
-    return NextResponse.next()
-  }
 
-  const response = handleI18nRouting(request)
-  const hasLocalePrefix = LOCALES.some(
-    (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
-  )
-
-  if (!hasLocalePrefix) {
     return response
-  }
+  },
+  (request) => {
+    const locale = resolveLocale(request.nextUrl.pathname)
 
-  if (!isDev && !isPublicRoute(request)) {
-    await auth.protect()
-  }
-
-  return response
-})
+    return {
+      signInUrl: `/${locale}${ROUTES.SIGN_IN}`,
+      signUpUrl: `/${locale}${ROUTES.SIGN_UP}`,
+    }
+  },
+)
 
 export const config = {
   matcher: [

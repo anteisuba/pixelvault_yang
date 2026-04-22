@@ -5,6 +5,12 @@
 > 本文件是 `WBS-中長期演進計劃.md` 的 **UI 側執行補充**，不替代演進計劃，只補齊「UI 該長什麼樣、組件如何組織、什麼階段做什麼 UI」
 >
 > 基準日期：2026-04-15
+>
+> Status note（2026-04-22）：
+> 這份文檔的主要價值仍是「決策與方向」，不是「現在已經全部上線」。
+> 已明確落地的方向：`GalleryHeader`、`CardDrawer`、Toast 統一封裝。
+> 仍處於規劃或部分實現中的方向：`StudioRecipeBar` / `StudioRecipeSlot`、`StudioShell`、`ProfileShellPublic` / `ProfileShellPrivate`、`BulkActionBar`。
+> 查當前代碼現狀時，請先讀 `01-UI/02-現狀映射.md`，再回來看本決策書。
 
 ---
 

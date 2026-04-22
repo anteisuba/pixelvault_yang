@@ -1,6 +1,8 @@
 # 02 · 功能（按能力域拆）
 
 > 範疇：後端與業務邏輯能力，按領域切分。不含頁面實作，不含測試。
+>
+> 狀態說明：判斷**當前代碼現狀**請先讀 `02-現狀映射.md`；`03-工作包細分.md`、`功能-實作落地清單.md`、`功能-路線決策結論書.md` 屬於工作包與路線文檔，不等於已上線能力清單。
 
 ## L2 拆解
 
@@ -66,16 +68,16 @@
 
 - 2.10.1 Model Config 註冊
 - 2.10.2 Model Health 健康監測
-- 2.10.3 Provider Adapter（HF / Gemini / OpenAI）
+- 2.10.3 Provider Adapter（8 adapters）
 
 ### 2.11 LoRA 訓練
 
 - 2.11.1 訓練任務提交
-- 2.11.2 訓練狀態 / 回調
+- 2.11.2 訓練狀態 / 輪詢
 
 ### 2.12 計費與用量
 
-- 2.12.1 Credit 扣費（服務端）
+- 2.12.1 請求成本 / Free Tier 限額
 - 2.12.2 Usage Summary
 - 2.12.3 Generation Feedback
 
@@ -89,7 +91,7 @@
 
 - 2.14.1 Logger / Retry / Circuit Breaker
 - 2.14.2 Prompt Guard / LLM Output Validator
-- 2.14.3 Middleware / i18n 路由
+- 2.14.3 Route Factory / auth 邊界
 - 2.14.4 Webhook 接入
 
 ---

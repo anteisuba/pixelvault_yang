@@ -59,7 +59,21 @@ jobs:
   audit:
     name: Security & Schema Check
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - uses: actions/checkout@v4
@@ -76,9 +90,37 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
+      - name: Create CI databases
+        run: |
+          node --input-type=module <<'EOF'
+          import pg from 'pg'
+
+          const { Client } = pg
+          const adminClient = new Client({
+            connectionString: 'postgresql://postgres:postgres@localhost:5432/postgres',
+          })
+
+          await adminClient.connect()
+
+          for (const databaseName of ['ci_main', 'ci_shadow']) {
+            const { rowCount } = await adminClient.query(
+              'SELECT 1 FROM pg_database WHERE datname = $1',
+              [databaseName]
+            )
+
+            if (rowCount === 0) {
+              await adminClient.query(`CREATE DATABASE "${databaseName}"`)
+            }
+          }
+
+          await adminClient.end()
+          EOF
+
       - name: Prisma migration drift check
-        run: npm run prisma:generate && npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code
-        continue-on-error: true
+        run: npm run prisma:generate && npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema ./prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_main?schema=public"
+          SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_shadow?schema=public"
 
   build:
     name: Production Build

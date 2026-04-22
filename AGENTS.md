@@ -1320,11 +1320,12 @@ For non-trivial tasks, Codex must build context in this order:
    - `04-UI測試/02-現狀映射.md`
    - `docs/progress/current-status-audit.md`
    - `docs/tooling/ai-context.md`
+   - for future-facing roadmap work only: the relevant `05-后续计划/**` documents
 3. relevant `docs/plans/...`
 4. relevant `src/**/CLAUDE.md`
 5. target code and test files
 
-For this repository, `01-UI`, `02-功能`, `03-功能測試`, and `04-UI測試` are closer to the current codebase than most historical planning docs.
+For this repository, `01-UI`, `02-功能`, `03-功能測試`, and `04-UI測試` are closer to the current codebase than most historical planning docs. `05-后续计划` is a future-planning layer, not a current-state source of truth.
 
 When they conflict with older roadmap or redesign notes, prefer the mapping documents unless direct code inspection proves they are stale.
 
@@ -1335,6 +1336,7 @@ When Codex is first taking over the project, it should do one broader orientatio
 - `AGENTS.md`
 - `docs/guides/*.md`
 - `01/02/03/04` README + 現狀映射 documents
+- `05-后续计划/**` only if the task is roadmap, future capability design, or sequencing work
 - the highest-risk core files:
   - `src/types/index.ts`
   - `src/contexts/studio-context.tsx`

@@ -1,6 +1,8 @@
 # 04 · UI 測試（按狀態 / 交互 / 響應式 / i18n / A11y 拆）
 
 > 範疇：面向使用者的前端可見行為驗證。不含後端邏輯正確性。
+>
+> 狀態說明：本目錄聚焦 component / hook / context / Playwright 的前端行為驗證；backend service / route 正確性以 `03-功能測試` 為主。
 
 ## L2 拆解
 

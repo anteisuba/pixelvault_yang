@@ -4,17 +4,21 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { VIDEO_GENERATION } from '@/constants/config'
+import { AUDIO_GENERATION, VIDEO_GENERATION } from '@/constants/config'
 import { VARIANT_COUNT, VARIANT_MAX_SEED } from '@/constants/studio'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
   ActiveRun,
+  GenerateAudioResponseData,
   GenerationRecord,
   RunGroupMode,
+  RunItem,
   StudioGenerateRequest,
+  VideoStatusResponseData,
   GenerateVideoRequest,
 } from '@/types'
 import {
+  checkAudioStatusAPI,
   studioGenerateAPI,
   studioSelectWinnerAPI,
   submitVideoAPI,
@@ -69,6 +73,43 @@ export interface UseUnifiedGenerateReturn {
   activeRun: ActiveRun | null
   /** B5: Select a variant as winner */
   selectWinner: (generationId: string) => Promise<void>
+}
+
+function hasGeneration(
+  data:
+    | GenerateAudioResponseData
+    | VideoStatusResponseData
+    | { generation?: GenerationRecord }
+    | undefined,
+): data is { generation: GenerationRecord } {
+  return data?.generation != null
+}
+
+function hasJobId(
+  data: GenerateAudioResponseData | undefined,
+): data is Extract<GenerateAudioResponseData, { jobId: string }> {
+  return typeof data?.jobId === 'string' && data.jobId.length > 0
+}
+
+function toCompletedRunItem<T extends RunItem>(
+  item: T,
+  generation: GenerationRecord,
+) {
+  return {
+    ...item,
+    status: 'completed' as const,
+    generation,
+    error: null,
+  }
+}
+
+function toFailedRunItem<T extends RunItem>(item: T, error: string) {
+  return {
+    ...item,
+    status: 'failed' as const,
+    generation: null,
+    error,
+  }
 }
 
 // ─── Hook ────────────────────────────────────────────────────────
@@ -138,6 +179,38 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     }
   }, [stopTimer, stopPolling])
 
+  const updateActiveRunItem = useCallback(
+    (itemId: string, updater: (item: RunItem) => RunItem) => {
+      setActiveRun((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((item) =>
+                item.id === itemId ? updater(item) : item,
+              ),
+            }
+          : null,
+      )
+    },
+    [],
+  )
+
+  const markActiveRunItemCompleted = useCallback(
+    (itemId: string, generation: GenerationRecord) => {
+      updateActiveRunItem(itemId, (item) =>
+        toCompletedRunItem(item, generation),
+      )
+    },
+    [updateActiveRunItem],
+  )
+
+  const markActiveRunItemFailed = useCallback(
+    (itemId: string, errorMessage: string) => {
+      updateActiveRunItem(itemId, (item) => toFailedRunItem(item, errorMessage))
+    },
+    [updateActiveRunItem],
+  )
+
   // ── Image generation (synchronous) ────────────────────────────
 
   const generateImage = useCallback(
@@ -168,27 +241,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
       try {
         const result = await studioGenerateAPI(input)
-        if (result.success && result.data?.generation) {
+        if (result.success && hasGeneration(result.data)) {
+          const generation = result.data.generation
           setError(null)
-          setLastGeneration(result.data.generation)
-          setActiveRun((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  items: prev.items.map((item) =>
-                    item.id === itemId
-                      ? {
-                          ...item,
-                          status: 'completed' as const,
-                          generation: result.data!.generation,
-                        }
-                      : item,
-                  ),
-                }
-              : null,
-          )
+          setLastGeneration(generation)
+          markActiveRunItemCompleted(itemId, generation)
           toast.success(tStudio('generateSuccess'))
-          return result.data.generation
+          return generation
         }
         const msg = getApiErrorMessage(
           tErrors,
@@ -196,18 +255,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           tStudio('generateFailed'),
         )
         setError(msg)
-        setActiveRun((prev) =>
-          prev
-            ? {
-                ...prev,
-                items: prev.items.map((item) =>
-                  item.id === itemId
-                    ? { ...item, status: 'failed' as const, error: msg }
-                    : item,
-                ),
-              }
-            : null,
-        )
+        markActiveRunItemFailed(itemId, msg)
         return null
       } finally {
         stopTimer()
@@ -215,7 +263,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         setStage('idle')
       }
     },
-    [tErrors, tStudio, startTimer, stopTimer],
+    [
+      tErrors,
+      tStudio,
+      startTimer,
+      stopTimer,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
   )
 
   // ── Video generation (async queue + polling) ──────────────────
@@ -250,18 +305,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         const submitResponse = await submitVideoAPI(params)
         if (!submitResponse.success || !submitResponse.data) {
           const msg = submitResponse.error ?? tVideo('errorFallback')
-          setActiveRun((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  items: prev.items.map((item) =>
-                    item.id === itemId
-                      ? { ...item, status: 'failed' as const, error: msg }
-                      : item,
-                  ),
-                }
-              : null,
-          )
+          markActiveRunItemFailed(itemId, msg)
           finish(msg)
           return null
         }
@@ -275,22 +319,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             pollCountRef.current += 1
 
             if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
-              setActiveRun((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      items: prev.items.map((item) =>
-                        item.id === itemId
-                          ? {
-                              ...item,
-                              status: 'failed' as const,
-                              error: tVideo('errorTimeout'),
-                            }
-                          : item,
-                      ),
-                    }
-                  : null,
-              )
+              markActiveRunItemFailed(itemId, tVideo('errorTimeout'))
               finish(tVideo('errorTimeout'))
               resolve(null)
               return
@@ -306,96 +335,42 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   return
                 }
                 const msg = statusResponse.error ?? tVideo('errorFallback')
-                setActiveRun((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        items: prev.items.map((item) =>
-                          item.id === itemId
-                            ? {
-                                ...item,
-                                status: 'failed' as const,
-                                error: msg,
-                              }
-                            : item,
-                        ),
-                      }
-                    : null,
-                )
+                markActiveRunItemFailed(itemId, msg)
                 finish(msg)
                 resolve(null)
                 return
               }
 
-              const { status, generation } = statusResponse.data
+              const statusData = statusResponse.data
 
-              if (status === 'COMPLETED' && generation) {
+              if (statusData.status === 'COMPLETED') {
+                const generation = statusData.generation
                 setLastGeneration(generation)
-                setActiveRun((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        items: prev.items.map((item) =>
-                          item.id === itemId
-                            ? {
-                                ...item,
-                                status: 'completed' as const,
-                                generation,
-                              }
-                            : item,
-                        ),
-                      }
-                    : null,
-                )
+                markActiveRunItemCompleted(itemId, generation)
                 finish()
                 toast.success(tVideo('toastSuccess'))
                 resolve(generation)
                 return
               }
 
-              if (status === 'FAILED') {
+              if (statusData.status === 'FAILED') {
                 const msg = statusResponse.error ?? tVideo('errorFallback')
-                setActiveRun((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        items: prev.items.map((item) =>
-                          item.id === itemId
-                            ? {
-                                ...item,
-                                status: 'failed' as const,
-                                error: msg,
-                              }
-                            : item,
-                        ),
-                      }
-                    : null,
-                )
+                markActiveRunItemFailed(itemId, msg)
                 finish(msg)
                 resolve(null)
                 return
               }
 
-              if (status === 'IN_PROGRESS') {
+              if (statusData.status === 'IN_QUEUE') {
+                setStage('queued')
+                return
+              }
+
+              if (statusData.status === 'IN_PROGRESS') {
                 setStage('processing')
               }
             } catch {
-              setActiveRun((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      items: prev.items.map((item) =>
-                        item.id === itemId
-                          ? {
-                              ...item,
-                              status: 'failed' as const,
-                              error: tVideo('errorUnexpected'),
-                            }
-                          : item,
-                      ),
-                    }
-                  : null,
-              )
+              markActiveRunItemFailed(itemId, tVideo('errorUnexpected'))
               finish(tVideo('errorUnexpected'))
               resolve(null)
             }
@@ -408,7 +383,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         return null
       }
     },
-    [tVideo, startTimer, finish],
+    [
+      tVideo,
+      startTimer,
+      finish,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
   )
 
   // ── B5: Variant generation (parallel seeds) ───────────────────
@@ -463,26 +444,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           if (
             result.status === 'fulfilled' &&
             result.value.success &&
-            result.value.data?.generation
+            hasGeneration(result.value.data)
           ) {
             const gen = result.value.data.generation
             if (!firstSuccess) firstSuccess = gen
-            setActiveRun((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    items: prev.items.map((item) =>
-                      item.id === itemId
-                        ? {
-                            ...item,
-                            status: 'completed' as const,
-                            generation: gen,
-                          }
-                        : item,
-                    ),
-                  }
-                : null,
-            )
+            markActiveRunItemCompleted(itemId, gen)
           } else {
             const msg =
               result.status === 'fulfilled'
@@ -492,22 +458,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                     tStudio('generateFailed'),
                   )
                 : tStudio('generateFailed')
-            setActiveRun((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    items: prev.items.map((item) =>
-                      item.id === itemId
-                        ? {
-                            ...item,
-                            status: 'failed' as const,
-                            error: msg,
-                          }
-                        : item,
-                    ),
-                  }
-                : null,
-            )
+            markActiveRunItemFailed(itemId, msg)
           }
         })
 
@@ -525,7 +476,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         setStage('idle')
       }
     },
-    [tErrors, tStudio, startTimer, stopTimer],
+    [
+      tErrors,
+      tStudio,
+      startTimer,
+      stopTimer,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
   )
 
   // ── B5: Select variant winner ─────────────────────────────────
@@ -615,26 +573,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           if (
             result.status === 'fulfilled' &&
             result.value.success &&
-            result.value.data?.generation
+            hasGeneration(result.value.data)
           ) {
             const gen = result.value.data.generation
             if (!firstSuccess) firstSuccess = gen
-            setActiveRun((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    items: prev.items.map((item) =>
-                      item.id === itemId
-                        ? {
-                            ...item,
-                            status: 'completed' as const,
-                            generation: gen,
-                          }
-                        : item,
-                    ),
-                  }
-                : null,
-            )
+            markActiveRunItemCompleted(itemId, gen)
           } else {
             const msg =
               result.status === 'fulfilled'
@@ -644,22 +587,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                     tStudio('generateFailed'),
                   )
                 : tStudio('generateFailed')
-            setActiveRun((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    items: prev.items.map((item) =>
-                      item.id === itemId
-                        ? {
-                            ...item,
-                            status: 'failed' as const,
-                            error: msg,
-                          }
-                        : item,
-                    ),
-                  }
-                : null,
-            )
+            markActiveRunItemFailed(itemId, msg)
           }
         })
 
@@ -677,10 +605,17 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         setStage('idle')
       }
     },
-    [tErrors, tStudio, startTimer, stopTimer],
+    [
+      tErrors,
+      tStudio,
+      startTimer,
+      stopTimer,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
   )
 
-  // ── Audio generation (synchronous — Fish Audio) ────────────────
+  // ── Audio generation (sync result or async submit + polling) ──
 
   const generateAudio = useCallback(
     async (input: AudioGenerateInput): Promise<GenerationRecord | null> => {
@@ -714,46 +649,89 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           apiKeyId: input.apiKeyId,
           voiceId: input.voiceId,
         })
-        if (result.success && result.data?.generation) {
+
+        if (result.success && hasGeneration(result.data)) {
+          const generation = result.data.generation
           setError(null)
-          setLastGeneration(result.data.generation)
-          setActiveRun((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  items: prev.items.map((item) =>
-                    item.id === itemId
-                      ? {
-                          ...item,
-                          status: 'completed' as const,
-                          generation: result.data!.generation,
-                        }
-                      : item,
-                  ),
-                }
-              : null,
-          )
+          setLastGeneration(generation)
+          markActiveRunItemCompleted(itemId, generation)
           toast.success(tStudio('generateSuccess'))
-          return result.data.generation
+          return generation
         }
+
+        if (result.success && hasJobId(result.data)) {
+          const { jobId } = result.data
+          setStage('queued')
+          pollCountRef.current = 0
+
+          return await new Promise<GenerationRecord | null>((resolve) => {
+            pollRef.current = setInterval(async () => {
+              pollCountRef.current += 1
+
+              if (pollCountRef.current > AUDIO_GENERATION.MAX_POLL_ATTEMPTS) {
+                const msg = tStudio('generateFailed')
+                markActiveRunItemFailed(itemId, msg)
+                finish(msg)
+                resolve(null)
+                return
+              }
+
+              try {
+                const statusResponse = await checkAudioStatusAPI(jobId)
+
+                if (!statusResponse.success || !statusResponse.data) {
+                  const msg = statusResponse.error ?? tStudio('generateFailed')
+                  markActiveRunItemFailed(itemId, msg)
+                  finish(msg)
+                  resolve(null)
+                  return
+                }
+
+                const statusData = statusResponse.data
+
+                if (statusData.status === 'COMPLETED') {
+                  const generation = statusData.generation
+                  setLastGeneration(generation)
+                  markActiveRunItemCompleted(itemId, generation)
+                  finish()
+                  toast.success(tStudio('generateSuccess'))
+                  resolve(generation)
+                  return
+                }
+
+                if (statusData.status === 'FAILED') {
+                  const msg = statusResponse.error ?? tStudio('generateFailed')
+                  markActiveRunItemFailed(itemId, msg)
+                  finish(msg)
+                  resolve(null)
+                  return
+                }
+
+                if (statusData.status === 'IN_QUEUE') {
+                  setStage('queued')
+                  return
+                }
+
+                if (statusData.status === 'IN_PROGRESS') {
+                  setStage('processing')
+                }
+              } catch {
+                const msg = tStudio('generateFailed')
+                markActiveRunItemFailed(itemId, msg)
+                finish(msg)
+                resolve(null)
+              }
+            }, AUDIO_GENERATION.POLL_INTERVAL_MS)
+          })
+        }
+
         const msg = getApiErrorMessage(
           tErrors,
           result,
           tStudio('generateFailed'),
         )
         setError(msg)
-        setActiveRun((prev) =>
-          prev
-            ? {
-                ...prev,
-                items: prev.items.map((item) =>
-                  item.id === itemId
-                    ? { ...item, status: 'failed' as const, error: msg }
-                    : item,
-                ),
-              }
-            : null,
-        )
+        markActiveRunItemFailed(itemId, msg)
         return null
       } finally {
         stopTimer()
@@ -761,7 +739,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         setStage('idle')
       }
     },
-    [tErrors, tStudio, startTimer, stopTimer],
+    [
+      tErrors,
+      tStudio,
+      startTimer,
+      stopTimer,
+      finish,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+    ],
   )
 
   // ── Unified entry point ───────────────────────────────────────

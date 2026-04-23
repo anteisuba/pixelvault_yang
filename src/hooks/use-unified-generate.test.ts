@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
+import { AUDIO_GENERATION } from '@/constants/config'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 
 // ─── Mock dependencies ───────────────────────────────────────────
@@ -18,6 +19,7 @@ vi.mock('@/lib/api-client', () => ({
   submitVideoAPI: vi.fn(),
   checkVideoStatusAPI: vi.fn(),
   generateAudioAPI: vi.fn(),
+  checkAudioStatusAPI: vi.fn(),
   studioSelectWinnerAPI: vi.fn(),
 }))
 
@@ -29,11 +31,16 @@ vi.mock('@/lib/api-error-message', () => ({
 }))
 
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
-import { studioGenerateAPI, generateAudioAPI } from '@/lib/api-client'
+import {
+  studioGenerateAPI,
+  generateAudioAPI,
+  checkAudioStatusAPI,
+} from '@/lib/api-client'
 import { toast } from 'sonner'
 
 const mockStudioGenerate = vi.mocked(studioGenerateAPI)
 const mockGenerateAudio = vi.mocked(generateAudioAPI)
+const mockCheckAudioStatus = vi.mocked(checkAudioStatusAPI)
 
 // ─── Fixtures ─────────────────────────────────────────────────────
 
@@ -64,6 +71,7 @@ const ERROR_RESPONSE = {
 describe('useUnifiedGenerate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     // Stub crypto.randomUUID for deterministic test runs
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(
       '00000000-0000-0000-0000-000000000000',
@@ -154,6 +162,68 @@ describe('useUnifiedGenerate', () => {
         prompt: 'Hello world',
         modelId: 'fish-audio-s2-pro',
       }),
+    )
+  })
+
+  it('polls async audio submit until generation is available', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-123',
+        requestId: 'request-audio-123',
+      },
+    })
+    mockCheckAudioStatus
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          jobId: 'job-audio-123',
+          status: 'IN_QUEUE',
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          jobId: 'job-audio-123',
+          status: 'COMPLETED',
+          generation: FAKE_GENERATION,
+        },
+      })
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let generationPromise: Promise<unknown> | undefined
+
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    expect(result.current.activeRun?.items[0].status).toBe('generating')
+    expect(result.current.stage).toBe('queued')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(mockCheckAudioStatus).toHaveBeenCalledWith('job-audio-123')
+    expect(result.current.stage).toBe('queued')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    const generation = await generationPromise
+    expect(generation).toEqual(
+      expect.objectContaining({ id: FAKE_GENERATION.id }),
+    )
+    expect(result.current.lastGeneration?.id).toBe(FAKE_GENERATION.id)
+    expect(result.current.activeRun?.items[0].status).toBe('completed')
+    expect(result.current.activeRun?.items[0].generation?.id).toBe(
+      FAKE_GENERATION.id,
     )
   })
 

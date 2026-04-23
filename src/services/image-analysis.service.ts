@@ -10,7 +10,6 @@ import {
 import { generateImageForUser } from '@/services/generate-image.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import { logger } from '@/lib/logger'
 
 const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.`
 

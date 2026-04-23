@@ -76,7 +76,7 @@ const StudioScriptPanel = dynamic(() =>
  */
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload, promptEnhance, civitai, styles } = useStudioData()
+  const { imageUpload, civitai, styles } = useStudioData()
   const { isGenerating } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
@@ -103,25 +103,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   useEffect(() => {
     imageUpload.setMaxImages(maxRefImages)
   }, [maxRefImages, imageUpload])
-
-  // ── Enhance handlers ──────────────────────────────────────────
-  const handleEnhance = useCallback(
-    (style: Parameters<typeof promptEnhance.enhance>[1]) => {
-      if (!state.prompt.trim()) return
-      void promptEnhance.enhance(state.prompt, style)
-    },
-    [state.prompt, promptEnhance],
-  )
-
-  const handleUseEnhanced = useCallback(
-    (text: string) => {
-      const current = state.prompt.trim()
-      const appended = current ? `${current}, ${text}` : text
-      dispatch({ type: 'SET_PROMPT', payload: appended })
-      promptEnhance.clearEnhancement()
-    },
-    [dispatch, promptEnhance, state.prompt],
-  )
 
   // ── Civitai handlers ──────────────────────────────────────────
   const handleSaveToken = useCallback(async () => {

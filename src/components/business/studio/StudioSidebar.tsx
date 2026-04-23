@@ -2,12 +2,10 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Key,
   Folder,
   FolderOpen,
   FolderPlus,
   Images,
-  MoreHorizontal,
   Pencil,
   Plus,
   Trash2,

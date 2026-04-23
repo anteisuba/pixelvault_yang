@@ -43,6 +43,9 @@ export function HomepageShell({
 }: HomepageShellProps) {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
+  void eyebrow
+  void title
+  void description
 
   return (
     <div className="homepage relative">
@@ -55,9 +58,7 @@ export function HomepageShell({
         color="#c4653f"
       />
       <header className="homepage-header sticky top-0 z-20 py-[0.9rem_1rem]">
-        <div
-          className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4"
-        >
+        <div className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <Link href={HOMEPAGE_ROUTES.home} className="min-w-0">
             <HyperText
               as="span"
@@ -82,10 +83,13 @@ export function HomepageShell({
         </div>
       </header>
 
-      <div
-        className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 relative z-[2]"
-      >
-        <main className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]" style={{ paddingBlock: 'clamp(1.5rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem)' }}>
+      <div className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 relative z-[2]">
+        <main
+          className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]"
+          style={{
+            paddingBlock: 'clamp(1.5rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem)',
+          }}
+        >
           <HomepageHero
             primaryActionHref={primaryActionHref}
             primaryActionLabel={primaryActionLabel}
@@ -106,7 +110,11 @@ export function HomepageShell({
                 {t('footer.title')}
               </h2>
               <div className="pt-[0.45rem]">
-                <Button asChild size="lg" className="homepage-primary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0">
+                <Button
+                  asChild
+                  size="lg"
+                  className="homepage-primary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0"
+                >
                   <Link href={primaryActionHref}>
                     {primaryActionLabel}
                     <ArrowRight className="size-4" />

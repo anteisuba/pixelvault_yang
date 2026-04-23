@@ -12,7 +12,6 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 
 const PromptEnhancer = dynamic(() =>

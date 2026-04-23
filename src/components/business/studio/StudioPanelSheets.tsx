@@ -4,11 +4,7 @@ import { memo, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
-import {
-  useStudioForm,
-  useStudioData,
-  useStudioGen,
-} from '@/contexts/studio-context'
+import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
@@ -54,7 +50,6 @@ const StudioScriptPanel = dynamic(() =>
 export const StudioPanelSheets = memo(function StudioPanelSheets() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, styles } = useStudioData()
-  const { isGenerating } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
 

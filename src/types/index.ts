@@ -1,11 +1,6 @@
 import { z } from 'zod'
 
-import {
-  AUDIO_GENERATION,
-  PROFILE,
-  PROMPT_ENHANCE,
-  VIDEO_GENERATION,
-} from '@/constants/config'
+import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
 import { AUDIO_FORMATS, TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { CHARACTER_CARD } from '@/constants/character-card'
 import {
@@ -86,13 +81,30 @@ export type GenerationSnapshot = z.infer<typeof GenerationSnapshotSchema>
 export type RunItemStatus = 'pending' | 'generating' | 'completed' | 'failed'
 export type RunGroupMode = 'single' | 'compare' | 'variant'
 
-export interface RunItem {
+interface RunItemBase {
   id: string
   modelId: string
-  status: RunItemStatus
-  generation: GenerationRecord | null
-  error: string | null
 }
+
+export type PendingRunItem = RunItemBase & {
+  status: 'pending' | 'generating'
+  generation: GenerationRecord | null
+  error: null
+}
+
+export type CompletedRunItem = RunItemBase & {
+  status: 'completed'
+  generation: GenerationRecord
+  error: null
+}
+
+export type FailedRunItem = RunItemBase & {
+  status: 'failed'
+  generation: null
+  error: string
+}
+
+export type RunItem = PendingRunItem | CompletedRunItem | FailedRunItem
 
 export interface ActiveRun {
   id: string
@@ -231,12 +243,57 @@ export const GenerateAudioRequestSchema = z.object({
 
 export type GenerateAudioRequest = z.infer<typeof GenerateAudioRequestSchema>
 
-export type GenerateAudioResponse = GenerateResponse
-
-export interface AudioStatusResponseData {
-  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
-  generation?: GenerationRecord
+export interface AsyncJobSubmitResponseData {
+  jobId: string
+  requestId: string
 }
+
+export const AsyncJobStatusSchema = z.enum([
+  'IN_QUEUE',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'FAILED',
+])
+export type AsyncJobStatus = z.infer<typeof AsyncJobStatusSchema>
+
+export const AudioStatusRequestSchema = z.object({
+  jobId: z.string().trim().min(1, 'Job ID is required'),
+})
+
+export type GenerateAudioResponseData =
+  | {
+      generation: GenerationRecord
+      jobId?: never
+      requestId?: never
+    }
+  | (AsyncJobSubmitResponseData & {
+      generation?: never
+    })
+
+export interface GenerateAudioResponse {
+  success: boolean
+  data?: GenerateAudioResponseData
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}
+
+export type AudioStatusResponseData =
+  | {
+      jobId: string
+      status: 'IN_QUEUE' | 'IN_PROGRESS'
+      generation?: never
+    }
+  | {
+      jobId: string
+      status: 'COMPLETED'
+      generation: GenerationRecord
+    }
+  | {
+      jobId: string
+      status: 'FAILED'
+      generation?: never
+    }
 
 export interface AudioStatusResponse {
   success: boolean
@@ -303,22 +360,13 @@ export interface ImageDecomposeResult {
 
 // ─── Video Queue (submit + poll) ─────────────────────────────────
 
-export const VideoJobStatusSchema = z.enum([
-  'IN_QUEUE',
-  'IN_PROGRESS',
-  'COMPLETED',
-  'FAILED',
-])
-export type VideoJobStatus = z.infer<typeof VideoJobStatusSchema>
+export const VideoJobStatusSchema = AsyncJobStatusSchema
+export type VideoJobStatus = AsyncJobStatus
 
-export const VideoStatusRequestSchema = z.object({
-  jobId: z.string().trim().min(1, 'Job ID is required'),
-})
+export const VideoStatusRequestSchema = AudioStatusRequestSchema
 
-export interface VideoSubmitResponseData {
-  jobId: string
-  requestId: string
-}
+export type AudioSubmitResponseData = AsyncJobSubmitResponseData
+export type VideoSubmitResponseData = AsyncJobSubmitResponseData
 
 export interface VideoSubmitResponse {
   success: boolean
@@ -326,11 +374,7 @@ export interface VideoSubmitResponse {
   error?: string
 }
 
-export interface VideoStatusResponseData {
-  jobId: string
-  status: VideoJobStatus
-  generation?: GenerationRecord
-}
+export type VideoStatusResponseData = AudioStatusResponseData
 
 export interface VideoStatusResponse {
   success: boolean
@@ -363,6 +407,10 @@ export const LongVideoRequestSchema = z.object({
 })
 
 export type LongVideoRequest = z.infer<typeof LongVideoRequestSchema>
+
+export const LongVideoStatusRequestSchema = z.object({
+  pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
+})
 
 export type PipelineClipStatus =
   | 'PENDING'

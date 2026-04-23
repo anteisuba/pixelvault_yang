@@ -54,7 +54,6 @@ interface GenerationPreviewProps {
 
 export const GenerationPreview = memo(function GenerationPreview({
   generation,
-  isLatestResult: _isLatestResult = false,
   onUseAsReference,
   onRemix,
   onEdit,

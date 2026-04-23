@@ -227,23 +227,6 @@ async function resolveCivitaiUrl(url: string): Promise<string> {
   return url
 }
 
-/**
- * Pre-flight check: verify that a LoRA URL is publicly accessible.
- * Currently unused — kept for future use when non-Worker URLs need validation.
- */
-async function _checkLoraUrlAccessible(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(10_000),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}
-
 /** Apply LoRA parameters to the input object (mutates in place) */
 async function applyLoraParams(
   input: Record<string, unknown>,

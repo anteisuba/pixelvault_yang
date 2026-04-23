@@ -201,10 +201,6 @@ const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
       onExternalDrop,
       canAcceptExternalDrop,
       level,
-      onSelectChange,
-      expandAll,
-      initialSelectedItemId,
-      onDocumentDrag,
       ...props
     },
     ref,

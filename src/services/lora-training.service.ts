@@ -193,7 +193,6 @@ export async function submitLoraTraining(
   // Submit to provider
   let externalId: string
   let statusUrl: string | undefined
-  let responseUrl: string | undefined
 
   if (data.provider === 'fal') {
     const result = await withRetry(

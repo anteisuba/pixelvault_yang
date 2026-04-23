@@ -4,11 +4,7 @@ import { memo } from 'react'
 import { Check, Loader2, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import {
-  getModelById,
-  isBuiltInModel,
-  getModelMessageKey,
-} from '@/constants/models'
+import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
 import type { RunItem } from '@/types'
 import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'

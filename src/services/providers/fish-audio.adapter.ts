@@ -9,7 +9,6 @@ import {
   type ProviderAdapter,
   type ProviderAudioInput,
   type ProviderAudioResult,
-  type ProviderGenerationInput,
   type ProviderGenerationResult,
 } from '@/services/providers/types'
 
@@ -22,9 +21,7 @@ import {
 export const fishAudioAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
 
-  async generateImage(
-    _input: ProviderGenerationInput,
-  ): Promise<ProviderGenerationResult> {
+  async generateImage(): Promise<ProviderGenerationResult> {
     throw new ProviderError(
       'Fish Audio',
       400,

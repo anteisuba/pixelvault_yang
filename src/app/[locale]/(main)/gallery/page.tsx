@@ -37,11 +37,7 @@ export async function generateMetadata({
   }
 }
 
-export default async function GalleryPage({
-  params,
-  searchParams,
-}: GalleryPageProps) {
-  const { locale } = await params
+export default async function GalleryPage({ searchParams }: GalleryPageProps) {
   const filterResult = GallerySearchSchema.safeParse(await searchParams)
   const initialFilters = filterResult.success
     ? {

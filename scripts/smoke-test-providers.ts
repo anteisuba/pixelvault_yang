@@ -451,13 +451,6 @@ function formatTable(results: TestResult[]) {
   console.log(divider)
 
   for (const r of results) {
-    const statusIcon =
-      r.status === 'PASS' || r.status === 'HEALTH_OK'
-        ? '\x1b[32mPASS\x1b[0m'
-        : r.status === 'SKIP'
-          ? '\x1b[33mSKIP\x1b[0m'
-          : '\x1b[31mFAIL\x1b[0m'
-
     console.log(
       [
         r.provider.padEnd(cols.provider),

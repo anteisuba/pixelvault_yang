@@ -4,7 +4,7 @@ test.describe('Studio Auth Guard', () => {
   test('redirects unauthenticated users away from /studio', async ({
     page,
   }) => {
-    const response = await page.goto('/en/studio')
+    await page.goto('/en/studio')
 
     // Clerk middleware should redirect to sign-in or block access
     // The final URL should NOT be /studio for unauthenticated users

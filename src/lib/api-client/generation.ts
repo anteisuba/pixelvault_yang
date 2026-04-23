@@ -128,24 +128,12 @@ export async function generateAudioAPI(
 }
 
 export async function checkAudioStatusAPI(
-  statusUrl: string,
-  responseUrl: string,
-  adapterType: string,
-  apiKey: string,
-  modelId: string,
+  jobId: string,
 ): Promise<AudioStatusResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_AUDIO_STATUS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        statusUrl,
-        responseUrl,
-        adapterType,
-        apiKey,
-        modelId,
-      }),
-    })
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATE_AUDIO_STATUS}?jobId=${encodeURIComponent(jobId)}`,
+    )
 
     if (!response.ok) {
       return {

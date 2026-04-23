@@ -30,15 +30,7 @@ test.describe('Mobile Responsive', () => {
   test('mobile tab bar is visible on small screens', async ({ page }) => {
     await page.goto('/en')
 
-    // MobileTabBar should render on mobile viewport
-    // Look for the bottom navigation bar
-    const tabBar = page
-      .locator('[data-testid="mobile-tab-bar"]')
-      .or(
-        page.locator('nav').filter({ has: page.locator('a[href*="/studio"]') }),
-      )
-
-    // Either a dedicated mobile tab bar or navigation with studio link should exist
+    // Either a dedicated mobile tab bar or navigation with studio link should exist.
     const navLinks = page.locator('a[href*="/gallery"]')
     await expect(navLinks.first()).toBeVisible()
   })

@@ -193,7 +193,10 @@ describe('POST /api/studio/generate', () => {
   })
 
   it('defaults aspectRatio to 1:1 when not provided', async () => {
-    const { aspectRatio: _, ...bodyWithoutAspect } = QUICK_MODE_BODY
+    const bodyWithoutAspect = {
+      modelId: QUICK_MODE_BODY.modelId,
+      freePrompt: QUICK_MODE_BODY.freePrompt,
+    }
     const req = createPOST('/api/studio/generate', bodyWithoutAspect)
     const res = await POST(req)
 

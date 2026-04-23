@@ -60,11 +60,15 @@ export const StudioVariantsGrid = memo(function StudioVariantsGrid({
           className="relative overflow-hidden rounded-lg border border-border/40"
         >
           {variant.status === 'success' && variant.result ? (
-            <img
-              src={variant.result.url}
-              alt={`Variant ${index + 1}`}
-              className="w-full aspect-square object-cover"
-            />
+            <>
+              {/* Remote transform outputs intentionally use raw img until a stable image proxy is in place. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={variant.result.url}
+                alt={`Variant ${index + 1}`}
+                className="w-full aspect-square object-cover"
+              />
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 aspect-square bg-muted/30">
               <p className="text-xs text-muted-foreground px-4 text-center">

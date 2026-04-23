@@ -89,6 +89,8 @@ export const StudioInputImage = memo(function StudioInputImage({
   if (imageData) {
     return (
       <div className={cn('relative group', className)}>
+        {/* Data URL preview should bypass next/image optimization and host checks. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageData}
           alt="Transform input"

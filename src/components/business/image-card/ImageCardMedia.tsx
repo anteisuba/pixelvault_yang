@@ -12,6 +12,7 @@ interface ImageCardMediaProps {
   openImageLabel: string
   openVideoLabel: string
   referenceImageLabel: string
+  priority?: boolean
 }
 
 export function ImageCardMedia({
@@ -23,6 +24,7 @@ export function ImageCardMedia({
   openImageLabel,
   openVideoLabel,
   referenceImageLabel,
+  priority,
 }: ImageCardMediaProps) {
   return (
     <>
@@ -63,7 +65,7 @@ export function ImageCardMedia({
             height={generation.height}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-            loading="lazy"
+            priority={priority}
           />
         )}
       </button>

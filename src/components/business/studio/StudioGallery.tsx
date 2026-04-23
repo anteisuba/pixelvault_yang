@@ -25,6 +25,7 @@ const COLS_DESKTOP = 4
 const COLS_TABLET = 3
 const COLS_MOBILE = 2
 const GAP = 8
+const EAGER_HISTORY_IMAGE_COUNT = 1
 
 function useResponsiveCols() {
   const [cols, setCols] = useState(COLS_DESKTOP)
@@ -278,6 +279,7 @@ export const StudioGallery = memo(function StudioGallery() {
                   onUseAsRef={handleUseAsRef}
                   t={t}
                   preserveAspectRatio
+                  priority={idx < EAGER_HISTORY_IMAGE_COUNT}
                 />
               ))}
             </div>
@@ -301,6 +303,7 @@ export const StudioGallery = memo(function StudioGallery() {
                   onRemix={handleRemix}
                   onUseAsRef={handleUseAsRef}
                   t={t}
+                  priority={idx < EAGER_HISTORY_IMAGE_COUNT}
                 />
               ))}
             </div>
@@ -346,6 +349,7 @@ interface GalleryItemProps {
   onUseAsRef: (url: string) => Promise<void>
   t: ReturnType<typeof useTranslations>
   preserveAspectRatio?: boolean
+  priority?: boolean
 }
 
 const GalleryItem = memo(function GalleryItem({
@@ -359,6 +363,7 @@ const GalleryItem = memo(function GalleryItem({
   onUseAsRef,
   t,
   preserveAspectRatio,
+  priority,
 }: GalleryItemProps) {
   const dragRef = useStudioDraggable({
     url: gen.url ?? undefined,
@@ -402,7 +407,7 @@ const GalleryItem = memo(function GalleryItem({
             height={gen.height ?? 512}
             sizes="20vw"
             className="w-full h-auto"
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
           />
         ) : (
           <OptimizedImage
@@ -411,7 +416,7 @@ const GalleryItem = memo(function GalleryItem({
             fill
             sizes="20vw"
             className="object-cover"
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
           />
         )
       ) : (

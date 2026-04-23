@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -17,6 +18,7 @@ import {
   deleteApiKey,
   verifyApiKey,
 } from '@/lib/api-client'
+import { deferToIdle } from '@/lib/defer-to-idle'
 
 // ─── Health Cache (localStorage, 5-min TTL) ───────────────────────
 
@@ -70,6 +72,97 @@ function saveHealthCache(map: Record<string, ApiKeyHealthStatus>) {
   }
 }
 
+// ─── API Key List Cache (per user, in-memory) ─────────────────────
+
+const API_KEYS_CACHE_TTL_MS = 60_000
+const API_KEYS_LOAD_ERROR = 'Failed to load API keys'
+
+interface ApiKeysSnapshot {
+  userId: string
+  keys: UserApiKeyRecord[]
+  healthMap: Record<string, ApiKeyHealthStatus>
+  fetchedAt: number
+}
+
+let apiKeysCache: ApiKeysSnapshot | null = null
+let apiKeysRequest: {
+  userId: string
+  request: Promise<ApiKeysSnapshot>
+} | null = null
+
+function getFreshApiKeysSnapshot(userId: string): ApiKeysSnapshot | null {
+  if (!apiKeysCache || apiKeysCache.userId !== userId) return null
+  if (Date.now() - apiKeysCache.fetchedAt >= API_KEYS_CACHE_TTL_MS) return null
+  return apiKeysCache
+}
+
+function updateCachedApiKeys(
+  userId: string,
+  updater: (keys: UserApiKeyRecord[]) => UserApiKeyRecord[],
+) {
+  if (!apiKeysCache || apiKeysCache.userId !== userId) return
+  apiKeysCache = {
+    ...apiKeysCache,
+    keys: updater(apiKeysCache.keys),
+    fetchedAt: Date.now(),
+  }
+}
+
+function updateCachedHealthMap(
+  userId: string,
+  updater: (
+    healthMap: Record<string, ApiKeyHealthStatus>,
+  ) => Record<string, ApiKeyHealthStatus>,
+) {
+  if (!apiKeysCache || apiKeysCache.userId !== userId) return
+  apiKeysCache = {
+    ...apiKeysCache,
+    healthMap: updater(apiKeysCache.healthMap),
+    fetchedAt: Date.now(),
+  }
+}
+
+async function loadApiKeysSnapshot(
+  userId: string,
+  force: boolean,
+): Promise<ApiKeysSnapshot> {
+  if (!force) {
+    const cached = getFreshApiKeysSnapshot(userId)
+    if (cached) return cached
+    if (apiKeysRequest?.userId === userId) return apiKeysRequest.request
+  }
+
+  const request = listApiKeys()
+    .then((response) => {
+      if (!response.success || !response.data) {
+        throw new Error(response.error ?? API_KEYS_LOAD_ERROR)
+      }
+
+      const cached = loadHealthCache()
+      const healthMap: Record<string, ApiKeyHealthStatus> = {}
+      for (const key of response.data.filter((record) => record.isActive)) {
+        healthMap[key.id] = cached[key.id] ?? 'unknown'
+      }
+
+      const snapshot: ApiKeysSnapshot = {
+        userId,
+        keys: response.data,
+        healthMap,
+        fetchedAt: Date.now(),
+      }
+      apiKeysCache = snapshot
+      return snapshot
+    })
+    .finally(() => {
+      if (apiKeysRequest?.request === request) {
+        apiKeysRequest = null
+      }
+    })
+
+  apiKeysRequest = { userId, request }
+  return request
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────
 
 export interface UseApiKeysReturn {
@@ -84,13 +177,23 @@ export interface UseApiKeysReturn {
   refresh: () => Promise<void>
 }
 
-export function useApiKeys(): UseApiKeysReturn {
-  const [keys, setKeys] = useState<UserApiKeyRecord[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+interface UseApiKeysOptions {
+  autoLoad?: boolean
+}
+
+export function useApiKeys({
+  autoLoad = true,
+}: UseApiKeysOptions = {}): UseApiKeysReturn {
+  const { isLoaded, isSignedIn, userId } = useAuth()
+  const cachedSnapshot = userId ? getFreshApiKeysSnapshot(userId) : null
+  const [keys, setKeys] = useState<UserApiKeyRecord[]>(
+    () => cachedSnapshot?.keys ?? [],
+  )
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [healthMap, setHealthMap] = useState<
     Record<string, ApiKeyHealthStatus>
-  >({})
+  >(() => cachedSnapshot?.healthMap ?? {})
   const t = useTranslations('Toasts')
 
   const verifyOne = useCallback(
@@ -101,59 +204,101 @@ export function useApiKeys(): UseApiKeysReturn {
       setHealthMap((prev) => {
         const next = { ...prev, [id]: status }
         saveHealthCache(next)
+        if (userId) {
+          updateCachedHealthMap(userId, () => next)
+        }
         return next
       })
       return status
     },
-    [],
+    [userId],
   )
 
   useEffect(() => {
     let isCancelled = false
 
     async function loadInitialKeys() {
-      const response = await listApiKeys()
-      if (isCancelled) return
-
-      if (response.success && response.data) {
-        setKeys(response.data)
+      if (!userId) return
+      try {
+        const snapshot = await loadApiKeysSnapshot(userId, false)
+        if (isCancelled) return
+        setKeys(snapshot.keys)
+        setHealthMap(snapshot.healthMap)
         setError(null)
-
-        // Load cached health results instead of re-verifying all keys
-        const cached = loadHealthCache()
-        const activeKeys = response.data.filter((k) => k.isActive)
-        const initialHealth: Record<string, ApiKeyHealthStatus> = {}
-
-        for (const key of activeKeys) {
-          // Use cache if available, otherwise show "unknown" (grey dot)
-          initialHealth[key.id] = cached[key.id] ?? 'unknown'
-        }
-
-        setHealthMap(initialHealth)
-      } else {
-        setError(response.error ?? 'Failed to load API keys')
+      } catch (loadError) {
+        if (isCancelled) return
+        setError(
+          loadError instanceof Error ? loadError.message : API_KEYS_LOAD_ERROR,
+        )
+      } finally {
+        if (!isCancelled) setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
-    void loadInitialKeys()
+    if (!isLoaded) return
+
+    if (!isSignedIn || !userId) {
+      apiKeysCache = null
+      apiKeysRequest = null
+      setKeys([])
+      setHealthMap({})
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
+    const cached = getFreshApiKeysSnapshot(userId)
+    if (cached) {
+      setKeys(cached.keys)
+      setHealthMap(cached.healthMap)
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
+    if (!autoLoad) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    // Defer to idle so gallery/profile/studio images win the connection
+    // pool on first paint. API key list is not visible until the user
+    // opens settings, so a ~500ms delay is invisible.
+    const cancelDefer = deferToIdle(() => {
+      if (!isCancelled) void loadInitialKeys()
+    })
 
     return () => {
       isCancelled = true
+      cancelDefer()
     }
-  }, [])
+  }, [autoLoad, isLoaded, isSignedIn, userId])
 
   const fetchKeys = useCallback(async () => {
+    if (!userId) {
+      setKeys([])
+      setHealthMap({})
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
-    const response = await listApiKeys()
-    if (response.success && response.data) {
-      setKeys(response.data)
-    } else {
-      setError(response.error ?? 'Failed to load API keys')
+    try {
+      const snapshot = await loadApiKeysSnapshot(userId, true)
+      setKeys(snapshot.keys)
+      setHealthMap(snapshot.healthMap)
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : API_KEYS_LOAD_ERROR,
+      )
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
-  }, [])
+  }, [userId])
 
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<boolean> => {
@@ -161,7 +306,13 @@ export function useApiKeys(): UseApiKeysReturn {
       if (response.success && response.data) {
         setError(null)
         const newKey = response.data
-        setKeys((prev) => [newKey, ...prev])
+        setKeys((prev) => {
+          const next = [newKey, ...prev]
+          if (userId) {
+            updateCachedApiKeys(userId, () => next)
+          }
+          return next
+        })
         // Auto-verify newly created key (user just entered it)
         void verifyOne(newKey.id)
         toast.success(t('apiKeyCreated'))
@@ -171,7 +322,7 @@ export function useApiKeys(): UseApiKeysReturn {
       toast.error(t('apiKeyCreateFailed'))
       return false
     },
-    [verifyOne, t],
+    [verifyOne, t, userId],
   )
 
   const update = useCallback(
@@ -179,9 +330,13 @@ export function useApiKeys(): UseApiKeysReturn {
       const response = await updateApiKey(id, data)
       if (response.success && response.data) {
         setError(null)
-        setKeys((prev) =>
-          prev.map((key) => (key.id === id ? response.data! : key)),
-        )
+        const updatedKey = response.data
+        setKeys((prev) => prev.map((key) => (key.id === id ? updatedKey : key)))
+        if (userId) {
+          updateCachedApiKeys(userId, (prev) =>
+            prev.map((key) => (key.id === id ? updatedKey : key)),
+          )
+        }
         // Auto-verify if key value changed
         if (data.keyValue) {
           void verifyOne(id)
@@ -193,7 +348,7 @@ export function useApiKeys(): UseApiKeysReturn {
       toast.error(t('apiKeyUpdateFailed'))
       return false
     },
-    [verifyOne, t],
+    [verifyOne, t, userId],
   )
 
   const remove = useCallback(
@@ -201,11 +356,20 @@ export function useApiKeys(): UseApiKeysReturn {
       const response = await deleteApiKey(id)
       if (response.success) {
         setError(null)
-        setKeys((prev) => prev.filter((k) => k.id !== id))
+        setKeys((prev) => {
+          const next = prev.filter((k) => k.id !== id)
+          if (userId) {
+            updateCachedApiKeys(userId, () => next)
+          }
+          return next
+        })
         setHealthMap((prev) => {
           const next = { ...prev }
           delete next[id]
           saveHealthCache(next)
+          if (userId) {
+            updateCachedHealthMap(userId, () => next)
+          }
           return next
         })
         toast.success(t('apiKeyDeleted'))
@@ -215,7 +379,7 @@ export function useApiKeys(): UseApiKeysReturn {
       toast.error(t('apiKeyDeleteFailed'))
       return false
     },
-    [t],
+    [t, userId],
   )
 
   return {

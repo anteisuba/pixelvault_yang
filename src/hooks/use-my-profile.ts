@@ -5,17 +5,50 @@ import { useAuth } from '@clerk/nextjs'
 
 import { getMyProfileAPI } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { deferToIdle } from '@/lib/defer-to-idle'
+import type { UpdateProfileResponse } from '@/types'
 
-interface MyProfile {
-  username: string
-  displayName: string | null
-  avatarUrl: string | null
-  bio: string | null
-  isPublic: boolean
-}
+type MyProfile = NonNullable<UpdateProfileResponse['data']>
 
 let cachedProfile: MyProfile | null = null
 let cachedUserId: string | null = null
+let inFlightProfile: {
+  userId: string
+  request: Promise<MyProfile | null>
+} | null = null
+
+function getCachedProfile(userId: string): MyProfile | null {
+  return cachedUserId === userId ? cachedProfile : null
+}
+
+async function loadMyProfile(
+  userId: string,
+  force: boolean,
+): Promise<MyProfile | null> {
+  if (!force) {
+    const cached = getCachedProfile(userId)
+    if (cached) return cached
+    if (inFlightProfile?.userId === userId) return inFlightProfile.request
+  }
+
+  const request = getMyProfileAPI()
+    .then((res) => {
+      if (res.success && res.data) {
+        cachedProfile = res.data
+        cachedUserId = userId
+        return res.data
+      }
+      return getCachedProfile(userId)
+    })
+    .finally(() => {
+      if (inFlightProfile?.request === request) {
+        inFlightProfile = null
+      }
+    })
+
+  inFlightProfile = { userId, request }
+  return request
+}
 
 export function useMyProfile() {
   const { userId } = useAuth()
@@ -24,13 +57,9 @@ export function useMyProfile() {
   )
 
   const refresh = useCallback(() => {
-    getMyProfileAPI().then((res) => {
-      if (res.success && res.data) {
-        const p = res.data as MyProfile
-        cachedProfile = p
-        cachedUserId = userId ?? null
-        setProfile(p)
-      }
+    if (!userId) return
+    void loadMyProfile(userId, true).then((nextProfile) => {
+      if (nextProfile) setProfile(nextProfile)
     })
   }, [userId])
 
@@ -42,8 +71,13 @@ export function useMyProfile() {
         setProfile(null)
       })
     }
-    if (cachedProfile && cachedUserId === userId) return
-    return deferEffectTask(() => {
+    const cached = getCachedProfile(userId)
+    if (cached) {
+      return deferEffectTask(() => {
+        setProfile(cached)
+      })
+    }
+    return deferToIdle(() => {
       refresh()
     })
   }, [userId, refresh])
@@ -55,4 +89,5 @@ export function useMyProfile() {
 export function invalidateMyProfile() {
   cachedProfile = null
   cachedUserId = null
+  inFlightProfile = null
 }

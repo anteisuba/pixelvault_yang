@@ -22,6 +22,10 @@ interface GalleryGridProps {
   onDelete?: (id: string) => void
 }
 
+const INITIAL_VISIBLE_COUNT = 12
+const RENDER_BATCH_SIZE = 12
+const PRIORITY_IMAGE_COUNT = 1
+
 export function GalleryGrid({
   generations,
   emptyTitle,
@@ -35,8 +39,7 @@ export function GalleryGrid({
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   // Progressive rendering: render in batches via IntersectionObserver
-  const BATCH_SIZE = 20
-  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export function GalleryGrid({
       ([entry]) => {
         if (entry.isIntersecting) {
           setVisibleCount((prev) =>
-            Math.min(prev + BATCH_SIZE, generations.length),
+            Math.min(prev + RENDER_BATCH_SIZE, generations.length),
           )
         }
       },
@@ -145,6 +148,7 @@ export function GalleryGrid({
                 showVisibility={showVisibility}
                 showDelete={showDelete}
                 onDelete={onDelete}
+                priority={index < PRIORITY_IMAGE_COUNT}
               />
             </div>
           </BlurFade>

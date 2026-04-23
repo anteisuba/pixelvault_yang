@@ -2,7 +2,9 @@
 
 import type { ReactNode } from 'react'
 
+import { ROUTES } from '@/constants/routes'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { usePathname } from '@/i18n/navigation'
 
 /**
  * MainProviders — client-side providers shared across all `(main)` pages.
@@ -10,5 +12,16 @@ import { ApiKeysProvider } from '@/contexts/api-keys-context'
  * consume ApiKeysContext without each page having to re-wrap it.
  */
 export function MainProviders({ children }: { children: ReactNode }) {
-  return <ApiKeysProvider>{children}</ApiKeysProvider>
+  const pathname = usePathname()
+  const shouldLoadApiKeys =
+    pathname === ROUTES.STUDIO ||
+    pathname.startsWith(`${ROUTES.STUDIO}/`) ||
+    pathname === ROUTES.ARENA ||
+    pathname.startsWith(`${ROUTES.ARENA}/`) ||
+    pathname === ROUTES.STORYBOARD ||
+    pathname.startsWith(`${ROUTES.STORYBOARD}/`)
+
+  return (
+    <ApiKeysProvider autoLoad={shouldLoadApiKeys}>{children}</ApiKeysProvider>
+  )
 }

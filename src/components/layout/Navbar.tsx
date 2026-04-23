@@ -208,6 +208,7 @@ export function Navbar() {
                           alt=""
                           width={40}
                           height={40}
+                          unoptimized
                           className="size-full rounded-full object-cover"
                         />
                       ) : (

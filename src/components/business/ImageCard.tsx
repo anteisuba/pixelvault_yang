@@ -30,6 +30,7 @@ interface ImageCardProps {
   showVisibility?: boolean
   showDelete?: boolean
   onDelete?: (id: string) => void
+  priority?: boolean
 }
 
 export const ImageCard = memo(function ImageCard({
@@ -37,6 +38,7 @@ export const ImageCard = memo(function ImageCard({
   showVisibility = false,
   showDelete = false,
   onDelete,
+  priority,
 }: ImageCardProps) {
   const { isPublic, isPromptPublic, isFeatured, togglingField, handleToggle } =
     useGenerationVisibility({
@@ -144,6 +146,7 @@ export const ImageCard = memo(function ImageCard({
       <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5 hover:-translate-y-1">
         <div className="relative overflow-hidden bg-secondary/18">
           <ImageCardMedia
+            priority={priority}
             generation={generation}
             isAudio={isAudio}
             isVideo={isVideo}
@@ -214,6 +217,7 @@ export const ImageCard = memo(function ImageCard({
                   }
                   width={20}
                   height={20}
+                  unoptimized
                   className="size-5 rounded-full object-cover"
                 />
               ) : (

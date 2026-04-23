@@ -7,11 +7,15 @@ import type {
   GenerationJob,
 } from '@/lib/generated/prisma/client'
 
+type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
+
 export interface CreateGenerationJobInput {
   userId: string
   adapterType: string
   provider: string
   modelId: string
+  prompt?: string
+  externalRequestId?: string
 }
 
 export interface UpdateGenerationJobInput {
@@ -51,14 +55,17 @@ function getRequestSum(value: number | null | undefined): number {
 
 export async function createGenerationJob(
   input: CreateGenerationJobInput,
+  client: Pick<typeof db, 'generationJob'> = db,
 ): Promise<GenerationJob> {
-  return db.generationJob.create({
+  return client.generationJob.create({
     data: {
       userId: input.userId,
       adapterType: input.adapterType,
       provider: input.provider,
       modelId: input.modelId,
       status: 'RUNNING',
+      prompt: input.prompt,
+      externalRequestId: input.externalRequestId,
       startedAt: new Date(),
     },
   })
@@ -67,8 +74,9 @@ export async function createGenerationJob(
 export async function completeGenerationJob(
   id: string,
   input: UpdateGenerationJobInput,
+  client: UsageMutationClient = db,
 ): Promise<GenerationJob> {
-  return db.generationJob.update({
+  return client.generationJob.update({
     where: { id },
     data: {
       generationId: input.generationId,
@@ -83,8 +91,9 @@ export async function completeGenerationJob(
 export async function failGenerationJob(
   id: string,
   input: UpdateGenerationJobInput,
+  client: UsageMutationClient = db,
 ): Promise<GenerationJob> {
-  return db.generationJob.update({
+  return client.generationJob.update({
     where: { id },
     data: {
       requestCount: input.requestCount,
@@ -97,8 +106,9 @@ export async function failGenerationJob(
 
 export async function createApiUsageEntry(
   input: CreateApiUsageEntryInput,
+  client: UsageMutationClient = db,
 ): Promise<ApiUsageLedger> {
-  return db.apiUsageLedger.create({
+  return client.apiUsageLedger.create({
     data: {
       userId: input.userId,
       generationId: input.generationId,

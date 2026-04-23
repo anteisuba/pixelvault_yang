@@ -171,7 +171,6 @@ describe('useUnifiedGenerate', () => {
       success: true,
       data: {
         jobId: 'job-audio-123',
-        requestId: 'request-audio-123',
       },
     })
     mockCheckAudioStatus
@@ -225,6 +224,160 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.activeRun?.items[0].generation?.id).toBe(
       FAKE_GENERATION.id,
     )
+  })
+
+  it('switches audio stage to processing when provider reports IN_PROGRESS', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-456',
+      },
+    })
+    mockCheckAudioStatus
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          jobId: 'job-audio-456',
+          status: 'IN_PROGRESS',
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          jobId: 'job-audio-456',
+          status: 'COMPLETED',
+          generation: FAKE_GENERATION,
+        },
+      })
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let generationPromise: Promise<unknown> | undefined
+
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    expect(result.current.stage).toBe('processing')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    await expect(generationPromise).resolves.toEqual(
+      expect.objectContaining({ id: FAKE_GENERATION.id }),
+    )
+  })
+
+  it('marks audio run failed when provider returns FAILED status', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-failed',
+      },
+    })
+    mockCheckAudioStatus.mockResolvedValueOnce({
+      success: true,
+      data: {
+        jobId: 'job-audio-failed',
+        status: 'FAILED',
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let generationPromise: Promise<unknown> | undefined
+
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUDIO_GENERATION.POLL_INTERVAL_MS)
+    })
+
+    await expect(generationPromise).resolves.toBeNull()
+    expect(result.current.stage).toBe('idle')
+    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.activeRun?.items[0].status).toBe('failed')
+    expect(result.current.activeRun?.items[0].error).toBe('generateFailed')
+  })
+
+  it('marks audio run failed when async polling times out', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-timeout',
+      },
+    })
+    mockCheckAudioStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-audio-timeout',
+        status: 'IN_QUEUE',
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let generationPromise: Promise<unknown> | undefined
+
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        AUDIO_GENERATION.POLL_INTERVAL_MS *
+          (AUDIO_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+    })
+
+    await expect(generationPromise).resolves.toBeNull()
+    expect(result.current.stage).toBe('idle')
+    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.activeRun?.items[0].status).toBe('failed')
+  })
+
+  it('fails audio run when submit succeeds without generation or jobId', async () => {
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let generation: unknown
+    await act(async () => {
+      generation = await result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+    })
+
+    expect(generation).toBeNull()
+    expect(result.current.stage).toBe('idle')
+    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.activeRun?.items[0].status).toBe('failed')
+    expect(result.current.activeRun?.items[0].error).toBe('generateFailed')
   })
 
   it('returns null when mode has no matching input', async () => {

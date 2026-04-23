@@ -1,6 +1,13 @@
 import 'server-only'
 
-import { getProviderLabel } from '@/constants/providers'
+import { z } from 'zod'
+
+import { EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
+import {
+  AI_ADAPTER_TYPES,
+  getProviderLabel,
+  type ProviderConfig,
+} from '@/constants/providers'
 import type {
   AudioStatusResponseData,
   AudioSubmitResponseData,
@@ -15,7 +22,6 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import {
-  attachUsageEntryToGeneration,
   completeGenerationJob,
   createApiUsageEntry,
   createGenerationJob,
@@ -26,18 +32,113 @@ import {
   resolveGenerationRoute,
   GenerateImageServiceError,
 } from '@/services/generate-image.service'
+import {
+  annotateExecutionOutbox,
+  completeExecutionOutbox,
+  createExecutionOutbox,
+  failExecutionOutbox,
+  failExpiredExecutionOutbox,
+  tryClaimExecutionOutbox,
+} from '@/services/execution-outbox.service'
+import { getApiKeyValueById } from '@/services/apiKey.service'
 import { ensureUser } from '@/services/user.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
+import { getSystemApiKey } from '@/lib/platform-keys'
 
-interface AudioQueueMetadata {
-  requestId: string
-  statusUrl: string
-  responseUrl: string
-  apiKeyId?: string | null
+const AI_ADAPTER_TYPE_VALUES = Object.values(AI_ADAPTER_TYPES) as [
+  AI_ADAPTER_TYPES,
+  ...AI_ADAPTER_TYPES[],
+]
+
+const AudioRouteIdentitySchema = z.object({
+  modelId: z.string().min(1),
+  adapterType: z.enum(AI_ADAPTER_TYPE_VALUES),
+  provider: z.string().min(1),
+  providerConfig: z
+    .object({
+      label: z.string().min(1),
+      baseUrl: z.string().url(),
+    })
+    .optional(),
+  apiKeyId: z.string().min(1).nullable().optional(),
+  isFreeGeneration: z.boolean().optional(),
+})
+
+type AudioRouteIdentity = z.infer<typeof AudioRouteIdentitySchema>
+
+const AudioQueueRequestSchema = z.object({
+  requestId: z.string().min(1),
+  statusUrl: z.string().url(),
+  responseUrl: z.string().url(),
+})
+
+type AudioQueueRequest = z.infer<typeof AudioQueueRequestSchema>
+
+const AudioQueueMetadataSchema = z.object({
+  requestId: z.string().min(1).optional(),
+  statusUrl: z.string().url().optional(),
+  responseUrl: z.string().url().optional(),
+  route: AudioRouteIdentitySchema,
+})
+
+type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
+
+const AudioSubmitOutboxPayloadSchema = z.object({
+  prompt: z.string().min(1),
+  voiceId: z.string().min(1).max(200).optional(),
+  speed: z.number().min(0.5).max(2.0).optional(),
+  format: z.string().min(1).optional(),
+  sampleRate: z.number().int().min(8000).max(48000).optional(),
+})
+
+type AudioSubmitOutboxPayload = z.infer<typeof AudioSubmitOutboxPayloadSchema>
+
+interface AudioExecutionOutboxState {
+  id: string
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  payload: unknown
+  result: unknown
+  leaseExpiresAt: Date | null
+  lastError: string | null
 }
+
+interface AudioJobState {
+  id: string
+  userId: string
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  modelId: string
+  adapterType: string
+  provider: string
+  prompt: string | null
+  externalRequestId: string | null
+  createdAt: Date
+  generation: {
+    id: string
+    createdAt: Date
+    outputType: string
+    status: string
+    url: string
+    storageKey: string
+    mimeType: string
+    width: number
+    height: number
+    duration?: number | null
+    prompt: string
+    negativePrompt?: string | null
+    model: string
+    provider: string
+    requestCount: number
+    isPublic: boolean
+    isPromptPublic: boolean
+    userId?: string | null
+  } | null
+  executionOutbox: AudioExecutionOutboxState | null
+}
+
+type ReadyAudioQueueMetadata = AudioQueueMetadata & AudioQueueRequest
 
 /**
  * Generate audio synchronously (Fish Audio — returns audio bytes immediately).
@@ -70,7 +171,7 @@ export async function generateAudioForUser(
     userId,
     adapterType: route.adapterType,
     provider: providerLabel,
-    modelId: request.modelId,
+    modelId: route.modelId,
   })
 
   try {
@@ -112,7 +213,7 @@ export async function generateAudioForUser(
       height: 0,
       duration: result.duration,
       prompt: request.prompt,
-      model: request.modelId,
+      model: route.modelId,
       provider: providerLabel,
       requestCount: result.requestCount,
       isFreeGeneration: route.isFreeGeneration,
@@ -123,20 +224,28 @@ export async function generateAudioForUser(
       generationId: generation.id,
       requestCount: result.requestCount,
     })
-    const usageEntry = await createApiUsageEntry({
-      userId,
-      generationJobId: job.id,
-      adapterType: route.adapterType,
-      provider: providerLabel,
-      modelId: request.modelId,
-      requestCount: result.requestCount,
-      wasSuccessful: true,
-    })
-    await attachUsageEntryToGeneration(usageEntry.id, generation.id)
+    try {
+      await createApiUsageEntry({
+        userId,
+        generationId: generation.id,
+        generationJobId: job.id,
+        adapterType: route.adapterType,
+        provider: providerLabel,
+        modelId: route.modelId,
+        requestCount: result.requestCount,
+        wasSuccessful: true,
+      })
+    } catch (error) {
+      logger.error('Audio usage ledger write failed after sync completion', {
+        generationId: generation.id,
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
 
     logger.info('Audio generation completed', {
       generationId: generation.id,
-      model: request.modelId,
+      model: route.modelId,
       duration: result.duration,
     })
 
@@ -159,7 +268,7 @@ export async function generateAudioForUser(
 
 /**
  * Submit async audio generation (FAL F5-TTS — queue-based).
- * Returns a server-owned job ID plus provider request ID for status polling.
+ * Persists a server-owned job + execution outbox and returns the durable job ID.
  */
 export async function submitAudioGeneration(
   clerkId: string,
@@ -182,71 +291,50 @@ export async function submitAudioGeneration(
   }
 
   const providerLabel = getProviderLabel(route.providerConfig)
-  const breaker = getCircuitBreaker(route.adapterType)
-  let result: Awaited<
-    ReturnType<NonNullable<typeof adapter.submitAudioToQueue>>
-  >
-  try {
-    result = await breaker.call(() =>
-      withRetry(
-        () =>
-          adapter.submitAudioToQueue!({
-            prompt: request.prompt,
-            modelId: route.modelId,
-            providerConfig: route.providerConfig,
-            apiKey: route.apiKey,
-            voiceId: request.voiceId,
-            speed: request.speed,
-            format: request.format,
-          }),
-        { maxAttempts: 3, label: `${providerLabel}/audio-queue` },
-      ),
+  const routeIdentity = buildAudioRouteIdentity(route, providerLabel)
+  const outboxPayload = buildAudioSubmitOutboxPayload(request)
+
+  const job = await db.$transaction(async (tx) => {
+    const createdJob = await createGenerationJob(
+      {
+        userId,
+        adapterType: route.adapterType,
+        provider: providerLabel,
+        modelId: route.modelId,
+        prompt: request.prompt,
+        externalRequestId: serializeAudioQueueMetadata({
+          route: routeIdentity,
+        }),
+      },
+      tx,
     )
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : 'Audio generation failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
-  }
 
-  const job = await createGenerationJob({
-    userId,
-    adapterType: route.adapterType,
-    provider: providerLabel,
-    modelId: request.modelId,
+    await createExecutionOutbox(
+      {
+        generationJobId: createdJob.id,
+        kind: EXECUTION_OUTBOX_KINDS.AUDIO_QUEUE_SUBMIT,
+        payload: outboxPayload,
+      },
+      tx,
+    )
+
+    return createdJob
   })
 
-  const queueMeta: AudioQueueMetadata = {
-    requestId: result.requestId,
-    statusUrl: result.statusUrl,
-    responseUrl: result.responseUrl,
-    apiKeyId: request.apiKeyId ?? null,
-  }
-
-  await db.generationJob.update({
-    where: { id: job.id },
-    data: {
-      externalRequestId: JSON.stringify(queueMeta),
-      prompt: request.prompt,
-    },
-  })
-
-  logger.info('Audio generation submitted to queue', {
+  logger.info('Audio generation enqueued in execution outbox', {
     jobId: job.id,
-    requestId: result.requestId,
-    model: request.modelId,
+    model: route.modelId,
   })
 
   return {
     jobId: job.id,
-    requestId: result.requestId,
   }
 }
 
 /**
  * Check the status of an async audio generation job.
- * When completed, downloads audio, uploads to R2, and creates generation record.
+ * When queue metadata is not ready yet, this will opportunistically claim/dispatch
+ * the submit outbox before polling provider status.
  */
 export async function checkAudioGenerationStatus(
   clerkId: string,
@@ -255,7 +343,7 @@ export async function checkAudioGenerationStatus(
   const dbUser = await ensureUser(clerkId)
   const job = await db.generationJob.findUnique({
     where: { id: jobId },
-    include: { generation: true },
+    include: { generation: true, executionOutbox: true },
   })
 
   if (!job || job.userId !== dbUser.id) {
@@ -286,22 +374,29 @@ export async function checkAudioGenerationStatus(
     )
   }
 
-  let queueMeta: AudioQueueMetadata
-  try {
-    queueMeta = JSON.parse(job.externalRequestId) as AudioQueueMetadata
-  } catch {
-    throw new GenerateImageServiceError(
-      'INVALID_JOB',
-      'Job has invalid queue metadata',
-      400,
-    )
+  const baseQueueMeta = parseAudioQueueMetadata(job.externalRequestId)
+  const queueMeta = await getReadyAudioQueueMetadata(
+    toAudioJobState(job),
+    baseQueueMeta,
+  )
+
+  if (!queueMeta) {
+    const freshJob = await db.generationJob.findUnique({
+      where: { id: jobId },
+      include: { generation: true },
+    })
+
+    if (freshJob?.status === 'FAILED') {
+      return { jobId: job.id, status: 'FAILED' }
+    }
+
+    return { jobId: job.id, status: 'IN_QUEUE' }
   }
 
-  const executionRoute = await resolveGenerationRoute(dbUser.id, {
-    modelId: job.modelId,
-    apiKeyId: queueMeta.apiKeyId ?? undefined,
-  })
-
+  const executionRoute = await resolveStoredAudioRoute(
+    dbUser.id,
+    queueMeta.route,
+  )
   const adapter = getProviderAdapter(executionRoute.adapterType)
   if (!adapter.checkAudioQueueStatus) {
     throw new GenerateImageServiceError(
@@ -373,20 +468,7 @@ export async function checkAudioGenerationStatus(
   }
 
   const result = pollResult.result
-  const providerLabel = getProviderLabel(executionRoute.providerConfig)
-
-  const usageEntry = await createApiUsageEntry({
-    userId: dbUser.id,
-    generationJobId: job.id,
-    adapterType: executionRoute.adapterType,
-    provider: providerLabel,
-    modelId: job.modelId,
-    requestCount: result.requestCount,
-    inputImageCount: 0,
-    outputImageCount: 0,
-    durationMs: Date.now() - job.createdAt.getTime(),
-    wasSuccessful: true,
-  })
+  const providerLabel = executionRoute.provider
 
   try {
     const { buffer, mimeType } = await fetchAsBuffer(result.audioUrl)
@@ -397,28 +479,54 @@ export async function checkAudioGenerationStatus(
       mimeType,
     })
 
-    const generation = await createGeneration({
-      userId: dbUser.id,
-      outputType: 'AUDIO',
-      url: permanentUrl,
-      storageKey,
-      mimeType,
-      width: 0,
-      height: 0,
-      duration: result.duration,
-      prompt: job.prompt ?? '',
-      model: job.modelId,
-      provider: providerLabel,
-      requestCount: result.requestCount,
-    })
+    const generation = await db.$transaction(async (tx) => {
+      const persistedGeneration = await createGeneration(
+        {
+          userId: dbUser.id,
+          outputType: 'AUDIO',
+          url: permanentUrl,
+          storageKey,
+          mimeType,
+          width: 0,
+          height: 0,
+          duration: result.duration,
+          prompt: job.prompt ?? '',
+          model: job.modelId,
+          provider: providerLabel,
+          requestCount: result.requestCount,
+          isFreeGeneration: executionRoute.isFreeGeneration,
+        },
+        tx,
+      )
 
-    await Promise.all([
-      attachUsageEntryToGeneration(usageEntry.id, generation.id),
-      completeGenerationJob(job.id, {
-        generationId: generation.id,
-        requestCount: result.requestCount,
-      }),
-    ])
+      await completeGenerationJob(
+        job.id,
+        {
+          generationId: persistedGeneration.id,
+          requestCount: result.requestCount,
+        },
+        tx,
+      )
+
+      await createApiUsageEntry(
+        {
+          userId: dbUser.id,
+          generationId: persistedGeneration.id,
+          generationJobId: job.id,
+          adapterType: executionRoute.adapterType,
+          provider: providerLabel,
+          modelId: job.modelId,
+          requestCount: result.requestCount,
+          inputImageCount: 0,
+          outputImageCount: 0,
+          durationMs: Date.now() - job.createdAt.getTime(),
+          wasSuccessful: true,
+        },
+        tx,
+      )
+
+      return persistedGeneration
+    })
 
     return {
       jobId: job.id,
@@ -435,6 +543,408 @@ export async function checkAudioGenerationStatus(
     })
 
     throw error
+  }
+}
+
+function buildAudioSubmitOutboxPayload(
+  request: GenerateAudioRequest,
+): AudioSubmitOutboxPayload {
+  return AudioSubmitOutboxPayloadSchema.parse({
+    prompt: request.prompt,
+    voiceId: request.voiceId,
+    speed: request.speed,
+    format: request.format,
+    sampleRate: request.sampleRate,
+  })
+}
+
+function toAudioJobState(job: {
+  id: string
+  userId: string
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  modelId: string
+  adapterType: string
+  provider: string
+  prompt: string | null
+  externalRequestId: string | null
+  createdAt: Date
+  generation: AudioJobState['generation']
+  executionOutbox: AudioExecutionOutboxState | null
+}): AudioJobState {
+  return {
+    id: job.id,
+    userId: job.userId,
+    status: job.status,
+    modelId: job.modelId,
+    adapterType: job.adapterType,
+    provider: job.provider,
+    prompt: job.prompt,
+    externalRequestId: job.externalRequestId,
+    createdAt: job.createdAt,
+    generation: job.generation,
+    executionOutbox: job.executionOutbox,
+  }
+}
+
+function parseAudioQueueMetadata(serialized: string): AudioQueueMetadata {
+  let raw: unknown
+  try {
+    raw = JSON.parse(serialized)
+  } catch {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid queue metadata',
+      400,
+    )
+  }
+
+  const parsed = AudioQueueMetadataSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid queue metadata',
+      400,
+    )
+  }
+
+  return parsed.data
+}
+
+function parseAudioQueueRequest(value: unknown): AudioQueueRequest | null {
+  const parsed = AudioQueueRequestSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
+function buildAudioQueueMetadata(
+  route: AudioRouteIdentity,
+  queueRequest: AudioQueueRequest,
+): ReadyAudioQueueMetadata {
+  return {
+    ...queueRequest,
+    route,
+  }
+}
+
+async function persistAudioQueueMetadata(
+  jobId: string,
+  queueMeta: ReadyAudioQueueMetadata,
+): Promise<void> {
+  await withRetry(
+    () =>
+      db.generationJob.update({
+        where: { id: jobId },
+        data: {
+          externalRequestId: serializeAudioQueueMetadata(queueMeta),
+        },
+      }),
+    {
+      maxAttempts: 3,
+      baseDelayMs: 250,
+      label: 'audio.persistQueueMetadata',
+      isRetryable: () => true,
+    },
+  )
+}
+
+async function repairAudioQueueMetadataFromOutbox(
+  jobId: string,
+  outboxId: string,
+  queueMeta: ReadyAudioQueueMetadata,
+): Promise<void> {
+  try {
+    await persistAudioQueueMetadata(jobId, queueMeta)
+  } catch (error) {
+    const message = `Audio queue metadata repair pending (requestId: ${queueMeta.requestId})`
+    try {
+      await annotateExecutionOutbox(outboxId, {
+        result: queueMeta,
+        lastError: message,
+      })
+    } catch (annotationError) {
+      logger.error('Audio execution outbox annotation failed', {
+        jobId,
+        outboxId,
+        requestId: queueMeta.requestId,
+        error:
+          annotationError instanceof Error
+            ? annotationError.message
+            : String(annotationError),
+      })
+    }
+    logger.error('Audio queue metadata repair failed', {
+      jobId,
+      outboxId,
+      requestId: queueMeta.requestId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+async function dispatchAudioSubmitOutbox(
+  job: AudioJobState,
+  route: AudioRouteIdentity,
+  outbox: AudioExecutionOutboxState,
+): Promise<ReadyAudioQueueMetadata | null> {
+  if (outbox.status === 'FAILED') {
+    await failAudioJobIfPossible(
+      job.id,
+      outbox.lastError ?? 'Audio execution outbox failed',
+    )
+    return null
+  }
+
+  if (outbox.status === 'PROCESSING') {
+    const leaseExpired =
+      outbox.leaseExpiresAt != null &&
+      outbox.leaseExpiresAt.getTime() < Date.now()
+
+    if (!leaseExpired) {
+      return null
+    }
+
+    const expiredMessage =
+      'Audio execution lease expired before queue metadata was persisted'
+    await failExpiredExecutionOutbox(outbox.id, expiredMessage)
+    await failAudioJobIfPossible(job.id, expiredMessage)
+    return null
+  }
+
+  if (outbox.status === 'COMPLETED') {
+    const completedResult = parseAudioQueueRequest(outbox.result)
+    if (!completedResult) {
+      await failExecutionOutbox(outbox.id, {
+        lastError: 'Audio execution outbox completed without queue metadata',
+      })
+      await failAudioJobIfPossible(
+        job.id,
+        'Audio execution outbox completed without queue metadata',
+      )
+      return null
+    }
+
+    const queueMeta = buildAudioQueueMetadata(route, completedResult)
+    await repairAudioQueueMetadataFromOutbox(job.id, outbox.id, queueMeta)
+    return queueMeta
+  }
+
+  const claimed = await tryClaimExecutionOutbox(outbox.id)
+  if (!claimed) {
+    return null
+  }
+
+  const payload = AudioSubmitOutboxPayloadSchema.safeParse(outbox.payload)
+  if (!payload.success) {
+    const message = 'Audio execution outbox payload is invalid'
+    await failExecutionOutbox(outbox.id, { lastError: message })
+    await failAudioJobIfPossible(job.id, message)
+    return null
+  }
+
+  const executionRoute = await resolveStoredAudioRoute(job.userId, route)
+  const providerConfig = executionRoute.providerConfig
+  if (!providerConfig) {
+    const message = 'Stored route provider configuration is unavailable'
+    await failExecutionOutbox(outbox.id, { lastError: message })
+    await failAudioJobIfPossible(job.id, message)
+    return null
+  }
+
+  const adapter = getProviderAdapter(executionRoute.adapterType)
+  if (!adapter.submitAudioToQueue) {
+    const message = 'This model does not support async audio generation'
+    await failExecutionOutbox(outbox.id, { lastError: message })
+    await failAudioJobIfPossible(job.id, message)
+    return null
+  }
+
+  const breaker = getCircuitBreaker(executionRoute.adapterType)
+  let queueRequest: AudioQueueRequest
+
+  try {
+    const queueResult = await breaker.call(() =>
+      withRetry(
+        () =>
+          adapter.submitAudioToQueue!({
+            prompt: payload.data.prompt,
+            modelId: executionRoute.modelId,
+            providerConfig,
+            apiKey: executionRoute.apiKey,
+            voiceId: payload.data.voiceId,
+            speed: payload.data.speed,
+            format: payload.data.format,
+            sampleRate: payload.data.sampleRate,
+          }),
+        {
+          maxAttempts: 3,
+          label: `${executionRoute.provider}/audio-queue`,
+        },
+      ),
+    )
+
+    queueRequest = AudioQueueRequestSchema.parse(queueResult)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Audio generation failed'
+    await failExecutionOutbox(outbox.id, { lastError: message })
+    await failAudioJobIfPossible(job.id, message)
+    return null
+  }
+
+  await completeExecutionOutbox(outbox.id, {
+    result: queueRequest,
+  })
+
+  const queueMeta = buildAudioQueueMetadata(route, queueRequest)
+  await repairAudioQueueMetadataFromOutbox(job.id, outbox.id, queueMeta)
+
+  logger.info('Audio generation submitted from execution outbox', {
+    jobId: job.id,
+    outboxId: outbox.id,
+    requestId: queueRequest.requestId,
+    model: job.modelId,
+  })
+
+  return queueMeta
+}
+
+async function getReadyAudioQueueMetadata(
+  job: AudioJobState,
+  queueMeta: AudioQueueMetadata,
+): Promise<ReadyAudioQueueMetadata | null> {
+  if (hasPersistedAudioQueueRequest(queueMeta)) {
+    return queueMeta
+  }
+
+  if (!job.executionOutbox) {
+    await failAudioJobIfPossible(
+      job.id,
+      'Audio queue request metadata is unavailable',
+    )
+    return null
+  }
+
+  return dispatchAudioSubmitOutbox(job, queueMeta.route, job.executionOutbox)
+}
+
+async function resolveStoredAudioRoute(
+  userId: string,
+  route: AudioRouteIdentity | undefined,
+): Promise<{
+  modelId: string
+  adapterType: AI_ADAPTER_TYPES
+  provider: string
+  providerConfig?: ProviderConfig
+  apiKey: string
+  isFreeGeneration: boolean
+}> {
+  if (!route) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has no stored route identity',
+      400,
+    )
+  }
+
+  if (route.isFreeGeneration) {
+    const apiKey = getSystemApiKey(route.adapterType)
+    if (!apiKey) {
+      throw new GenerateImageServiceError(
+        'PLATFORM_KEY_MISSING',
+        'Stored route API key is unavailable',
+        503,
+      )
+    }
+
+    return {
+      modelId: route.modelId,
+      adapterType: route.adapterType,
+      provider: route.provider,
+      providerConfig: route.providerConfig,
+      apiKey,
+      isFreeGeneration: true,
+    }
+  }
+
+  if (!route.apiKeyId) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Stored route API key is missing',
+      400,
+    )
+  }
+
+  const apiKeyRecord = await getApiKeyValueById(route.apiKeyId, userId)
+  if (!apiKeyRecord || apiKeyRecord.adapterType !== route.adapterType) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Stored route API key is unavailable',
+      400,
+    )
+  }
+
+  return {
+    modelId: route.modelId,
+    adapterType: route.adapterType,
+    provider: route.provider,
+    providerConfig: route.providerConfig,
+    apiKey: apiKeyRecord.keyValue,
+    isFreeGeneration: false,
+  }
+}
+
+function buildAudioRouteIdentity(
+  route: {
+    modelId: string
+    adapterType: AI_ADAPTER_TYPES
+    providerConfig: ProviderConfig
+    resolvedApiKeyId?: string | null
+    isFreeGeneration?: boolean
+  },
+  provider: string,
+): AudioRouteIdentity {
+  return {
+    modelId: route.modelId,
+    adapterType: route.adapterType,
+    provider,
+    providerConfig: route.providerConfig,
+    apiKeyId: route.resolvedApiKeyId ?? null,
+    isFreeGeneration: route.isFreeGeneration ?? false,
+  }
+}
+
+function serializeAudioQueueMetadata(queueMeta: AudioQueueMetadata): string {
+  return JSON.stringify(queueMeta)
+}
+
+function hasPersistedAudioQueueRequest(
+  queueMeta: AudioQueueMetadata,
+): queueMeta is AudioQueueMetadata & {
+  requestId: string
+  statusUrl: string
+  responseUrl: string
+} {
+  return (
+    typeof queueMeta.requestId === 'string' &&
+    queueMeta.requestId.length > 0 &&
+    typeof queueMeta.statusUrl === 'string' &&
+    queueMeta.statusUrl.length > 0 &&
+    typeof queueMeta.responseUrl === 'string' &&
+    queueMeta.responseUrl.length > 0
+  )
+}
+
+async function failAudioJobIfPossible(
+  jobId: string,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    await failGenerationJob(jobId, { errorMessage })
+  } catch (error) {
+    logger.error('Failed to persist audio job failure state', {
+      jobId,
+      errorMessage,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
 

@@ -46,6 +46,7 @@ export interface ResolvedGenerationRoute {
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
+  resolvedApiKeyId?: string | null
   isFreeGeneration?: boolean
   /** Credit cost for this generation (from model config, fallback 1) */
   creditCost: number
@@ -132,6 +133,7 @@ export async function resolveGenerationRoute(
       adapterType: selectedApiKey.adapterType,
       providerConfig: selectedApiKey.providerConfig,
       apiKey: selectedApiKey.keyValue,
+      resolvedApiKeyId: selectedApiKey.id,
       creditCost:
         builtInModel?.cost ?? API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
     }
@@ -164,6 +166,7 @@ export async function resolveGenerationRoute(
       adapterType: autoKey.adapterType,
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
+      resolvedApiKeyId: autoKey.id,
       creditCost: builtInModel.cost,
     }
   }
@@ -193,6 +196,7 @@ export async function resolveGenerationRoute(
       adapterType: builtInModel.adapterType,
       providerConfig: builtInModel.providerConfig,
       apiKey: platformKey,
+      resolvedApiKeyId: null,
       isFreeGeneration: true,
       creditCost: builtInModel.cost,
     }

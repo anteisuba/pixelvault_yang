@@ -67,6 +67,11 @@ export type Generation = Prisma.GenerationModel
  */
 export type GenerationJob = Prisma.GenerationJobModel
 /**
+ * Model ExecutionOutbox
+ * 
+ */
+export type ExecutionOutbox = Prisma.ExecutionOutboxModel
+/**
  * Model ApiUsageLedger
  * 
  */

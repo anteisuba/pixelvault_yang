@@ -37,6 +37,16 @@ export const GenerationJobStatus = {
 export type GenerationJobStatus = (typeof GenerationJobStatus)[keyof typeof GenerationJobStatus]
 
 
+export const ExecutionOutboxStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type ExecutionOutboxStatus = (typeof ExecutionOutboxStatus)[keyof typeof ExecutionOutboxStatus]
+
+
 export const CharacterCardStatus = {
   DRAFT: 'DRAFT',
   REFINING: 'REFINING',

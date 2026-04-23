@@ -13,6 +13,11 @@ import { PAGINATION } from '@/constants/config'
 
 // ─── Input Types ──────────────────────────────────────────────────
 
+type GenerationMutationClient = Pick<
+  typeof db,
+  'generation' | 'generationCharacterCard'
+>
+
 export interface CreateGenerationInput {
   url: string
   storageKey: string
@@ -148,8 +153,9 @@ function buildGalleryWhere(options: {
  */
 export async function createGeneration(
   input: CreateGenerationInput,
+  client: GenerationMutationClient = db,
 ): Promise<GenerationRecord> {
-  const generation = await db.generation.create({
+  const generation = await client.generation.create({
     data: {
       url: input.url,
       storageKey: input.storageKey,
@@ -179,7 +185,7 @@ export async function createGeneration(
 
   // Link character cards via join table (multi-card support)
   if (input.characterCardIds && input.characterCardIds.length > 0) {
-    await db.generationCharacterCard.createMany({
+    await client.generationCharacterCard.createMany({
       data: input.characterCardIds.map((cardId) => ({
         generationId: generation.id,
         characterCardId: cardId,

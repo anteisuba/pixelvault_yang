@@ -56,6 +56,7 @@ export const ModelName = {
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
+  ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
@@ -201,6 +202,24 @@ export const GenerationJobScalarFieldEnum = {
 } as const
 
 export type GenerationJobScalarFieldEnum = (typeof GenerationJobScalarFieldEnum)[keyof typeof GenerationJobScalarFieldEnum]
+
+
+export const ExecutionOutboxScalarFieldEnum = {
+  id: 'id',
+  generationJobId: 'generationJobId',
+  kind: 'kind',
+  status: 'status',
+  payload: 'payload',
+  result: 'result',
+  attemptCount: 'attemptCount',
+  lastError: 'lastError',
+  leaseExpiresAt: 'leaseExpiresAt',
+  processedAt: 'processedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ExecutionOutboxScalarFieldEnum = (typeof ExecutionOutboxScalarFieldEnum)[keyof typeof ExecutionOutboxScalarFieldEnum]
 
 
 export const ApiUsageLedgerScalarFieldEnum = {

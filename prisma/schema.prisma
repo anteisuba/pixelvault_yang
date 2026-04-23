@@ -28,6 +28,13 @@ enum GenerationJobStatus {
   FAILED
 }
 
+enum ExecutionOutboxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum CharacterCardStatus {
   DRAFT
   REFINING
@@ -249,10 +256,29 @@ model GenerationJob {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  apiUsageLedger ApiUsageLedger[] @relation("GenerationJobToUsage")
+  apiUsageLedger  ApiUsageLedger[] @relation("GenerationJobToUsage")
+  executionOutbox ExecutionOutbox?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
+}
+
+model ExecutionOutbox {
+  id              String               @id @default(uuid())
+  generationJobId String               @unique
+  generationJob   GenerationJob        @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+  kind            String
+  status          ExecutionOutboxStatus @default(PENDING)
+  payload         Json
+  result          Json?
+  attemptCount    Int                  @default(0)
+  lastError       String?              @db.Text
+  leaseExpiresAt  DateTime?
+  processedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status, leaseExpiresAt, createdAt(sort: Desc)])
 }
 
 model ApiUsageLedger {

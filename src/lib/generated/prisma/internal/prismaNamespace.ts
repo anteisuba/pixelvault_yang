@@ -389,6 +389,7 @@ export const ModelName = {
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
+  ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -797,6 +798,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.GenerationJobCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.GenerationJobCountAggregateOutputType> | number
+        }
+      }
+    }
+    ExecutionOutbox: {
+      payload: Prisma.$ExecutionOutboxPayload<ExtArgs>
+      fields: Prisma.ExecutionOutboxFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ExecutionOutboxFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ExecutionOutboxFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        findFirst: {
+          args: Prisma.ExecutionOutboxFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ExecutionOutboxFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        findMany: {
+          args: Prisma.ExecutionOutboxFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>[]
+        }
+        create: {
+          args: Prisma.ExecutionOutboxCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        createMany: {
+          args: Prisma.ExecutionOutboxCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ExecutionOutboxCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>[]
+        }
+        delete: {
+          args: Prisma.ExecutionOutboxDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        update: {
+          args: Prisma.ExecutionOutboxUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        deleteMany: {
+          args: Prisma.ExecutionOutboxDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ExecutionOutboxUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ExecutionOutboxUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>[]
+        }
+        upsert: {
+          args: Prisma.ExecutionOutboxUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExecutionOutboxPayload>
+        }
+        aggregate: {
+          args: Prisma.ExecutionOutboxAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateExecutionOutbox>
+        }
+        groupBy: {
+          args: Prisma.ExecutionOutboxGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExecutionOutboxGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ExecutionOutboxCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExecutionOutboxCountAggregateOutputType> | number
         }
       }
     }
@@ -2574,6 +2649,24 @@ export const GenerationJobScalarFieldEnum = {
 export type GenerationJobScalarFieldEnum = (typeof GenerationJobScalarFieldEnum)[keyof typeof GenerationJobScalarFieldEnum]
 
 
+export const ExecutionOutboxScalarFieldEnum = {
+  id: 'id',
+  generationJobId: 'generationJobId',
+  kind: 'kind',
+  status: 'status',
+  payload: 'payload',
+  result: 'result',
+  attemptCount: 'attemptCount',
+  lastError: 'lastError',
+  leaseExpiresAt: 'leaseExpiresAt',
+  processedAt: 'processedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ExecutionOutboxScalarFieldEnum = (typeof ExecutionOutboxScalarFieldEnum)[keyof typeof ExecutionOutboxScalarFieldEnum]
+
+
 export const ApiUsageLedgerScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3146,6 +3239,20 @@ export type ListEnumGenerationJobStatusFieldRefInput<$PrismaModel> = FieldRefInp
 
 
 /**
+ * Reference to a field of type 'ExecutionOutboxStatus'
+ */
+export type EnumExecutionOutboxStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionOutboxStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ExecutionOutboxStatus[]'
+ */
+export type ListEnumExecutionOutboxStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionOutboxStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'CharacterCardStatus'
  */
 export type EnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus'>
@@ -3328,6 +3435,7 @@ export type GlobalOmitConfig = {
   userApiKey?: Prisma.UserApiKeyOmit
   generation?: Prisma.GenerationOmit
   generationJob?: Prisma.GenerationJobOmit
+  executionOutbox?: Prisma.ExecutionOutboxOmit
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit

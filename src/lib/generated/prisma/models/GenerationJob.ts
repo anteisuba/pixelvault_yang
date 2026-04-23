@@ -299,6 +299,7 @@ export type GenerationJobWhereInput = {
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   generation?: Prisma.XOR<Prisma.GenerationNullableScalarRelationFilter, Prisma.GenerationWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  executionOutbox?: Prisma.XOR<Prisma.ExecutionOutboxNullableScalarRelationFilter, Prisma.ExecutionOutboxWhereInput> | null
 }
 
 export type GenerationJobOrderByWithRelationInput = {
@@ -320,6 +321,7 @@ export type GenerationJobOrderByWithRelationInput = {
   user?: Prisma.UserOrderByWithRelationInput
   generation?: Prisma.GenerationOrderByWithRelationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
+  executionOutbox?: Prisma.ExecutionOutboxOrderByWithRelationInput
 }
 
 export type GenerationJobWhereUniqueInput = Prisma.AtLeast<{
@@ -344,6 +346,7 @@ export type GenerationJobWhereUniqueInput = Prisma.AtLeast<{
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   generation?: Prisma.XOR<Prisma.GenerationNullableScalarRelationFilter, Prisma.GenerationWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
+  executionOutbox?: Prisma.XOR<Prisma.ExecutionOutboxNullableScalarRelationFilter, Prisma.ExecutionOutboxWhereInput> | null
 }, "id" | "generationId">
 
 export type GenerationJobOrderByWithAggregationInput = {
@@ -407,6 +410,7 @@ export type GenerationJobCreateInput = {
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
   generation?: Prisma.GenerationCreateNestedOneWithoutGenerationJobInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobUncheckedCreateInput = {
@@ -426,6 +430,7 @@ export type GenerationJobUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobUpdateInput = {
@@ -445,6 +450,7 @@ export type GenerationJobUpdateInput = {
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
   generation?: Prisma.GenerationUpdateOneWithoutGenerationJobNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobUncheckedUpdateInput = {
@@ -464,6 +470,7 @@ export type GenerationJobUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobCreateManyInput = {
@@ -595,6 +602,11 @@ export type GenerationJobSumOrderByAggregateInput = {
   requestCount?: Prisma.SortOrder
 }
 
+export type GenerationJobScalarRelationFilter = {
+  is?: Prisma.GenerationJobWhereInput
+  isNot?: Prisma.GenerationJobWhereInput
+}
+
 export type GenerationJobCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.GenerationJobCreateWithoutUserInput, Prisma.GenerationJobUncheckedCreateWithoutUserInput> | Prisma.GenerationJobCreateWithoutUserInput[] | Prisma.GenerationJobUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.GenerationJobCreateOrConnectWithoutUserInput | Prisma.GenerationJobCreateOrConnectWithoutUserInput[]
@@ -677,6 +689,20 @@ export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }
 
+export type GenerationJobCreateNestedOneWithoutExecutionOutboxInput = {
+  create?: Prisma.XOR<Prisma.GenerationJobCreateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedCreateWithoutExecutionOutboxInput>
+  connectOrCreate?: Prisma.GenerationJobCreateOrConnectWithoutExecutionOutboxInput
+  connect?: Prisma.GenerationJobWhereUniqueInput
+}
+
+export type GenerationJobUpdateOneRequiredWithoutExecutionOutboxNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationJobCreateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedCreateWithoutExecutionOutboxInput>
+  connectOrCreate?: Prisma.GenerationJobCreateOrConnectWithoutExecutionOutboxInput
+  upsert?: Prisma.GenerationJobUpsertWithoutExecutionOutboxInput
+  connect?: Prisma.GenerationJobWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationJobUpdateToOneWithWhereWithoutExecutionOutboxInput, Prisma.GenerationJobUpdateWithoutExecutionOutboxInput>, Prisma.GenerationJobUncheckedUpdateWithoutExecutionOutboxInput>
+}
+
 export type GenerationJobCreateNestedOneWithoutApiUsageLedgerInput = {
   create?: Prisma.XOR<Prisma.GenerationJobCreateWithoutApiUsageLedgerInput, Prisma.GenerationJobUncheckedCreateWithoutApiUsageLedgerInput>
   connectOrCreate?: Prisma.GenerationJobCreateOrConnectWithoutApiUsageLedgerInput
@@ -709,6 +735,7 @@ export type GenerationJobCreateWithoutUserInput = {
   updatedAt?: Date | string
   generation?: Prisma.GenerationCreateNestedOneWithoutGenerationJobInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobUncheckedCreateWithoutUserInput = {
@@ -727,6 +754,7 @@ export type GenerationJobUncheckedCreateWithoutUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobCreateOrConnectWithoutUserInput = {
@@ -792,6 +820,7 @@ export type GenerationJobCreateWithoutGenerationInput = {
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobUncheckedCreateWithoutGenerationInput = {
@@ -810,6 +839,7 @@ export type GenerationJobUncheckedCreateWithoutGenerationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobCreateOrConnectWithoutGenerationInput = {
@@ -844,11 +874,105 @@ export type GenerationJobUpdateWithoutGenerationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobUncheckedUpdateWithoutGenerationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  adapterType?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput
+}
+
+export type GenerationJobCreateWithoutExecutionOutboxInput = {
+  id?: string
+  adapterType: string
+  provider: string
+  modelId: string
+  status?: $Enums.GenerationJobStatus
+  requestCount?: number
+  prompt?: string | null
+  errorMessage?: string | null
+  externalRequestId?: string | null
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
+  generation?: Prisma.GenerationCreateNestedOneWithoutGenerationJobInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationJobInput
+}
+
+export type GenerationJobUncheckedCreateWithoutExecutionOutboxInput = {
+  id?: string
+  userId: string
+  generationId?: string | null
+  adapterType: string
+  provider: string
+  modelId: string
+  status?: $Enums.GenerationJobStatus
+  requestCount?: number
+  prompt?: string | null
+  errorMessage?: string | null
+  externalRequestId?: string | null
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
+}
+
+export type GenerationJobCreateOrConnectWithoutExecutionOutboxInput = {
+  where: Prisma.GenerationJobWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationJobCreateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedCreateWithoutExecutionOutboxInput>
+}
+
+export type GenerationJobUpsertWithoutExecutionOutboxInput = {
+  update: Prisma.XOR<Prisma.GenerationJobUpdateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedUpdateWithoutExecutionOutboxInput>
+  create: Prisma.XOR<Prisma.GenerationJobCreateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedCreateWithoutExecutionOutboxInput>
+  where?: Prisma.GenerationJobWhereInput
+}
+
+export type GenerationJobUpdateToOneWithWhereWithoutExecutionOutboxInput = {
+  where?: Prisma.GenerationJobWhereInput
+  data: Prisma.XOR<Prisma.GenerationJobUpdateWithoutExecutionOutboxInput, Prisma.GenerationJobUncheckedUpdateWithoutExecutionOutboxInput>
+}
+
+export type GenerationJobUpdateWithoutExecutionOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  adapterType?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  modelId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumGenerationJobStatusFieldUpdateOperationsInput | $Enums.GenerationJobStatus
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  prompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  externalRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
+  generation?: Prisma.GenerationUpdateOneWithoutGenerationJobNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationJobNestedInput
+}
+
+export type GenerationJobUncheckedUpdateWithoutExecutionOutboxInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adapterType?: Prisma.StringFieldUpdateOperationsInput | string
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   modelId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -880,6 +1004,7 @@ export type GenerationJobCreateWithoutApiUsageLedgerInput = {
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
   generation?: Prisma.GenerationCreateNestedOneWithoutGenerationJobInput
+  executionOutbox?: Prisma.ExecutionOutboxCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -898,6 +1023,7 @@ export type GenerationJobUncheckedCreateWithoutApiUsageLedgerInput = {
   completedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput
 }
 
 export type GenerationJobCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -932,6 +1058,7 @@ export type GenerationJobUpdateWithoutApiUsageLedgerInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
   generation?: Prisma.GenerationUpdateOneWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -950,6 +1077,7 @@ export type GenerationJobUncheckedUpdateWithoutApiUsageLedgerInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobCreateManyUserInput = {
@@ -985,6 +1113,7 @@ export type GenerationJobUpdateWithoutUserInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generation?: Prisma.GenerationUpdateOneWithoutGenerationJobNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobUncheckedUpdateWithoutUserInput = {
@@ -1003,6 +1132,7 @@ export type GenerationJobUncheckedUpdateWithoutUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
+  executionOutbox?: Prisma.ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput
 }
 
 export type GenerationJobUncheckedUpdateManyWithoutUserInput = {
@@ -1072,6 +1202,7 @@ export type GenerationJobSelect<ExtArgs extends runtime.Types.Extensions.Interna
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.GenerationJob$generationArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.GenerationJob$apiUsageLedgerArgs<ExtArgs>
+  executionOutbox?: boolean | Prisma.GenerationJob$executionOutboxArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationJobCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["generationJob"]>
 
@@ -1138,6 +1269,7 @@ export type GenerationJobInclude<ExtArgs extends runtime.Types.Extensions.Intern
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.GenerationJob$generationArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.GenerationJob$apiUsageLedgerArgs<ExtArgs>
+  executionOutbox?: boolean | Prisma.GenerationJob$executionOutboxArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationJobCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type GenerationJobIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1155,6 +1287,7 @@ export type $GenerationJobPayload<ExtArgs extends runtime.Types.Extensions.Inter
     user: Prisma.$UserPayload<ExtArgs>
     generation: Prisma.$GenerationPayload<ExtArgs> | null
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
+    executionOutbox: Prisma.$ExecutionOutboxPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1569,6 +1702,7 @@ export interface Prisma__GenerationJobClient<T, Null = never, ExtArgs extends ru
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   generation<T extends Prisma.GenerationJob$generationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GenerationJob$generationArgs<ExtArgs>>): Prisma.Prisma__GenerationClient<runtime.Types.Result.GetResult<Prisma.$GenerationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   apiUsageLedger<T extends Prisma.GenerationJob$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GenerationJob$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  executionOutbox<T extends Prisma.GenerationJob$executionOutboxArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GenerationJob$executionOutboxArgs<ExtArgs>>): Prisma.Prisma__ExecutionOutboxClient<runtime.Types.Result.GetResult<Prisma.$ExecutionOutboxPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2054,6 +2188,25 @@ export type GenerationJob$apiUsageLedgerArgs<ExtArgs extends runtime.Types.Exten
   take?: number
   skip?: number
   distinct?: Prisma.ApiUsageLedgerScalarFieldEnum | Prisma.ApiUsageLedgerScalarFieldEnum[]
+}
+
+/**
+ * GenerationJob.executionOutbox
+ */
+export type GenerationJob$executionOutboxArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ExecutionOutbox
+   */
+  select?: Prisma.ExecutionOutboxSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ExecutionOutbox
+   */
+  omit?: Prisma.ExecutionOutboxOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ExecutionOutboxInclude<ExtArgs> | null
+  where?: Prisma.ExecutionOutboxWhereInput
 }
 
 /**

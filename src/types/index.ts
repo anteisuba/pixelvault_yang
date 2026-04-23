@@ -243,6 +243,12 @@ export const GenerateAudioRequestSchema = z.object({
 
 export type GenerateAudioRequest = z.infer<typeof GenerateAudioRequestSchema>
 
+export interface AudioSubmitResponseData {
+  jobId: string
+  /** Optional provider identifier; front-end must not depend on it. */
+  requestId?: string
+}
+
 export interface AsyncJobSubmitResponseData {
   jobId: string
   requestId: string
@@ -266,7 +272,7 @@ export type GenerateAudioResponseData =
       jobId?: never
       requestId?: never
     }
-  | (AsyncJobSubmitResponseData & {
+  | (AudioSubmitResponseData & {
       generation?: never
     })
 
@@ -365,7 +371,6 @@ export type VideoJobStatus = AsyncJobStatus
 
 export const VideoStatusRequestSchema = AudioStatusRequestSchema
 
-export type AudioSubmitResponseData = AsyncJobSubmitResponseData
 export type VideoSubmitResponseData = AsyncJobSubmitResponseData
 
 export interface VideoSubmitResponse {

@@ -473,3 +473,48 @@ No.
 2. 在 Prisma 层或独立表里落 durable run 状态（与 `generationJob` 关系待定）
 3. video submit 真实改走 worker workflow（不是 echo）
    **不要一步做完**，仍建议只做第 1 步，拿下去 review 再做第 2 步。
+
+### Phase 3 sub-step 2 part 1 Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: Pass
+
+**Scope reviewed**:
+
+- `src/lib/api-route-factory.ts`（新增 `createApiInternalRoute` + `InternalRouteConfig` 接口 + `parseRawJsonBody` 辅助）
+- `src/lib/api-route-factory.test.ts`（新增 `describe('createApiInternalRoute', ...)` 3 条 case）
+- `src/app/api/internal/execution/callback/route.ts`（refactor：134 行 → 101 行）
+- `src/app/api/internal/execution/callback/route.test.ts`（扩：2 条 → 6 条 case）
+
+**合规检查**:
+
+- 所有改动都在 packet Allowed Scope 内 ✓
+- `createApiRoute` / `createApiGetRoute` / `createApiPutRoute` / `createApiDeleteRoute` 等现有 factory 零修改 ✓（逐一读过）
+- `createApiInternalRoute` 走独立接口 + 独立流程，不侵入用户路由链路 ✓
+- JSDoc 明确 "for machine-to-machine callbacks/webhooks. It does not perform Clerk auth and must not replace user-facing route factories" ✓
+- callback route 不再用 `createApiGetRoute` 挂 POST 的 hack，直接用 `createApiInternalRoute` + `ExecutionCallbackPayloadSchema` ✓
+- `verifyExecutionSignature` 作为 config 传入，职责清晰；handler 只剩 console.log + return，业务逻辑已不在 route 层 ✓
+- 上一轮 sub-step 1 Review 的 F1 / F3 / F4 finding 全部被吸收（F1 factory 扩展、F3 补 4 条测试、F4 清理噪音 mock）✓
+
+**Findings（均 P4 小瑕疵，不阻塞）**:
+
+- **F1 (P4, confidence 8/10)** · `InternalRouteConfig.verifySignature` 返回 `void`，调用方必须 throw 才能拒绝。如果未来要支持异步验签（调外部 KMS / remote JWKS），签名需要改 `Promise<void>`。现在同步足够
+- **F2 (P4, confidence 7/10)** · `createApiInternalRoute` 的 `logger.info` 不记 `userId`（因为无 auth），结构与用户路由略有差异。建议 sub-step 2 part 2 加 `routeType: 'internal'` tag
+- **F3 (P4, confidence 9/10)** · callback `route.ts` 里 `getInternalCallbackSecret` 和 `parseSignatureHeader` 仍是 route-local helpers。当有第二个内部 callback（Stripe webhook、provider callback）时，签名验证逻辑会复制。留作后续 sub-step：签名验证器下沉到 `src/lib/signature-verifiers/**`
+
+**回流动作（已执行）**:
+
+- 02-功能/2.14 基礎設施 — `api-route-factory.ts` 现在导出 `createApiInternalRoute`；callback route 从临时权宜正式 refactor
+- 03-功能測試/3.2 — callback route test 从 2 条扩到 6 条
+- 03-功能測試/3.1 由于 `api-route-factory.test.ts` 原本就在 lib test 列表里（隐含），不再单独追加条目；`createApiInternalRoute` 的 3 条 factory case 已附在同一文件
+- 01-UI / 04-UI測試 — 无变更
+- sub-step 2 part 1 标记 **完成**
+
+**下一刀 sub-step 2 part 2 建议**：
+
+1. 在 Prisma 层或独立表里落 durable run 状态（与 `generationJob` 关系待定）
+2. 选定 Wave 1 Cinematic Short Video 的 video submit 路径作为第一条真实迁移
+3. video submit 改成：Next.js validate + create generationJob → 推 run context 给 worker → worker 轮询 provider → 完成时 callback 回 `/api/internal/execution/callback` → Next.js 写 R2 + finalize
+4. 顺手吸收本次 F2（internal route logger tag）
+5. 生产部署：Vercel env vars 和 Cloudflare `wrangler secret put` 两边都配强随机 `INTERNAL_CALLBACK_SECRET`，Preview / Production 分别不同值
+
+**预估**：人时 2-3 天 / Codex ~3-4h。**不要一次做完**，DB 层和 video submit refactor 拆成两个 packet。

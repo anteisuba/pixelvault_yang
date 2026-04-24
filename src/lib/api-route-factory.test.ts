@@ -1,3 +1,5 @@
+import { NextRequest } from 'next/server'
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { z } from 'zod'
 
@@ -20,8 +22,9 @@ vi.mock('@/services/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
-import { createApiRoute } from '@/lib/api-route-factory'
+import { createApiInternalRoute, createApiRoute } from '@/lib/api-route-factory'
 import {
+  ApiRequestError,
   ProviderError,
   InsufficientCreditsError,
   GenerationValidationError,
@@ -54,6 +57,47 @@ const POST = createApiRoute<typeof testSchema, TestResult>({
   routeName: 'POST /api/test',
   handler: mockHandler,
 })
+
+const internalSchema = z.object({
+  runId: z.string().min(1, 'Run ID is required'),
+  count: z.number().int(),
+})
+
+interface InternalRouteResult {
+  received: string
+  count: number
+}
+
+const mockVerifySignature = vi.fn<(rawBody: string, request: Request) => void>()
+const mockInternalHandler =
+  vi.fn<
+    (args: {
+      request: Request
+      data: z.infer<typeof internalSchema>
+    }) => Promise<InternalRouteResult>
+  >()
+
+const INTERNAL_POST = createApiInternalRoute<
+  typeof internalSchema,
+  InternalRouteResult
+>({
+  schema: internalSchema,
+  routeName: 'POST /api/internal/test',
+  verifySignature: mockVerifySignature,
+  handler: mockInternalHandler,
+})
+
+function createRawPOST(
+  path: string,
+  rawBody: string,
+  headers: Record<string, string> = {},
+) {
+  return new NextRequest(new URL(path, 'http://localhost:3000'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: rawBody,
+  })
+}
 
 // ─── Tests ───────────────────────────────────────────────────────
 
@@ -307,5 +351,81 @@ describe('createApiRoute', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(500)
+  })
+})
+
+describe('createApiInternalRoute', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockIsServiceError.mockReturnValue(false)
+    mockVerifySignature.mockImplementation(() => undefined)
+    mockInternalHandler.mockImplementation(async ({ data }) => ({
+      received: data.runId,
+      count: data.count,
+    }))
+  })
+
+  it('returns an ApiRequestError response when signature verification rejects', async () => {
+    mockVerifySignature.mockImplementation(() => {
+      throw new ApiRequestError(
+        'INVALID_TEST_SIGNATURE',
+        401,
+        'errors.auth.unauthorized',
+        'Invalid test signature',
+      )
+    })
+
+    const rawBody = JSON.stringify({ runId: 'run_123', count: 1 })
+    const req = createRawPOST('/api/internal/test', rawBody)
+    const res = await INTERNAL_POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      errorCode: string
+      error: string
+    }>(res)
+
+    expect(res.status).toBe(401)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('INVALID_TEST_SIGNATURE')
+    expect(json.error).toBe('Invalid test signature')
+    expect(mockInternalHandler).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 with a field-level issue when schema validation fails', async () => {
+    const rawBody = JSON.stringify({ runId: '', count: 1 })
+    const req = createRawPOST('/api/internal/test', rawBody)
+    const res = await INTERNAL_POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      errorCode: string
+      error: string
+    }>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('VALIDATION_ERROR')
+    expect(json.error).toContain('Run ID is required')
+    expect(mockInternalHandler).not.toHaveBeenCalled()
+  })
+
+  it('passes validated data to handler and returns data on success', async () => {
+    const rawBody = JSON.stringify({ runId: 'run_123', count: 2 })
+    const req = createRawPOST('/api/internal/test', rawBody)
+    const res = await INTERNAL_POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      data: InternalRouteResult
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data).toEqual({ received: 'run_123', count: 2 })
+    expect(mockVerifySignature).toHaveBeenCalledWith(rawBody, req)
+    expect(mockInternalHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: req,
+        data: { runId: 'run_123', count: 2 },
+      }),
+    )
   })
 })

@@ -47,6 +47,20 @@ interface GetRouteConfig<TSchema extends z.ZodType, TResult> {
   }) => Promise<TResult>
 }
 
+interface InternalRouteConfig<TSchema extends z.ZodType, TResult> {
+  /** Zod schema for parsed JSON body validation */
+  schema: TSchema
+  /** Route name for logging (e.g. 'POST /api/internal/execution/callback') */
+  routeName: string
+  /** Verifies the raw body before JSON parsing. Throw to reject the request. */
+  verifySignature: (rawBody: string, request: Request) => void
+  /** Handler receives the validated body. No Clerk identity is provided. */
+  handler: (args: {
+    request: Request
+    data: z.infer<TSchema>
+  }) => Promise<TResult>
+}
+
 // ─── Consistent Error Response ───────────────────────────────────
 
 export interface ErrorResponse {
@@ -208,6 +222,19 @@ function handleRouteError(
         : 'An unexpected error occurred. Please try again.',
     ),
   )
+}
+
+function parseRawJsonBody(rawBody: string): unknown {
+  try {
+    return JSON.parse(rawBody)
+  } catch {
+    throw new ApiRequestError(
+      'INVALID_JSON',
+      400,
+      'errors.validation.invalidJson',
+      'Invalid JSON body',
+    )
+  }
 }
 
 // ─── Factory ─────────────────────────────────────────────────────
@@ -476,6 +503,62 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
  */
 export const createApiPostByIdRoute = createApiPutRoute
 export const createApiPatchByIdRoute = createApiPutRoute
+
+/**
+ * Creates a standardized internal POST route handler.
+ *
+ * Handles in order:
+ * 1. Raw body read
+ * 2. Caller-provided signature verification
+ * 3. JSON parsing
+ * 4. Zod validation
+ * 5. Handler invocation
+ * 6. Unified error handling
+ *
+ * This is for machine-to-machine callbacks/webhooks. It does not perform Clerk
+ * auth and must not replace user-facing route factories.
+ */
+export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
+  config: InternalRouteConfig<TSchema, TResult>,
+) {
+  return async function handler(
+    request: NextRequest,
+  ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
+    const startedAt = Date.now()
+
+    try {
+      const rawBody = await request.text()
+      config.verifySignature(rawBody, request)
+
+      const body = parseRawJsonBody(rawBody)
+      const parseResult = config.schema.safeParse(body)
+
+      if (!parseResult.success) {
+        const fieldErrors = parseResult.error.issues.map((issue) => ({
+          field: String(issue.path?.join('.') ?? ''),
+          message: issue.message,
+        }))
+        throw new GenerationValidationError(fieldErrors)
+      }
+
+      const result = await config.handler({
+        request,
+        data: parseResult.data,
+      })
+
+      logger.info(config.routeName, {
+        durationMs: Date.now() - startedAt,
+      })
+
+      return NextResponse.json<SuccessResponse<TResult>>({
+        success: true,
+        data: toJsonSafe(result),
+      })
+    } catch (error) {
+      return handleRouteError(config.routeName, startedAt, error)
+    }
+  }
+}
 
 export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
   config: GetRouteConfig<TSchema, TResult>,

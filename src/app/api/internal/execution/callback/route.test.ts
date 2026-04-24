@@ -3,11 +3,7 @@ import { createHmac } from 'node:crypto'
 import { NextRequest } from 'next/server'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { mockUnauthenticated, parseJSON } from '@/test/api-helpers'
-
-vi.mock('@/services/generate-image.service', () => ({
-  isGenerateImageServiceError: vi.fn(() => false),
-}))
+import { parseJSON } from '@/test/api-helpers'
 
 import { POST } from './route'
 
@@ -16,6 +12,10 @@ const CALLBACK_SECRET = 'test-internal-callback-secret'
 const SIGNATURE_HEADER = 'X-Execution-Signature'
 
 const ORIGINAL_CALLBACK_SECRET = process.env.INTERNAL_CALLBACK_SECRET
+
+interface CallbackRequestOptions {
+  signature?: string | null
+}
 
 interface ApiEnvelope<TData> {
   success: boolean
@@ -35,23 +35,33 @@ function signBody(body: string, secret = CALLBACK_SECRET): string {
   return createHmac('sha256', secret).update(body, 'utf8').digest('hex')
 }
 
-function createCallbackRequest(payload: unknown, signature?: string) {
-  const body = JSON.stringify(payload)
+function createCallbackRequestFromBody(
+  body: string,
+  options: CallbackRequestOptions = {},
+) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (options.signature !== null) {
+    headers[SIGNATURE_HEADER] = options.signature ?? signBody(body)
+  }
 
   return new NextRequest(CALLBACK_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      [SIGNATURE_HEADER]: signature ?? signBody(body),
-    },
+    headers,
     body,
   })
+}
+
+function createCallbackRequest(payload: unknown, signature?: string | null) {
+  const body = JSON.stringify(payload)
+  return createCallbackRequestFromBody(body, { signature })
 }
 
 describe('POST /api/internal/execution/callback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUnauthenticated()
     process.env.INTERNAL_CALLBACK_SECRET = CALLBACK_SECRET
     vi.spyOn(console, 'log').mockImplementation(() => undefined)
   })
@@ -85,5 +95,51 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INVALID_EXECUTION_SIGNATURE')
+  })
+
+  it('returns 401 when execution signature header is missing', async () => {
+    const req = createCallbackRequest(VALID_PAYLOAD, null)
+    const res = await POST(req)
+    const json = await parseJSON<ApiEnvelope<never>>(res)
+
+    expect(res.status).toBe(401)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('INVALID_EXECUTION_SIGNATURE')
+  })
+
+  it('returns 400 for malformed JSON body after signature verification', async () => {
+    const body = '{"runId":'
+    const req = createCallbackRequestFromBody(body)
+    const res = await POST(req)
+    const json = await parseJSON<ApiEnvelope<never>>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('INVALID_JSON')
+  })
+
+  it('returns 400 when a signed payload is missing required fields', async () => {
+    const req = createCallbackRequest({
+      kind: 'ping',
+      ts: '2026-04-24T00:00:00.000Z',
+    })
+    const res = await POST(req)
+    const json = await parseJSON<ApiEnvelope<never>>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('VALIDATION_ERROR')
+  })
+
+  it('returns 500 when internal callback secret is not configured', async () => {
+    delete process.env.INTERNAL_CALLBACK_SECRET
+
+    const req = createCallbackRequest(VALID_PAYLOAD)
+    const res = await POST(req)
+    const json = await parseJSON<ApiEnvelope<never>>(res)
+
+    expect(res.status).toBe(500)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('INTERNAL_CALLBACK_SECRET_MISSING')
   })
 })

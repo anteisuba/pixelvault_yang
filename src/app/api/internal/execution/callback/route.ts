@@ -2,15 +2,12 @@ import 'server-only'
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-import { z } from 'zod'
-
-import { createApiGetRoute } from '@/lib/api-route-factory'
-import { ApiRequestError, GenerationValidationError } from '@/lib/errors'
+import { createApiInternalRoute } from '@/lib/api-route-factory'
+import { ApiRequestError } from '@/lib/errors'
 import { ExecutionCallbackPayloadSchema } from '@/types'
 
 export const runtime = 'nodejs'
 
-const EMPTY_QUERY_SCHEMA = z.object({})
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
 const EXECUTION_SIGNATURE_ALGORITHM = 'sha256'
 const EXECUTION_SIGNATURE_HEX_LENGTH = 64
@@ -49,7 +46,8 @@ function parseSignatureHeader(signature: string | null): Buffer | null {
   return Buffer.from(normalized, 'hex')
 }
 
-function assertValidExecutionSignature(body: string, signature: string | null) {
+function verifyExecutionSignature(rawBody: string, request: Request) {
+  const signature = request.headers.get(EXECUTION_SIGNATURE_HEADER)
   const receivedSignature = parseSignatureHeader(signature)
 
   if (!receivedSignature) {
@@ -65,7 +63,7 @@ function assertValidExecutionSignature(body: string, signature: string | null) {
     EXECUTION_SIGNATURE_ALGORITHM,
     getInternalCallbackSecret(),
   )
-    .update(body, 'utf8')
+    .update(rawBody, 'utf8')
     .digest()
 
   if (
@@ -81,51 +79,20 @@ function assertValidExecutionSignature(body: string, signature: string | null) {
   }
 }
 
-function parseJsonBody(body: string): unknown {
-  try {
-    return JSON.parse(body)
-  } catch {
-    throw new ApiRequestError(
-      'INVALID_JSON',
-      400,
-      'errors.validation.invalidJson',
-      'Invalid JSON body.',
-    )
-  }
-}
-
 // ─── POST /api/internal/execution/callback ───────────────────────
 
-export const POST = createApiGetRoute<
-  typeof EMPTY_QUERY_SCHEMA,
+export const POST = createApiInternalRoute<
+  typeof ExecutionCallbackPayloadSchema,
   ExecutionCallbackResponseData
 >({
-  schema: EMPTY_QUERY_SCHEMA,
+  schema: ExecutionCallbackPayloadSchema,
   routeName: 'POST /api/internal/execution/callback',
-  requireAuth: false,
-  handler: async ({ request }) => {
-    const body = await request.text()
-    assertValidExecutionSignature(
-      body,
-      request.headers.get(EXECUTION_SIGNATURE_HEADER),
-    )
-
-    const payload = parseJsonBody(body)
-    const parsedPayload = ExecutionCallbackPayloadSchema.safeParse(payload)
-
-    if (!parsedPayload.success) {
-      throw new GenerationValidationError(
-        parsedPayload.error.issues.map((issue) => ({
-          field: String(issue.path?.join('.') ?? ''),
-          message: issue.message,
-        })),
-      )
-    }
-
+  verifySignature: verifyExecutionSignature,
+  handler: async ({ data }) => {
     const receivedAt = new Date().toISOString()
 
     console.log('[execution-callback] received payload', {
-      payload: parsedPayload.data,
+      payload: data,
       receivedAt,
     })
 

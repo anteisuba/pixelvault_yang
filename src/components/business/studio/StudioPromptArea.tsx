@@ -17,6 +17,7 @@ import {
   VARIANT_COUNT,
   COMPARE_MAX_MODELS,
 } from '@/constants/studio'
+import { getWorkflowById, WORKFLOW_MEDIA_GROUPS } from '@/constants/workflows'
 import {
   useStudioForm,
   useStudioData,
@@ -258,6 +259,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         appliedCharacterIds.push(...characters.activeCards.map((c) => c.id))
       }
     }
+    const selectedWorkflow = getWorkflowById(state.selectedWorkflowId)
+    const videoWorkflowId =
+      selectedWorkflow?.mediaGroup === WORKFLOW_MEDIA_GROUPS.VIDEO
+        ? selectedWorkflow.id
+        : undefined
 
     return {
       prompt: finalPrompt,
@@ -273,11 +279,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         | '720p'
         | '1080p'
         | undefined,
+      ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
       characterCardIds:
         appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
     }
   }, [
     selectedModel,
+    state.selectedWorkflowId,
     state.prompt,
     state.aspectRatio,
     state.videoDuration,

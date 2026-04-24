@@ -1,0 +1,829 @@
+{
+  "generatedAt": "2026-04-23T03:53:26.942Z",
+  "sourceFile": "src/constants/models.ts",
+  "models": [
+    {
+      "id": "gpt-image-2",
+      "outputType": "IMAGE",
+      "adapterType": "OPENAI",
+      "externalModelId": "gpt-image-2",
+      "officialUrl": "https://developers.openai.com/api/docs/models/gpt-image-2"
+    },
+    {
+      "id": "gemini-3-pro-image-preview",
+      "outputType": "IMAGE",
+      "adapterType": "GEMINI",
+      "externalModelId": "gemini-3-pro-image-preview",
+      "officialUrl": "https://ai.google.dev/models/gemini"
+    },
+    {
+      "id": "flux-2-pro",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-2-pro",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-2-pro"
+    },
+    {
+      "id": "seedream-4.5",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      "officialUrl": "https://seed.bytedance.com/en/seedream4_5"
+    },
+    {
+      "id": "seedream-5.0-lite",
+      "outputType": "IMAGE",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedream-5-0-260128",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1541523"
+    },
+    {
+      "id": "seedream-4.0",
+      "outputType": "IMAGE",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedream-4-0-250828",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1541523"
+    },
+    {
+      "id": "seedream-3.0",
+      "outputType": "IMAGE",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedream-3-0-t2i-250415",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1541523"
+    },
+    {
+      "id": "ideogram-3",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/ideogram/v3",
+      "officialUrl": "https://developer.ideogram.ai/ideogram-api/api-overview"
+    },
+    {
+      "id": "recraft-v3",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/recraft/v3/text-to-image",
+      "officialUrl": "https://www.recraft.ai/docs/api-reference/getting-started"
+    },
+    {
+      "id": "gemini-3.1-flash-image-preview",
+      "outputType": "IMAGE",
+      "adapterType": "GEMINI",
+      "externalModelId": "gemini-3.1-flash-image-preview",
+      "officialUrl": "https://ai.google.dev/gemini-api/docs/image-generation"
+    },
+    {
+      "id": "flux-2-dev",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-2",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-2"
+    },
+    {
+      "id": "flux-2-schnell",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux/schnell",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux/schnell"
+    },
+    {
+      "id": "flux-lora",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-lora",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-lora"
+    },
+    {
+      "id": "illustrious-xl",
+      "outputType": "IMAGE",
+      "adapterType": "REPLICATE",
+      "externalModelId": "delta-lock/noobai-xl",
+      "officialUrl": "https://replicate.com/delta-lock/noobai-xl"
+    },
+    {
+      "id": "sd-3.5-large",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/stable-diffusion-v35-large",
+      "officialUrl": "https://fal.ai/models/fal-ai/stable-diffusion-v35-large"
+    },
+    {
+      "id": "animagine-xl-4.0",
+      "outputType": "IMAGE",
+      "adapterType": "HUGGINGFACE",
+      "externalModelId": "cagliostrolab/animagine-xl-4.0",
+      "officialUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0"
+    },
+    {
+      "id": "nai-diffusion-4-5-full",
+      "outputType": "IMAGE",
+      "adapterType": "NOVELAI",
+      "externalModelId": "nai-diffusion-4-5-full",
+      "officialUrl": "https://docs.novelai.net/en/image/models"
+    },
+    {
+      "id": "nai-diffusion-4-5-curated",
+      "outputType": "IMAGE",
+      "adapterType": "NOVELAI",
+      "externalModelId": "nai-diffusion-4-5-curated",
+      "officialUrl": "https://docs.novelai.net/en/image/models"
+    },
+    {
+      "id": "nai-diffusion-4-full",
+      "outputType": "IMAGE",
+      "adapterType": "NOVELAI",
+      "externalModelId": "nai-diffusion-4-full",
+      "officialUrl": "https://docs.novelai.net/en/image/models"
+    },
+    {
+      "id": "nai-diffusion-3",
+      "outputType": "IMAGE",
+      "adapterType": "NOVELAI",
+      "externalModelId": "nai-diffusion-3",
+      "officialUrl": "https://docs.novelai.net/en/image/models"
+    },
+    {
+      "id": "sdxl",
+      "outputType": "IMAGE",
+      "adapterType": "HUGGINGFACE",
+      "externalModelId": "stabilityai/stable-diffusion-xl-base-1.0",
+      "officialUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0"
+    },
+    {
+      "id": "playground-v2.5",
+      "outputType": "IMAGE",
+      "adapterType": "HUGGINGFACE",
+      "externalModelId": "playgroundai/playground-v2.5-1024px-aesthetic",
+      "officialUrl": "https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic"
+    },
+    {
+      "id": "gemini-2.5-flash-image",
+      "outputType": "IMAGE",
+      "adapterType": "GEMINI",
+      "externalModelId": "gemini-2.5-flash-image",
+      "officialUrl": "https://ai.google.dev/gemini-api/docs/image-generation"
+    },
+    {
+      "id": "flux-2-max",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-2-max",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-2-max"
+    },
+    {
+      "id": "recraft-v4-pro",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/recraft/v4/pro/text-to-image",
+      "officialUrl": "https://fal.ai/models/fal-ai/recraft/v4/pro/text-to-image"
+    },
+    {
+      "id": "flux-kontext-pro",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-pro/kontext",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext"
+    },
+    {
+      "id": "flux-kontext-max",
+      "outputType": "IMAGE",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/flux-pro/kontext/max/multi",
+      "officialUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext/max"
+    },
+    {
+      "id": "kling-v3-pro",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/kling-video/v3/pro/text-to-video",
+      "officialUrl": "https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video"
+    },
+    {
+      "id": "veo-3",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/veo3.1",
+      "officialUrl": "https://fal.ai/models/fal-ai/veo3.1"
+    },
+    {
+      "id": "seedance-2.0",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "bytedance/seedance-2.0/text-to-video",
+      "officialUrl": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video"
+    },
+    {
+      "id": "seedance-2.0-fast",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "bytedance/seedance-2.0/fast/text-to-video",
+      "officialUrl": "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video"
+    },
+    {
+      "id": "seedance-2.0-volc",
+      "outputType": "VIDEO",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedance-2-0-260128",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1520757"
+    },
+    {
+      "id": "seedance-2.0-fast-volc",
+      "outputType": "VIDEO",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedance-2-0-fast-260128",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1520757"
+    },
+    {
+      "id": "seedance-pro",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/bytedance/seedance/v1/pro/text-to-video",
+      "officialUrl": "https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video"
+    },
+    {
+      "id": "seedance-1.5-pro",
+      "outputType": "VIDEO",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedance-1-5-pro-251215",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1520757"
+    },
+    {
+      "id": "seedance-1.0-pro",
+      "outputType": "VIDEO",
+      "adapterType": "VOLCENGINE",
+      "externalModelId": "doubao-seedance-1-0-pro-fast-251015",
+      "officialUrl": "https://www.volcengine.com/docs/82379/1520757"
+    },
+    {
+      "id": "minimax-video",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/minimax/hailuo-2.3/standard/text-to-video",
+      "officialUrl": "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video"
+    },
+    {
+      "id": "luma-ray-2",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/luma-dream-machine/ray-2",
+      "officialUrl": "https://fal.ai/models/fal-ai/luma-dream-machine/ray-2"
+    },
+    {
+      "id": "pika-v2.2",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/pika/v2.5/text-to-video",
+      "officialUrl": "https://pika.art/api"
+    },
+    {
+      "id": "kling-video",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/kling-video/v2.1/master/text-to-video",
+      "officialUrl": "https://fal.ai/models/fal-ai/kling-video/v2.1/master/text-to-video"
+    },
+    {
+      "id": "runway-gen3",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/runway-gen3/turbo/image-to-video",
+      "officialUrl": "https://runwayml.com/research/introducing-gen-3-alpha/"
+    },
+    {
+      "id": "wan-video",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "wan/v2.6/text-to-video",
+      "officialUrl": "https://fal.ai/models/wan/v2.6/text-to-video"
+    },
+    {
+      "id": "hunyuan-video",
+      "outputType": "VIDEO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/hunyuan-video",
+      "officialUrl": "https://fal.ai/models/fal-ai/hunyuan-video"
+    },
+    {
+      "id": "fish-audio-s2-pro",
+      "outputType": "AUDIO",
+      "adapterType": "FISH_AUDIO",
+      "externalModelId": "s2-pro",
+      "officialUrl": "https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech"
+    },
+    {
+      "id": "fal-f5-tts",
+      "outputType": "AUDIO",
+      "adapterType": "FAL",
+      "externalModelId": "fal-ai/f5-tts",
+      "officialUrl": "https://fal.ai/models/fal-ai/f5-tts"
+    }
+  ],
+  "pages": [
+    {
+      "id": "model:d2d463f2226c",
+      "kind": "modelDoc",
+      "label": "https://developers.openai.com/api/docs/models/gpt-image-2",
+      "url": "https://developers.openai.com/api/docs/models/gpt-image-2",
+      "models": ["gpt-image-2"],
+      "status": 200,
+      "finalUrl": "https://developers.openai.com/api/docs/models/gpt-image-2",
+      "title": "GPT Image 2 Model | OpenAI API",
+      "hash": "6cc44301def414eb081040c0cb60eab70de4b472fa124ce50fa4ef7318046cce"
+    },
+    {
+      "id": "model:d1d411245005",
+      "kind": "modelDoc",
+      "label": "https://ai.google.dev/models/gemini",
+      "url": "https://ai.google.dev/models/gemini",
+      "models": ["gemini-3-pro-image-preview"],
+      "status": 200,
+      "finalUrl": "https://ai.google.dev/gemini-api/docs/models?hl=en",
+      "title": "Models  |  Gemini API  |  Google AI for Developers",
+      "hash": "e6a559b1a8903d43239df5f18ba9f64be8d48cc5a9712e17ba4c00930291e400"
+    },
+    {
+      "id": "model:6b0421628218",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-2-pro",
+      "url": "https://fal.ai/models/fal-ai/flux-2-pro",
+      "models": ["flux-2-pro"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-2-pro",
+      "title": "FLUX.2 [pro]: Zero-Config AI Text-to-Image Generator | fal",
+      "hash": "bce973e82fc02bfd0a07ce4244ab9485456298f329f6fe4b75549f352b4302bb"
+    },
+    {
+      "id": "model:63dadf5e1a23",
+      "kind": "modelDoc",
+      "label": "https://seed.bytedance.com/en/seedream4_5",
+      "url": "https://seed.bytedance.com/en/seedream4_5",
+      "models": ["seedream-4.5"],
+      "status": 200,
+      "finalUrl": "https://seed.bytedance.com/en/seedream4_5",
+      "title": null,
+      "hash": "db1e828472df57c680e55e8a2b930b7febce177a892ee9676093f75c4a9233bd"
+    },
+    {
+      "id": "model:e90c284fe124",
+      "kind": "modelDoc",
+      "label": "https://www.volcengine.com/docs/82379/1541523",
+      "url": "https://www.volcengine.com/docs/82379/1541523",
+      "models": ["seedream-5.0-lite", "seedream-4.0", "seedream-3.0"],
+      "status": 200,
+      "finalUrl": "https://www.volcengine.com/docs/82379/1541523?lang=zh",
+      "title": null,
+      "hash": "1e505290ba650a588fb06f72a4754746525138e861f67e22a3014ed39f052d63"
+    },
+    {
+      "id": "model:9ad6abe34ef9",
+      "kind": "modelDoc",
+      "label": "https://developer.ideogram.ai/ideogram-api/api-overview",
+      "url": "https://developer.ideogram.ai/ideogram-api/api-overview",
+      "models": ["ideogram-3"],
+      "status": 200,
+      "finalUrl": "https://developer.ideogram.ai/ideogram-api/api-overview",
+      "title": "API Overview | Ideogram | Documentation",
+      "hash": "7d959173988b4b6a6b50c168ebafe1a2f6eabd2617845b7a52b2e366509b43f0"
+    },
+    {
+      "id": "model:ae70fdfc8d57",
+      "kind": "modelDoc",
+      "label": "https://www.recraft.ai/docs/api-reference/getting-started",
+      "url": "https://www.recraft.ai/docs/api-reference/getting-started",
+      "models": ["recraft-v3"],
+      "status": 200,
+      "finalUrl": "https://www.recraft.ai/docs/api-reference/getting-started",
+      "title": "Getting started - Recraft",
+      "hash": "4d1d9182d385b3400fd4a3bdd26fd32e5d6711af5ae161960d29b2705ed7c5db"
+    },
+    {
+      "id": "model:5d0514efd100",
+      "kind": "modelDoc",
+      "label": "https://ai.google.dev/gemini-api/docs/image-generation",
+      "url": "https://ai.google.dev/gemini-api/docs/image-generation",
+      "models": ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"],
+      "status": 200,
+      "finalUrl": "https://ai.google.dev/gemini-api/docs/image-generation?hl=en",
+      "title": "Gemini API  |  Google AI for Developers",
+      "hash": "5eff62d434699204d262acd25797c5c0b95d7d2b1e06d2dbc717bb3b1063880d"
+    },
+    {
+      "id": "model:e1925b4a07ab",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-2",
+      "url": "https://fal.ai/models/fal-ai/flux-2",
+      "models": ["flux-2-dev"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-2",
+      "title": "FLUX.2 [dev]: Fast Text-to-Image AI Generator  with LoRA | fal",
+      "hash": "2e52823b7734c5459db9f2baae4f682dc367e332ed9d21651d39e6c86149affd"
+    },
+    {
+      "id": "model:78435e3b1d73",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux/schnell",
+      "url": "https://fal.ai/models/fal-ai/flux/schnell",
+      "models": ["flux-2-schnell"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux/schnell",
+      "title": "FLUX.1 [schnell]: Ultra-Fast Text-to-Image AI Generator | fal",
+      "hash": "bfd520c6db8283d18c7dc1eb15e07394937beff413b6b6bb21cde62c888991ce"
+    },
+    {
+      "id": "model:e0be0fb7fabd",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-lora",
+      "url": "https://fal.ai/models/fal-ai/flux-lora",
+      "models": ["flux-lora"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-lora",
+      "title": "FLUX.1 with LoRAs: Custom AI Image Generator | fal.ai",
+      "hash": "ba993ba9c11929fd7683c44c7845a9430d1962070f26733cd08137ddca3998af"
+    },
+    {
+      "id": "model:1a1772330b31",
+      "kind": "modelDoc",
+      "label": "https://replicate.com/delta-lock/noobai-xl",
+      "url": "https://replicate.com/delta-lock/noobai-xl",
+      "models": ["illustrious-xl"],
+      "status": 200,
+      "finalUrl": "https://replicate.com/delta-lock/noobai-xl",
+      "title": "delta-lock/noobai-xl | Run with an API on Replicate",
+      "hash": "cee3af629a99de7601f45ee768b323e1f4a155d35f4b0d80b87fc1f112a4bf2c"
+    },
+    {
+      "id": "model:16fc2d7f258c",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/stable-diffusion-v35-large",
+      "url": "https://fal.ai/models/fal-ai/stable-diffusion-v35-large",
+      "models": ["sd-3.5-large"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/stable-diffusion-v35-large",
+      "title": "Stable Diffusion 3.5 Large | Text to Image | fal.ai",
+      "hash": "1c9da39e7826602b7588232078c671259b6e8161f1e28f83c97f5151ccdd1cf5"
+    },
+    {
+      "id": "model:7f10f42c1620",
+      "kind": "modelDoc",
+      "label": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "url": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "models": ["animagine-xl-4.0"],
+      "status": 200,
+      "finalUrl": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "title": "cagliostrolab/animagine-xl-4.0 · Hugging Face",
+      "hash": "d13b1244a69709a00fa75cb77edf189b0622fa070f0866daeaa9bfa99b336705"
+    },
+    {
+      "id": "model:6de2885f400c",
+      "kind": "modelDoc",
+      "label": "https://docs.novelai.net/en/image/models",
+      "url": "https://docs.novelai.net/en/image/models",
+      "models": [
+        "nai-diffusion-4-5-full",
+        "nai-diffusion-4-5-curated",
+        "nai-diffusion-4-full",
+        "nai-diffusion-3"
+      ],
+      "status": 200,
+      "finalUrl": "https://docs.novelai.net/en/image/models/",
+      "title": "| NovelAI Documentation",
+      "hash": "2b28c43b75dbf86016e46cfe13fbd7caa616a450615c5f8ab61ae56f33653756"
+    },
+    {
+      "id": "model:3c44be280a6c",
+      "kind": "modelDoc",
+      "label": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "models": ["sdxl"],
+      "status": 200,
+      "finalUrl": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "title": "stabilityai/stable-diffusion-xl-base-1.0 · Hugging Face",
+      "hash": "4bf433dd358938a3c2ab5a2774d80ea3810283e5362418fa77c4728ebf37b7b6"
+    },
+    {
+      "id": "model:1e0ff2cc8433",
+      "kind": "modelDoc",
+      "label": "https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic",
+      "url": "https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic",
+      "models": ["playground-v2.5"],
+      "status": 200,
+      "finalUrl": "https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic",
+      "title": "playgroundai/playground-v2.5-1024px-aesthetic · Hugging Face",
+      "hash": "c16a00a146da35ddfbd83efe37ac7607c3e0003411f14564e4e3dbff4a9cdcee"
+    },
+    {
+      "id": "model:a116ec5e8bfc",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-2-max",
+      "url": "https://fal.ai/models/fal-ai/flux-2-max",
+      "models": ["flux-2-max"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-2-max",
+      "title": "Flux 2 Max | Text to Image | fal.ai",
+      "hash": "f455ed7b6a50f1d28e6d54dd8510f587da27fbcc0c74c27d4eaded9c3d427fab"
+    },
+    {
+      "id": "model:1507fb6856d8",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/recraft/v4/pro/text-to-image",
+      "url": "https://fal.ai/models/fal-ai/recraft/v4/pro/text-to-image",
+      "models": ["recraft-v4-pro"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/recraft/v4/pro/text-to-image",
+      "title": "Recraft V4 Pro: Text-to-Image AI for Design & Marketing | fal.ai",
+      "hash": "c50fbb8b1fd4d56bda246861994deb11ddd2d1ab0ea1fc516807e5ce3d296e9e"
+    },
+    {
+      "id": "model:fef46c906309",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-pro/kontext",
+      "url": "https://fal.ai/models/fal-ai/flux-pro/kontext",
+      "models": ["flux-kontext-pro"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext",
+      "title": "FLUX.1 Kontext [pro] | Image to Image | fal.ai",
+      "hash": "32b28351e97b1776d2d002dda8ad35535f48246de5216cc9c16a6c634c6beb43"
+    },
+    {
+      "id": "model:4028db814605",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/flux-pro/kontext/max",
+      "url": "https://fal.ai/models/fal-ai/flux-pro/kontext/max",
+      "models": ["flux-kontext-max"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext/max",
+      "title": "FLUX.1 Kontext [max] | Image to Image | fal.ai",
+      "hash": "4f74f299ba96525041583a107f0ca7ae2d9a897ca56a1c9092a4968a6e7ea1e3"
+    },
+    {
+      "id": "model:c374477cb5d7",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video",
+      "url": "https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video",
+      "models": ["kling-v3-pro"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video",
+      "title": "Kling Video v3 Text to Video [Pro] | Text to Video | fal.ai",
+      "hash": "57a6472ba3769ff90e2503d02b9d346f033584688c544578f87f8a83b6495589"
+    },
+    {
+      "id": "model:59a5ad181427",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/veo3.1",
+      "url": "https://fal.ai/models/fal-ai/veo3.1",
+      "models": ["veo-3"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/veo3.1",
+      "title": "Veo 3.1 | Text to Video | fal.ai",
+      "hash": "d535555099ca62eccd20ef0f3471a5b37dd1938269c9be1cc783c9b341eaee49"
+    },
+    {
+      "id": "model:737ff9749902",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video",
+      "url": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video",
+      "models": ["seedance-2.0"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video",
+      "title": "Seedance 2.0 Text to Video API | Text to Video | fal.ai",
+      "hash": "01959070a84c7de01c1ac735016aefd2d403ab2d220415e72d715aa64987fbdb"
+    },
+    {
+      "id": "model:25f1c821a86e",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video",
+      "url": "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video",
+      "models": ["seedance-2.0-fast"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video",
+      "title": "Seedance 2.0 Fast Text to Video | Text to Video | fal.ai",
+      "hash": "0e20cd2114f1eb24d6074589f03c155788fe8bbe90a20d16cd7c0430f64f616f"
+    },
+    {
+      "id": "model:8151d1667166",
+      "kind": "modelDoc",
+      "label": "https://www.volcengine.com/docs/82379/1520757",
+      "url": "https://www.volcengine.com/docs/82379/1520757",
+      "models": [
+        "seedance-2.0-volc",
+        "seedance-2.0-fast-volc",
+        "seedance-1.5-pro",
+        "seedance-1.0-pro"
+      ],
+      "status": 200,
+      "finalUrl": "https://www.volcengine.com/docs/82379/1520757?lang=zh",
+      "title": null,
+      "hash": "7dc80dd49caaff656fe93c59d44e397bf3b4b7255d89d645e43df51d4ce166cc"
+    },
+    {
+      "id": "model:4861cde43f45",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video",
+      "url": "https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video",
+      "models": ["seedance-pro"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video",
+      "title": "Seedance 1.0 Pro | Text to Video | fal.ai",
+      "hash": "131db063b9884165183976a57f660a9c4be8f9191868fdb83f4d2bf6b242b049"
+    },
+    {
+      "id": "model:1c027d742e0f",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video",
+      "url": "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video",
+      "models": ["minimax-video"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video",
+      "title": "MiniMax Hailuo 2.3 [Standard] (Text to Video) | Text to Video | fal.ai",
+      "hash": "d65cc3edf265c7bb44045f418429ba2335e6e7cd136313de70dc5f8516677676"
+    },
+    {
+      "id": "model:3c12724e85b0",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/luma-dream-machine/ray-2",
+      "url": "https://fal.ai/models/fal-ai/luma-dream-machine/ray-2",
+      "models": ["luma-ray-2"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/luma-dream-machine/ray-2",
+      "title": "Luma Ray 2: Premium Text-to-Video AI Generator | fal",
+      "hash": "ce85032bb314f8f32f637d88498afeba734b6c83902c171863bab8473d806719"
+    },
+    {
+      "id": "model:7e643cec13fd",
+      "kind": "modelDoc",
+      "label": "https://pika.art/api",
+      "url": "https://pika.art/api",
+      "models": ["pika-v2.2"],
+      "status": 200,
+      "finalUrl": "https://pika.art/api",
+      "title": "Pika",
+      "hash": "00879223cbebb4e5cafa3606a42b9d37ab56c4ce583c25f345f72962e6e4cd48"
+    },
+    {
+      "id": "model:3a6121983c4f",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/kling-video/v2.1/master/text-to-video",
+      "url": "https://fal.ai/models/fal-ai/kling-video/v2.1/master/text-to-video",
+      "models": ["kling-video"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/kling-video/v2.1/master/text-to-video",
+      "title": "Kling 2.1 Master | Text to Video | fal.ai",
+      "hash": "ffe82ba295695ed6c4e6b546994be2e3b50a0e41c20ccaec55c9eb78d875a5a0"
+    },
+    {
+      "id": "model:cc3e7fa38c62",
+      "kind": "modelDoc",
+      "label": "https://runwayml.com/research/introducing-gen-3-alpha/",
+      "url": "https://runwayml.com/research/introducing-gen-3-alpha/",
+      "models": ["runway-gen3"],
+      "status": 200,
+      "finalUrl": "https://runwayml.com/research/introducing-gen-3-alpha",
+      "title": "Runway Research | Introducing Gen-3 Alpha: A New Frontier for Video Generation",
+      "hash": "ab10fc909e366a4557ddad584c8ebd4d906551d6eb51c9bca10933efcc54835a"
+    },
+    {
+      "id": "model:8872f286ddcd",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/wan/v2.6/text-to-video",
+      "url": "https://fal.ai/models/wan/v2.6/text-to-video",
+      "models": ["wan-video"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/wan/v2.6/text-to-video",
+      "title": "Wan v2.6 Text to Video | Text to Video | fal.ai",
+      "hash": "10273110ec0a246534d12fc81f95b3734c2ac92a9d0dda1aa5e6ee5a60724430"
+    },
+    {
+      "id": "model:d34e56bf26ee",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/hunyuan-video",
+      "url": "https://fal.ai/models/fal-ai/hunyuan-video",
+      "models": ["hunyuan-video"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/hunyuan-video",
+      "title": "Hunyuan Video: Open Source AI | Text-to-Video by Tencent | fal.ai",
+      "hash": "36a836582cac87327bd502d2c36a8a730fbdc8e2af6a244aebdd4af8a37b2b49"
+    },
+    {
+      "id": "model:b77fc1834b6d",
+      "kind": "modelDoc",
+      "label": "https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech",
+      "url": "https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech",
+      "models": ["fish-audio-s2-pro"],
+      "status": 200,
+      "finalUrl": "https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech",
+      "title": "Text to Speech - Fish Audio",
+      "hash": "8e753c6376fb8df5b344613791ba7cc03c532ade1e5e31ba299985577f04ecf3"
+    },
+    {
+      "id": "model:d23ad50dec4a",
+      "kind": "modelDoc",
+      "label": "https://fal.ai/models/fal-ai/f5-tts",
+      "url": "https://fal.ai/models/fal-ai/f5-tts",
+      "models": ["fal-f5-tts"],
+      "status": 200,
+      "finalUrl": "https://fal.ai/models/fal-ai/f5-tts",
+      "title": "F5 TTS: State of the Art AI Text-to-Speech Voice Generator | fal",
+      "hash": "018f32bee742d4dc23a40feb42d6960cf36705c459eb12956fd2faa6a35bc2eb"
+    },
+    {
+      "id": "provider:openai:image-guide",
+      "kind": "providerDoc",
+      "label": "OpenAI image generation guide",
+      "url": "https://developers.openai.com/api/docs/guides/image-generation",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://developers.openai.com/api/docs/guides/image-generation",
+      "title": "Image generation | OpenAI API",
+      "hash": "690b54be9fccbf5d64f1cd35bedd4471c4985b9cab20bf0ef35c4890f04640b3"
+    },
+    {
+      "id": "provider:openai:models",
+      "kind": "providerDoc",
+      "label": "OpenAI models overview",
+      "url": "https://developers.openai.com/api/docs/models",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://developers.openai.com/api/docs/models",
+      "title": "Models | OpenAI API",
+      "hash": "7953014dfd41d45ed2390675994e23e7dd2d549feda60c490bec95813898e70c"
+    },
+    {
+      "id": "provider:gemini:image-guide",
+      "kind": "providerDoc",
+      "label": "Gemini image generation guide",
+      "url": "https://ai.google.dev/gemini-api/docs/image-generation",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://ai.google.dev/gemini-api/docs/image-generation?hl=en",
+      "title": "Gemini API  |  Google AI for Developers",
+      "hash": "5eff62d434699204d262acd25797c5c0b95d7d2b1e06d2dbc717bb3b1063880d"
+    },
+    {
+      "id": "provider:gemini:changelog",
+      "kind": "providerDoc",
+      "label": "Gemini changelog",
+      "url": "https://ai.google.dev/gemini-api/docs/changelog",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://ai.google.dev/gemini-api/docs/changelog?hl=en",
+      "title": "Release notes  |  Gemini API  |  Google AI for Developers",
+      "hash": "ab44c4d1b3ec9e24a5ea8ae9b13a94dce89b368f2d3a1d82ce507e9bb3dc0dc0"
+    },
+    {
+      "id": "provider:gemini:deprecations",
+      "kind": "providerDoc",
+      "label": "Gemini deprecations",
+      "url": "https://ai.google.dev/gemini-api/docs/deprecations",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://ai.google.dev/gemini-api/docs/deprecations?hl=en",
+      "title": "Gemini deprecations  |  Gemini API  |  Google AI for Developers",
+      "hash": "dbb132b9f0c42b50fdb932c883fc29c29e2703997201f65f2409c32e8b769d69"
+    },
+    {
+      "id": "provider:fal:models",
+      "kind": "providerDoc",
+      "label": "fal model index",
+      "url": "https://fal.ai/models",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://fal.ai/explore",
+      "title": "Explore AI Models | fal.ai",
+      "hash": "7b071cdc2b579d7a9a82568b0be95be41b070fd54585c6675200ee98720160c7"
+    },
+    {
+      "id": "provider:novelai:image-models",
+      "kind": "providerDoc",
+      "label": "NovelAI image models",
+      "url": "https://docs.novelai.net/en/image/models/",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://docs.novelai.net/en/image/models/",
+      "title": "| NovelAI Documentation",
+      "hash": "2b28c43b75dbf86016e46cfe13fbd7caa616a450615c5f8ab61ae56f33653756"
+    },
+    {
+      "id": "provider:volc:image-api",
+      "kind": "providerDoc",
+      "label": "VolcEngine image generation API",
+      "url": "https://www.volcengine.com/docs/82379/1541523",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://www.volcengine.com/docs/82379/1541523?lang=zh",
+      "title": null,
+      "hash": "1e505290ba650a588fb06f72a4754746525138e861f67e22a3014ed39f052d63"
+    },
+    {
+      "id": "provider:volc:video-api",
+      "kind": "providerDoc",
+      "label": "VolcEngine video generation API",
+      "url": "https://www.volcengine.com/docs/82379/1520757",
+      "models": [],
+      "status": 200,
+      "finalUrl": "https://www.volcengine.com/docs/82379/1520757?lang=zh",
+      "title": null,
+      "hash": "7dc80dd49caaff656fe93c59d44e397bf3b4b7255d89d645e43df51d4ce166cc"
+    }
+  ],
+  "apis": []
+}

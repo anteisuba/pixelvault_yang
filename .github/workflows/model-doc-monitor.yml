@@ -1,0 +1,96 @@
+name: Model Doc Monitor
+
+on:
+  schedule:
+    - cron: '17 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check Model Docs And APIs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run model doc monitor
+        run: npm run models:check-docs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Append markdown report to job summary
+        if: always()
+        run: cat artifacts/model-doc-monitor/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload model doc monitor artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-doc-monitor
+          path: artifacts/model-doc-monitor
+          if-no-files-found: error
+
+      - name: Read monitor summary
+        id: summary
+        if: always()
+        run: |
+          REPORT_JSON="artifacts/model-doc-monitor/report.json"
+          echo "error_count=$(jq -r '.summary.errorCount' "$REPORT_JSON")" >> "$GITHUB_OUTPUT"
+          echo "warn_count=$(jq -r '.summary.warnCount' "$REPORT_JSON")" >> "$GITHUB_OUTPUT"
+          echo "info_count=$(jq -r '.summary.infoCount' "$REPORT_JSON")" >> "$GITHUB_OUTPUT"
+          echo "change_count=$(jq -r '.summary.changeCount' "$REPORT_JSON")" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update issue when changes are detected
+        if: always() && (steps.summary.outputs.error_count != '0' || steps.summary.outputs.change_count != '0')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('artifacts/model-doc-monitor/report.json', 'utf8'));
+            const markdown = fs.readFileSync('artifacts/model-doc-monitor/report.md', 'utf8');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueTitle = `Model doc/API monitor: ${report.summary.errorCount} error(s), ${report.summary.warnCount} warning(s), ${report.summary.changeCount} change(s)`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              labels: 'model-doc-monitor',
+              state: 'open',
+            });
+
+            const body = `${markdown}\n\n*Auto-created by \`.github/workflows/model-doc-monitor.yml\`.*`;
+
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: issueTitle,
+                body,
+                labels: ['model-doc-monitor'],
+              });
+            } else {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.data[0].number,
+                title: issueTitle,
+                body,
+              });
+            }

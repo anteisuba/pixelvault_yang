@@ -24,3 +24,4 @@
 
 - `codex-thread-operating-model.md`：四线程协作模式、文档落点、回流规则
 - `codex-development-workflow.md`：上下文读取顺序、任务包、计划/实现/review 流程、稳定性门禁
+- `claude-code-planning-workflow.md`：Claude Code 作为规划侧外脑的职责边界、任务包 handoff、review 与回流流程

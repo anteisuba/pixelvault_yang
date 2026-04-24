@@ -15,13 +15,12 @@ Sentry.init({
 
   // Filter out noise
   ignoreErrors: [
-    // Browser extensions
     'ResizeObserver loop',
-    // Network errors that are expected
     'Failed to fetch',
     'Load failed',
     'NetworkError',
-    // User aborts
     'AbortError',
   ],
 })
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

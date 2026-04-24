@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ClerkProvider } from '@clerk/nextjs'
 import { NextIntlClientProvider } from 'next-intl'
 import {
   getMessages,
@@ -7,6 +8,9 @@ import {
 } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
+import { ROUTES } from '@/constants/routes'
+import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
+import { getPathname } from '@/i18n/navigation'
 import { isAppLocale, LOCALES } from '@/i18n/routing'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -75,11 +79,31 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale)
 
+  const signInUrl = getPathname({
+    locale,
+    href: ROUTES.SIGN_IN,
+  })
+  const signUpUrl = getPathname({
+    locale,
+    href: ROUTES.SIGN_UP,
+  })
+  const studioUrl = getPathname({
+    locale,
+    href: ROUTES.STUDIO,
+  })
   const messages = await getMessages({ locale })
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      {children}
-    </NextIntlClientProvider>
+    <ClerkProvider
+      localization={CLERK_LOCALIZATIONS[locale]}
+      signInUrl={signInUrl}
+      signUpUrl={signUpUrl}
+      signInFallbackRedirectUrl={studioUrl}
+      signUpFallbackRedirectUrl={studioUrl}
+    >
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </ClerkProvider>
   )
 }

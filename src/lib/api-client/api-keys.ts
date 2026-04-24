@@ -113,6 +113,8 @@ export async function verifyApiKey(id: string): Promise<ApiKeyVerifyResponse> {
   try {
     const response = await fetch(`${API_ENDPOINTS.API_KEYS}/${id}/verify`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
     })
     if (!response.ok) {
       return {

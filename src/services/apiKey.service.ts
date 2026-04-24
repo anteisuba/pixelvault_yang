@@ -10,6 +10,7 @@ import {
   type ProviderConfig,
 } from '@/constants/providers'
 import { HEALTH_CHECK } from '@/constants/config'
+import { logger } from '@/lib/logger'
 import { ProviderConfigSchema } from '@/types'
 import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
 
@@ -54,6 +55,36 @@ function toProviderConfigJson(
     label: providerConfig.label,
     baseUrl: providerConfig.baseUrl,
   }
+}
+
+function getErrorCode(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || !('code' in value)) {
+    return undefined
+  }
+  return typeof value.code === 'string' ? value.code : undefined
+}
+
+function getErrorLogDetails(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { errorMessage: String(error) }
+  }
+
+  const cause = error.cause
+  const details: Record<string, unknown> = {
+    errorName: error.name,
+    errorMessage: error.message,
+    errorCode: getErrorCode(error),
+  }
+
+  if (cause instanceof Error) {
+    details.causeName = cause.name
+    details.causeMessage = cause.message
+    details.causeCode = getErrorCode(cause)
+  } else if (cause !== undefined) {
+    details.causeMessage = String(cause)
+  }
+
+  return details
 }
 
 // ─── Service Functions ────────────────────────────────────────────
@@ -278,6 +309,11 @@ async function verifyAdapterKey(
       }
       case AI_ADAPTER_TYPES.FAL: {
         // GET queue endpoint — just auth check
+        logger.info('Verifying FAL key against queue.fal.run', { timeoutMs })
+        logger.info('FAL API key verification request started', {
+          url: 'https://queue.fal.run',
+          timeoutMs,
+        })
         response = await fetch('https://queue.fal.run', {
           method: 'GET',
           headers: { Authorization: `Key ${apiKey}` },
@@ -285,6 +321,11 @@ async function verifyAdapterKey(
         })
         // fal returns 404 for root but still validates auth (401/403 = bad key)
         const latencyMs = Date.now() - start
+        logger.info('FAL API key verification response received', {
+          status: response.status,
+          latencyMs,
+          ok: response.status !== 401 && response.status !== 403,
+        })
         if (response.status === 401 || response.status === 403) {
           return { ok: false, latencyMs, error: `HTTP ${response.status}` }
         }
@@ -350,9 +391,17 @@ async function verifyAdapterKey(
     }
     return { ok: false, latencyMs, error: `HTTP ${response.status}` }
   } catch (err) {
+    const latencyMs = Date.now() - start
+    logger.error('API key verification failed', {
+      adapterType,
+      baseUrl,
+      timeoutMs,
+      latencyMs,
+      ...getErrorLogDetails(err),
+    })
     return {
       ok: false,
-      latencyMs: Date.now() - start,
+      latencyMs,
       error: err instanceof Error ? err.message : 'Unknown error',
     }
   }

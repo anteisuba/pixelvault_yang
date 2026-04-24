@@ -1,13 +1,21 @@
 import 'server-only'
 
-import { getModelById } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
+import { createHmac } from 'node:crypto'
+
+import { EXECUTION_INTERNAL, EXECUTION_WORKER } from '@/constants/execution'
+import { IMAGE_SIZES } from '@/constants/config'
+import { getExecutionModelId, getModelById } from '@/constants/models'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { WORKFLOW_IDS } from '@/constants/workflows'
 import type {
   GenerateVideoRequest,
   GenerationRecord,
+  WorkerDispatchResult,
+  WorkerRunContext,
   VideoStatusResponseData,
   VideoSubmitResponseData,
 } from '@/types'
+import { WorkerDispatchResultSchema } from '@/types'
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
@@ -35,6 +43,91 @@ import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/lib/prompt-guard'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
+
+function getInternalCallbackSecret(): string {
+  const secret = process.env.INTERNAL_CALLBACK_SECRET
+
+  if (!secret) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Internal callback secret is not configured',
+      500,
+    )
+  }
+
+  return secret
+}
+
+function getAppBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+}
+
+function getWorkerBaseUrl(): string {
+  const workerBaseUrl = process.env.EXECUTION_WORKER_BASE_URL
+
+  if (!workerBaseUrl) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      'Execution worker URL is not configured',
+      500,
+    )
+  }
+
+  return workerBaseUrl.replace(/\/$/, '')
+}
+
+function signBody(body: string): string {
+  return createHmac(
+    EXECUTION_INTERNAL.SIGNATURE_ALGORITHM,
+    getInternalCallbackSecret(),
+  )
+    .update(body, 'utf8')
+    .digest('hex')
+}
+
+async function dispatchWorkerRun(
+  runContext: WorkerRunContext,
+): Promise<WorkerDispatchResult> {
+  const body = JSON.stringify(runContext)
+  const response = await fetch(
+    `${getWorkerBaseUrl()}${EXECUTION_WORKER.CINEMATIC_SHORT_VIDEO_PATH}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
+      },
+      body,
+    },
+  )
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      `Execution worker dispatch failed (${response.status}): ${errorBody.slice(0, 200)}`,
+      502,
+    )
+  }
+
+  const payload: unknown = await response.json()
+  return WorkerDispatchResultSchema.parse(payload)
+}
+
+function isCinematicShortVideoWorkerRequest(
+  input: GenerateVideoRequest,
+  adapterType: string,
+): boolean {
+  return (
+    input.workflowId === WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO &&
+    adapterType === AI_ADAPTER_TYPES.FAL &&
+    Boolean(input.apiKeyId)
+  )
+}
+
+function buildInternalUrl(path: string): string {
+  return new URL(path, getAppBaseUrl()).toString()
+}
 
 // ─── Submit video to fal.ai queue ────────────────────────────────
 
@@ -75,6 +168,20 @@ export async function submitVideoGeneration(
   }
 
   const modelConfig = getModelById(executionRoute.modelId)
+
+  if (
+    isCinematicShortVideoWorkerRequest(input, executionRoute.adapterType) &&
+    modelConfig
+  ) {
+    return submitCinematicShortVideoWorkerRun({
+      input,
+      userId: dbUser.id,
+      adapterType: executionRoute.adapterType,
+      provider,
+      modelConfig,
+    })
+  }
+
   const breaker = getCircuitBreaker(executionRoute.adapterType)
 
   let queueResult: Awaited<
@@ -159,6 +266,117 @@ export async function submitVideoGeneration(
   }
 }
 
+async function submitCinematicShortVideoWorkerRun(params: {
+  input: GenerateVideoRequest
+  userId: string
+  adapterType: string
+  provider: string
+  modelConfig: NonNullable<ReturnType<typeof getModelById>>
+}): Promise<VideoSubmitResponseData> {
+  const { input, userId, adapterType, provider, modelConfig } = params
+
+  if (!input.apiKeyId) {
+    throw new GenerateImageServiceError(
+      'MISSING_API_KEY',
+      'Cinematic Short Video worker runs require a saved API key',
+      400,
+    )
+  }
+
+  let referenceImageUrl: string | undefined
+  if (input.referenceImage) {
+    const refKey = generateStorageKey('IMAGE', userId)
+    const { buffer: refBuffer, mimeType: refMimeType } = await fetchAsBuffer(
+      input.referenceImage,
+    )
+    referenceImageUrl = await uploadToR2({
+      data: refBuffer,
+      key: refKey,
+      mimeType: refMimeType,
+    })
+  }
+
+  const { width, height } =
+    IMAGE_SIZES[input.aspectRatio] ?? IMAGE_SIZES['16:9']
+  const metadata = {
+    workerManaged: true,
+    workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    referenceImageUrl,
+    characterCardIds: input.characterCardIds,
+  }
+
+  const generationJob = await createGenerationJob({
+    userId,
+    adapterType,
+    provider,
+    modelId: input.modelId,
+    prompt: input.prompt,
+    externalRequestId: JSON.stringify(metadata),
+  })
+
+  const runContext: WorkerRunContext = {
+    runId: generationJob.id,
+    workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    providerId: adapterType,
+    apiKeyId: input.apiKeyId,
+    callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
+    resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
+    timeoutMs: modelConfig.timeoutMs ?? EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
+    maxAttempts: EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
+    pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+    providerInput: {
+      prompt: input.prompt,
+      modelId: input.modelId,
+      externalModelId: getExecutionModelId(input.modelId),
+      aspectRatio: input.aspectRatio,
+      duration: input.duration,
+      referenceImage: referenceImageUrl,
+      negativePrompt: input.negativePrompt,
+      resolution: input.resolution,
+      i2vModelId: modelConfig.i2vModelId,
+      videoDefaults: modelConfig.videoDefaults,
+      providerBaseUrl: modelConfig.providerConfig.baseUrl,
+      width,
+      height,
+    },
+  }
+
+  try {
+    const dispatchResult = await dispatchWorkerRun(runContext)
+
+    await db.generationJob.update({
+      where: { id: generationJob.id },
+      data: {
+        externalRequestId: JSON.stringify({
+          ...metadata,
+          workflowInstanceId: dispatchResult.workflowInstanceId,
+        }),
+      },
+    })
+
+    logger.info('Cinematic Short Video dispatched to execution worker', {
+      jobId: generationJob.id,
+      workflowInstanceId: dispatchResult.workflowInstanceId,
+    })
+
+    return {
+      jobId: generationJob.id,
+      requestId: dispatchResult.workflowInstanceId,
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to dispatch execution worker'
+
+    await failGenerationJob(generationJob.id, {
+      errorMessage: message,
+    })
+
+    throw error
+  }
+}
+
 // ─── Check video generation status ──────────────────────────────
 
 export async function checkVideoGenerationStatus(
@@ -209,6 +427,8 @@ export async function checkVideoGenerationStatus(
     responseUrl: string
     referenceImageUrl?: string
     characterCardIds?: string[]
+    workerManaged?: boolean
+    workflowInstanceId?: string
   }
   try {
     queueMeta = JSON.parse(job.externalRequestId)
@@ -218,6 +438,10 @@ export async function checkVideoGenerationStatus(
       'Job has invalid queue metadata',
       400,
     )
+  }
+
+  if (queueMeta.workerManaged) {
+    return { jobId: job.id, status: 'IN_PROGRESS' }
   }
 
   const executionRoute = await resolveGenerationRoute(dbUser.id, {

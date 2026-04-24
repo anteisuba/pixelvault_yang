@@ -563,3 +563,67 @@ No.
 3. 决定 worker 侧轮询 provider 的策略（间隔、超时、取消信号如何回传）
 4. 生产部署时 Vercel + Cloudflare 两边 `INTERNAL_CALLBACK_SECRET` 配强随机值，Preview / Production 分开
 5. 吸收本 part 2 的 F1（dead mockUpdate）和 F3（'not-found' action 永不出现）
+
+### Phase 3 sub-step 2 part 3 Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: **Pass with critical follow-up**（P1 需在跨层 tiny packet 里吸收才真正可用）
+
+**Scope reviewed**:
+
+- 新建 `src/app/api/internal/execution/resolve-key/route.ts` + `.test.ts`
+- 新建 `src/services/api-key-resolver.service.ts` + `.test.ts`
+- 新建 `src/services/generate-video.service.test.ts`
+- `src/services/execution-callback.service.ts`（+203/-10，result 分支接入 R2 finalize）
+- `src/services/execution-callback.service.test.ts`（+177 新 finalize case）
+- `src/services/generate-video.service.ts`（+225/-2，CINEMATIC_SHORT_VIDEO 分支 dispatch 给 worker）
+- `src/types/index.ts`（+76 append：ExecutionCallbackResultData/ErrorData、ResolveKeyRequest/Response、WorkerRunContext、WorkerDispatchResult；GenerateVideoRequest 扩 workflowId 可选字段）
+- `src/constants/execution.ts`（+15 新增 EXECUTION_INTERNAL / EXECUTION_WORKER 常量）
+- `workers/execution/src/index.ts`（+513/-12，Cloudflare Workflow CinematicShortVideoWorkflow + dispatch handler + resolveApiKey + FAL queue submit/poll + emitCallback）
+- `workers/execution/wrangler.jsonc`（Workflow binding）
+- `workers/execution/README.md`（+126 部署和本地开发流程）
+- `workers/execution/src/cloudflare-workers.d.ts`（新建 37 行，Cloudflare Workers runtime 类型）
+
+**合规检查**:
+
+- Prisma schema 零改动 ✓
+- `audio` / `long-video` / `image` service 和 route 零改动 ✓
+- `api-route-factory.ts` 零改动（复用 part 1 的 createApiInternalRoute）✓
+- `resolve-key` 走同一 factory + 同一 HMAC + 响应加 `Cache-Control: no-store`（packet 硬要求）✓
+- `getApiKeyValueById` 验证：存在 + userId match + isActive + 解密不抛——已读源码确认（src/services/apiKey.service.ts）✓
+- `resolveExecutionApiKey` 的 4 个拒绝条件全部齐（job 不存在 / job terminal 含 CANCELLED / key 不属于 user / key inactive），失败统一 403 防枚举 ✓
+- `isCinematicShortVideoWorkerRequest` gate 三条件全满足才走 worker：`workflowId === CINEMATIC_SHORT_VIDEO` + `adapterType === FAL` + `apiKeyId` 存在。**任何一条不满足回退到 inline 路径，非 CINEMATIC_SHORT_VIDEO 视频请求完全无影响** ✓（回归安全）
+- Worker 侧 HMAC 用 Web Crypto API（Workers runtime 正确），Next.js 侧用 `node:crypto + timingSafeEqual` ✓
+- 自动化验证：tsc / lint / vitest（30 tests in 5 files）/ wrangler deploy --dry-run 全绿；伪签名 → 401 已测 ✓
+
+**Findings**:
+
+- **F1 (P1, confidence 9/10)** — **前端没有把 `selectedWorkflowId` 写进 `GenerateVideoRequest.workflowId`**。`src/hooks/use-unified-generate.ts` 里 `grep workflowId` 零命中。`types/index.ts` 的 schema 已扩字段（optional），backend 已根据 workflowId 分流，**但前端从未传**。净效果：用户在 Studio 选 CINEMATIC_SHORT_VIDEO 点生成 → submit payload `workflowId=undefined` → 后端 gate 不通过 → 仍走 inline 路径。worker 代码完备但 UI 侧不可达。**这是我上一轮两个 packet 严格按前后端切分 scope 留的跨层缝隙，不是 Codex 的执行问题**。需要一个 tiny 跨层 follow-up packet，~20 行：在 use-unified-generate 或对应 video submit 构造点，把 `useStudioContext().selectedWorkflowId` 注入到 payload.workflowId；补一条 use-unified-generate 测试验证 workflowId 透传。在这之前，E2E smoke 不可能跑通（worker 路径永远不触发）。
+- **F2 (P2, confidence 8/10)** — `execution-callback.service.ts` 的 `finalizeExecutionResult`（line 190-318）**不用 `db.$transaction` 包** `createGeneration + completeGenerationJob + createApiUsageEntry`。audio reference adapter 的 finalize **是**用 transaction 的（per 02-功能 2.4 updated note："R2 先做，再用 transaction 一次提交 Generation + completeJob + success usage"）。当前 video 实现：R2 upload 成功 → createGeneration 成功 → `Promise.all([completeGenerationJob, createApiUsageEntry])` 失败 → 外层 catch 调 failGenerationJob。**结果是 Generation record 已存在（用户视角内容已生成）但 job 被标 FAILED，且 usage ledger 缺失**。dissonance 不是数据腐败但用户会困惑 + 计费不准。建议 sub-step 2 part 3 follow-up 或 Phase 4 整理时吸收，统一到 audio 的 transaction pattern
+- **F3 (P3, confidence 9/10)** — 签名验证代码（getInternalCallbackSecret + parseSignatureHeader + verifyExecutionSignature）在 callback/route.ts 和 resolve-key/route.ts 完全复制。现在已 2 处了，未来任何内部 endpoint 会继续复制。建议下一次 refactor 抽到 `src/lib/signature-verifiers/execution-signature.ts` 导出 `createExecutionSignatureVerifier(secretGetter)` 返回 verifier 函数
+- **F4 (P3, confidence 8/10)** — `externalRequestId` 字段被多重语义过载：audio 存 `serializeAudioQueueMetadata(...)`，video worker 路径存 `JSON.stringify({ workerManaged, workflowId, referenceImageUrl, characterCardIds, workflowInstanceId })`，原本语义是"provider's request ID"。不会冲突（每次都整块覆写），但字段名已不准确。建议未来（part 4+）给 `generationJob` 加个明确的 `metadata: Json?` 字段，或把 workflowInstanceId 做成独立列
+- **F5 (P3, confidence 7/10)** — `getWorkerBaseUrl()` 和 `getInternalCallbackSecret()` 的 env 检查发生在 `dispatchWorkerRun()` 调用时，即 **generationJob 已经创建之后**。env 缺失 → job 创建 → dispatch 抛错 → failGenerationJob 立即标 FAILED。用户看到"失败"的生成记录，但这是配置问题不是生成失败。应在 `submitCinematicShortVideoWorkerRun` 入口先 check env，不通过直接抛 500（或 fallback 到 inline 路径）
+- **F6 (P4, confidence 8/10)** — reference image 在 dispatch 之前就 upload 到 R2。如果 dispatch 失败，R2 里的 ref image 就 orphan 了。无清理逻辑。每次失败 dispatch 多 1 个 orphan。量极低，资源占用可忽略，但可以留 TODO
+- **F7 (P4)** — resolve-key service test 的 case 3（key 不属于 user）和 case 4（key inactive）测试路径完全相同（都 mock getApiKeyValueById 返回 null）。两个 case 名字不同但代码路径不区分。可合并或重命名更准确
+- **F8 (P4)** — api-key-resolver.service 把 CANCELLED 放 TERMINAL set 但没有 explicit test case。service test 覆盖 COMPLETED 和 FAILED，没覆盖 CANCELLED
+- **F9 (P4)** — callback service 的 `ExecutionCallbackAction` type union 里有 `'not-found'` 字面量，但代码从不 return 'not-found'（runId 不存在直接抛错）。永远不会出现的分支，可清理
+
+**关于 E2E smoke**:
+
+Codex 报告"worker 当前缺 `.dev.vars` secret，无法发 signed callback/resolve-key"——这是 handoff 给你的动作，不是代码问题。即便你加了 secret，**F1 未修之前**，Studio UI 点 CINEMATIC_SHORT_VIDEO 也不会走 worker 路径，因为 workflowId 没传。E2E smoke 需要 F1 修完才能跑通。
+
+**回流动作（已执行）**:
+
+- 02-功能/2.14 基礎設施 — 追加 resolve-key 内部路由 + api-key-resolver service + execution-callback finalize + worker Cloudflare Workflow 条目
+- 02-功能/2.3 视频生成能力 — 追加 CINEMATIC_SHORT_VIDEO worker-managed 分支说明
+- 03-功能測試/3.1 service 单测 — 追加 api-key-resolver 测试；execution-callback 测试数扩
+- 03-功能測試/3.2 路由测试 — 追加 resolve-key/route.test.ts
+- 01-UI / 04-UI測試 — 无变更
+- sub-step 2 part 3 标记 **Pass with critical follow-up**：worker 路径代码完备，E2E unreachable 等 F1 micro-packet 吸收
+
+**F1 micro-packet（下一刀）**：
+
+```
+Goal：把 selectedWorkflowId 从 studio-context 注入到 video submit payload，打通 UI 到 worker 路径。
+Allowed scope: src/hooks/use-unified-generate.ts + 对应 .test.ts。
+~20 行改动。完成后 INTERNAL_CALLBACK_SECRET 配好即可跑 E2E smoke。
+```

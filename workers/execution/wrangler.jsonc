@@ -2,9 +2,18 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pixelvault-execution",
   "main": "src/index.ts",
-  "compatibility_date": "2025-03-10",
+  "compatibility_date": "2026-04-24",
+  "observability": {
+    "enabled": true,
+  },
   "vars": {
     "INTERNAL_CALLBACK_URL": "http://127.0.0.1:3000/api/internal/execution/callback",
-    "INTERNAL_CALLBACK_SECRET": "replace-with-local-development-secret",
   },
+  "workflows": [
+    {
+      "name": "pixelvault-cinematic-short-video",
+      "binding": "CINEMATIC_SHORT_VIDEO_WORKFLOW",
+      "class_name": "CinematicShortVideoWorkflow",
+    },
+  ],
 }

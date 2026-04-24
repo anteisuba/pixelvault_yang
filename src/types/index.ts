@@ -12,6 +12,7 @@ import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import { WORKFLOW_IDS } from '@/constants/workflows'
 
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
@@ -215,6 +216,9 @@ export const GenerateVideoRequestSchema = z.object({
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
+  workflowId: z
+    .enum([WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, WORKFLOW_IDS.CHARACTER_TO_VIDEO])
+    .optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
 })
 
@@ -399,6 +403,78 @@ export const ExecutionCallbackPayloadSchema = z.object({
 export type ExecutionCallbackPayload = z.infer<
   typeof ExecutionCallbackPayloadSchema
 >
+
+export const ExecutionCallbackResultDataSchema = z.object({
+  artifactUrl: z.string().trim().url(),
+  providerMetadata: z.record(z.string(), z.unknown()).optional(),
+  cost: z.number().nonnegative().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  duration: z.number().nonnegative().optional(),
+  requestCount: z.number().int().positive().optional(),
+  mimeType: z.string().trim().min(1).optional(),
+  fetchHeaders: z.record(z.string(), z.string()).optional(),
+})
+
+export type ExecutionCallbackResultData = z.infer<
+  typeof ExecutionCallbackResultDataSchema
+>
+
+export const ExecutionCallbackErrorDataSchema = z.object({
+  error: z.string().trim().min(1),
+  providerMetadata: z.record(z.string(), z.unknown()).optional(),
+  requestCount: z.number().int().positive().optional(),
+})
+
+export type ExecutionCallbackErrorData = z.infer<
+  typeof ExecutionCallbackErrorDataSchema
+>
+
+export const ResolveKeyRequestSchema = z.object({
+  runId: z.string().trim().min(1, 'Run ID is required'),
+  apiKeyId: z.string().trim().min(1, 'API key ID is required'),
+})
+
+export const ResolveKeyResponseSchema = z.object({
+  apiKey: z.string().min(1),
+})
+
+export type ResolveKeyRequest = z.infer<typeof ResolveKeyRequestSchema>
+export type ResolveKeyResponse = z.infer<typeof ResolveKeyResponseSchema>
+
+export const WorkerRunContextSchema = z.object({
+  runId: z.string().trim().min(1),
+  workflowId: z.literal('CINEMATIC_SHORT_VIDEO'),
+  providerId: z.string().trim().min(1),
+  apiKeyId: z.string().trim().min(1),
+  callbackUrl: z.string().trim().url(),
+  resolveKeyUrl: z.string().trim().url(),
+  timeoutMs: z.number().int().positive(),
+  maxAttempts: z.number().int().positive(),
+  pollIntervalMs: z.number().int().positive(),
+  providerInput: z.object({
+    prompt: z.string().min(1),
+    modelId: z.string().min(1),
+    externalModelId: z.string().min(1),
+    aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
+    duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
+    referenceImage: z.string().optional(),
+    negativePrompt: z.string().optional(),
+    resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
+    i2vModelId: z.string().optional(),
+    videoDefaults: z.unknown().optional(),
+    providerBaseUrl: z.string().trim().url().optional(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+})
+
+export const WorkerDispatchResultSchema = z.object({
+  workflowInstanceId: z.string().min(1),
+})
+
+export type WorkerRunContext = z.infer<typeof WorkerRunContextSchema>
+export type WorkerDispatchResult = z.infer<typeof WorkerDispatchResultSchema>
 
 // ─── Long Video Pipeline ──────────────────────────────────────────
 

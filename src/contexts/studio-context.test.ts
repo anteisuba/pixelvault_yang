@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
+import { DEFAULT_WORKFLOW_ID, WORKFLOW_IDS } from '@/constants/workflows'
 import {
   studioFormReducer,
   type StudioFormState,
@@ -13,6 +14,7 @@ function makeInitialState(
   overrides?: Partial<StudioFormState>,
 ): StudioFormState {
   return {
+    selectedWorkflowId: DEFAULT_WORKFLOW_ID,
     outputType: 'image',
     workflowMode: 'quick',
     selectedOptionId: null,
@@ -50,6 +52,26 @@ function makeInitialState(
 // ─── Tests ───────────────────────────────────────────────────────
 
 describe('studioFormReducer', () => {
+  // ── SET_SELECTED_WORKFLOW_ID ──
+
+  it('SET_SELECTED_WORKFLOW_ID changes selectedWorkflowId', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    })
+    expect(next.selectedWorkflowId).toBe(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+  })
+
+  it('SET_SELECTED_WORKFLOW_ID syncs outputType from workflow defaults', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
+    })
+    expect(next.outputType).toBe('audio')
+  })
+
   // ── SET_OUTPUT_TYPE ──
 
   it('SET_OUTPUT_TYPE changes outputType', () => {

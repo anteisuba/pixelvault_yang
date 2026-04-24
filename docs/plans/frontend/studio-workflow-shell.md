@@ -446,3 +446,43 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 - 在 `studio-context.tsx` 加 `selectedWorkflowId` state + `getWorkflowStudioDefaults(workflowId)` 驱动 `outputType`
 - 不要把 `selectedWorkflowId` 和 `outputType` 做成双真相（plan Constraint 1）
 - 先写 context test，再接 UI
+
+### Phase 2 Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: Pass
+
+**Scope reviewed**:
+
+- `src/contexts/studio-context.tsx`（新增 `selectedWorkflowId` state、`SET_SELECTED_WORKFLOW_ID` action、`setSelectedWorkflowId` / `getSelectedWorkflow` 暴露在 context value）
+- `src/contexts/studio-context.test.ts`（2 条 reducer 纯函数测试新增 + `makeInitialState` helper 补字段）
+- `src/contexts/studio-context.test.tsx`（新建，5 条 provider/hook 集成测试）
+
+**合规检查**:
+
+- 核心文件 `studio-context.tsx` + 新建 `.test.tsx` 在 Allowed Scope 内 ✓
+- `.test.ts` 虽未显式列入 packet 的 Allowed Scope，但因为 reducer 的 `SET_SELECTED_WORKFLOW_ID` 新增 + `StudioFormState` 接口扩字段，已有 reducer test 的 `makeInitialState` 必须补 `selectedWorkflowId` 否则 TS 直接报错——**属于合理连带修改**，不算擅自扩 scope
+- `components/**`、`hooks/**`、`services/**`、`messages/**`、`app/api/**`、`types/index.ts` 零修改 ✓
+- 现有 `outputType` setter（`SET_OUTPUT_TYPE`）保留，未删除 ✓
+- workflow 切换驱动 outputType、但手动 override 仍可覆盖：不是双真相，而是 workflow 是 trigger、outputType 是可独立操作的执行态 ✓
+- `useCallback` 把 setter 稳定化，`useMemo` deps 正确包含新增 ref ✓
+
+**Findings（均 P3-P4，非阻塞）**:
+
+- **F1 (P3, confidence 7/10)** · test 4 揭示 workflow 和 outputType 可**暂时不一致**。packet 接受；但 Phase 5（demote old entry to advanced path）必须回来决定：是允许发散，还是要求 `SET_OUTPUT_TYPE` 必须走"高级模式 opt-in 守护"
+- **F2 (P4, confidence 9/10)** · 所有 8 条 workflow 的 `defaultOutputType === mediaGroup`，`getWorkflowStudioDefaults` 只返回 `{outputType}`。Phase 3-4 扩展 helper return shape（+default panel / mode / helper copy）时要处理上游消费方向后兼容
+- **F3 (P4, confidence 8/10)** · context value 同时暴露 `dispatch` 和 `setSelectedWorkflowId`，consumer 可绕过 helper 直接 dispatch。Phase 3 接 UI 时应写入 `src/contexts/CLAUDE.md`: "UI 组件一律用 `setSelectedWorkflowId`，不直接 dispatch"
+- **F4 (P4, confidence 7/10)** · `studio-context.test.tsx` 的 10 个 `vi.mock` 就是 `StudioDataContext` 注入链路最小集合。Phase 3 加依赖 hook 时这里的 mock 阵列也要跟着加
+
+**回流动作（已执行）**:
+
+- 04-UI測試/4.2 用戶交互 — 更新 `studio-context.test.ts` 测试数（+2 reducer case，总 38 条）+ 新增 `studio-context.test.tsx`（5 provider/hook case）
+- 01-UI / 02-功能 / 03-功能測試 — 无变更（本 Phase 纯 context state + 纯前端逻辑）
+- Phase 2 标记 **完成**
+
+**下一刀 Phase 3 建议**：
+
+- 引入 `StudioWorkflowPicker.tsx` / `StudioWorkflowGroupTabs.tsx` / `StudioWorkflowSummary.tsx`，接 `selectedWorkflowId` + `setSelectedWorkflowId`
+- 顶部第一层改成 media group (图片 / 视频 / 声音) tabs，第二层是该组下的 workflow cards
+- 现有 `StudioTopBar` 的 image / video / audio toggle **保留**但降级到 advanced path
+- i18n 消费 `publicNameKey` / `descriptionKey` 时加 fallback（key 不存在时显示 id），避免下个 Wave workflow 时产生 i18n 空白
+- Phase 5 再看 F1 的双真相取舍

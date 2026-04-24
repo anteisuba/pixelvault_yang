@@ -14,6 +14,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useReducer,
   useRef,
@@ -22,6 +23,13 @@ import {
 } from 'react'
 
 import type { AdvancedParams } from '@/types'
+import {
+  DEFAULT_WORKFLOW_ID,
+  getWorkflowById,
+  getWorkflowStudioDefaults,
+  type Workflow,
+  type WorkflowId,
+} from '@/constants/workflows'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
@@ -65,6 +73,7 @@ type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
 
 export interface StudioFormState {
+  selectedWorkflowId: WorkflowId
   outputType: OutputType
   workflowMode: WorkflowMode
   selectedOptionId: string | null
@@ -88,6 +97,7 @@ export interface StudioFormState {
 }
 
 export type StudioAction =
+  | { type: 'SET_SELECTED_WORKFLOW_ID'; payload: WorkflowId }
   | { type: 'SET_OUTPUT_TYPE'; payload: OutputType }
   | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
   | { type: 'SET_OPTION_ID'; payload: string | null }
@@ -127,7 +137,8 @@ const initialPanels: Record<PanelName, boolean> = {
 }
 
 const initialFormState: StudioFormState = {
-  outputType: 'image',
+  selectedWorkflowId: DEFAULT_WORKFLOW_ID,
+  outputType: getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID).outputType,
   workflowMode: 'quick',
   selectedOptionId: null,
   prompt: '',
@@ -148,6 +159,12 @@ export function studioFormReducer(
   action: StudioAction,
 ): StudioFormState {
   switch (action.type) {
+    case 'SET_SELECTED_WORKFLOW_ID':
+      return {
+        ...state,
+        selectedWorkflowId: action.payload,
+        outputType: getWorkflowStudioDefaults(action.payload).outputType,
+      }
     case 'SET_OUTPUT_TYPE':
       return { ...state, outputType: action.payload }
     case 'SET_VOICE_ID':
@@ -239,6 +256,9 @@ export function studioFormReducer(
 interface StudioFormContextValue {
   state: StudioFormState
   dispatch: React.Dispatch<StudioAction>
+  selectedWorkflowId: WorkflowId
+  setSelectedWorkflowId: (workflowId: WorkflowId) => void
+  getSelectedWorkflow: () => Workflow | undefined
 }
 
 const StudioFormContext = createContext<StudioFormContextValue | null>(null)
@@ -274,7 +294,23 @@ const StudioGenContext = createContext<UseUnifiedGenerateReturn | null>(null)
 export function StudioProvider({ children }: { children: ReactNode }) {
   // HOT — form state
   const [formState, dispatch] = useReducer(studioFormReducer, initialFormState)
-  const formValue = useMemo(() => ({ state: formState, dispatch }), [formState])
+  const setSelectedWorkflowId = useCallback((workflowId: WorkflowId) => {
+    dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
+  }, [])
+  const getSelectedWorkflow = useCallback(
+    () => getWorkflowById(formState.selectedWorkflowId),
+    [formState.selectedWorkflowId],
+  )
+  const formValue = useMemo(
+    () => ({
+      state: formState,
+      dispatch,
+      selectedWorkflowId: formState.selectedWorkflowId,
+      setSelectedWorkflowId,
+      getSelectedWorkflow,
+    }),
+    [formState, getSelectedWorkflow, setSelectedWorkflowId],
+  )
 
   // WARM — data hooks
   const projects = useProjects()

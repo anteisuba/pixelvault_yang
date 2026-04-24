@@ -531,3 +531,67 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 - 实现方式：`getWorkflowStudioDefaults(id)` 扩展返回 `{ outputType, workflowMode, recommendedModelIds, defaultPanel }`；workflow 切换时把这些默认推入 context
 - 视觉对齐：先吸收本轮 F2（顶部条带宽度与下方 canvas 对齐）
 - **不要在 Phase 4 动**：Phase 5 的 demote old entry to advanced path，那是独立一刀
+
+### Phase 4 + Phase 5 (media toggle demote) Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: Pass
+
+**Scope reviewed**:
+
+- `src/constants/workflows.ts`（+119 扩展 Workflow 字段 + getWorkflowStudioDefaults return shape；WORKFLOWS 数据条目未改）
+- `src/constants/execution.ts`（+15 新增常量，与后端共享）
+- `src/contexts/studio-context.tsx`（+18 SET_SELECTED_WORKFLOW_ID 同步 workflowMode + openPanel，不覆盖已打开 panel）
+- `src/contexts/studio-context.test.ts`（+32 reducer case 扩）
+- `src/contexts/studio-context.test.tsx`（+22 hook case 扩）
+- `src/components/business/studio/StudioTopBar.tsx`（-138/+52 砍 image/video/audio toggle + 加 Advanced 按钮）
+- 新建 `src/components/business/studio/StudioTopBar.test.tsx`
+- 新建 `src/components/business/studio/StudioAdvancedDrawer.tsx`（232 行）+ `.test.tsx`
+- `src/components/business/studio/StudioWorkflowGroupTabs.tsx`（+26 tab 自动选该组首条 workflow）
+- `src/components/business/studio/StudioWorkflowGroupTabs.test.tsx`（+51）
+- `src/components/business/StudioWorkspace.tsx`（-2/+2 条带容器移除 mx-auto max-w-6xl，选方案 (a)）
+- `src/messages/{en,ja,zh}.json`（+18×3 新增 StudioAdvanced namespace 14 条 key）
+
+**合规检查**:
+
+- 所有改动都在 packet Allowed Scope 内 ✓
+- `src/services/**`、`src/app/api/**`、`src/types/index.ts`、`src/hooks/**`、`prisma/**`、`workers/**` 零改动 ✓
+- `WORKFLOWS` 数据 8 条未动，仅 Workflow 字段 schema 扩（defaults 字段都是 optional + 有 fallback）✓
+- Phase 2 的 reducer 核心语义保留：SET_SELECTED_WORKFLOW_ID case 仍然推 outputType；workflowMode / panels 的新同步只是 append 到 case 内部，没改已有 SET_OUTPUT_TYPE / TOGGLE_PANEL 语义 ✓
+- `initialFormState` 的 workflowMode 现在来自 default workflow 的 defaults（有 ?? 'quick' fallback），更干净的 single-source-of-truth ✓
+- TopBar 的 image/video/audio 三个 SET_OUTPUT_TYPE dispatcher 全部清除 ✓（grep `state.outputType === 'image'` 等命中的都是 removed lines）
+- Advanced drawer 三个 section（mode / routeModel / provider）齐 ✓
+- Tab 自动选首条 workflow + 幂等（当前 selectedWorkflowId 已在目标组则不重设）✓
+- 条带宽度修法 (a)（移除 mx-auto max-w-6xl）合理，下方 StudioFlowLayout 自管宽度
+- i18n 14 条 StudioAdvanced key 三语全齐 ✓
+- 自动化验证：tsc / lint / vitest 7 files / 61 tests ✓
+
+**Findings（均 P3-P4 非阻塞）**:
+
+- **F1 (P3, confidence 8/10)** — 浏览器手工 smoke **未执行**（项目规则 Codex 不启动 dev server）。桌面 / 移动端的真实视觉、drawer 打开闭合、mobile 滚动体验都没人眼验证过。**Phase 6 必须做**，不能跳。
+- **F2 (P3, confidence 7/10)** — Advanced drawer 内部 section 3（provider controls）只有 3 个可选控件：`openModelSelector` / `providerVideoSettings` / `providerVoiceSelector` / `providerVoiceTrainer`。这些是 placeholder key，真实控件集成要看原 TopBar 里被砍掉的 quick/card tablist + 相关 popover 是否真的被搬进来。建议手工 smoke 时逐一点开验证
+- **F3 (P3, confidence 9/10)** — **workflowId 没传给后端**（详见 Backend Part 3 Review F1）。前端 context 里已有 `selectedWorkflowId`，但 `use-unified-generate.ts`（video submit 调用路径）从未读它。导致后端的 CINEMATIC_SHORT_VIDEO worker 路径不可达。需要一个 tiny 跨层 micro-packet 吸收。**这是前后端 scope 切分的结果，不是 Codex 的执行问题**
+- **F4 (P3, confidence 7/10)** — Phase 2 Review F1 的双真相问题本 Phase 未解。当前 Advanced drawer 有"模式选择（快速/卡片）" section，可以直接修改 workflowMode。而 SET_SELECTED_WORKFLOW_ID 也可能同步 workflowMode。用户如果：先点 workflow → workflowMode 被自动推 → 打开 drawer 手改 workflowMode → 再切同一 workflow → workflowMode 又被覆盖回 default → 用户懵。**Phase 6 polish 时决定**：drawer 内的手动 override 要不要粘住（即 SET_SELECTED_WORKFLOW_ID 只在"首次切到该 workflow"时推默认，或者引入显式 isUserOverride flag）
+- **F5 (P4)** — 新增的 `src/constants/execution.ts` 被前后端共享（前端 submit signature、后端 callback URL path、worker base URL）。虽然常量共享是对的，但依赖方向是 services / components → constants。跟项目已有的"constants 最底层"原则对齐 ✓ 但值得在 constants/CLAUDE.md 里加一行说明"execution.ts 是前后端协议常量"
+
+**回流动作（已执行）**:
+
+- 01-UI/1.2.1 Studio 主工作台 — 追加 workflow-first shell 完成 + 顶部 media toggle 已移除 + Advanced drawer 入口说明
+- 04-UI測試/4.2 用戶交互 — 追加 StudioAdvancedDrawer、StudioTopBar、StudioWorkflowGroupTabs 扩充测试数
+- 02-功能 / 03-功能測試 — 无变更（本 Phase 纯前端）
+- Phase 4 + Phase 5 前半（demote media toggle）标记 **完成**；Phase 5 的 quick/card 真正并入 drawer 已做，route/model 高级控件占位；Phase 6 polish 仍待做
+
+**下一刀 Phase 6 建议**：
+
+- 真人浏览器手工 smoke：桌面 / 移动端、drawer 开关、section 3 内部控件
+- i18n 完整性校验（可能需要补 key）
+- 响应式：mobile tab 滚动、drawer 从底部弹出
+- 吸收 F2（provider controls 实际内容）和 F4（双真相）
+- 如果 UI 再迭代需要改数据 shape，同时更新 01-UI 映射
+
+**F1 跨层 micro-packet（跟 Backend Part 3 同一份）**：
+
+```
+Goal：前端 video submit 时把 selectedWorkflowId 写进 payload.workflowId。
+Allowed scope: src/hooks/use-unified-generate.ts + test。
+~20 行改动。
+```

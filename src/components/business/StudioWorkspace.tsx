@@ -76,7 +76,7 @@ function StudioWorkspaceInner() {
         >
           <StudioTopBar />
           <div className="border-b border-border/60 bg-background px-2 py-3 sm:px-6">
-            <div className="mx-auto grid w-full max-w-6xl gap-3 animate-in fade-in-0 slide-in-from-top-2 duration-500 ease-out">
+            <div className="grid w-full gap-3 animate-in fade-in-0 slide-in-from-top-2 duration-500 ease-out">
               <StudioWorkflowGroupTabs>
                 {(currentMediaGroup) => (
                   <>

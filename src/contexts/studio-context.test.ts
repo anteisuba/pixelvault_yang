@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
-import { DEFAULT_WORKFLOW_ID, WORKFLOW_IDS } from '@/constants/workflows'
+import {
+  DEFAULT_WORKFLOW_ID,
+  getWorkflowStudioDefaults,
+  WORKFLOW_IDS,
+} from '@/constants/workflows'
 import {
   studioFormReducer,
   type StudioFormState,
@@ -70,6 +74,32 @@ describe('studioFormReducer', () => {
       payload: WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
     })
     expect(next.outputType).toBe('audio')
+  })
+
+  it('SET_SELECTED_WORKFLOW_ID syncs workflowMode from workflow defaults', () => {
+    const state = makeInitialState()
+    const workflowId = WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: workflowId,
+    })
+
+    expect(next.workflowMode).toBe(
+      getWorkflowStudioDefaults(workflowId).workflowMode,
+    )
+  })
+
+  it('SET_SELECTED_WORKFLOW_ID opens default panel without closing existing panels', () => {
+    const state = makeInitialState()
+    state.panels.advanced = true
+
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    })
+
+    expect(next.panels.videoParams).toBe(true)
+    expect(next.panels.advanced).toBe(true)
   })
 
   // ── SET_OUTPUT_TYPE ──

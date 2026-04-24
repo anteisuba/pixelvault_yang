@@ -1792,6 +1792,24 @@
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"
   },
+  "StudioAdvanced": {
+    "button": "Advanced",
+    "openAriaLabel": "Open advanced mode",
+    "title": "Advanced mode",
+    "description": "Fine-tune execution choices without changing the active workflow.",
+    "sections": {
+      "mode": "Mode selection",
+      "routeModel": "Route & model",
+      "provider": "Provider controls"
+    },
+    "modeDescription": "Choose whether this workflow runs directly or through card-assisted setup.",
+    "routeModelDescription": "Pick saved API routes or open the model selector for detailed routing.",
+    "providerDescription": "Adjust provider-specific controls for the current execution path.",
+    "openModelSelector": "Open model selector",
+    "providerVideoSettings": "Open video settings",
+    "providerVoiceSelector": "Open voice selector",
+    "providerVoiceTrainer": "Open voice trainer"
+  },
   "workflows": {
     "QUICK_IMAGE": {
       "name": "Quick Image",

@@ -1,3 +1,5 @@
+import { AI_MODELS } from '@/constants/models'
+
 export const WORKFLOW_IDS = {
   QUICK_IMAGE: 'QUICK_IMAGE',
   ANIME_ILLUSTRATION: 'ANIME_ILLUSTRATION',
@@ -20,6 +22,50 @@ export const WORKFLOW_LAUNCH_TIERS = {
   WAVE_1_5: 'wave-1.5',
   WAVE_2: 'wave-2',
 } as const
+
+export const WORKFLOW_MODES = {
+  QUICK: 'quick',
+  CARD: 'card',
+} as const
+
+type WorkflowIdValue = (typeof WORKFLOW_IDS)[keyof typeof WORKFLOW_IDS]
+type WorkflowMediaGroupValue =
+  (typeof WORKFLOW_MEDIA_GROUPS)[keyof typeof WORKFLOW_MEDIA_GROUPS]
+type WorkflowLaunchTierValue =
+  (typeof WORKFLOW_LAUNCH_TIERS)[keyof typeof WORKFLOW_LAUNCH_TIERS]
+
+export type WorkflowModeDefault =
+  (typeof WORKFLOW_MODES)[keyof typeof WORKFLOW_MODES]
+
+export type WorkflowDefaultOpenPanel =
+  | 'cardManagement'
+  | 'projectHistory'
+  | 'modelSelector'
+  | 'civitai'
+  | 'enhance'
+  | 'reverse'
+  | 'advanced'
+  | 'refImage'
+  | 'layerDecompose'
+  | 'aspectRatio'
+  | 'voiceSelector'
+  | 'voiceTrainer'
+  | 'transform'
+  | 'videoParams'
+  | 'script'
+
+type WorkflowDefinition = {
+  id: WorkflowIdValue
+  mediaGroup: WorkflowMediaGroupValue
+  launchTier: WorkflowLaunchTierValue
+  defaultOutputType: WorkflowMediaGroupValue
+  publicNameKey: string
+  descriptionKey: string
+  advancedModeAllowed: boolean
+  defaultWorkflowMode?: WorkflowModeDefault
+  recommendedModelIds?: readonly string[]
+  defaultOpenPanel?: WorkflowDefaultOpenPanel | null
+}
 
 export const WORKFLOWS = [
   {
@@ -94,7 +140,7 @@ export const WORKFLOWS = [
     descriptionKey: 'workflows.VOICE_NARRATION_DIALOGUE.description',
     advancedModeAllowed: true,
   },
-] as const
+] as const satisfies readonly WorkflowDefinition[]
 
 export type Workflow = (typeof WORKFLOWS)[number]
 export type WorkflowId = Workflow['id']
@@ -103,13 +149,82 @@ export type WorkflowLaunchTier = Workflow['launchTier']
 
 export const DEFAULT_WORKFLOW_ID = WORKFLOW_IDS.QUICK_IMAGE
 
+type WorkflowStudioDefaultOverrides = {
+  workflowMode?: WorkflowModeDefault
+  openPanel?: WorkflowDefaultOpenPanel | null
+  recommendedModelIds?: readonly string[]
+}
+
+const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
+  Record<WorkflowId, WorkflowStudioDefaultOverrides>
+> = {
+  [WORKFLOW_IDS.ANIME_ILLUSTRATION]: {
+    recommendedModelIds: [
+      AI_MODELS.ANIMAGINE_XL_4,
+      AI_MODELS.ILLUSTRIOUS_XL,
+      AI_MODELS.NOVELAI_V45_CURATED,
+    ],
+  },
+  [WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE]: {
+    workflowMode: WORKFLOW_MODES.CARD,
+    openPanel: 'refImage',
+    recommendedModelIds: [AI_MODELS.GEMINI_PRO_IMAGE, AI_MODELS.FLUX_2_PRO],
+  },
+  [WORKFLOW_IDS.IMAGE_EDIT_REMIX]: {
+    openPanel: 'refImage',
+    recommendedModelIds: [
+      AI_MODELS.FLUX_KONTEXT_PRO,
+      AI_MODELS.FLUX_KONTEXT_MAX,
+      AI_MODELS.GEMINI_PRO_IMAGE,
+    ],
+  },
+  [WORKFLOW_IDS.POSTER_LAYOUT]: {
+    openPanel: 'modelSelector',
+    recommendedModelIds: [
+      AI_MODELS.IDEOGRAM_3,
+      AI_MODELS.RECRAFT_V3,
+      AI_MODELS.OPENAI_GPT_IMAGE_2,
+    ],
+  },
+  [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: {
+    openPanel: 'videoParams',
+    recommendedModelIds: [
+      AI_MODELS.KLING_V3_PRO,
+      AI_MODELS.VEO_3,
+      AI_MODELS.LUMA_RAY_2,
+    ],
+  },
+  [WORKFLOW_IDS.CHARACTER_TO_VIDEO]: {
+    openPanel: 'refImage',
+    recommendedModelIds: [
+      AI_MODELS.KLING_VIDEO,
+      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.MINIMAX_VIDEO,
+    ],
+  },
+  [WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE]: {
+    openPanel: 'voiceSelector',
+    recommendedModelIds: [AI_MODELS.FISH_AUDIO_S2_PRO, AI_MODELS.FAL_F5_TTS],
+  },
+}
+
 export const getWorkflowById = (workflowId: WorkflowId): Workflow | undefined =>
   WORKFLOWS.find((workflow) => workflow.id === workflowId)
 
 export const getWorkflowStudioDefaults = (workflowId: WorkflowId) => {
   const workflow = getWorkflowById(workflowId)
+  const override = WORKFLOW_STUDIO_DEFAULT_OVERRIDES[workflowId]
+  const workflowConfig: WorkflowDefinition | undefined = workflow
 
   return {
-    outputType: workflow?.defaultOutputType ?? WORKFLOW_MEDIA_GROUPS.IMAGE,
+    outputType:
+      workflowConfig?.defaultOutputType ?? WORKFLOW_MEDIA_GROUPS.IMAGE,
+    workflowMode:
+      override?.workflowMode ??
+      workflowConfig?.defaultWorkflowMode ??
+      WORKFLOW_MODES.QUICK,
+    openPanel: override?.openPanel ?? workflowConfig?.defaultOpenPanel ?? null,
+    recommendedModelIds:
+      override?.recommendedModelIds ?? workflowConfig?.recommendedModelIds,
   }
 }

@@ -136,10 +136,12 @@ const initialPanels: Record<PanelName, boolean> = {
   script: false,
 }
 
+const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
+
 const initialFormState: StudioFormState = {
   selectedWorkflowId: DEFAULT_WORKFLOW_ID,
-  outputType: getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID).outputType,
-  workflowMode: 'quick',
+  outputType: initialWorkflowDefaults.outputType,
+  workflowMode: initialWorkflowDefaults.workflowMode ?? 'quick',
   selectedOptionId: null,
   prompt: '',
   aspectRatio: '1:1',
@@ -159,12 +161,20 @@ export function studioFormReducer(
   action: StudioAction,
 ): StudioFormState {
   switch (action.type) {
-    case 'SET_SELECTED_WORKFLOW_ID':
+    case 'SET_SELECTED_WORKFLOW_ID': {
+      const defaults = getWorkflowStudioDefaults(action.payload)
+      const panels = defaults.openPanel
+        ? { ...state.panels, [defaults.openPanel]: true }
+        : state.panels
+
       return {
         ...state,
         selectedWorkflowId: action.payload,
-        outputType: getWorkflowStudioDefaults(action.payload).outputType,
+        outputType: defaults.outputType,
+        workflowMode: defaults.workflowMode ?? state.workflowMode,
+        panels,
       }
+    }
     case 'SET_OUTPUT_TYPE':
       return { ...state, outputType: action.payload }
     case 'SET_VOICE_ID':

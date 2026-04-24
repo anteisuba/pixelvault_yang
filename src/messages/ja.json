@@ -1791,6 +1791,24 @@
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"
   },
+  "StudioAdvanced": {
+    "button": "詳細",
+    "openAriaLabel": "詳細モードを開く",
+    "title": "詳細モード",
+    "description": "現在のワークフローを変えずに、実行時の細かな選択を調整します。",
+    "sections": {
+      "mode": "モード選択",
+      "routeModel": "ルートとモデル",
+      "provider": "プロバイダー設定"
+    },
+    "modeDescription": "このワークフローを直接実行するか、カード補助で進めるかを選びます。",
+    "routeModelDescription": "保存済み API ルートを選ぶか、モデルセレクターで詳細に指定します。",
+    "providerDescription": "現在の実行経路に合わせて、プロバイダー固有の設定を調整します。",
+    "openModelSelector": "モデルセレクターを開く",
+    "providerVideoSettings": "動画設定を開く",
+    "providerVoiceSelector": "ボイスセレクターを開く",
+    "providerVoiceTrainer": "ボイストレーナーを開く"
+  },
   "workflows": {
     "QUICK_IMAGE": {
       "name": "クイック画像生成",

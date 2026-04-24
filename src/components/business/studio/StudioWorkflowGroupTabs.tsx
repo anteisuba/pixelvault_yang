@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -32,7 +32,7 @@ export function StudioWorkflowGroupTabs({
   className,
 }: StudioWorkflowGroupTabsProps) {
   const tStudio = useTranslations('StudioPage')
-  const { getSelectedWorkflow } = useStudioContext()
+  const { getSelectedWorkflow, setSelectedWorkflowId } = useStudioContext()
   const selectedWorkflow = getSelectedWorkflow()
   const [currentMediaGroup, setCurrentMediaGroup] =
     useState<WorkflowMediaGroup>(
@@ -58,12 +58,30 @@ export function StudioWorkflowGroupTabs({
     [WORKFLOW_MEDIA_GROUPS.AUDIO]: tStudio('modeAudio'),
   }
 
+  const handleMediaGroupChange = useCallback(
+    (group: WorkflowMediaGroup) => {
+      setCurrentMediaGroup(group)
+
+      if (selectedWorkflow?.mediaGroup === group) {
+        return
+      }
+
+      const firstWorkflowInGroup = WORKFLOWS.find(
+        (workflow) => workflow.mediaGroup === group,
+      )
+      if (firstWorkflowInGroup) {
+        setSelectedWorkflowId(firstWorkflowInGroup.id)
+      }
+    },
+    [selectedWorkflow?.mediaGroup, setSelectedWorkflowId],
+  )
+
   return (
     <Tabs
       value={currentMediaGroup}
       onValueChange={(value) => {
         if (isWorkflowMediaGroup(value)) {
-          setCurrentMediaGroup(value)
+          handleMediaGroupChange(value)
         }
       }}
       className={cn('gap-3', className)}
@@ -76,7 +94,7 @@ export function StudioWorkflowGroupTabs({
           <TabsTrigger
             key={group}
             value={group}
-            onClick={() => setCurrentMediaGroup(group)}
+            onClick={() => handleMediaGroupChange(group)}
             className="min-w-fit px-3 py-2 text-xs font-semibold data-[state=active]:text-primary sm:text-sm"
           >
             <span>{groupLabels[group]}</span>

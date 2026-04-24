@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated Salesforce metadata/types are not part of the app source tree.
     ".sfdx/**",
+    "workers/**/.wrangler/**",
+    "workers/**/node_modules/**",
   ]),
 ]);
 

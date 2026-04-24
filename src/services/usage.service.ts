@@ -49,10 +49,6 @@ export interface UserUsageSummary {
   lastRequestAt: Date | null
 }
 
-function getRequestSum(value: number | null | undefined): number {
-  return value ?? 0
-}
-
 export async function createGenerationJob(
   input: CreateGenerationJobInput,
   client: Pick<typeof db, 'generationJob'> = db,
@@ -149,52 +145,31 @@ export async function getUserUsageSummary(
     lookbackStart.getDate() - API_USAGE.SUMMARY_LOOKBACK_DAYS,
   )
 
-  const [
-    allRequests,
-    successfulRequests,
-    failedRequests,
-    recentRequests,
-    lastEntry,
-  ] = await Promise.all([
-    db.apiUsageLedger.aggregate({
-      where: { userId },
-      _sum: { requestCount: true },
-    }),
-    db.apiUsageLedger.aggregate({
-      where: {
-        userId,
-        wasSuccessful: true,
-      },
-      _sum: { requestCount: true },
-    }),
-    db.apiUsageLedger.aggregate({
-      where: {
-        userId,
-        wasSuccessful: false,
-      },
-      _sum: { requestCount: true },
-    }),
-    db.apiUsageLedger.aggregate({
-      where: {
-        userId,
-        createdAt: {
-          gte: lookbackStart,
-        },
-      },
-      _sum: { requestCount: true },
-    }),
-    db.apiUsageLedger.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true },
-    }),
-  ])
+  type Row = {
+    total: bigint | null
+    successful: bigint | null
+    failed: bigint | null
+    last30days: bigint | null
+    last_request_at: Date | null
+  }
 
+  const rows = await db.$queryRaw<Row[]>`
+    SELECT
+      SUM("requestCount")                                                      AS total,
+      SUM(CASE WHEN "wasSuccessful" THEN "requestCount" ELSE 0 END)           AS successful,
+      SUM(CASE WHEN NOT "wasSuccessful" THEN "requestCount" ELSE 0 END)       AS failed,
+      SUM(CASE WHEN "createdAt" >= ${lookbackStart} THEN "requestCount" ELSE 0 END) AS last30days,
+      MAX("createdAt")                                                         AS last_request_at
+    FROM "ApiUsageLedger"
+    WHERE "userId" = ${userId}
+  `
+
+  const row = rows[0]
   return {
-    totalRequests: getRequestSum(allRequests._sum.requestCount),
-    successfulRequests: getRequestSum(successfulRequests._sum.requestCount),
-    failedRequests: getRequestSum(failedRequests._sum.requestCount),
-    last30DaysRequests: getRequestSum(recentRequests._sum.requestCount),
-    lastRequestAt: lastEntry?.createdAt ?? null,
+    totalRequests: Number(row?.total ?? 0),
+    successfulRequests: Number(row?.successful ?? 0),
+    failedRequests: Number(row?.failed ?? 0),
+    last30DaysRequests: Number(row?.last30days ?? 0),
+    lastRequestAt: row?.last_request_at ?? null,
   }
 }

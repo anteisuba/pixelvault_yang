@@ -64,11 +64,11 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     enhanceHint:
       'This model follows complex instructions well. Use rich natural language with detailed scene descriptions, spatial relationships, and specific visual requirements.',
   },
-  [AI_MODELS.OPENAI_GPT_IMAGE_15]: {
-    bestFor: ['general', 'concept', 'text-rendering', 'creative'],
+  [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
+    bestFor: ['general', 'concept', 'creative', 'editing'],
     promptStyle: 'natural-language',
     enhanceHint:
-      'This model handles diverse styles well. Use detailed natural language focusing on composition, mood, and artistic intent. Good at rendering text in images.',
+      'This model handles diverse generation and editing tasks well. Use detailed natural language with explicit composition, visual intent, and image-editing instructions when relevant.',
   },
   [AI_MODELS.NOVELAI_V4_FULL]: {
     bestFor: ['anime', 'illustration', 'character-design'],

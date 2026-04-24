@@ -433,7 +433,7 @@ describe('generateImageForUser', () => {
   })
 
   it('attempts provider fallback for free-tier transient failures', async () => {
-    // Make fallback model (gpt-image-1.5) also free-tier eligible
+    // Make fallback model (gpt-image-2) also free-tier eligible
     const realImpl = modelsMock.realGetModelById!
     vi.mocked(getModelById).mockImplementation((id: string) => {
       const model = realImpl(id)

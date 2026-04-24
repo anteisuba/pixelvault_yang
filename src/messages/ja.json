@@ -1216,9 +1216,9 @@
       "label": "Gemini 3.1 Flash Image",
       "description": "Googleの最新世代モデルによる高速な画像探索。"
     },
-    "openaiGptImage15": {
-      "label": "OpenAI GPT Image 1.5",
-      "description": "OpenAI の最新画像モデルによる、指示忠実度の高い洗練された画像生成。"
+    "openaiGptImage2": {
+      "label": "OpenAI GPT Image 2",
+      "description": "OpenAI の現行フラッグシップ画像モデルによる、高速かつ高品質な画像生成と編集。"
     },
     "flux2Pro": {
       "label": "Flux 2 Pro",
@@ -1790,6 +1790,40 @@
     "toolDrawerTitle": "ツール",
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"
+  },
+  "workflows": {
+    "QUICK_IMAGE": {
+      "name": "クイック画像生成",
+      "description": "一文から、作りたい画像をすばやく生成します。"
+    },
+    "ANIME_ILLUSTRATION": {
+      "name": "アニメイラスト",
+      "description": "アニメ、キャラクターデザイン、イラスト調の生成に向いたワークフローです。"
+    },
+    "CHARACTER_CONSISTENCY_IMAGE": {
+      "name": "一貫キャラクター画像",
+      "description": "同じキャラクターを軸に、一貫した複数の画像を生成します。"
+    },
+    "IMAGE_EDIT_REMIX": {
+      "name": "画像リミックス",
+      "description": "毎回最初から作り直さず、既存画像をもとに編集と試行を続けられます。"
+    },
+    "POSTER_LAYOUT": {
+      "name": "ポスターレイアウト",
+      "description": "ポスター、タイトル文字、レイアウト感のあるデザイン素材の生成に向いています。"
+    },
+    "CINEMATIC_SHORT_VIDEO": {
+      "name": "シネマ短編",
+      "description": "ひとつの画面アイデアから、より映像的な短編動画を生成します。"
+    },
+    "CHARACTER_TO_VIDEO": {
+      "name": "キャラクター動画化",
+      "description": "キャラクター画像を動かしながら、識別しやすさをできるだけ保ちます。"
+    },
+    "VOICE_NARRATION_DIALOGUE": {
+      "name": "ナレーション・吹き替え",
+      "description": "テキストをナレーション、吹き替え、または複数人の会話に変換します。"
+    }
   },
   "StylePresets": {
     "label": "スタイル",

@@ -1216,9 +1216,9 @@
       "label": "Gemini 3.1 Flash Image",
       "description": "Fast image exploration powered by Google's latest generation model."
     },
-    "openaiGptImage15": {
-      "label": "OpenAI GPT Image 1.5",
-      "description": "OpenAI's latest image model for polished, prompt-faithful image generation."
+    "openaiGptImage2": {
+      "label": "OpenAI GPT Image 2",
+      "description": "Fast, high-quality image generation and editing with OpenAI's current flagship image model."
     },
     "flux2Pro": {
       "label": "Flux 2 Pro",
@@ -1791,6 +1791,40 @@
     "toolDrawerTitle": "Tools",
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"
+  },
+  "workflows": {
+    "QUICK_IMAGE": {
+      "name": "Quick Image",
+      "description": "Generate the image you want quickly from a single sentence."
+    },
+    "ANIME_ILLUSTRATION": {
+      "name": "Anime Illustration",
+      "description": "A workflow tuned for anime, character design, and illustration styles."
+    },
+    "CHARACTER_CONSISTENCY_IMAGE": {
+      "name": "Consistent Character",
+      "description": "Generate multiple consistent images around the same character."
+    },
+    "IMAGE_EDIT_REMIX": {
+      "name": "Image Remix",
+      "description": "Keep editing and exploring from an existing image instead of starting over."
+    },
+    "POSTER_LAYOUT": {
+      "name": "Poster Layout",
+      "description": "Better suited for posters, title text, layout-driven visuals, and design assets."
+    },
+    "CINEMATIC_SHORT_VIDEO": {
+      "name": "Cinematic Short",
+      "description": "Start from a visual idea and generate a short video with stronger cinematic framing."
+    },
+    "CHARACTER_TO_VIDEO": {
+      "name": "Character-to-Video",
+      "description": "Animate a character image while preserving as much character identity as possible."
+    },
+    "VOICE_NARRATION_DIALOGUE": {
+      "name": "Voice Narration",
+      "description": "Turn text into narration, dubbing, or multi-speaker dialogue."
+    }
   },
   "StylePresets": {
     "label": "Style",

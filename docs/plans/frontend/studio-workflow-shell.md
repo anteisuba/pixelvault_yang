@@ -486,3 +486,48 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 - 现有 `StudioTopBar` 的 image / video / audio toggle **保留**但降级到 advanced path
 - i18n 消费 `publicNameKey` / `descriptionKey` 时加 fallback（key 不存在时显示 id），避免下个 Wave workflow 时产生 i18n 空白
 - Phase 5 再看 F1 的双真相取舍
+
+### Phase 3 Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: Pass
+
+**Scope reviewed**:
+
+- 新建 `src/components/business/studio/StudioWorkflowGroupTabs.tsx`（93 行）+ `.test.tsx`（60 行）
+- 新建 `src/components/business/studio/StudioWorkflowPicker.tsx`（81 行）+ `.test.tsx`（66 行）
+- 新建 `src/components/business/studio/StudioWorkflowSummary.tsx`（32 行）+ `.test.tsx`（54 行）
+- `src/components/business/StudioWorkspace.tsx`（单处 17 行插入，在 `<StudioTopBar />` 下方渲染新 workflow 条带）
+
+**合规检查**:
+
+- 所有改动都在 packet Allowed Scope 内 ✓
+- `studio-context.tsx` / `studio-context.test.{ts,tsx}` 零改动（Phase 2 已定，本 Phase 只消费）✓
+- `StudioTopBar.tsx` 零改动，现有 image/video/audio toggle 保留原位（packet 的"并存"要求）✓
+- `src/constants/workflows.ts` / `src/messages/**` / `src/hooks/**` / `src/services/**` / `src/app/api/**` / `src/types/**` 全部零改动 ✓
+- 3 个新组件职责不混：GroupTabs 只改本地 tab 展开态不调 context、Picker 负责 setSelectedWorkflowId、Summary 只读 getSelectedWorkflow ✓
+- 设计语言符合 CLAUDE.md：米白 `bg-background`、accent 走 `primary/5` + `primary/50`、`font-display` (Space Grotesk heading) + `font-serif` (Lora body)、fade-in + translate-up 500ms ease-out 动画 ✓
+- shadcn primitives 复用：`Tabs / TabsList / TabsTrigger` + `Card / CardContent`，未造新 UI 原子 ✓
+- a11y：workflow card `aria-pressed={selected}` + `data-selected`；summary fallback `aria-live="polite"` ✓
+- 响应式：cards 在 mobile `overflow-x-auto`，sm 起 grid 2→lg 3→xl 5 列 ✓
+
+**Findings（均 P3-P4 非阻塞）**:
+
+- **F1 (P3, confidence 7/10)** · `StudioWorkflowGroupTabs` 用 render-prop `children?: (currentMediaGroup) => ReactNode` 把 tab 状态传给 parent 组合 Summary + Picker。设计上 OK，但意味着**任何想复用 tab 状态的地方必须用 render-prop**。如果 Phase 4/5 需要在其他位置观察 tab state，要么把 tab state 上移到 context，要么接受 render-prop 的包裹嵌套。Phase 3 不处理
+- **F2 (P3, confidence 8/10)** · `StudioWorkspace.tsx` 的插入块用了 `mx-auto grid w-full max-w-6xl` 做容器。此前 Studio 顶部可能没用 `max-w-6xl` 限宽，新 workflow 条带的宽度会在超宽屏上和下方 canvas/dock 的宽度**视觉不对齐**。**建议 Phase 4 接 capability mapping 前先做**：要么把新条带也包在 `StudioResizableLayout` 或类似布局下、要么统一对齐策略
+- **F3 (P4, confidence 9/10)** · `StudioWorkflowGroupTabs` 用 `useTranslations('StudioPage')` 消费 `modeImage / modeVideo / modeAudio`，而 Picker / Summary 用 `useTranslations()` 消费 `workflows.*`。两种消费风格并存，对后续扩展工作流文案的人要先知道这个分治。可接受但值得在 `components/business/studio/CLAUDE.md` 里留一行说明
+- **F4 (P4, confidence 8/10)** · Summary fallback 直接显示 `selectedWorkflowId`（原始 SCREAMING_SNAKE id）给用户看会很丑。真实触发条件：`getWorkflowById` 返回 undefined——只在 `selectedWorkflowId` 是非法值时发生，正常流程不会触发。兜底 OK 但不用户友好；Phase 5 可以换成一个泛化占位文案
+- **F5 (P4, confidence 9/10)** · Phase 2 Review F1 识别的"workflow 和 outputType 可暂时不一致"语义，本 Phase 并未触发（Picker 只调 `setSelectedWorkflowId`，一切按 reducer 语义走）。但 Phase 4（workflow → capability 路径映射）若要把 `workflowMode` / `selectedOptionId` 也纳入 workflow 默认，会重新触达这个问题
+
+**回流动作（已执行）**:
+
+- 04-UI測試/4.2 用戶交互 — 追加 3 个 workflow 组件测试文件（8 cases）
+- 01-UI/1.2.1 Studio 主工作台 — 追加 workflow-first 条带出现位置说明
+- 02-功能 / 03-功能測試 — 无变更（本 Phase 纯前端 UI）
+- Phase 3 标记 **完成**
+
+**下一刀 Phase 4 建议**：
+
+- 把每个 workflow 落到现有能力路径（快速出图 → quick image quick route；角色一致图 → reference image + character card 启动态；电影短片 → video flow + 推荐模型；配音旁白 → audio flow + voice selector 靠前）
+- 实现方式：`getWorkflowStudioDefaults(id)` 扩展返回 `{ outputType, workflowMode, recommendedModelIds, defaultPanel }`；workflow 切换时把这些默认推入 context
+- 视觉对齐：先吸收本轮 F2（顶部条带宽度与下方 canvas 对齐）
+- **不要在 Phase 4 动**：Phase 5 的 demote old entry to advanced path，那是独立一刀

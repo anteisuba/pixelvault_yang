@@ -13,6 +13,9 @@ import {
   StudioFlowLayout,
   StudioCommandPalette,
 } from '@/components/business/studio'
+import { StudioWorkflowGroupTabs } from '@/components/business/studio/StudioWorkflowGroupTabs'
+import { StudioWorkflowPicker } from '@/components/business/studio/StudioWorkflowPicker'
+import { StudioWorkflowSummary } from '@/components/business/studio/StudioWorkflowSummary'
 
 import {
   StudioProvider,
@@ -72,6 +75,20 @@ function StudioWorkspaceInner() {
           className="studio-layout-v2"
         >
           <StudioTopBar />
+          <div className="border-b border-border/60 bg-background px-2 py-3 sm:px-6">
+            <div className="mx-auto grid w-full max-w-6xl gap-3 animate-in fade-in-0 slide-in-from-top-2 duration-500 ease-out">
+              <StudioWorkflowGroupTabs>
+                {(currentMediaGroup) => (
+                  <>
+                    <StudioWorkflowSummary />
+                    <StudioWorkflowPicker
+                      currentMediaGroup={currentMediaGroup}
+                    />
+                  </>
+                )}
+              </StudioWorkflowGroupTabs>
+            </div>
+          </div>
           {/* Unified canvas-centric layout for image / video / audio */}
           <StudioFlowLayout
             canvas={<StudioCanvas />}

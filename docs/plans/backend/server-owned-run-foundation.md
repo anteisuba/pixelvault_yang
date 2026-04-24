@@ -518,3 +518,48 @@ No.
 5. 生产部署：Vercel env vars 和 Cloudflare `wrangler secret put` 两边都配强随机 `INTERNAL_CALLBACK_SECRET`，Preview / Production 分别不同值
 
 **预估**：人时 2-3 天 / Codex ~3-4h。**不要一次做完**，DB 层和 video submit refactor 拆成两个 packet。
+
+### Phase 3 sub-step 2 part 2 Diff Review — 2026-04-24 (Claude Code)
+
+**Verdict**: Pass
+
+**Scope reviewed**:
+
+- 新建 `src/services/execution-callback.service.ts` + `.test.ts`
+- `src/app/api/internal/execution/callback/route.ts`（handler 改为 delegate 到 service，保留一行 summary console.log）
+- `src/app/api/internal/execution/callback/route.test.ts`（6 条原有 case 适配新返回结构 + 新增 1 条 404 case，共 7 条）
+
+**合规检查**:
+
+- 所有改动都在 packet Allowed Scope 内 ✓
+- Prisma schema 零改动 ✓（明确 non-goal，按 "先尽量复用 generationJob" 约束）
+- api-route-factory.ts / workers/execution/\*\* / generate-\*.service.ts / video-pipeline.service.ts 零改动 ✓
+- service 首行 `'server-only'` ✓（符合 services/CLAUDE.md 规则 1）
+- 只经 `@/lib/db` 访问 DB（规则 2），API route 不含业务逻辑（规则 3），无 client 信任 ✓
+- runId === generationJob.id 约定实装正确：`findUnique({ where: { id: payload.runId } })` ✓
+- 幂等骨架到位：terminal status (COMPLETED / FAILED) 短路返回 `ignored-terminal` 且不调 `db.update` ✓
+- kind 分派清晰（ping / status / result 全走 log），`result` 分支有明确 TODO 指向 part 3 ✓
+- 返回结构 `{ runId, jobStatus, action }` 按 packet spec ✓
+- 7 条 route test 全部在无效路径 assert `mockHandleExecutionCallback.not.toHaveBeenCalled()`，证明 factory 的短路先于 service dispatch ✓
+
+**Findings（均 P4 非阻塞）**:
+
+- **F1 (P4, confidence 9/10)** · `execution-callback.service.test.ts` L13, L19 声明并 mock 了 `db.generationJob.update`，但 service 从不调 update（part 2 只 log 不写）。死 mock，可在 part 3 接 finalize 时顺手用或删
+- **F2 (P4, confidence 7/10)** · `toExecutionCallbackJobStatus` 把 Prisma 的 string status 守护成本地 union 再返回，逻辑上是 defensive。Prisma 7 生成的 `GenerationJobStatus` 应该已经是 enum type，直接 cast 也可以。**保留原因**：万一 Prisma client 和仓库 enum 漂移，这道守护会把 hard fail 提早到 500 而非 silent bug。可接受
+- **F3 (P4, confidence 8/10)** · service 返回 `action: 'not-found'` 作为类型字面量声明了，但实际代码是抛错不返回，永远不会用到 'not-found' 这个 action。type union 里多了一个永不出现的分支。可在下次 refactor 清理
+
+**回流动作（已执行）**:
+
+- 02-功能/2.14 基礎設施 — 追加 `execution-callback.service.ts` + handler 改 delegate 的说明
+- 03-功能測試/3.1 Service 單測 — 追加 `execution-callback.service.test.ts`（6 cases）
+- 03-功能測試/3.2 Route 測試 — callback 从 6 条扩到 7 条
+- 01-UI / 04-UI測試 — 无变更
+- sub-step 2 part 2 标记 **完成**
+
+**Part 3 留给未来的 TODO 清单（Codex 已标注的）**:
+
+1. `result` kind 的 log-only 分支要接到真实 finalize：R2 写入 + `completeGenerationJob` / `failGenerationJob`
+2. 决定 video submit 推到 worker 的 payload 形状（run context 字段）
+3. 决定 worker 侧轮询 provider 的策略（间隔、超时、取消信号如何回传）
+4. 生产部署时 Vercel + Cloudflare 两边 `INTERNAL_CALLBACK_SECRET` 配强随机值，Preview / Production 分开
+5. 吸收本 part 2 的 F1（dead mockUpdate）和 F3（'not-found' action 永不出现）

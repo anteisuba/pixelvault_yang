@@ -4,8 +4,17 @@ import { NextRequest } from 'next/server'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { parseJSON } from '@/test/api-helpers'
+import { ApiRequestError } from '@/lib/errors'
+import {
+  handleExecutionCallback,
+  type CallbackResult,
+} from '@/services/execution-callback.service'
 
 import { POST } from './route'
+
+vi.mock('@/services/execution-callback.service', () => ({
+  handleExecutionCallback: vi.fn(),
+}))
 
 const CALLBACK_URL = 'http://localhost:3000/api/internal/execution/callback'
 const CALLBACK_SECRET = 'test-internal-callback-secret'
@@ -30,6 +39,14 @@ const VALID_PAYLOAD = {
   ts: '2026-04-24T00:00:00.000Z',
   data: { echoed: true },
 }
+
+const VALID_CALLBACK_RESULT: CallbackResult = {
+  runId: VALID_PAYLOAD.runId,
+  jobStatus: 'RUNNING',
+  action: 'logged',
+}
+
+const mockHandleExecutionCallback = vi.mocked(handleExecutionCallback)
 
 function signBody(body: string, secret = CALLBACK_SECRET): string {
   return createHmac('sha256', secret).update(body, 'utf8').digest('hex')
@@ -63,6 +80,7 @@ describe('POST /api/internal/execution/callback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.INTERNAL_CALLBACK_SECRET = CALLBACK_SECRET
+    mockHandleExecutionCallback.mockResolvedValue(VALID_CALLBACK_RESULT)
     vi.spyOn(console, 'log').mockImplementation(() => undefined)
   })
 
@@ -80,11 +98,12 @@ describe('POST /api/internal/execution/callback', () => {
   it('returns 200 for a valid execution signature', async () => {
     const req = createCallbackRequest(VALID_PAYLOAD)
     const res = await POST(req)
-    const json = await parseJSON<ApiEnvelope<{ receivedAt: string }>>(res)
+    const json = await parseJSON<ApiEnvelope<CallbackResult>>(res)
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(json.data?.receivedAt).toEqual(expect.any(String))
+    expect(json.data).toEqual(VALID_CALLBACK_RESULT)
+    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD)
   })
 
   it('returns 401 for a forged execution signature', async () => {
@@ -95,6 +114,7 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INVALID_EXECUTION_SIGNATURE')
+    expect(mockHandleExecutionCallback).not.toHaveBeenCalled()
   })
 
   it('returns 401 when execution signature header is missing', async () => {
@@ -105,6 +125,7 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(401)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INVALID_EXECUTION_SIGNATURE')
+    expect(mockHandleExecutionCallback).not.toHaveBeenCalled()
   })
 
   it('returns 400 for malformed JSON body after signature verification', async () => {
@@ -116,6 +137,7 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(400)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INVALID_JSON')
+    expect(mockHandleExecutionCallback).not.toHaveBeenCalled()
   })
 
   it('returns 400 when a signed payload is missing required fields', async () => {
@@ -129,6 +151,7 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(400)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('VALIDATION_ERROR')
+    expect(mockHandleExecutionCallback).not.toHaveBeenCalled()
   })
 
   it('returns 500 when internal callback secret is not configured', async () => {
@@ -141,5 +164,26 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(500)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('INTERNAL_CALLBACK_SECRET_MISSING')
+    expect(mockHandleExecutionCallback).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when a signed runId does not match a generationJob', async () => {
+    mockHandleExecutionCallback.mockRejectedValue(
+      new ApiRequestError(
+        'EXECUTION_RUN_NOT_FOUND',
+        404,
+        'errors.execution.runNotFound',
+        'Execution run not found.',
+      ),
+    )
+
+    const req = createCallbackRequest(VALID_PAYLOAD)
+    const res = await POST(req)
+    const json = await parseJSON<ApiEnvelope<never>>(res)
+
+    expect(res.status).toBe(404)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('EXECUTION_RUN_NOT_FOUND')
+    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD)
   })
 })

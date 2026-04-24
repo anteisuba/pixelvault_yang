@@ -5,16 +5,16 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { createApiInternalRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
 import { ExecutionCallbackPayloadSchema } from '@/types'
+import {
+  handleExecutionCallback,
+  type CallbackResult,
+} from '@/services/execution-callback.service'
 
 export const runtime = 'nodejs'
 
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
 const EXECUTION_SIGNATURE_ALGORITHM = 'sha256'
 const EXECUTION_SIGNATURE_HEX_LENGTH = 64
-
-interface ExecutionCallbackResponseData {
-  receivedAt: string
-}
 
 function getInternalCallbackSecret(): string {
   const secret = process.env.INTERNAL_CALLBACK_SECRET
@@ -83,19 +83,19 @@ function verifyExecutionSignature(rawBody: string, request: Request) {
 
 export const POST = createApiInternalRoute<
   typeof ExecutionCallbackPayloadSchema,
-  ExecutionCallbackResponseData
+  CallbackResult
 >({
   schema: ExecutionCallbackPayloadSchema,
   routeName: 'POST /api/internal/execution/callback',
   verifySignature: verifyExecutionSignature,
   handler: async ({ data }) => {
-    const receivedAt = new Date().toISOString()
+    const result = await handleExecutionCallback(data)
 
-    console.log('[execution-callback] received payload', {
-      payload: data,
-      receivedAt,
+    console.log('[execution-callback] handled', {
+      runId: result.runId,
+      action: result.action,
     })
 
-    return { receivedAt }
+    return result
   },
 })

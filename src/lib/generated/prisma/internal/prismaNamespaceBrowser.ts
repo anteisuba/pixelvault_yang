@@ -138,6 +138,7 @@ export const UserApiKeyScalarFieldEnum = {
   providerConfig: 'providerConfig',
   label: 'label',
   encryptedKey: 'encryptedKey',
+  maskedKey: 'maskedKey',
   isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

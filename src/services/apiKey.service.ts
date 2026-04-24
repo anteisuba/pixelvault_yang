@@ -66,23 +66,35 @@ export async function listUserApiKeys(
     orderBy: { createdAt: 'desc' },
   })
 
-  return records.map((r) => {
-    let maskedKey = '****'
-    try {
-      const plain = decryptApiKey(r.encryptedKey)
-      maskedKey = maskKey(plain)
-    } catch {
-      maskedKey = '****'
-    }
-    const adapterType = normalizeAdapterType(r.adapterType)
+  // Lazy backfill: rows created before the maskedKey column still carry '****'.
+  // Decrypt once and persist so future list calls pay zero crypto cost.
+  const needBackfill = records.filter((r) => r.maskedKey === '****')
+  if (needBackfill.length > 0) {
+    await Promise.all(
+      needBackfill.map(async (r) => {
+        try {
+          const mask = maskKey(decryptApiKey(r.encryptedKey))
+          r.maskedKey = mask
+          await db.userApiKey.update({
+            where: { id: r.id },
+            data: { maskedKey: mask },
+          })
+        } catch {
+          // leave as '****' if decryption fails
+        }
+      }),
+    )
+  }
 
+  return records.map((r) => {
+    const adapterType = normalizeAdapterType(r.adapterType)
     return {
       id: r.id,
       modelId: r.modelId,
       adapterType,
       providerConfig: normalizeProviderConfig(adapterType, r.providerConfig),
       label: r.label,
-      maskedKey,
+      maskedKey: r.maskedKey,
       isActive: r.isActive,
       createdAt: r.createdAt,
     }
@@ -150,6 +162,7 @@ export async function createApiKey(
   keyValue: string,
 ): Promise<UserApiKeyRecord> {
   const encryptedKey = encryptApiKey(keyValue)
+  const maskedKeyValue = maskKey(keyValue)
 
   const record = await db.userApiKey.create({
     data: {
@@ -159,6 +172,7 @@ export async function createApiKey(
       providerConfig: toProviderConfigJson(providerConfig),
       label,
       encryptedKey,
+      maskedKey: maskedKeyValue,
       isActive: true,
     },
   })
@@ -174,7 +188,7 @@ export async function createApiKey(
       record.providerConfig,
     ),
     label: record.label,
-    maskedKey: maskKey(keyValue),
+    maskedKey: record.maskedKey,
     isActive: record.isActive,
     createdAt: record.createdAt,
   }
@@ -195,20 +209,13 @@ export async function updateApiKey(
   if (data.isActive !== undefined) updatePayload.isActive = data.isActive
   if (data.keyValue !== undefined) {
     updatePayload.encryptedKey = encryptApiKey(data.keyValue)
+    updatePayload.maskedKey = maskKey(data.keyValue)
   }
 
   const updated = await db.userApiKey.update({
     where: { id },
     data: updatePayload,
   })
-
-  let maskedKey = '****'
-  try {
-    const plain = decryptApiKey(updated.encryptedKey)
-    maskedKey = maskKey(plain)
-  } catch {
-    maskedKey = '****'
-  }
 
   const normalizedAdapterType = normalizeAdapterType(updated.adapterType)
 
@@ -221,7 +228,7 @@ export async function updateApiKey(
       updated.providerConfig,
     ),
     label: updated.label,
-    maskedKey,
+    maskedKey: updated.maskedKey,
     isActive: updated.isActive,
     createdAt: updated.createdAt,
   }

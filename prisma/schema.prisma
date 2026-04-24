@@ -153,6 +153,7 @@ model UserApiKey {
   providerConfig Json
   label          String
   encryptedKey   String
+  maskedKey      String   @default("****")
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -228,11 +229,13 @@ model Generation {
   videoPipeline   VideoPipeline?
 
   @@index([userId])
+  @@index([isPublic, createdAt(sort: Desc)])
   @@index([userId, isFeatured, isPublic, createdAt(sort: Desc)])
   @@index([userId, isFreeGeneration, createdAt(sort: Desc)])
   @@index([outputType, isPublic, createdAt(sort: Desc)])
   @@index([userId, isPublic, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
+  @@index([userId, projectId, createdAt(sort: Desc)])
   @@index([characterCardId, createdAt(sort: Desc)])
   @@index([runGroupId])
 }

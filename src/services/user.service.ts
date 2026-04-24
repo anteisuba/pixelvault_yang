@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { randomBytes } from 'node:crypto'
 import { clerkClient } from '@clerk/nextjs/server'
 
@@ -80,7 +81,7 @@ export async function getUserByClerkId(clerkId: string): Promise<User | null> {
  * Get or create a DB user for the given Clerk ID (JIT provisioning).
  * Now also syncs displayName, avatarUrl, and derives username on first visit.
  */
-export async function ensureUser(clerkId: string): Promise<User> {
+export const ensureUser = cache(async (clerkId: string): Promise<User> => {
   const existing = await db.user.findUnique({ where: { clerkId } })
 
   if (existing) {
@@ -139,7 +140,7 @@ export async function ensureUser(clerkId: string): Promise<User> {
       avatarUrl: clerkUser.imageUrl ?? null,
     },
   })
-}
+})
 
 export async function createUser(params: {
   clerkId: string

@@ -31,6 +31,7 @@ export type UserApiKeyMinAggregateOutputType = {
   adapterType: string | null
   label: string | null
   encryptedKey: string | null
+  maskedKey: string | null
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -43,6 +44,7 @@ export type UserApiKeyMaxAggregateOutputType = {
   adapterType: string | null
   label: string | null
   encryptedKey: string | null
+  maskedKey: string | null
   isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -56,6 +58,7 @@ export type UserApiKeyCountAggregateOutputType = {
   providerConfig: number
   label: number
   encryptedKey: number
+  maskedKey: number
   isActive: number
   createdAt: number
   updatedAt: number
@@ -70,6 +73,7 @@ export type UserApiKeyMinAggregateInputType = {
   adapterType?: true
   label?: true
   encryptedKey?: true
+  maskedKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -82,6 +86,7 @@ export type UserApiKeyMaxAggregateInputType = {
   adapterType?: true
   label?: true
   encryptedKey?: true
+  maskedKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -95,6 +100,7 @@ export type UserApiKeyCountAggregateInputType = {
   providerConfig?: true
   label?: true
   encryptedKey?: true
+  maskedKey?: true
   isActive?: true
   createdAt?: true
   updatedAt?: true
@@ -181,6 +187,7 @@ export type UserApiKeyGroupByOutputType = {
   providerConfig: runtime.JsonValue
   label: string
   encryptedKey: string
+  maskedKey: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -215,6 +222,7 @@ export type UserApiKeyWhereInput = {
   providerConfig?: Prisma.JsonFilter<"UserApiKey">
   label?: Prisma.StringFilter<"UserApiKey"> | string
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
+  maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
@@ -229,6 +237,7 @@ export type UserApiKeyOrderByWithRelationInput = {
   providerConfig?: Prisma.SortOrder
   label?: Prisma.SortOrder
   encryptedKey?: Prisma.SortOrder
+  maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -247,6 +256,7 @@ export type UserApiKeyWhereUniqueInput = Prisma.AtLeast<{
   providerConfig?: Prisma.JsonFilter<"UserApiKey">
   label?: Prisma.StringFilter<"UserApiKey"> | string
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
+  maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
@@ -261,6 +271,7 @@ export type UserApiKeyOrderByWithAggregationInput = {
   providerConfig?: Prisma.SortOrder
   label?: Prisma.SortOrder
   encryptedKey?: Prisma.SortOrder
+  maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -280,6 +291,7 @@ export type UserApiKeyScalarWhereWithAggregatesInput = {
   providerConfig?: Prisma.JsonWithAggregatesFilter<"UserApiKey">
   label?: Prisma.StringWithAggregatesFilter<"UserApiKey"> | string
   encryptedKey?: Prisma.StringWithAggregatesFilter<"UserApiKey"> | string
+  maskedKey?: Prisma.StringWithAggregatesFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolWithAggregatesFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"UserApiKey"> | Date | string
@@ -292,6 +304,7 @@ export type UserApiKeyCreateInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -306,6 +319,7 @@ export type UserApiKeyUncheckedCreateInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -318,6 +332,7 @@ export type UserApiKeyUpdateInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -332,6 +347,7 @@ export type UserApiKeyUncheckedUpdateInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -345,6 +361,7 @@ export type UserApiKeyCreateManyInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -357,6 +374,7 @@ export type UserApiKeyUpdateManyMutationInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -370,6 +388,7 @@ export type UserApiKeyUncheckedUpdateManyInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -399,6 +418,7 @@ export type UserApiKeyCountOrderByAggregateInput = {
   providerConfig?: Prisma.SortOrder
   label?: Prisma.SortOrder
   encryptedKey?: Prisma.SortOrder
+  maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -411,6 +431,7 @@ export type UserApiKeyMaxOrderByAggregateInput = {
   adapterType?: Prisma.SortOrder
   label?: Prisma.SortOrder
   encryptedKey?: Prisma.SortOrder
+  maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -423,6 +444,7 @@ export type UserApiKeyMinOrderByAggregateInput = {
   adapterType?: Prisma.SortOrder
   label?: Prisma.SortOrder
   encryptedKey?: Prisma.SortOrder
+  maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -477,6 +499,7 @@ export type UserApiKeyCreateWithoutUserInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -489,6 +512,7 @@ export type UserApiKeyUncheckedCreateWithoutUserInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -531,6 +555,7 @@ export type UserApiKeyScalarWhereInput = {
   providerConfig?: Prisma.JsonFilter<"UserApiKey">
   label?: Prisma.StringFilter<"UserApiKey"> | string
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
+  maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
@@ -543,6 +568,7 @@ export type UserApiKeyCreateManyUserInput = {
   providerConfig: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label: string
   encryptedKey: string
+  maskedKey?: string
   isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -555,6 +581,7 @@ export type UserApiKeyUpdateWithoutUserInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -567,6 +594,7 @@ export type UserApiKeyUncheckedUpdateWithoutUserInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -579,6 +607,7 @@ export type UserApiKeyUncheckedUpdateManyWithoutUserInput = {
   providerConfig?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   label?: Prisma.StringFieldUpdateOperationsInput | string
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
+  maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -594,6 +623,7 @@ export type UserApiKeySelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   providerConfig?: boolean
   label?: boolean
   encryptedKey?: boolean
+  maskedKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -608,6 +638,7 @@ export type UserApiKeySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   providerConfig?: boolean
   label?: boolean
   encryptedKey?: boolean
+  maskedKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -622,6 +653,7 @@ export type UserApiKeySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   providerConfig?: boolean
   label?: boolean
   encryptedKey?: boolean
+  maskedKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -636,12 +668,13 @@ export type UserApiKeySelectScalar = {
   providerConfig?: boolean
   label?: boolean
   encryptedKey?: boolean
+  maskedKey?: boolean
   isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserApiKeyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "modelId" | "adapterType" | "providerConfig" | "label" | "encryptedKey" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["userApiKey"]>
+export type UserApiKeyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "modelId" | "adapterType" | "providerConfig" | "label" | "encryptedKey" | "maskedKey" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["userApiKey"]>
 export type UserApiKeyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -665,6 +698,7 @@ export type $UserApiKeyPayload<ExtArgs extends runtime.Types.Extensions.Internal
     providerConfig: runtime.JsonValue
     label: string
     encryptedKey: string
+    maskedKey: string
     isActive: boolean
     createdAt: Date
     updatedAt: Date
@@ -1099,6 +1133,7 @@ export interface UserApiKeyFieldRefs {
   readonly providerConfig: Prisma.FieldRef<"UserApiKey", 'Json'>
   readonly label: Prisma.FieldRef<"UserApiKey", 'String'>
   readonly encryptedKey: Prisma.FieldRef<"UserApiKey", 'String'>
+  readonly maskedKey: Prisma.FieldRef<"UserApiKey", 'String'>
   readonly isActive: Prisma.FieldRef<"UserApiKey", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"UserApiKey", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"UserApiKey", 'DateTime'>

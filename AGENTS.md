@@ -12,6 +12,7 @@ This file is authoritative unless the user explicitly overrides a rule for a spe
 You are working on **Personal AI Gallery**.
 
 This is a production-oriented web application for:
+
 - multi-model AI image generation
 - permanent archive/storage
 - user authentication
@@ -21,6 +22,7 @@ This is a production-oriented web application for:
 
 Your job is not just to "make code work".
 Your job is to:
+
 - preserve architecture
 - preserve type safety
 - preserve security boundaries
@@ -31,15 +33,27 @@ Your job is to:
 Do not behave like a code generator that rewrites everything blindly.
 Behave like a careful staff engineer working inside an existing codebase.
 
+## Agent Role Division
+
+This repository operates with two agent surfaces. They are not interchangeable.
+
+- **Codex** is the execution surface. It owns `规范` / `探索` / `前端` / `后端` threads, writes and reviews code under `src/**`, `prisma/**`, `scripts/**`, `e2e/**`, and their peers. See Appendix A.
+- **Claude Code** is the planning surface. It reads code but does not modify it. It produces task packets, long-term rules, plan documents, and map writebacks under `docs/guides/**`, `docs/plans/**`, `01/02/03/04/05` directories, and `AGENTS.md`. See Appendix C.
+
+Every non-trivial change flows: Claude Code produces a task packet → Codex executes → Claude Code reviews the diff and writes the result back into the maps. Trivial changes (typos, sub-10-line fixes, pure renames) can go directly to Codex without a task packet.
+
 ---
 
 # 1. Product Overview
 
 ## Product Name
+
 **Personal AI Gallery**
 
 ## Product Goal
+
 A platform that allows users to:
+
 - sign in
 - choose an AI model
 - submit prompts
@@ -49,6 +63,7 @@ A platform that allows users to:
 - later browse public galleries and personal works
 
 ## Main Stack
+
 - **Framework**: Next.js 16
 - **Routing**: App Router
 - **Build**: Turbopack
@@ -64,6 +79,7 @@ A platform that allows users to:
   - Google Gemini API
 
 ## Supported Models
+
 - Stable Diffusion XL
 - Animagine XL 4.0
 - Gemini 3.1 Flash Image
@@ -90,9 +106,11 @@ Do not sacrifice 1–5 for superficial speed.
 # 3. Non-Negotiable Hard Rules
 
 ## 3.1 No magic values
+
 Do not hardcode model IDs, route paths, provider names, credit costs, UI mode strings, or reusable text literals inside components or logic.
 
 ### Bad
+
 ```ts
 if (model === 'sdxl') { ... }
 router.push('/en/studio')
@@ -1606,5 +1624,73 @@ The intended operating loop is:
 Every durable rule document created under `docs/guides/` must be indexed here.
 
 - `docs/guides/README.md` — guide directory purpose, update rules, and current catalog
-- `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, output locations, and feedback loop
+- `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, `规范`-thread intake and patch-first discipline, output locations, and feedback loop
 - `docs/guides/codex-development-workflow.md` — context loading order, task packets, plan/implement/review flow, and stability gates
+- `docs/guides/claude-code-planning-workflow.md` — Claude Code planning surface: role boundaries, path lock, task packet handoff, diff review, and map writeback
+
+---
+
+# Appendix C. Claude Code Planning Role
+
+This project runs Claude Code as a dedicated planning surface on top of Codex's four execution threads.
+
+## C.1 Purpose
+
+Claude Code is not a parallel code author. It exists to:
+
+- produce and maintain durable rules (`规范` output) under `docs/guides/**`
+- decompose tasks into executable plans and task packets (`探索` output) under `docs/plans/**`
+- review Codex diffs against the task packet and the `01/02/03/04` maps
+- write completed work back into `01-UI` / `02-功能` / `03-功能測試` / `04-UI測試` so the maps stay true
+
+## C.2 Hard Boundaries
+
+Claude Code must not modify code. The following paths are locked via `.claude/settings.local.json` deny rules:
+
+- `src/**`, `prisma/**`, `scripts/**`, `e2e/**`, `apps/**`, `components/**`, `public/**`, `.github/workflows/**`, `.husky/**`
+- top-level build / dependency config: `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `next.config.ts`, `tsconfig*.json`, `tailwind.config.ts`, `eslint.config.mjs`, `playwright.config.ts`, `postcss.config.mjs`, `vitest.config.ts`, `vitest.setup.ts`, `components.json`, `middleware.ts`, `instrumentation*.ts`, `sentry.*.config.ts`
+
+Claude Code is allowed to write:
+
+- `docs/**`
+- `01-UI/**`, `02-功能/**`, `03-功能測試/**`, `04-UI測試/**`, `05-后续计划/**`
+- `AGENTS.md`, `claude.md`, `CLAUDE.md`, top-level `README*.md`, `WBS-*.md`
+- `.claude/settings.local.json`
+
+Read-only access to `src/**` is allowed and expected — Claude Code must read the code to plan accurately. Only mutation is blocked.
+
+## C.3 Task Packet Handoff
+
+Every non-trivial change starts with a task packet produced by Claude Code, attached to the tail of a `docs/plans/**` document. The packet template is specified in `docs/guides/claude-code-planning-workflow.md` and must cover: Goal, Non-goals, map anchors (01/02/03/04), layer, Read first, allowed file scope, forbidden files, validation commands, and definition of done.
+
+Codex then executes the packet in plan mode on `前端` or `后端`, without Claude Code intervention.
+
+## C.4 Review Loop
+
+Once Codex signals completion, Claude Code pulls `git diff` (read-only) and runs an independent review focused on:
+
+1. scope compliance (no out-of-packet edits)
+2. architecture and layer discipline
+3. type safety and Zod boundaries
+4. auth / ownership / credits / provider fallback integrity
+5. i18n completeness
+6. test coverage
+7. map drift in `01/02/03/04`
+
+The review result is written back to the same plan document under a `Review & 回流` section as one of: `Pass`, `Pass with follow-up`, or `Needs rework`.
+
+## C.5 Map Writeback
+
+After a `Pass`, Claude Code updates the affected `0X-現狀映射.md` entries and any related work-package or implementation-checklist documents. A task is not considered complete until the maps reflect the new reality, regardless of CI status.
+
+## C.6 When Claude Code Does Not Engage
+
+Trivial changes bypass Claude Code entirely. These go directly to Codex:
+
+- typos and single-line copy tweaks
+- changes under ~10 lines that do not cross layers or touch high-risk files
+- pure renames, import sorting, prettier cleanup
+- execution steps inside an existing task packet Codex is already working through
+
+For anything else, default to the Claude Code planning line — a redundant packet is cheaper than a silent drift.
+```

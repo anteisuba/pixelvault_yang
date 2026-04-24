@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelvault-execution",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-10",
+  "vars": {
+    "INTERNAL_CALLBACK_URL": "http://127.0.0.1:3000/api/internal/execution/callback",
+    "INTERNAL_CALLBACK_SECRET": "replace-with-local-development-secret",
+  },
+}

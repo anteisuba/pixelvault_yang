@@ -387,6 +387,19 @@ export interface VideoStatusResponse {
   error?: string
 }
 
+// ─── Execution Worker Callback ───────────────────────────────────
+
+export const ExecutionCallbackPayloadSchema = z.object({
+  runId: z.string().trim().min(1, 'Run ID is required'),
+  kind: z.enum(['ping', 'status', 'result']),
+  ts: z.union([z.string().datetime(), z.number().int().nonnegative()]),
+  data: z.unknown().optional(),
+})
+
+export type ExecutionCallbackPayload = z.infer<
+  typeof ExecutionCallbackPayloadSchema
+>
+
 // ─── Long Video Pipeline ──────────────────────────────────────────
 
 export const LongVideoRequestSchema = z.object({

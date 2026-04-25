@@ -40,11 +40,11 @@
 
 ### Read First
 
-- `02-功能/02-現狀映射.md`
-- `03-功能測試/02-現狀映射.md`
+- `docs/plans/feature/02-現狀映射.md`
+- `docs/plans/qa/functional/02-現狀映射.md`
 - `docs/progress/current-status-audit.md`
-- `docs/tooling/ai-context.md`
-- `docs/plans/product/media-workflow-catalog.md`
+- `docs/guides/ai-context.md`
+- `src/constants/workflows.ts`(原 media-workflow-catalog 已实现于此)
 - `src/app/api/CLAUDE.md`
 - `src/services/CLAUDE.md`
 - `src/lib/api-route-factory.ts`
@@ -100,11 +100,11 @@
 
 ### Affected Map Entries
 
-- `02-功能/02-現狀映射.md`
+- `docs/plans/feature/02-現狀映射.md`
   - Audio generation
   - Video generation
   - Long-video pipeline
-- `03-功能測試/02-現狀映射.md`
+- `docs/plans/qa/functional/02-現狀映射.md`
   - audio / long-video route coverage
   - service-layer async job coverage
   - provider failure / retry / status transition coverage
@@ -175,7 +175,7 @@
 
 ## Architecture Alignment — 5-Layer Execution Plane
 
-产品主线（`docs/plans/product/media-workflow-catalog.md` + Codex 探索线程）已把执行面骨架定为 5 层。本计划**只覆盖第 3-5 层**，不负责上面两层的产品化。
+产品主线(已实现于 `src/constants/workflows.ts` + Codex 探索线程)已把执行面骨架定为 5 层。本计划**只覆盖第 3-5 层**，不负责上面两层的产品化。
 
 | Layer                 | 职责                                                                                         | 本仓库今天在哪                                                                                                                                | 本计划目标                                                                                                                         |
 | --------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -408,13 +408,13 @@ No.
 
 - Commits `0a50de6 Stabilize audio async job flow end-to-end` + `6d6d6fd Finalize audio async flow and clean lint warnings`
 - Working tree `M src/app/api/generate-audio/route.ts` = CRLF-only, no content change
-- 对照 Phase 2 Definition of Done 全部硬条件 + 02-功能/2.4 + 03-功能測試/3.1、3.2
+- 对照 Phase 2 Definition of Done 全部硬条件 + docs/plans/feature/2.4 + docs/plans/qa/functional/3.1、3.2
 
 **Findings**:
 
 - Architecture — 无 issue；status route 19 行纯 delegate，符合 `src/app/api/CLAUDE.md` 三步律；没有引入第二套 route 工厂；client-supplied secret 边界已清除
 - Code Quality — 无 issue；业务复杂度全部消化在 service 层
-- Tests — 覆盖完整；03-功能測試/3.1 summary note 未显式列出 "duplicate finalization protection" 和 "provider completed but result missing" 两项测试，属 P3 map-summary 描述漏项（非 test 缺失，建议后续 探索 打开 `generate-audio.service.test.ts` 对一次完整 `it()` 列表再补 note）
+- Tests — 覆盖完整；docs/plans/qa/functional/3.1 summary note 未显式列出 "duplicate finalization protection" 和 "provider completed but result missing" 两项测试，属 P3 map-summary 描述漏项（非 test 缺失，建议后续 探索 打开 `generate-audio.service.test.ts` 对一次完整 `it()` 列表再补 note）
 - Performance — 无 concern；`jobId` 查主键、outbox claim 用 `updateMany` 乐观锁
 
 **Residual risk acknowledged**:
@@ -423,8 +423,8 @@ No.
 
 **回流动作**:
 
-- 02-功能/2.4 Audio — 已在 2026-04-23 同步，无需再改
-- 03-功能測試/3.1 — 建议下一次 探索 线程回流时补齐 `duplicate finalization protection` / `provider completed but result missing` 两条测试在 summary 里的点名（不急，不阻塞）
+- docs/plans/feature/2.4 Audio — 已在 2026-04-23 同步，无需再改
+- docs/plans/qa/functional/3.1 — 建议下一次 探索 线程回流时补齐 `duplicate finalization protection` / `provider completed but result missing` 两条测试在 summary 里的点名（不急，不阻塞）
 - 本计划 Phase 2 标记 **完成**；audio 正式成为 Layer 3 single-task async run 的 **Reference Adapter**
 - 下一刀建议并行启动：
   - 后端 Phase 3 sub-step 1（`workers/execution/` scaffold + 内部 callback 管道验证，**不绑 video 业务**）
@@ -462,8 +462,8 @@ No.
 
 **回流动作（已执行）**:
 
-- 02-功能/2.14 基礎設施 — 追加 internal execution callback + workers/execution workspace 条目
-- 03-功能測試/3.2 — 追加 `generate-*/internal/execution/callback/route.test.ts` 条目
+- docs/plans/feature/2.14 基礎設施 — 追加 internal execution callback + workers/execution workspace 条目
+- docs/plans/qa/functional/3.2 — 追加 `generate-*/internal/execution/callback/route.test.ts` 条目
 - 01-UI / 04-UI測試 — 无变更（本 sub-step 无 UI 表面）
 - Phase 3 sub-step 1 标记 **完成**；Run Orchestrator 层 durable 宿主的纯管道已打通
 
@@ -503,9 +503,9 @@ No.
 
 **回流动作（已执行）**:
 
-- 02-功能/2.14 基礎設施 — `api-route-factory.ts` 现在导出 `createApiInternalRoute`；callback route 从临时权宜正式 refactor
-- 03-功能測試/3.2 — callback route test 从 2 条扩到 6 条
-- 03-功能測試/3.1 由于 `api-route-factory.test.ts` 原本就在 lib test 列表里（隐含），不再单独追加条目；`createApiInternalRoute` 的 3 条 factory case 已附在同一文件
+- docs/plans/feature/2.14 基礎設施 — `api-route-factory.ts` 现在导出 `createApiInternalRoute`；callback route 从临时权宜正式 refactor
+- docs/plans/qa/functional/3.2 — callback route test 从 2 条扩到 6 条
+- docs/plans/qa/functional/3.1 由于 `api-route-factory.test.ts` 原本就在 lib test 列表里（隐含），不再单独追加条目；`createApiInternalRoute` 的 3 条 factory case 已附在同一文件
 - 01-UI / 04-UI測試 — 无变更
 - sub-step 2 part 1 标记 **完成**
 
@@ -550,9 +550,9 @@ No.
 
 **回流动作（已执行）**:
 
-- 02-功能/2.14 基礎設施 — 追加 `execution-callback.service.ts` + handler 改 delegate 的说明
-- 03-功能測試/3.1 Service 單測 — 追加 `execution-callback.service.test.ts`（6 cases）
-- 03-功能測試/3.2 Route 測試 — callback 从 6 条扩到 7 条
+- docs/plans/feature/2.14 基礎設施 — 追加 `execution-callback.service.ts` + handler 改 delegate 的说明
+- docs/plans/qa/functional/3.1 Service 單測 — 追加 `execution-callback.service.test.ts`（6 cases）
+- docs/plans/qa/functional/3.2 Route 測試 — callback 从 6 条扩到 7 条
 - 01-UI / 04-UI測試 — 无变更
 - sub-step 2 part 2 标记 **完成**
 
@@ -613,10 +613,10 @@ Codex 报告"worker 当前缺 `.dev.vars` secret，无法发 signed callback/res
 
 **回流动作（已执行）**:
 
-- 02-功能/2.14 基礎設施 — 追加 resolve-key 内部路由 + api-key-resolver service + execution-callback finalize + worker Cloudflare Workflow 条目
-- 02-功能/2.3 视频生成能力 — 追加 CINEMATIC_SHORT_VIDEO worker-managed 分支说明
-- 03-功能測試/3.1 service 单测 — 追加 api-key-resolver 测试；execution-callback 测试数扩
-- 03-功能測試/3.2 路由测试 — 追加 resolve-key/route.test.ts
+- docs/plans/feature/2.14 基礎設施 — 追加 resolve-key 内部路由 + api-key-resolver service + execution-callback finalize + worker Cloudflare Workflow 条目
+- docs/plans/feature/2.3 视频生成能力 — 追加 CINEMATIC_SHORT_VIDEO worker-managed 分支说明
+- docs/plans/qa/functional/3.1 service 单测 — 追加 api-key-resolver 测试；execution-callback 测试数扩
+- docs/plans/qa/functional/3.2 路由测试 — 追加 resolve-key/route.test.ts
 - 01-UI / 04-UI測試 — 无变更
 - sub-step 2 part 3 标记 **Pass with critical follow-up**：worker 路径代码完备，E2E unreachable 等 F1 micro-packet 吸收
 

@@ -83,10 +83,7 @@ The current codebase still has some Studio-adjacent partial areas:
 - forward-looking roadmap: `docs/product/roadmap.md`
 - system architecture: `docs/architecture/system-architecture.md`
 - Studio implementation map: `docs/plans/frontend/studio-feature-map.md`
-- Studio historical redesign context:
-  - `docs/plans/frontend/studio-v3-redesign.md`
-  - `docs/plans/frontend/studio-workbench-redesign.md`
-  - `docs/plans/product/unified-development-plan.md`
+- Unified 3-track plan (reference): `docs/plans/product/unified-development-plan.md`
 
 ## Bottom Line
 

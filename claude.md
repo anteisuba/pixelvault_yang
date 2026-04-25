@@ -32,7 +32,7 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 ## Design Language
 
-See `docs/frontend/design-system.md` for full spec. Key constraints:
+See `docs/reference/design-system.md` for full spec. Key constraints:
 
 - Background: `#faf9f5` (米白, never `#fff`) · Text: `#141413` · Accent: `#d97757`
 - Fonts: Space Grotesk (headings) + Lora (body) — must be sans + serif pair
@@ -47,16 +47,24 @@ See `docs/frontend/design-system.md` for full spec. Key constraints:
 
 ## Docs
 
-| File                                             | Content                                                                   |
-| ------------------------------------------------ | ------------------------------------------------------------------------- |
-| `docs/architecture/system-architecture.md`       | Directory structure, tech stack, data flow                                |
-| `docs/frontend/design-system.md`                 | Colors, typography, layout, motion rules                                  |
-| `docs/database/database.md`                      | Prisma models, relations, migration workflow                              |
-| `docs/frontend/components.md`                    | Components, hooks & capability system API reference                       |
-| `docs/progress/phases.md`                        | Development phase tracking                                                |
-| `docs/product/roadmap.md`                        | Future features and priorities                                            |
-| `docs/plans/product/unified-development-plan.md` | Unified 3-track dev plan (A: fixes, B: Studio redesign, C: features)      |
-| `docs/plans/product/development-plan-legacy.md`  | Original S1-S9 implementation specs (reference, merged into unified plan) |
+文档统一在 `docs/`,按层次分:`getting-started / architecture / reference / guides / plans / progress / product / infrastructure`。
+
+| File                                             | Content                                             |
+| ------------------------------------------------ | --------------------------------------------------- |
+| `docs/README.md`                                 | 文档总导航                                          |
+| `docs/getting-started/overview.md`               | 产品定位与 BYOK 模式                                |
+| `docs/getting-started/reading-paths.md`          | 按角色的阅读路径(新人/Studio/后端/视频等)           |
+| `docs/architecture/system-architecture.md`       | Directory structure, tech stack, data flow          |
+| `docs/reference/design-system.md`                | Colors, typography, layout, motion rules            |
+| `docs/reference/database.md`                     | Prisma models, relations, migration workflow        |
+| `docs/reference/components.md`                   | Components, hooks & capability system API reference |
+| `docs/reference/api/README.md`                   | AI 提供商汇总与能力矩阵                             |
+| `docs/progress/phases.md`                        | Development phase tracking                          |
+| `docs/progress/current-status-audit.md`          | 当前完整产品状态审计                                |
+| `docs/product/roadmap.md`                        | Future features and priorities                      |
+| `docs/plans/README.md`                           | 活跃规划导航                                        |
+| `docs/plans/frontend/studio-feature-map.md`      | ⭐ Studio 当前真相源(所有 Studio 改动前必读)        |
+| `docs/plans/product/unified-development-plan.md` | 3-track 合并计划(参考档案,非真相源)                 |
 
 ## Component Tiers
 

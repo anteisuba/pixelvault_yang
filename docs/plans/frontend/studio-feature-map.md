@@ -2,11 +2,7 @@
 
 > Last updated: 2026-04-13
 > Scope: current implemented Studio behavior only.
-> Historical redesign/planning docs are still useful, but should be read together with this file:
->
-> - `docs/plans/frontend/studio-v3-redesign.md`
-> - `docs/plans/frontend/studio-workbench-redesign.md`
-> - `docs/plans/product/unified-development-plan.md`
+> Companion reference: `docs/plans/product/unified-development-plan.md`.
 
 ## Purpose
 

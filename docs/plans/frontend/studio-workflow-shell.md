@@ -43,12 +43,11 @@
 
 ### Read First
 
-- `01-UI/02-現狀映射.md`
-- `04-UI測試/02-現狀映射.md`
+- `docs/plans/ui/02-現狀映射.md`
+- `docs/plans/qa/ui/02-現狀映射.md`
 - `docs/progress/current-status-audit.md`
-- `docs/tooling/ai-context.md`
-- `docs/plans/product/media-workflow-catalog.md`
-- `docs/plans/product/media-workflow-public-naming.md`
+- `docs/guides/ai-context.md`
+- `src/constants/workflows.ts`(原 media-workflow-catalog + media-workflow-public-naming 已实现于此)
 - `docs/plans/frontend/studio-feature-map.md`
 - `src/components/business/studio/CLAUDE.md`
 - `src/hooks/CLAUDE.md`
@@ -108,10 +107,10 @@
 
 ### Affected Map Entries
 
-- `01-UI/02-現狀映射.md`
+- `docs/plans/ui/02-現狀映射.md`
   - Studio shell
   - Studio top bar / sidebar / canvas / dock
-- `04-UI測試/02-現狀映射.md`
+- `docs/plans/qa/ui/02-現狀映射.md`
   - Studio component coverage
   - loading / empty / panel state regression risk
 
@@ -427,7 +426,7 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 - 所有改动都在 packet 的 Allowed Scope 内 ✓
 - 未改 `studio-context.tsx`、`components/**`、`hooks/**`、`services/**`、`app/api/**`、`types/index.ts` ✓
 - `as const` + 推导类型，无重复 interface ✓
-- Balanced 8 精确 8 条，命名与 `media-workflow-public-naming.md` 对齐 ✓
+- Balanced 8 精确 8 条，命名与 `src/constants/workflows.ts` 一致 ✓
 - i18n key 命名 `workflows.<ID>.{name,description}` 三语对齐 ✓
 - tsc + lint + vitest (74 files / 593 tests) 全绿 ✓
 
@@ -475,7 +474,7 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 
 **回流动作（已执行）**:
 
-- 04-UI測試/4.2 用戶交互 — 更新 `studio-context.test.ts` 测试数（+2 reducer case，总 38 条）+ 新增 `studio-context.test.tsx`（5 provider/hook case）
+- docs/plans/qa/ui/4.2 用戶交互 — 更新 `studio-context.test.ts` 测试数（+2 reducer case，总 38 条）+ 新增 `studio-context.test.tsx`（5 provider/hook case）
 - 01-UI / 02-功能 / 03-功能測試 — 无变更（本 Phase 纯 context state + 纯前端逻辑）
 - Phase 2 标记 **完成**
 
@@ -520,8 +519,8 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 
 **回流动作（已执行）**:
 
-- 04-UI測試/4.2 用戶交互 — 追加 3 个 workflow 组件测试文件（8 cases）
-- 01-UI/1.2.1 Studio 主工作台 — 追加 workflow-first 条带出现位置说明
+- docs/plans/qa/ui/4.2 用戶交互 — 追加 3 个 workflow 组件测试文件（8 cases）
+- docs/plans/ui/1.2.1 Studio 主工作台 — 追加 workflow-first 条带出现位置说明
 - 02-功能 / 03-功能測試 — 无变更（本 Phase 纯前端 UI）
 - Phase 3 标记 **完成**
 
@@ -575,8 +574,8 @@ Workflow shell 可以先于 Cloudflare execution 落地。
 
 **回流动作（已执行）**:
 
-- 01-UI/1.2.1 Studio 主工作台 — 追加 workflow-first shell 完成 + 顶部 media toggle 已移除 + Advanced drawer 入口说明
-- 04-UI測試/4.2 用戶交互 — 追加 StudioAdvancedDrawer、StudioTopBar、StudioWorkflowGroupTabs 扩充测试数
+- docs/plans/ui/1.2.1 Studio 主工作台 — 追加 workflow-first shell 完成 + 顶部 media toggle 已移除 + Advanced drawer 入口说明
+- docs/plans/qa/ui/4.2 用戶交互 — 追加 StudioAdvancedDrawer、StudioTopBar、StudioWorkflowGroupTabs 扩充测试数
 - 02-功能 / 03-功能測試 — 无变更（本 Phase 纯前端）
 - Phase 4 + Phase 5 前半（demote media toggle）标记 **完成**；Phase 5 的 quick/card 真正并入 drawer 已做，route/model 高级控件占位；Phase 6 polish 仍待做
 

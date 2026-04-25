@@ -6,7 +6,7 @@
  * consume CSS variables (e.g. Satori/OG image rendering, canvas drawing).
  *
  * @see globals.css — OKLch CSS variable definitions
- * @see docs/frontend/design-system.md — full spec
+ * @see docs/reference/design-system.md — full spec
  */
 
 // ─── Brand Colors (hex fallbacks) ───────────────────────────────

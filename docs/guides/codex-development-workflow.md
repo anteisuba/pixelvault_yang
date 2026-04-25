@@ -37,19 +37,19 @@
 
 对于当前代码状态，优先读这些文件：
 
-- `01-UI/02-現狀映射.md`
-- `02-功能/02-現狀映射.md`
-- `03-功能測試/02-現狀映射.md`
-- `04-UI測試/02-現狀映射.md`
-- `05-后续计划/**`（仅当任务是未来规划、能力预研、路线制定时再读）
+- `docs/plans/ui/02-現狀映射.md`
+- `docs/plans/feature/02-現狀映射.md`
+- `docs/plans/qa/functional/02-現狀映射.md`
+- `docs/plans/qa/ui/02-現狀映射.md`
+- `docs/plans/roadmap/**`（仅当任务是未来规划、能力预研、路线制定时再读）
 - `docs/progress/current-status-audit.md`
-- `docs/tooling/ai-context.md`
+- `docs/guides/ai-context.md`
 
 说明：
 
-- `01/02/03/04` 比大部分 `docs/plans/` 更接近当前代码，应优先于历史计划文档
-- `05-后续计划` 属于未来规划层，不应用来覆盖 `01/02/03/04` 对当前代码的描述
-- 若 `01/02/03/04` 与旧计划冲突，以更接近代码现状的映射文档为准
+- `docs/plans/{ui,feature,qa/*}` 比大部分 `docs/plans/` 其他文件更接近当前代码，应优先于历史计划文档
+- `docs/plans/roadmap/` 属于未来规划层，不应用来覆盖上面这些目录对当前代码的描述
+- 若这些工作包映射文档与旧计划冲突，以更接近代码现状的映射文档为准
 
 ### 3. 切片层
 
@@ -266,8 +266,8 @@ review 输入应包含：
 
 review 应优先引用：
 
-- `03-功能測試/02-現狀映射.md`
-- `04-UI測試/02-現狀映射.md`
+- `docs/plans/qa/functional/02-現狀映射.md`
+- `docs/plans/qa/ui/02-現狀映射.md`
 
 把这些文档当成 checklist，而不是靠临场印象 review。
 

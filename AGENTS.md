@@ -1332,18 +1332,18 @@ For non-trivial tasks, Codex must build context in this order:
 
 1. `AGENTS.md` and relevant `docs/guides/*.md`
 2. the closest current-state map documents:
-   - `01-UI/02-現狀映射.md`
-   - `02-功能/02-現狀映射.md`
-   - `03-功能測試/02-現狀映射.md`
-   - `04-UI測試/02-現狀映射.md`
+   - `docs/plans/ui/02-現狀映射.md`
+   - `docs/plans/feature/02-現狀映射.md`
+   - `docs/plans/qa/functional/02-現狀映射.md`
+   - `docs/plans/qa/ui/02-現狀映射.md`
    - `docs/progress/current-status-audit.md`
-   - `docs/tooling/ai-context.md`
-   - for future-facing roadmap work only: the relevant `05-后续计划/**` documents
+   - `docs/guides/ai-context.md`
+   - for future-facing roadmap work only: the relevant `docs/plans/roadmap/**` documents
 3. relevant `docs/plans/...`
 4. relevant `src/**/CLAUDE.md`
 5. target code and test files
 
-For this repository, `01-UI`, `02-功能`, `03-功能測試`, and `04-UI測試` are closer to the current codebase than most historical planning docs. `05-后续计划` is a future-planning layer, not a current-state source of truth.
+For this repository, `docs/plans/ui/`, `docs/plans/feature/`, `docs/plans/qa/functional/`, and `docs/plans/qa/ui/` are closer to the current codebase than most historical planning docs. `docs/plans/roadmap/` is a future-planning layer, not a current-state source of truth.
 
 When they conflict with older roadmap or redesign notes, prefer the mapping documents unless direct code inspection proves they are stale.
 
@@ -1354,7 +1354,7 @@ When Codex is first taking over the project, it should do one broader orientatio
 - `AGENTS.md`
 - `docs/guides/*.md`
 - `01/02/03/04` README + 現狀映射 documents
-- `05-后续计划/**` only if the task is roadmap, future capability design, or sequencing work
+- `docs/plans/roadmap/**` only if the task is roadmap, future capability design, or sequencing work
 - the highest-risk core files:
   - `src/types/index.ts`
   - `src/contexts/studio-context.tsx`
@@ -1653,7 +1653,7 @@ Claude Code must not modify code. The following paths are locked via `.claude/se
 Claude Code is allowed to write:
 
 - `docs/**`
-- `01-UI/**`, `02-功能/**`, `03-功能測試/**`, `04-UI測試/**`, `05-后续计划/**`
+- `docs/plans/ui/**`, `docs/plans/feature/**`, `docs/plans/qa/functional/**`, `docs/plans/qa/ui/**`, `docs/plans/roadmap/**`
 - `AGENTS.md`, `claude.md`, `CLAUDE.md`, top-level `README*.md`, `WBS-*.md`
 - `.claude/settings.local.json`
 

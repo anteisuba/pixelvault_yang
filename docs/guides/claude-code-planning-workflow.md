@@ -30,8 +30,8 @@ Claude Code **永远不直接修改 `src/**`、`prisma/**`、`scripts/**`、`e2e
 
 - `docs/guides/**` 新建或更新长期规范
 - `docs/plans/**` 新建或更新计划、任务包、review 结论
-- `01-UI/**`、`02-功能/**`、`03-功能測試/**`、`04-UI測試/**` 现状映射与工作包的回流更新
-- `05-后续计划/**` 未来规划归档
+- `docs/plans/ui/**`、`docs/plans/feature/**`、`docs/plans/qa/functional/**`、`docs/plans/qa/ui/**` 现状映射与工作包的回流更新
+- `docs/plans/roadmap/**` 未来规划归档
 - `AGENTS.md`、`claude.md`、`CLAUDE.md`、顶层 `README*.md`、`WBS-*.md` 中与协作规则、任务组织相关的条目
 - `.claude/settings.local.json` 里的权限与钩子元配置
 
@@ -83,8 +83,8 @@ Claude Code **永远不直接修改 `src/**`、`prisma/**`、`scripts/**`、`e2e
 
 按归类优先读：
 
-- UI：`01-UI/02-現狀映射.md` + `04-UI測試/02-現狀映射.md`
-- 功能：`02-功能/02-現狀映射.md` + `03-功能測試/02-現狀映射.md`
+- UI：`docs/plans/ui/02-現狀映射.md` + `docs/plans/qa/ui/02-現狀映射.md`
+- 功能：`docs/plans/feature/02-現狀映射.md` + `docs/plans/qa/functional/02-現狀映射.md`
 - 跨层：四者都读，只聚焦相关条目
 
 **不要默认重读整个仓库。** 只有任务是全局复盘、或者明显感觉地图已经落后于代码时，才扩大阅读范围。

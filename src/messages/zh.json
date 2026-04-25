@@ -100,10 +100,6 @@
       "title": "工作台 — PixelVault",
       "description": "在同一工作区使用多个 AI 模型生成图像和视频。"
     },
-    "studioDraft": {
-      "title": "工作台草稿 — PixelVault",
-      "description": "下一版 Studio 布局的工作台草稿。"
-    },
     "gallery": {
       "title": "画廊 — PixelVault",
       "description": "浏览 AI 生成图像的公开档案。"
@@ -1697,8 +1693,7 @@
     "cardManagement": "卡片管理",
     "projectHistory": "项目与历史",
     "proModeNudge": "解锁风格卡片和角色预设，获得更精细的控制",
-    "tryProMode": "试试看",
-    "noModelHint": "请先选择模型"
+    "tryProMode": "试试看"
   },
   "StudioPanels": {
     "reference": "参考图",
@@ -1866,100 +1861,6 @@
     "success": "验证通过！模型已可用。",
     "available": "可用",
     "needsKey": "需要 API key"
-  },
-  "StudioWorkbenchDraft": {
-    "eyebrow": "工作台草稿",
-    "title": "更高密度、更接近 ComfyUI 的 Studio 工作台方向。",
-    "description": "这份草稿恢复固定预览区，把历史降级为底部 filmstrip，并把中间列收拢成专注于下一次生成的 compose 面。",
-    "note": "仅草稿。使用静态 mock 数据来审视布局和交互方向。",
-    "summary": "目标不是照搬节点图，而是借鉴创作工具最好的部分：当前状态始终可见，历史保持次级，中央区域围绕下一次运行保持专注。",
-    "actions": {
-      "backToStudio": "打开当前工作台"
-    },
-    "desktop": {
-      "title": "桌面工作台草稿",
-      "description": "左侧资源区，中间 compose，右侧固定预览，底部 filmstrip 的工作台结构。"
-    },
-    "chrome": {
-      "project": "项目",
-      "projectValue": "月光骑手套组",
-      "route": "路由",
-      "routeValue": "FLUX Kontext 路由",
-      "model": "模型",
-      "modelValue": "FLUX Kontext Pro",
-      "quota": "免费额度",
-      "quotaValue": "今日剩余 3 / 5",
-      "references": "参考图",
-      "referencesValue": "已附加 2 张"
-    },
-    "sidebar": {
-      "title": "资源区",
-      "projects": "项目范围",
-      "altProject": "人像测试集",
-      "routes": "路由",
-      "routeHealth": "3 条健康路由",
-      "backupRoute": "Gemini 备用路由",
-      "routeFallback": "用于重试的备用路径",
-      "collections": "集合",
-      "collectionCharacter": "角色",
-      "collectionStyle": "风格",
-      "collectionRecipe": "配方",
-      "collectionHint": "可复用的素材收在这里，而不是挤进主 compose 面里。",
-      "projectCount": "6 个活跃工作板"
-    },
-    "compose": {
-      "title": "Compose",
-      "subtitle": "模型选择、提示词、参考输入和生成状态都集中在同一条高密度工作列中。",
-      "modelMenu": "模型命令菜单",
-      "promptLabel": "提示词",
-      "promptValue": "一位骑行快递员穿过橙色雨光的 editorial 风格肖像，反光夹克、湿润路面、电影感景深、真实质感。",
-      "promptHint": "来自 Remix、Reverse、Enhance 的程序化写入也应该让输入框自动重新计算高度。",
-      "referenceTitle": "参考图投放区",
-      "referenceDrop": "把历史帧拖到这里",
-      "referenceHint": "参考图应该有清晰的落点，而不是藏在工具条展开项里。",
-      "referenceBadge": "已占用 2 个槽位",
-      "statusTitle": "生成状态",
-      "statusReady": "可生成",
-      "statusMissingModel": "缺少模型",
-      "statusMissingReference": "缺少参考图",
-      "statusGenerating": "生成中 · 12 秒",
-      "statusFailed": "失败 · 可重试",
-      "failureTitle": "失败状态在继续浏览时也应保持可见。",
-      "failureHint": "重试不该被埋进历史里，而应固定在 compose 和 preview 的主流程中。",
-      "generate": "生成",
-      "advancedTitle": "高级分组",
-      "advancedOpenHint": "展开后的分组应先总结自己控制什么，而不是直接丢出一长串参数。",
-      "advancedGroups": {
-        "composition": "Composition",
-        "reference": "Reference",
-        "quality": "Quality",
-        "provider": "Provider-specific"
-      }
-    },
-    "preview": {
-      "title": "结果预览",
-      "subtitle": "当前结果固定在右侧，这样加载、成功和失败都不会和历史抢层级。",
-      "badge": "最新结果",
-      "selectionTitle": "当前选中输出",
-      "selectionHint": "历史可以切换预览对象，但预览区域本身必须保持稳定。",
-      "openDetail": "查看详情",
-      "recoveryTitle": "恢复动作应紧贴结果本身。",
-      "recoveryHint": "生成失败时，右侧预览区必须持续显示错误和重试入口。",
-      "retry": "重试",
-      "filmstripTitle": "历史 filmstrip",
-      "filmstripHint": "单击预览，双击详情，拖拽送入参考图区。",
-      "selected": "已选中"
-    },
-    "mobile": {
-      "title": "移动端草稿",
-      "description": "移动端应保留相同的优先级顺序，但把工具收进 bottom sheet。",
-      "note": "先预览，再 compose，然后历史，工具放进 bottom sheet。",
-      "preview": "先看预览",
-      "compose": "再进入 compose",
-      "history": "横向 filmstrip",
-      "tools": "底部工具面板",
-      "sheetLabel": "模型 / 参考 / 高级"
-    }
   },
   "Errors": {
     "common": {

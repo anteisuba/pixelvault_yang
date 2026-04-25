@@ -100,10 +100,6 @@
       "title": "スタジオ — PixelVault",
       "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。"
     },
-    "studioDraft": {
-      "title": "スタジオ草案 — PixelVault",
-      "description": "次の Studio レイアウトのワークベンチ草案。"
-    },
     "gallery": {
       "title": "ギャラリー — PixelVault",
       "description": "AI生成画像の公開アーカイブを閲覧。"
@@ -1865,100 +1861,6 @@
     "success": "APIキー検証完了！モデルが使えます。",
     "available": "利用可能",
     "needsKey": "APIキーが必要"
-  },
-  "StudioWorkbenchDraft": {
-    "eyebrow": "スタジオ草案",
-    "title": "より高密度で ComfyUI 的な Studio ワークベンチ案。",
-    "description": "固定プレビューを戻し、履歴をフィルムストリップへ下げ、中央列を生成に集中した compose 面として整理する草案です。",
-    "note": "草案専用。レイアウトと操作確認のための静的モックです。",
-    "summary": "ノードグラフを真似するのではなく、制作ツールの強みを借ります。現在状態を見失わず、履歴は一段下げ、中央は次の生成に集中できるようにします。",
-    "actions": {
-      "backToStudio": "現在のスタジオを開く"
-    },
-    "desktop": {
-      "title": "デスクトップ版ワークベンチ草案",
-      "description": "左に資産管理、中央に compose、右に固定プレビュー、下にフィルムストリップを置く構成です。"
-    },
-    "chrome": {
-      "project": "プロジェクト",
-      "projectValue": "月明かりの配達人セット",
-      "route": "ルート",
-      "routeValue": "FLUX Kontext ルート",
-      "model": "モデル",
-      "modelValue": "FLUX Kontext Pro",
-      "quota": "無料枠",
-      "quotaValue": "本日残り 3 / 5",
-      "references": "参照画像",
-      "referencesValue": "2 枚添付"
-    },
-    "sidebar": {
-      "title": "リソース",
-      "projects": "プロジェクト範囲",
-      "altProject": "ポートレート検証",
-      "routes": "ルート",
-      "routeHealth": "健全なルート 3 件",
-      "backupRoute": "Gemini フォールバック",
-      "routeFallback": "再試行用の待機ルート",
-      "collections": "コレクション",
-      "collectionCharacter": "キャラクター",
-      "collectionStyle": "スタイル",
-      "collectionRecipe": "レシピ",
-      "collectionHint": "再利用する要素はここに集約し、compose 面を混雑させません。",
-      "projectCount": "稼働中ボード 6 件"
-    },
-    "compose": {
-      "title": "Compose",
-      "subtitle": "モデル選択、プロンプト、参照入力、生成状態をひとつの高密度な作業列にまとめます。",
-      "modelMenu": "モデルコマンドメニュー",
-      "promptLabel": "プロンプト",
-      "promptValue": "オレンジ色の雨明かりの中を抜ける配達員のエディトリアル風ポートレート。反射するジャケット、濡れた舗道、シネマティックな奥行き、リアルな質感。",
-      "promptHint": "Remix、Reverse、Enhance から書き込まれてもこの入力欄は自動で高さを調整すべきです。",
-      "referenceTitle": "参照ドロップゾーン",
-      "referenceDrop": "履歴フレームをここへドロップ",
-      "referenceHint": "参照画像の行き先は明確に見えるべきで、ツールバーの中に隠すべきではありません。",
-      "referenceBadge": "2 枠使用中",
-      "statusTitle": "生成ステータス",
-      "statusReady": "準備完了",
-      "statusMissingModel": "モデル未選択",
-      "statusMissingReference": "参照不足",
-      "statusGenerating": "生成中 · 12 秒",
-      "statusFailed": "失敗 · 再試行可能",
-      "failureTitle": "失敗状態も閲覧中に見失わない構成にします。",
-      "failureHint": "再試行は履歴に埋もれず、compose と preview の流れの中に固定すべきです。",
-      "generate": "生成",
-      "advancedTitle": "Advanced グループ",
-      "advancedOpenHint": "開いたグループは長い一覧を見せるのではなく、何を制御するかを短く示します。",
-      "advancedGroups": {
-        "composition": "Composition",
-        "reference": "Reference",
-        "quality": "Quality",
-        "provider": "Provider-specific"
-      }
-    },
-    "preview": {
-      "title": "結果プレビュー",
-      "subtitle": "アクティブ結果を固定し、読み込み・成功・失敗が履歴と競合しないようにします。",
-      "badge": "最新結果",
-      "selectionTitle": "選択中の出力",
-      "selectionHint": "履歴で表示対象を切り替えても、プレビュー領域自体は常に安定して残ります。",
-      "openDetail": "詳細を開く",
-      "recoveryTitle": "復帰操作は結果の横に置きます。",
-      "recoveryHint": "生成失敗時も、プレビュー側でエラーと再試行を見える位置に維持します。",
-      "retry": "再試行",
-      "filmstripTitle": "履歴フィルムストリップ",
-      "filmstripHint": "クリックでプレビュー、ダブルクリックで詳細、ドラッグで参照画像へ送ります。",
-      "selected": "選択中"
-    },
-    "mobile": {
-      "title": "モバイル版草案",
-      "description": "モバイルでは重要度の順序を保ちつつ、ツール群をボトムシートへ寄せます。",
-      "note": "プレビューを先頭に、compose を次に、履歴をその下に、ツールはボトムシートへ。",
-      "preview": "先にプレビュー",
-      "compose": "次に compose",
-      "history": "横スクロール履歴",
-      "tools": "ボトムシートのツール",
-      "sheetLabel": "モデル / 参照 / Advanced"
-    }
   },
   "Errors": {
     "common": {

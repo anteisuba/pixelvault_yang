@@ -118,6 +118,7 @@ model User {
   backgroundCards  BackgroundCard[]
   styleCards       StyleCard[]
   cardRecipes      CardRecipe[]
+  recipes          Recipe[]
   videoPipelines   VideoPipeline[]
   loraTrainingJobs LoraTrainingJob[]
   videoScripts     VideoScript[]
@@ -318,6 +319,30 @@ model FreeTierSlot {
   createdAt DateTime @default(now())
 
   @@index([userId, date])
+}
+
+model Recipe {
+  id                 String     @id @default(cuid())
+  userId             String
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outputType         OutputType @default(IMAGE)
+  name               String     @default("")
+  userIntent         Json?
+  compiledPrompt     String     @db.Text
+  negativePrompt     String?    @db.Text
+  modelId            String
+  provider           String
+  params             Json?
+  referenceAssets    Json?
+  seed               BigInt?
+  parentGenerationId String?
+  version            Int        @default(1)
+  evaluationSummary  Json?
+  isDeleted          Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([userId, isDeleted, createdAt(sort: Desc)])
 }
 
 model ImageAnalysis {

@@ -59,6 +59,7 @@ export const ModelName = {
   ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
   FreeTierSlot: 'FreeTierSlot',
+  Recipe: 'Recipe',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -255,6 +256,30 @@ export const FreeTierSlotScalarFieldEnum = {
 } as const
 
 export type FreeTierSlotScalarFieldEnum = (typeof FreeTierSlotScalarFieldEnum)[keyof typeof FreeTierSlotScalarFieldEnum]
+
+
+export const RecipeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  outputType: 'outputType',
+  name: 'name',
+  userIntent: 'userIntent',
+  compiledPrompt: 'compiledPrompt',
+  negativePrompt: 'negativePrompt',
+  modelId: 'modelId',
+  provider: 'provider',
+  params: 'params',
+  referenceAssets: 'referenceAssets',
+  seed: 'seed',
+  parentGenerationId: 'parentGenerationId',
+  version: 'version',
+  evaluationSummary: 'evaluationSummary',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
 
 
 export const ImageAnalysisScalarFieldEnum = {

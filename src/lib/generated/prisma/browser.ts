@@ -58,6 +58,11 @@ export type ApiUsageLedger = Prisma.ApiUsageLedgerModel
  */
 export type FreeTierSlot = Prisma.FreeTierSlotModel
 /**
+ * Model Recipe
+ * 
+ */
+export type Recipe = Prisma.RecipeModel
+/**
  * Model ImageAnalysis
  * 
  */

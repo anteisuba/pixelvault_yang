@@ -2323,3 +2323,55 @@ export const GenerateEvaluationRequestSchema = z.object({
 export type GenerateEvaluationRequest = z.infer<
   typeof GenerateEvaluationRequestSchema
 >
+
+// ─── Creative Control: Recipe Persistence ────────────────────────
+
+export const CreateRecipeRequestSchema = z.object({
+  /** Display name for the recipe */
+  name: z.string().max(200).default(''),
+  /** Media type this recipe produces */
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO']).default('IMAGE'),
+  /** Structured intent parsed from the user's natural language */
+  userIntent: ImageIntentSchema.optional(),
+  /** Compiled, model-ready prompt string */
+  compiledPrompt: z.string().min(1).max(5000),
+  /** Negative prompt (optional) */
+  negativePrompt: z.string().max(1000).optional(),
+  /** AI model ID (AI_MODELS enum value) */
+  modelId: z.string().min(1),
+  /** Provider adapter identifier */
+  provider: z.string().min(1),
+  /** Advanced generation parameters (guidance, steps, loras, etc.) */
+  params: z.record(z.string(), z.unknown()).optional(),
+  /** Reference images with roles */
+  referenceAssets: z.array(ReferenceAssetSchema).max(5).optional(),
+  /** Generation seed for reproducibility */
+  seed: z.coerce.bigint().optional(),
+  /** ID of the Generation this recipe was saved from */
+  parentGenerationId: z.string().optional(),
+})
+
+export type CreateRecipeRequest = z.infer<typeof CreateRecipeRequestSchema>
+
+export const ListRecipesQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(50).default(20),
+})
+
+export type ListRecipesQuery = z.infer<typeof ListRecipesQuerySchema>
+
+/** Wire-format recipe record returned from the API (dates are ISO strings) */
+export type RecipeRecord = {
+  id: string
+  userId: string
+  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO'
+  name: string
+  compiledPrompt: string
+  negativePrompt: string | null
+  modelId: string
+  provider: string
+  version: number
+  isDeleted: boolean
+  createdAt: string
+  updatedAt: string
+}

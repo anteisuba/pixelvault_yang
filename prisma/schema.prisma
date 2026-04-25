@@ -214,6 +214,7 @@ model Generation {
 
   // ── B0: Generation Snapshot ────────────────────────────────────
   snapshot      Json? // Full input parameter snapshot
+  evaluation    Json? // GenerationEvaluation — written by generation-evaluator.service
   runGroupId    String? // Groups compare/variant runs
   runGroupType  String  @default("single") // "single" | "compare" | "variant"
   runGroupIndex Int     @default(0) // Position within group (0-based)

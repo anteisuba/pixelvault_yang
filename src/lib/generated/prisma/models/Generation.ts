@@ -135,6 +135,7 @@ export type GenerationCountAggregateOutputType = {
   cardRecipeId: number
   recipeSnapshot: number
   snapshot: number
+  evaluation: number
   runGroupId: number
   runGroupType: number
   runGroupIndex: number
@@ -253,6 +254,7 @@ export type GenerationCountAggregateInputType = {
   cardRecipeId?: true
   recipeSnapshot?: true
   snapshot?: true
+  evaluation?: true
   runGroupId?: true
   runGroupType?: true
   runGroupIndex?: true
@@ -374,6 +376,7 @@ export type GenerationGroupByOutputType = {
   cardRecipeId: string | null
   recipeSnapshot: runtime.JsonValue | null
   snapshot: runtime.JsonValue | null
+  evaluation: runtime.JsonValue | null
   runGroupId: string | null
   runGroupType: string
   runGroupIndex: number
@@ -431,6 +434,7 @@ export type GenerationWhereInput = {
   cardRecipeId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   snapshot?: Prisma.JsonNullableFilter<"Generation">
+  evaluation?: Prisma.JsonNullableFilter<"Generation">
   runGroupId?: Prisma.StringNullableFilter<"Generation"> | string | null
   runGroupType?: Prisma.StringFilter<"Generation"> | string
   runGroupIndex?: Prisma.IntFilter<"Generation"> | number
@@ -477,6 +481,7 @@ export type GenerationOrderByWithRelationInput = {
   cardRecipeId?: Prisma.SortOrderInput | Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshot?: Prisma.SortOrderInput | Prisma.SortOrder
+  evaluation?: Prisma.SortOrderInput | Prisma.SortOrder
   runGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   runGroupType?: Prisma.SortOrder
   runGroupIndex?: Prisma.SortOrder
@@ -526,6 +531,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   cardRecipeId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   snapshot?: Prisma.JsonNullableFilter<"Generation">
+  evaluation?: Prisma.JsonNullableFilter<"Generation">
   runGroupId?: Prisma.StringNullableFilter<"Generation"> | string | null
   runGroupType?: Prisma.StringFilter<"Generation"> | string
   runGroupIndex?: Prisma.IntFilter<"Generation"> | number
@@ -572,6 +578,7 @@ export type GenerationOrderByWithAggregationInput = {
   cardRecipeId?: Prisma.SortOrderInput | Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshot?: Prisma.SortOrderInput | Prisma.SortOrder
+  evaluation?: Prisma.SortOrderInput | Prisma.SortOrder
   runGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   runGroupType?: Prisma.SortOrder
   runGroupIndex?: Prisma.SortOrder
@@ -614,6 +621,7 @@ export type GenerationScalarWhereWithAggregatesInput = {
   cardRecipeId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
   snapshot?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
+  evaluation?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
   runGroupId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   runGroupType?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   runGroupIndex?: Prisma.IntWithAggregatesFilter<"Generation"> | number
@@ -644,6 +652,7 @@ export type GenerationCreateInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -690,6 +699,7 @@ export type GenerationUncheckedCreateInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -728,6 +738,7 @@ export type GenerationUpdateInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -774,6 +785,7 @@ export type GenerationUncheckedUpdateInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -816,6 +828,7 @@ export type GenerationCreateManyInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -846,6 +859,7 @@ export type GenerationUpdateManyMutationInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -880,6 +894,7 @@ export type GenerationUncheckedUpdateManyInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -924,6 +939,7 @@ export type GenerationCountOrderByAggregateInput = {
   cardRecipeId?: Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrder
   snapshot?: Prisma.SortOrder
+  evaluation?: Prisma.SortOrder
   runGroupId?: Prisma.SortOrder
   runGroupType?: Prisma.SortOrder
   runGroupIndex?: Prisma.SortOrder
@@ -1366,6 +1382,7 @@ export type GenerationCreateWithoutUserInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1410,6 +1427,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1481,6 +1499,7 @@ export type GenerationScalarWhereInput = {
   cardRecipeId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   snapshot?: Prisma.JsonNullableFilter<"Generation">
+  evaluation?: Prisma.JsonNullableFilter<"Generation">
   runGroupId?: Prisma.StringNullableFilter<"Generation"> | string | null
   runGroupType?: Prisma.StringFilter<"Generation"> | string
   runGroupIndex?: Prisma.IntFilter<"Generation"> | number
@@ -1511,6 +1530,7 @@ export type GenerationCreateWithoutProjectInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1555,6 +1575,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1619,6 +1640,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1664,6 +1686,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1717,6 +1740,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1762,6 +1786,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1799,6 +1824,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1844,6 +1870,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -1897,6 +1924,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1942,6 +1970,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1979,6 +2008,7 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2024,6 +2054,7 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2077,6 +2108,7 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2122,6 +2154,7 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2159,6 +2192,7 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2204,6 +2238,7 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2257,6 +2292,7 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2302,6 +2338,7 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2339,6 +2376,7 @@ export type GenerationCreateWithoutCharacterCardInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2383,6 +2421,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2447,6 +2486,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2492,6 +2532,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2545,6 +2586,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2590,6 +2632,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2627,6 +2670,7 @@ export type GenerationCreateWithoutLikesInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2672,6 +2716,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2725,6 +2770,7 @@ export type GenerationUpdateWithoutLikesInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2770,6 +2816,7 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2807,6 +2854,7 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2852,6 +2900,7 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -2905,6 +2954,7 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2950,6 +3000,7 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -2987,6 +3038,7 @@ export type GenerationCreateWithoutCardRecipeInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3031,6 +3083,7 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   characterCardId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3095,6 +3148,7 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   isFeatured?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3140,6 +3194,7 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3193,6 +3248,7 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3238,6 +3294,7 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3278,6 +3335,7 @@ export type GenerationCreateManyUserInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3308,6 +3366,7 @@ export type GenerationUpdateWithoutUserInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3352,6 +3411,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3393,6 +3453,7 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3426,6 +3487,7 @@ export type GenerationCreateManyProjectInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3456,6 +3518,7 @@ export type GenerationUpdateWithoutProjectInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3500,6 +3563,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3541,6 +3605,7 @@ export type GenerationUncheckedUpdateManyWithoutProjectInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3574,6 +3639,7 @@ export type GenerationCreateManyCharacterCardInput = {
   cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3604,6 +3670,7 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3648,6 +3715,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3689,6 +3757,7 @@ export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3722,6 +3791,7 @@ export type GenerationCreateManyCardRecipeInput = {
   characterCardId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: string | null
   runGroupType?: string
   runGroupIndex?: number
@@ -3752,6 +3822,7 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3796,6 +3867,7 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3837,6 +3909,7 @@ export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
   runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
@@ -3947,6 +4020,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   cardRecipeId?: boolean
   recipeSnapshot?: boolean
   snapshot?: boolean
+  evaluation?: boolean
   runGroupId?: boolean
   runGroupType?: boolean
   runGroupIndex?: boolean
@@ -3994,6 +4068,7 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   cardRecipeId?: boolean
   recipeSnapshot?: boolean
   snapshot?: boolean
+  evaluation?: boolean
   runGroupId?: boolean
   runGroupType?: boolean
   runGroupIndex?: boolean
@@ -4032,6 +4107,7 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   cardRecipeId?: boolean
   recipeSnapshot?: boolean
   snapshot?: boolean
+  evaluation?: boolean
   runGroupId?: boolean
   runGroupType?: boolean
   runGroupIndex?: boolean
@@ -4070,6 +4146,7 @@ export type GenerationSelectScalar = {
   cardRecipeId?: boolean
   recipeSnapshot?: boolean
   snapshot?: boolean
+  evaluation?: boolean
   runGroupId?: boolean
   runGroupType?: boolean
   runGroupIndex?: boolean
@@ -4077,7 +4154,7 @@ export type GenerationSelectScalar = {
   seed?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
@@ -4149,6 +4226,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     cardRecipeId: string | null
     recipeSnapshot: runtime.JsonValue | null
     snapshot: runtime.JsonValue | null
+    evaluation: runtime.JsonValue | null
     runGroupId: string | null
     runGroupType: string
     runGroupIndex: number
@@ -4615,6 +4693,7 @@ export interface GenerationFieldRefs {
   readonly cardRecipeId: Prisma.FieldRef<"Generation", 'String'>
   readonly recipeSnapshot: Prisma.FieldRef<"Generation", 'Json'>
   readonly snapshot: Prisma.FieldRef<"Generation", 'Json'>
+  readonly evaluation: Prisma.FieldRef<"Generation", 'Json'>
   readonly runGroupId: Prisma.FieldRef<"Generation", 'String'>
   readonly runGroupType: Prisma.FieldRef<"Generation", 'String'>
   readonly runGroupIndex: Prisma.FieldRef<"Generation", 'Int'>

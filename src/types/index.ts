@@ -2285,3 +2285,41 @@ export const GenerationPlanRequestSchema = z.object({
 })
 
 export type GenerationPlanRequest = z.infer<typeof GenerationPlanRequestSchema>
+
+// ─── Creative Control: Generation Evaluation ──────────────────────
+
+/**
+ * LLM vision evaluation of a generated image against its prompt.
+ * Scores are 0.0-1.0. Stored in Generation.evaluation as JSON.
+ */
+export const GenerationEvaluationSchema = z.object({
+  /** How well the main subject matches the prompt description */
+  subjectMatch: z.number().min(0).max(1),
+  /** How well the visual style matches the prompt */
+  styleMatch: z.number().min(0).max(1),
+  /** How well the composition / framing matches the prompt */
+  compositionMatch: z.number().min(0).max(1),
+  /** Reference image consistency, present only when referenceAssets were used */
+  referenceConsistency: z.number().min(0).max(1).optional(),
+  /** Image quality: 1.0 = pristine, 0.0 = severe artifacts */
+  artifactScore: z.number().min(0).max(1),
+  /** Overall prompt adherence */
+  promptAdherence: z.number().min(0).max(1),
+  /** Weighted overall quality score */
+  overall: z.number().min(0).max(1),
+  /** Specific visual issues detected */
+  detectedIssues: z.array(z.string().max(200)).max(10),
+  /** Actionable prompt improvements */
+  suggestedFixes: z.array(z.string().max(200)).max(10),
+})
+
+export type GenerationEvaluation = z.infer<typeof GenerationEvaluationSchema>
+
+export const GenerateEvaluationRequestSchema = z.object({
+  /** The ID of the generation to evaluate */
+  generationId: z.string().min(1),
+})
+
+export type GenerateEvaluationRequest = z.infer<
+  typeof GenerateEvaluationRequestSchema
+>

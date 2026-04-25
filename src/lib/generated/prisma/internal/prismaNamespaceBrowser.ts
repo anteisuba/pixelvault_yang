@@ -175,6 +175,7 @@ export const GenerationScalarFieldEnum = {
   cardRecipeId: 'cardRecipeId',
   recipeSnapshot: 'recipeSnapshot',
   snapshot: 'snapshot',
+  evaluation: 'evaluation',
   runGroupId: 'runGroupId',
   runGroupType: 'runGroupType',
   runGroupIndex: 'runGroupIndex',

@@ -2183,3 +2183,105 @@ export interface LoraTrainingListResponse {
 
 // ─── Video Script (VS1-VS11) ─────────────────────────────────────
 export * from './video-script'
+
+// ─── Creative Control: Intent + Reference Asset ───────────────────
+
+/**
+ * A reference image and its intended creative role.
+ * Used in ImageIntent to tell the model how to use the reference.
+ */
+export const ReferenceAssetSchema = z.object({
+  /** HTTPS URL of the reference image */
+  url: z.string().url(),
+  /**
+   * How the model should interpret this reference:
+   * - identity: subject/character likeness
+   * - pose: body pose / keypoints
+   * - style: visual style / artistic look
+   * - composition: scene layout / framing
+   * - background: background / setting
+   * - product: product placement / object
+   * - first_frame: first frame of a video clip
+   * - last_frame: last frame of a video clip
+   */
+  role: z.enum([
+    'identity',
+    'pose',
+    'style',
+    'composition',
+    'background',
+    'product',
+    'first_frame',
+    'last_frame',
+  ]),
+  /** Influence weight (0.0-1.0, provider-dependent) */
+  weight: z.number().min(0).max(1).optional(),
+  /** Human-readable notes passed to prompt compiler */
+  notes: z.string().max(200).optional(),
+})
+
+export type ReferenceAsset = z.infer<typeof ReferenceAssetSchema>
+
+/**
+ * Structured user intent for image generation.
+ * The output of intent-parser.service and the input to prompt-compiler.service.
+ * All fields except `subject` are optional.
+ */
+export const ImageIntentSchema = z.object({
+  /** Primary subject (person, object, place) */
+  subject: z.string().min(1).max(500),
+  /** Additional subject details (appearance, clothing, identity) */
+  subjectDetails: z.string().max(500).optional(),
+  /** What the subject is doing or how they are posed */
+  actionOrPose: z.string().max(300).optional(),
+  /** Scene / environment description */
+  scene: z.string().max(500).optional(),
+  /** Framing / composition (for example, close-up or wide shot) */
+  composition: z.string().max(300).optional(),
+  /** Camera and lens details */
+  camera: z.string().max(300).optional(),
+  /** Lighting setup */
+  lighting: z.string().max(300).optional(),
+  /** Color palette / grading notes */
+  colorPalette: z.string().max(300).optional(),
+  /** Visual style category */
+  style: z.string().max(300).optional(),
+  /** Emotional tone / atmosphere */
+  mood: z.string().max(300).optional(),
+  /** Elements that must appear in the result */
+  mustInclude: z.array(z.string().max(100)).max(10).optional(),
+  /** Elements that must not appear in the result */
+  mustAvoid: z.array(z.string().max(100)).max(10).optional(),
+  /** Reference images with their creative roles */
+  referenceAssets: z.array(ReferenceAssetSchema).max(5).optional(),
+})
+
+export type ImageIntent = z.infer<typeof ImageIntentSchema>
+
+export const GenerationPlanResponseSchema = z.object({
+  intent: ImageIntentSchema,
+  recommendedModels: z.array(
+    z.object({
+      modelId: z.string(),
+      score: z.number(),
+      reason: z.string(),
+      matchedBestFor: z.array(z.string()),
+    }),
+  ),
+  promptDraft: z.string(),
+  negativePromptDraft: z.string().optional(),
+  variationCount: z.number().int().min(1).max(8),
+})
+
+export type GenerationPlanResponse = z.infer<
+  typeof GenerationPlanResponseSchema
+>
+
+export const GenerationPlanRequestSchema = z.object({
+  /** Natural language description of what the user wants to generate */
+  naturalLanguage: z.string().min(1).max(2000),
+  /** Optional reference images with roles */
+  referenceAssets: z.array(ReferenceAssetSchema).max(5).optional(),
+})
+
+export type GenerationPlanRequest = z.infer<typeof GenerationPlanRequestSchema>

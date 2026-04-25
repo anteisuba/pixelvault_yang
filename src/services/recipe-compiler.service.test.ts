@@ -51,7 +51,7 @@ vi.mock('@/services/civitai-token.service', () => ({
 }))
 
 import { db } from '@/lib/db'
-import { compileRecipe } from './recipe-compiler.service'
+import { compileRecipe, previewRecipe } from './recipe-compiler.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import {
   llmTextCompletion,
@@ -398,5 +398,26 @@ describe('compileRecipe two-stage compilation', () => {
     await expect(
       compileRecipe({ userId: 'user-1', styleCardId: 'style-1' }),
     ).rejects.toThrow('MISSING_MODEL_IN_STYLE')
+  })
+})
+
+describe('previewRecipe', () => {
+  it('returns a template-compiled prompt without LLM', async () => {
+    vi.clearAllMocks()
+    mockStyleFind.mockResolvedValue(
+      mkStyleCard({ stylePrompt: 'watercolor painting' }) as never,
+    )
+    mockCharFind.mockResolvedValue(null as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await previewRecipe({
+      userId: 'user-1',
+      styleCardId: 'style-1',
+      freePrompt: 'running in rain',
+    })
+
+    expect(mockLlm).not.toHaveBeenCalled()
+    expect(result).toContain('watercolor')
+    expect(result).toContain('running in rain')
   })
 })

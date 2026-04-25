@@ -2025,5 +2025,43 @@
     "saveFailed": "シーンを保存できませんでした。",
     "statusDraft": "下書き",
     "statusScriptReady": "確定済み"
+  },
+  "StudioGenerationPlan": {
+    "title": "生成プラン",
+    "subtitle": "生成前に設定を確認",
+    "modelsSection": "推奨モデル",
+    "promptSection": "コンパイル済みプロンプト",
+    "negativeSection": "ネガティブプロンプト",
+    "variationCount": "{count}バリエーション",
+    "loading": "プロンプトを分析中...",
+    "loadFailed": "プランを読み込めませんでした。このまま生成しますか？",
+    "generateNow": "今すぐ生成",
+    "cancel": "キャンセル",
+    "reasonLabel": "理由: {reason}"
+  },
+  "StudioResultFeedback": {
+    "satisfied": "満足",
+    "subjectMismatch": "主体がズレ",
+    "styleMismatch": "スタイルがズレ",
+    "compositionMismatch": "構図がズレ",
+    "lightingMismatch": "光がズレ",
+    "refine": "改善",
+    "scoreLabel": "スコア: {score}%",
+    "evaluating": "評価中...",
+    "evalFailed": "評価できません"
+  },
+  "StudioKeepChangePanel": {
+    "title": "保留と変更",
+    "keepLabel": "保留",
+    "changeLabel": "変更",
+    "subject": "主体",
+    "style": "スタイル",
+    "composition": "構図",
+    "lighting": "光",
+    "color": "色",
+    "freeformLabel": "追加の指示",
+    "freeformPlaceholder": "他に変えたいことは？",
+    "generateRefined": "改善版を生成",
+    "cancel": "キャンセル"
   }
 }

@@ -2025,5 +2025,43 @@
     "saveFailed": "无法保存场景。",
     "statusDraft": "草稿",
     "statusScriptReady": "已确认"
+  },
+  "StudioGenerationPlan": {
+    "title": "生成计划",
+    "subtitle": "生成前确认设置",
+    "modelsSection": "推荐模型",
+    "promptSection": "编译后提示词",
+    "negativeSection": "负向提示词",
+    "variationCount": "{count} 个变体",
+    "loading": "正在分析提示词...",
+    "loadFailed": "无法加载计划，直接生成？",
+    "generateNow": "立即生成",
+    "cancel": "取消",
+    "reasonLabel": "原因：{reason}"
+  },
+  "StudioResultFeedback": {
+    "satisfied": "满意",
+    "subjectMismatch": "主体偏差",
+    "styleMismatch": "风格偏差",
+    "compositionMismatch": "构图偏差",
+    "lightingMismatch": "光线偏差",
+    "refine": "继续优化",
+    "scoreLabel": "评分：{score}%",
+    "evaluating": "正在评估...",
+    "evalFailed": "评估不可用"
+  },
+  "StudioKeepChangePanel": {
+    "title": "保留与改变",
+    "keepLabel": "保留",
+    "changeLabel": "改变",
+    "subject": "主体",
+    "style": "风格",
+    "composition": "构图",
+    "lighting": "光线",
+    "color": "色彩",
+    "freeformLabel": "额外说明",
+    "freeformPlaceholder": "还需要改变什么？",
+    "generateRefined": "生成优化版",
+    "cancel": "取消"
   }
 }

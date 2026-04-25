@@ -832,3 +832,68 @@ export async function requestGenerationEvaluate(
     }
   }
 }
+
+// ── Generation Plan (B.1.5) ─────────────────────────────────────
+
+export async function fetchGenerationPlanAPI(params: {
+  naturalLanguage: string
+  referenceAssets?: Array<{ url: string; role: string }>
+}): Promise<{
+  success: boolean
+  data?: GenerationPlanResponse
+  error?: string
+}> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATION_PLAN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Plan failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function evaluateGenerationAPI(generationId: string): Promise<{
+  success: boolean
+  data?: GenerationEvaluation
+  error?: string
+}> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATION_EVALUATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generationId }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Evaluate failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}

@@ -2025,5 +2025,43 @@
     "saveFailed": "Couldn't save scenes.",
     "statusDraft": "Draft",
     "statusScriptReady": "Ready"
+  },
+  "StudioGenerationPlan": {
+    "title": "Generation Plan",
+    "subtitle": "Review settings before generating",
+    "modelsSection": "Recommended Models",
+    "promptSection": "Compiled Prompt",
+    "negativeSection": "Negative Prompt",
+    "variationCount": "{count} variations",
+    "loading": "Analyzing your prompt...",
+    "loadFailed": "Could not load plan. Generate anyway?",
+    "generateNow": "Generate Now",
+    "cancel": "Cancel",
+    "reasonLabel": "Why: {reason}"
+  },
+  "StudioResultFeedback": {
+    "satisfied": "Satisfied",
+    "subjectMismatch": "Subject off",
+    "styleMismatch": "Style off",
+    "compositionMismatch": "Composition off",
+    "lightingMismatch": "Lighting off",
+    "refine": "Refine",
+    "scoreLabel": "Score: {score}%",
+    "evaluating": "Evaluating...",
+    "evalFailed": "Evaluation unavailable"
+  },
+  "StudioKeepChangePanel": {
+    "title": "Keep & Change",
+    "keepLabel": "Keep",
+    "changeLabel": "Change",
+    "subject": "Subject",
+    "style": "Style",
+    "composition": "Composition",
+    "lighting": "Lighting",
+    "color": "Color",
+    "freeformLabel": "Additional instructions",
+    "freeformPlaceholder": "What else should change?",
+    "generateRefined": "Generate Refined",
+    "cancel": "Cancel"
   }
 }

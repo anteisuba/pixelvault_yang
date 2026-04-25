@@ -4,39 +4,13 @@ import { createApiRoute } from '@/lib/api-route-factory'
 import {
   GenerationPlanRequestSchema,
   type GenerationPlanResponse,
-  type ImageIntent,
 } from '@/types'
 import { parseImageIntent } from '@/services/intent-parser.service'
 import { routeModelsForIntent } from '@/services/model-router.service'
-
-function isPromptPart(value: string | undefined): value is string {
-  return Boolean(value)
-}
-
-function buildPromptDraft(intent: ImageIntent): string {
-  return [
-    intent.subject,
-    intent.subjectDetails,
-    intent.actionOrPose,
-    intent.scene,
-    intent.composition,
-    intent.camera,
-    intent.lighting,
-    intent.colorPalette,
-    intent.style ? `${intent.style} style` : undefined,
-    intent.mood ? `${intent.mood} mood` : undefined,
-  ]
-    .filter(isPromptPart)
-    .join(', ')
-}
-
-function buildNegativePromptDraft(intent: ImageIntent): string | undefined {
-  if (!intent.mustAvoid || intent.mustAvoid.length === 0) {
-    return undefined
-  }
-
-  return intent.mustAvoid.join(', ')
-}
+import {
+  compilePrompt,
+  compileNegativePrompt,
+} from '@/services/prompt-compiler.service'
 
 export const POST = createApiRoute<
   typeof GenerationPlanRequestSchema,
@@ -50,12 +24,13 @@ export const POST = createApiRoute<
       data.referenceAssets,
     )
     const recommendedModels = routeModelsForIntent(intent)
+    const topModelId = recommendedModels[0]?.modelId ?? ''
 
     return {
       intent,
       recommendedModels,
-      promptDraft: buildPromptDraft(intent),
-      negativePromptDraft: buildNegativePromptDraft(intent),
+      promptDraft: compilePrompt(intent, topModelId),
+      negativePromptDraft: compileNegativePrompt(intent, topModelId),
       variationCount: 4,
     }
   },

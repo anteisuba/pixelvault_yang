@@ -13,6 +13,8 @@ vi.mock('@/lib/logger', () => ({
 
 const mockParseIntent = vi.fn()
 const mockRouteModels = vi.fn()
+const mockCompilePrompt = vi.fn()
+const mockCompileNegativePrompt = vi.fn()
 
 vi.mock('@/services/intent-parser.service', () => ({
   parseImageIntent: (...args: unknown[]) => mockParseIntent(...args),
@@ -20,6 +22,12 @@ vi.mock('@/services/intent-parser.service', () => ({
 
 vi.mock('@/services/model-router.service', () => ({
   routeModelsForIntent: (...args: unknown[]) => mockRouteModels(...args),
+}))
+
+vi.mock('@/services/prompt-compiler.service', () => ({
+  compilePrompt: (...args: unknown[]) => mockCompilePrompt(...args),
+  compileNegativePrompt: (...args: unknown[]) =>
+    mockCompileNegativePrompt(...args),
 }))
 
 import { POST } from '@/app/api/generation/plan/route'
@@ -44,6 +52,8 @@ describe('POST /api/generation/plan', () => {
     mockAuthenticated()
     mockParseIntent.mockResolvedValue(SAMPLE_INTENT)
     mockRouteModels.mockReturnValue(SAMPLE_MODELS)
+    mockCompilePrompt.mockReturnValue('compiled prompt')
+    mockCompileNegativePrompt.mockReturnValue(undefined)
   })
 
   it('returns 401 for unauthenticated requests', async () => {
@@ -117,5 +127,18 @@ describe('POST /api/generation/plan', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(500)
+  })
+
+  it('calls compilePrompt with the top-ranked model id', async () => {
+    const req = createPOST('/api/generation/plan', {
+      naturalLanguage: 'a cinematic portrait',
+    })
+
+    await POST(req)
+
+    expect(mockCompilePrompt).toHaveBeenCalledWith(
+      SAMPLE_INTENT,
+      SAMPLE_MODELS[0].modelId,
+    )
   })
 })

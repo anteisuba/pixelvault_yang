@@ -137,6 +137,7 @@ export const API_ENDPOINTS = {
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
+  GENERATION_PLAN: '/api/generation/plan',
   CIVITAI_TOKEN: '/api/civitai-token',
 
   /** LoRA Training */

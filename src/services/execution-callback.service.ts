@@ -234,55 +234,68 @@ async function finalizeExecutionResult(
       fetchHeaders: resultData.fetchHeaders,
     })
 
-    const generation = await createGeneration({
-      url: uploadResult.publicUrl,
-      storageKey,
-      mimeType: resultData.mimeType ?? 'video/mp4',
-      width: resultData.width ?? 0,
-      height: resultData.height ?? 0,
-      duration: resultData.duration,
-      referenceImageUrl: metadata.referenceImageUrl,
-      prompt: job.prompt ?? '',
-      model: job.modelId,
-      provider: job.provider,
-      requestCount: resultData.requestCount ?? 1,
-      outputType: 'VIDEO',
-      userId: job.userId,
-      characterCardIds: metadata.characterCardIds,
-      projectId: metadata.projectId,
-      isFreeGeneration: metadata.isFreeGeneration,
-      snapshot: toPrismaJson({
-        executionCallback: {
-          runId: payload.runId,
-          ts: payload.ts,
-          artifactUrl: resultData.artifactUrl,
-          providerMetadata: resultData.providerMetadata,
-          cost: resultData.cost,
+    const generation = await db.$transaction(async (tx) => {
+      const createdGeneration = await createGeneration(
+        {
+          url: uploadResult.publicUrl,
+          storageKey,
+          mimeType: resultData.mimeType ?? 'video/mp4',
+          width: resultData.width ?? 0,
+          height: resultData.height ?? 0,
+          duration: resultData.duration,
+          referenceImageUrl: metadata.referenceImageUrl,
+          prompt: job.prompt ?? '',
+          model: job.modelId,
+          provider: job.provider,
+          requestCount: resultData.requestCount ?? 1,
+          outputType: 'VIDEO',
+          userId: job.userId,
+          characterCardIds: metadata.characterCardIds,
+          projectId: metadata.projectId,
+          isFreeGeneration: metadata.isFreeGeneration,
+          snapshot: toPrismaJson({
+            executionCallback: {
+              runId: payload.runId,
+              ts: payload.ts,
+              artifactUrl: resultData.artifactUrl,
+              providerMetadata: resultData.providerMetadata,
+              cost: resultData.cost,
+            },
+          }),
         },
-      }),
-    })
+        tx,
+      )
 
-    await Promise.all([
-      completeGenerationJob(job.id, {
-        generationId: generation.id,
-        requestCount: resultData.requestCount ?? 1,
-      }),
-      createApiUsageEntry({
-        userId: job.userId,
-        generationId: generation.id,
-        generationJobId: job.id,
-        adapterType: job.adapterType,
-        provider: job.provider,
-        modelId: job.modelId,
-        requestCount: resultData.requestCount ?? 1,
-        inputImageCount: metadata.referenceImageUrl ? 1 : 0,
-        outputImageCount: 0,
-        width: resultData.width,
-        height: resultData.height,
-        durationMs: Date.now() - job.createdAt.getTime(),
-        wasSuccessful: true,
-      }),
-    ])
+      await completeGenerationJob(
+        job.id,
+        {
+          generationId: createdGeneration.id,
+          requestCount: resultData.requestCount ?? 1,
+        },
+        tx,
+      )
+
+      await createApiUsageEntry(
+        {
+          userId: job.userId,
+          generationId: createdGeneration.id,
+          generationJobId: job.id,
+          adapterType: job.adapterType,
+          provider: job.provider,
+          modelId: job.modelId,
+          requestCount: resultData.requestCount ?? 1,
+          inputImageCount: metadata.referenceImageUrl ? 1 : 0,
+          outputImageCount: 0,
+          width: resultData.width,
+          height: resultData.height,
+          durationMs: Date.now() - job.createdAt.getTime(),
+          wasSuccessful: true,
+        },
+        tx,
+      )
+
+      return createdGeneration
+    })
 
     logger.info('Execution callback result finalized', {
       runId: job.id,

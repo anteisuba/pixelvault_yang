@@ -15,12 +15,22 @@ const mockCreateGeneration = vi.fn()
 const mockCompleteGenerationJob = vi.fn()
 const mockCreateApiUsageEntry = vi.fn()
 const mockFailGenerationJob = vi.fn()
+const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+  fn({
+    generation: {},
+    generationCharacterCard: {},
+    generationJob: {},
+    apiUsageLedger: {},
+  }),
+)
 
 vi.mock('@/lib/db', () => ({
   db: {
     generationJob: {
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
     },
+    $transaction: (...args: Parameters<typeof mockDbTransaction>) =>
+      mockDbTransaction(...args),
   },
 }))
 
@@ -194,10 +204,14 @@ describe('execution-callback.service', () => {
         mimeType: 'video/mp4',
       }),
     )
-    expect(mockCompleteGenerationJob).toHaveBeenCalledWith('job-1', {
-      generationId: 'generation-1',
-      requestCount: 1,
-    })
+    expect(mockCompleteGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      {
+        generationId: 'generation-1',
+        requestCount: 1,
+      },
+      expect.anything(),
+    )
   })
 
   it('ignores result callbacks for an already COMPLETED job idempotently', async () => {
@@ -285,6 +299,72 @@ describe('execution-callback.service', () => {
           }),
         }),
       }),
+      expect.anything(),
     )
+  })
+
+  describe('finalize — transaction atomicity', () => {
+    it('rolls back when createApiUsageEntry fails after createGeneration succeeds', async () => {
+      mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+      mockStreamUploadToR2.mockResolvedValue({
+        publicUrl: 'https://cdn.example.com/video.mp4',
+        sizeBytes: 1024,
+      })
+      mockCreateGeneration.mockResolvedValue({ id: 'generation-1' })
+      mockCompleteGenerationJob.mockResolvedValue({})
+      mockCreateApiUsageEntry.mockRejectedValue(new Error('DB write failed'))
+
+      const payload: ExecutionCallbackPayload = {
+        runId: 'job-1',
+        kind: 'result',
+        ts: '2026-04-25T00:00:00.000Z',
+        data: {
+          artifactUrl: 'https://provider.com/video.mp4',
+          mimeType: 'video/mp4',
+          width: 1280,
+          height: 720,
+          duration: 5,
+          requestCount: 1,
+        },
+      }
+
+      const result = await handleExecutionCallback(payload)
+
+      expect(mockDbTransaction).toHaveBeenCalledOnce()
+      expect(result.action).toBe('failed')
+      expect(mockFailGenerationJob).toHaveBeenCalledWith(
+        'job-1',
+        expect.objectContaining({ errorMessage: expect.any(String) }),
+      )
+    })
+
+    it('calls failGenerationJob when the entire finalize transaction throws', async () => {
+      mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+      mockStreamUploadToR2.mockResolvedValue({
+        publicUrl: 'https://cdn.example.com/video.mp4',
+        sizeBytes: 1024,
+      })
+      mockCreateGeneration.mockRejectedValue(new Error('connection lost'))
+
+      const payload: ExecutionCallbackPayload = {
+        runId: 'job-1',
+        kind: 'result',
+        ts: '2026-04-25T00:00:00.000Z',
+        data: {
+          artifactUrl: 'https://provider.com/video.mp4',
+          mimeType: 'video/mp4',
+          width: 1280,
+          height: 720,
+          duration: 5,
+          requestCount: 1,
+        },
+      }
+
+      const result = await handleExecutionCallback(payload)
+
+      expect(mockDbTransaction).toHaveBeenCalledOnce()
+      expect(result.action).toBe('failed')
+      expect(mockFailGenerationJob).toHaveBeenCalledOnce()
+    })
   })
 })

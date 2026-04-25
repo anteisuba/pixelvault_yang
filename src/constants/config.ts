@@ -88,6 +88,9 @@ export const API_ENDPOINTS = {
   /** Projects */
   PROJECTS: '/api/projects',
 
+  /** Recipes */
+  RECIPES: '/api/recipes',
+
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
 

@@ -68,6 +68,7 @@ export type PanelName =
   | 'transform'
   | 'videoParams'
   | 'script'
+  | 'keepChange'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -134,6 +135,7 @@ const initialPanels: Record<PanelName, boolean> = {
   transform: false,
   videoParams: false,
   script: false,
+  keepChange: false,
 }
 
 const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)

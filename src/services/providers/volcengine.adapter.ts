@@ -7,7 +7,7 @@ import {
   AI_PROVIDER_ENDPOINTS,
   VIDEO_GENERATION,
 } from '@/constants/config'
-import { getExecutionModelId, getModelById } from '@/constants/models'
+import { AI_MODELS, getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
@@ -129,6 +129,73 @@ function buildHeaders(apiKey: string): Record<string, string> {
   }
 }
 
+function resolveVolcEngineVideoResolution(
+  modelId: string,
+  resolution: ProviderQueueSubmitInput['resolution'],
+  videoDefaults: ProviderQueueSubmitInput['videoDefaults'],
+): string | undefined {
+  const requested = resolution ?? videoDefaults?.resolution
+  if (modelId === AI_MODELS.SEEDANCE_20_FAST_VOLC && requested === '1080p') {
+    return '720p'
+  }
+  return requested
+}
+
+export function buildVolcEngineVideoQueueBody({
+  prompt,
+  modelId,
+  aspectRatio,
+  duration,
+  referenceImage,
+  resolution,
+  videoDefaults,
+}: ProviderQueueSubmitInput): Record<string, unknown> {
+  const externalModelId = getExecutionModelId(modelId)
+
+  const content: Record<string, unknown>[] = [{ type: 'text', text: prompt }]
+
+  if (referenceImage) {
+    content.push({
+      type: 'image_url',
+      image_url: { url: referenceImage },
+      role: 'first_frame',
+    })
+  }
+
+  const body: Record<string, unknown> = {
+    model: externalModelId,
+    content,
+  }
+
+  if (aspectRatio) {
+    body.ratio = aspectRatio
+  }
+
+  if (duration != null) {
+    body.duration = Math.min(12, Math.max(2, duration))
+  } else {
+    body.duration = VIDEO_GENERATION.DEFAULT_DURATION
+  }
+
+  const effectiveResolution = resolveVolcEngineVideoResolution(
+    modelId,
+    resolution,
+    videoDefaults,
+  )
+  if (effectiveResolution) {
+    body.resolution = effectiveResolution
+  }
+
+  if (videoDefaults?.generateAudio != null) {
+    body.generate_audio = videoDefaults.generateAudio
+  }
+
+  body.return_last_frame = true
+  body.watermark = false
+
+  return body
+}
+
 // ─── Adapter ─────────────────────────────────────────────────────
 
 /**
@@ -245,73 +312,22 @@ export const volcengineAdapter: ProviderAdapter = {
     apiKey,
     duration,
     referenceImage,
-    negativePrompt,
     resolution,
     videoDefaults,
   }: ProviderQueueSubmitInput) {
     const baseUrl = buildBaseUrl(providerConfig.baseUrl)
-    const externalModelId = getExecutionModelId(modelId)
     const endpoint = `${baseUrl}/contents/generations/tasks`
-
-    // Build content array
-    const content: Record<string, unknown>[] = [{ type: 'text', text: prompt }]
-
-    // First frame (image-to-video)
-    if (referenceImage) {
-      content.push({
-        type: 'image_url',
-        image_url: { url: referenceImage },
-        role: 'first_frame',
-      })
-    }
-
-    // Build request body
-    const body: Record<string, unknown> = {
-      model: externalModelId,
-      content,
-    }
-
-    // Aspect ratio
-    if (aspectRatio) {
-      body.ratio = aspectRatio
-    }
-
-    // Duration (2-12 seconds)
-    if (duration != null) {
-      body.duration = Math.min(12, Math.max(2, duration))
-    } else {
-      body.duration = VIDEO_GENERATION.DEFAULT_DURATION
-    }
-
-    // Resolution
-    const effectiveResolution =
-      resolution ??
-      (videoDefaults as Record<string, unknown> | undefined)?.resolution
-    if (effectiveResolution) {
-      body.resolution = effectiveResolution
-    }
-
-    // Generate audio (Seedance 1.5 Pro only)
-    const generateAudio = (videoDefaults as Record<string, unknown> | undefined)
-      ?.generateAudio
-    if (generateAudio != null) {
-      body.generate_audio = generateAudio
-    }
-
-    // Seed for reproducibility
-    const modelConfig = getModelById(modelId)
-    if (
-      negativePrompt === undefined &&
-      modelConfig?.videoDefaults?.negativePrompt
-    ) {
-      // Use model default negative prompt if user didn't specify
-    }
-
-    // Return last frame for video continuation workflows
-    body.return_last_frame = true
-
-    // No watermark
-    body.watermark = false
+    const body = buildVolcEngineVideoQueueBody({
+      prompt,
+      modelId,
+      aspectRatio,
+      providerConfig,
+      apiKey,
+      duration,
+      referenceImage,
+      resolution,
+      videoDefaults,
+    })
 
     const response = await fetch(endpoint, {
       method: 'POST',

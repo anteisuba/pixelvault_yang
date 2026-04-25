@@ -8,7 +8,7 @@ import {
   IMAGE_SIZES,
   VIDEO_GENERATION,
 } from '@/constants/config'
-import { getExecutionModelId } from '@/constants/models'
+import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
@@ -64,6 +64,7 @@ import {
   type ProviderQueueStatusInput,
   type ProviderExtendVideoInput,
 } from '@/services/providers/types'
+import { buildFalVideoQueueRequest } from '@/services/providers/fal/video-request-builders'
 
 const FAL_RESPONSE_SCHEMA = z.object({
   images: z.array(
@@ -109,6 +110,20 @@ const FAL_IMAGE_SIZES: Record<string, string> = {
   '9:16': 'portrait_16_9',
   '4:3': 'landscape_4_3',
   '3:4': 'portrait_4_3',
+}
+
+function warnUnverifiedFalVideoBody(
+  modelId: string,
+  endpoint: string,
+  body: Record<string, unknown>,
+): void {
+  // TODO(video-payload-audit): verify this endpoint against current fal.ai
+  // schema once the provider documentation page is available again.
+  logger.warn('fal.ai video request body uses unverified provider schema', {
+    modelId,
+    endpoint,
+    body,
+  })
 }
 
 export const falAdapter: ProviderAdapter = {
@@ -239,16 +254,22 @@ export const falAdapter: ProviderAdapter = {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['16:9']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.FAL
     const externalModelId = getExecutionModelId(modelId)
-    const endpoint = `${baseUrl}/${externalModelId}`
-
-    const body: Record<string, unknown> = {
+    const modelConfig = getModelById(modelId)
+    const request = buildFalVideoQueueRequest({
       prompt,
-      aspect_ratio: aspectRatio,
-      duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
-    }
+      modelId,
+      externalModelId,
+      aspectRatio,
+      duration,
+      referenceImage,
+      i2vModelId: modelConfig?.i2vModelId,
+      videoDefaults: modelConfig?.videoDefaults,
+    })
+    const endpoint = `${baseUrl}/${request.endpointModelId}`
+    const body = request.input
 
-    if (referenceImage) {
-      body.image_url = referenceImage
+    if (!request.isDocumentationVerified) {
+      warnUnverifiedFalVideoBody(modelId, endpoint, body)
     }
 
     const controller = new AbortController()
@@ -302,46 +323,23 @@ export const falAdapter: ProviderAdapter = {
     videoDefaults,
   }: ProviderQueueSubmitInput) {
     const externalModelId = getExecutionModelId(modelId)
-
-    // Use I2V endpoint when reference image is provided and model has a dedicated I2V endpoint
-    const effectiveModelId =
-      referenceImage && i2vModelId ? i2vModelId : externalModelId
-    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${effectiveModelId}`
-
-    const body: Record<string, unknown> = {
+    const request = buildFalVideoQueueRequest({
       prompt,
-      aspect_ratio: aspectRatio,
-      duration: String(duration ?? VIDEO_GENERATION.DEFAULT_DURATION),
-    }
+      modelId,
+      externalModelId,
+      aspectRatio,
+      duration,
+      referenceImage,
+      negativePrompt,
+      resolution,
+      i2vModelId,
+      videoDefaults,
+    })
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${request.endpointModelId}`
+    const body = request.input
 
-    // Reference image for I2V
-    if (referenceImage) {
-      body.image_url = referenceImage
-    }
-
-    // Apply model-specific defaults first, then user overrides
-    if (videoDefaults?.negativePrompt) {
-      body.negative_prompt = videoDefaults.negativePrompt
-    }
-    if (videoDefaults?.cfgScale !== undefined) {
-      body.cfg_scale = videoDefaults.cfgScale
-    }
-    if (videoDefaults?.enablePromptOptimizer !== undefined) {
-      body.prompt_optimizer = videoDefaults.enablePromptOptimizer
-    }
-    if (videoDefaults?.generateAudio !== undefined) {
-      body.generate_audio = videoDefaults.generateAudio
-    }
-    if (videoDefaults?.resolution) {
-      body.resolution = videoDefaults.resolution
-    }
-
-    // User overrides
-    if (negativePrompt) {
-      body.negative_prompt = negativePrompt
-    }
-    if (resolution) {
-      body.resolution = resolution
+    if (!request.isDocumentationVerified) {
+      warnUnverifiedFalVideoBody(modelId, endpoint, body)
     }
 
     const response = await fetch(endpoint, {

@@ -1,6 +1,8 @@
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import type { Workflow, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 
+import { buildFalWorkerQueueRequest } from './models/fal/video-request-builders'
+
 const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
 const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
@@ -429,59 +431,23 @@ async function resolveApiKey(
   return payload.data.apiKey
 }
 
-function buildFalQueueBody(context: WorkerRunContext): Record<string, unknown> {
-  const { providerInput } = context
-  const effectiveModelId =
-    providerInput.referenceImage && providerInput.i2vModelId
-      ? providerInput.i2vModelId
-      : providerInput.externalModelId
-
-  const body: Record<string, unknown> = {
-    prompt: providerInput.prompt,
-    aspect_ratio: providerInput.aspectRatio,
-    duration: String(providerInput.duration ?? 5),
-  }
-
-  if (providerInput.referenceImage) {
-    body.image_url = providerInput.referenceImage
-  }
-
-  const defaults = providerInput.videoDefaults ?? {}
-  if (typeof defaults.negativePrompt === 'string') {
-    body.negative_prompt = defaults.negativePrompt
-  }
-  if (typeof defaults.cfgScale === 'number') {
-    body.cfg_scale = defaults.cfgScale
-  }
-  if (typeof defaults.enablePromptOptimizer === 'boolean') {
-    body.prompt_optimizer = defaults.enablePromptOptimizer
-  }
-  if (typeof defaults.generateAudio === 'boolean') {
-    body.generate_audio = defaults.generateAudio
-  }
-  if (typeof defaults.resolution === 'string') {
-    body.resolution = defaults.resolution
-  }
-  if (providerInput.negativePrompt) {
-    body.negative_prompt = providerInput.negativePrompt
-  }
-  if (providerInput.resolution) {
-    body.resolution = providerInput.resolution
-  }
-
-  return {
-    endpointModelId: effectiveModelId,
-    input: body,
-  }
-}
-
 async function submitFalQueue(
   context: WorkerRunContext,
   apiKey: string,
 ): Promise<FalQueueSubmitResult> {
-  const queueBody = buildFalQueueBody(context)
+  const queueBody = buildFalWorkerQueueRequest(context)
   const baseUrl = 'https://queue.fal.run'
   const endpoint = `${baseUrl}/${queueBody.endpointModelId}`
+
+  if (!queueBody.isDocumentationVerified) {
+    // TODO(video-payload-audit): replace this warning after the provider
+    // publishes a current schema page for this endpoint.
+    console.warn('fal.ai worker video request body uses unverified schema', {
+      modelId: context.providerInput.modelId,
+      endpoint,
+      body: queueBody.input,
+    })
+  }
 
   const response = await fetch(endpoint, {
     method: 'POST',

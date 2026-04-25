@@ -77,6 +77,11 @@ export type ExecutionOutbox = Prisma.ExecutionOutboxModel
  */
 export type ApiUsageLedger = Prisma.ApiUsageLedgerModel
 /**
+ * Model FreeTierSlot
+ * 
+ */
+export type FreeTierSlot = Prisma.FreeTierSlotModel
+/**
  * Model ImageAnalysis
  * 
  */

@@ -11,7 +11,6 @@ vi.mock('@/services/apiKey.service', () => ({
 }))
 vi.mock('@/services/generation.service', () => ({
   createGeneration: vi.fn(),
-  getFreeGenerationCountToday: vi.fn(),
 }))
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
@@ -22,6 +21,7 @@ vi.mock('@/services/storage/r2', () => ({
   uploadToR2: vi.fn(),
 }))
 vi.mock('@/services/usage.service', () => ({
+  atomicReserveFreeTierSlot: vi.fn(),
   createApiUsageEntry: vi.fn(),
   createGenerationJob: vi.fn(),
   completeGenerationJob: vi.fn(),
@@ -77,10 +77,7 @@ import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
-import {
-  createGeneration,
-  getFreeGenerationCountToday,
-} from '@/services/generation.service'
+import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   fetchAsBuffer,
@@ -88,6 +85,7 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import {
+  atomicReserveFreeTierSlot,
   createApiUsageEntry,
   createGenerationJob,
   completeGenerationJob,
@@ -123,6 +121,12 @@ const BYOK_INPUT: GenerateRequest = {
   apiKeyId: 'key-1',
 }
 
+function freeLimitError(message = 'Free tier limit reached (20/day).') {
+  return Object.assign(new Error(message), {
+    code: 'FREE_LIMIT_EXCEEDED' as const,
+  })
+}
+
 function setupBYOKRoute() {
   vi.mocked(getApiKeyValueById).mockResolvedValue({
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -136,7 +140,7 @@ function setupHappyPath() {
   // Restore getModelById to real implementation (previous test may have overridden it)
   vi.mocked(getModelById).mockImplementation(modelsMock.realGetModelById!)
   vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
-  vi.mocked(getFreeGenerationCountToday).mockResolvedValue(0)
+  vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
   vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
   vi.mocked(validatePrompt).mockReturnValue({ valid: true } as never)
   vi.mocked(getProviderAdapter).mockReturnValue({
@@ -227,7 +231,7 @@ describe('resolveGenerationRoute', () => {
 
   it('falls back to free tier when no user key exists', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(getFreeGenerationCountToday).mockResolvedValue(0)
+    vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
     vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
 
     const route = await resolveGenerationRoute('user-1', {
@@ -240,7 +244,7 @@ describe('resolveGenerationRoute', () => {
 
   it('throws FREE_LIMIT_EXCEEDED when daily limit reached', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(getFreeGenerationCountToday).mockResolvedValue(999)
+    vi.mocked(atomicReserveFreeTierSlot).mockRejectedValue(freeLimitError())
 
     await expect(
       resolveGenerationRoute('user-1', {
@@ -272,7 +276,7 @@ describe('resolveGenerationRoute', () => {
 
   it('throws PLATFORM_KEY_MISSING when free tier enabled but platform key absent', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(getFreeGenerationCountToday).mockResolvedValue(0)
+    vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
     vi.mocked(getSystemApiKey).mockReturnValue(undefined as never)
 
     await expect(

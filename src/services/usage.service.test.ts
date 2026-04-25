@@ -21,6 +21,17 @@ const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
 const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
+const mockSlotCount = vi.fn()
+const mockSlotCreate = vi.fn()
+const mockDbTransaction = vi.fn(
+  async (fn: (tx: unknown) => Promise<unknown>, _opts?: unknown) =>
+    fn({
+      freeTierSlot: {
+        count: (...args: unknown[]) => mockSlotCount(...args),
+        create: (...args: unknown[]) => mockSlotCreate(...args),
+      },
+    }),
+)
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -37,6 +48,12 @@ vi.mock('@/lib/db', () => ({
     generation: {
       count: vi.fn(),
     },
+    freeTierSlot: {
+      count: (...args: unknown[]) => mockSlotCount(...args),
+      create: (...args: unknown[]) => mockSlotCreate(...args),
+    },
+    $transaction: (...args: Parameters<typeof mockDbTransaction>) =>
+      mockDbTransaction(...args),
   },
 }))
 
@@ -46,6 +63,7 @@ import {
   failGenerationJob,
   createApiUsageEntry,
   attachUsageEntryToGeneration,
+  atomicReserveFreeTierSlot,
 } from './usage.service'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -53,6 +71,7 @@ import {
 describe('usage.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSlotCreate.mockResolvedValue({ id: 'slot-1' })
   })
 
   describe('createGenerationJob', () => {
@@ -208,6 +227,60 @@ describe('usage.service', () => {
           where: { id: 'entry-1' },
           data: { generationId: 'gen-1' },
         }),
+      )
+    })
+  })
+
+  describe('atomicReserveFreeTierSlot', () => {
+    it('creates a slot when count is under daily limit (19 < 20)', async () => {
+      mockSlotCount.mockResolvedValue(19)
+
+      await atomicReserveFreeTierSlot('user-1')
+
+      expect(mockSlotCreate).toHaveBeenCalledOnce()
+      expect(mockSlotCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'user-1' }),
+        }),
+      )
+    })
+
+    it('throws with code FREE_LIMIT_EXCEEDED when count equals daily limit (20 >= 20)', async () => {
+      mockSlotCount.mockResolvedValue(20)
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
+        code: 'FREE_LIMIT_EXCEEDED',
+      })
+      expect(mockSlotCreate).not.toHaveBeenCalled()
+    })
+
+    it('throws with code FREE_LIMIT_EXCEEDED when count exceeds daily limit (25 > 20)', async () => {
+      mockSlotCount.mockResolvedValue(25)
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
+        code: 'FREE_LIMIT_EXCEEDED',
+      })
+    })
+
+    it('converts Prisma P2034 serialization failure to FREE_LIMIT_EXCEEDED', async () => {
+      mockSlotCount.mockResolvedValue(19)
+      const p2034 = Object.assign(
+        new Error('Transaction failed due to serialization failure'),
+        { code: 'P2034' },
+      )
+      mockSlotCreate.mockRejectedValue(p2034)
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
+        code: 'FREE_LIMIT_EXCEEDED',
+      })
+    })
+
+    it('re-throws non-P2034 errors unchanged', async () => {
+      mockSlotCount.mockResolvedValue(19)
+      mockSlotCreate.mockRejectedValue(new Error('connection refused'))
+
+      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
+        'connection refused',
       )
     })
   })

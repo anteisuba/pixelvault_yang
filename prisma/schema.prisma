@@ -310,6 +310,15 @@ model ApiUsageLedger {
   @@index([wasSuccessful, createdAt(sort: Desc)])
 }
 
+model FreeTierSlot {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String // YYYY-MM-DD UTC (e.g. "2026-04-25")
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
 model ImageAnalysis {
   id               String   @id @default(uuid())
   userId           String

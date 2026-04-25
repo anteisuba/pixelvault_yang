@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { API_USAGE } from '@/constants/config'
+import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { db } from '@/lib/db'
 import type {
   ApiUsageLedger,
@@ -47,6 +47,59 @@ export interface UserUsageSummary {
   failedRequests: number
   last30DaysRequests: number
   lastRequestAt: Date | null
+}
+
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function isPrismaErrorCode(error: unknown, code: string): boolean {
+  if (!(error instanceof Error)) return false
+
+  const errorCode = (error as Error & { code?: unknown }).code
+  return errorCode === code
+}
+
+export class FreeTierExhaustedError extends Error {
+  readonly code = 'FREE_LIMIT_EXCEEDED' as const
+
+  constructor(limit: number) {
+    super(
+      `Free tier limit reached (${limit}/day). Bind your own API key to continue.`,
+    )
+    this.name = 'FreeTierExhaustedError'
+  }
+}
+
+export async function atomicReserveFreeTierSlot(userId: string): Promise<void> {
+  if (!FREE_TIER.ENABLED) return
+
+  const date = todayUTC()
+
+  try {
+    await db.$transaction(
+      async (tx) => {
+        const count = await tx.freeTierSlot.count({
+          where: { userId, date },
+        })
+
+        if (count >= FREE_TIER.DAILY_LIMIT) {
+          throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
+        }
+
+        await tx.freeTierSlot.create({
+          data: { userId, date },
+        })
+      },
+      { isolationLevel: 'Serializable' },
+    )
+  } catch (error) {
+    if (isPrismaErrorCode(error, 'P2034')) {
+      throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
+    }
+
+    throw error
+  }
 }
 
 export async function createGenerationJob(

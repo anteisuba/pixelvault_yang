@@ -391,6 +391,7 @@ export const ModelName = {
   GenerationJob: 'GenerationJob',
   ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
+  FreeTierSlot: 'FreeTierSlot',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -427,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -946,6 +947,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ApiUsageLedgerCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ApiUsageLedgerCountAggregateOutputType> | number
+        }
+      }
+    }
+    FreeTierSlot: {
+      payload: Prisma.$FreeTierSlotPayload<ExtArgs>
+      fields: Prisma.FreeTierSlotFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FreeTierSlotFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FreeTierSlotFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        findFirst: {
+          args: Prisma.FreeTierSlotFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FreeTierSlotFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        findMany: {
+          args: Prisma.FreeTierSlotFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>[]
+        }
+        create: {
+          args: Prisma.FreeTierSlotCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        createMany: {
+          args: Prisma.FreeTierSlotCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FreeTierSlotCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>[]
+        }
+        delete: {
+          args: Prisma.FreeTierSlotDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        update: {
+          args: Prisma.FreeTierSlotUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        deleteMany: {
+          args: Prisma.FreeTierSlotDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FreeTierSlotUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FreeTierSlotUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>[]
+        }
+        upsert: {
+          args: Prisma.FreeTierSlotUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreeTierSlotPayload>
+        }
+        aggregate: {
+          args: Prisma.FreeTierSlotAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFreeTierSlot>
+        }
+        groupBy: {
+          args: Prisma.FreeTierSlotGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FreeTierSlotGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FreeTierSlotCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FreeTierSlotCountAggregateOutputType> | number
         }
       }
     }
@@ -2690,6 +2765,16 @@ export const ApiUsageLedgerScalarFieldEnum = {
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
 
 
+export const FreeTierSlotScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  date: 'date',
+  createdAt: 'createdAt'
+} as const
+
+export type FreeTierSlotScalarFieldEnum = (typeof FreeTierSlotScalarFieldEnum)[keyof typeof FreeTierSlotScalarFieldEnum]
+
+
 export const ImageAnalysisScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3438,6 +3523,7 @@ export type GlobalOmitConfig = {
   generationJob?: Prisma.GenerationJobOmit
   executionOutbox?: Prisma.ExecutionOutboxOmit
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
+  freeTierSlot?: Prisma.FreeTierSlotOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit
   arenaEntry?: Prisma.ArenaEntryOmit

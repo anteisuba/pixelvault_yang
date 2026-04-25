@@ -58,6 +58,7 @@ export const ModelName = {
   GenerationJob: 'GenerationJob',
   ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
+  FreeTierSlot: 'FreeTierSlot',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -243,6 +244,16 @@ export const ApiUsageLedgerScalarFieldEnum = {
 } as const
 
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
+
+
+export const FreeTierSlotScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  date: 'date',
+  createdAt: 'createdAt'
+} as const
+
+export type FreeTierSlotScalarFieldEnum = (typeof FreeTierSlotScalarFieldEnum)[keyof typeof FreeTierSlotScalarFieldEnum]
 
 
 export const ImageAnalysisScalarFieldEnum = {

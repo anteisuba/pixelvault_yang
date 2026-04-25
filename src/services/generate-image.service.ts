@@ -13,10 +13,7 @@ import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
-import {
-  createGeneration,
-  getFreeGenerationCountToday,
-} from '@/services/generation.service'
+import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   ProviderError,
@@ -29,6 +26,7 @@ import {
 } from '@/services/storage/r2'
 import {
   attachUsageEntryToGeneration,
+  atomicReserveFreeTierSlot,
   completeGenerationJob,
   createApiUsageEntry,
   createGenerationJob,
@@ -86,6 +84,16 @@ export function isGenerateImageServiceError(
   error: unknown,
 ): error is GenerateImageServiceError {
   return error instanceof GenerateImageServiceError
+}
+
+function hasServiceErrorCode(
+  error: unknown,
+  code: GenerateImageServiceErrorCode,
+): error is Error & { code: GenerateImageServiceErrorCode } {
+  if (!(error instanceof Error)) return false
+
+  const errorCode = (error as Error & { code?: unknown }).code
+  return errorCode === code
 }
 
 export async function resolveGenerationRoute(
@@ -173,13 +181,18 @@ export async function resolveGenerationRoute(
 
   // Free tier: use platform API key for eligible models
   if (FREE_TIER.ENABLED && builtInModel.freeTier) {
-    const freeCount = await getFreeGenerationCountToday(userId)
-    if (freeCount >= FREE_TIER.DAILY_LIMIT) {
-      throw new GenerateImageServiceError(
-        'FREE_LIMIT_EXCEEDED',
-        `Free tier limit reached (${FREE_TIER.DAILY_LIMIT}/day). Bind your own API key to continue.`,
-        429,
-      )
+    try {
+      await atomicReserveFreeTierSlot(userId)
+    } catch (error) {
+      if (hasServiceErrorCode(error, 'FREE_LIMIT_EXCEEDED')) {
+        throw new GenerateImageServiceError(
+          'FREE_LIMIT_EXCEEDED',
+          error.message,
+          429,
+        )
+      }
+
+      throw error
     }
 
     const platformKey = getSystemApiKey(builtInModel.adapterType)

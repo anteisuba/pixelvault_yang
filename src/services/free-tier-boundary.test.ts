@@ -2,11 +2,10 @@
  * WP-Usage-02 · FreeTier concurrent boundary tests
  *
  * Tests:
- *   1. getFreeGenerationCountToday uses UTC midnight boundary
- *   2. Boundary: count=19 allows (under limit), count=20 rejects (at limit)
- *   3. Concurrent: 25 parallel resolveGenerationRoute → ≤20 pass
- *   4. Time zone: generation at UTC 23:59 vs 00:01 counted correctly
- *   5. FreeTier disabled: no limit enforced
+ *   1. Free-tier route reserves a daily slot before returning platform key
+ *   2. Boundary: available slot allows, exhausted slot rejects
+ *   3. Concurrent: 25 parallel resolveGenerationRoute → exactly 20 pass
+ *   4. BYOK bypasses free-tier slot reservation
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -22,7 +21,6 @@ vi.mock('@/services/apiKey.service', () => ({
 }))
 vi.mock('@/services/generation.service', () => ({
   createGeneration: vi.fn(),
-  getFreeGenerationCountToday: vi.fn(),
 }))
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
@@ -33,6 +31,7 @@ vi.mock('@/services/storage/r2', () => ({
   uploadToR2: vi.fn(),
 }))
 vi.mock('@/services/usage.service', () => ({
+  atomicReserveFreeTierSlot: vi.fn(),
   createApiUsageEntry: vi.fn(),
   createGenerationJob: vi.fn(),
   completeGenerationJob: vi.fn(),
@@ -78,11 +77,11 @@ vi.mock('@/constants/models', async (importOriginal) => {
 })
 
 import { resolveGenerationRoute } from '@/services/generate-image.service'
-import { getFreeGenerationCountToday } from '@/services/generation.service'
+import { atomicReserveFreeTierSlot } from '@/services/usage.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
 
-const mockGetFreeCount = vi.mocked(getFreeGenerationCountToday)
+const mockReserve = vi.mocked(atomicReserveFreeTierSlot)
 const mockFindKey = vi.mocked(findActiveKeyForAdapter)
 const mockGetPlatformKey = vi.mocked(getSystemApiKey)
 
@@ -90,36 +89,42 @@ const mockGetPlatformKey = vi.mocked(getSystemApiKey)
 
 const FREE_TIER_MODEL = 'gemini-3.1-flash-image-preview'
 
+function freeLimitError(message = 'Free tier limit reached (20/day).') {
+  return Object.assign(new Error(message), {
+    code: 'FREE_LIMIT_EXCEEDED' as const,
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockFindKey.mockResolvedValue(null) // No user key → free tier path
+  mockReserve.mockResolvedValue(undefined)
   mockGetPlatformKey.mockReturnValue('platform-test-key')
 })
 
 // ─── Tests ──────────────────────────────────────────────────────
 
 describe('FreeTier boundary', () => {
-  it('allows generation when count is under DAILY_LIMIT (19 < 20)', async () => {
-    mockGetFreeCount.mockResolvedValue(19)
-
+  it('allows generation when a free-tier slot is reserved', async () => {
     const route = await resolveGenerationRoute('user-1', {
       modelId: FREE_TIER_MODEL,
     })
 
     expect(route.isFreeGeneration).toBe(true)
     expect(route.apiKey).toBe('platform-test-key')
+    expect(mockReserve).toHaveBeenCalledWith('user-1')
   })
 
-  it('rejects generation when count reaches DAILY_LIMIT (20 >= 20)', async () => {
-    mockGetFreeCount.mockResolvedValue(20)
+  it('rejects generation when the daily slot limit is reached', async () => {
+    mockReserve.mockRejectedValue(freeLimitError())
 
     await expect(
       resolveGenerationRoute('user-1', { modelId: FREE_TIER_MODEL }),
     ).rejects.toThrow(expect.objectContaining({ code: 'FREE_LIMIT_EXCEEDED' }))
   })
 
-  it('rejects when count far exceeds limit (999)', async () => {
-    mockGetFreeCount.mockResolvedValue(999)
+  it('rejects when the daily slot limit is exceeded', async () => {
+    mockReserve.mockRejectedValue(freeLimitError())
 
     await expect(
       resolveGenerationRoute('user-1', { modelId: FREE_TIER_MODEL }),
@@ -127,25 +132,19 @@ describe('FreeTier boundary', () => {
   })
 })
 
-describe('FreeTier concurrent requests', () => {
-  it('25 parallel requests — documents race condition window', async () => {
-    // Simulate race: all 25 concurrent requests see the SAME count
-    // because getFreeGenerationCountToday doesn't lock.
-    // In production this means more than 20 can slip through.
-    //
-    // This test documents the current behavior (no transaction guard).
-    // When $transaction wrapping is added, update this test.
+describe('FreeTier concurrent requests (atomic reservation)', () => {
+  it('20 parallel requests with limit 20 — exactly 20 pass, 0 over-run', async () => {
+    let reservedCount = 0
 
-    let callCount = 0
-    mockGetFreeCount.mockImplementation(async () => {
-      callCount++
-      // All concurrent requests read count=18 (under limit)
-      // simulating the race window where DB hasn't been updated yet
-      return 18
+    mockReserve.mockImplementation(async () => {
+      if (reservedCount >= 20) {
+        throw freeLimitError()
+      }
+      reservedCount++
     })
 
     const results = await Promise.allSettled(
-      Array.from({ length: 25 }, () =>
+      Array.from({ length: 20 }, () =>
         resolveGenerationRoute('user-1', { modelId: FREE_TIER_MODEL }),
       ),
     )
@@ -153,18 +152,19 @@ describe('FreeTier concurrent requests', () => {
     const passed = results.filter((r) => r.status === 'fulfilled').length
     const rejected = results.filter((r) => r.status === 'rejected').length
 
-    // Current behavior: ALL 25 pass because they all see count=18
-    // This is the documented race condition gap.
-    expect(passed).toBe(25)
+    expect(passed).toBe(20)
     expect(rejected).toBe(0)
-    expect(callCount).toBe(25)
+    expect(reservedCount).toBe(20)
   })
 
-  it('25 parallel requests with incrementing count — only 2 pass', async () => {
-    // More realistic simulation: count increments as requests are processed
-    let callCount = 0
-    mockGetFreeCount.mockImplementation(async () => {
-      return 18 + callCount++
+  it('25 parallel requests with limit 20 — exactly 20 pass, 5 rejected', async () => {
+    let reservedCount = 0
+
+    mockReserve.mockImplementation(async () => {
+      if (reservedCount >= 20) {
+        throw freeLimitError()
+      }
+      reservedCount++
     })
 
     const results = await Promise.allSettled(
@@ -176,20 +176,16 @@ describe('FreeTier concurrent requests', () => {
     const passed = results.filter((r) => r.status === 'fulfilled').length
     const rejected = results.filter((r) => r.status === 'rejected').length
 
-    // count starts at 18, increments: 18, 19, 20, 21, ...
-    // Only count<20 passes → first 2 pass (18, 19), rest rejected
-    expect(passed).toBe(2)
-    expect(rejected).toBe(23)
+    expect(passed).toBe(20)
+    expect(rejected).toBe(5)
   })
 })
 
-describe('FreeTier UTC boundary', () => {
-  it('getFreeGenerationCountToday is called with current user ID', async () => {
-    mockGetFreeCount.mockResolvedValue(0)
-
+describe('FreeTier reservation boundary', () => {
+  it('atomicReserveFreeTierSlot is called with current user ID', async () => {
     await resolveGenerationRoute('user-abc', { modelId: FREE_TIER_MODEL })
 
-    expect(mockGetFreeCount).toHaveBeenCalledWith('user-abc')
+    expect(mockReserve).toHaveBeenCalledWith('user-abc')
   })
 
   it('bypasses free tier when user has own API key', async () => {
@@ -204,7 +200,6 @@ describe('FreeTier UTC boundary', () => {
 
     expect(route.apiKey).toBe('user-own-key')
     expect(route.isFreeGeneration).toBeUndefined()
-    // getFreeGenerationCountToday should NOT be called
-    expect(mockGetFreeCount).not.toHaveBeenCalled()
+    expect(mockReserve).not.toHaveBeenCalled()
   })
 })

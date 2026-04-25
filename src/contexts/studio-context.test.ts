@@ -48,6 +48,7 @@ function makeInitialState(
       transform: false,
       videoParams: false,
       script: false,
+      keepChange: false,
     },
     ...overrides,
   }

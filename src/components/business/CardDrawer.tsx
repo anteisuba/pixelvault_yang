@@ -123,7 +123,7 @@ export const CardDrawer = memo(function CardDrawer({
             className="hidden sm:inline-flex gap-1.5 text-xs"
           >
             <Layers className="size-3.5" />
-            Cards
+            {t('cardManagement')}
           </Button>
         )}
       </SheetTrigger>

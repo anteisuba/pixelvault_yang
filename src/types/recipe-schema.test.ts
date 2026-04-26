@@ -24,7 +24,9 @@ describe('CreateRecipeRequestSchema', () => {
   })
 
   it('rejects when compiledPrompt is missing', () => {
-    const { compiledPrompt: _omit, ...rest } = MINIMAL
+    const rest: Partial<typeof MINIMAL> = { ...MINIMAL }
+    delete rest.compiledPrompt
+
     expect(CreateRecipeRequestSchema.safeParse(rest).success).toBe(false)
   })
 

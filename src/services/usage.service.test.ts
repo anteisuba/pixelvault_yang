@@ -23,14 +23,13 @@ const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
 const mockSlotCount = vi.fn()
 const mockSlotCreate = vi.fn()
-const mockDbTransaction = vi.fn(
-  async (fn: (tx: unknown) => Promise<unknown>, _opts?: unknown) =>
-    fn({
-      freeTierSlot: {
-        count: (...args: unknown[]) => mockSlotCount(...args),
-        create: (...args: unknown[]) => mockSlotCreate(...args),
-      },
-    }),
+const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+  fn({
+    freeTierSlot: {
+      count: (...args: unknown[]) => mockSlotCount(...args),
+      create: (...args: unknown[]) => mockSlotCreate(...args),
+    },
+  }),
 )
 
 vi.mock('@/lib/db', () => ({

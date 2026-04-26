@@ -46,7 +46,9 @@ describe('GenerationEvaluationSchema', () => {
   })
 
   it('rejects when a required field is missing', () => {
-    const { overall: _omit, ...withoutOverall } = VALID_EVAL
+    const withoutOverall: Partial<typeof VALID_EVAL> = { ...VALID_EVAL }
+    delete withoutOverall.overall
+
     expect(GenerationEvaluationSchema.safeParse(withoutOverall).success).toBe(
       false,
     )

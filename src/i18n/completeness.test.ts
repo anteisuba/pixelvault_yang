@@ -30,6 +30,10 @@ function collectKeys(obj: Record<string, unknown>, prefix = ''): string[] {
   return keys
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 describe('i18n completeness', () => {
   const messagesByLocale = Object.fromEntries(
     LOCALES.map((locale) => [locale, loadMessages(locale)]),
@@ -98,6 +102,39 @@ describe('i18n completeness', () => {
           `StudioApiKeys.providers.${adapterType}.description missing in ${locale}.json`,
         ).toBeDefined()
       }
+    }
+  })
+
+  it('every locale has a non-empty Onboarding.steps.prompt.title', () => {
+    for (const locale of LOCALES) {
+      const onboarding = messagesByLocale[locale].Onboarding
+      expect(isRecord(onboarding)).toBe(true)
+      if (!isRecord(onboarding)) {
+        throw new Error(`Onboarding namespace missing in ${locale}.json`)
+      }
+
+      const steps = onboarding.steps
+      expect(isRecord(steps)).toBe(true)
+      if (!isRecord(steps)) {
+        throw new Error(`Onboarding.steps missing in ${locale}.json`)
+      }
+
+      const prompt = steps.prompt
+      expect(isRecord(prompt)).toBe(true)
+      if (!isRecord(prompt)) {
+        throw new Error(
+          `Onboarding.steps.prompt missing in ${locale}.json`,
+        )
+      }
+
+      const title = prompt.title
+      expect(typeof title).toBe('string')
+      if (typeof title !== 'string') {
+        throw new Error(
+          `Onboarding.steps.prompt.title missing in ${locale}.json`,
+        )
+      }
+      expect(title.trim().length).toBeGreaterThan(0)
     }
   })
 })

@@ -1,7 +1,7 @@
 export const ONBOARDING_STEPS = [
   'welcome',
-  'model',
   'prompt',
+  'model',
   'apiKey',
   'generate',
 ] as const

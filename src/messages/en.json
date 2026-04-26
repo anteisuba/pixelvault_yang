@@ -1186,8 +1186,8 @@
         "description": "Models marked \"Free\" can be used without an API key — up to 5 times per day. Bind your own key to unlock all models."
       },
       "prompt": {
-        "title": "Write your prompt",
-        "description": "Describe what you want to see. Be specific about subject, lighting, composition, and style."
+        "title": "We've filled in a sample prompt",
+        "description": "A starting point to see what's possible. Edit it freely, or clear it and write your own."
       },
       "apiKey": {
         "title": "Want to use your own API key?",

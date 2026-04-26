@@ -1186,8 +1186,8 @@
         "description": "标有「免费」的模型无需 API key，每天可用 5 次。绑定自己的 key 即可解锁全部模型。"
       },
       "prompt": {
-        "title": "编写提示词",
-        "description": "描述你想看到的画面，尽量具体地说明主题、光线、构图和风格。"
+        "title": "已为你预填了示例提示词",
+        "description": "这是一个起点，帮助你感受 PixelVault 的能力。随意修改，或清空后从头开始。"
       },
       "apiKey": {
         "title": "想使用自己的 API 密钥吗？",

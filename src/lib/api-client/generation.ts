@@ -16,7 +16,6 @@ import type {
   GenerationFeedbackRequest,
   GenerationFeedbackResponse,
   GenerationEvaluation,
-  GenerationPlanRequest,
   GenerationPlanResponse,
   LongVideoRequest,
   LongVideoStatusResponse,
@@ -753,82 +752,6 @@ export async function assignToProjectAPI(
       success: false,
       error:
         error instanceof Error ? error.message : 'Failed to assign generation',
-    }
-  }
-}
-
-export async function requestGenerationPlan(
-  params: GenerationPlanRequest,
-): Promise<
-  | { success: true; data: GenerationPlanResponse }
-  | { success: false; error: string; errorCode?: string; i18nKey?: string }
-> {
-  try {
-    const response = await fetch(API_ENDPOINTS.GENERATION_PLAN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
-
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Generation plan failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Failed to fetch generation plan',
-    }
-  }
-}
-
-export async function requestGenerationEvaluate(
-  generationId: string,
-): Promise<
-  | { success: true; data: GenerationEvaluation }
-  | { success: false; error: string; errorCode?: string; i18nKey?: string }
-> {
-  try {
-    const response = await fetch(API_ENDPOINTS.GENERATION_EVALUATE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ generationId }),
-    })
-
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Generation evaluation failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Failed to fetch generation evaluation',
     }
   }
 }

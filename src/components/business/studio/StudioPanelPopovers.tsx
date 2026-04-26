@@ -29,6 +29,11 @@ const StudioTransformPanel = dynamic(() =>
     (mod) => mod.StudioTransformPanel,
   ),
 )
+const StudioKeepChangePanel = dynamic(() =>
+  import('@/components/business/studio/StudioKeepChangePanel').then(
+    (mod) => mod.StudioKeepChangePanel,
+  ),
+)
 
 /**
  * StudioPanelPopovers — renders 3 small/medium panels as Popovers.
@@ -243,6 +248,24 @@ export const StudioPanelPopovers = memo(function StudioPanelPopovers() {
           className="w-96 max-h-[28rem] overflow-y-auto"
         >
           <StudioTransformPanel />
+        </PopoverContent>
+      </Popover>
+
+      {/* ── Keep & Change Popover ─────────────────────────────── */}
+      <Popover
+        open={state.panels.keepChange}
+        onOpenChange={(open) => {
+          if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'keepChange' })
+        }}
+      >
+        <PopoverAnchor className="fixed bottom-36 left-1/2 -translate-x-1/2" />
+        <PopoverContent
+          side="top"
+          align="center"
+          sideOffset={8}
+          className="w-80"
+        >
+          <StudioKeepChangePanel />
         </PopoverContent>
       </Popover>
     </>

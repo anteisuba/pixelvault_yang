@@ -149,7 +149,6 @@ describe('StudioGenerationPlan', () => {
     expect(mockOnGenerate).toHaveBeenCalledWith({
       modelId: null,
       compiledPrompt: 'a cute cat',
-      negativePrompt: undefined,
     })
   })
 })

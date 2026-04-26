@@ -18,6 +18,7 @@ import type { GenerationRecord } from '@/types'
 
 import { CompareGrid } from './CompareGrid'
 import { GenerationPreview } from './GenerationPreview'
+import { StudioResultFeedback } from './StudioResultFeedback'
 import { VariantGrid } from './VariantGrid'
 
 /**
@@ -167,14 +168,19 @@ export const StudioCanvas = memo(function StudioCanvas() {
             onSelect={selectWinner}
           />
         ) : (
-          <GenerationPreview
-            generation={lastGeneration}
-            isLatestResult
-            onUseAsReference={handleUseAsReference}
-            onRemix={handleRemix}
-            onEdit={handleEdit}
-            onRetry={retry}
-          />
+          <>
+            <GenerationPreview
+              generation={lastGeneration}
+              isLatestResult
+              onUseAsReference={handleUseAsReference}
+              onRemix={handleRemix}
+              onEdit={handleEdit}
+              onRetry={retry}
+            />
+            {lastGeneration?.outputType === 'IMAGE' && !activeRun?.mode && (
+              <StudioResultFeedback generation={lastGeneration} />
+            )}
+          </>
         )}
       </div>
     </div>

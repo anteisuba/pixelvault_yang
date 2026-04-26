@@ -3,5 +3,6 @@
   "github": {
     "silent": false
   },
-  "ignoreCommand": "git diff HEAD~1 --quiet -- src/ prisma/ public/ next.config.ts package.json"
+  "buildCommand": "prisma migrate deploy && next build",
+  "ignoreCommand": "git diff HEAD~1 --quiet -- src/ prisma/ public/ next.config.ts package.json vercel.json"
 }

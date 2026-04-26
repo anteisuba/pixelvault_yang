@@ -419,6 +419,7 @@ describe('studioFormReducer', () => {
     'reverse',
     'advanced',
     'refImage',
+    'keepChange',
   ])('TOGGLE_PANEL works for panel "%s"', (panel) => {
     const state = makeInitialState()
     const next = studioFormReducer(state, {

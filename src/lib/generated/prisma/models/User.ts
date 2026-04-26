@@ -37,6 +37,7 @@ export type UserMinAggregateOutputType = {
   bio: string | null
   civitaiToken: string | null
   isPublic: boolean | null
+  isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -54,6 +55,7 @@ export type UserMaxAggregateOutputType = {
   bio: string | null
   civitaiToken: string | null
   isPublic: boolean | null
+  isDeleted: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -71,6 +73,7 @@ export type UserCountAggregateOutputType = {
   bio: number
   civitaiToken: number
   isPublic: number
+  isDeleted: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -90,6 +93,7 @@ export type UserMinAggregateInputType = {
   bio?: true
   civitaiToken?: true
   isPublic?: true
+  isDeleted?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -107,6 +111,7 @@ export type UserMaxAggregateInputType = {
   bio?: true
   civitaiToken?: true
   isPublic?: true
+  isDeleted?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -124,6 +129,7 @@ export type UserCountAggregateInputType = {
   bio?: true
   civitaiToken?: true
   isPublic?: true
+  isDeleted?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -214,6 +220,7 @@ export type UserGroupByOutputType = {
   bio: string | null
   civitaiToken: string | null
   isPublic: boolean
+  isDeleted: boolean
   createdAt: Date
   updatedAt: Date
   _count: UserCountAggregateOutputType | null
@@ -252,6 +259,7 @@ export type UserWhereInput = {
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   civitaiToken?: Prisma.StringNullableFilter<"User"> | string | null
   isPublic?: Prisma.BoolFilter<"User"> | boolean
+  isDeleted?: Prisma.BoolFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   generations?: Prisma.GenerationListRelationFilter
@@ -289,6 +297,7 @@ export type UserOrderByWithRelationInput = {
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   civitaiToken?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
+  isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   generations?: Prisma.GenerationOrderByRelationAggregateInput
@@ -329,6 +338,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   civitaiToken?: Prisma.StringNullableFilter<"User"> | string | null
   isPublic?: Prisma.BoolFilter<"User"> | boolean
+  isDeleted?: Prisma.BoolFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   generations?: Prisma.GenerationListRelationFilter
@@ -366,6 +376,7 @@ export type UserOrderByWithAggregationInput = {
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   civitaiToken?: Prisma.SortOrderInput | Prisma.SortOrder
   isPublic?: Prisma.SortOrder
+  isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
@@ -389,6 +400,7 @@ export type UserScalarWhereWithAggregatesInput = {
   bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   civitaiToken?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isPublic?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
+  isDeleted?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
@@ -406,6 +418,7 @@ export type UserCreateInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -443,6 +456,7 @@ export type UserUncheckedCreateInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -480,6 +494,7 @@ export type UserUpdateInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -517,6 +532,7 @@ export type UserUncheckedUpdateInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -554,6 +570,7 @@ export type UserCreateManyInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -571,6 +588,7 @@ export type UserUpdateManyMutationInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -588,6 +606,7 @@ export type UserUncheckedUpdateManyInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -605,6 +624,7 @@ export type UserCountOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
+  isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -622,6 +642,7 @@ export type UserMaxOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
+  isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -639,6 +660,7 @@ export type UserMinOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   civitaiToken?: Prisma.SortOrder
   isPublic?: Prisma.SortOrder
+  isDeleted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -964,6 +986,7 @@ export type UserCreateWithoutProjectsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1000,6 +1023,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -1052,6 +1076,7 @@ export type UserUpdateWithoutProjectsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -1088,6 +1113,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -1124,6 +1150,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1160,6 +1187,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -1212,6 +1240,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -1248,6 +1277,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -1284,6 +1314,7 @@ export type UserCreateWithoutGenerationsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
@@ -1320,6 +1351,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
@@ -1372,6 +1404,7 @@ export type UserUpdateWithoutGenerationsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
@@ -1408,6 +1441,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
@@ -1444,6 +1478,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1480,6 +1515,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -1532,6 +1568,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -1568,6 +1605,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -1604,6 +1642,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1640,6 +1679,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -1692,6 +1732,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -1728,6 +1769,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -1764,6 +1806,7 @@ export type UserCreateWithoutRecipesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1800,6 +1843,7 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -1852,6 +1896,7 @@ export type UserUpdateWithoutRecipesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -1888,6 +1933,7 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -1924,6 +1970,7 @@ export type UserCreateWithoutImageAnalysesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -1960,6 +2007,7 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2012,6 +2060,7 @@ export type UserUpdateWithoutImageAnalysesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2048,6 +2097,7 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2084,6 +2134,7 @@ export type UserCreateWithoutArenaMatchesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2120,6 +2171,7 @@ export type UserUncheckedCreateWithoutArenaMatchesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2172,6 +2224,7 @@ export type UserUpdateWithoutArenaMatchesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2208,6 +2261,7 @@ export type UserUncheckedUpdateWithoutArenaMatchesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2244,6 +2298,7 @@ export type UserCreateWithoutStoriesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2280,6 +2335,7 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2332,6 +2388,7 @@ export type UserUpdateWithoutStoriesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2368,6 +2425,7 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2404,6 +2462,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2440,6 +2499,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2492,6 +2552,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2528,6 +2589,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2564,6 +2626,7 @@ export type UserCreateWithoutLikesGivenInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2600,6 +2663,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2652,6 +2716,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2688,6 +2753,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2724,6 +2790,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2760,6 +2827,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2801,6 +2869,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -2837,6 +2906,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -2889,6 +2959,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -2925,6 +2996,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -2972,6 +3044,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3008,6 +3081,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3044,6 +3118,7 @@ export type UserCreateWithoutCollectionsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3080,6 +3155,7 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3132,6 +3208,7 @@ export type UserUpdateWithoutCollectionsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3168,6 +3245,7 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3204,6 +3282,7 @@ export type UserCreateWithoutBackgroundCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3240,6 +3319,7 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3292,6 +3372,7 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3328,6 +3409,7 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3364,6 +3446,7 @@ export type UserCreateWithoutStyleCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3400,6 +3483,7 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3452,6 +3536,7 @@ export type UserUpdateWithoutStyleCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3488,6 +3573,7 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3524,6 +3610,7 @@ export type UserCreateWithoutCardRecipesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3560,6 +3647,7 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3612,6 +3700,7 @@ export type UserUpdateWithoutCardRecipesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3648,6 +3737,7 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3684,6 +3774,7 @@ export type UserCreateWithoutVideoPipelinesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3720,6 +3811,7 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3772,6 +3864,7 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3808,6 +3901,7 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -3844,6 +3938,7 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -3880,6 +3975,7 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -3932,6 +4028,7 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -3968,6 +4065,7 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -4004,6 +4102,7 @@ export type UserCreateWithoutVideoScriptsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
@@ -4040,6 +4139,7 @@ export type UserUncheckedCreateWithoutVideoScriptsInput = {
   bio?: string | null
   civitaiToken?: string | null
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
@@ -4092,6 +4192,7 @@ export type UserUpdateWithoutVideoScriptsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
@@ -4128,6 +4229,7 @@ export type UserUncheckedUpdateWithoutVideoScriptsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
@@ -4366,6 +4468,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   bio?: boolean
   civitaiToken?: boolean
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   generations?: boolean | Prisma.User$generationsArgs<ExtArgs>
@@ -4404,6 +4507,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bio?: boolean
   civitaiToken?: boolean
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -4421,6 +4525,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bio?: boolean
   civitaiToken?: boolean
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -4438,11 +4543,12 @@ export type UserSelectScalar = {
   bio?: boolean
   civitaiToken?: boolean
   isPublic?: boolean
+  isDeleted?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "username" | "displayName" | "avatarUrl" | "avatarStorageKey" | "bannerUrl" | "bannerStorageKey" | "bio" | "civitaiToken" | "isPublic" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "username" | "displayName" | "avatarUrl" | "avatarStorageKey" | "bannerUrl" | "bannerStorageKey" | "bio" | "civitaiToken" | "isPublic" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   generations?: boolean | Prisma.User$generationsArgs<ExtArgs>
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
@@ -4506,6 +4612,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     bio: string | null
     civitaiToken: string | null
     isPublic: boolean
+    isDeleted: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["user"]>
@@ -4963,6 +5070,7 @@ export interface UserFieldRefs {
   readonly bio: Prisma.FieldRef<"User", 'String'>
   readonly civitaiToken: Prisma.FieldRef<"User", 'String'>
   readonly isPublic: Prisma.FieldRef<"User", 'Boolean'>
+  readonly isDeleted: Prisma.FieldRef<"User", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }

@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto'
 import { clerkClient } from '@clerk/nextjs/server'
 
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { PROFILE } from '@/constants/config'
 import { fetchAsBuffer, uploadToR2, deleteFromR2 } from '@/services/storage/r2'
 import type { User } from '@/lib/generated/prisma/client'
@@ -499,8 +500,37 @@ export async function syncUserFromClerk(
   const updates: Record<string, unknown> = {}
   if (data.displayName !== undefined) updates.displayName = data.displayName
   if (data.avatarUrl !== undefined) updates.avatarUrl = data.avatarUrl
+  if (data.username !== undefined) {
+    updates.username = data.username ? data.username.toLowerCase() : null
+  }
 
   if (Object.keys(updates).length > 0) {
     await db.user.update({ where: { id: user.id }, data: updates })
   }
+}
+
+/**
+ * Mark a user as deleted after Clerk sends user.deleted.
+ * Keeps generated assets and relational history intact while hiding the profile.
+ */
+export async function softDeleteUser(clerkId: string): Promise<void> {
+  const user = await db.user.findUnique({
+    where: { clerkId },
+    select: { id: true },
+  })
+
+  if (!user) {
+    logger.warn('softDeleteUser: user not found, skipping', { clerkId })
+    return
+  }
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { isDeleted: true, isPublic: false },
+  })
+
+  logger.info('User soft-deleted via Clerk webhook', {
+    clerkId,
+    userId: user.id,
+  })
 }

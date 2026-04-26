@@ -1,6 +1,12 @@
 import { headers } from 'next/headers'
 import { Webhook } from 'svix'
-import { createUser } from '@/services/user.service'
+
+import {
+  createUser,
+  softDeleteUser,
+  syncUserFromClerk,
+} from '@/services/user.service'
+import { logger } from '@/lib/logger'
 
 // ─── Clerk event types ────────────────────────────────────────────
 
@@ -8,14 +14,19 @@ interface ClerkEmailAddress {
   email_address: string
 }
 
-interface ClerkUserCreatedData {
+interface ClerkUserData {
   id: string
-  email_addresses: ClerkEmailAddress[]
+  email_addresses?: ClerkEmailAddress[]
+  first_name?: string | null
+  last_name?: string | null
+  image_url?: string | null
+  username?: string | null
+  deleted?: boolean
 }
 
 interface ClerkWebhookEvent {
   type: string
-  data: ClerkUserCreatedData
+  data: ClerkUserData
 }
 
 // ─── POST /api/webhooks/clerk ─────────────────────────────────────
@@ -57,16 +68,33 @@ export async function POST(request: Request) {
     return new Response('Invalid webhook signature', { status: 400 })
   }
 
-  // 3. Handle user.created
+  // 3. Route by event type
   if (event.type === 'user.created') {
     const { id, email_addresses } = event.data
-    const email = email_addresses[0]?.email_address
+    const email = email_addresses?.[0]?.email_address
 
     if (!email) {
       return new Response('No email address on user', { status: 400 })
     }
 
     await createUser({ clerkId: id, email })
+    logger.info('User created via Clerk webhook', { clerkId: id })
+  } else if (event.type === 'user.updated') {
+    const { id, first_name, last_name, image_url, username } = event.data
+    const displayName = [first_name, last_name].filter(Boolean).join(' ') || null
+
+    await syncUserFromClerk(id, {
+      displayName,
+      avatarUrl: image_url ?? null,
+      username: username ?? null,
+    })
+    logger.info('User synced via Clerk webhook', { clerkId: id })
+  } else if (event.type === 'user.deleted') {
+    await softDeleteUser(event.data.id)
+  } else {
+    logger.info('Unhandled Clerk webhook event ignored', {
+      eventType: event.type,
+    })
   }
 
   return new Response(null, { status: 200 })

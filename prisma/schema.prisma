@@ -99,6 +99,7 @@ model User {
   bio              String?  @db.Text
   civitaiToken     String? // AES-256-GCM encrypted Civitai API token
   isPublic         Boolean  @default(true)
+  isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -124,6 +125,7 @@ model User {
   videoScripts     VideoScript[]
 
   @@index([username])
+  @@index([isDeleted])
 }
 
 model Project {

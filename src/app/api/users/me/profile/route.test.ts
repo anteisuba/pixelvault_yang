@@ -37,6 +37,7 @@ const DB_USER = {
   bio: 'Hello!',
   civitaiToken: null,
   isPublic: true,
+  isDeleted: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 }

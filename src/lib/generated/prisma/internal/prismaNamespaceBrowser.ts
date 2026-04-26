@@ -112,6 +112,7 @@ export const UserScalarFieldEnum = {
   bio: 'bio',
   civitaiToken: 'civitaiToken',
   isPublic: 'isPublic',
+  isDeleted: 'isDeleted',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

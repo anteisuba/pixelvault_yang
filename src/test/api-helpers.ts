@@ -95,6 +95,7 @@ export const FAKE_DB_USER = {
   bio: null,
   civitaiToken: null,
   isPublic: true,
+  isDeleted: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 }

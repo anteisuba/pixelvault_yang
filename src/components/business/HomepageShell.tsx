@@ -24,8 +24,6 @@ interface HomepageShellProps {
   description: string
   primaryActionHref: string
   primaryActionLabel: string
-  secondaryActionHref: string
-  secondaryActionLabel: string
   utilityActionHref: string
   utilityActionLabel: string
 }
@@ -36,8 +34,6 @@ export function HomepageShell({
   description,
   primaryActionHref,
   primaryActionLabel,
-  secondaryActionHref,
-  secondaryActionLabel,
   utilityActionHref,
   utilityActionLabel,
 }: HomepageShellProps) {
@@ -93,8 +89,6 @@ export function HomepageShell({
           <HomepageHero
             primaryActionHref={primaryActionHref}
             primaryActionLabel={primaryActionLabel}
-            secondaryActionHref={secondaryActionHref}
-            secondaryActionLabel={secondaryActionLabel}
             galleryActionHref={HOMEPAGE_ROUTES.gallery}
             galleryActionLabel={t('stage.cta')}
           />

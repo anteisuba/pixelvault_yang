@@ -66,8 +66,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
+  const tPromptArea = useTranslations('StudioPromptArea')
   const tModels = useTranslations('Models')
   const { healthMap } = useApiKeysContext()
+
+  useEffect(() => {
+    const FLAG_KEY = 'studio-sample-prompt-shown'
+    if (!localStorage.getItem(FLAG_KEY) && !state.prompt) {
+      dispatch({ type: 'SET_PROMPT', payload: tPromptArea('samplePrompt') })
+      localStorage.setItem(FLAG_KEY, '1')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'

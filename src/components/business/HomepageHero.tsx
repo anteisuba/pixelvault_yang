@@ -12,8 +12,6 @@ import { Link } from '@/i18n/navigation'
 interface HomepageHeroProps {
   primaryActionHref: string
   primaryActionLabel: string
-  secondaryActionHref: string
-  secondaryActionLabel: string
   galleryActionHref: string
   galleryActionLabel: string
 }
@@ -21,8 +19,6 @@ interface HomepageHeroProps {
 export function HomepageHero({
   primaryActionHref,
   primaryActionLabel,
-  secondaryActionHref,
-  secondaryActionLabel,
   galleryActionHref,
   galleryActionLabel,
 }: HomepageHeroProps) {
@@ -50,27 +46,21 @@ export function HomepageHero({
       />
 
       <div className="flex flex-wrap justify-center gap-4 pt-8 max-sm:flex-col max-sm:items-center">
-        <Link href={galleryActionHref}>
-          <InteractiveHoverButton className="h-[2.85rem] min-w-48 px-6 text-sm">
-            {galleryActionLabel}
-          </InteractiveHoverButton>
-        </Link>
-
         <Link href={primaryActionHref}>
-          <InteractiveHoverButton className="h-[2.85rem] min-w-48 px-6 text-sm">
-            {primaryActionLabel}
-          </InteractiveHoverButton>
-        </Link>
-
-        <Link href={secondaryActionHref}>
           <ShimmerButton
             shimmerColor={BRAND_ACCENT}
             borderRadius="9999px"
             background="transparent"
             className="h-[2.85rem] min-w-48 px-6 text-sm font-semibold text-foreground border-border/80"
           >
-            {secondaryActionLabel}
+            {primaryActionLabel}
           </ShimmerButton>
+        </Link>
+
+        <Link href={galleryActionHref}>
+          <InteractiveHoverButton className="h-[2.85rem] min-w-48 px-6 text-sm">
+            {galleryActionLabel}
+          </InteractiveHoverButton>
         </Link>
       </div>
     </section>

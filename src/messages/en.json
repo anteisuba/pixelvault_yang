@@ -169,7 +169,7 @@
     "heroEyebrow": "Personal AI archive",
     "heroTitle": "Make deliberately. Keep everything.",
     "heroDescription": "Multi-model image generation with permanent archiving.",
-    "heroRepelText": "Use Gemini, DALL-E, Flux, NovelAI and 34 more models to generate images. Turn any image into video with Seedance, Kling, and Luma. Compare models side-by-side in blind Arena battles. Build storyboards from your generations. Every creation is permanently saved with its prompt, settings, and metadata — your personal creative archive, built one generation at a time.",
+    "heroRepelText": "Generate images with 38+ AI models. Keep every creation, forever.",
     "actions": {
       "signedOutPrimary": "Start your archive",
       "signedInPrimary": "Open studio",
@@ -1642,6 +1642,9 @@
     "saveFailed": "Failed to save token",
     "removeSuccess": "Token removed",
     "removeFailed": "Failed to remove token"
+  },
+  "StudioPromptArea": {
+    "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain"
   },
   "StudioV2": {
     "none": "None",

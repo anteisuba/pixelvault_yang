@@ -68,8 +68,6 @@ export default async function LocalizedRootPage({
       description={t('heroDescription')}
       primaryActionHref={primaryActionHref}
       primaryActionLabel={primaryActionLabel}
-      secondaryActionHref={HOMEPAGE_ROUTES.models}
-      secondaryActionLabel={t('actions.sharedSecondary')}
       utilityActionHref={utilityActionHref}
       utilityActionLabel={utilityActionLabel}
     />

@@ -169,7 +169,7 @@
     "heroEyebrow": "个人 AI 档案",
     "heroTitle": "认真创作，完整保存。",
     "heroDescription": "多模型图像生成，永久归档。",
-    "heroRepelText": "用 Gemini、DALL-E、Flux、NovelAI 等 38 个 AI 模型生成图片。用 Seedance、Kling、Luma 把任意图片变成视频。在竞技场盲测对比不同模型的表现，查看 ELO 排名。用生成的图片创建故事板和漫画。支持图生图、提示词增强、反向工程。每次创作都会自动保存提示词、参数和元数据，永久归档你的所有创作记录。自带 API Key，零加价，端到端加密保护。",
+    "heroRepelText": "用 38+ AI 模型生成图片，永久归档每一张创作。",
     "actions": {
       "signedOutPrimary": "开始建立档案",
       "signedInPrimary": "打开工作台",
@@ -1642,6 +1642,9 @@
     "saveFailed": "保存 Token 失败",
     "removeSuccess": "Token 已删除",
     "removeFailed": "删除 Token 失败"
+  },
+  "StudioPromptArea": {
+    "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感"
   },
   "StudioV2": {
     "none": "不选择",

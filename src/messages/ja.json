@@ -1704,7 +1704,8 @@
     "advanced": "詳細設定",
     "enhance": "プロンプト強化",
     "civitai": "Civitai トークン",
-    "videoSettings": "ビデオ設定"
+    "videoSettings": "ビデオ設定",
+    "keepChange": "保留と変更"
   },
   "StudioToolbar": {
     "enhance": "強化",

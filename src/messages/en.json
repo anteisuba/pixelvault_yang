@@ -1704,7 +1704,8 @@
     "advanced": "Advanced Settings",
     "enhance": "Prompt Enhancement",
     "civitai": "Civitai Token",
-    "videoSettings": "Video Settings"
+    "videoSettings": "Video Settings",
+    "keepChange": "Keep & Change"
   },
   "StudioToolbar": {
     "enhance": "Enhance",

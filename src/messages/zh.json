@@ -1704,7 +1704,8 @@
     "advanced": "高级设置",
     "enhance": "提示词增强",
     "civitai": "Civitai Token",
-    "videoSettings": "视频设置"
+    "videoSettings": "视频设置",
+    "keepChange": "保留与改变"
   },
   "StudioToolbar": {
     "enhance": "增强",

@@ -40,6 +40,11 @@ const StudioScriptPanel = dynamic(() =>
     (mod) => mod.StudioScriptPanel,
   ),
 )
+const StudioKeepChangePanel = dynamic(() =>
+  import('@/components/business/studio/StudioKeepChangePanel').then(
+    (mod) => mod.StudioKeepChangePanel,
+  ),
+)
 
 /**
  * StudioPanelSheets — renders 3 large panels as right-side Sheet overlays.
@@ -74,7 +79,13 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
 
   const closePanel = useCallback(
     (
-      panel: 'refImage' | 'reverse' | 'layerDecompose' | 'transform' | 'script',
+      panel:
+        | 'refImage'
+        | 'reverse'
+        | 'layerDecompose'
+        | 'transform'
+        | 'script'
+        | 'keepChange',
     ) => {
       dispatch({ type: 'CLOSE_PANEL', payload: panel })
     },
@@ -211,6 +222,28 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <StudioTransformPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Keep & Change Sheet ──────────────────────────────────── */}
+      <Sheet
+        open={state.panels.keepChange}
+        onOpenChange={(open) => {
+          if (!open) closePanel('keepChange')
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="max-h-[70vh] flex flex-col"
+        >
+          <SheetHeader>
+            <SheetTitle className="font-display">
+              {tPanels('keepChange')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto">
+            <StudioKeepChangePanel />
           </div>
         </SheetContent>
       </Sheet>

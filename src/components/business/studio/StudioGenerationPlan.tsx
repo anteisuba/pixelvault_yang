@@ -99,7 +99,7 @@ function PlanContent({ prompt, onGenerate, onClose }: PlanContentProps) {
       {state.status === 'loaded' && (
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-medium mb-1">{t('promptDraft')}</p>
+            <p className="text-sm font-medium mb-1">{t('promptSection')}</p>
             <p className="text-sm text-muted-foreground">
               {state.plan.promptDraft}
             </p>
@@ -107,9 +107,7 @@ function PlanContent({ prompt, onGenerate, onClose }: PlanContentProps) {
 
           {state.plan.recommendedModels.length > 0 && (
             <div>
-              <p className="text-sm font-medium mb-2">
-                {t('recommendedModels')}
-              </p>
+              <p className="text-sm font-medium mb-2">{t('modelsSection')}</p>
               <ul className="space-y-1">
                 {state.plan.recommendedModels.map((m) => (
                   <li key={m.modelId} className="text-sm">

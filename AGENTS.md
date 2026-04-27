@@ -117,6 +117,7 @@ router.push('/en/studio')
 Good
 if (model === AI_MODELS.SDXL) { ... }
 router.push(ROUTES.STUDIO)
+```
 
 Use constants from:
 
@@ -155,11 +156,11 @@ Do not call fetch directly inside React components for app business operations.
 
 Bad
 const handleSubmit = async () => {
-  await fetch('/api/generate', { method: 'POST', body: ... })
+await fetch('/api/generate', { method: 'POST', body: ... })
 }
 Good
 const handleSubmit = async () => {
-  await generateImage(payload)
+await generateImage(payload)
 }
 
 All front-end requests must be encapsulated through:
@@ -261,8 +262,8 @@ UI polish
 If task scope is small, this order can be collapsed, but the same dependency direction must be preserved.
 
 5. Project-Specific Architecture Rules
-5.1 Layer responsibilities
-constants/
+   5.1 Layer responsibilities
+   constants/
 
 Contains:
 
@@ -405,7 +406,7 @@ define metadata if needed
 Do not turn page.tsx into a 400-line mixed kitchen sink.
 
 6. TypeScript Rules
-6.1 File types
+   6.1 File types
 
 Use:
 
@@ -429,8 +430,8 @@ XxxProps
 
 Example
 interface GenerateFormProps {
-  defaultModel: ModelId
-  onSuccess?: (generationId: string) => void
+defaultModel: ModelId
+onSuccess?: (generationId: string) => void
 }
 6.3 Schema-first whenever data crosses boundaries
 
@@ -449,8 +450,8 @@ form-level structured validation when appropriate
 Pattern:
 
 const GenerateRequestSchema = z.object({
-  prompt: z.string().min(1),
-  model: z.enum([...])
+prompt: z.string().min(1),
+model: z.enum([...])
 })
 
 type GenerateRequest = z.infer<typeof GenerateRequestSchema>
@@ -475,7 +476,7 @@ large blind casts
 Use narrowing, parser functions, discriminated unions, or schema parsing instead.
 
 7. Naming Conventions
-File naming
+   File naming
 
 Components: PascalCase.tsx
 
@@ -523,7 +524,7 @@ import styles from './styles.module.css'
 Keep imports grouped and stable.
 
 9. Routing Rules
-9.1 App Router is the source of truth
+   9.1 App Router is the source of truth
 
 This project uses Next.js App Router.
 
@@ -557,7 +558,7 @@ Do not change route structure casually during UI work.
 UI improvement tasks must not break existing route conventions.
 
 10. Authentication Rules (Clerk)
-10.1 Auth boundary
+    10.1 Auth boundary
 
 Protected pages and protected route handlers must verify auth before doing privileged work.
 
@@ -579,7 +580,7 @@ Webhook handlers must remain thin and validated.
 Do not put unrelated business logic into Clerk webhook routes.
 
 11. Credits Rules
-11.1 Credits are server-owned state
+    11.1 Credits are server-owned state
 
 The client may display credits.
 The server decides:
@@ -603,7 +604,7 @@ Do not hardcode credit costs inside components or handlers.
 If generation failure affects credits policy, it must be decided and implemented in service logic, not guessed in UI.
 
 12. AI Provider Integration Rules
-12.1 Provider-specific code belongs in services or adapters
+    12.1 Provider-specific code belongs in services or adapters
 
 Do not put provider request format logic into page files or React components.
 
@@ -614,10 +615,10 @@ Normalize them into project-controlled shapes before they reach the broader app.
 
 12.3 Never expose secrets to client
 
-Provider API keys must never be exposed via NEXT_PUBLIC_*.
+Provider API keys must never be exposed via NEXT*PUBLIC*\*.
 
 13. Storage Rules (Cloudflare R2)
-13.1 R2 logic belongs in storage service modules
+    13.1 R2 logic belongs in storage service modules
 
 Storage upload, key generation, content normalization, and related helper logic must live in:
 
@@ -632,7 +633,7 @@ UI should never generate or assume final storage keys.
 If width, height, mime type, storage key, provider, etc. are stored, those values must come from trusted server-side flow.
 
 14. Database / Prisma Rules
-14.1 Prisma access should be centralized
+    14.1 Prisma access should be centralized
 
 Use shared Prisma access patterns.
 Do not create multiple ad-hoc Prisma clients.
@@ -897,7 +898,7 @@ Translation retrieval should remain a presentation concern.
 Business services should not depend on UI translation keys.
 
 17. Hooks Rules
-17.1 Hooks own client-side interaction logic
+    17.1 Hooks own client-side interaction logic
 
 Hooks may manage:
 
@@ -918,7 +919,7 @@ Hooks must not secretly absorb server-only business rules.
 Do not build giant hooks that manage unrelated concerns.
 
 18. Component Rules
-18.1 Prefer composition
+    18.1 Prefer composition
 
 Prefer several small, readable components over one oversized all-purpose component.
 
@@ -937,7 +938,7 @@ check if a small variant/prop solves the need
 Do not create PrimaryButton2, FancyButton, StudioButtonNew style chaos.
 
 19. Styling Rules
-19.1 Follow existing stack
+    19.1 Follow existing stack
 
 Prefer:
 
@@ -988,7 +989,7 @@ focus visibility
 Do not trade accessibility away for decoration.
 
 21. Performance Rules
-21.1 Avoid unnecessary client components
+    21.1 Avoid unnecessary client components
 
 Prefer server components unless client interactivity is needed.
 
@@ -1001,7 +1002,7 @@ Do not introduce prop churn or unstable inline structures if avoidable.
 Do not add heavy dependencies lightly.
 
 22. Error Handling Rules
-22.1 User-facing errors
+    22.1 User-facing errors
 
 Errors shown to users should be:
 
@@ -1040,7 +1041,7 @@ If a command cannot be run, say so clearly.
 Do not claim verification you did not perform.
 
 24. Change Scope Rules
-24.1 Stay within task scope
+    24.1 Stay within task scope
 
 Do not refactor unrelated files just because they look improvable.
 
@@ -1069,56 +1070,56 @@ service logic changes
 Do not mix unrelated categories into one chaotic patch unless the task truly demands it.
 
 26. Current Known Directory Structure
-src/
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── [locale]/
-│   │   ├── layout.tsx
-│   │   ├── (auth)/
-│   │   │   ├── sign-in/[[...sign-in]]/page.tsx
-│   │   │   └── sign-up/[[...sign-up]]/page.tsx
-│   │   └── (main)/
-│   │       ├── layout.tsx
-│   │       └── studio/page.tsx
-│   └── api/
-│       ├── generate/route.ts
-│       ├── credits/route.ts
-│       └── webhooks/clerk/route.ts
-│
-├── components/
-│   ├── ui/
-│   ├── business/
-│   │   ├── GenerateForm.tsx
-│   │   └── ModelSelector.tsx
-│   └── layout/
-│       └── Navbar.tsx
-│
-├── hooks/
-│   ├── use-generate.ts
-│   └── use-credits.ts
-│
-├── services/
-│   ├── generation.service.ts
-│   ├── user.service.ts
-│   └── storage/
-│       └── r2.ts
-│
-├── lib/
-│   ├── db.ts
-│   ├── api-client.ts
-│   ├── utils.ts
-│   └── generated/prisma/
-│
-├── constants/
-│   ├── models.ts
-│   ├── routes.ts
-│   └── config.ts
-│
-├── types/
-│   └── index.ts
-│
-└── middleware.ts
+    src/
+    ├── app/
+    │ ├── layout.tsx
+    │ ├── page.tsx
+    │ ├── [locale]/
+    │ │ ├── layout.tsx
+    │ │ ├── (auth)/
+    │ │ │ ├── sign-in/[[...sign-in]]/page.tsx
+    │ │ │ └── sign-up/[[...sign-up]]/page.tsx
+    │ │ └── (main)/
+    │ │ ├── layout.tsx
+    │ │ └── studio/page.tsx
+    │ └── api/
+    │ ├── generate/route.ts
+    │ ├── credits/route.ts
+    │ └── webhooks/clerk/route.ts
+    │
+    ├── components/
+    │ ├── ui/
+    │ ├── business/
+    │ │ ├── GenerateForm.tsx
+    │ │ └── ModelSelector.tsx
+    │ └── layout/
+    │ └── Navbar.tsx
+    │
+    ├── hooks/
+    │ ├── use-generate.ts
+    │ └── use-credits.ts
+    │
+    ├── services/
+    │ ├── generation.service.ts
+    │ ├── user.service.ts
+    │ └── storage/
+    │ └── r2.ts
+    │
+    ├── lib/
+    │ ├── db.ts
+    │ ├── api-client.ts
+    │ ├── utils.ts
+    │ └── generated/prisma/
+    │
+    ├── constants/
+    │ ├── models.ts
+    │ ├── routes.ts
+    │ └── config.ts
+    │
+    ├── types/
+    │ └── index.ts
+    │
+    └── middleware.ts
 
 This structure may evolve, but Codex should preserve the same architectural direction.
 
@@ -1141,7 +1142,7 @@ use-gallery.ts
 When implementing these, follow all layering, UI, and i18n rules in this file.
 
 28. Current Development Status
-Phase 1: MVP core generation
+    Phase 1: MVP core generation
 
 Completed
 
@@ -1174,7 +1175,7 @@ Phase 4: UI refinement + gallery + deployment
 In progress
 
 29. Data Model Snapshot
-User
+    User
 
 id (UUID)
 
@@ -1224,17 +1225,17 @@ Do not assume this snapshot authorizes schema changes.
 It is documentation, not permission for casual DB drift.
 
 30. Model Catalog Snapshot
-Model ID	Name	Credits	Provider
-sdxl	Stable Diffusion XL	1	HuggingFace
-animagine-xl-4.0	Animagine XL 4.0	1	HuggingFace
-gemini-3.1-flash-image-preview	Gemini 3.1 Flash Image	2	Google
+    Model ID Name Credits Provider
+    sdxl Stable Diffusion XL 1 HuggingFace
+    animagine-xl-4.0 Animagine XL 4.0 1 HuggingFace
+    gemini-3.1-flash-image-preview Gemini 3.1 Flash Image 2 Google
 
 Always confirm existing constants before editing model-related logic.
 
 31. Security Rules
-31.1 Environment variables
+    31.1 Environment variables
 
-NEXT_PUBLIC_* may be used only for values that are safe for the browser, such as:
+NEXT*PUBLIC*\* may be used only for values that are safe for the browser, such as:
 
 Clerk publishable key
 
@@ -1377,7 +1378,7 @@ Only re-run a broader repo read when:
 - the architecture has materially changed
 - the task is a cross-cutting refactor
 
-32.4 Required task packet before substantial work
+  32.4 Required task packet before substantial work
 
 Before non-trivial implementation or review work, Codex should establish a task packet containing:
 
@@ -1393,7 +1394,7 @@ If the task crosses layers, the packet should also state:
 - which layers are changing
 - which `01/02/03/04` entries are affected
 
-32.5 Required development workflow
+  32.5 Required development workflow
 
 For meaningful work, Codex should follow this sequence:
 
@@ -1627,6 +1628,7 @@ Every durable rule document created under `docs/guides/` must be indexed here.
 - `docs/guides/codex-thread-operating-model.md` — pinned thread responsibilities, `规范`-thread intake and patch-first discipline, output locations, and feedback loop
 - `docs/guides/codex-development-workflow.md` — context loading order, task packets, plan/implement/review flow, and stability gates
 - `docs/guides/claude-code-planning-workflow.md` — Claude Code planning surface: role boundaries, path lock, task packet handoff, diff review, and map writeback
+- `docs/guides/plan-synchronization-workflow.md` — plan status blocks, delta logs, and pre/post implementation sync rules that keep plans aligned with code
 
 ---
 
@@ -1693,4 +1695,17 @@ Trivial changes bypass Claude Code entirely. These go directly to Codex:
 - execution steps inside an existing task packet Codex is already working through
 
 For anything else, default to the Claude Code planning line — a redundant packet is cheaper than a silent drift.
-```
+
+## C.7 Plan Synchronization
+
+Claude Code and Codex must not treat old plans as current by default. For any
+non-trivial task that depends on `docs/plans/**`, follow
+`docs/guides/plan-synchronization-workflow.md`.
+
+Required behavior:
+
+- Planning work adds or updates a `Plan Status` block when a plan is active.
+- Before implementation, compare the plan's last verified commit with current code in the listed code areas.
+- If relevant code changed, reconcile the delta, mark the plan `stale`, or request a refreshed task packet.
+- After meaningful implementation, the executor reports one of: `No related plan exists`, `Plan still matches`, `Plan delta should be updated`, `Plan marked stale`, or `Plan completed`.
+- Map writeback appends a short delta log instead of rewriting the whole plan unless the plan is genuinely superseded.

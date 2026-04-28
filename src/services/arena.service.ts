@@ -1,6 +1,8 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
+import { classifyPromptTaskType, type TaskType } from '@/lib/classify-task-type'
+import { logger } from '@/lib/logger'
 import { ARENA } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import type {
@@ -58,7 +60,57 @@ export async function createArenaMatch(
     },
   })
 
+  void db.arenaMatch
+    .update({
+      where: { id: match.id },
+      data: { taskType: classifyPromptTaskType(input.prompt) },
+    })
+    .catch((error: unknown) => {
+      logger.warn('Arena task type classification update failed', {
+        matchId: match.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+
   return match.id
+}
+
+export async function getModelWinRatesByTask(
+  taskType: TaskType,
+): Promise<Record<string, number>> {
+  const entries = await db.arenaEntry.findMany({
+    where: {
+      match: {
+        taskType,
+        votedAt: { not: null },
+      },
+    },
+    select: {
+      modelId: true,
+      wasVoted: true,
+    },
+  })
+
+  const stats = new Map<string, { matchCount: number; winCount: number }>()
+
+  for (const entry of entries) {
+    const current = stats.get(entry.modelId) ?? { matchCount: 0, winCount: 0 }
+    current.matchCount++
+    if (entry.wasVoted) {
+      current.winCount++
+    }
+    stats.set(entry.modelId, current)
+  }
+
+  const winRates: Record<string, number> = {}
+
+  for (const [modelId, stat] of stats.entries()) {
+    if (stat.matchCount >= 3) {
+      winRates[modelId] = stat.winCount / stat.matchCount
+    }
+  }
+
+  return winRates
 }
 
 // ─── Entry Generation (one model per request) ───────────────────

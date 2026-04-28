@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import type { Route } from '@/constants/routes'
@@ -17,6 +17,8 @@ interface GalleryGridProps {
   emptyDescription: string
   emptyActionHref?: Route
   emptyActionLabel?: string
+  feedLabel: string
+  itemFallbackLabel: string
   showVisibility?: boolean
   showDelete?: boolean
   onDelete?: (id: string) => void
@@ -32,6 +34,8 @@ export function GalleryGrid({
   emptyDescription,
   emptyActionHref,
   emptyActionLabel,
+  feedLabel,
+  itemFallbackLabel,
   showVisibility = false,
   showDelete = false,
   onDelete,
@@ -59,7 +63,11 @@ export function GalleryGrid({
     return () => observer.disconnect()
   }, [generations.length])
 
-  const visibleGenerations = generations.slice(0, visibleCount)
+  const visibleGenerations = useMemo(
+    () => generations.slice(0, visibleCount),
+    [generations, visibleCount],
+  )
+  const handleMouseLeave = useCallback(() => setHoveredId(null), [])
 
   // Keyboard navigation: arrow keys move focus between gallery items
   const handleGalleryKeyDown = useCallback(
@@ -112,46 +120,27 @@ export function GalleryGrid({
   return (
     <section
       role="feed"
-      aria-label="Gallery"
+      aria-label={feedLabel}
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
-      onMouseLeave={() => setHoveredId(null)}
+      onMouseLeave={handleMouseLeave}
       onKeyDown={handleGalleryKeyDown}
     >
       {visibleGenerations.map((generation, index) => {
-        const isHovered = hoveredId === generation.id
-        const isSomethingHovered = hoveredId !== null
         return (
-          <BlurFade
+          <GalleryGridItem
             key={generation.id}
-            delay={Math.min(index * 0.05, 0.5)}
-            inView
-            className="mb-5 break-inside-avoid"
-          >
-            <div
-              role="article"
-              tabIndex={0}
-              aria-posinset={index + 1}
-              aria-setsize={generations.length}
-              aria-label={generation.prompt?.slice(0, 80) || 'Gallery item'}
-              className="transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none rounded-xl"
-              style={{
-                perspective: '1000px',
-                transform: isHovered ? 'scale(1.02)' : 'scale(1)',
-                opacity: isSomethingHovered && !isHovered ? 0.5 : 1,
-                filter: isSomethingHovered && !isHovered ? 'blur(1px)' : 'none',
-              }}
-              onMouseEnter={() => setHoveredId(generation.id)}
-              onFocus={() => setHoveredId(generation.id)}
-            >
-              <ImageCard
-                generation={generation}
-                showVisibility={showVisibility}
-                showDelete={showDelete}
-                onDelete={onDelete}
-                priority={index < PRIORITY_IMAGE_COUNT}
-              />
-            </div>
-          </BlurFade>
+            generation={generation}
+            index={index}
+            total={generations.length}
+            itemFallbackLabel={itemFallbackLabel}
+            isHovered={hoveredId === generation.id}
+            isDimmed={hoveredId !== null && hoveredId !== generation.id}
+            showVisibility={showVisibility}
+            showDelete={showDelete}
+            onDelete={onDelete}
+            onHover={setHoveredId}
+            priority={index < PRIORITY_IMAGE_COUNT}
+          />
         )
       })}
       {/* Sentinel for progressive loading */}
@@ -161,3 +150,68 @@ export function GalleryGrid({
     </section>
   )
 }
+
+interface GalleryGridItemProps {
+  generation: GenerationRecord
+  index: number
+  total: number
+  itemFallbackLabel: string
+  isHovered: boolean
+  isDimmed: boolean
+  showVisibility: boolean
+  showDelete: boolean
+  onDelete?: (id: string) => void
+  onHover: (id: string) => void
+  priority: boolean
+}
+
+const GalleryGridItem = memo(function GalleryGridItem({
+  generation,
+  index,
+  total,
+  itemFallbackLabel,
+  isHovered,
+  isDimmed,
+  showVisibility,
+  showDelete,
+  onDelete,
+  onHover,
+  priority,
+}: GalleryGridItemProps) {
+  const handleHover = useCallback(() => {
+    onHover(generation.id)
+  }, [generation.id, onHover])
+
+  return (
+    <BlurFade
+      delay={Math.min(index * 0.05, 0.5)}
+      inView
+      className="mb-5 break-inside-avoid"
+    >
+      <div
+        role="article"
+        tabIndex={0}
+        aria-posinset={index + 1}
+        aria-setsize={total}
+        aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
+        className="rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none"
+        style={{
+          perspective: '1000px',
+          transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+          opacity: isDimmed ? 0.5 : 1,
+          filter: isDimmed ? 'blur(1px)' : 'none',
+        }}
+        onMouseEnter={handleHover}
+        onFocus={handleHover}
+      >
+        <ImageCard
+          generation={generation}
+          showVisibility={showVisibility}
+          showDelete={showDelete}
+          onDelete={onDelete}
+          priority={priority}
+        />
+      </div>
+    </BlurFade>
+  )
+})

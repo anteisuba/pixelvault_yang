@@ -117,7 +117,7 @@ export function StudioToolbar({
     <TooltipProvider delayDuration={300}>
       <Toolbar.Root
         className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2"
-        aria-label="Studio tools"
+        aria-label={t('toolbarLabel')}
       >
         <ToolButton
           icon={
@@ -196,7 +196,7 @@ export function StudioToolbar({
                   )}
                 >
                   <Cpu className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Train LoRA</span>
+                  <span className="hidden sm:inline">{t('trainLora')}</span>
                 </Toolbar.Button>
               }
             />

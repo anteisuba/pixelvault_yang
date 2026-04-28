@@ -1,3 +1,5 @@
+import 'server-only'
+
 import type { AspectRatio } from '@/constants/config'
 import type { VideoDefaults } from '@/constants/models'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'

@@ -8,6 +8,7 @@ import {
   mockUnauthenticated,
   mockRateLimitAllowed,
   mockRateLimitExceeded,
+  createGET,
   createPOST,
   parseJSON,
 } from '@/test/api-helpers'
@@ -22,7 +23,11 @@ vi.mock('@/services/generate-image.service', () => ({
   isGenerateImageServiceError: vi.fn(),
 }))
 
-import { createApiInternalRoute, createApiRoute } from '@/lib/api-route-factory'
+import {
+  createApiGetRoute,
+  createApiInternalRoute,
+  createApiRoute,
+} from '@/lib/api-route-factory'
 import {
   ApiRequestError,
   ProviderError,
@@ -56,6 +61,27 @@ const POST = createApiRoute<typeof testSchema, TestResult>({
   rateLimit: { limit: 10, windowSeconds: 60 },
   routeName: 'POST /api/test',
   handler: mockHandler,
+})
+
+const getSchema = z.object({
+  taskType: z.string().min(1),
+})
+
+const mockGetHandler =
+  vi.fn<
+    (args: {
+      clerkId: string | null
+      data: z.infer<typeof getSchema>
+      request: NextRequest
+    }) => Promise<TestResult>
+  >()
+
+const PUBLIC_GET = createApiGetRoute<typeof getSchema, TestResult>({
+  schema: getSchema,
+  routeName: 'GET /api/public-test',
+  requireAuth: false,
+  skipAuth: true,
+  handler: mockGetHandler,
 })
 
 const internalSchema = z.object({
@@ -351,6 +377,30 @@ describe('createApiRoute', () => {
     const res = await POST(req)
 
     expect(res.status).toBe(500)
+  })
+})
+
+describe('createApiGetRoute', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthenticated('user_should_not_be_read')
+    mockIsServiceError.mockReturnValue(false)
+    mockGetHandler.mockResolvedValue({ id: '1', name: 'public' })
+  })
+
+  it('can skip Clerk auth for cacheable public routes', async () => {
+    const req = createGET('/api/public-test', { taskType: 'portrait' })
+    const res = await PUBLIC_GET(req)
+    const json = await parseJSON<{ success: boolean; data: TestResult }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json).toEqual({ success: true, data: { id: '1', name: 'public' } })
+    expect(mockGetHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clerkId: null,
+        data: { taskType: 'portrait' },
+      }),
+    )
   })
 })
 

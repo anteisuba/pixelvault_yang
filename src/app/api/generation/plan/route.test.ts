@@ -12,6 +12,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockParseIntent = vi.fn()
+const mockGetModelWinRates = vi.fn()
 const mockRouteModels = vi.fn()
 const mockCompilePrompt = vi.fn()
 const mockCompileNegativePrompt = vi.fn()
@@ -22,6 +23,11 @@ vi.mock('@/services/intent-parser.service', () => ({
 
 vi.mock('@/services/model-router.service', () => ({
   routeModelsForIntent: (...args: unknown[]) => mockRouteModels(...args),
+}))
+
+vi.mock('@/services/arena.service', () => ({
+  getModelWinRatesByTask: (...args: unknown[]) =>
+    mockGetModelWinRates(...args),
 }))
 
 vi.mock('@/services/prompt-compiler.service', () => ({
@@ -51,6 +57,7 @@ describe('POST /api/generation/plan', () => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockParseIntent.mockResolvedValue(SAMPLE_INTENT)
+    mockGetModelWinRates.mockResolvedValue({ sdxl: 0.75 })
     mockRouteModels.mockReturnValue(SAMPLE_MODELS)
     mockCompilePrompt.mockReturnValue('compiled prompt')
     mockCompileNegativePrompt.mockReturnValue(undefined)
@@ -140,5 +147,16 @@ describe('POST /api/generation/plan', () => {
       SAMPLE_INTENT,
       SAMPLE_MODELS[0].modelId,
     )
+  })
+
+  it('passes Arena win rates for the inferred task type into model routing', async () => {
+    const req = createPOST('/api/generation/plan', {
+      naturalLanguage: 'a cinematic portrait',
+    })
+
+    await POST(req)
+
+    expect(mockGetModelWinRates).toHaveBeenCalledWith('portrait')
+    expect(mockRouteModels).toHaveBeenCalledWith(SAMPLE_INTENT, { sdxl: 0.75 })
   })
 })

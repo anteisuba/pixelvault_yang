@@ -2893,6 +2893,7 @@ export const ArenaMatchScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   prompt: 'prompt',
+  taskType: 'taskType',
   aspectRatio: 'aspectRatio',
   referenceImage: 'referenceImage',
   winnerId: 'winnerId',

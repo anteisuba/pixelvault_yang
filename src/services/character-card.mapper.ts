@@ -1,3 +1,5 @@
+import 'server-only'
+
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
   CharacterAttributesSchema,

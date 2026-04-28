@@ -1,8 +1,8 @@
 'use client'
 
-import { cn } from '@/lib/utils'
 import React, { useEffect, useState } from 'react'
-import { codeToHtml } from 'shiki'
+
+import { cn } from '@/lib/utils'
 
 export type CodeBlockProps = {
   children?: React.ReactNode
@@ -41,16 +41,29 @@ function CodeBlockCode({
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
 
   useEffect(() => {
+    let isCancelled = false
+    setHighlightedHtml(null)
+
     async function highlight() {
       if (!code) {
-        setHighlightedHtml('<pre><code></code></pre>')
+        if (!isCancelled) {
+          setHighlightedHtml('<pre><code></code></pre>')
+        }
         return
       }
 
+      const { codeToHtml } = await import('shiki')
       const html = await codeToHtml(code, { lang: language, theme })
-      setHighlightedHtml(html)
+      if (!isCancelled) {
+        setHighlightedHtml(html)
+      }
     }
-    highlight()
+
+    void highlight()
+
+    return () => {
+      isCancelled = true
+    }
   }, [code, language, theme])
 
   const classNames = cn(

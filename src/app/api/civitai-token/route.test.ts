@@ -5,7 +5,6 @@ import {
   mockUnauthenticated,
   createGET,
   createPUT,
-  createDELETE,
   parseJSON,
 } from '@/test/api-helpers'
 

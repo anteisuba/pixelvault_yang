@@ -85,6 +85,12 @@ export function ProfileFeed({
     },
     [removeGeneration, tToasts],
   )
+  const handleGridDelete = useCallback(
+    (id: string) => {
+      void handleDelete(id)
+    },
+    [handleDelete],
+  )
 
   const handleFiltersChange = useCallback(
     (nextFilters: GalleryFilters) => {
@@ -293,9 +299,11 @@ export function ProfileFeed({
           emptyDescription={t('emptyDescription')}
           emptyActionHref={ROUTES.STUDIO}
           emptyActionLabel={t('emptyAction')}
+          feedLabel={t('feedLabel')}
+          itemFallbackLabel={t('itemFallbackLabel')}
           showVisibility
           showDelete
-          onDelete={(id) => void handleDelete(id)}
+          onDelete={handleGridDelete}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { RETIRED_MODEL_IDS } from '@/constants/models'
+import { AI_MODELS, RETIRED_MODEL_IDS } from '@/constants/models'
 import type { ImageIntent } from '@/types'
 import { routeModelsForIntent } from './model-router.service'
 
@@ -88,5 +88,17 @@ describe('routeModelsForIntent', () => {
       const allBefore = results.slice(0, firstZeroIndex)
       expect(allBefore.every((result) => result.score > 0)).toBe(true)
     }
+  })
+
+  it('uses arena win rates to influence ranking', () => {
+    const intent: ImageIntent = { subject: 'something completely vague' }
+    const results = routeModelsForIntent(intent, {
+      [AI_MODELS.SEEDREAM_45]: 1,
+    })
+
+    expect(results[0]).toMatchObject({
+      modelId: AI_MODELS.SEEDREAM_45,
+      score: 2,
+    })
   })
 })

@@ -1,11 +1,13 @@
 import 'server-only'
 
 import { createApiRoute } from '@/lib/api-route-factory'
+import { classifyImageIntentTaskType } from '@/lib/classify-task-type'
 import {
   GenerationPlanRequestSchema,
   type GenerationPlanResponse,
 } from '@/types'
 import { parseImageIntent } from '@/services/intent-parser.service'
+import { getModelWinRatesByTask } from '@/services/arena.service'
 import { routeModelsForIntent } from '@/services/model-router.service'
 import {
   compilePrompt,
@@ -23,7 +25,9 @@ export const POST = createApiRoute<
       data.naturalLanguage,
       data.referenceAssets,
     )
-    const recommendedModels = routeModelsForIntent(intent)
+    const taskType = classifyImageIntentTaskType(intent)
+    const arenaRates = await getModelWinRatesByTask(taskType)
+    const recommendedModels = routeModelsForIntent(intent, arenaRates)
     const topModelId = recommendedModels[0]?.modelId ?? ''
 
     return {

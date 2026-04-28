@@ -30,6 +30,17 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 6. **Feature dev order** — constants → types → services → hooks → components
 7. **Import order** — React/Next → third-party → internal constants/types → components/hooks → styles
 
+## Karpathy 开发原则
+
+所有代码改动必须遵循以下 4 条（完整版：调用 `andrej-karpathy-skills:karpathy-guidelines` skill）：
+
+1. **Think Before Coding** — 显式说明假设；存在多种解读时全部呈现，不要默默选一个；有更简方案就指出来；不清楚就停下来问
+2. **Simplicity First** — 解决问题的最少代码：不写未要求的功能/抽象/灵活性/不可能场景的错误处理；200 行能压到 50 行就重写
+3. **Surgical Changes** — 只动该动的；不"顺手优化"相邻代码/注释/格式；匹配现有风格；只清理自己改动产生的孤儿，已有死代码只提及不删除；每一行改动都要能追溯到用户请求
+4. **Goal-Driven Execution** — 把任务转成可验证目标（"加校验"→"先写无效输入测试再让其通过"）；多步任务先列「步骤→验证标准」计划
+
+冲突时的优先级：用户明确指令 > 本项目 Hard Rules > Karpathy 原则 > 默认行为。
+
 ## Design Language
 
 See `docs/reference/design-system.md` for full spec. Key constraints:

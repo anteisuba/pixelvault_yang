@@ -28,6 +28,7 @@ export type ArenaMatchMinAggregateOutputType = {
   id: string | null
   userId: string | null
   prompt: string | null
+  taskType: string | null
   aspectRatio: string | null
   referenceImage: string | null
   winnerId: string | null
@@ -39,6 +40,7 @@ export type ArenaMatchMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   prompt: string | null
+  taskType: string | null
   aspectRatio: string | null
   referenceImage: string | null
   winnerId: string | null
@@ -50,6 +52,7 @@ export type ArenaMatchCountAggregateOutputType = {
   id: number
   userId: number
   prompt: number
+  taskType: number
   aspectRatio: number
   referenceImage: number
   winnerId: number
@@ -63,6 +66,7 @@ export type ArenaMatchMinAggregateInputType = {
   id?: true
   userId?: true
   prompt?: true
+  taskType?: true
   aspectRatio?: true
   referenceImage?: true
   winnerId?: true
@@ -74,6 +78,7 @@ export type ArenaMatchMaxAggregateInputType = {
   id?: true
   userId?: true
   prompt?: true
+  taskType?: true
   aspectRatio?: true
   referenceImage?: true
   winnerId?: true
@@ -85,6 +90,7 @@ export type ArenaMatchCountAggregateInputType = {
   id?: true
   userId?: true
   prompt?: true
+  taskType?: true
   aspectRatio?: true
   referenceImage?: true
   winnerId?: true
@@ -169,6 +175,7 @@ export type ArenaMatchGroupByOutputType = {
   id: string
   userId: string
   prompt: string
+  taskType: string | null
   aspectRatio: string
   referenceImage: string | null
   winnerId: string | null
@@ -201,6 +208,7 @@ export type ArenaMatchWhereInput = {
   id?: Prisma.StringFilter<"ArenaMatch"> | string
   userId?: Prisma.StringFilter<"ArenaMatch"> | string
   prompt?: Prisma.StringFilter<"ArenaMatch"> | string
+  taskType?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   aspectRatio?: Prisma.StringFilter<"ArenaMatch"> | string
   referenceImage?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   winnerId?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
@@ -214,6 +222,7 @@ export type ArenaMatchOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
+  taskType?: Prisma.SortOrderInput | Prisma.SortOrder
   aspectRatio?: Prisma.SortOrder
   referenceImage?: Prisma.SortOrderInput | Prisma.SortOrder
   winnerId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -230,6 +239,7 @@ export type ArenaMatchWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ArenaMatchWhereInput | Prisma.ArenaMatchWhereInput[]
   userId?: Prisma.StringFilter<"ArenaMatch"> | string
   prompt?: Prisma.StringFilter<"ArenaMatch"> | string
+  taskType?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   aspectRatio?: Prisma.StringFilter<"ArenaMatch"> | string
   referenceImage?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   winnerId?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
@@ -243,6 +253,7 @@ export type ArenaMatchOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
+  taskType?: Prisma.SortOrderInput | Prisma.SortOrder
   aspectRatio?: Prisma.SortOrder
   referenceImage?: Prisma.SortOrderInput | Prisma.SortOrder
   winnerId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -260,6 +271,7 @@ export type ArenaMatchScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"ArenaMatch"> | string
   userId?: Prisma.StringWithAggregatesFilter<"ArenaMatch"> | string
   prompt?: Prisma.StringWithAggregatesFilter<"ArenaMatch"> | string
+  taskType?: Prisma.StringNullableWithAggregatesFilter<"ArenaMatch"> | string | null
   aspectRatio?: Prisma.StringWithAggregatesFilter<"ArenaMatch"> | string
   referenceImage?: Prisma.StringNullableWithAggregatesFilter<"ArenaMatch"> | string | null
   winnerId?: Prisma.StringNullableWithAggregatesFilter<"ArenaMatch"> | string | null
@@ -270,6 +282,7 @@ export type ArenaMatchScalarWhereWithAggregatesInput = {
 export type ArenaMatchCreateInput = {
   id?: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -283,6 +296,7 @@ export type ArenaMatchUncheckedCreateInput = {
   id?: string
   userId: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -294,6 +308,7 @@ export type ArenaMatchUncheckedCreateInput = {
 export type ArenaMatchUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -307,6 +322,7 @@ export type ArenaMatchUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -319,6 +335,7 @@ export type ArenaMatchCreateManyInput = {
   id?: string
   userId: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -329,6 +346,7 @@ export type ArenaMatchCreateManyInput = {
 export type ArenaMatchUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -340,6 +358,7 @@ export type ArenaMatchUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -361,6 +380,7 @@ export type ArenaMatchCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
+  taskType?: Prisma.SortOrder
   aspectRatio?: Prisma.SortOrder
   referenceImage?: Prisma.SortOrder
   winnerId?: Prisma.SortOrder
@@ -372,6 +392,7 @@ export type ArenaMatchMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
+  taskType?: Prisma.SortOrder
   aspectRatio?: Prisma.SortOrder
   referenceImage?: Prisma.SortOrder
   winnerId?: Prisma.SortOrder
@@ -383,6 +404,7 @@ export type ArenaMatchMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
+  taskType?: Prisma.SortOrder
   aspectRatio?: Prisma.SortOrder
   referenceImage?: Prisma.SortOrder
   winnerId?: Prisma.SortOrder
@@ -454,6 +476,7 @@ export type ArenaMatchUpdateOneRequiredWithoutEntriesNestedInput = {
 export type ArenaMatchCreateWithoutUserInput = {
   id?: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -465,6 +488,7 @@ export type ArenaMatchCreateWithoutUserInput = {
 export type ArenaMatchUncheckedCreateWithoutUserInput = {
   id?: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -506,6 +530,7 @@ export type ArenaMatchScalarWhereInput = {
   id?: Prisma.StringFilter<"ArenaMatch"> | string
   userId?: Prisma.StringFilter<"ArenaMatch"> | string
   prompt?: Prisma.StringFilter<"ArenaMatch"> | string
+  taskType?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   aspectRatio?: Prisma.StringFilter<"ArenaMatch"> | string
   referenceImage?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
   winnerId?: Prisma.StringNullableFilter<"ArenaMatch"> | string | null
@@ -516,6 +541,7 @@ export type ArenaMatchScalarWhereInput = {
 export type ArenaMatchCreateWithoutEntriesInput = {
   id?: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -528,6 +554,7 @@ export type ArenaMatchUncheckedCreateWithoutEntriesInput = {
   id?: string
   userId: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -554,6 +581,7 @@ export type ArenaMatchUpdateToOneWithWhereWithoutEntriesInput = {
 export type ArenaMatchUpdateWithoutEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -566,6 +594,7 @@ export type ArenaMatchUncheckedUpdateWithoutEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -576,6 +605,7 @@ export type ArenaMatchUncheckedUpdateWithoutEntriesInput = {
 export type ArenaMatchCreateManyUserInput = {
   id?: string
   prompt: string
+  taskType?: string | null
   aspectRatio: string
   referenceImage?: string | null
   winnerId?: string | null
@@ -586,6 +616,7 @@ export type ArenaMatchCreateManyUserInput = {
 export type ArenaMatchUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -597,6 +628,7 @@ export type ArenaMatchUpdateWithoutUserInput = {
 export type ArenaMatchUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -608,6 +640,7 @@ export type ArenaMatchUncheckedUpdateWithoutUserInput = {
 export type ArenaMatchUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  taskType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aspectRatio?: Prisma.StringFieldUpdateOperationsInput | string
   referenceImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   winnerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -650,6 +683,7 @@ export type ArenaMatchSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   id?: boolean
   userId?: boolean
   prompt?: boolean
+  taskType?: boolean
   aspectRatio?: boolean
   referenceImage?: boolean
   winnerId?: boolean
@@ -664,6 +698,7 @@ export type ArenaMatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   id?: boolean
   userId?: boolean
   prompt?: boolean
+  taskType?: boolean
   aspectRatio?: boolean
   referenceImage?: boolean
   winnerId?: boolean
@@ -676,6 +711,7 @@ export type ArenaMatchSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   id?: boolean
   userId?: boolean
   prompt?: boolean
+  taskType?: boolean
   aspectRatio?: boolean
   referenceImage?: boolean
   winnerId?: boolean
@@ -688,6 +724,7 @@ export type ArenaMatchSelectScalar = {
   id?: boolean
   userId?: boolean
   prompt?: boolean
+  taskType?: boolean
   aspectRatio?: boolean
   referenceImage?: boolean
   winnerId?: boolean
@@ -695,7 +732,7 @@ export type ArenaMatchSelectScalar = {
   createdAt?: boolean
 }
 
-export type ArenaMatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "prompt" | "aspectRatio" | "referenceImage" | "winnerId" | "votedAt" | "createdAt", ExtArgs["result"]["arenaMatch"]>
+export type ArenaMatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "prompt" | "taskType" | "aspectRatio" | "referenceImage" | "winnerId" | "votedAt" | "createdAt", ExtArgs["result"]["arenaMatch"]>
 export type ArenaMatchInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   entries?: boolean | Prisma.ArenaMatch$entriesArgs<ExtArgs>
@@ -718,6 +755,7 @@ export type $ArenaMatchPayload<ExtArgs extends runtime.Types.Extensions.Internal
     id: string
     userId: string
     prompt: string
+    taskType: string | null
     aspectRatio: string
     referenceImage: string | null
     winnerId: string | null
@@ -1151,6 +1189,7 @@ export interface ArenaMatchFieldRefs {
   readonly id: Prisma.FieldRef<"ArenaMatch", 'String'>
   readonly userId: Prisma.FieldRef<"ArenaMatch", 'String'>
   readonly prompt: Prisma.FieldRef<"ArenaMatch", 'String'>
+  readonly taskType: Prisma.FieldRef<"ArenaMatch", 'String'>
   readonly aspectRatio: Prisma.FieldRef<"ArenaMatch", 'String'>
   readonly referenceImage: Prisma.FieldRef<"ArenaMatch", 'String'>
   readonly winnerId: Prisma.FieldRef<"ArenaMatch", 'String'>

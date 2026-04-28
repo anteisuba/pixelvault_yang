@@ -93,6 +93,8 @@ export function GalleryFeed({
         emptyDescription={t('emptyDescription')}
         emptyActionHref={ROUTES.STUDIO}
         emptyActionLabel={t('emptyAction')}
+        feedLabel={t('feedLabel')}
+        itemFallbackLabel={t('itemFallbackLabel')}
       />
 
       {error ? (

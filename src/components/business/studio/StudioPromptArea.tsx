@@ -53,6 +53,13 @@ import {
 import { DropdownMenuLabel } from '@/components/ui/dropdown-menu'
 import { ModelSelector } from '@/components/business/ModelSelector'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { StudioGenerationPlan } from './StudioGenerationPlan'
+
+interface GenerationPlanOverrides {
+  modelId: string | null
+  compiledPrompt: string
+  negativePrompt?: string
+}
 
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
@@ -69,6 +76,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tPromptArea = useTranslations('StudioPromptArea')
   const tModels = useTranslations('Models')
   const { healthMap } = useApiKeysContext()
+  const [planOpen, setPlanOpen] = useState(false)
 
   useEffect(() => {
     const FLAG_KEY = 'studio-sample-prompt-shown'
@@ -93,6 +101,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     : isVideoMode
       ? videoModel
       : imageModel
+  type SelectedModelOption = NonNullable<typeof selectedModel>
   const modelOptions = isAudioMode
     ? audioModelOptions
     : isVideoMode
@@ -224,12 +233,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   )
 
   /** Merge style preset negative prompt into advancedParams */
-  const composeAdvancedParams = useCallback(() => {
+  const composeAdvancedParams = useCallback((negativePrompt?: string) => {
     const params = { ...state.advancedParams }
-    if (activePreset?.negativePrompt) {
-      params.negativePrompt = params.negativePrompt
-        ? `${params.negativePrompt}, ${activePreset.negativePrompt}`
-        : activePreset.negativePrompt
+    const negativePrompts = [
+      params.negativePrompt,
+      activePreset?.negativePrompt,
+      negativePrompt,
+    ]
+      .map((prompt) => prompt?.trim())
+      .filter((prompt): prompt is string => !!prompt)
+
+    if (negativePrompts.length > 0) {
+      params.negativePrompt = negativePrompts.join(', ')
     }
     return Object.keys(params).length > 0 ? params : undefined
   }, [state.advancedParams, activePreset])
@@ -307,111 +322,162 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     imageUpload.referenceImages,
   ])
 
-  const buildImageInput = useCallback(() => {
-    if (state.workflowMode === 'quick' && selectedModel) {
-      return {
-        modelId: selectedModel.modelId,
-        apiKeyId: selectedModel.keyId,
-        freePrompt: composePrompt(state.prompt),
-        aspectRatio: state.aspectRatio,
-        projectId: projects.activeProjectId ?? undefined,
-        referenceImages:
-          imageUpload.referenceImages.length > 0
-            ? imageUpload.referenceImages
-            : undefined,
-        advancedParams: composeAdvancedParams(),
+  const buildImageInput = useCallback(
+    (overrides?: {
+      selectedModel?: SelectedModelOption
+      compiledPrompt?: string
+      negativePrompt?: string
+    }) => {
+      const imageModelForGeneration = overrides?.selectedModel ?? selectedModel
+
+      if (state.workflowMode === 'quick' && imageModelForGeneration) {
+        return {
+          modelId: imageModelForGeneration.modelId,
+          apiKeyId: imageModelForGeneration.keyId,
+          freePrompt: overrides?.compiledPrompt ?? composePrompt(state.prompt),
+          aspectRatio: state.aspectRatio,
+          projectId: projects.activeProjectId ?? undefined,
+          referenceImages:
+            imageUpload.referenceImages.length > 0
+              ? imageUpload.referenceImages
+              : undefined,
+          advancedParams: composeAdvancedParams(overrides?.negativePrompt),
+        }
       }
-    }
-    if (state.workflowMode === 'card' && styles.activeCardId) {
-      return {
-        characterCardId: selectedCharId ?? undefined,
-        backgroundCardId: backgrounds.activeCardId ?? undefined,
-        styleCardId: styles.activeCardId,
-        freePrompt: composePrompt(state.prompt),
-        aspectRatio: state.aspectRatio,
-        projectId: projects.activeProjectId ?? undefined,
-        referenceImages:
-          imageUpload.referenceImages.length > 0
-            ? imageUpload.referenceImages
-            : undefined,
-        advancedParams: composeAdvancedParams(),
+      if (state.workflowMode === 'card' && styles.activeCardId) {
+        return {
+          characterCardId: selectedCharId ?? undefined,
+          backgroundCardId: backgrounds.activeCardId ?? undefined,
+          styleCardId: styles.activeCardId,
+          freePrompt: composePrompt(state.prompt),
+          aspectRatio: state.aspectRatio,
+          projectId: projects.activeProjectId ?? undefined,
+          referenceImages:
+            imageUpload.referenceImages.length > 0
+              ? imageUpload.referenceImages
+              : undefined,
+          advancedParams: composeAdvancedParams(),
+        }
       }
-    }
-    return null
-  }, [
-    state.workflowMode,
-    state.prompt,
-    state.aspectRatio,
-    composePrompt,
-    composeAdvancedParams,
-    selectedModel,
-    selectedCharId,
-    backgrounds.activeCardId,
-    styles.activeCardId,
-    projects.activeProjectId,
-    imageUpload.referenceImages,
-  ])
+      return null
+    },
+    [
+      state.workflowMode,
+      state.prompt,
+      state.aspectRatio,
+      composePrompt,
+      composeAdvancedParams,
+      selectedModel,
+      selectedCharId,
+      backgrounds.activeCardId,
+      styles.activeCardId,
+      projects.activeProjectId,
+      imageUpload.referenceImages,
+    ],
+  )
+
+  const executeGenerate = useCallback(
+    async (overrides?: GenerationPlanOverrides) => {
+      if (!canGenerate) return
+      if (isAudioMode && selectedModel) {
+        await generate({
+          mode: 'audio',
+          audio: {
+            modelId: selectedModel.modelId,
+            apiKeyId: selectedModel.keyId,
+            freePrompt: state.prompt || undefined,
+            voiceId: state.voiceId ?? undefined,
+          },
+        })
+        return
+      }
+      if (isVideoMode && selectedModel) {
+        const video = buildVideoInput()
+        if (!video) return
+        await generate({ mode: 'video', video })
+        return
+      }
+      const shouldApplyOverrides =
+        !!overrides && state.workflowMode === 'quick'
+      const overrideModel =
+        shouldApplyOverrides && overrides.modelId
+          ? modelOptions.find((option) => option.modelId === overrides.modelId)
+          : undefined
+      if (overrideModel) {
+        dispatch({ type: 'SET_OPTION_ID', payload: overrideModel.optionId })
+      }
+      const image = buildImageInput(
+        shouldApplyOverrides
+          ? {
+              selectedModel: overrideModel,
+              compiledPrompt: overrides.compiledPrompt,
+              negativePrompt: overrides.negativePrompt,
+            }
+          : undefined,
+      )
+      if (!image) return
+      const result = await generate({ mode: 'image', image })
+
+      // Nudge: after 3 successful quick-mode generations, suggest Pro mode
+      if (result && state.workflowMode === 'quick') {
+        const NUDGE_KEY = 'studio-quick-gen-count'
+        const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
+        if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
+          const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
+          localStorage.setItem(NUDGE_KEY, String(count))
+          if (count === 3) {
+            toast(tV3('cardMode'), {
+              description: t('proModeNudge'),
+              action: {
+                label: t('tryProMode'),
+                onClick: () => {
+                  dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
+                  localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
+                },
+              },
+              onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
+            })
+          }
+        }
+      }
+    },
+    [
+      canGenerate,
+      isAudioMode,
+      isVideoMode,
+      selectedModel,
+      modelOptions,
+      state.prompt,
+      state.voiceId,
+      state.workflowMode,
+      buildImageInput,
+      buildVideoInput,
+      generate,
+      dispatch,
+      t,
+      tV3,
+    ],
+  )
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return
-    if (isAudioMode && selectedModel) {
-      await generate({
-        mode: 'audio',
-        audio: {
-          modelId: selectedModel.modelId,
-          apiKeyId: selectedModel.keyId,
-          freePrompt: state.prompt || undefined,
-          voiceId: state.voiceId ?? undefined,
-        },
-      })
+    if (
+      !isAudioMode &&
+      !isVideoMode &&
+      state.workflowMode === 'quick' &&
+      state.prompt.trim()
+    ) {
+      setPlanOpen(true)
       return
     }
-    if (isVideoMode && selectedModel) {
-      const video = buildVideoInput()
-      if (!video) return
-      await generate({ mode: 'video', video })
-      return
-    }
-    const image = buildImageInput()
-    if (!image) return
-    const result = await generate({ mode: 'image', image })
-
-    // Nudge: after 3 successful quick-mode generations, suggest Pro mode
-    if (result && state.workflowMode === 'quick') {
-      const NUDGE_KEY = 'studio-quick-gen-count'
-      const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
-      if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
-        const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
-        localStorage.setItem(NUDGE_KEY, String(count))
-        if (count === 3) {
-          toast(tV3('cardMode'), {
-            description: t('proModeNudge'),
-            action: {
-              label: t('tryProMode'),
-              onClick: () => {
-                dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
-                localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
-              },
-            },
-            onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
-          })
-        }
-      }
-    }
+    await executeGenerate()
   }, [
     canGenerate,
     isAudioMode,
     isVideoMode,
-    selectedModel,
-    state.prompt,
-    state.voiceId,
     state.workflowMode,
-    buildImageInput,
-    buildVideoInput,
-    generate,
-    dispatch,
-    t,
-    tV3,
+    state.prompt,
+    executeGenerate,
   ])
 
   const handleGenerateVariants = useCallback(async () => {
@@ -775,6 +841,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           </button>
         </div>
       )}
+
+      <StudioGenerationPlan
+        open={planOpen}
+        prompt={state.prompt}
+        onGenerate={(params) => {
+          setPlanOpen(false)
+          void executeGenerate(params)
+        }}
+        onClose={() => setPlanOpen(false)}
+      />
     </>
   )
 })

@@ -78,12 +78,15 @@ function extractTaskKeywords(intent: ImageIntent): string[] {
 function scoreModel(
   modelId: string,
   taskKeywords: string[],
+  arenaRates: Record<string, number>,
 ): { score: number; matchedBestFor: string[]; reason: string } {
   const strengths = MODEL_STRENGTHS[modelId as keyof typeof MODEL_STRENGTHS]
+  const arenaRate = arenaRates[modelId]
+  const arenaScore = arenaRate === undefined ? 0 : arenaRate * 2
 
   if (!strengths) {
     return {
-      score: 0,
+      score: arenaScore,
       matchedBestFor: [],
       reason: 'No strength data for this model.',
     }
@@ -104,13 +107,16 @@ function scoreModel(
       : 'No direct task match; general-purpose fallback.'
 
   return {
-    score: matchedBestFor.length,
+    score: matchedBestFor.length + arenaScore,
     matchedBestFor,
     reason,
   }
 }
 
-export function routeModelsForIntent(intent: ImageIntent): RecommendedModel[] {
+export function routeModelsForIntent(
+  intent: ImageIntent,
+  arenaRates: Record<string, number> = {},
+): RecommendedModel[] {
   const taskKeywords = extractTaskKeywords(intent)
 
   const scored = Object.keys(MODEL_STRENGTHS)
@@ -119,6 +125,7 @@ export function routeModelsForIntent(intent: ImageIntent): RecommendedModel[] {
       const { score, matchedBestFor, reason } = scoreModel(
         modelId,
         taskKeywords,
+        arenaRates,
       )
       return { modelId, score, matchedBestFor, reason }
     })

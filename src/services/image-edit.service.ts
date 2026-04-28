@@ -1,6 +1,9 @@
 import 'server-only'
 
+import { z } from 'zod'
+
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ProviderError } from '@/services/providers/types'
 import {
   fetchAsBuffer,
@@ -15,10 +18,32 @@ import type { GenerationRecord } from '@/types'
 const FAL_UPSCALE_MODEL = 'fal-ai/aura-sr'
 const FAL_REMOVE_BG_MODEL = 'fal-ai/birefnet/v2'
 
+const FalImageEditResponseSchema = z.object({
+  image: z.object({
+    url: z.string().url(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+})
+
 interface ImageEditResult {
   imageUrl: string
   width: number
   height: number
+}
+
+function parseFalImageEditResult(value: unknown): ImageEditResult {
+  const result = FalImageEditResponseSchema.safeParse(value)
+
+  if (!result.success) {
+    throw new ProviderError('fal.ai', 502, 'Malformed image edit response')
+  }
+
+  return {
+    imageUrl: result.data.image.url,
+    width: result.data.image.width,
+    height: result.data.image.height,
+  }
 }
 
 /**
@@ -45,15 +70,7 @@ export async function upscaleImage(
     throw new ProviderError('fal.ai', response.status, errorBody)
   }
 
-  const data = (await response.json()) as {
-    image: { url: string; width: number; height: number }
-  }
-
-  return {
-    imageUrl: data.image.url,
-    width: data.image.width,
-    height: data.image.height,
-  }
+  return parseFalImageEditResult(await response.json())
 }
 
 /**
@@ -80,15 +97,7 @@ export async function removeBackground(
     throw new ProviderError('fal.ai', response.status, errorBody)
   }
 
-  const data = (await response.json()) as {
-    image: { url: string; width: number; height: number }
-  }
-
-  return {
-    imageUrl: data.image.url,
-    width: data.image.width,
-    height: data.image.height,
-  }
+  return parseFalImageEditResult(await response.json())
 }
 
 /**
@@ -118,7 +127,7 @@ export async function persistEditedImage(params: {
     height: params.height,
     prompt: `[${params.action}] from generation ${params.sourceGenerationId}`,
     model: params.action,
-    provider: 'fal',
+    provider: AI_ADAPTER_TYPES.FAL,
     requestCount: 0,
     userId: params.userId,
   })

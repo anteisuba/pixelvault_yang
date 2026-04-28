@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { editImageAPI } from '@/lib/api-client/generation'
+import { downloadRemoteAsset, editImageAPI } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
@@ -193,23 +193,17 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   const handleDownload = async () => {
     if (!generation.url) return
-    try {
-      const res = await fetch(generation.url)
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      const ext =
-        generation.outputType === 'VIDEO'
-          ? 'mp4'
-          : generation.outputType === 'AUDIO'
-            ? 'mp3'
-            : 'png'
-      a.download = `pixelvault-${generation.id}.${ext}`
-      a.click()
-      URL.revokeObjectURL(blobUrl)
-    } catch {
-      // Fallback: open in new tab
+    const ext =
+      generation.outputType === 'VIDEO'
+        ? 'mp4'
+        : generation.outputType === 'AUDIO'
+          ? 'mp3'
+          : 'png'
+    const result = await downloadRemoteAsset(
+      generation.url,
+      `pixelvault-${generation.id}.${ext}`,
+    )
+    if (!result.success) {
       window.open(generation.url, '_blank', 'noopener,noreferrer')
     }
   }
@@ -261,7 +255,15 @@ export const GenerationPreview = memo(function GenerationPreview({
 
         {/* Zoom controls — top right */}
         {!isGenerating && (
-          <ZoomControls onDetailOpen={() => setDetailOpen(true)} />
+          <ZoomControls
+            onDetailOpen={() => setDetailOpen(true)}
+            labels={{
+              zoomIn: t('zoomIn'),
+              zoomOut: t('zoomOut'),
+              resetZoom: t('resetZoom'),
+              openDetail: t('openDetail'),
+            }}
+          />
         )}
 
         {/* Drag hint — desktop only */}
@@ -499,7 +501,7 @@ export const GenerationPreview = memo(function GenerationPreview({
                 type="button"
                 onClick={() => setToolDrawerOpen(true)}
                 className="flex items-center justify-center rounded-lg border border-border/40 bg-background/80 px-2.5 py-2 text-xs transition-colors active:scale-95"
-                aria-label="More tools"
+                aria-label={t('toolMore')}
               >
                 <Sparkles className="size-3.5" />
               </button>
@@ -614,7 +616,17 @@ function CanvasToolButton({
 
 // ── Zoom Controls (uses react-zoom-pan-pinch context) ─────────────
 
-function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
+interface ZoomControlsProps {
+  onDetailOpen: () => void
+  labels: {
+    zoomIn: string
+    zoomOut: string
+    resetZoom: string
+    openDetail: string
+  }
+}
+
+function ZoomControls({ onDetailOpen, labels }: ZoomControlsProps) {
   const { zoomIn, zoomOut, resetTransform } = useControls()
 
   return (
@@ -623,7 +635,7 @@ function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
         type="button"
         onClick={() => zoomIn(0.5)}
         className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label="Zoom in"
+        aria-label={labels.zoomIn}
       >
         <ZoomIn className="size-3.5" />
       </button>
@@ -631,7 +643,7 @@ function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
         type="button"
         onClick={() => zoomOut(0.5)}
         className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label="Zoom out"
+        aria-label={labels.zoomOut}
       >
         <ZoomOut className="size-3.5" />
       </button>
@@ -639,7 +651,7 @@ function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
         type="button"
         onClick={() => resetTransform()}
         className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label="Reset zoom"
+        aria-label={labels.resetZoom}
       >
         <Maximize2 className="size-3.5" />
       </button>
@@ -647,7 +659,7 @@ function ZoomControls({ onDetailOpen }: { onDetailOpen: () => void }) {
         type="button"
         onClick={onDetailOpen}
         className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label="Open detail"
+        aria-label={labels.openDetail}
       >
         <Sparkles className="size-3.5" />
       </button>

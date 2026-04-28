@@ -314,14 +314,24 @@ export interface AudioStatusResponse {
 // ─── Image Edit ──────────────────────────────────────────────────
 // Moved from /api/image/edit/route.ts to centralize all schemas
 
-export const ImageEditSchema = z.object({
-  action: z.enum(['upscale', 'remove-background']),
-  imageUrl: z.string().url(),
-  /** When true, persist the edited result to R2 and create a Generation record */
-  persist: z.boolean().optional(),
-  /** Source generation ID (required when persist is true) */
-  generationId: z.string().optional(),
-})
+export const ImageEditSchema = z
+  .object({
+    action: z.enum(['upscale', 'remove-background']),
+    imageUrl: z.string().url(),
+    /** When true, persist the edited result to R2 and create a Generation record */
+    persist: z.boolean().optional(),
+    /** Source generation ID (required when persist is true) */
+    generationId: z.string().trim().min(1).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.persist && !value.generationId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['generationId'],
+        message: 'generationId is required when persist is true',
+      })
+    }
+  })
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
 

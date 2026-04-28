@@ -205,7 +205,7 @@ export const StudioGallery = memo(function StudioGallery() {
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:bg-muted',
               )}
-              aria-label="Grid layout"
+              aria-label={t('gridLayout')}
             >
               <Grid3X3 className="size-3.5" />
             </button>
@@ -218,7 +218,7 @@ export const StudioGallery = memo(function StudioGallery() {
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:bg-muted',
               )}
-              aria-label="Masonry layout"
+              aria-label={t('masonryLayout')}
             >
               <LayoutGrid className="size-3.5" />
             </button>
@@ -239,7 +239,7 @@ export const StudioGallery = memo(function StudioGallery() {
                 )}
               >
                 {f === 'all'
-                  ? 'All'
+                  ? tProj('filterAll')
                   : f === 'favorites'
                     ? t('favorites')
                     : t('today')}
@@ -421,7 +421,7 @@ const GalleryItem = memo(function GalleryItem({
         )
       ) : (
         <div className="flex size-full items-center justify-center bg-muted/30">
-          <span className="text-xs text-muted-foreground">No image</span>
+          <span className="text-xs text-muted-foreground">{t('noImage')}</span>
         </div>
       )}
 
@@ -441,6 +441,7 @@ const GalleryItem = memo(function GalleryItem({
       >
         <GalleryAction
           icon={Heart}
+          label={isLiked ? t('unlike') : t('like')}
           active={isLiked}
           onClick={(e) => {
             e.stopPropagation()
@@ -449,6 +450,7 @@ const GalleryItem = memo(function GalleryItem({
         />
         <GalleryAction
           icon={RefreshCw}
+          label={t('toolRemix')}
           onClick={(e) => {
             e.stopPropagation()
             onRemix(gen)
@@ -457,6 +459,7 @@ const GalleryItem = memo(function GalleryItem({
         {gen.url && (
           <GalleryAction
             icon={Download}
+            label={t('useAsReference')}
             onClick={(e) => {
               e.stopPropagation()
               void onUseAsRef(gen.url!)
@@ -479,10 +482,12 @@ const GalleryItem = memo(function GalleryItem({
 
 const GalleryAction = memo(function GalleryAction({
   icon: Icon,
+  label,
   onClick,
   active,
 }: {
   icon: React.ComponentType<{ className?: string }>
+  label: string
   onClick: (e: React.MouseEvent) => void
   active?: boolean
 }) {
@@ -496,6 +501,7 @@ const GalleryAction = memo(function GalleryAction({
           ? 'bg-primary/80 text-white'
           : 'bg-black/50 text-white hover:bg-primary/80',
       )}
+      aria-label={label}
       style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
     >
       <Icon className={cn('size-3.5', active && 'fill-current')} />

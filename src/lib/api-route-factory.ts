@@ -37,6 +37,8 @@ interface GetRouteConfig<TSchema extends z.ZodType, TResult> {
   routeName: string
   /** Whether Clerk auth is required */
   requireAuth?: boolean
+  /** Skip Clerk auth entirely for cacheable public routes that never use viewer identity */
+  skipAuth?: boolean
   /** Optional rate limit config (auth-bound routes only) */
   rateLimit?: { limit: number; windowSeconds: number }
   /** Handler receives the validated query object */
@@ -569,7 +571,11 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
     const startedAt = Date.now()
 
     try {
-      const clerkId = await getClerkId(config.requireAuth ?? false)
+      const shouldReadAuth =
+        config.requireAuth === true || config.skipAuth !== true
+      const clerkId = shouldReadAuth
+        ? await getClerkId(config.requireAuth ?? false)
+        : null
 
       if (config.rateLimit && clerkId) {
         const { errorResponse: rateLimitedResponse } = await applyUserRateLimit(

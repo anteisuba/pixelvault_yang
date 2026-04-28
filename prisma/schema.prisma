@@ -365,6 +365,7 @@ model ArenaMatch {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   prompt         String       @db.Text
+  taskType       String? // 'portrait' | 'landscape' | 'anime' | 'artistic' | 'product' | 'architecture' | 'general'
   aspectRatio    String
   referenceImage String?      @db.Text
   winnerId       String?
@@ -373,6 +374,7 @@ model ArenaMatch {
   entries        ArenaEntry[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([taskType])
 }
 
 model ArenaEntry {

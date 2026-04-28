@@ -133,7 +133,7 @@ export async function streamUploadToR2(params: {
         params: {
           Bucket: process.env.R2_BUCKET_NAME!,
           Key: params.key,
-          Body: response.body as unknown as ReadableStream,
+          Body: response.body as ReadableStream,
           ContentType: params.mimeType,
           CacheControl: 'public, max-age=31536000, immutable',
         },

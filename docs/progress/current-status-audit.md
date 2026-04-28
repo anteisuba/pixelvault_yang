@@ -84,7 +84,6 @@ The current codebase still has some Studio-adjacent partial areas:
 
 - ⚠️ `Cmd/Ctrl + K` is double-bound (command palette + prompt focus). Documented since 2026-04-13, not yet resolved.
 - ⚠️ Workflow-shell **Phase 6 polish** (mobile real-device smoke + workflow→workflowMode override semantics) is not done. Phase 1-5 verdict: Pass on `studio-workflow-shell.md`.
-- ⚠️ `execution-callback.service.ts` `result` finalize (`streamUploadToR2` → `createGeneration` → `completeGenerationJob` + `createApiUsageEntry`) is **not** wrapped in `db.$transaction`. Audio finalize already uses transactions; video finalize does not yet. Extreme crash mid-flow can orphan a Generation record.
 - ⚠️ `requestCount` / `credits` semantic drift in frontend copy vs. backend. Free-tier model is `FREE_TIER + requestCount`, not `User.credits` balance. Resolution required before Phase E (monetization).
 - ⚠️ 240s `maxDuration` is insufficient for some video providers; long-video pipeline lacks formal recovery points. Worker execution path mitigates this for the `CINEMATIC_SHORT_VIDEO` + FAL slice, but other paths remain on the inline timeout.
 - ⚠️ in-memory rate limiter has not been upgraded to durable shared infrastructure (roadmap Phase G).
@@ -129,11 +128,12 @@ The current codebase still has some Studio-adjacent partial areas:
 - `src/constants/execution.ts` (front+back shared protocol constants)
 - Convention `runId === generationJob.id`, terminal jobs idempotent
 - Frontend F1 micro-packet: `StudioPromptArea.buildVideoInput` injects `workflowId` from `state.selectedWorkflowId` for video submissions
+- `execution-callback.service.ts` result finalize is wrapped in `db.$transaction` across `createGeneration`, `completeGenerationJob`, and `createApiUsageEntry`; transaction atomicity is covered by service tests.
 
 ### Quality and testing status
 
-- 154 test files; 8 provider adapters all have unit tests; image / R2 / usage / free-tier-boundary all covered
-- 15 services still without unit tests (high-priority list: `user.service`, `generation.service`, `studio-generate.service`, `image-edit.service`, `arena.service`, `lora-training.service`, `prompt-enhance.service`, `civitai-token.service`, `video-pipeline.service`, `image-analysis.service`, `image-decompose.service`, `fish-audio-voice.service`, `execution-outbox.service`, `generation-feedback.service`, `character-refine.service`)
+- 158 test files; 8 provider adapters all have unit tests; image-edit / R2 / usage / free-tier-boundary all covered
+- 14 services still without unit tests (high-priority list: `user.service`, `generation.service`, `studio-generate.service`, `arena.service`, `lora-training.service`, `prompt-enhance.service`, `civitai-token.service`, `video-pipeline.service`, `image-analysis.service`, `image-decompose.service`, `fish-audio-voice.service`, `execution-outbox.service`, `generation-feedback.service`, `character-refine.service`)
 - Generation pipeline refactored into 3 composable stages (W4)
 - SEO fundamentals: metadata on all pages, noindex on private pages, robots.txt + sitemap (W7)
 - Design system compliance: no pure white backgrounds, shadow levels standardized, Skeleton component usage unified

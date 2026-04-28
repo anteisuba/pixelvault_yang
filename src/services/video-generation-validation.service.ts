@@ -1,3 +1,5 @@
+import 'server-only'
+
 import type { AspectRatio } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'

@@ -19,9 +19,21 @@
 
 - [backend/server-owned-run-foundation.md](backend/server-owned-run-foundation.md) — 服务器托管运行基础
 - [backend/jimeng-google-video-integration.md](backend/jimeng-google-video-integration.md) — Google 视频集成
+- [backend/2026-04-25-plan-a-a1-runtime-stability.md](backend/2026-04-25-plan-a-a1-runtime-stability.md) ⭐ — **Plan A A.1 运行时稳定性 TDD 子计划**(签名抽取 + callback 事务 + free-tier 原子槽位)
+- [backend/2026-04-25-plan-a-a2-test-coverage.md](backend/2026-04-25-plan-a-a2-test-coverage.md) ⭐ — **Plan A A.2 测试覆盖扫描 TDD 子计划**(social/narrative/card-CRUD/LLM services/provider adapters 共 20 个测试文件，5 个 commit)
+- [backend/2026-04-26-plan-a-a3-error-loading-webhook.md](backend/2026-04-26-plan-a-a3-error-loading-webhook.md) ⭐ — **Plan A A.3 Error/Loading 边界 + Clerk Webhook 扩展 TDD 子计划**(8 个 loading/error 文件 + user.updated/deleted webhook handler)
+
+### Creative Control (Plan B — 能力扩展 B 线)
+
+- [roadmap/能力扩展/创作控制/2026-04-25-plan-b-b11-intent-layer.md](roadmap/能力扩展/创作控制/2026-04-25-plan-b-b11-intent-layer.md) ⭐ — **Plan B B.1.1 Intent 层 TDD 子计划**(ImageIntent schema + intent-parser + model-router + /api/generation/plan)
+- [roadmap/能力扩展/创作控制/2026-04-25-plan-b-b12-prompt-compiler.md](roadmap/能力扩展/创作控制/2026-04-25-plan-b-b12-prompt-compiler.md) ⭐ — **Plan B B.1.2 Prompt Compiler TDD 子计划**(per-model 编译器：tag-based / photorealistic / natural-language 三分路)
+- [roadmap/能力扩展/创作控制/2026-04-25-plan-b-b14-generation-evaluator.md](roadmap/能力扩展/创作控制/2026-04-25-plan-b-b14-generation-evaluator.md) ⭐ — **Plan B B.1.4 Generation Evaluator TDD 子计划**(LLM vision 自动评分 + Generation.evaluation 列 + /api/generation/evaluate)
+- [roadmap/能力扩展/创作控制/2026-04-25-plan-b-b16-recipe-persistence.md](roadmap/能力扩展/创作控制/2026-04-25-plan-b-b16-recipe-persistence.md) ⭐ — **Plan B B.1.6 Recipe Persistence TDD 子计划**(Recipe 表 + CRUD service + /api/recipes 全套路由 + api-client)
+- [roadmap/能力扩展/创作控制/2026-04-25-plan-b-b15-studio-ui.md](roadmap/能力扩展/创作控制/2026-04-25-plan-b-b15-studio-ui.md) ⭐ — **Plan B B.1.5 Studio UI TDD 子计划**(StudioGenerationPlan + StudioResultFeedback + StudioKeepChangePanel 三件套,含 api-client + i18n + panel 接线)
 
 ### Product
 
+- [product/tech-debt-and-creative-control-roadmap.md](product/tech-debt-and-creative-control-roadmap.md) ⭐ — **两主线战略规划**(Plan A 技术债 + Plan B 创作控制),TDD 子计划的来源文档
 - [product/unified-development-plan.md](product/unified-development-plan.md)
 - [product/model-catalog-next-steps.md](product/model-catalog-next-steps.md) — 模型清單 Step 3-6 後續整改工作包
 - [product/video-module-roadmap.md](product/video-module-roadmap.md) — 视频模块四阶段路线

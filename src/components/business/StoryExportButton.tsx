@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { BRAND_BG } from '@/lib/design-tokens'
+import { toastError } from '@/lib/toast'
 
 interface StoryExportButtonProps {
   storyTitle: string
@@ -36,8 +37,8 @@ export function StoryExportButton({
       link.download = `${storyTitle.replace(/[^a-zA-Z0-9]/g, '_')}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch {
+      toastError(t('exportFailed'))
     } finally {
       setIsExporting(false)
     }

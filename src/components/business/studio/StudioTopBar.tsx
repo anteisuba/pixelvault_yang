@@ -59,7 +59,7 @@ export const StudioTopBar = memo(function StudioTopBar() {
             'flex size-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-all duration-200',
             'hover:border-primary/30 hover:text-foreground',
           )}
-          aria-label="Toggle sidebar"
+          aria-label={tStudio('toggleSidebar')}
         >
           <PanelLeft className="size-4.5" />
         </button>

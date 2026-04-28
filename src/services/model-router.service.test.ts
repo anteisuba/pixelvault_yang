@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
+import { RETIRED_MODEL_IDS } from '@/constants/models'
 import type { ImageIntent } from '@/types'
 import { routeModelsForIntent } from './model-router.service'
 
@@ -54,6 +55,19 @@ describe('routeModelsForIntent', () => {
     const intent: ImageIntent = { subject: 'anything' }
     const results = routeModelsForIntent(intent)
     expect(results.length).toBeLessThanOrEqual(5)
+  })
+
+  it('does not recommend retired models', () => {
+    const intent: ImageIntent = {
+      subject: 'logo poster',
+      style: 'graphic design',
+    }
+    const results = routeModelsForIntent(intent)
+    const resultModelIds = results.map((result) => result.modelId)
+
+    for (const modelId of RETIRED_MODEL_IDS) {
+      expect(resultModelIds).not.toContain(modelId)
+    }
   })
 
   it('returns results with score 0 for unmatched intent (minimal intent)', () => {

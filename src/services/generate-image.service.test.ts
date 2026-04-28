@@ -64,7 +64,7 @@ vi.mock('@/constants/models', async () => {
   return { ...actual, getModelById: vi.fn(actual.getModelById) }
 })
 
-import { getModelById } from '@/constants/models'
+import { AI_MODELS, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { GenerateRequest } from '@/types'
 import {
@@ -263,6 +263,17 @@ describe('resolveGenerationRoute', () => {
     )
   })
 
+  it('throws UNSUPPORTED_MODEL for retired built-in models before route lookup', async () => {
+    await expect(
+      resolveGenerationRoute('user-1', {
+        modelId: AI_MODELS.GEMINI_25_FLASH_IMAGE,
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'UNSUPPORTED_MODEL' }))
+
+    expect(getApiKeyValueById).not.toHaveBeenCalled()
+    expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
+  })
+
   it('throws MISSING_API_KEY when no user key and model is not free-tier', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
 
@@ -402,6 +413,7 @@ describe('generateImageForUser', () => {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.api' },
       cost: 1,
+      available: true,
       freeTier: true,
       requiresReferenceImage: true,
     } as never)

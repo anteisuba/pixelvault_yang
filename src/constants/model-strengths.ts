@@ -88,17 +88,11 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     enhanceHint:
       'This model excels at typography and graphic design. When the subject involves text, specify the exact text, font style, and layout. Use design terminology (minimalist, bold, geometric).',
   },
-  [AI_MODELS.RECRAFT_V3]: {
+  [AI_MODELS.RECRAFT_V4_PRO]: {
     bestFor: ['illustration', 'icon', 'brand', 'vector-style'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model produces clean, professional illustrations. Use design terminology with emphasis on style consistency, color harmony, and visual hierarchy.',
-  },
-  [AI_MODELS.SEEDREAM_30]: {
-    bestFor: ['general', 'chinese-style', 'landscape'],
-    promptStyle: 'natural-language',
-    enhanceHint:
-      'Works well with both English and Chinese prompts. Prefer concise, clear descriptions focusing on the key visual elements. Good at traditional Chinese art styles.',
   },
   [AI_MODELS.SEEDREAM_45]: {
     bestFor: ['general', 'cinematic', 'landscape', 'portrait'],

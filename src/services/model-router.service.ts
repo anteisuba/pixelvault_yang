@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { MODEL_STRENGTHS } from '@/constants/model-strengths'
+import { getModelById } from '@/constants/models'
 import type { ImageIntent } from '@/types'
 
 export interface RecommendedModel {
@@ -112,10 +113,15 @@ function scoreModel(
 export function routeModelsForIntent(intent: ImageIntent): RecommendedModel[] {
   const taskKeywords = extractTaskKeywords(intent)
 
-  const scored = Object.keys(MODEL_STRENGTHS).map((modelId) => {
-    const { score, matchedBestFor, reason } = scoreModel(modelId, taskKeywords)
-    return { modelId, score, matchedBestFor, reason }
-  })
+  const scored = Object.keys(MODEL_STRENGTHS)
+    .filter((modelId) => getModelById(modelId)?.available === true)
+    .map((modelId) => {
+      const { score, matchedBestFor, reason } = scoreModel(
+        modelId,
+        taskKeywords,
+      )
+      return { modelId, score, matchedBestFor, reason }
+    })
 
   return scored.sort((a, b) => b.score - a.score).slice(0, 5)
 }

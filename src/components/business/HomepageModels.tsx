@@ -4,9 +4,9 @@ import { Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
+  getAvailableModels,
   getModelMessageKey,
   groupModelsByProvider,
-  MODEL_OPTIONS,
   type ModelOption,
   type ProviderGroup,
 } from '@/constants/models'
@@ -48,7 +48,6 @@ const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
   // Google
   'gemini-3.1-flash-image-preview': { price: '~$0.07', unit: '/img' },
   'gemini-3-pro-image-preview': { price: '~$0.13', unit: '/img' },
-  'gemini-2.5-flash-image': { price: '~$0.04', unit: '/img' },
   // fal — Image
   'flux-2-pro': { price: '~$0.03', unit: '/img' },
   'flux-2-dev': { price: '~$0.012', unit: '/img' },
@@ -58,18 +57,15 @@ const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
   'flux-kontext-pro': { price: '~$0.04', unit: '/img' },
   'flux-kontext-max': { price: '~$0.07', unit: '/img' },
   'ideogram-3': { price: '~$0.05', unit: '/img' },
-  'recraft-v3': { price: '~$0.04', unit: '/img' },
   'recraft-v4-pro': { price: '~$0.25', unit: '/img' },
   // VolcEngine
   'seedream-4.5': { price: '~$0.04', unit: '/img' },
   'seedream-5.0-lite': { price: '~$0.035', unit: '/img' },
   'seedream-4.0': { price: '~$0.03', unit: '/img' },
-  'seedream-3.0': { price: '~$0.02', unit: '/img' },
   // NovelAI (~13 Anlas ≈ $0.026)
   'nai-diffusion-4-5-full': { price: '~$0.026', unit: '/img' },
   'nai-diffusion-4-5-curated': { price: '~$0.026', unit: '/img' },
   'nai-diffusion-4-full': { price: '~$0.026', unit: '/img' },
-  'nai-diffusion-3': { price: '~$0.020', unit: '/img' },
   'illustrious-xl': { price: '~$0.026', unit: '/img' },
   // HuggingFace
   sdxl: { price: '~$0.006', unit: '/img' },
@@ -83,9 +79,7 @@ const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
   'luma-ray-2': { price: '~$0.10', unit: '/sec' },
   'wan-video': { price: '~$0.05', unit: '/sec' },
   'hunyuan-video': { price: '~$0.075', unit: '/sec' },
-  'seedance-pro': { price: '~$0.06', unit: '/sec' },
   'seedance-1.5-pro': { price: '~$0.05', unit: '/sec' },
-  'seedance-1.0-pro': { price: '~$0.12', unit: '/sec' },
   'veo-3.1': { price: '~$0.40', unit: '/sec' },
   'pika-v2.5': { price: '~$0.06', unit: '/sec' },
   'runway-gen3': { price: '~$0.06', unit: '/sec' },
@@ -112,10 +106,7 @@ export function HomepageModels() {
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
 
-  const groups = groupModelsByProvider(MODEL_OPTIONS)
-  const availableGroups = groups.filter((g) =>
-    g.models.some((m) => m.available),
-  )
+  const availableGroups = groupModelsByProvider(getAvailableModels())
 
   return (
     <section
@@ -156,14 +147,13 @@ export function HomepageModels() {
             >
               {PROVIDER_LABELS[group]}
               <span className="ml-1.5 text-[0.6rem] opacity-70">
-                {models.filter((m) => m.available).length}
+                {models.length}
               </span>
             </TabsTrigger>
           ))}
         </TabsList>
 
         {availableGroups.map(({ group, models }) => {
-          const availableModels = models.filter((m) => m.available)
           return (
             <TabsContent key={group} value={group} className="mt-4">
               <MagicCard
@@ -183,7 +173,7 @@ export function HomepageModels() {
                 </div>
 
                 {/* Model rows */}
-                {availableModels.map((model, i) => {
+                {models.map((model, i) => {
                   const caps = getCapabilities(model)
                   return (
                     <BlurFade
@@ -195,8 +185,7 @@ export function HomepageModels() {
                       <div
                         className={cn(
                           'grid grid-cols-[1fr_6rem_minmax(0,16rem)] max-sm:grid-cols-[1fr_6rem] gap-2 items-center px-5 py-3 transition-colors duration-200 hover:bg-primary/3',
-                          i < availableModels.length - 1 &&
-                            'border-b border-border/20',
+                          i < models.length - 1 && 'border-b border-border/20',
                         )}
                       >
                         {/* Model name + tags */}

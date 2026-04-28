@@ -182,7 +182,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     openPanel: 'modelSelector',
     recommendedModelIds: [
       AI_MODELS.IDEOGRAM_3,
-      AI_MODELS.RECRAFT_V3,
+      AI_MODELS.RECRAFT_V4_PRO,
       AI_MODELS.OPENAI_GPT_IMAGE_2,
     ],
   },

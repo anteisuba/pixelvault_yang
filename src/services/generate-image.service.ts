@@ -102,6 +102,14 @@ export async function resolveGenerationRoute(
 ): Promise<ResolvedGenerationRoute> {
   const builtInModel = getModelById(modelId)
 
+  if (builtInModel && !builtInModel.available) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'This model is no longer available for new generations',
+      400,
+    )
+  }
+
   if (apiKeyId) {
     const selectedApiKey = await getApiKeyValueById(apiKeyId, userId)
 

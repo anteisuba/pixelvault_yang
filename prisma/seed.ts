@@ -72,7 +72,7 @@ const MODEL_OPTIONS = [
     adapterType: 'fal',
     outputType: 'IMAGE' as const,
     cost: 2,
-    available: true,
+    available: false,
     officialUrl: 'https://www.recraft.ai/docs/api-reference/getting-started',
     providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
   },
@@ -193,7 +193,7 @@ const MODEL_OPTIONS = [
     adapterType: 'fal',
     outputType: 'VIDEO' as const,
     cost: 4,
-    available: true,
+    available: false,
     officialUrl:
       'https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video',
     timeoutMs: 300000,

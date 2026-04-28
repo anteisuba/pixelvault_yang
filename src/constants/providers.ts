@@ -178,5 +178,5 @@ export const PROVIDER_FALLBACK_MAP: Partial<Record<string, string>> = {
   'flux-2-pro': 'gemini-3.1-flash-image-preview',
   'flux-2-dev': 'flux-2-schnell',
   'ideogram-3': 'gemini-3.1-flash-image-preview',
-  'recraft-v3': 'gemini-3.1-flash-image-preview',
+  'recraft-v4-pro': 'gemini-3.1-flash-image-preview',
 }

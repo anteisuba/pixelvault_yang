@@ -2,13 +2,19 @@ import { describe, expect, it } from 'vitest'
 
 import {
   AI_MODELS,
+  getAvailableImageModels,
+  getAvailableModels,
+  getAvailableVideoModels,
   getExecutionModelId,
   getModelById,
   getModelFamily,
   getModelMessageKey,
   isBuiltInModel,
+  isFreeTierModel,
+  isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
+  RETIRED_MODEL_IDS,
 } from '@/constants/models'
 
 describe('models', () => {
@@ -40,5 +46,39 @@ describe('models', () => {
     expect(getModelMessageKey('pika-v2.2')).toBe('pikaV25')
     expect(getModelFamily('veo-3')).toBe('Veo')
     expect(getModelFamily('pika-v2.2')).toBe('Pika')
+  })
+
+  it('keeps retired models resolvable but hidden from available lists', () => {
+    const availableModelIds = getAvailableModels().map((model) => model.id)
+    const availableImageModelIds = getAvailableImageModels().map(
+      (model) => model.id,
+    )
+    const availableVideoModelIds = getAvailableVideoModels().map(
+      (model) => model.id,
+    )
+
+    for (const modelId of RETIRED_MODEL_IDS) {
+      const model = getModelById(modelId)
+
+      expect(isRetiredModelId(modelId)).toBe(true)
+      expect(model).toBeDefined()
+      expect(model?.available).toBe(false)
+      expect(availableModelIds).not.toContain(modelId)
+
+      if (model?.outputType === 'IMAGE') {
+        expect(availableImageModelIds).not.toContain(modelId)
+      }
+
+      if (model?.outputType === 'VIDEO') {
+        expect(availableVideoModelIds).not.toContain(modelId)
+      }
+    }
+
+    expect(getModelMessageKey(AI_MODELS.RECRAFT_V3)).toBe('recraftV3')
+    expect(getModelFamily(AI_MODELS.RECRAFT_V3)).toBe('Recraft')
+  })
+
+  it('does not treat retired free-tier models as active free-tier options', () => {
+    expect(isFreeTierModel(AI_MODELS.GEMINI_25_FLASH_IMAGE)).toBe(false)
   })
 })

@@ -10,7 +10,11 @@ import {
   IMAGE_SIZES,
   type AspectRatio,
 } from '@/constants/config'
-import { getModelById, isBuiltInModel, MODEL_OPTIONS } from '@/constants/models'
+import {
+  getAvailableImageModels,
+  getModelById,
+  isBuiltInModel,
+} from '@/constants/models'
 import {
   hasCapability,
   getMaxReferenceImages,
@@ -93,7 +97,7 @@ function buildModelOptions(
   }
 
   // Only image models for arena
-  const imageModels = MODEL_OPTIONS.filter((m) => m.outputType === 'IMAGE')
+  const imageModels = getAvailableImageModels()
 
   const builtInOptions: ArenaModelOption[] = imageModels.map((model) => {
     let keyStatus: ModelKeyStatus = 'nokey'
@@ -119,7 +123,7 @@ function buildModelOptions(
   // Only include saved keys for image models in arena
   const imageApiKeys = activeApiKeys.filter((key) => {
     const model = getModelById(key.modelId)
-    return !model || model.outputType === 'IMAGE'
+    return !model || (model.outputType === 'IMAGE' && model.available)
   })
 
   const savedOptions: ArenaModelOption[] = imageApiKeys.map((key) => ({

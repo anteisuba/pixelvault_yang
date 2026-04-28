@@ -4,6 +4,7 @@ import type { Prisma } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
 import {
+  isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
   type ModelOption,
@@ -130,9 +131,12 @@ export async function getResolvedModelOptions(): Promise<ModelOption[]> {
 
   // DB configs first (in sort order)
   for (const config of dbConfigs) {
-    // Legacy renamed IDs stay resolvable through constants but should not
-    // reappear as duplicate catalog rows.
-    if (normalizeModelId(config.modelId) !== config.modelId) {
+    // Legacy renamed or retired IDs stay resolvable through constants but
+    // should not reappear as active DB-driven catalog rows.
+    if (
+      normalizeModelId(config.modelId) !== config.modelId ||
+      isRetiredModelId(config.modelId)
+    ) {
       continue
     }
 

@@ -14,6 +14,7 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+import { AI_MODELS } from '@/constants/models'
 import {
   getAllModelConfigs,
   getModelConfigById,
@@ -76,6 +77,28 @@ describe('getResolvedModelOptions', () => {
 
     expect(modelIds).toContain('veo-3.1')
     expect(modelIds).not.toContain('veo-3')
+  })
+
+  it('hides retired DB rows and keeps the inactive fallback catalog entry', async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        ...FAKE_ROW,
+        modelId: AI_MODELS.RECRAFT_V3,
+        externalModelId: 'custom/recraft-v3',
+        available: true,
+      },
+    ])
+
+    const result = await getResolvedModelOptions()
+    const recraftRows = result.filter(
+      (model) => model.id === AI_MODELS.RECRAFT_V3,
+    )
+
+    expect(recraftRows).toHaveLength(1)
+    expect(recraftRows[0]).toMatchObject({
+      available: false,
+      externalModelId: 'fal-ai/recraft/v3/text-to-image',
+    })
   })
 })
 

@@ -120,6 +120,21 @@ export const normalizeModelId = (modelId: string): string =>
 
 const BUILT_IN_MODEL_IDS = new Set<string>(Object.values(AI_MODELS))
 
+export const RETIRED_MODEL_IDS = [
+  AI_MODELS.SEEDREAM_30,
+  AI_MODELS.PLAYGROUND_V25,
+  AI_MODELS.NOVELAI_V3,
+  AI_MODELS.RECRAFT_V3,
+  AI_MODELS.GEMINI_25_FLASH_IMAGE,
+  AI_MODELS.SEEDANCE_PRO,
+  AI_MODELS.SEEDANCE_10_PRO,
+] as const satisfies readonly AI_MODELS[]
+
+const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)
+
+export const isRetiredModelId = (modelId: string): boolean =>
+  RETIRED_MODEL_ID_SET.has(normalizeModelId(modelId))
+
 /** Quality tier for all models */
 export type QualityTier = 'budget' | 'standard' | 'premium'
 
@@ -280,7 +295,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
     externalModelId: 'doubao-seedream-3-0-t2i-250415',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl: 'https://www.volcengine.com/docs/82379/1541523',
     qualityTier: 'budget',
     styleTag: 'artistic',
@@ -306,7 +321,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/recraft/v3/text-to-image',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl: 'https://www.recraft.ai/docs/api-reference/getting-started',
     qualityTier: 'premium',
     styleTag: 'design',
@@ -453,7 +468,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
     externalModelId: 'nai-diffusion-3',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl: 'https://docs.novelai.net/en/image/models',
     qualityTier: 'budget',
     styleTag: 'anime',
@@ -480,7 +495,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.HUGGINGFACE),
     externalModelId: 'playgroundai/playground-v2.5-1024px-aesthetic',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl:
       'https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic',
     qualityTier: 'standard',
@@ -497,7 +512,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
     externalModelId: 'gemini-2.5-flash-image',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     freeTier: true,
     officialUrl: 'https://ai.google.dev/gemini-api/docs/image-generation',
     qualityTier: 'standard',
@@ -696,7 +711,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/bytedance/seedance/v1/pro/text-to-video',
     outputType: 'VIDEO',
-    available: true,
+    available: false,
     officialUrl:
       'https://fal.ai/models/fal-ai/bytedance/seedance/v1/pro/text-to-video',
     timeoutMs: 300_000,
@@ -733,7 +748,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
     externalModelId: 'doubao-seedance-1-0-pro-fast-251015',
     outputType: 'VIDEO',
-    available: true,
+    available: false,
     officialUrl: 'https://www.volcengine.com/docs/82379/1520757',
     timeoutMs: 300_000,
     qualityTier: 'standard',
@@ -1008,8 +1023,10 @@ export const getFreeTierModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter((model) => model.available && model.freeTier)
 
 /** Check if a model is on the free tier */
-export const isFreeTierModel = (modelId: string): boolean =>
-  getModelById(modelId)?.freeTier === true
+export const isFreeTierModel = (modelId: string): boolean => {
+  const model = getModelById(modelId)
+  return model?.available === true && model.freeTier === true
+}
 
 /** Provider group key for grouping models in UI */
 export type ProviderGroup =

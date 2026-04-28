@@ -170,6 +170,8 @@ type ActiveRun = {
 
 **状态:** 已完成 ✅
 
+> **Status note (2026-04-28):** 本节描述的是 B1 当时的规划意图（左/中/右三栏 280/flex/320）。实际代码最终采用 **canvas + dock + gallery 垂直流式布局**（`StudioFlowLayout`），不存在 `StudioLeftColumn` / `StudioCenterColumn` / `StudioRightColumn` 这些组件。判断当前 Studio 实际结构请以 `docs/plans/frontend/studio-feature-map.md` 的「Layout Structure」为准。下文 B1 内容保留作为历史规划档案。
+
 #### 已完成范围
 
 - `StudioWorkspace` 已切成项目栏 + 左中右/左右主布局

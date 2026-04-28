@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> Last synced: 2026-04-13
+> Last synced: 2026-04-28
 > This file tracks roadmap-level priorities and current status.
 > For the current shipped Studio behavior, start with `../plans/frontend/studio-feature-map.md`.
 
@@ -134,8 +134,9 @@
 
 - Upscale and remove-background service foundations are shipped
 - Shared edit-service plumbing exists
-- Inpainting is still pending
-- Some Studio preview actions are still placeholder buttons
+- Studio preview actions (Super Res / Remove BG / Save Edited) are wired to `image-edit.service` and reachable from `GenerationPreview`
+- Kontext "Edit with AI" entry is shipped (auto-switches to Kontext Pro + reference image + prompt focus)
+- Inpainting and outpainting are still pending
 
 ### F4. Workflow / Pipeline Productization — NOT STARTED
 
@@ -208,16 +209,49 @@
 - `/api/generate-audio` is live
 - `/api/voices` is live
 - Voice selection and voice cloning are already wired into Studio
+- Audio submit / status uses outbox-backed server-owned contract; finalize uses `db.$transaction`
 - Final clip + TTS + BGM assembly workflow is still pending
+
+### W5. Image Transform Phase 1 — COMPLETE
+
+- 5-dimension schema reserved (style / pose / background / garment / detail)
+- `style` and `pose` dimensions implemented (FAL FLUX Redux + FLUX Kontext)
+- 6 preset seeds (Watercolor / Oil Painting / Ghibli / Cyberpunk / Pixel Art / Photo-realistic)
+- Studio integration: `StudioInputImage`, `StudioFaceConsentModal`, `StudioTransformToggle`, `StudioVariantsGrid`, `StudioTransformPanel`
+- 1× Fast / 2×2 4-variant modes with `Promise.allSettled` failure tolerance + per-variant retry
+- API route + Zod schema + service + hook all unit-tested
+
+### W6. Workflow-First Shell (Balanced 8) — PARTIAL
+
+- `src/constants/workflows.ts` defines 8 workflows (5 image + 2 video + 1 audio)
+- `studio-context` adds `selectedWorkflowId` state + reducer
+- New shell components: `StudioWorkflowGroupTabs`, `StudioWorkflowPicker`, `StudioWorkflowSummary`, `StudioAdvancedDrawer`
+- `StudioTopBar` slimmed to 44px; image / video / audio toggle removed in favor of workflow group tabs + Advanced drawer
+- Workflow→capability mapping (`getWorkflowStudioDefaults`) drives `outputType` only — recommended-models / default-panel / etc. reserved but not wired
+- Phase 1-5 of `studio-workflow-shell.md` complete; Phase 6 (mobile real-device smoke + override semantics) still pending
+
+### W7. Server-owned Execution (Cloudflare Worker) — PARTIAL
+
+- Cloudflare Worker workspace (`workers/execution/`) with health endpoint + dispatch handler
+- `CinematicShortVideoWorkflow` Cloudflare Workflow + FAL queue submit / poll
+- Internal callback route (`/api/internal/execution/callback`) with HMAC-SHA256 signature verification
+- Worker reverse-fetch route (`/api/internal/execution/resolve-key`) for user API key resolution
+- `runId === generationJob.id` convention; terminal jobs idempotent
+- Currently scoped to `CINEMATIC_SHORT_VIDEO` + FAL + saved API key; other paths still inline
+- ⚠️ `execution-callback` finalize is not yet wrapped in `db.$transaction` (audio finalize is)
 
 ## Current Studio Highlights
 
+- Workflow-first shell (Balanced 8) at the entry layer
 - Image quick workflow
 - Image card workflow
+- Image transform Phase 1 (style + pose dimensions, 6 presets)
 - Compare generation across 2-3 models
-- 4-variant generation with winner selection
+- 4-variant generation with winner selection (transactional)
 - Project-scoped history
-- Prompt/reference tooling
-- Video generation form
-- Audio generation mode
+- Prompt / reference tooling (with style preset chips)
+- Video generation (with Cloudflare Worker execution path for cinematic short)
+- Audio generation mode (outbox + transactional finalize)
 - Voice library and voice cloning
+- Quick Setup API key onboarding dialog
+- Generation pipeline 3-stage refactor (image service)

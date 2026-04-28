@@ -23,6 +23,7 @@
 ### Product
 
 - [product/unified-development-plan.md](product/unified-development-plan.md)
+- [product/model-catalog-next-steps.md](product/model-catalog-next-steps.md) — 模型清單 Step 3-6 後續整改工作包
 - [product/video-module-roadmap.md](product/video-module-roadmap.md) — 视频模块四阶段路线
 - [product/video-phase2-storyboard.md](product/video-phase2-storyboard.md) — Phase 2 故事板规格
 - [product/video-phase4-assembly.md](product/video-phase4-assembly.md) — Phase 4 视频组装规格(**未实现**)

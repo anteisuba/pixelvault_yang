@@ -980,6 +980,7 @@
     },
     "reorderHint": "Drag to reorder panels",
     "exportPng": "Export PNG",
+    "exportFailed": "Export failed. Please try again.",
     "makePublic": "Make Public",
     "makePrivate": "Make Private"
   },
@@ -1308,7 +1309,7 @@
       "label": "Playground v2.5",
       "description": "Aesthetic-focused generation, excels at portraits and artistic compositions."
     },
-    "veo3": {
+    "veo31": {
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"
     },
@@ -1356,7 +1357,7 @@
       "label": "Luma Ray 2",
       "description": "Up to 1080p, loop support, dual-image interpolation"
     },
-    "pikaV22": {
+    "pikaV25": {
       "label": "Pika V2.5",
       "description": "Sharper visuals, smoother motion, 1080p generation"
     },

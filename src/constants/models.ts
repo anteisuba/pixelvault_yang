@@ -57,12 +57,12 @@ export enum AI_MODELS {
   SEEDANCE_PRO = 'seedance-pro',
   SEEDANCE_15_PRO = 'seedance-1.5-pro',
   SEEDANCE_10_PRO = 'seedance-1.0-pro',
-  VEO_3 = 'veo-3',
-  PIKA_V22 = 'pika-v2.2',
+  VEO_31 = 'veo-3.1',
+  PIKA_V25 = 'pika-v2.5',
   RUNWAY_GEN3 = 'runway-gen3',
 }
 
-export const MODEL_MESSAGE_KEYS = {
+export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SDXL]: 'sdxl',
   [AI_MODELS.ANIMAGINE_XL_4]: 'animagineXl4',
   [AI_MODELS.GEMINI_FLASH_IMAGE]: 'geminiFlashImage',
@@ -105,10 +105,20 @@ export const MODEL_MESSAGE_KEYS = {
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
   [AI_MODELS.SEEDANCE_15_PRO]: 'seedance15Pro',
   [AI_MODELS.SEEDANCE_10_PRO]: 'seedance10Pro',
-  [AI_MODELS.VEO_3]: 'veo3',
-  [AI_MODELS.PIKA_V22]: 'pikaV22',
+  [AI_MODELS.VEO_31]: 'veo31',
+  [AI_MODELS.PIKA_V25]: 'pikaV25',
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
 } as const
+
+export const MODEL_ID_ALIASES: Record<string, AI_MODELS> = {
+  'veo-3': AI_MODELS.VEO_31,
+  'pika-v2.2': AI_MODELS.PIKA_V25,
+}
+
+export const normalizeModelId = (modelId: string): string =>
+  MODEL_ID_ALIASES[modelId] ?? modelId
+
+const BUILT_IN_MODEL_IDS = new Set<string>(Object.values(AI_MODELS))
 
 /** Quality tier for all models */
 export type QualityTier = 'budget' | 'standard' | 'premium'
@@ -582,7 +592,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   // #2 — Veo 3.1, Google's latest, 4K native audio
   {
-    id: AI_MODELS.VEO_3,
+    id: AI_MODELS.VEO_31,
     cost: 8,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
@@ -772,7 +782,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   // #7 — Pika 2.5, sharper visuals & smoother motion
   {
-    id: AI_MODELS.PIKA_V22,
+    id: AI_MODELS.PIKA_V25,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
@@ -921,7 +931,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   // Video families
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.KLING_VIDEO]: 'Kling',
-  [AI_MODELS.VEO_3]: 'Veo',
+  [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.SEEDANCE_20]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_VOLC]: 'Seedance',
@@ -931,7 +941,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDANCE_10_PRO]: 'Seedance',
   [AI_MODELS.MINIMAX_VIDEO]: 'MiniMax',
   [AI_MODELS.LUMA_RAY_2]: 'Luma',
-  [AI_MODELS.PIKA_V22]: 'Pika',
+  [AI_MODELS.PIKA_V25]: 'Pika',
   [AI_MODELS.WAN_VIDEO]: 'Wan',
   [AI_MODELS.HUNYUAN_VIDEO]: 'Hunyuan',
   [AI_MODELS.RUNWAY_GEN3]: 'Runway',
@@ -942,7 +952,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
 
 /** Get the model family for a model ID */
 export const getModelFamily = (modelId: string): string | null =>
-  MODEL_FAMILIES[modelId] ?? null
+  MODEL_FAMILIES[normalizeModelId(modelId)] ?? null
 
 /** Get unique model family names (ordered by first appearance) */
 export const getModelFamilyList = (): string[] => [
@@ -955,11 +965,10 @@ export const getAvailableModels = (): ModelOption[] =>
 
 /** Get a model option by its ID */
 export const getModelById = (id: string): ModelOption | undefined =>
-  MODEL_OPTIONS.find((model) => model.id === id)
+  MODEL_OPTIONS.find((model) => model.id === normalizeModelId(id))
 
-export const getModelMessageKey = (
-  id: AI_MODELS,
-): (typeof MODEL_MESSAGE_KEYS)[AI_MODELS] => MODEL_MESSAGE_KEYS[id]
+export const getModelMessageKey = (id: string): string =>
+  MODEL_MESSAGE_KEYS[normalizeModelId(id)] ?? id
 
 export const getExecutionModelId = (modelId: string): string =>
   getModelById(modelId)?.externalModelId ?? modelId
@@ -972,7 +981,7 @@ export const getBuiltInProviderConfig = (
 ): ProviderConfig | null => getModelById(modelId)?.providerConfig ?? null
 
 export const isBuiltInModel = (value: string): value is AI_MODELS =>
-  Object.values(AI_MODELS).includes(value as AI_MODELS)
+  BUILT_IN_MODEL_IDS.has(normalizeModelId(value))
 
 export const isAiModel = isBuiltInModel
 

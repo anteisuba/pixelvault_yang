@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 
 vi.mock('server-only', () => ({}))
 
@@ -64,5 +65,41 @@ describe('geminiAdapter.generateImage', () => {
     )
 
     await expect(geminiAdapter.generateImage(BASE_INPUT)).rejects.toThrow()
+  })
+
+  it('routes Gemini Pro Image to the current documented model ID', async () => {
+    const fakeBase64 = Buffer.from('fake-image').toString('base64')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    inlineData: {
+                      data: fakeBase64,
+                      mimeType: 'image/png',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await geminiAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: AI_MODELS.GEMINI_PRO_IMAGE,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${AI_PROVIDER_ENDPOINTS.GEMINI}/gemini-3-pro-image-preview:generateContent`,
+      expect.any(Object),
+    )
   })
 })

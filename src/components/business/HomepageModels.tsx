@@ -86,8 +86,8 @@ const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
   'seedance-pro': { price: '~$0.06', unit: '/sec' },
   'seedance-1.5-pro': { price: '~$0.05', unit: '/sec' },
   'seedance-1.0-pro': { price: '~$0.12', unit: '/sec' },
-  'veo-3': { price: '~$0.40', unit: '/sec' },
-  'pika-v2.2': { price: '~$0.06', unit: '/sec' },
+  'veo-3.1': { price: '~$0.40', unit: '/sec' },
+  'pika-v2.5': { price: '~$0.06', unit: '/sec' },
   'runway-gen3': { price: '~$0.06', unit: '/sec' },
 }
 

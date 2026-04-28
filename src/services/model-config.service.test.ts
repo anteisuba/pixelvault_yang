@@ -17,6 +17,7 @@ vi.mock('@/lib/db', () => ({
 import {
   getAllModelConfigs,
   getModelConfigById,
+  getResolvedModelOptions,
   updateModelHealthStatus,
 } from '@/services/model-config.service'
 
@@ -61,6 +62,20 @@ describe('getModelConfigById', () => {
     mockFindUnique.mockResolvedValue(FAKE_ROW)
     const result = await getModelConfigById('flux-2-pro')
     expect(result?.modelId).toBe('flux-2-pro')
+  })
+})
+
+describe('getResolvedModelOptions', () => {
+  it('hides legacy renamed DB rows and falls back to the canonical catalog row', async () => {
+    mockFindMany.mockResolvedValue([
+      { ...FAKE_ROW, modelId: 'veo-3', externalModelId: 'fal-ai/veo3' },
+    ])
+
+    const result = await getResolvedModelOptions()
+    const modelIds = result.map((model) => model.id)
+
+    expect(modelIds).toContain('veo-3.1')
+    expect(modelIds).not.toContain('veo-3')
   })
 })
 

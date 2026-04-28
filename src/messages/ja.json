@@ -980,6 +980,7 @@
     },
     "reorderHint": "ドラッグしてパネルを並び替え",
     "exportPng": "PNG出力",
+    "exportFailed": "出力に失敗しました。もう一度お試しください。",
     "makePublic": "公開する",
     "makePrivate": "非公開にする"
   },
@@ -1308,7 +1309,7 @@
       "label": "Playground v2.5",
       "description": "美的品質に特化した生成モデル。ポートレートやアート構図に優れています。"
     },
-    "veo3": {
+    "veo31": {
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
     },
@@ -1356,7 +1357,7 @@
       "label": "Luma Ray 2",
       "description": "最大1080p、ループ対応、二画像補間"
     },
-    "pikaV22": {
+    "pikaV25": {
       "label": "Pika V2.5",
       "description": "鮮明な映像、滑らかな動き、1080p生成"
     },

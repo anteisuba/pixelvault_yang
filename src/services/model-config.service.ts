@@ -3,7 +3,11 @@ import 'server-only'
 import type { Prisma } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
-import { MODEL_OPTIONS, type ModelOption } from '@/constants/models'
+import {
+  MODEL_OPTIONS,
+  normalizeModelId,
+  type ModelOption,
+} from '@/constants/models'
 import type {
   ModelConfigInput,
   ModelConfigRecord,
@@ -126,6 +130,12 @@ export async function getResolvedModelOptions(): Promise<ModelOption[]> {
 
   // DB configs first (in sort order)
   for (const config of dbConfigs) {
+    // Legacy renamed IDs stay resolvable through constants but should not
+    // reappear as duplicate catalog rows.
+    if (normalizeModelId(config.modelId) !== config.modelId) {
+      continue
+    }
+
     seen.add(config.modelId)
     merged.push({
       id: config.modelId as ModelOption['id'],

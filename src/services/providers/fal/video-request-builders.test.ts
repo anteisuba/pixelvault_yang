@@ -98,7 +98,7 @@ const falBodyCases: FalBodyCase[] = [
   },
   {
     label: 'Veo 3.1 T2V',
-    modelId: AI_MODELS.VEO_3,
+    modelId: AI_MODELS.VEO_31,
     expectedEndpoint: 'fal-ai/veo3.1',
     expectedMode: 'text-to-video',
     expectedBody: {
@@ -111,7 +111,7 @@ const falBodyCases: FalBodyCase[] = [
   },
   {
     label: 'Veo 3.1 reference-to-video',
-    modelId: AI_MODELS.VEO_3,
+    modelId: AI_MODELS.VEO_31,
     referenceImage: REF,
     expectedEndpoint: 'fal-ai/veo3.1/reference-to-video',
     expectedMode: 'image-to-video',
@@ -245,7 +245,7 @@ const falBodyCases: FalBodyCase[] = [
   },
   {
     label: 'Pika 2.5 T2V',
-    modelId: AI_MODELS.PIKA_V22,
+    modelId: AI_MODELS.PIKA_V25,
     expectedEndpoint: 'fal-ai/pika/v2.5/text-to-video',
     expectedMode: 'text-to-video',
     expectedBody: {
@@ -256,7 +256,7 @@ const falBodyCases: FalBodyCase[] = [
   },
   {
     label: 'Pika 2.5 I2V',
-    modelId: AI_MODELS.PIKA_V22,
+    modelId: AI_MODELS.PIKA_V25,
     referenceImage: REF,
     expectedEndpoint: 'fal-ai/pika/v2.5/image-to-video',
     expectedMode: 'image-to-video',
@@ -395,6 +395,29 @@ describe('buildFalVideoQueueRequest', () => {
 
     expect(request.input).toMatchObject({ resolution: '720p' })
   })
+
+  it('normalizes legacy Veo and Pika public IDs before building queue requests', () => {
+    const legacyVeo = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.VEO_31),
+      modelId: 'veo-3',
+    })
+    const legacyPika = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.PIKA_V25, REF),
+      modelId: 'pika-v2.2',
+    })
+
+    expect(legacyVeo.endpointModelId).toBe('fal-ai/veo3.1')
+    expect(legacyVeo.input).toMatchObject({
+      prompt: PROMPT,
+      aspect_ratio: '16:9',
+      resolution: '1080p',
+    })
+    expect(legacyPika.endpointModelId).toBe('fal-ai/pika/v2.5/image-to-video')
+    expect(legacyPika.input).toMatchObject({
+      prompt: PROMPT,
+      image_url: REF,
+    })
+  })
 })
 
 describe('buildFalWorkerQueueRequest', () => {
@@ -420,5 +443,20 @@ describe('buildFalWorkerQueueRequest', () => {
     expect(falVideoModels.map((model) => model.id).sort()).toEqual(
       Array.from(covered).sort(),
     )
+  })
+
+  it('matches inline legacy ID normalization for execution-worker requests', () => {
+    const inline = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.VEO_31),
+      modelId: 'veo-3',
+    })
+    const worker = buildFalWorkerQueueRequest({
+      providerInput: {
+        ...buildWorkerInput(AI_MODELS.VEO_31).providerInput,
+        modelId: 'veo-3',
+      },
+    })
+
+    expect(worker).toEqual(inline)
   })
 })

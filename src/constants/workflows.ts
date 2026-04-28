@@ -190,7 +190,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     openPanel: 'videoParams',
     recommendedModelIds: [
       AI_MODELS.KLING_V3_PRO,
-      AI_MODELS.VEO_3,
+      AI_MODELS.VEO_31,
       AI_MODELS.LUMA_RAY_2,
     ],
   },

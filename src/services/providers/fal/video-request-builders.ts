@@ -1,5 +1,11 @@
+import 'server-only'
+
 import { VIDEO_GENERATION, type AspectRatio } from '@/constants/config'
-import { AI_MODELS, type VideoDefaults } from '@/constants/models'
+import {
+  AI_MODELS,
+  normalizeModelId,
+  type VideoDefaults,
+} from '@/constants/models'
 import type { VideoResolution } from '@/constants/video-options'
 
 import { ProviderError } from '@/services/providers/types'
@@ -429,10 +435,10 @@ function buildBody(
   input: FalVideoRequestBuilderInput,
   mode: FalVideoMode,
 ): Record<string, unknown> {
-  switch (input.modelId) {
+  switch (normalizeModelId(input.modelId)) {
     case AI_MODELS.KLING_V3_PRO:
       return buildKlingV3Pro(input, mode)
-    case AI_MODELS.VEO_3:
+    case AI_MODELS.VEO_31:
       return buildVeo31(input, mode)
     case AI_MODELS.SEEDANCE_20:
       return buildSeedance20(input, mode, ['480p', '720p', '1080p'])
@@ -444,7 +450,7 @@ function buildBody(
       return buildMiniMaxHailuo23(input, mode)
     case AI_MODELS.LUMA_RAY_2:
       return buildLumaRay2(input)
-    case AI_MODELS.PIKA_V22:
+    case AI_MODELS.PIKA_V25:
       return buildPika25(input, mode)
     case AI_MODELS.KLING_VIDEO:
       return buildKlingV21Master(input, mode)

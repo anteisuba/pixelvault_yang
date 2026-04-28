@@ -40,10 +40,15 @@ const FAL_VIDEO_MODEL_IDS = {
   SEEDANCE_20: 'seedance-2.0',
   SEEDANCE_20_FAST: 'seedance-2.0-fast',
   SEEDANCE_PRO: 'seedance-pro',
-  VEO_3: 'veo-3',
-  PIKA_V22: 'pika-v2.2',
+  VEO_31: 'veo-3.1',
+  PIKA_V25: 'pika-v2.5',
   RUNWAY_GEN3: 'runway-gen3',
 } as const
+
+const FAL_VIDEO_MODEL_ID_ALIASES: Record<string, string> = {
+  'veo-3': FAL_VIDEO_MODEL_IDS.VEO_31,
+  'pika-v2.2': FAL_VIDEO_MODEL_IDS.PIKA_V25,
+}
 
 const FAL_VIDEO_DURATION_DEFAULT = 5
 const FAL_TEXT_ASPECT_RATIOS = ['16:9', '9:16', '1:1'] as const
@@ -185,6 +190,10 @@ function getMode(context: FalWorkerVideoRequestContext): FalWorkerVideoMode {
   return providerInput.referenceImage && providerInput.i2vModelId
     ? 'image-to-video'
     : 'text-to-video'
+}
+
+function normalizeWorkerModelId(modelId: string): string {
+  return FAL_VIDEO_MODEL_ID_ALIASES[modelId] ?? modelId
 }
 
 function getEndpointModelId(
@@ -510,10 +519,10 @@ function buildBody(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
 ): Record<string, unknown> {
-  switch (context.providerInput.modelId) {
+  switch (normalizeWorkerModelId(context.providerInput.modelId)) {
     case FAL_VIDEO_MODEL_IDS.KLING_V3_PRO:
       return buildKlingV3Pro(context, mode)
-    case FAL_VIDEO_MODEL_IDS.VEO_3:
+    case FAL_VIDEO_MODEL_IDS.VEO_31:
       return buildVeo31(context, mode)
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20:
       return buildSeedance20(context, mode, ['480p', '720p', '1080p'])
@@ -525,7 +534,7 @@ function buildBody(
       return buildMiniMaxHailuo23(context, mode)
     case FAL_VIDEO_MODEL_IDS.LUMA_RAY_2:
       return buildLumaRay2(context)
-    case FAL_VIDEO_MODEL_IDS.PIKA_V22:
+    case FAL_VIDEO_MODEL_IDS.PIKA_V25:
       return buildPika25(context, mode)
     case FAL_VIDEO_MODEL_IDS.KLING_VIDEO:
       return buildKlingV21Master(context, mode)

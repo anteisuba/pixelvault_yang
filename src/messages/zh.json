@@ -980,6 +980,7 @@
     },
     "reorderHint": "拖拽调整面板顺序",
     "exportPng": "导出 PNG",
+    "exportFailed": "导出失败，请重试。",
     "makePublic": "设为公开",
     "makePrivate": "设为私有"
   },
@@ -1308,7 +1309,7 @@
       "label": "Playground v2.5",
       "description": "专注美学质量的生成模型，擅长人像和艺术构图。"
     },
-    "veo3": {
+    "veo31": {
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"
     },
@@ -1356,7 +1357,7 @@
       "label": "Luma Ray 2",
       "description": "最高1080p，循环视频，双图插值"
     },
-    "pikaV22": {
+    "pikaV25": {
       "label": "Pika V2.5",
       "description": "更清晰画面、更流畅运动、1080p 生成"
     },

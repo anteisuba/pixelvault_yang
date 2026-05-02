@@ -10,6 +10,8 @@ AI 开发指引：本文档列出所有可复用组件和 hooks 的公共 API。
 | 业务层 | `src/components/business/` | 可使用 hooks，禁止直接调用 API                   |
 | 布局层 | `src/components/layout/`   | 页面框架（Navbar、MobileTabBar、LocaleSwitcher） |
 
+> **Note**: Studio 内部组件（StudioCanvas、StudioPromptArea、StudioSidebar 等）的详细文档在 `docs/plans/frontend/studio-feature-map.md`，本文仅列出可跨页面复用的组件。
+
 ---
 
 ## UI 组件 (`src/components/ui/`)
@@ -22,7 +24,6 @@ AI 开发指引：本文档列出所有可复用组件和 hooks 的公共 API。
 
 ```tsx
 import { AspectRatioSelector } from '@/components/ui/aspect-ratio-selector'
-
 ;<AspectRatioSelector
   options={[
     { value: '1:1', label: '1:1' },
@@ -41,7 +42,6 @@ import { AspectRatioSelector } from '@/components/ui/aspect-ratio-selector'
 
 ```tsx
 import { OptionGroup } from '@/components/ui/option-group'
-
 ;<OptionGroup
   options={[
     { value: 'vivid', label: 'Vivid' },
@@ -61,7 +61,6 @@ import { OptionGroup } from '@/components/ui/option-group'
 
 ```tsx
 import { ParamSlider } from '@/components/ui/param-slider'
-
 ;<ParamSlider
   label="Guidance Scale"
   value={7.5}
@@ -80,7 +79,6 @@ import { ParamSlider } from '@/components/ui/param-slider'
 
 ```tsx
 import { SeedInput } from '@/components/ui/seed-input'
-
 ;<SeedInput
   label="Seed"
   value={42} // undefined = 随机
@@ -96,7 +94,6 @@ import { SeedInput } from '@/components/ui/seed-input'
 
 ```tsx
 import { ImageDropZone } from '@/components/ui/image-drop-zone'
-
 ;<ImageDropZone
   isDragging={false}
   onDrop={(e) => {}}
@@ -140,7 +137,6 @@ import { Slider } from '@/components/ui/slider'
 
 ```tsx
 import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
-
 ;<CollapsiblePanel
   title="Advanced Settings"
   description="Fine-tune generation parameters"
@@ -157,7 +153,6 @@ import { CollapsiblePanel } from '@/components/ui/collapsible-panel'
 
 ```tsx
 import { ErrorAlert } from '@/components/ui/error-alert'
-
 ;<ErrorAlert title="Error" message="Something went wrong">
   {optionalChildren}
 </ErrorAlert>
@@ -169,7 +164,6 @@ import { ErrorAlert } from '@/components/ui/error-alert'
 
 ```tsx
 import { MetadataList } from '@/components/ui/metadata-list'
-
 ;<MetadataList
   items={[{ key: 'model', label: 'Model', value: 'DALL-E 3', icon: <Icon /> }]}
   labelClassName="text-sm"
@@ -184,7 +178,6 @@ import { MetadataList } from '@/components/ui/metadata-list'
 
 ```tsx
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-
 ;<ConfirmDialog
   trigger={<Button>Delete</Button>}
   title="Are you sure?"
@@ -230,7 +223,6 @@ import { Button } from '@/components/ui/button'
 
 ```tsx
 import { AdvancedSettings } from '@/components/business/AdvancedSettings'
-
 ;<AdvancedSettings
   adapterType={AI_ADAPTER_TYPES.NOVELAI} // 决定显示哪些控件
   params={advancedParams} // AdvancedParams 对象
@@ -255,9 +247,17 @@ import { AdvancedSettings } from '@/components/business/AdvancedSettings'
 
 图片生成表单（Studio 页面主表单）。内部使用 `useGenerationForm` hook。无 props。
 
-#### `VideoGenerateForm`
+#### `StudioVideoParams`
 
-视频生成表单。无 props。
+视频参数面板（在 Studio dock panel 中渲染）。包含模型选择、时长、分辨率等视频专属参数。
+
+#### `VoiceSelector`
+
+语音选择器。显示可用语音列表，支持试听和选择。
+
+#### `VoiceTrainer`
+
+语音克隆训练面板。上传音频样本 → 训练自定义语音。
 
 #### `ArenaForm`
 
@@ -265,7 +265,6 @@ import { AdvancedSettings } from '@/components/business/AdvancedSettings'
 
 ```tsx
 import { ArenaForm } from '@/components/business/ArenaForm'
-
 ;<ArenaForm isCreating={false} onBattle={(input: StartBattleInput) => {}} />
 ```
 
@@ -275,7 +274,6 @@ import { ArenaForm } from '@/components/business/ArenaForm'
 
 ```tsx
 import { ModelSelector } from '@/components/business/ModelSelector'
-
 ;<ModelSelector
   value="sdxl"
   onChange={(modelId) => {}}
@@ -289,7 +287,6 @@ import { ModelSelector } from '@/components/business/ModelSelector'
 
 ```tsx
 import { PromptEnhancer } from '@/components/business/PromptEnhancer'
-
 ;<PromptEnhancer
   prompt="a cat"
   isEnhancing={false}
@@ -309,7 +306,6 @@ import { PromptEnhancer } from '@/components/business/PromptEnhancer'
 
 ```tsx
 import { ReverseEngineerPanel } from '@/components/business/ReverseEngineerPanel'
-
 ;<ReverseEngineerPanel
   onUsePrompt={(prompt) => {}}
   selectedModels={[{ modelId: 'sdxl' }]}

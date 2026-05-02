@@ -49,7 +49,7 @@ Primary entry points:
 - shell: `src/components/business/StudioWorkspace.tsx`
 - state: `src/contexts/studio-context.tsx`
 - shared image/audio generation orchestration: `src/hooks/use-unified-generate.ts`
-- video entry: `src/components/business/VideoGenerateForm.tsx`
+- video params panel: `src/components/business/studio/StudioVideoParams.tsx` (video shares the same canvas + dock shell as image/audio)
 
 ## Directory Structure
 
@@ -69,8 +69,7 @@ src/
 ├── components/
 │   ├── business/
 │   │   ├── StudioWorkspace.tsx
-│   │   ├── VideoGenerateForm.tsx
-│   │   └── studio/
+│   │   └── studio/          ← image/video/audio share one canvas+dock shell
 │   ├── layout/
 │   └── ui/
 ├── constants/
@@ -92,7 +91,7 @@ src/
 | Image prompt/generate flow | `StudioPromptArea.tsx`, `use-unified-generate.ts`, `studio-generate.service.ts`                 |
 | Result canvas              | `StudioCanvas.tsx`, `GenerationPreview.tsx`, `CompareGrid.tsx`, `VariantGrid.tsx`               |
 | History/gallery            | `StudioGallery.tsx`, `StudioLightbox.tsx`, `use-projects.ts`                                    |
-| Video                      | `VideoGenerateForm.tsx`, `use-generate-video.ts`, `use-generate-long-video.ts`                  |
+| Video                      | `StudioVideoParams.tsx`, `StudioScriptPanel.tsx`, `use-video-model-options.ts`                  |
 | Audio                      | `useAudioModelOptions.ts`, `VoiceSelector.tsx`, `VoiceTrainer.tsx`, `generate-audio.service.ts` |
 | Projects                   | `use-projects.ts`, `project.service.ts`, `StudioSidebar.tsx`                                    |
 
@@ -175,7 +174,7 @@ Each API route is expected to stay thin:
 
 ## Video Flow
 
-1. user submits `VideoGenerateForm.tsx`
+1. user configures video in `StudioVideoParams.tsx` panel and submits via shared `StudioPromptArea`
 2. `POST /api/generate-video` submits a job
 3. client polls `/api/generate-video/status`
 4. completed generation is persisted and returned

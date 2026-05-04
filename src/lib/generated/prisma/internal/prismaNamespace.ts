@@ -393,6 +393,7 @@ export const ModelName = {
   ApiUsageLedger: 'ApiUsageLedger',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
+  VoiceCard: 'VoiceCard',
   UserCreativePreference: 'UserCreativePreference',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
@@ -430,7 +431,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1097,6 +1098,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.RecipeCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.RecipeCountAggregateOutputType> | number
+        }
+      }
+    }
+    VoiceCard: {
+      payload: Prisma.$VoiceCardPayload<ExtArgs>
+      fields: Prisma.VoiceCardFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VoiceCardFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VoiceCardFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        findFirst: {
+          args: Prisma.VoiceCardFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VoiceCardFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        findMany: {
+          args: Prisma.VoiceCardFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>[]
+        }
+        create: {
+          args: Prisma.VoiceCardCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        createMany: {
+          args: Prisma.VoiceCardCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VoiceCardCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>[]
+        }
+        delete: {
+          args: Prisma.VoiceCardDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        update: {
+          args: Prisma.VoiceCardUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        deleteMany: {
+          args: Prisma.VoiceCardDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VoiceCardUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VoiceCardUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>[]
+        }
+        upsert: {
+          args: Prisma.VoiceCardUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoiceCardPayload>
+        }
+        aggregate: {
+          args: Prisma.VoiceCardAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVoiceCard>
+        }
+        groupBy: {
+          args: Prisma.VoiceCardGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceCardGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VoiceCardCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceCardCountAggregateOutputType> | number
         }
       }
     }
@@ -2951,6 +3026,30 @@ export const RecipeScalarFieldEnum = {
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
 
 
+export const VoiceCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  provider: 'provider',
+  modelId: 'modelId',
+  voiceId: 'voiceId',
+  referenceAudioUrl: 'referenceAudioUrl',
+  referenceAudioStorageKey: 'referenceAudioStorageKey',
+  gender: 'gender',
+  age: 'age',
+  tone: 'tone',
+  pace: 'pace',
+  pitch: 'pitch',
+  pronunciationDictionary: 'pronunciationDictionary',
+  sampleText: 'sampleText',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceCardScalarFieldEnum = (typeof VoiceCardScalarFieldEnum)[keyof typeof VoiceCardScalarFieldEnum]
+
+
 export const UserCreativePreferenceScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3717,6 +3816,7 @@ export type GlobalOmitConfig = {
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
   freeTierSlot?: Prisma.FreeTierSlotOmit
   recipe?: Prisma.RecipeOmit
+  voiceCard?: Prisma.VoiceCardOmit
   userCreativePreference?: Prisma.UserCreativePreferenceOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit

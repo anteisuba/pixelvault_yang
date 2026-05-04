@@ -91,6 +91,9 @@ export const API_ENDPOINTS = {
   /** Recipes */
   RECIPES: '/api/recipes',
 
+  /** Voice Cards */
+  VOICE_CARDS: '/api/voice-cards',
+
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
 

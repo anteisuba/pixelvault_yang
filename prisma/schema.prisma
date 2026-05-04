@@ -120,6 +120,7 @@ model User {
   styleCards       StyleCard[]
   cardRecipes      CardRecipe[]
   recipes          Recipe[]
+  voiceCards       VoiceCard[]
   creativePreference UserCreativePreference?
   videoPipelines   VideoPipeline[]
   loraTrainingJobs LoraTrainingJob[]
@@ -344,6 +345,30 @@ model Recipe {
   isDeleted          Boolean    @default(false)
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
+
+  @@index([userId, isDeleted, createdAt(sort: Desc)])
+}
+
+model VoiceCard {
+  id                          String   @id @default(cuid())
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                        String
+  provider                    String   @default("fish_audio")
+  modelId                     String?
+  voiceId                     String?
+  referenceAudioUrl           String?  @db.Text
+  referenceAudioStorageKey    String?
+  gender                      String?
+  age                         String?
+  tone                        Json     @default("[]")
+  pace                        String   @default("normal")
+  pitch                       String?
+  pronunciationDictionary     Json     @default("{}")
+  sampleText                  String?  @db.Text
+  isDeleted                   Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
 }

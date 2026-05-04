@@ -2,14 +2,13 @@ import { describe, it, expect } from 'vitest'
 
 import { AI_MODELS, RETIRED_MODEL_IDS } from '@/constants/models'
 import type { ImageIntent } from '@/types'
-import { routeModelsForIntent } from './model-router.service'
+import { estimateModelCost, routeModelsForIntent } from './model-router.service'
 
 describe('routeModelsForIntent', () => {
-  it('returns a non-empty ranked list for a photorealistic portrait intent', () => {
+  it('uses taskFit to rank product/photo models for product intent', () => {
     const intent: ImageIntent = {
-      subject: 'a woman',
-      style: 'photorealism',
-      mood: 'dramatic',
+      subject: 'commercial product photo of a premium watch',
+      style: 'photorealistic',
     }
     const results = routeModelsForIntent(intent)
 
@@ -20,21 +19,66 @@ describe('routeModelsForIntent', () => {
       reason: expect.any(String),
       matchedBestFor: expect.any(Array),
     })
-  })
-
-  it('ranks photorealistic models higher for photorealism intent', () => {
-    const intent: ImageIntent = {
-      subject: 'product photo',
-      style: 'photorealistic',
-    }
-    const results = routeModelsForIntent(intent)
-    const topResult = results[0]
-
     expect(
-      topResult.matchedBestFor.some(
-        (bestFor) => bestFor.includes('photo') || bestFor.includes('product'),
+      results[0].matchedBestFor.some(
+        (bestFor) =>
+          bestFor.includes('product') || bestFor.includes('photorealistic'),
       ),
     ).toBe(true)
+  })
+
+  it('uses styleFit to rank anime/tag-based models for anime intent', () => {
+    const intent: ImageIntent = {
+      subject: 'a magical girl character',
+      style: 'anime illustration',
+    }
+    const results = routeModelsForIntent(intent)
+
+    expect(results[0].matchedBestFor).toEqual(
+      expect.arrayContaining(['anime', 'illustration']),
+    )
+  })
+
+  it('adds reference-fit signal when reference assets are provided', () => {
+    const intent: ImageIntent = {
+      subject: 'portrait of the referenced person',
+      referenceAssets: [
+        { url: 'https://example.com/reference.png', role: 'identity' },
+      ],
+    }
+    const results = routeModelsForIntent(intent)
+
+    expect(results[0].reason).toContain('reference-aware fit')
+    expect(results[0].score).toBeGreaterThan(0)
+  })
+
+  it('uses cost preference to favor static cost-efficient models', () => {
+    const intent: ImageIntent = { subject: 'something completely vague' }
+    const neutralResults = routeModelsForIntent(intent)
+    const lowCostResults = routeModelsForIntent(intent, {
+      preferLowCost: true,
+    })
+
+    expect(lowCostResults[0].score).toBeGreaterThanOrEqual(
+      neutralResults[0].score,
+    )
+    expect(lowCostResults[0].reason).toContain('cost-efficient preference')
+  })
+
+  it('uses latency preference to favor static low-latency models', () => {
+    const intent: ImageIntent = { subject: 'quick draft image' }
+    const results = routeModelsForIntent(intent, { preferLowLatency: true })
+
+    expect(results[0].reason).toContain('low-latency preference')
+    expect(results[0].score).toBeGreaterThan(0)
+  })
+
+  it('uses health preference without consulting Arena data', () => {
+    const intent: ImageIntent = { subject: 'general image' }
+    const results = routeModelsForIntent(intent, { requireHealthy: true })
+
+    expect(results.length).toBeGreaterThan(0)
+    expect(results[0].reason).toContain('healthy route preference')
   })
 
   it('returns results sorted descending by score', () => {
@@ -51,54 +95,24 @@ describe('routeModelsForIntent', () => {
     }
   })
 
-  it('returns at most 5 results', () => {
+  it('returns at most 5 available non-retired image models', () => {
     const intent: ImageIntent = { subject: 'anything' }
-    const results = routeModelsForIntent(intent)
-    expect(results.length).toBeLessThanOrEqual(5)
-  })
-
-  it('does not recommend retired models', () => {
-    const intent: ImageIntent = {
-      subject: 'logo poster',
-      style: 'graphic design',
-    }
     const results = routeModelsForIntent(intent)
     const resultModelIds = results.map((result) => result.modelId)
 
+    expect(results.length).toBeLessThanOrEqual(5)
     for (const modelId of RETIRED_MODEL_IDS) {
       expect(resultModelIds).not.toContain(modelId)
     }
   })
+})
 
-  it('returns results with score 0 for unmatched intent (minimal intent)', () => {
-    const intent: ImageIntent = { subject: 'something completely vague' }
-    const results = routeModelsForIntent(intent)
-    expect(results.length).toBeGreaterThan(0)
+describe('estimateModelCost', () => {
+  it('reads model cost from the central model catalog', () => {
+    expect(estimateModelCost(AI_MODELS.FLUX_2_PRO)).toBe(2)
   })
 
-  it('includes all models with score > 0 before models with score 0', () => {
-    const intent: ImageIntent = {
-      subject: 'portrait',
-      style: 'photorealism',
-    }
-    const results = routeModelsForIntent(intent)
-    const firstZeroIndex = results.findIndex((result) => result.score === 0)
-
-    if (firstZeroIndex !== -1) {
-      const allBefore = results.slice(0, firstZeroIndex)
-      expect(allBefore.every((result) => result.score > 0)).toBe(true)
-    }
-  })
-
-  it('uses arena win rates to influence ranking', () => {
-    const intent: ImageIntent = { subject: 'something completely vague' }
-    const results = routeModelsForIntent(intent, {
-      [AI_MODELS.SEEDREAM_45]: 1,
-    })
-
-    expect(results[0]).toMatchObject({
-      modelId: AI_MODELS.SEEDREAM_45,
-      score: 2,
-    })
+  it('returns 0 for unknown model ids', () => {
+    expect(estimateModelCost('missing-model')).toBe(0)
   })
 })

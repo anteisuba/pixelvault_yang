@@ -1,14 +1,15 @@
 import 'server-only'
 
 import { createApiRoute } from '@/lib/api-route-factory'
-import { classifyImageIntentTaskType } from '@/lib/classify-task-type'
 import {
   GenerationPlanRequestSchema,
   type GenerationPlanResponse,
 } from '@/types'
 import { parseImageIntent } from '@/services/intent-parser.service'
-import { getModelWinRatesByTask } from '@/services/arena.service'
-import { routeModelsForIntent } from '@/services/model-router.service'
+import {
+  estimateModelCost,
+  routeModelsForIntent,
+} from '@/services/model-router.service'
 import {
   compilePrompt,
   compileNegativePrompt,
@@ -25,16 +26,17 @@ export const POST = createApiRoute<
       data.naturalLanguage,
       data.referenceAssets,
     )
-    const taskType = classifyImageIntentTaskType(intent)
-    const arenaRates = await getModelWinRatesByTask(taskType)
-    const recommendedModels = routeModelsForIntent(intent, arenaRates)
+    const recommendedModels = routeModelsForIntent(intent, data.preferences)
     const topModelId = recommendedModels[0]?.modelId ?? ''
+    const negativePrompt = compileNegativePrompt(intent, topModelId)
 
     return {
       intent,
       recommendedModels,
       promptDraft: compilePrompt(intent, topModelId),
-      negativePromptDraft: compileNegativePrompt(intent, topModelId),
+      negativePrompt,
+      negativePromptDraft: negativePrompt,
+      estimatedCost: estimateModelCost(topModelId),
       variationCount: 4,
     }
   },

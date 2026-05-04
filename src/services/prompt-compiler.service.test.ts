@@ -79,6 +79,8 @@ describe('compilePrompt — photorealistic (flux-2-pro)', () => {
   it('handles minimal intent without crashing', () => {
     const result = compilePrompt(MINIMAL_INTENT, MODEL)
     expect(result).toContain('a cat')
+    expect(result).toContain('50mm lens')
+    expect(result).toContain('professional film stock')
     expect(typeof result).toBe('string')
   })
 })
@@ -94,6 +96,12 @@ describe('compilePrompt — natural language (gemini-3.1-flash-image-preview)', 
   it('includes style field', () => {
     const result = compilePrompt(FULL_INTENT, 'gemini-3.1-flash-image-preview')
     expect(result).toContain('photorealism')
+  })
+
+  it('returns a complete sentence', () => {
+    const result = compilePrompt(FULL_INTENT, 'gemini-3.1-flash-image-preview')
+    expect(result).toMatch(/^Create an image of/)
+    expect(result.endsWith('.')).toBe(true)
   })
 
   it('falls back gracefully for an unknown modelId', () => {

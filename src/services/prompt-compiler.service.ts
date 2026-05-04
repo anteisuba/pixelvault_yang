@@ -41,8 +41,9 @@ function compilePhotorealistic(intent: ImageIntent): string {
 
   if (intent.actionOrPose) parts.push(intent.actionOrPose)
   if (intent.scene) parts.push(`in ${intent.scene}`)
-  if (intent.camera) parts.push(intent.camera)
-  if (intent.lighting) parts.push(intent.lighting)
+  parts.push(intent.camera ?? '50mm lens')
+  parts.push(intent.lighting ?? 'natural soft lighting')
+  parts.push('professional film stock')
   if (intent.colorPalette) parts.push(`${intent.colorPalette} color grading`)
   if (intent.mood) parts.push(`${intent.mood} mood`)
   if (intent.composition) parts.push(intent.composition)
@@ -57,11 +58,11 @@ function compilePhotorealistic(intent: ImageIntent): string {
 function compileNaturalLanguage(intent: ImageIntent): string {
   const parts: string[] = []
 
-  if (intent.style) parts.push(`${intent.style} style`)
   const subject = [intent.subject, intent.subjectDetails]
     .filter(Boolean)
     .join(', ')
-  parts.push(subject)
+  parts.push(`Create an image of ${subject}`)
+  if (intent.style) parts.push(`in ${intent.style} style`)
   if (intent.actionOrPose) parts.push(intent.actionOrPose)
   if (intent.scene) parts.push(intent.scene)
   if (intent.composition) parts.push(intent.composition)
@@ -73,7 +74,7 @@ function compileNaturalLanguage(intent: ImageIntent): string {
     for (const item of intent.mustInclude) parts.push(item)
   }
 
-  return parts.join(', ')
+  return `${parts.join(', ')}.`
 }
 
 /**

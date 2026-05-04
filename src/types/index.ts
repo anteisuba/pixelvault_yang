@@ -585,6 +585,7 @@ export interface GenerationRecord {
   height: number
   duration?: number | null
   referenceImageUrl?: string | null
+  referenceImages?: ReferenceAsset[]
   prompt: string
   negativePrompt?: string | null
   model: string
@@ -2268,6 +2269,16 @@ export const ImageIntentSchema = z.object({
 
 export type ImageIntent = z.infer<typeof ImageIntentSchema>
 
+export const ModelRouterPreferencesSchema = z.object({
+  preferLowCost: z.boolean().optional(),
+  preferLowLatency: z.boolean().optional(),
+  requireHealthy: z.boolean().optional(),
+})
+
+export type ModelRouterPreferences = z.infer<
+  typeof ModelRouterPreferencesSchema
+>
+
 export const GenerationPlanResponseSchema = z.object({
   intent: ImageIntentSchema,
   recommendedModels: z.array(
@@ -2279,7 +2290,9 @@ export const GenerationPlanResponseSchema = z.object({
     }),
   ),
   promptDraft: z.string(),
+  negativePrompt: z.string().optional(),
   negativePromptDraft: z.string().optional(),
+  estimatedCost: z.number().min(0),
   variationCount: z.number().int().min(1).max(8),
 })
 
@@ -2289,12 +2302,32 @@ export type GenerationPlanResponse = z.infer<
 
 export const GenerationPlanRequestSchema = z.object({
   /** Natural language description of what the user wants to generate */
-  naturalLanguage: z.string().min(1).max(2000),
+  naturalLanguage: z.string().trim().min(1).max(2000),
   /** Optional reference images with roles */
   referenceAssets: z.array(ReferenceAssetSchema).max(5).optional(),
+  /** Optional routing preferences */
+  preferences: ModelRouterPreferencesSchema.optional(),
 })
 
 export type GenerationPlanRequest = z.infer<typeof GenerationPlanRequestSchema>
+
+export const GenerationCompileRequestSchema = z.object({
+  intent: ImageIntentSchema,
+  modelId: z.string().trim().min(1).max(160),
+})
+
+export type GenerationCompileRequest = z.infer<
+  typeof GenerationCompileRequestSchema
+>
+
+export const GenerationCompileResponseSchema = z.object({
+  compiledPrompt: z.string(),
+  negativePrompt: z.string().optional(),
+})
+
+export type GenerationCompileResponse = z.infer<
+  typeof GenerationCompileResponseSchema
+>
 
 // ─── Creative Control: Generation Evaluation ──────────────────────
 

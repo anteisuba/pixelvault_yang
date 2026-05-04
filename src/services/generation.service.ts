@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
+import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
   GenerationRecord,
   GallerySortOption,
@@ -145,6 +146,41 @@ function buildGalleryWhere(options: {
   return where
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getSnapshotReferenceImages(snapshot: unknown): unknown {
+  if (!isRecord(snapshot)) {
+    return null
+  }
+
+  return snapshot.referenceAssets ?? snapshot.referenceImages ?? null
+}
+
+function normalizeGenerationReferenceImages(
+  generation: GenerationRecord,
+): GenerationRecord {
+  const snapshotReferenceImages = getSnapshotReferenceImages(
+    generation.snapshot,
+  )
+  const fallbackReferenceImages = generation.referenceImageUrl
+    ? [generation.referenceImageUrl]
+    : null
+  const rawReferenceImages = snapshotReferenceImages ?? fallbackReferenceImages
+
+  return {
+    ...generation,
+    referenceImages: normalizeReferenceImages(rawReferenceImages),
+  }
+}
+
+function normalizeGenerationReferenceImageList(
+  generations: GenerationRecord[],
+): GenerationRecord[] {
+  return generations.map(normalizeGenerationReferenceImages)
+}
+
 // ─── Service Functions ────────────────────────────────────────────
 
 /**
@@ -272,12 +308,14 @@ export async function getUserGenerations(
     limit = PAGINATION.DEFAULT_LIMIT,
   }: ListGenerationsOptions = {},
 ): Promise<GenerationRecord[]> {
-  return db.generation.findMany({
+  const generations = await db.generation.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
   })
+
+  return normalizeGenerationReferenceImageList(generations)
 }
 
 export async function countUserGenerations(userId: string): Promise<number> {
@@ -341,7 +379,7 @@ export async function getPublicGenerations({
   })
 
   // Map creator info + like data onto records
-  const mapped = results.map((r) => {
+  const mapped: GenerationRecord[] = results.map((r) => {
     const { user, _count, likes, ...rest } = r as typeof r & {
       _count: { likes: number }
       likes?: { id: string }[]
@@ -360,8 +398,10 @@ export async function getPublicGenerations({
     }
   })
 
+  const normalized = normalizeGenerationReferenceImageList(mapped)
+
   // Owner sees full data; public viewers get redacted prompts
-  return userId ? mapped : redactPrompts(mapped)
+  return userId ? normalized : redactPrompts(normalized)
 }
 
 /**
@@ -370,9 +410,11 @@ export async function getPublicGenerations({
 export async function getGenerationById(
   id: string,
 ): Promise<GenerationRecord | null> {
-  return db.generation.findUnique({
+  const generation = await db.generation.findUnique({
     where: { id },
   })
+
+  return generation ? normalizeGenerationReferenceImages(generation) : null
 }
 
 /** Fields that can be toggled on a generation */
@@ -557,7 +599,10 @@ export async function getGenerationsByCharacterCard(
     db.generation.count({ where }),
   ])
 
-  return { generations, total }
+  return {
+    generations: normalizeGenerationReferenceImageList(generations),
+    total,
+  }
 }
 
 /**
@@ -599,7 +644,10 @@ export async function getGenerationsByCharacterCombination(
     db.generation.count({ where }),
   ])
 
-  return { generations, total }
+  return {
+    generations: normalizeGenerationReferenceImageList(generations),
+    total,
+  }
 }
 
 // ── B5: Variant Winner Selection ──────────────────────────────────

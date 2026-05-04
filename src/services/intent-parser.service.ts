@@ -5,7 +5,9 @@ import {
   type ImageIntent,
   type ReferenceAsset,
 } from '@/types'
+import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { logger } from '@/lib/logger'
+import { GenerationValidationError } from '@/lib/errors'
 import { validatePrompt, sanitizePrompt } from '@/lib/prompt-guard'
 import {
   llmTextCompletion,
@@ -63,10 +65,15 @@ export async function parseImageIntent(
   const guardResult = validatePrompt(naturalLanguage)
 
   if (!guardResult.valid) {
-    logger.warn('Intent parser prompt failed guard, using fallback', {
+    logger.warn('Intent parser prompt failed guard', {
       reason: guardResult.reason,
     })
-    return buildFallbackIntent(naturalLanguage, referenceAssets)
+    throw new GenerationValidationError([
+      {
+        field: 'naturalLanguage',
+        message: guardResult.reason ?? 'Invalid prompt',
+      },
+    ])
   }
 
   const safeInput = sanitizePrompt(naturalLanguage)
@@ -82,13 +89,13 @@ export async function parseImageIntent(
     })
 
     const parsed: unknown = JSON.parse(stripMarkdownFences(rawOutput))
-    const validated = ImageIntentSchema.safeParse(parsed)
+    const validated = validateLlmStructuredOutput(parsed, ImageIntentSchema)
 
-    if (!validated.success) {
+    if (!validated.usable || !validated.data) {
       logger.warn('Intent parser LLM output failed schema validation', {
-        issues: validated.error.issues,
+        reason: validated.reason,
       })
-      return buildFallbackIntent(naturalLanguage, referenceAssets)
+      return buildFallbackIntent(safeInput, referenceAssets)
     }
 
     return {
@@ -99,6 +106,6 @@ export async function parseImageIntent(
     logger.warn('Intent parser LLM call failed, using fallback', {
       error: error instanceof Error ? error.message : String(error),
     })
-    return buildFallbackIntent(naturalLanguage, referenceAssets)
+    return buildFallbackIntent(safeInput, referenceAssets)
   }
 }

@@ -2127,6 +2127,27 @@
     "pauseUnnatural": "Unnatural pauses",
     "audioQuality": "Audio quality issue"
   },
+  "sceneProgress": {
+    "title": "Scene Generation Progress",
+    "scene": "Scene {index}",
+    "pending": "Pending",
+    "generatingFrame": "Generating keyframe...",
+    "frameReady": "Keyframe ready",
+    "generatingClip": "Generating video...",
+    "clipReady": "Complete",
+    "failed": "Failed",
+    "retry": "Retry",
+    "advance": "Continue to next scene",
+    "complete": "All scenes complete",
+    "progress": "{percent}% complete"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "Keep character",
+    "keepStyle": "Keep style",
+    "keepContinuity": "Keep continuity",
+    "extendScene": "Extend this scene",
+    "continueFromLastFrame": "Continue from last frame"
+  },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",
     "subjectMismatch": "Subject off",

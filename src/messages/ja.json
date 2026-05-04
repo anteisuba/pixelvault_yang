@@ -2127,6 +2127,27 @@
     "pauseUnnatural": "不自然なポーズ",
     "audioQuality": "音質の問題"
   },
+  "sceneProgress": {
+    "title": "シーン生成の進捗",
+    "scene": "シーン {index}",
+    "pending": "待機中",
+    "generatingFrame": "キーフレーム生成中...",
+    "frameReady": "キーフレーム準備完了",
+    "generatingClip": "動画生成中...",
+    "clipReady": "完了",
+    "failed": "失敗",
+    "retry": "再試行",
+    "advance": "次のシーンへ進む",
+    "complete": "すべてのシーンが完了",
+    "progress": "{percent}% 完了"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "キャラクターを維持",
+    "keepStyle": "スタイルを維持",
+    "keepContinuity": "連続性を維持",
+    "extendScene": "このシーンを延長",
+    "continueFromLastFrame": "最後のフレームから続ける"
+  },
   "StudioResultFeedback": {
     "satisfied": "満足",
     "subjectMismatch": "主体がズレ",

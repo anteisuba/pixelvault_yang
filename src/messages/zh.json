@@ -2127,6 +2127,27 @@
     "pauseUnnatural": "停顿不自然",
     "audioQuality": "音质问题"
   },
+  "sceneProgress": {
+    "title": "场景生成进度",
+    "scene": "场景 {index}",
+    "pending": "待处理",
+    "generatingFrame": "正在生成关键帧...",
+    "frameReady": "关键帧已就绪",
+    "generatingClip": "正在生成视频...",
+    "clipReady": "已完成",
+    "failed": "失败",
+    "retry": "重试",
+    "advance": "继续下一场景",
+    "complete": "全部场景已完成",
+    "progress": "已完成 {percent}%"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "保持角色",
+    "keepStyle": "保持风格",
+    "keepContinuity": "保持镜头连续",
+    "extendScene": "延长这一段",
+    "continueFromLastFrame": "从最后帧继续"
+  },
   "StudioResultFeedback": {
     "satisfied": "满意",
     "subjectMismatch": "主体偏差",

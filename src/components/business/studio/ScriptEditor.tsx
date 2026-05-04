@@ -28,8 +28,21 @@ import {
   SCENE_DURATION_RANGE,
   type CameraShot,
 } from '@/constants/video-script'
-import { VideoScriptStatus } from '@/lib/generated/prisma/enums'
-import type { VideoScriptRecord, VideoScriptScene } from '@/types/video-script'
+import {
+  VideoScriptSceneStatus,
+  VideoScriptStatus,
+} from '@/lib/generated/prisma/enums'
+import type {
+  SceneOrchestratorStatus,
+  VideoScriptRecord,
+  VideoScriptScene,
+} from '@/types/video-script'
+
+import {
+  StudioSceneFeedback,
+  type SceneFeedbackAction,
+} from './StudioSceneFeedback'
+import { StudioSceneProgress } from './StudioSceneProgress'
 
 interface ScriptEditorProps {
   script: VideoScriptRecord
@@ -39,6 +52,11 @@ interface ScriptEditorProps {
   onConfirm: () => Promise<boolean>
   onDelete: () => Promise<boolean>
   onRegenerate: () => void
+  sceneStatus?: SceneOrchestratorStatus | null
+  isSceneBusy?: boolean
+  onAdvanceScene?: () => void
+  onRetryScene?: (sceneIndex: number) => void
+  onSceneFeedback?: (sceneIndex: number, action: SceneFeedbackAction) => void
 }
 
 const CAMERA_SHOT_KEY: Record<CameraShot, string> = {
@@ -57,6 +75,11 @@ export function ScriptEditor({
   onConfirm,
   onDelete,
   onRegenerate,
+  sceneStatus = null,
+  isSceneBusy = false,
+  onAdvanceScene,
+  onRetryScene,
+  onSceneFeedback,
 }: ScriptEditorProps) {
   const t = useTranslations('VideoScript')
   const [scenes, setScenes] = useState<VideoScriptScene[]>(script.scenes)
@@ -78,7 +101,11 @@ export function ScriptEditor({
   )
 
   const canConfirm = allRequiredFilled && !durationMismatch && !isBusy
-  const isConfirmed = script.status === VideoScriptStatus.SCRIPT_READY
+  const isConfirmed = script.status !== VideoScriptStatus.DRAFT
+  const readyScenes =
+    sceneStatus?.scenes.filter(
+      (scene) => scene.status === VideoScriptSceneStatus.CLIP_READY,
+    ) ?? []
 
   const patchScene = useCallback(
     (index: number, patch: Partial<VideoScriptScene>) => {
@@ -222,6 +249,37 @@ export function ScriptEditor({
           {t('deleteButton')}
         </Button>
       </div>
+
+      {isConfirmed && sceneStatus && onAdvanceScene && onRetryScene && (
+        <StudioSceneProgress
+          status={sceneStatus}
+          onAdvance={() => {
+            if (!isSceneBusy) onAdvanceScene()
+          }}
+          onRetryScene={(sceneIndex) => {
+            if (!isSceneBusy) onRetryScene(sceneIndex)
+          }}
+        />
+      )}
+
+      {isConfirmed && readyScenes.length > 0 && onSceneFeedback && (
+        <div className="flex flex-col gap-2">
+          {readyScenes.map((scene) => (
+            <div
+              key={scene.index}
+              className="rounded-md border border-border bg-background/70 p-3"
+            >
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                {t('sceneIndex', { n: scene.index + 1 })}
+              </p>
+              <StudioSceneFeedback
+                sceneIndex={scene.index}
+                onAction={(action) => onSceneFeedback(scene.index, action)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
         <AlertDialogContent>

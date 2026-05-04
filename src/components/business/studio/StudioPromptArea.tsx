@@ -30,10 +30,12 @@ import {
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
+import { useVoiceCards } from '@/hooks/use-voice-cards'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import {
@@ -102,6 +104,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
+  const voiceCards = useVoiceCards({ enabled: isAudioMode })
   const { selectedModel: imageModel, modelOptions: imageModelOptions } =
     useImageModelOptions()
   const { selectedModel: audioModel, modelOptions: audioModelOptions } =
@@ -233,6 +236,27 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     () => getStylePresetById(state.stylePresetId),
     [state.stylePresetId],
   )
+
+  const selectedVoiceCard = useMemo(
+    () => (state.voiceCardId ? voiceCards.findCard(state.voiceCardId) : null),
+    [state.voiceCardId, voiceCards],
+  )
+
+  const audioPronunciationDictionary = useMemo(
+    () => ({
+      ...(selectedVoiceCard?.pronunciationDictionary ?? {}),
+      ...state.pronunciationDictionary,
+    }),
+    [selectedVoiceCard?.pronunciationDictionary, state.pronunciationDictionary],
+  )
+
+  const audioSpeed = useMemo(() => {
+    if (state.audioPace in AUDIO_PACE_SPEED) {
+      return AUDIO_PACE_SPEED[state.audioPace as keyof typeof AUDIO_PACE_SPEED]
+    }
+
+    return undefined
+  }, [state.audioPace])
 
   /** Prepend style preset prefix to user prompt */
   const composePrompt = useCallback(
@@ -401,7 +425,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             modelId: selectedModel.modelId,
             apiKeyId: selectedModel.keyId,
             freePrompt: state.prompt || undefined,
-            voiceId: state.voiceId ?? undefined,
+            voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+            emotion: state.audioEmotion,
+            pace: state.audioPace,
+            pauseMarkers: state.audioPauseMarkers,
+            pronunciationDictionary: audioPronunciationDictionary,
+            speed: audioSpeed,
           },
         })
         return
@@ -463,7 +492,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       modelOptions,
       state.prompt,
       state.voiceId,
+      state.audioEmotion,
+      state.audioPace,
+      state.audioPauseMarkers,
       state.workflowMode,
+      selectedVoiceCard?.voiceId,
+      audioPronunciationDictionary,
+      audioSpeed,
       buildImageInput,
       buildVideoInput,
       generate,

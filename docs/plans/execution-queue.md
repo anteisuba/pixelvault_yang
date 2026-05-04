@@ -324,8 +324,11 @@ smoke 检查：
 | 4.1 Clerk webhook           | ✅ 完成             | Codex    | PASS (P2 fix applied) |
 | 4.2 Smoke 自动化            | ✅ 完成             | Codex    | PASS (P2 fix applied) |
 | fix: lint + review issues   | ✅ 完成             | Codex    | PASS (4 issues fixed) |
-| B.1α-1 Intent Layer         | ⬜ 待 Plan A 完成   | —        | —                     |
-| B.1α-2 Prompt Compiler      | ⬜ 待 Plan A 完成   | —        | —                     |
-| B.1β-1 Evaluator            | ⬜ 待 B.1α          | —        | —                     |
-| B.1β-2 Studio UI            | ⬜ 待 B.1α          | —        | —                     |
-| B.1γ-1 Recipe               | ⬜ 待 B.1β          | —        | —                     |
+| B.1α-1 Intent Layer         | ✅ 完成             | Codex    | PASS (P2 fix applied) |
+| B.1α-2 Prompt Compiler      | ✅ 完成             | Codex    | PASS                  |
+| B.1α-3 Reference Compat     | ✅ 完成             | Codex    | PASS (P2 fix applied) |
+| B.1β-1 Evaluator            | ✅ 完成             | Codex    | PASS (P2 fix applied) |
+| B.1β-2 Studio UI            | ✅ 完成             | Codex    | PASS (P2 fix applied) |
+| B.1γ-1 Recipe               | ✅ 已完成(此前实现) | —        | —                     |
+| B.1γ-2 Arena Win-Rate       | ✅ 完成             | Codex    | PASS                  |
+| B.1γ-3 User Preference      | ✅ 完成             | Codex    | PASS (P2 fix applied) |

@@ -381,6 +381,11 @@
     "voiceMyEmpty": "No custom voices yet. Clone one to get started!",
     "voiceNoResults": "No voices found",
     "voiceSelected": "Selected",
+    "voiceCards": "Voice Cards",
+    "voiceCardsEmpty": "No voice cards yet",
+    "voiceCardSelected": "Saved voice card",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "FAL F5-TTS",
     "voicePrev": "Prev",
     "voiceNext": "Next",
     "voiceTrainTitle": "Voice Clone",
@@ -1848,7 +1853,8 @@
     "sections": {
       "mode": "Mode selection",
       "routeModel": "Route & model",
-      "provider": "Provider controls"
+      "provider": "Provider controls",
+      "pronunciation": "Pronunciation"
     },
     "modeDescription": "Choose whether this workflow runs directly or through card-assisted setup.",
     "routeModelDescription": "Pick saved API routes or open the model selector for detailed routing.",
@@ -2089,6 +2095,37 @@
     "confirm": "Confirm & Generate",
     "cancel": "Back to Edit",
     "reasonLabel": "Why: {reason}"
+  },
+  "audioParams": {
+    "emotion": "Emotion",
+    "emotionNeutral": "Neutral",
+    "emotionHappy": "Happy",
+    "emotionSad": "Sad",
+    "emotionAngry": "Angry",
+    "emotionExcited": "Excited",
+    "emotionCalm": "Calm",
+    "emotionFearful": "Fearful",
+    "pace": "Pace",
+    "paceSlow": "Slow",
+    "paceNormal": "Normal",
+    "paceFast": "Fast",
+    "pauseMarkers": "Pauses",
+    "pauseAfterSentence1": "After sentence 1",
+    "pauseAfterSentence2": "After sentence 2",
+    "pauseAfterSentence3": "After sentence 3",
+    "pronunciation": "Pronunciation Dictionary",
+    "addWord": "Add word",
+    "word": "Word",
+    "pronounceAs": "Pronounce as",
+    "deleteWord": "Delete word"
+  },
+  "audioFeedback": {
+    "voiceMismatch": "Voice doesn't match",
+    "emotionWrong": "Wrong emotion",
+    "paceWrong": "Wrong pace",
+    "pronunciationError": "Pronunciation error",
+    "pauseUnnatural": "Unnatural pauses",
+    "audioQuality": "Audio quality issue"
   },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",

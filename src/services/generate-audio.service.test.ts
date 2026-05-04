@@ -290,6 +290,78 @@ describe('generateAudioForUser', () => {
     )
   })
 
+  it('maps audio pace, pauses, and pronunciation dictionary for provider calls', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'Say Codex clearly. Continue now.',
+      pace: 'fast',
+      pauseMarkers: ['after_sentence_1'],
+      pronunciationDictionary: { Codex: 'koh-decks' },
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'Say koh-decks clearly.\n\nContinue now.',
+        speed: 1.2,
+      }),
+    )
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: 'Say Codex clearly. Continue now.' }),
+    )
+  })
+
+  it('applies non-neutral emotion to the provider prompt', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'Speak kindly.',
+      emotion: 'happy',
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: '[Speaking with happy emotion] Speak kindly.',
+      }),
+    )
+  })
+
+  it('does not replace pronunciation entries inside longer words', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      prompt: 'I AIM to use AI wisely',
+      pronunciationDictionary: { AI: 'artificial intelligence' },
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'I AIM to use artificial intelligence wisely',
+      }),
+    )
+  })
+
   it('uses generationJobId pattern in createApiUsageEntry', async () => {
     setupSyncHappyPath()
 

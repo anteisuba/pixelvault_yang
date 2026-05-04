@@ -5,9 +5,12 @@ import { Check, Loader2, Mic, Search, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'
+import { useVoiceCards } from '@/hooks/use-voice-cards'
 import { listVoicesAPI, deleteVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
+import { VOICE_CARD_PROVIDER } from '@/constants/voice-cards'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
+import type { VoiceCardRecord } from '@/types'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -19,6 +22,7 @@ import { Button } from '@/components/ui/button'
 export const VoiceSelector = memo(function VoiceSelector() {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioPage')
+  const voiceCards = useVoiceCards()
 
   const [tab, setTab] = useState<'public' | 'my'>('public')
   const [voices, setVoices] = useState<FishAudioVoice[]>([])
@@ -58,7 +62,27 @@ export const VoiceSelector = memo(function VoiceSelector() {
     return () => cancelAnimationFrame(id)
   }, [tab, search])
 
+  const handleSelectVoiceCard = (card: VoiceCardRecord) => {
+    const isSelected = state.voiceCardId === card.id
+    dispatch({
+      type: 'SET_VOICE_CARD_ID',
+      payload: isSelected ? null : card.id,
+    })
+    dispatch({
+      type: 'SET_VOICE_ID',
+      payload: isSelected ? null : card.voiceId,
+    })
+    if (!isSelected) {
+      dispatch({ type: 'SET_AUDIO_PACE', payload: card.pace })
+      dispatch({
+        type: 'SET_PRONUNCIATION_DICTIONARY',
+        payload: card.pronunciationDictionary,
+      })
+    }
+  }
+
   const handleSelect = (voiceId: string) => {
+    dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
     dispatch({
       type: 'SET_VOICE_ID',
       payload: state.voiceId === voiceId ? null : voiceId,
@@ -79,6 +103,75 @@ export const VoiceSelector = memo(function VoiceSelector() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Persisted VoiceCards */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-2xs font-medium text-muted-foreground/70">
+            {t('voiceCards')}
+          </span>
+          {voiceCards.isLoading && (
+            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        {voiceCards.cards.length === 0 && !voiceCards.isLoading ? (
+          <div className="rounded-lg border border-dashed border-border/60 px-3 py-3 text-center text-xs text-muted-foreground">
+            {t('voiceCardsEmpty')}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {voiceCards.cards.map((card) => {
+              const isSelected = state.voiceCardId === card.id
+              const providerLabel =
+                card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO
+                  ? t('voiceCardFishAudio')
+                  : t('voiceCardFalF5Tts')
+
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => handleSelectVoiceCard(card)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
+                    isSelected
+                      ? 'border border-primary/30 bg-primary/10'
+                      : 'border border-transparent hover:bg-muted/30',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex size-9 shrink-0 items-center justify-center rounded-full',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/60 text-muted-foreground',
+                    )}
+                  >
+                    {isSelected ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Mic className="size-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {card.name}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
+                        {providerLabel}
+                      </span>
+                    </div>
+                    <span className="text-2xs text-muted-foreground">
+                      {t('voiceCardSelected')}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg border border-border/60 p-0.5">
         <button

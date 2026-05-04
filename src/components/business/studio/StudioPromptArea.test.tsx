@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
+import type { VoiceCardRecord } from '@/types'
 
 import { StudioPromptArea } from './StudioPromptArea'
 
@@ -13,6 +14,8 @@ const mockGenerate = vi.hoisted(() => vi.fn())
 const mockSetCurrentPlan = vi.hoisted(() => vi.fn())
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
+const mockUseAudioModelOptions = vi.hoisted(() => vi.fn())
+const mockUseVoiceCards = vi.hoisted(() => vi.fn())
 const mockFetchGenerationPlanAPI = vi.hoisted(() => vi.fn())
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
@@ -88,10 +91,7 @@ vi.mock('@/lib/api-client/generation', () => ({
 }))
 
 vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: () => ({
-    selectedModel: null,
-    modelOptions: [],
-  }),
+  useAudioModelOptions: mockUseAudioModelOptions,
 }))
 
 vi.mock('@/hooks/use-video-model-options', () => ({
@@ -115,6 +115,10 @@ vi.mock('@/hooks/use-video-model-options', () => ({
       modelOptions: [selectedModel],
     }
   },
+}))
+
+vi.mock('@/hooks/use-voice-cards', () => ({
+  useVoiceCards: mockUseVoiceCards,
 }))
 
 vi.mock('@/contexts/api-keys-context', () => ({
@@ -186,6 +190,11 @@ function setupStudioForm(
     advancedParams: {},
     tokenInput: '',
     voiceId: null,
+    voiceCardId: null,
+    audioEmotion: 'neutral',
+    audioPace: 'normal',
+    audioPauseMarkers: [],
+    pronunciationDictionary: {},
     videoDuration: 5,
     videoResolution: '720p',
     longVideoMode: false,
@@ -254,9 +263,20 @@ describe('StudioPromptArea', () => {
     vi.clearAllMocks()
     mockGenerate.mockResolvedValue(null)
     mockFetchGenerationPlanAPI.mockResolvedValue({ success: false })
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: null,
+      modelOptions: [],
+    })
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: null,
       modelOptions: [],
+    })
+    mockUseVoiceCards.mockReturnValue({
+      cards: [],
+      isLoading: false,
+      error: null,
+      findCard: () => null,
+      refresh: vi.fn(),
     })
     localStorage.clear()
   })
@@ -313,5 +333,85 @@ describe('StudioPromptArea', () => {
     await submitVideoFromPromptArea(WORKFLOW_IDS.QUICK_IMAGE)
 
     expect(getSubmittedVideoPayload()).not.toHaveProperty('workflowId')
+  })
+
+  it('builds audio payload from selected VoiceCard and audio form params', async () => {
+    const audioModel = {
+      optionId: 'audio-option',
+      modelId: 'fish-audio-s2-pro',
+      keyId: 'fish-key-1',
+      keyLabel: 'Fish key',
+      adapterType: 'fish_audio',
+      providerConfig: {
+        label: 'Fish Audio',
+        baseUrl: 'https://api.fish.audio',
+      },
+      sourceType: 'saved',
+      requestCount: 1,
+    }
+    const voiceCard: VoiceCardRecord = {
+      id: 'voice-card-1',
+      userId: 'user-1',
+      name: 'Narrator',
+      provider: 'fish_audio',
+      modelId: 'fish-audio-s2-pro',
+      voiceId: 'fish-voice-1',
+      referenceAudioUrl: null,
+      referenceAudioStorageKey: null,
+      gender: null,
+      age: null,
+      tone: [],
+      pace: 'normal',
+      pitch: null,
+      pronunciationDictionary: { AI: 'ay eye' },
+      sampleText: null,
+      isDeleted: false,
+      createdAt: '2026-05-04T00:00:00.000Z',
+      updatedAt: '2026-05-04T00:00:00.000Z',
+    }
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: audioModel,
+      modelOptions: [audioModel],
+    })
+    mockUseVoiceCards.mockReturnValue({
+      cards: [voiceCard],
+      isLoading: false,
+      error: null,
+      findCard: (id: string) => (id === voiceCard.id ? voiceCard : null),
+      refresh: vi.fn(),
+    })
+    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
+      outputType: 'audio',
+      selectedOptionId: 'audio-option',
+      prompt: 'Hello AI',
+      voiceCardId: voiceCard.id,
+      audioEmotion: 'happy',
+      audioPace: 'fast',
+      audioPauseMarkers: ['after_sentence_1'],
+      pronunciationDictionary: { Codex: 'koh-decks' },
+    })
+
+    render(<StudioPromptArea />)
+    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+
+    await waitFor(() =>
+      expect(mockGenerate).toHaveBeenCalledWith({
+        mode: 'audio',
+        audio: expect.objectContaining({
+          modelId: 'fish-audio-s2-pro',
+          apiKeyId: 'fish-key-1',
+          freePrompt: 'Hello AI',
+          voiceId: 'fish-voice-1',
+          emotion: 'happy',
+          pace: 'fast',
+          pauseMarkers: ['after_sentence_1'],
+          speed: 1.2,
+          pronunciationDictionary: {
+            AI: 'ay eye',
+            Codex: 'koh-decks',
+          },
+        }),
+      }),
+    )
   })
 })

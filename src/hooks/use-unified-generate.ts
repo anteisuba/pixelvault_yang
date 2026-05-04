@@ -5,6 +5,13 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { AUDIO_GENERATION, VIDEO_GENERATION } from '@/constants/config'
+import {
+  AUDIO_EMOTIONS,
+  AUDIO_PAUSE_MARKERS,
+  AUDIO_PACES,
+  type AudioEmotion,
+  type AudioPace,
+} from '@/constants/voice-cards'
 import { VARIANT_COUNT, VARIANT_MAX_SEED } from '@/constants/studio'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type {
@@ -42,6 +49,11 @@ export interface AudioGenerateInput {
   apiKeyId?: string
   freePrompt?: string
   voiceId?: string
+  emotion?: string
+  pace?: string
+  pauseMarkers?: string[]
+  pronunciationDictionary?: Record<string, string>
+  speed?: number
 }
 
 export interface CompareModelSelection {
@@ -73,6 +85,22 @@ export interface UseUnifiedGenerateReturn {
   activeRun: ActiveRun | null
   /** B5: Select a variant as winner */
   selectWinner: (generationId: string) => Promise<void>
+}
+
+function isAudioEmotion(value: string | undefined): value is AudioEmotion {
+  return AUDIO_EMOTIONS.includes(value as AudioEmotion)
+}
+
+function isAudioPace(value: string | undefined): value is AudioPace {
+  return AUDIO_PACES.includes(value as AudioPace)
+}
+
+function isAudioPauseMarker(
+  value: string,
+): value is (typeof AUDIO_PAUSE_MARKERS)[number] {
+  return AUDIO_PAUSE_MARKERS.includes(
+    value as (typeof AUDIO_PAUSE_MARKERS)[number],
+  )
 }
 
 function hasGeneration(
@@ -648,6 +676,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           modelId: input.modelId,
           apiKeyId: input.apiKeyId,
           voiceId: input.voiceId,
+          emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,
+          pace: isAudioPace(input.pace) ? input.pace : undefined,
+          pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),
+          pronunciationDictionary: input.pronunciationDictionary,
+          speed: input.speed,
         })
 
         if (result.success && hasGeneration(result.data)) {

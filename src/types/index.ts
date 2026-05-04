@@ -13,6 +13,9 @@ import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
+  AUDIO_EMOTIONS,
+  AUDIO_PAUSE_MARKERS,
+  AUDIO_PACES,
   VOICE_CARD_AGES,
   VOICE_CARD_DEFAULT_PACE,
   VOICE_CARD_DEFAULT_PROVIDER,
@@ -248,6 +251,10 @@ export const GenerateAudioRequestSchema = z.object({
     ),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   voiceId: z.string().trim().min(1).max(200).optional(),
+  emotion: z.enum(AUDIO_EMOTIONS).optional(),
+  pace: z.enum(AUDIO_PACES).optional(),
+  pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
+  pronunciationDictionary: z.record(z.string(), z.string()).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
   format: z.enum(AUDIO_FORMATS).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),

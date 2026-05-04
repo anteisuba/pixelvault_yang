@@ -10,9 +10,15 @@ const mockFindMany = vi.fn()
 const mockCount = vi.fn()
 const mockFindFirst = vi.fn()
 const mockUpdate = vi.fn()
+const mockUpdatePreferenceOnRecipeSaved = vi.fn()
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
+}))
+
+vi.mock('@/services/user-preference.service', () => ({
+  updatePreferenceOnRecipeSaved: (...args: unknown[]) =>
+    mockUpdatePreferenceOnRecipeSaved(...args),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -64,6 +70,7 @@ describe('createRecipe', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockCreate.mockResolvedValue(FAKE_RECIPE)
+    mockUpdatePreferenceOnRecipeSaved.mockResolvedValue(undefined)
   })
 
   it('calls db.recipe.create with the user id and input', async () => {
@@ -82,6 +89,25 @@ describe('createRecipe', () => {
   it('returns the created recipe record', async () => {
     const result = await createRecipe('clerk_test_user', VALID_INPUT)
     expect(result.id).toBe('recipe_abc')
+  })
+
+  it('updates creative preference after creating a recipe', async () => {
+    await createRecipe('clerk_test_user', VALID_INPUT)
+
+    expect(mockUpdatePreferenceOnRecipeSaved).toHaveBeenCalledWith(
+      'db_user_123',
+      FAKE_RECIPE,
+    )
+  })
+
+  it('returns the recipe when preference update fails', async () => {
+    mockUpdatePreferenceOnRecipeSaved.mockRejectedValueOnce(
+      new Error('preference unavailable'),
+    )
+
+    await expect(createRecipe('clerk_test_user', VALID_INPUT)).resolves.toEqual(
+      FAKE_RECIPE,
+    )
   })
 })
 

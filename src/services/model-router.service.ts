@@ -1,13 +1,22 @@
 import 'server-only'
 
 import {
+  ARENA_WINRATE_WEIGHT,
   DEFAULT_MODEL_ROUTER_WEIGHTS,
   MODEL_ROUTER_SCORE_WEIGHTS,
   MODEL_STRENGTHS,
+  USER_PREFERENCE_WEIGHT,
   type ModelRouterWeights,
 } from '@/constants/model-strengths'
 import { MODEL_OPTIONS, getModelById } from '@/constants/models'
+import { classifyImageIntentTaskType } from '@/lib/classify-task-type'
+import { logger } from '@/lib/logger'
 import type { ImageIntent, ModelRouterPreferences } from '@/types'
+import { getModelWinRatesByTask } from '@/services/arena-winrate.service'
+import {
+  getUserPreference,
+  parseUserPreferredModelsByTask,
+} from '@/services/user-preference.service'
 
 export interface RecommendedModel {
   modelId: string
@@ -23,6 +32,11 @@ interface ScoreModelResult {
 }
 
 const MIN_REQUIRED_HEALTH_WEIGHT = 0.7
+const ROUTER_SCORE_SCALE = 100
+
+export interface RouteModelsForIntentOptions {
+  userId?: string | null
+}
 
 function unique(values: string[]): string[] {
   return [...new Set(values)]
@@ -144,6 +158,11 @@ function buildReason(params: {
     : 'General-purpose fallback using static cost, latency, and health fit.'
 }
 
+function appendReason(reason: string, addition: string): string {
+  const trimmed = reason.endsWith('.') ? reason.slice(0, -1) : reason
+  return `${trimmed}; ${addition}.`
+}
+
 function scoreModel(
   modelId: string,
   intent: ImageIntent,
@@ -209,10 +228,77 @@ export function estimateModelCost(modelId: string): number {
   return getModelById(modelId)?.cost ?? 0
 }
 
-export function routeModelsForIntent(
+async function applyArenaWinRateBoost(
+  rankedModels: RecommendedModel[],
+  taskType: string,
+): Promise<void> {
+  try {
+    const winRates = await getModelWinRatesByTask(taskType)
+
+    for (const candidate of rankedModels) {
+      const winRate = winRates.get(candidate.modelId)
+      if (winRate === undefined) continue
+
+      candidate.score = Number(
+        (
+          candidate.score +
+          winRate * ARENA_WINRATE_WEIGHT * ROUTER_SCORE_SCALE
+        ).toFixed(4),
+      )
+      candidate.reason = appendReason(candidate.reason, 'arena win-rate signal')
+    }
+  } catch (error) {
+    logger.warn('Model router Arena win-rate boost skipped', {
+      taskType,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+async function applyUserPreferenceBoost(
+  rankedModels: RecommendedModel[],
+  taskType: string,
+  userId: string | null | undefined,
+): Promise<void> {
+  if (!userId) return
+
+  try {
+    const preference = await getUserPreference(userId)
+    if (!preference) return
+
+    const preferredModelsByTask = parseUserPreferredModelsByTask(
+      preference.preferredModelsByTask,
+    )
+    const taskModels = preferredModelsByTask[taskType] ?? []
+    if (taskModels.length === 0) return
+
+    for (const candidate of rankedModels) {
+      if (!taskModels.includes(candidate.modelId)) continue
+
+      candidate.score = Number(
+        (candidate.score + USER_PREFERENCE_WEIGHT * ROUTER_SCORE_SCALE).toFixed(
+          4,
+        ),
+      )
+      candidate.reason = appendReason(
+        candidate.reason,
+        'user preference signal',
+      )
+    }
+  } catch (error) {
+    logger.warn('Model router user preference boost skipped', {
+      taskType,
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+export async function routeModelsForIntent(
   intent: ImageIntent,
   preferences: ModelRouterPreferences = {},
-): RecommendedModel[] {
+  options: RouteModelsForIntentOptions = {},
+): Promise<RecommendedModel[]> {
   const scored = MODEL_OPTIONS.filter(
     (model) =>
       model.available === true &&
@@ -232,5 +318,15 @@ export function routeModelsForIntent(
       return { modelId: model.id, score, matchedBestFor, reason }
     })
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, 5)
+  scored.sort((a, b) => b.score - a.score)
+
+  const taskType = classifyImageIntentTaskType(intent)
+
+  await applyArenaWinRateBoost(scored, taskType)
+  scored.sort((a, b) => b.score - a.score)
+
+  await applyUserPreferenceBoost(scored, taskType, options.userId)
+  scored.sort((a, b) => b.score - a.score)
+
+  return scored.slice(0, 5)
 }

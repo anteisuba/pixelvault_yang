@@ -14,6 +14,7 @@ import {
   compilePrompt,
   compileNegativePrompt,
 } from '@/services/prompt-compiler.service'
+import { ensureUser } from '@/services/user.service'
 
 export const POST = createApiRoute<
   typeof GenerationPlanRequestSchema,
@@ -21,12 +22,17 @@ export const POST = createApiRoute<
 >({
   schema: GenerationPlanRequestSchema,
   routeName: 'POST /api/generation/plan',
-  handler: async (_clerkId, data) => {
+  handler: async (clerkId, data) => {
+    const user = await ensureUser(clerkId)
     const intent = await parseImageIntent(
       data.naturalLanguage,
       data.referenceAssets,
     )
-    const recommendedModels = routeModelsForIntent(intent, data.preferences)
+    const recommendedModels = await routeModelsForIntent(
+      intent,
+      data.preferences,
+      { userId: user.id },
+    )
     const topModelId = recommendedModels[0]?.modelId ?? ''
     const negativePrompt = compileNegativePrompt(intent, topModelId)
 

@@ -1,25 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-import { createGET, mockUnauthenticated, parseJSON } from '@/test/api-helpers'
+import {
+  createGET,
+  mockAuthenticated,
+  mockUnauthenticated,
+  parseJSON,
+} from '@/test/api-helpers'
 
-vi.mock('@/services/arena.service', () => ({
+vi.mock('@/services/arena-winrate.service', () => ({
   getModelWinRatesByTask: vi.fn(),
 }))
 
-import { getModelWinRatesByTask } from '@/services/arena.service'
+import { getModelWinRatesByTask } from '@/services/arena-winrate.service'
 import { GET } from './route'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockAuthenticated()
 })
 
 describe('GET /api/arena/model-winrate', () => {
-  it('returns model win rates without requiring auth', async () => {
+  it('returns 401 for unauthenticated requests', async () => {
     mockUnauthenticated()
-    vi.mocked(getModelWinRatesByTask).mockResolvedValue({
-      sdxl: 0.67,
-      'seedream-3.0': 0.5,
-    })
+
+    const res = await GET(
+      createGET('/api/arena/model-winrate', { taskType: 'portrait' }),
+    )
+
+    expect(res.status).toBe(401)
+    expect(getModelWinRatesByTask).not.toHaveBeenCalled()
+  })
+
+  it('returns model win rates for authenticated users', async () => {
+    vi.mocked(getModelWinRatesByTask).mockResolvedValue(
+      new Map([
+        ['sdxl', 0.67],
+        ['seedream-3.0', 0.5],
+      ]),
+    )
 
     const res = await GET(
       createGET('/api/arena/model-winrate', { taskType: 'portrait' }),
@@ -30,8 +48,10 @@ describe('GET /api/arena/model-winrate', () => {
     expect(body).toEqual({
       success: true,
       data: {
-        sdxl: 0.67,
-        'seedream-3.0': 0.5,
+        winRates: {
+          sdxl: 0.67,
+          'seedream-3.0': 0.5,
+        },
       },
     })
     expect(getModelWinRatesByTask).toHaveBeenCalledWith('portrait')

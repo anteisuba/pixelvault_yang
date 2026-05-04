@@ -60,6 +60,7 @@ export const ModelName = {
   ApiUsageLedger: 'ApiUsageLedger',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
+  UserCreativePreference: 'UserCreativePreference',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -281,6 +282,21 @@ export const RecipeScalarFieldEnum = {
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
+
+
+export const UserCreativePreferenceScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  favoriteStyles: 'favoriteStyles',
+  rejectedStyles: 'rejectedStyles',
+  preferredModelsByTask: 'preferredModelsByTask',
+  commonNegativeTags: 'commonNegativeTags',
+  preferredAspectRatios: 'preferredAspectRatios',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserCreativePreferenceScalarFieldEnum = (typeof UserCreativePreferenceScalarFieldEnum)[keyof typeof UserCreativePreferenceScalarFieldEnum]
 
 
 export const ImageAnalysisScalarFieldEnum = {

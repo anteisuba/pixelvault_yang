@@ -11,6 +11,12 @@ const mockGenerationDelete = vi.hoisted(() => vi.fn())
 const mockGenerationDeleteMany = vi.hoisted(() => vi.fn())
 const mockGenerationCharacterCardCreateMany = vi.hoisted(() => vi.fn())
 const mockDbTransaction = vi.hoisted(() => vi.fn())
+const mockUpdatePreferenceOnDeleted = vi.hoisted(() => vi.fn())
+
+vi.mock('@/services/user-preference.service', () => ({
+  updatePreferenceOnDeleted: (...args: unknown[]) =>
+    mockUpdatePreferenceOnDeleted(...args),
+}))
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -75,6 +81,7 @@ const BASE_GENERATION = {
 describe('generation.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUpdatePreferenceOnDeleted.mockResolvedValue(undefined)
     mockDbTransaction.mockImplementation(
       async (
         fn: (tx: {
@@ -466,6 +473,29 @@ describe('generation.service', () => {
         userId: 'user-1',
         storageKey: 'owned.png',
       })
+      mockGenerationDelete.mockResolvedValue({ id: 'gen-1' })
+
+      await expect(deleteGeneration('gen-1', 'user-1')).resolves.toEqual({
+        storageKey: 'owned.png',
+      })
+      expect(mockUpdatePreferenceOnDeleted).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ id: 'gen-1' }),
+      )
+      expect(mockGenerationDelete).toHaveBeenCalledWith({
+        where: { id: 'gen-1' },
+      })
+    })
+
+    it('still deletes when preference update fails', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        storageKey: 'owned.png',
+      })
+      mockUpdatePreferenceOnDeleted.mockRejectedValueOnce(
+        new Error('preference unavailable'),
+      )
       mockGenerationDelete.mockResolvedValue({ id: 'gen-1' })
 
       await expect(deleteGeneration('gen-1', 'user-1')).resolves.toEqual({

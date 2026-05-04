@@ -393,6 +393,7 @@ export const ModelName = {
   ApiUsageLedger: 'ApiUsageLedger',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
+  UserCreativePreference: 'UserCreativePreference',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -429,7 +430,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1096,6 +1097,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.RecipeCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.RecipeCountAggregateOutputType> | number
+        }
+      }
+    }
+    UserCreativePreference: {
+      payload: Prisma.$UserCreativePreferencePayload<ExtArgs>
+      fields: Prisma.UserCreativePreferenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserCreativePreferenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserCreativePreferenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        findFirst: {
+          args: Prisma.UserCreativePreferenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserCreativePreferenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        findMany: {
+          args: Prisma.UserCreativePreferenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>[]
+        }
+        create: {
+          args: Prisma.UserCreativePreferenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        createMany: {
+          args: Prisma.UserCreativePreferenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserCreativePreferenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>[]
+        }
+        delete: {
+          args: Prisma.UserCreativePreferenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        update: {
+          args: Prisma.UserCreativePreferenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        deleteMany: {
+          args: Prisma.UserCreativePreferenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserCreativePreferenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserCreativePreferenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>[]
+        }
+        upsert: {
+          args: Prisma.UserCreativePreferenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserCreativePreferencePayload>
+        }
+        aggregate: {
+          args: Prisma.UserCreativePreferenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserCreativePreference>
+        }
+        groupBy: {
+          args: Prisma.UserCreativePreferenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserCreativePreferenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserCreativePreferenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserCreativePreferenceCountAggregateOutputType> | number
         }
       }
     }
@@ -2876,6 +2951,21 @@ export const RecipeScalarFieldEnum = {
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
 
 
+export const UserCreativePreferenceScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  favoriteStyles: 'favoriteStyles',
+  rejectedStyles: 'rejectedStyles',
+  preferredModelsByTask: 'preferredModelsByTask',
+  commonNegativeTags: 'commonNegativeTags',
+  preferredAspectRatios: 'preferredAspectRatios',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserCreativePreferenceScalarFieldEnum = (typeof UserCreativePreferenceScalarFieldEnum)[keyof typeof UserCreativePreferenceScalarFieldEnum]
+
+
 export const ImageAnalysisScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3627,6 +3717,7 @@ export type GlobalOmitConfig = {
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
   freeTierSlot?: Prisma.FreeTierSlotOmit
   recipe?: Prisma.RecipeOmit
+  userCreativePreference?: Prisma.UserCreativePreferenceOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   arenaMatch?: Prisma.ArenaMatchOmit
   arenaEntry?: Prisma.ArenaEntryOmit

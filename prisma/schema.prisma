@@ -120,6 +120,7 @@ model User {
   styleCards       StyleCard[]
   cardRecipes      CardRecipe[]
   recipes          Recipe[]
+  creativePreference UserCreativePreference?
   videoPipelines   VideoPipeline[]
   loraTrainingJobs LoraTrainingJob[]
   videoScripts     VideoScript[]
@@ -345,6 +346,21 @@ model Recipe {
   updatedAt          DateTime   @updatedAt
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
+}
+
+model UserCreativePreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteStyles        Json     @default("[]")
+  rejectedStyles        Json     @default("[]")
+  preferredModelsByTask Json     @default("{}")
+  commonNegativeTags    Json     @default("[]")
+  preferredAspectRatios Json     @default("[]")
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@index([userId])
 }
 
 model ImageAnalysis {

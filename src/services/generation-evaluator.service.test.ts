@@ -9,6 +9,7 @@ const mockResolveRoute = vi.fn()
 const mockLlmCompletion = vi.fn()
 const mockFindUniqueGeneration = vi.fn()
 const mockUpdateGeneration = vi.fn()
+const mockUpdatePreferenceOnSatisfied = vi.fn()
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -17,6 +18,11 @@ vi.mock('@/services/user.service', () => ({
 vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveRoute(...args),
   llmTextCompletion: (...args: unknown[]) => mockLlmCompletion(...args),
+}))
+
+vi.mock('@/services/user-preference.service', () => ({
+  updatePreferenceOnSatisfied: (...args: unknown[]) =>
+    mockUpdatePreferenceOnSatisfied(...args),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -92,6 +98,7 @@ describe('evaluateGeneration', () => {
     mockFindUniqueGeneration.mockResolvedValue(FAKE_GENERATION)
     mockUpdateGeneration.mockResolvedValue({ ...FAKE_GENERATION })
     mockLlmCompletion.mockResolvedValue(VALID_LLM_RESPONSE)
+    mockUpdatePreferenceOnSatisfied.mockResolvedValue(undefined)
   })
 
   it('returns a valid evaluation on happy path', async () => {
@@ -109,8 +116,18 @@ describe('evaluateGeneration', () => {
     expect(mockUpdateGeneration).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'gen_abc' },
-        data: expect.objectContaining({ evaluation: expect.any(Object) }),
+        data: {
+          evaluation: expect.objectContaining({
+            overall: 8.6,
+            userSatisfied: true,
+            satisfiedAt: expect.any(String),
+          }),
+        },
       }),
+    )
+    expect(mockUpdatePreferenceOnSatisfied).toHaveBeenCalledWith(
+      'db_user_123',
+      expect.objectContaining({ id: 'gen_abc' }),
     )
   })
 
@@ -124,6 +141,40 @@ describe('evaluateGeneration', () => {
       overall: 6.7,
       detectedIssues: ['subject too dark'],
       suggestedFixes: ['increase brightness'],
+    }
+    mockFindUniqueGeneration.mockResolvedValue({
+      ...FAKE_GENERATION,
+      evaluation: existingEval,
+    })
+
+    const result = await evaluateGeneration('clerk_test_user', 'gen_abc')
+
+    expect(mockLlmCompletion).not.toHaveBeenCalled()
+    expect(mockUpdateGeneration).toHaveBeenCalledWith({
+      where: { id: 'gen_abc' },
+      data: {
+        evaluation: expect.objectContaining({
+          overall: 6.7,
+          userSatisfied: true,
+          satisfiedAt: expect.any(String),
+        }),
+      },
+    })
+    expect(result?.overall).toBe(6.7)
+  })
+
+  it('does not rewrite an already marked satisfied evaluation', async () => {
+    const existingEval = {
+      subjectMatch: 7,
+      styleMatch: 6,
+      compositionMatch: 5,
+      artifactScore: 9,
+      promptAdherence: 6.5,
+      overall: 6.7,
+      detectedIssues: ['subject too dark'],
+      suggestedFixes: ['increase brightness'],
+      userSatisfied: true,
+      satisfiedAt: '2026-05-04T10:00:00.000Z',
     }
     mockFindUniqueGeneration.mockResolvedValue({
       ...FAKE_GENERATION,

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
+import { logger } from '@/lib/logger'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
   GenerationRecord,
@@ -11,6 +12,7 @@ import type {
   OutputTypeFilter,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
+import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 
 // ─── Input Types ──────────────────────────────────────────────────
 
@@ -517,11 +519,20 @@ export async function deleteGeneration(
 ): Promise<{ storageKey: string } | null> {
   const generation = await db.generation.findUnique({
     where: { id },
-    select: { id: true, userId: true, storageKey: true },
   })
 
   if (!generation || generation.userId !== userId) {
     return null
+  }
+
+  try {
+    await updatePreferenceOnDeleted(userId, generation)
+  } catch (error) {
+    logger.warn('Generation deletion preference update failed', {
+      generationId: generation.id,
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 
   await db.generation.delete({ where: { id } })

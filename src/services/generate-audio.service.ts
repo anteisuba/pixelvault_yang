@@ -3,6 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
+import { AUDIO_EMOTION, AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -89,6 +90,10 @@ type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
 const AudioSubmitOutboxPayloadSchema = z.object({
   prompt: z.string().min(1),
   voiceId: z.string().min(1).max(200).optional(),
+  emotion: z.string().min(1).optional(),
+  pace: z.string().min(1).optional(),
+  pauseMarkers: z.array(z.string().min(1)).optional(),
+  pronunciationDictionary: z.record(z.string(), z.string()).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
   format: z.string().min(1).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
@@ -140,6 +145,123 @@ interface AudioJobState {
 
 type ReadyAudioQueueMetadata = AudioQueueMetadata & AudioQueueRequest
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function hasCjkCharacters(value: string): boolean {
+  return /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(value)
+}
+
+function buildPronunciationRegex(word: string): RegExp {
+  const escaped = escapeRegExp(word)
+  if (hasCjkCharacters(word)) {
+    return new RegExp(escaped, 'g')
+  }
+
+  return new RegExp(`\\b${escaped}\\b`, 'gi')
+}
+
+function applyPronunciationDictionary(
+  prompt: string,
+  dictionary?: Record<string, string>,
+): string {
+  if (!dictionary) {
+    return prompt
+  }
+
+  return Object.entries(dictionary).reduce((currentPrompt, [word, spoken]) => {
+    const normalizedWord = word.trim()
+    const normalizedSpoken = spoken.trim()
+    if (!normalizedWord || !normalizedSpoken) {
+      return currentPrompt
+    }
+
+    return currentPrompt.replace(
+      buildPronunciationRegex(normalizedWord),
+      normalizedSpoken,
+    )
+  }, prompt)
+}
+
+function applyEmotionPrompt(prompt: string, emotion?: string): string {
+  const normalizedEmotion = emotion?.trim()
+  if (!normalizedEmotion || normalizedEmotion === AUDIO_EMOTION.NEUTRAL) {
+    return prompt
+  }
+
+  return `[Speaking with ${normalizedEmotion} emotion] ${prompt}`
+}
+
+function getPauseSentenceIndex(marker: string): number | null {
+  const match = /^after_sentence_(\d+)$/.exec(marker)
+  if (!match) {
+    return null
+  }
+
+  const value = Number(match[1])
+  return Number.isInteger(value) && value > 0 ? value - 1 : null
+}
+
+function applyPauseMarkers(prompt: string, markers?: string[]): string {
+  if (!markers || markers.length === 0) {
+    return prompt
+  }
+
+  const pauseIndexes = new Set(
+    markers
+      .map(getPauseSentenceIndex)
+      .filter((index): index is number => index !== null),
+  )
+  if (pauseIndexes.size === 0) {
+    return prompt
+  }
+
+  const sentenceParts = prompt.match(/[^.!?。！？]+[.!?。！？]?/g)
+  if (!sentenceParts || sentenceParts.length < 2) {
+    return prompt
+  }
+
+  return sentenceParts
+    .map((part, index) => {
+      const normalized = part.trim()
+      return pauseIndexes.has(index) ? `${normalized}\n\n` : normalized
+    })
+    .join(' ')
+    .replace(/\n\n\s+/g, '\n\n')
+}
+
+function buildProviderPrompt(request: {
+  prompt: string
+  emotion?: string
+  pronunciationDictionary?: Record<string, string>
+  pauseMarkers?: string[]
+}): string {
+  const prompted = applyPauseMarkers(
+    applyPronunciationDictionary(
+      request.prompt,
+      request.pronunciationDictionary,
+    ),
+    request.pauseMarkers,
+  )
+  return applyEmotionPrompt(prompted, request.emotion)
+}
+
+function resolveAudioSpeed(request: {
+  pace?: string
+  speed?: number
+}): number | undefined {
+  if (request.speed !== undefined) {
+    return request.speed
+  }
+
+  if (request.pace && request.pace in AUDIO_PACE_SPEED) {
+    return AUDIO_PACE_SPEED[request.pace as keyof typeof AUDIO_PACE_SPEED]
+  }
+
+  return undefined
+}
+
 /**
  * Generate audio synchronously (Fish Audio — returns audio bytes immediately).
  * Flow: validate → resolve route → call adapter.generateAudio() → upload R2 → create record.
@@ -175,17 +297,19 @@ export async function generateAudioForUser(
   })
 
   try {
+    const providerPrompt = buildProviderPrompt(request)
+    const speed = resolveAudioSpeed(request)
     const breaker = getCircuitBreaker(route.adapterType)
     const result = await breaker.call(() =>
       withRetry(
         () =>
           adapter.generateAudio!({
-            prompt: request.prompt,
+            prompt: providerPrompt,
             modelId: route.modelId,
             providerConfig: route.providerConfig,
             apiKey: route.apiKey,
             voiceId: request.voiceId,
-            speed: request.speed,
+            speed,
             format: request.format,
             sampleRate: request.sampleRate,
           }),
@@ -552,6 +676,10 @@ function buildAudioSubmitOutboxPayload(
   return AudioSubmitOutboxPayloadSchema.parse({
     prompt: request.prompt,
     voiceId: request.voiceId,
+    emotion: request.emotion,
+    pace: request.pace,
+    pauseMarkers: request.pauseMarkers,
+    pronunciationDictionary: request.pronunciationDictionary,
     speed: request.speed,
     format: request.format,
     sampleRate: request.sampleRate,
@@ -761,16 +889,18 @@ async function dispatchAudioSubmitOutbox(
   let queueRequest: AudioQueueRequest
 
   try {
+    const providerPrompt = buildProviderPrompt(payload.data)
+    const speed = resolveAudioSpeed(payload.data)
     const queueResult = await breaker.call(() =>
       withRetry(
         () =>
           adapter.submitAudioToQueue!({
-            prompt: payload.data.prompt,
+            prompt: providerPrompt,
             modelId: executionRoute.modelId,
             providerConfig,
             apiKey: executionRoute.apiKey,
             voiceId: payload.data.voiceId,
-            speed: payload.data.speed,
+            speed,
             format: payload.data.format,
             sampleRate: payload.data.sampleRate,
           }),

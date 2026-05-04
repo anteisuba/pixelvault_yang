@@ -17,6 +17,7 @@ const mockRouteModels = vi.fn()
 const mockEstimateModelCost = vi.fn()
 const mockCompilePrompt = vi.fn()
 const mockCompileNegativePrompt = vi.fn()
+const mockEnsureUser = vi.fn()
 
 vi.mock('@/services/intent-parser.service', () => ({
   parseImageIntent: (...args: unknown[]) => mockParseIntent(...args),
@@ -31,6 +32,10 @@ vi.mock('@/services/prompt-compiler.service', () => ({
   compilePrompt: (...args: unknown[]) => mockCompilePrompt(...args),
   compileNegativePrompt: (...args: unknown[]) =>
     mockCompileNegativePrompt(...args),
+}))
+
+vi.mock('@/services/user.service', () => ({
+  ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
 import { POST } from '@/app/api/generation/plan/route'
@@ -53,8 +58,9 @@ describe('POST /api/generation/plan', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
+    mockEnsureUser.mockResolvedValue({ id: 'db_user_123' })
     mockParseIntent.mockResolvedValue(SAMPLE_INTENT)
-    mockRouteModels.mockReturnValue(SAMPLE_MODELS)
+    mockRouteModels.mockResolvedValue(SAMPLE_MODELS)
     mockEstimateModelCost.mockReturnValue(2)
     mockCompilePrompt.mockReturnValue('compiled prompt')
     mockCompileNegativePrompt.mockReturnValue('low quality')
@@ -165,9 +171,13 @@ describe('POST /api/generation/plan', () => {
 
     await POST(req)
 
-    expect(mockRouteModels).toHaveBeenCalledWith(SAMPLE_INTENT, {
-      preferLowCost: true,
-    })
+    expect(mockRouteModels).toHaveBeenCalledWith(
+      SAMPLE_INTENT,
+      {
+        preferLowCost: true,
+      },
+      { userId: 'db_user_123' },
+    )
   })
 
   it('uses the top-ranked model id for estimated cost', async () => {

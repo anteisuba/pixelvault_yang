@@ -23,6 +23,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { cn } from '@/lib/utils'
 
 import { StudioQuickRouteSelector } from './StudioQuickRouteSelector'
+import { StudioPronunciationEditor } from './StudioPronunciationEditor'
 
 interface StudioAdvancedDrawerProps {
   open: boolean
@@ -245,6 +246,20 @@ export function StudioAdvancedDrawer({
               </div>
             )}
           </DrawerSection>
+
+          {state.outputType === 'audio' && (
+            <DrawerSection title={tAdvanced('sections.pronunciation')}>
+              <StudioPronunciationEditor
+                dictionary={state.pronunciationDictionary}
+                onChange={(dictionary) =>
+                  dispatch({
+                    type: 'SET_PRONUNCIATION_DICTIONARY',
+                    payload: dictionary,
+                  })
+                }
+              />
+            </DrawerSection>
+          )}
         </div>
       </SheetContent>
     </Sheet>

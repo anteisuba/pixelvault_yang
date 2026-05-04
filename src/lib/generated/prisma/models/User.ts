@@ -279,6 +279,8 @@ export type UserWhereInput = {
   styleCards?: Prisma.StyleCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
   recipes?: Prisma.RecipeListRelationFilter
+  voiceCards?: Prisma.VoiceCardListRelationFilter
+  creativePreference?: Prisma.XOR<Prisma.UserCreativePreferenceNullableScalarRelationFilter, Prisma.UserCreativePreferenceWhereInput> | null
   videoPipelines?: Prisma.VideoPipelineListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
   videoScripts?: Prisma.VideoScriptListRelationFilter
@@ -317,6 +319,8 @@ export type UserOrderByWithRelationInput = {
   styleCards?: Prisma.StyleCardOrderByRelationAggregateInput
   cardRecipes?: Prisma.CardRecipeOrderByRelationAggregateInput
   recipes?: Prisma.RecipeOrderByRelationAggregateInput
+  voiceCards?: Prisma.VoiceCardOrderByRelationAggregateInput
+  creativePreference?: Prisma.UserCreativePreferenceOrderByWithRelationInput
   videoPipelines?: Prisma.VideoPipelineOrderByRelationAggregateInput
   loraTrainingJobs?: Prisma.LoraTrainingJobOrderByRelationAggregateInput
   videoScripts?: Prisma.VideoScriptOrderByRelationAggregateInput
@@ -358,6 +362,8 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   styleCards?: Prisma.StyleCardListRelationFilter
   cardRecipes?: Prisma.CardRecipeListRelationFilter
   recipes?: Prisma.RecipeListRelationFilter
+  voiceCards?: Prisma.VoiceCardListRelationFilter
+  creativePreference?: Prisma.XOR<Prisma.UserCreativePreferenceNullableScalarRelationFilter, Prisma.UserCreativePreferenceWhereInput> | null
   videoPipelines?: Prisma.VideoPipelineListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
   videoScripts?: Prisma.VideoScriptListRelationFilter
@@ -438,6 +444,8 @@ export type UserCreateInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -476,6 +484,8 @@ export type UserUncheckedCreateInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -514,6 +524,8 @@ export type UserUpdateInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -552,6 +564,8 @@ export type UserUncheckedUpdateInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -775,6 +789,34 @@ export type UserUpdateOneRequiredWithoutRecipesNestedInput = {
   upsert?: Prisma.UserUpsertWithoutRecipesInput
   connect?: Prisma.UserWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRecipesInput, Prisma.UserUpdateWithoutRecipesInput>, Prisma.UserUncheckedUpdateWithoutRecipesInput>
+}
+
+export type UserCreateNestedOneWithoutVoiceCardsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutVoiceCardsInput, Prisma.UserUncheckedCreateWithoutVoiceCardsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVoiceCardsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutVoiceCardsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutVoiceCardsInput, Prisma.UserUncheckedCreateWithoutVoiceCardsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVoiceCardsInput
+  upsert?: Prisma.UserUpsertWithoutVoiceCardsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVoiceCardsInput, Prisma.UserUpdateWithoutVoiceCardsInput>, Prisma.UserUncheckedUpdateWithoutVoiceCardsInput>
+}
+
+export type UserCreateNestedOneWithoutCreativePreferenceInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCreativePreferenceInput, Prisma.UserUncheckedCreateWithoutCreativePreferenceInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCreativePreferenceInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutCreativePreferenceNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCreativePreferenceInput, Prisma.UserUncheckedCreateWithoutCreativePreferenceInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCreativePreferenceInput
+  upsert?: Prisma.UserUpsertWithoutCreativePreferenceInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCreativePreferenceInput, Prisma.UserUpdateWithoutCreativePreferenceInput>, Prisma.UserUncheckedUpdateWithoutCreativePreferenceInput>
 }
 
 export type UserCreateNestedOneWithoutImageAnalysesInput = {
@@ -1005,6 +1047,8 @@ export type UserCreateWithoutProjectsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1042,6 +1086,8 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1095,6 +1141,8 @@ export type UserUpdateWithoutProjectsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1132,6 +1180,8 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1169,6 +1219,8 @@ export type UserCreateWithoutUserApiKeysInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1206,6 +1258,8 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1259,6 +1313,8 @@ export type UserUpdateWithoutUserApiKeysInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1296,6 +1352,8 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1333,6 +1391,8 @@ export type UserCreateWithoutGenerationsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1370,6 +1430,8 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1423,6 +1485,8 @@ export type UserUpdateWithoutGenerationsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1460,6 +1524,8 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1497,6 +1563,8 @@ export type UserCreateWithoutGenerationJobsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1534,6 +1602,8 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1587,6 +1657,8 @@ export type UserUpdateWithoutGenerationJobsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1624,6 +1696,8 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1661,6 +1735,8 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1698,6 +1774,8 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1751,6 +1829,8 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1788,6 +1868,8 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1825,6 +1907,8 @@ export type UserCreateWithoutRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -1862,6 +1946,8 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -1915,6 +2001,8 @@ export type UserUpdateWithoutRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -1952,6 +2040,352 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutVoiceCardsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutVoiceCardsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutVoiceCardsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutVoiceCardsInput, Prisma.UserUncheckedCreateWithoutVoiceCardsInput>
+}
+
+export type UserUpsertWithoutVoiceCardsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutVoiceCardsInput, Prisma.UserUncheckedUpdateWithoutVoiceCardsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutVoiceCardsInput, Prisma.UserUncheckedCreateWithoutVoiceCardsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutVoiceCardsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutVoiceCardsInput, Prisma.UserUncheckedUpdateWithoutVoiceCardsInput>
+}
+
+export type UserUpdateWithoutVoiceCardsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutVoiceCardsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutCreativePreferenceInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutCreativePreferenceInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutCreativePreferenceInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutCreativePreferenceInput, Prisma.UserUncheckedCreateWithoutCreativePreferenceInput>
+}
+
+export type UserUpsertWithoutCreativePreferenceInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutCreativePreferenceInput, Prisma.UserUncheckedUpdateWithoutCreativePreferenceInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutCreativePreferenceInput, Prisma.UserUncheckedCreateWithoutCreativePreferenceInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutCreativePreferenceInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutCreativePreferenceInput, Prisma.UserUncheckedUpdateWithoutCreativePreferenceInput>
+}
+
+export type UserUpdateWithoutCreativePreferenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -1989,6 +2423,8 @@ export type UserCreateWithoutImageAnalysesInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2026,6 +2462,8 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2079,6 +2517,8 @@ export type UserUpdateWithoutImageAnalysesInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -2116,6 +2556,8 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -2153,6 +2595,8 @@ export type UserCreateWithoutArenaMatchesInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2190,6 +2634,8 @@ export type UserUncheckedCreateWithoutArenaMatchesInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2243,6 +2689,8 @@ export type UserUpdateWithoutArenaMatchesInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -2280,6 +2728,8 @@ export type UserUncheckedUpdateWithoutArenaMatchesInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -2317,6 +2767,8 @@ export type UserCreateWithoutStoriesInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2354,6 +2806,8 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2407,6 +2861,8 @@ export type UserUpdateWithoutStoriesInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -2444,6 +2900,8 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -2481,6 +2939,8 @@ export type UserCreateWithoutCharacterCardsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2518,6 +2978,8 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2571,6 +3033,8 @@ export type UserUpdateWithoutCharacterCardsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -2608,6 +3072,8 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -2645,6 +3111,8 @@ export type UserCreateWithoutLikesGivenInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2682,6 +3150,8 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2735,6 +3205,8 @@ export type UserUpdateWithoutLikesGivenInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -2772,6 +3244,8 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -2809,6 +3283,8 @@ export type UserCreateWithoutFollowsGivenInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2846,6 +3322,8 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2888,6 +3366,8 @@ export type UserCreateWithoutFollowsReceivedInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -2925,6 +3405,8 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -2978,6 +3460,8 @@ export type UserUpdateWithoutFollowsGivenInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3015,6 +3499,8 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3063,6 +3549,8 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3100,6 +3588,8 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3137,6 +3627,8 @@ export type UserCreateWithoutCollectionsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -3174,6 +3666,8 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -3227,6 +3721,8 @@ export type UserUpdateWithoutCollectionsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3264,6 +3760,8 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3301,6 +3799,8 @@ export type UserCreateWithoutBackgroundCardsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -3338,6 +3838,8 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -3391,6 +3893,8 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3428,6 +3932,8 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3465,6 +3971,8 @@ export type UserCreateWithoutStyleCardsInput = {
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -3502,6 +4010,8 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -3555,6 +4065,8 @@ export type UserUpdateWithoutStyleCardsInput = {
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3592,6 +4104,8 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3629,6 +4143,8 @@ export type UserCreateWithoutCardRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
@@ -3666,6 +4182,8 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
@@ -3719,6 +4237,8 @@ export type UserUpdateWithoutCardRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
@@ -3756,6 +4276,8 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
@@ -3794,6 +4316,8 @@ export type UserCreateWithoutVideoPipelinesInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
 }
@@ -3831,6 +4355,8 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
 }
@@ -3884,6 +4410,8 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
 }
@@ -3921,6 +4449,8 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -3958,6 +4488,8 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
 }
@@ -3995,6 +4527,8 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
 }
@@ -4048,6 +4582,8 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
 }
@@ -4085,6 +4621,8 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -4122,6 +4660,8 @@ export type UserCreateWithoutVideoScriptsInput = {
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
 }
@@ -4159,6 +4699,8 @@ export type UserUncheckedCreateWithoutVideoScriptsInput = {
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
   videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
 }
@@ -4212,6 +4754,8 @@ export type UserUpdateWithoutVideoScriptsInput = {
   styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
 }
@@ -4249,6 +4793,8 @@ export type UserUncheckedUpdateWithoutVideoScriptsInput = {
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -4276,6 +4822,7 @@ export type UserCountOutputType = {
   styleCards: number
   cardRecipes: number
   recipes: number
+  voiceCards: number
   videoPipelines: number
   loraTrainingJobs: number
   videoScripts: number
@@ -4299,6 +4846,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   styleCards?: boolean | UserCountOutputTypeCountStyleCardsArgs
   cardRecipes?: boolean | UserCountOutputTypeCountCardRecipesArgs
   recipes?: boolean | UserCountOutputTypeCountRecipesArgs
+  voiceCards?: boolean | UserCountOutputTypeCountVoiceCardsArgs
   videoPipelines?: boolean | UserCountOutputTypeCountVideoPipelinesArgs
   loraTrainingJobs?: boolean | UserCountOutputTypeCountLoraTrainingJobsArgs
   videoScripts?: boolean | UserCountOutputTypeCountVideoScriptsArgs
@@ -4436,6 +4984,13 @@ export type UserCountOutputTypeCountRecipesArgs<ExtArgs extends runtime.Types.Ex
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountVoiceCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.VoiceCardWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountVideoPipelinesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.VideoPipelineWhereInput
 }
@@ -4488,6 +5043,8 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   recipes?: boolean | Prisma.User$recipesArgs<ExtArgs>
+  voiceCards?: boolean | Prisma.User$voiceCardsArgs<ExtArgs>
+  creativePreference?: boolean | Prisma.User$creativePreferenceArgs<ExtArgs>
   videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.User$loraTrainingJobsArgs<ExtArgs>
   videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
@@ -4567,6 +5124,8 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
   cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   recipes?: boolean | Prisma.User$recipesArgs<ExtArgs>
+  voiceCards?: boolean | Prisma.User$voiceCardsArgs<ExtArgs>
+  creativePreference?: boolean | Prisma.User$creativePreferenceArgs<ExtArgs>
   videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.User$loraTrainingJobsArgs<ExtArgs>
   videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
@@ -4595,6 +5154,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     styleCards: Prisma.$StyleCardPayload<ExtArgs>[]
     cardRecipes: Prisma.$CardRecipePayload<ExtArgs>[]
     recipes: Prisma.$RecipePayload<ExtArgs>[]
+    voiceCards: Prisma.$VoiceCardPayload<ExtArgs>[]
+    creativePreference: Prisma.$UserCreativePreferencePayload<ExtArgs> | null
     videoPipelines: Prisma.$VideoPipelinePayload<ExtArgs>[]
     loraTrainingJobs: Prisma.$LoraTrainingJobPayload<ExtArgs>[]
     videoScripts: Prisma.$VideoScriptPayload<ExtArgs>[]
@@ -5026,6 +5587,8 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   styleCards<T extends Prisma.User$styleCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$styleCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   cardRecipes<T extends Prisma.User$cardRecipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$cardRecipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   recipes<T extends Prisma.User$recipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$recipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  voiceCards<T extends Prisma.User$voiceCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$voiceCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VoiceCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  creativePreference<T extends Prisma.User$creativePreferenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$creativePreferenceArgs<ExtArgs>>): Prisma.Prisma__UserCreativePreferenceClient<runtime.Types.Result.GetResult<Prisma.$UserCreativePreferencePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   videoPipelines<T extends Prisma.User$videoPipelinesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoPipelinesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoPipelinePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   loraTrainingJobs<T extends Prisma.User$loraTrainingJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$loraTrainingJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoraTrainingJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   videoScripts<T extends Prisma.User$videoScriptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoScriptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoScriptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -5871,6 +6434,49 @@ export type User$recipesArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
   take?: number
   skip?: number
   distinct?: Prisma.RecipeScalarFieldEnum | Prisma.RecipeScalarFieldEnum[]
+}
+
+/**
+ * User.voiceCards
+ */
+export type User$voiceCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the VoiceCard
+   */
+  select?: Prisma.VoiceCardSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the VoiceCard
+   */
+  omit?: Prisma.VoiceCardOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.VoiceCardInclude<ExtArgs> | null
+  where?: Prisma.VoiceCardWhereInput
+  orderBy?: Prisma.VoiceCardOrderByWithRelationInput | Prisma.VoiceCardOrderByWithRelationInput[]
+  cursor?: Prisma.VoiceCardWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.VoiceCardScalarFieldEnum | Prisma.VoiceCardScalarFieldEnum[]
+}
+
+/**
+ * User.creativePreference
+ */
+export type User$creativePreferenceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the UserCreativePreference
+   */
+  select?: Prisma.UserCreativePreferenceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the UserCreativePreference
+   */
+  omit?: Prisma.UserCreativePreferenceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserCreativePreferenceInclude<ExtArgs> | null
+  where?: Prisma.UserCreativePreferenceWhereInput
 }
 
 /**

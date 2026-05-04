@@ -87,6 +87,16 @@ export type FreeTierSlot = Prisma.FreeTierSlotModel
  */
 export type Recipe = Prisma.RecipeModel
 /**
+ * Model VoiceCard
+ * 
+ */
+export type VoiceCard = Prisma.VoiceCardModel
+/**
+ * Model UserCreativePreference
+ * 
+ */
+export type UserCreativePreference = Prisma.UserCreativePreferenceModel
+/**
  * Model ImageAnalysis
  * 
  */

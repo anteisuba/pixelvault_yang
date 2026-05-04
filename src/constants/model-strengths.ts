@@ -43,6 +43,9 @@ export const MODEL_ROUTER_SCORE_WEIGHTS = {
   preferenceBoost: 8,
 } as const
 
+export const ARENA_WINRATE_WEIGHT = 0.25
+export const USER_PREFERENCE_WEIGHT = 0.15
+
 /**
  * Per-adapter fallback hints (shared with recipe-compiler).
  * When a specific model isn't in MODEL_STRENGTHS, use this.

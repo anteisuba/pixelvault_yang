@@ -381,6 +381,11 @@
     "voiceMyEmpty": "カスタムボイスがありません。クローンして始めましょう！",
     "voiceNoResults": "ボイスが見つかりません",
     "voiceSelected": "選択済み",
+    "voiceCards": "ボイスカード",
+    "voiceCardsEmpty": "ボイスカードはまだありません",
+    "voiceCardSelected": "保存済みボイスカード",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "FAL F5-TTS",
     "voicePrev": "前へ",
     "voiceNext": "次へ",
     "voiceTrainTitle": "ボイスクローン",
@@ -1848,7 +1853,8 @@
     "sections": {
       "mode": "モード選択",
       "routeModel": "ルートとモデル",
-      "provider": "プロバイダー設定"
+      "provider": "プロバイダー設定",
+      "pronunciation": "発音辞書"
     },
     "modeDescription": "このワークフローを直接実行するか、カード補助で進めるかを選びます。",
     "routeModelDescription": "保存済み API ルートを選ぶか、モデルセレクターで詳細に指定します。",
@@ -2089,6 +2095,59 @@
     "confirm": "確認して生成",
     "cancel": "編集に戻る",
     "reasonLabel": "理由: {reason}"
+  },
+  "audioParams": {
+    "emotion": "感情",
+    "emotionNeutral": "ニュートラル",
+    "emotionHappy": "嬉しい",
+    "emotionSad": "悲しい",
+    "emotionAngry": "怒り",
+    "emotionExcited": "興奮",
+    "emotionCalm": "落ち着き",
+    "emotionFearful": "恐れ",
+    "pace": "速度",
+    "paceSlow": "遅い",
+    "paceNormal": "標準",
+    "paceFast": "速い",
+    "pauseMarkers": "ポーズ",
+    "pauseAfterSentence1": "1文目の後",
+    "pauseAfterSentence2": "2文目の後",
+    "pauseAfterSentence3": "3文目の後",
+    "pronunciation": "発音辞書",
+    "addWord": "語句を追加",
+    "word": "語句",
+    "pronounceAs": "読み方",
+    "deleteWord": "語句を削除"
+  },
+  "audioFeedback": {
+    "voiceMismatch": "声が合わない",
+    "emotionWrong": "感情が違う",
+    "paceWrong": "速度が違う",
+    "pronunciationError": "発音エラー",
+    "pauseUnnatural": "不自然なポーズ",
+    "audioQuality": "音質の問題"
+  },
+  "sceneProgress": {
+    "title": "シーン生成の進捗",
+    "scene": "シーン {index}",
+    "pending": "待機中",
+    "generatingFrame": "キーフレーム生成中...",
+    "frameReady": "キーフレーム準備完了",
+    "generatingClip": "動画生成中...",
+    "clipReady": "完了",
+    "failed": "失敗",
+    "retry": "再試行",
+    "advance": "次のシーンへ進む",
+    "complete": "すべてのシーンが完了",
+    "progress": "{percent}% 完了"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "キャラクターを維持",
+    "keepStyle": "スタイルを維持",
+    "keepContinuity": "連続性を維持",
+    "extendScene": "このシーンを延長",
+    "continueFromLastFrame": "最後のフレームから続ける",
+    "comingSoon": "近日公開"
   },
   "StudioResultFeedback": {
     "satisfied": "満足",

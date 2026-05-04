@@ -53,6 +53,11 @@ const VoiceSelector = dynamic(() =>
     (mod) => mod.VoiceSelector,
   ),
 )
+const StudioAudioParams = dynamic(() =>
+  import('@/components/business/studio/StudioAudioParams').then(
+    (mod) => mod.StudioAudioParams,
+  ),
+)
 const VoiceTrainer = dynamic(() =>
   import('@/components/business/studio/VoiceTrainer').then(
     (mod) => mod.VoiceTrainer,
@@ -265,8 +270,27 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       {/* ── Aspect Ratio ─────────────────────────────────────── */}
       {state.panels.aspectRatio && <StudioGenerateBar />}
 
-      {/* ── Voice Selector (audio mode) ───────────────────────── */}
-      {state.panels.voiceSelector && <VoiceSelector />}
+      {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
+      {state.panels.voiceSelector && (
+        <div className="space-y-4">
+          <VoiceSelector />
+          <StudioAudioParams
+            voiceCardId={state.voiceCardId}
+            emotion={state.audioEmotion}
+            pace={state.audioPace}
+            pauseMarkers={state.audioPauseMarkers}
+            onChangeEmotion={(emotion) =>
+              dispatch({ type: 'SET_AUDIO_EMOTION', payload: emotion })
+            }
+            onChangePace={(pace) =>
+              dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
+            }
+            onChangePauseMarkers={(markers) =>
+              dispatch({ type: 'SET_AUDIO_PAUSE_MARKERS', payload: markers })
+            }
+          />
+        </div>
+      )}
 
       {/* ── Voice Trainer (audio mode) ────────────────────────── */}
       {state.panels.voiceTrainer && <VoiceTrainer />}

@@ -381,6 +381,11 @@
     "voiceMyEmpty": "还没有自定义声音，克隆一个试试！",
     "voiceNoResults": "没有找到声音",
     "voiceSelected": "已选择",
+    "voiceCards": "声音卡片",
+    "voiceCardsEmpty": "还没有声音卡片",
+    "voiceCardSelected": "已保存的声音卡片",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "FAL F5-TTS",
     "voicePrev": "上一页",
     "voiceNext": "下一页",
     "voiceTrainTitle": "声音克隆",
@@ -1848,7 +1853,8 @@
     "sections": {
       "mode": "模式选择",
       "routeModel": "路由与模型",
-      "provider": "提供商设置"
+      "provider": "提供商设置",
+      "pronunciation": "发音词典"
     },
     "modeDescription": "选择这个工作流直接运行，还是通过卡片辅助创作。",
     "routeModelDescription": "选择已保存的 API 路由，或打开模型选择器做更细的路由控制。",
@@ -2089,6 +2095,59 @@
     "confirm": "确认生成",
     "cancel": "返回修改",
     "reasonLabel": "原因：{reason}"
+  },
+  "audioParams": {
+    "emotion": "情绪",
+    "emotionNeutral": "中性",
+    "emotionHappy": "开心",
+    "emotionSad": "悲伤",
+    "emotionAngry": "愤怒",
+    "emotionExcited": "兴奋",
+    "emotionCalm": "平静",
+    "emotionFearful": "害怕",
+    "pace": "语速",
+    "paceSlow": "慢",
+    "paceNormal": "正常",
+    "paceFast": "快",
+    "pauseMarkers": "停顿",
+    "pauseAfterSentence1": "第 1 句后",
+    "pauseAfterSentence2": "第 2 句后",
+    "pauseAfterSentence3": "第 3 句后",
+    "pronunciation": "发音词典",
+    "addWord": "添加词条",
+    "word": "词",
+    "pronounceAs": "发音为",
+    "deleteWord": "删除词条"
+  },
+  "audioFeedback": {
+    "voiceMismatch": "声音不像",
+    "emotionWrong": "情绪不对",
+    "paceWrong": "语速不当",
+    "pronunciationError": "发音错误",
+    "pauseUnnatural": "停顿不自然",
+    "audioQuality": "音质问题"
+  },
+  "sceneProgress": {
+    "title": "场景生成进度",
+    "scene": "场景 {index}",
+    "pending": "待处理",
+    "generatingFrame": "正在生成关键帧...",
+    "frameReady": "关键帧已就绪",
+    "generatingClip": "正在生成视频...",
+    "clipReady": "已完成",
+    "failed": "失败",
+    "retry": "重试",
+    "advance": "继续下一场景",
+    "complete": "全部场景已完成",
+    "progress": "已完成 {percent}%"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "保持角色",
+    "keepStyle": "保持风格",
+    "keepContinuity": "保持镜头连续",
+    "extendScene": "延长这一段",
+    "continueFromLastFrame": "从最后帧继续",
+    "comingSoon": "即将推出"
   },
   "StudioResultFeedback": {
     "satisfied": "满意",

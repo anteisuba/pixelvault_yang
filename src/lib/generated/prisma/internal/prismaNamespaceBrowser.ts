@@ -60,6 +60,8 @@ export const ModelName = {
   ApiUsageLedger: 'ApiUsageLedger',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
+  VoiceCard: 'VoiceCard',
+  UserCreativePreference: 'UserCreativePreference',
   ImageAnalysis: 'ImageAnalysis',
   ArenaMatch: 'ArenaMatch',
   ArenaEntry: 'ArenaEntry',
@@ -281,6 +283,45 @@ export const RecipeScalarFieldEnum = {
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
+
+
+export const VoiceCardScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  provider: 'provider',
+  modelId: 'modelId',
+  voiceId: 'voiceId',
+  referenceAudioUrl: 'referenceAudioUrl',
+  referenceAudioStorageKey: 'referenceAudioStorageKey',
+  gender: 'gender',
+  age: 'age',
+  tone: 'tone',
+  pace: 'pace',
+  pitch: 'pitch',
+  pronunciationDictionary: 'pronunciationDictionary',
+  sampleText: 'sampleText',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceCardScalarFieldEnum = (typeof VoiceCardScalarFieldEnum)[keyof typeof VoiceCardScalarFieldEnum]
+
+
+export const UserCreativePreferenceScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  favoriteStyles: 'favoriteStyles',
+  rejectedStyles: 'rejectedStyles',
+  preferredModelsByTask: 'preferredModelsByTask',
+  commonNegativeTags: 'commonNegativeTags',
+  preferredAspectRatios: 'preferredAspectRatios',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserCreativePreferenceScalarFieldEnum = (typeof UserCreativePreferenceScalarFieldEnum)[keyof typeof UserCreativePreferenceScalarFieldEnum]
 
 
 export const ImageAnalysisScalarFieldEnum = {

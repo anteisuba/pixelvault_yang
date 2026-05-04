@@ -27,6 +27,11 @@ function makeInitialState(
     advancedParams: {},
     tokenInput: '',
     voiceId: null,
+    voiceCardId: null,
+    audioEmotion: 'neutral',
+    audioPace: 'normal',
+    audioPauseMarkers: [],
+    pronunciationDictionary: {},
     stylePresetId: '',
     videoDuration: 5,
     videoResolution: null,
@@ -214,6 +219,38 @@ describe('studioFormReducer', () => {
     const next = studioFormReducer(state, { type: 'REQUEST_GENERATE' })
 
     expect(next.generateRequestId).toBe(3)
+  })
+
+  it('updates audio-specific form state', () => {
+    const state = makeInitialState()
+    const withEmotion = studioFormReducer(state, {
+      type: 'SET_AUDIO_EMOTION',
+      payload: 'happy',
+    })
+    const withPace = studioFormReducer(withEmotion, {
+      type: 'SET_AUDIO_PACE',
+      payload: 'fast',
+    })
+    const withVoiceCard = studioFormReducer(withPace, {
+      type: 'SET_VOICE_CARD_ID',
+      payload: 'voice-card-1',
+    })
+    const withPauseMarkers = studioFormReducer(withVoiceCard, {
+      type: 'SET_AUDIO_PAUSE_MARKERS',
+      payload: ['after_sentence_1'],
+    })
+    const withDictionary = studioFormReducer(withPauseMarkers, {
+      type: 'SET_PRONUNCIATION_DICTIONARY',
+      payload: { Codex: 'koh-decks' },
+    })
+
+    expect(withDictionary.audioEmotion).toBe('happy')
+    expect(withDictionary.audioPace).toBe('fast')
+    expect(withDictionary.voiceCardId).toBe('voice-card-1')
+    expect(withDictionary.audioPauseMarkers).toEqual(['after_sentence_1'])
+    expect(withDictionary.pronunciationDictionary).toEqual({
+      Codex: 'koh-decks',
+    })
   })
 
   // ── SET_ASPECT_RATIO ──

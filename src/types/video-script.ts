@@ -104,6 +104,38 @@ export const ListVideoScriptsQuerySchema = z.object({
 })
 export type ListVideoScriptsQuery = z.infer<typeof ListVideoScriptsQuerySchema>
 
+// ─── Scene orchestration ─────────────────────────────────────────
+
+export const SceneAdvanceResultSchema = z.object({
+  sceneIndex: z.number().int().min(0),
+  sceneStatus: z.nativeEnum(VideoScriptSceneStatus),
+  isComplete: z.boolean(),
+  retriesRemaining: z.number().int().min(0),
+  totalScenes: z.number().int().min(0),
+  completedScenes: z.number().int().min(0),
+})
+export type SceneAdvanceResult = z.infer<typeof SceneAdvanceResultSchema>
+
+export const SceneOrchestratorStatusSchema = z.object({
+  scriptId: z.string(),
+  scriptStatus: z.string(),
+  scenes: z.array(
+    z.object({
+      index: z.number().int().min(0),
+      action: z.string(),
+      status: z.nativeEnum(VideoScriptSceneStatus),
+      hasFrame: z.boolean(),
+      hasClip: z.boolean(),
+      retryCount: z.number().int().min(0),
+      errorMessage: z.string().nullable(),
+    }),
+  ),
+  progress: z.number().min(0).max(100),
+})
+export type SceneOrchestratorStatus = z.infer<
+  typeof SceneOrchestratorStatusSchema
+>
+
 // ─── LLM output schema ────────────────────────────────────────────
 
 /** Schema the LLM MUST conform to. Validated via `llm-output-validator`. */

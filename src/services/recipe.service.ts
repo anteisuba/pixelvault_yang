@@ -2,7 +2,9 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { Prisma, Recipe } from '@/lib/generated/prisma/client'
+import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
+import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
 import type { CreateRecipeRequest } from '@/types'
 
 export interface ListRecipesResult {
@@ -22,7 +24,7 @@ export async function createRecipe(
 ): Promise<Recipe> {
   const user = await ensureUser(clerkId)
 
-  return db.recipe.create({
+  const recipe = await db.recipe.create({
     data: {
       userId: user.id,
       outputType: data.outputType,
@@ -38,6 +40,18 @@ export async function createRecipe(
       parentGenerationId: data.parentGenerationId,
     },
   })
+
+  try {
+    await updatePreferenceOnRecipeSaved(user.id, recipe)
+  } catch (error) {
+    logger.warn('Recipe preference update failed', {
+      recipeId: recipe.id,
+      userId: user.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  return recipe
 }
 
 export async function listRecipes(

@@ -38,6 +38,10 @@ import {
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
+import {
+  AUDIO_DEFAULT_EMOTION,
+  AUDIO_DEFAULT_PACE,
+} from '@/constants/voice-cards'
 import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useBackgroundCards } from '@/hooks/use-background-cards'
 import { useStyleCards } from '@/hooks/use-style-cards'
@@ -90,6 +94,16 @@ export interface StudioFormState {
   tokenInput: string
   /** Fish Audio voice model ID for TTS */
   voiceId: string | null
+  /** Persisted VoiceCard ID for TTS */
+  voiceCardId: string | null
+  /** Audio-specific — user-facing emotion control */
+  audioEmotion: string
+  /** Audio-specific — user-facing pace control */
+  audioPace: string
+  /** Audio-specific — sentence pause marker IDs */
+  audioPauseMarkers: string[]
+  /** Audio-specific — word pronunciation overrides */
+  pronunciationDictionary: Record<string, string>
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
   /** Video-specific — duration in seconds per clip */
@@ -115,6 +129,14 @@ export type StudioAction =
   | { type: 'RESET_ADVANCED_PARAMS' }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
   | { type: 'SET_VOICE_ID'; payload: string | null }
+  | { type: 'SET_VOICE_CARD_ID'; payload: string | null }
+  | { type: 'SET_AUDIO_EMOTION'; payload: string }
+  | { type: 'SET_AUDIO_PACE'; payload: string }
+  | { type: 'SET_AUDIO_PAUSE_MARKERS'; payload: string[] }
+  | {
+      type: 'SET_PRONUNCIATION_DICTIONARY'
+      payload: Record<string, string>
+    }
   | { type: 'SET_STYLE_PRESET'; payload: string }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
@@ -159,6 +181,11 @@ const initialFormState: StudioFormState = {
   advancedParams: {},
   tokenInput: '',
   voiceId: null,
+  voiceCardId: null,
+  audioEmotion: AUDIO_DEFAULT_EMOTION,
+  audioPace: AUDIO_DEFAULT_PACE,
+  audioPauseMarkers: [],
+  pronunciationDictionary: {},
   stylePresetId: NO_STYLE_PRESET_ID,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
@@ -193,6 +220,16 @@ export function studioFormReducer(
       return { ...state, outputType: action.payload }
     case 'SET_VOICE_ID':
       return { ...state, voiceId: action.payload }
+    case 'SET_VOICE_CARD_ID':
+      return { ...state, voiceCardId: action.payload }
+    case 'SET_AUDIO_EMOTION':
+      return { ...state, audioEmotion: action.payload }
+    case 'SET_AUDIO_PACE':
+      return { ...state, audioPace: action.payload }
+    case 'SET_AUDIO_PAUSE_MARKERS':
+      return { ...state, audioPauseMarkers: action.payload }
+    case 'SET_PRONUNCIATION_DICTIONARY':
+      return { ...state, pronunciationDictionary: action.payload }
     case 'SET_STYLE_PRESET':
       return { ...state, stylePresetId: action.payload }
     case 'SET_WORKFLOW_MODE':
@@ -266,6 +303,12 @@ export function studioFormReducer(
         aspectRatio: '1:1',
         advancedParams: {},
         selectedOptionId: null,
+        voiceId: null,
+        voiceCardId: null,
+        audioEmotion: AUDIO_DEFAULT_EMOTION,
+        audioPace: AUDIO_DEFAULT_PACE,
+        audioPauseMarkers: [],
+        pronunciationDictionary: {},
         stylePresetId: NO_STYLE_PRESET_ID,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,

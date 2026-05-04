@@ -12,6 +12,18 @@ import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import {
+  AUDIO_EMOTIONS,
+  AUDIO_PAUSE_MARKERS,
+  AUDIO_PACES,
+  VOICE_CARD_AGES,
+  VOICE_CARD_DEFAULT_PACE,
+  VOICE_CARD_DEFAULT_PROVIDER,
+  VOICE_CARD_GENDERS,
+  VOICE_CARD_PACES,
+  VOICE_CARD_PITCHES,
+  VOICE_CARD_PROVIDERS,
+} from '@/constants/voice-cards'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 
 // Re-export ModelOption from constants for convenience
@@ -239,6 +251,10 @@ export const GenerateAudioRequestSchema = z.object({
     ),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   voiceId: z.string().trim().min(1).max(200).optional(),
+  emotion: z.enum(AUDIO_EMOTIONS).optional(),
+  pace: z.enum(AUDIO_PACES).optional(),
+  pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
+  pronunciationDictionary: z.record(z.string(), z.string()).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
   format: z.enum(AUDIO_FORMATS).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
@@ -2414,6 +2430,72 @@ export type RecipeRecord = {
   modelId: string
   provider: string
   version: number
+  isDeleted: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Voice Card Persistence ──────────────────────────────────────
+
+const VoiceCardRequestShape = {
+  name: z.string().trim().min(1).max(100),
+  provider: z.enum(VOICE_CARD_PROVIDERS),
+  modelId: z.string().optional(),
+  voiceId: z.string().trim().min(1).max(200).optional(),
+  referenceAudioUrl: z.string().url().optional(),
+  gender: z.enum(VOICE_CARD_GENDERS).optional(),
+  age: z.enum(VOICE_CARD_AGES).optional(),
+  tone: z.array(z.string().trim().min(1).max(50)),
+  pace: z.enum(VOICE_CARD_PACES),
+  pitch: z.enum(VOICE_CARD_PITCHES).optional(),
+  pronunciationDictionary: z.record(z.string(), z.string()),
+  sampleText: z.string().max(500).optional(),
+}
+
+export const CreateVoiceCardRequestSchema = z.object({
+  ...VoiceCardRequestShape,
+  provider: VoiceCardRequestShape.provider.default(VOICE_CARD_DEFAULT_PROVIDER),
+  tone: VoiceCardRequestShape.tone.default([]),
+  pace: VoiceCardRequestShape.pace.default(VOICE_CARD_DEFAULT_PACE),
+  pronunciationDictionary:
+    VoiceCardRequestShape.pronunciationDictionary.default({}),
+})
+
+export type CreateVoiceCardRequest = z.infer<
+  typeof CreateVoiceCardRequestSchema
+>
+
+export const UpdateVoiceCardRequestSchema = z
+  .object(VoiceCardRequestShape)
+  .partial()
+
+export type UpdateVoiceCardRequest = z.infer<
+  typeof UpdateVoiceCardRequestSchema
+>
+
+export const ListVoiceCardsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+})
+
+export type ListVoiceCardsQuery = z.infer<typeof ListVoiceCardsQuerySchema>
+
+export type VoiceCardRecord = {
+  id: string
+  userId: string
+  name: string
+  provider: (typeof VOICE_CARD_PROVIDERS)[number]
+  modelId: string | null
+  voiceId: string | null
+  referenceAudioUrl: string | null
+  referenceAudioStorageKey: string | null
+  gender: (typeof VOICE_CARD_GENDERS)[number] | null
+  age: (typeof VOICE_CARD_AGES)[number] | null
+  tone: string[]
+  pace: (typeof VOICE_CARD_PACES)[number]
+  pitch: (typeof VOICE_CARD_PITCHES)[number] | null
+  pronunciationDictionary: Record<string, string>
+  sampleText: string | null
   isDeleted: boolean
   createdAt: string
   updatedAt: string

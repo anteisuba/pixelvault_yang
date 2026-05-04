@@ -28,7 +28,12 @@ export function classifyPromptTaskType(prompt: string): TaskType {
 }
 
 export function classifyImageIntentTaskType(intent: ImageIntent): TaskType {
+  if (intent.style) {
+    const styleTaskType = classifyPromptTaskType(intent.style)
+    if (styleTaskType !== 'general') return styleTaskType
+  }
+
   return classifyPromptTaskType(
-    [intent.subject, intent.style, intent.mood].filter(Boolean).join(' '),
+    [intent.subject, intent.mood].filter(Boolean).join(' '),
   )
 }

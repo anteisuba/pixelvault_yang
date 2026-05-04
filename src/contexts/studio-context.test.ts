@@ -103,6 +103,30 @@ describe('studioFormReducer', () => {
     expect(next.panels.advanced).toBe(true)
   })
 
+  it('SET_SELECTED_WORKFLOW_ID keeps prompt when staying in the same media group', () => {
+    const state = makeInitialState({ prompt: 'keep this image prompt' })
+
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.ANIME_ILLUSTRATION,
+    })
+
+    expect(next.outputType).toBe('image')
+    expect(next.prompt).toBe('keep this image prompt')
+  })
+
+  it('SET_SELECTED_WORKFLOW_ID clears prompt when switching media group', () => {
+    const state = makeInitialState({ prompt: 'old image prompt' })
+
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    })
+
+    expect(next.outputType).toBe('video')
+    expect(next.prompt).toBe('')
+  })
+
   // ── SET_OUTPUT_TYPE ──
 
   it('SET_OUTPUT_TYPE changes outputType', () => {

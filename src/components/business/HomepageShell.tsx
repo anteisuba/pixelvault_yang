@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
+import { ROUTES } from '@/constants/routes'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { HyperText } from '@/components/ui/hyper-text'
@@ -19,9 +20,6 @@ import { HomepageValueProps } from './HomepageValueProps'
 import { HomepageWorkflow } from './HomepageWorkflow'
 
 interface HomepageShellProps {
-  eyebrow: string
-  title: string
-  description: string
   primaryActionHref: string
   primaryActionLabel: string
   utilityActionHref: string
@@ -29,9 +27,6 @@ interface HomepageShellProps {
 }
 
 export function HomepageShell({
-  eyebrow,
-  title,
-  description,
   primaryActionHref,
   primaryActionLabel,
   utilityActionHref,
@@ -39,9 +34,6 @@ export function HomepageShell({
 }: HomepageShellProps) {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
-  void eyebrow
-  void title
-  void description
 
   return (
     <div className="homepage relative">
@@ -89,8 +81,8 @@ export function HomepageShell({
           <HomepageHero
             primaryActionHref={primaryActionHref}
             primaryActionLabel={primaryActionLabel}
-            galleryActionHref={HOMEPAGE_ROUTES.gallery}
-            galleryActionLabel={t('stage.cta')}
+            galleryActionHref={ROUTES.GALLERY}
+            galleryActionLabel={t('hero.secondaryCta')}
           />
 
           <HomepageValueProps />

@@ -390,6 +390,7 @@ describe('user.service', () => {
       })
 
       await syncUserFromClerk('clerk-1', {
+        email: 'new@example.com',
         username: 'NewName',
         displayName: 'New Name',
       })
@@ -397,6 +398,7 @@ describe('user.service', () => {
       expect(mockUserUpdate).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: {
+          email: 'new@example.com',
           username: 'newname',
           displayName: 'New Name',
         },

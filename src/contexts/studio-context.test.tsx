@@ -69,6 +69,13 @@ describe('StudioProvider workflow selection', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 
     act(() => {
+      result.current.dispatch({
+        type: 'SET_PROMPT',
+        payload: 'Make a quiet image',
+      })
+    })
+
+    act(() => {
       result.current.setSelectedWorkflowId(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
     })
 
@@ -76,6 +83,7 @@ describe('StudioProvider workflow selection', () => {
       WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
     )
     expect(result.current.state.outputType).toBe('video')
+    expect(result.current.state.prompt).toBe('')
   })
 
   it('switches VOICE_NARRATION_DIALOGUE workflow to audio outputType', () => {
@@ -133,12 +141,20 @@ describe('StudioProvider workflow selection', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 
     act(() => {
+      result.current.dispatch({
+        type: 'SET_PROMPT',
+        payload: 'Keep the character setup',
+      })
+    })
+
+    act(() => {
       result.current.setSelectedWorkflowId(
         WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE,
       )
     })
 
     expect(result.current.state.workflowMode).toBe('card')
+    expect(result.current.state.prompt).toBe('Keep the character setup')
   })
 
   it('opens default workflow panel when switching workflow through the hook', () => {

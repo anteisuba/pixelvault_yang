@@ -10,14 +10,14 @@ describe('useOnboarding', () => {
     localStorage.clear()
   })
 
-  it('starts at welcome then advances to prompt and model', () => {
+  it('starts at welcome then advances to samplePrompt and model', () => {
     const { result } = renderHook(() => useOnboarding())
 
     expect(result.current.active).toBe(true)
     expect(result.current.currentStep).toBe('welcome')
 
     act(() => result.current.next())
-    expect(result.current.currentStep).toBe('prompt')
+    expect(result.current.currentStep).toBe('samplePrompt')
 
     act(() => result.current.next())
     expect(result.current.currentStep).toBe('model')
@@ -30,7 +30,7 @@ describe('useOnboarding', () => {
     expect(result.current.isSkippable).toBe(false)
 
     act(() => result.current.next())
-    expect(result.current.currentStep).toBe('prompt')
+    expect(result.current.currentStep).toBe('samplePrompt')
     expect(result.current.isSkippable).toBe(false)
 
     act(() => result.current.next())

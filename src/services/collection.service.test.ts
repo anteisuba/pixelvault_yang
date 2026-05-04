@@ -5,6 +5,11 @@ const mockFindUnique = vi.fn()
 const mockCount = vi.fn()
 const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
+const mockCollectionItemFindMany = vi.fn()
+const mockCollectionItemFindFirst = vi.fn()
+const mockCollectionItemCreateMany = vi.fn()
+const mockCollectionItemDeleteMany = vi.fn()
+const mockGenerationFindMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -16,18 +21,21 @@ vi.mock('@/lib/db', () => ({
       update: (...a: unknown[]) => mockUpdate(...a),
     },
     collectionItem: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findFirst: vi.fn().mockResolvedValue(null),
-      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findMany: (...a: unknown[]) => mockCollectionItemFindMany(...a),
+      findFirst: (...a: unknown[]) => mockCollectionItemFindFirst(...a),
+      createMany: (...a: unknown[]) => mockCollectionItemCreateMany(...a),
+      deleteMany: (...a: unknown[]) => mockCollectionItemDeleteMany(...a),
     },
-    generation: { findMany: vi.fn().mockResolvedValue([]) },
+    generation: { findMany: (...a: unknown[]) => mockGenerationFindMany(...a) },
   },
 }))
 
 import {
+  addToCollection,
   getUserCollections,
   createCollection,
   deleteCollection,
+  removeFromCollection,
 } from '@/services/collection.service'
 
 const FAKE_COLLECTION = {
@@ -55,6 +63,7 @@ describe('createCollection', () => {
     vi.clearAllMocks()
     mockCount.mockResolvedValue(0)
     mockCreate.mockResolvedValue(FAKE_COLLECTION)
+    mockCollectionItemFindFirst.mockResolvedValue(null)
   })
 
   it('creates a collection and returns a record', async () => {
@@ -83,5 +92,79 @@ describe('deleteCollection', () => {
     mockFindUnique.mockResolvedValue(null)
     const result = await deleteCollection('col_missing', 'user_1')
     expect(result).toBe(false)
+  })
+})
+
+describe('addToCollection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindUnique.mockResolvedValue({
+      userId: 'user_1',
+      _count: { items: 0 },
+    })
+    mockCollectionItemFindMany.mockResolvedValue([])
+    mockGenerationFindMany.mockResolvedValue([{ id: 'gen_1' }, { id: 'gen_2' }])
+    mockCollectionItemFindFirst.mockResolvedValue(null)
+    mockCollectionItemCreateMany.mockResolvedValue({ count: 2 })
+    mockUpdate.mockResolvedValue({})
+  })
+
+  it('adds owned generations to a collection and updates the cover', async () => {
+    const result = await addToCollection('col_1', 'user_1', ['gen_1', 'gen_2'])
+
+    expect(result).toBe(2)
+    expect(mockCollectionItemCreateMany).toHaveBeenCalledWith({
+      data: [
+        { collectionId: 'col_1', generationId: 'gen_1', orderIndex: 0 },
+        { collectionId: 'col_1', generationId: 'gen_2', orderIndex: 1 },
+      ],
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'col_1' },
+      data: { coverUrl: null },
+    })
+  })
+
+  it('throws when collection does not exist or belongs to another user', async () => {
+    mockFindUnique.mockResolvedValue({ userId: 'other', _count: { items: 0 } })
+
+    await expect(addToCollection('col_1', 'user_1', ['gen_1'])).rejects.toThrow(
+      'COLLECTION_NOT_FOUND',
+    )
+    expect(mockCollectionItemCreateMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('removeFromCollection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindUnique.mockResolvedValue({ userId: 'user_1' })
+    mockCollectionItemDeleteMany.mockResolvedValue({ count: 1 })
+    mockCollectionItemFindFirst.mockResolvedValue({
+      generation: { url: 'https://cdn.example.com/cover.png' },
+    })
+    mockUpdate.mockResolvedValue({})
+  })
+
+  it('removes a generation from the collection and refreshes the cover', async () => {
+    const result = await removeFromCollection('col_1', 'user_1', 'gen_1')
+
+    expect(result).toBe(true)
+    expect(mockCollectionItemDeleteMany).toHaveBeenCalledWith({
+      where: { collectionId: 'col_1', generationId: 'gen_1' },
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'col_1' },
+      data: { coverUrl: 'https://cdn.example.com/cover.png' },
+    })
+  })
+
+  it('returns false when no collection item is removed', async () => {
+    mockCollectionItemDeleteMany.mockResolvedValue({ count: 0 })
+
+    const result = await removeFromCollection('col_1', 'user_1', 'gen_missing')
+
+    expect(result).toBe(false)
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

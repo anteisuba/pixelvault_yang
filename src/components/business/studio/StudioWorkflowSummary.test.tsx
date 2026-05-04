@@ -7,6 +7,7 @@ import { StudioWorkflowSummary } from './StudioWorkflowSummary'
 
 const contextState = vi.hoisted(() => ({
   selectedWorkflowId: '',
+  prompt: '',
   selectedWorkflow: undefined as
     | {
         publicNameKey: string
@@ -21,6 +22,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioContext: () => ({
+    state: { prompt: contextState.prompt },
     selectedWorkflowId: contextState.selectedWorkflowId,
     getSelectedWorkflow: () => contextState.selectedWorkflow,
   }),
@@ -29,6 +31,7 @@ vi.mock('@/contexts/studio-context', () => ({
 describe('StudioWorkflowSummary', () => {
   it('shows the selected workflow name and description', () => {
     contextState.selectedWorkflowId = WORKFLOW_IDS.QUICK_IMAGE
+    contextState.prompt = 'already started'
     contextState.selectedWorkflow = {
       publicNameKey: 'workflows.QUICK_IMAGE.name',
       descriptionKey: 'workflows.QUICK_IMAGE.description',
@@ -42,12 +45,26 @@ describe('StudioWorkflowSummary', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows selectedWorkflowId as fallback when workflow is missing', () => {
+  it('shows the workflow empty hint when workflow is missing', () => {
     contextState.selectedWorkflowId = 'MISSING_WORKFLOW'
+    contextState.prompt = ''
     contextState.selectedWorkflow = undefined
 
     render(<StudioWorkflowSummary />)
 
-    expect(screen.getByText('MISSING_WORKFLOW')).toBeInTheDocument()
+    expect(screen.getByText('workflowEmptyHint')).toBeInTheDocument()
+  })
+
+  it('shows the workflow empty hint in the initial prompt state', () => {
+    contextState.selectedWorkflowId = WORKFLOW_IDS.QUICK_IMAGE
+    contextState.prompt = ''
+    contextState.selectedWorkflow = {
+      publicNameKey: 'workflows.QUICK_IMAGE.name',
+      descriptionKey: 'workflows.QUICK_IMAGE.description',
+    }
+
+    render(<StudioWorkflowSummary />)
+
+    expect(screen.getByText('workflowEmptyHint')).toBeInTheDocument()
   })
 })

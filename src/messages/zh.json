@@ -169,7 +169,12 @@
     "heroEyebrow": "个人 AI 档案",
     "heroTitle": "认真创作，完整保存。",
     "heroDescription": "多模型图像生成，永久归档。",
-    "heroRepelText": "用 38+ AI 模型生成图片，永久归档每一张创作。",
+    "hero": {
+      "title": "用任意 AI 模型创作",
+      "subtitle": "永久保存每一张作品",
+      "primaryCta": "开始创作",
+      "secondaryCta": "浏览画廊"
+    },
     "actions": {
       "signedOutPrimary": "开始建立档案",
       "signedInPrimary": "打开工作台",
@@ -341,6 +346,7 @@
     "workspaceLabel": "工作台",
     "workspaceTitle": "开始创作",
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
+    "workflowEmptyHint": "选择一个工作流开始创作",
     "modeLabel": "生成模式",
     "modeImage": "图片",
     "modeVideo": "视频",
@@ -1191,9 +1197,9 @@
         "title": "选择模型",
         "description": "标有「免费」的模型无需 API key，每天可用 5 次。绑定自己的 key 即可解锁全部模型。"
       },
-      "prompt": {
-        "title": "已为你预填了示例提示词",
-        "description": "这是一个起点，帮助你感受 PixelVault 的能力。随意修改，或清空后从头开始。"
+      "samplePrompt": {
+        "title": "示例 prompt 已就绪",
+        "description": "已为你填好示例 prompt，点击生成按钮试试看！"
       },
       "apiKey": {
         "title": "想使用自己的 API 密钥吗？",
@@ -1650,7 +1656,17 @@
     "removeFailed": "删除 Token 失败"
   },
   "StudioPromptArea": {
-    "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感"
+    "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感",
+    "samplePrompts": {
+      "quickImage": "黄金时分的宁静日式庭院，锦鲤在清澈的池塘中游弋，樱花花瓣轻柔飘落",
+      "animeIllustration": "一位银发飘逸的年轻冒险者站在悬崖之巅，俯瞰日落时分辽阔的奇幻王国",
+      "characterConsistency": "一位自信女性的肖像，短红发与绿色眼眸，身着黑色皮夹克，影棚打光",
+      "imageEditRemix": "将这张图片转换为柔和粉彩色调的水彩画风格",
+      "posterLayout": "科幻电影极简海报，巨大行星前的单人宇航员剪影",
+      "cinematicVideo": "一位武士独行于拂晓薄雾的竹林中，镜头从背后缓缓跟随",
+      "characterToVideo": "角色转身面向镜头，温暖地微笑，轻风吹拂着发丝",
+      "voiceNarration": "欢迎来到 PixelVault，在这里，AI 的力量让你的想象变为现实"
+    }
   },
   "StudioV2": {
     "none": "不选择",
@@ -1704,7 +1720,22 @@
     "proModeNudge": "解锁风格卡片和角色预设，获得更精细的控制",
     "tryProMode": "试试看",
     "toolbarLabel": "工作台工具",
-    "trainLora": "训练 LoRA"
+    "trainLora": "训练 LoRA",
+    "generationError": {
+      "title": "生成失败",
+      "retry": "重试",
+      "switchModel": "换个模型",
+      "viewDetails": "查看详情",
+      "reasons": {
+        "provider_timeout": "AI 服务商响应超时",
+        "provider_rate_limit": "请求过于频繁，请稍后再试",
+        "invalid_api_key": "你的 API Key 无效或已过期",
+        "content_filtered": "内容被服务商安全系统过滤",
+        "model_unavailable": "该模型暂时不可用",
+        "insufficient_credits": "今日免费生成次数已用完",
+        "unknown": "发生了未知错误"
+      }
+    }
   },
   "StudioPanels": {
     "reference": "参考图",

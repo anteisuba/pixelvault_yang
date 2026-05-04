@@ -51,7 +51,7 @@ export function StudioWorkflowPicker({
             data-selected={selected ? 'true' : 'false'}
             data-testid={`workflow-card-${workflow.id}`}
             onClick={() => setSelectedWorkflowId(workflow.id)}
-            className="group min-w-56 text-left outline-none sm:min-w-0"
+            className="group min-w-56 shrink-0 text-left outline-none sm:min-w-0"
           >
             <Card
               className={cn(

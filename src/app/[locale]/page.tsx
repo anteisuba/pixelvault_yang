@@ -63,9 +63,6 @@ export default async function LocalizedRootPage({
 
   return (
     <HomepageShell
-      eyebrow={t('heroEyebrow')}
-      title={t('heroTitle')}
-      description={t('heroDescription')}
       primaryActionHref={primaryActionHref}
       primaryActionLabel={primaryActionLabel}
       utilityActionHref={utilityActionHref}

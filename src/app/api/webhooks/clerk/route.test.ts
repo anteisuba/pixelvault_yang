@@ -109,6 +109,17 @@ describe('POST /api/webhooks/clerk', () => {
       type: 'user.updated',
       data: {
         id: 'clerk_abc',
+        primary_email_address_id: 'email_primary',
+        email_addresses: [
+          {
+            id: 'email_secondary',
+            email_address: 'secondary@example.com',
+          },
+          {
+            id: 'email_primary',
+            email_address: 'updated@example.com',
+          },
+        ],
         first_name: 'Updated',
         last_name: 'Name',
         image_url: 'https://example.com/avatar.jpg',
@@ -120,9 +131,40 @@ describe('POST /api/webhooks/clerk', () => {
 
     expect(res.status).toBe(200)
     expect(syncUserFromClerk).toHaveBeenCalledWith('clerk_abc', {
+      email: 'updated@example.com',
       displayName: 'Updated Name',
       avatarUrl: 'https://example.com/avatar.jpg',
       username: 'updateduser',
+    })
+  })
+
+  it('does not sync email when user.updated lacks a primary email match', async () => {
+    mockHeaders()
+    mockWebhookVerify({
+      type: 'user.updated',
+      data: {
+        id: 'clerk_abc',
+        primary_email_address_id: 'email_missing',
+        email_addresses: [
+          {
+            id: 'email_secondary',
+            email_address: 'secondary@example.com',
+          },
+        ],
+        first_name: 'Updated',
+        last_name: 'Name',
+        image_url: null,
+        username: null,
+      },
+    })
+
+    const res = await POST(makeFakeRequest({}))
+
+    expect(res.status).toBe(200)
+    expect(syncUserFromClerk).toHaveBeenCalledWith('clerk_abc', {
+      displayName: 'Updated Name',
+      avatarUrl: null,
+      username: null,
     })
   })
 

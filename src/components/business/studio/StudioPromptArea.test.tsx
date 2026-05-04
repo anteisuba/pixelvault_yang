@@ -11,7 +11,8 @@ import { StudioPromptArea } from './StudioPromptArea'
 const mockDispatch = vi.hoisted(() => vi.fn())
 const mockGenerate = vi.hoisted(() => vi.fn())
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
-const SAMPLE_PROMPT_FLAG_KEY = 'studio-sample-prompt-shown'
+import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
+const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
   cardManagement: false,

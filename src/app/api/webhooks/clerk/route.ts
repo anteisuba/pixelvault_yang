@@ -11,12 +11,14 @@ import { logger } from '@/lib/logger'
 // ─── Clerk event types ────────────────────────────────────────────
 
 interface ClerkEmailAddress {
+  id?: string
   email_address: string
 }
 
 interface ClerkUserData {
   id: string
   email_addresses?: ClerkEmailAddress[]
+  primary_email_address_id?: string | null
   first_name?: string | null
   last_name?: string | null
   image_url?: string | null
@@ -80,11 +82,24 @@ export async function POST(request: Request) {
     await createUser({ clerkId: id, email })
     logger.info('User created via Clerk webhook', { clerkId: id })
   } else if (event.type === 'user.updated') {
-    const { id, first_name, last_name, image_url, username } = event.data
+    const {
+      id,
+      email_addresses,
+      primary_email_address_id,
+      first_name,
+      last_name,
+      image_url,
+      username,
+    } = event.data
+    const primaryEmail = email_addresses?.find(
+      (emailAddress) => emailAddress.id === primary_email_address_id,
+    )
+    const email = primaryEmail?.email_address
     const displayName =
       [first_name, last_name].filter(Boolean).join(' ') || null
 
     await syncUserFromClerk(id, {
+      ...(email && { email }),
       displayName,
       avatarUrl: image_url ?? null,
       username: username ?? null,

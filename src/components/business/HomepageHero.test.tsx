@@ -6,33 +6,45 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { HomepageHero } from './HomepageHero'
 
-const EXPECTED_HERO_REPEL_TEXT = {
-  en: 'Generate images with 38+ AI models. Keep every creation, forever.',
-  zh: '用 38+ AI 模型生成图片，永久归档每一张创作。',
-  ja: '38以上のAIモデルで画像を生成。すべての作品を永久アーカイブ。',
+const EXPECTED_HERO = {
+  en: {
+    title: 'Create with any AI model',
+    subtitle: 'Keep everything forever',
+    primaryCta: 'Start Creating',
+    secondaryCta: 'Browse Gallery',
+  },
+  zh: {
+    title: '用任意 AI 模型创作',
+    subtitle: '永久保存每一张作品',
+    primaryCta: '开始创作',
+    secondaryCta: '浏览画廊',
+  },
+  ja: {
+    title: 'あらゆるAIモデルで創作',
+    subtitle: 'すべての作品を永久保存',
+    primaryCta: '創作を始める',
+    secondaryCta: 'ギャラリーを見る',
+  },
 } as const
 
-type Locale = keyof typeof EXPECTED_HERO_REPEL_TEXT
+type Locale = keyof typeof EXPECTED_HERO
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
-    if (key === 'heroRepelText') return EXPECTED_HERO_REPEL_TEXT.en
-    return key
+    const map: Record<string, string> = {
+      title: EXPECTED_HERO.en.title,
+      subtitle: EXPECTED_HERO.en.subtitle,
+      primaryCta: EXPECTED_HERO.en.primaryCta,
+      secondaryCta: EXPECTED_HERO.en.secondaryCta,
+    }
+    return map[key] ?? key
   },
-}))
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
 }))
 
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href }: { children: ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
-}))
-
-vi.mock('@/components/ui/text-repel', () => ({
-  TextRepel: ({ text }: { text: string }) => <p>{text}</p>,
 }))
 
 vi.mock('@/components/ui/interactive-hover-button', () => ({
@@ -64,37 +76,60 @@ function loadMessages(locale: Locale): Record<string, unknown> {
 }
 
 describe('HomepageHero', () => {
-  it('renders only the Studio and Gallery CTA links', () => {
+  it('uses the signed-out primary CTA href passed by the shell', () => {
     render(
       <HomepageHero
-        primaryActionHref="/studio"
-        primaryActionLabel="Open studio"
+        primaryActionHref="/sign-up"
+        primaryActionLabel={EXPECTED_HERO.en.primaryCta}
         galleryActionHref="/gallery"
-        galleryActionLabel="Browse gallery"
+        galleryActionLabel={EXPECTED_HERO.en.secondaryCta}
       />,
     )
 
     const links = screen.getAllByRole('link')
     expect(links).toHaveLength(2)
+    expect(
+      screen.getByRole('link', { name: EXPECTED_HERO.en.primaryCta }),
+    ).toHaveAttribute('href', '/sign-up')
+    expect(
+      screen.getByRole('link', { name: EXPECTED_HERO.en.secondaryCta }),
+    ).toHaveAttribute('href', '/gallery')
+  })
+
+  it('uses the signed-in primary CTA href passed by the shell', () => {
+    render(
+      <HomepageHero
+        primaryActionHref="/studio"
+        primaryActionLabel="Open studio"
+        galleryActionHref="/gallery"
+        galleryActionLabel={EXPECTED_HERO.en.secondaryCta}
+      />,
+    )
+
     expect(screen.getByRole('link', { name: 'Open studio' })).toHaveAttribute(
       'href',
       '/studio',
     )
-    expect(
-      screen.getByRole('link', { name: 'Browse gallery' }),
-    ).toHaveAttribute('href', '/gallery')
-    expect(screen.queryByRole('link', { name: 'See models' })).toBeNull()
   })
 
-  it('keeps Homepage.heroRepelText present in every locale', () => {
-    for (const locale of Object.keys(EXPECTED_HERO_REPEL_TEXT) as Locale[]) {
+  it('keeps Homepage.hero keys present in every locale', () => {
+    for (const locale of Object.keys(EXPECTED_HERO) as Locale[]) {
       const homepage = loadMessages(locale).Homepage
       expect(isRecord(homepage)).toBe(true)
       if (!isRecord(homepage)) {
         throw new Error(`Homepage namespace missing in ${locale}.json`)
       }
 
-      expect(homepage.heroRepelText).toBe(EXPECTED_HERO_REPEL_TEXT[locale])
+      const hero = (homepage as Record<string, unknown>).hero
+      expect(isRecord(hero)).toBe(true)
+      if (!isRecord(hero)) {
+        throw new Error(`Homepage.hero missing in ${locale}.json`)
+      }
+
+      expect(hero.title).toBe(EXPECTED_HERO[locale].title)
+      expect(hero.subtitle).toBe(EXPECTED_HERO[locale].subtitle)
+      expect(hero.primaryCta).toBe(EXPECTED_HERO[locale].primaryCta)
+      expect(hero.secondaryCta).toBe(EXPECTED_HERO[locale].secondaryCta)
     }
   })
 })

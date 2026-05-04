@@ -169,7 +169,12 @@
     "heroEyebrow": "Personal AI archive",
     "heroTitle": "Make deliberately. Keep everything.",
     "heroDescription": "Multi-model image generation with permanent archiving.",
-    "heroRepelText": "Generate images with 38+ AI models. Keep every creation, forever.",
+    "hero": {
+      "title": "Create with any AI model",
+      "subtitle": "Keep everything forever",
+      "primaryCta": "Start Creating",
+      "secondaryCta": "Browse Gallery"
+    },
     "actions": {
       "signedOutPrimary": "Start your archive",
       "signedInPrimary": "Open studio",
@@ -341,6 +346,7 @@
     "workspaceLabel": "Workspace",
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
+    "workflowEmptyHint": "Choose a workflow to start creating",
     "modeLabel": "Generation mode",
     "modeImage": "Image",
     "modeVideo": "Video",
@@ -1191,9 +1197,9 @@
         "title": "Choose a model",
         "description": "Models marked \"Free\" can be used without an API key — up to 5 times per day. Bind your own key to unlock all models."
       },
-      "prompt": {
-        "title": "We've filled in a sample prompt",
-        "description": "A starting point to see what's possible. Edit it freely, or clear it and write your own."
+      "samplePrompt": {
+        "title": "Sample prompt ready",
+        "description": "We've pre-filled a sample prompt for you — hit Generate to try it out!"
       },
       "apiKey": {
         "title": "Want to use your own API key?",
@@ -1650,7 +1656,17 @@
     "removeFailed": "Failed to remove token"
   },
   "StudioPromptArea": {
-    "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain"
+    "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain",
+    "samplePrompts": {
+      "quickImage": "A serene Japanese garden at golden hour, koi fish swimming in a crystal clear pond, cherry blossoms falling gently",
+      "animeIllustration": "A young adventurer with flowing silver hair standing atop a cliff, overlooking a vast fantasy kingdom at sunset",
+      "characterConsistency": "Portrait of a confident woman with short red hair and green eyes, wearing a black leather jacket, studio lighting",
+      "imageEditRemix": "Transform this image into a watercolor painting style with soft pastel colors",
+      "posterLayout": "Minimalist movie poster for a sci-fi film, single astronaut silhouette against a giant planet",
+      "cinematicVideo": "A lone samurai walking through a misty bamboo forest at dawn, camera slowly tracking from behind",
+      "characterToVideo": "The character turns to face the camera and smiles warmly, gentle wind blowing their hair",
+      "voiceNarration": "Welcome to PixelVault, where your imagination becomes reality through the power of AI"
+    }
   },
   "StudioV2": {
     "none": "None",
@@ -1704,7 +1720,22 @@
     "proModeNudge": "Unlock style cards and character presets for more control",
     "tryProMode": "Try it",
     "toolbarLabel": "Studio tools",
-    "trainLora": "Train LoRA"
+    "trainLora": "Train LoRA",
+    "generationError": {
+      "title": "Generation Failed",
+      "retry": "Retry",
+      "switchModel": "Switch Model",
+      "viewDetails": "View Details",
+      "reasons": {
+        "provider_timeout": "The AI provider took too long to respond",
+        "provider_rate_limit": "Too many requests, please wait a moment",
+        "invalid_api_key": "Your API key is invalid or expired",
+        "content_filtered": "Content was filtered by the provider's safety system",
+        "model_unavailable": "This model is temporarily unavailable",
+        "insufficient_credits": "Daily free generation limit reached",
+        "unknown": "An unexpected error occurred"
+      }
+    }
   },
   "StudioPanels": {
     "reference": "Reference Images",

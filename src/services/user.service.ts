@@ -489,6 +489,7 @@ export async function refreshAvatarFromClerk(
 export async function syncUserFromClerk(
   clerkId: string,
   data: {
+    email?: string
     displayName?: string | null
     avatarUrl?: string | null
     username?: string | null
@@ -498,6 +499,7 @@ export async function syncUserFromClerk(
   if (!user) return
 
   const updates: Record<string, unknown> = {}
+  if (data.email !== undefined) updates.email = data.email
   if (data.displayName !== undefined) updates.displayName = data.displayName
   if (data.avatarUrl !== undefined) updates.avatarUrl = data.avatarUrl
   if (data.username !== undefined) {

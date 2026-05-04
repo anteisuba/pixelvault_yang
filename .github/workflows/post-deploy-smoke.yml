@@ -1,0 +1,35 @@
+name: Post Deploy Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Production URL to smoke test (e.g. https://pixelvault.app)'
+        required: true
+  deployment_status:
+
+jobs:
+  smoke:
+    name: Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.deployment_status.state == 'success'
+    env:
+      BASE_URL: >-
+        ${{ github.event.deployment_status.environment_url ||
+        github.event.deployment_status.target_url ||
+        inputs.base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run smoke checks
+        run: npx tsx scripts/smoke.ts

@@ -105,7 +105,7 @@ describe('i18n completeness', () => {
     }
   })
 
-  it('every locale has a non-empty Onboarding.steps.prompt.title', () => {
+  it('every locale has a non-empty Onboarding.steps.samplePrompt.title', () => {
     for (const locale of LOCALES) {
       const onboarding = messagesByLocale[locale].Onboarding
       expect(isRecord(onboarding)).toBe(true)
@@ -119,17 +119,19 @@ describe('i18n completeness', () => {
         throw new Error(`Onboarding.steps missing in ${locale}.json`)
       }
 
-      const prompt = steps.prompt
+      const prompt = steps.samplePrompt
       expect(isRecord(prompt)).toBe(true)
       if (!isRecord(prompt)) {
-        throw new Error(`Onboarding.steps.prompt missing in ${locale}.json`)
+        throw new Error(
+          `Onboarding.steps.samplePrompt missing in ${locale}.json`,
+        )
       }
 
       const title = prompt.title
       expect(typeof title).toBe('string')
       if (typeof title !== 'string') {
         throw new Error(
-          `Onboarding.steps.prompt.title missing in ${locale}.json`,
+          `Onboarding.steps.samplePrompt.title missing in ${locale}.json`,
         )
       }
       expect(title.trim().length).toBeGreaterThan(0)

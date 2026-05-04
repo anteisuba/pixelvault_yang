@@ -152,6 +152,25 @@ describe('generation.service', () => {
         ],
       })
     })
+
+    it('propagates database create failures', async () => {
+      mockGenerationCreate.mockRejectedValue(new Error('create failed'))
+
+      await expect(
+        createGeneration({
+          url: BASE_GENERATION.url,
+          storageKey: BASE_GENERATION.storageKey,
+          mimeType: BASE_GENERATION.mimeType,
+          width: BASE_GENERATION.width,
+          height: BASE_GENERATION.height,
+          prompt: BASE_GENERATION.prompt,
+          model: BASE_GENERATION.model,
+          provider: BASE_GENERATION.provider,
+          requestCount: 1,
+        }),
+      ).rejects.toThrow('create failed')
+      expect(mockGenerationCharacterCardCreateMany).not.toHaveBeenCalled()
+    })
   })
 
   describe('getUserGenerations', () => {
@@ -160,13 +179,20 @@ describe('generation.service', () => {
 
       const result = await getUserGenerations('user-1', { page: 3, limit: 10 })
 
-      expect(result).toEqual([BASE_GENERATION])
+      expect(result[0]).toMatchObject(BASE_GENERATION)
+      expect(result[0].referenceImages).toEqual([])
       expect(mockGenerationFindMany).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
         orderBy: { createdAt: 'desc' },
         skip: 20,
         take: 10,
       })
+    })
+
+    it('propagates list query failures', async () => {
+      mockGenerationFindMany.mockRejectedValue(new Error('list failed'))
+
+      await expect(getUserGenerations('user-1')).rejects.toThrow('list failed')
     })
   })
 
@@ -248,10 +274,79 @@ describe('generation.service', () => {
     it('finds a generation by id', async () => {
       mockGenerationFindUnique.mockResolvedValue(BASE_GENERATION)
 
-      await expect(getGenerationById('gen-1')).resolves.toBe(BASE_GENERATION)
+      const result = await getGenerationById('gen-1')
+
+      expect(result).toMatchObject(BASE_GENERATION)
+      expect(result?.referenceImages).toEqual([])
       expect(mockGenerationFindUnique).toHaveBeenCalledWith({
         where: { id: 'gen-1' },
       })
+    })
+
+    it('normalizes legacy snapshot referenceImages to ReferenceAsset records', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        ...BASE_GENERATION,
+        snapshot: {
+          referenceImages: ['https://example.com/ref.png'],
+        },
+      })
+
+      const result = await getGenerationById('gen-1')
+
+      expect(result?.referenceImages).toEqual([
+        {
+          url: 'https://example.com/ref.png',
+          role: 'identity',
+        },
+      ])
+    })
+
+    it('passes through snapshot referenceAssets records', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        ...BASE_GENERATION,
+        snapshot: {
+          referenceAssets: [
+            {
+              url: 'https://example.com/style.png',
+              role: 'style',
+              weight: 0.8,
+            },
+          ],
+        },
+      })
+
+      const result = await getGenerationById('gen-1')
+
+      expect(result?.referenceImages).toEqual([
+        {
+          url: 'https://example.com/style.png',
+          role: 'style',
+          weight: 0.8,
+        },
+      ])
+    })
+
+    it('falls back to referenceImageUrl when snapshot has no reference assets', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        ...BASE_GENERATION,
+        referenceImageUrl: 'https://example.com/single-ref.png',
+        snapshot: null,
+      })
+
+      const result = await getGenerationById('gen-1')
+
+      expect(result?.referenceImages).toEqual([
+        {
+          url: 'https://example.com/single-ref.png',
+          role: 'identity',
+        },
+      ])
+    })
+
+    it('returns null when the generation does not exist', async () => {
+      mockGenerationFindUnique.mockResolvedValue(null)
+
+      await expect(getGenerationById('missing-gen')).resolves.toBeNull()
     })
   })
 

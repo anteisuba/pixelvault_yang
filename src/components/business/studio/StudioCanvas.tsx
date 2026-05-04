@@ -18,6 +18,7 @@ import type { GenerationRecord } from '@/types'
 
 import { CompareGrid } from './CompareGrid'
 import { GenerationPreview } from './GenerationPreview'
+import { StudioGenerationErrorDialog } from './StudioGenerationErrorDialog'
 import { StudioResultFeedback } from './StudioResultFeedback'
 import { VariantGrid } from './VariantGrid'
 
@@ -32,10 +33,13 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const { imageUpload } = useStudioData()
   const {
     lastGeneration: rawLastGeneration,
+    error,
     retry,
     activeRun,
     selectWinner,
   } = useStudioGen()
+  const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
+  const errorDialogOpen = !!error && error !== errorDismissed
   const { modelOptions } = useImageModelOptions()
 
   // Only show the latest generation if it matches the current output type.
@@ -51,6 +55,10 @@ export const StudioCanvas = memo(function StudioCanvas() {
     rawLastGeneration && rawLastGeneration.outputType === expectedOutputType
       ? rawLastGeneration
       : null
+
+  const handleSwitchModel = useCallback(() => {
+    dispatch({ type: 'OPEN_PANEL', payload: 'modelSelector' })
+  }, [dispatch])
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -183,6 +191,20 @@ export const StudioCanvas = memo(function StudioCanvas() {
           </>
         )}
       </div>
+      {error && (
+        <StudioGenerationErrorDialog
+          open={errorDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) setErrorDismissed(error)
+          }}
+          error={{ message: error }}
+          onRetry={() => {
+            setErrorDismissed(null)
+            retry()
+          }}
+          onSwitchModel={handleSwitchModel}
+        />
+      )}
     </div>
   )
 })

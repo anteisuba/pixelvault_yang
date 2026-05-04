@@ -165,6 +165,7 @@ export function studioFormReducer(
   switch (action.type) {
     case 'SET_SELECTED_WORKFLOW_ID': {
       const defaults = getWorkflowStudioDefaults(action.payload)
+      const isChangingMediaGroup = state.outputType !== defaults.outputType
       const panels = defaults.openPanel
         ? { ...state.panels, [defaults.openPanel]: true }
         : state.panels
@@ -174,6 +175,7 @@ export function studioFormReducer(
         selectedWorkflowId: action.payload,
         outputType: defaults.outputType,
         workflowMode: defaults.workflowMode ?? state.workflowMode,
+        prompt: isChangingMediaGroup ? '' : state.prompt,
         panels,
       }
     }

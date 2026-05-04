@@ -52,7 +52,7 @@ function getTargetSelector(step: OnboardingStep): string | null {
       return null // no target, center on screen
     case 'model':
       return '[data-onboarding="model"]'
-    case 'prompt':
+    case 'samplePrompt':
       return '[data-onboarding="prompt"]'
     case 'apiKey':
       return '[data-onboarding="apiKey"]'

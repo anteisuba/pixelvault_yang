@@ -19,6 +19,10 @@ import {
 } from '@/constants/studio'
 import { getWorkflowById, WORKFLOW_MEDIA_GROUPS } from '@/constants/workflows'
 import {
+  SAMPLE_PROMPT_KEYS,
+  SAMPLE_PROMPT_STORAGE_KEY,
+} from '@/constants/sample-prompts'
+import {
   useStudioForm,
   useStudioData,
   useStudioGen,
@@ -79,10 +83,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const [planOpen, setPlanOpen] = useState(false)
 
   useEffect(() => {
-    const FLAG_KEY = 'studio-sample-prompt-shown'
-    if (!localStorage.getItem(FLAG_KEY) && !state.prompt) {
-      dispatch({ type: 'SET_PROMPT', payload: tPromptArea('samplePrompt') })
-      localStorage.setItem(FLAG_KEY, '1')
+    if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
+      const key = SAMPLE_PROMPT_KEYS[state.selectedWorkflowId]
+      if (key) {
+        dispatch({ type: 'SET_PROMPT', payload: tPromptArea(key) })
+        localStorage.setItem(SAMPLE_PROMPT_STORAGE_KEY, '1')
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

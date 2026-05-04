@@ -1,14 +1,14 @@
-"use client"
+'use client'
 
-import React, { useImperativeHandle, useLayoutEffect, useRef } from "react"
+import React, { useImperativeHandle, useLayoutEffect, useRef } from 'react'
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils'
 
 interface PulsatingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   pulseColor?: string
   duration?: string
   distance?: string
-  variant?: "pulse" | "ripple"
+  variant?: 'pulse' | 'ripple'
 }
 
 export const PulsatingButton = React.forwardRef<
@@ -20,12 +20,12 @@ export const PulsatingButton = React.forwardRef<
       className,
       children,
       pulseColor,
-      duration = "1.5s",
-      distance = "8px",
-      variant = "pulse",
+      duration = '1.5s',
+      distance = '8px',
+      variant = 'pulse',
       ...props
     },
-    ref
+    ref,
   ) => {
     const innerRef = useRef<HTMLButtonElement>(null)
     useImperativeHandle(ref, () => innerRef.current!)
@@ -35,12 +35,12 @@ export const PulsatingButton = React.forwardRef<
       if (!button) return
 
       if (pulseColor) {
-        button.style.removeProperty("--bg")
+        button.style.removeProperty('--bg')
         return
       }
 
       let animationFrameId = 0
-      let currentBg = ""
+      let currentBg = ''
 
       const updateBg = () => {
         animationFrameId = 0
@@ -49,7 +49,7 @@ export const PulsatingButton = React.forwardRef<
         if (nextBg === currentBg) return
 
         currentBg = nextBg
-        button.style.setProperty("--bg", nextBg)
+        button.style.setProperty('--bg', nextBg)
       }
 
       const scheduleBgUpdate = () => {
@@ -62,7 +62,7 @@ export const PulsatingButton = React.forwardRef<
       const themeObserver = new MutationObserver(scheduleBgUpdate)
       themeObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["class"],
+        attributeFilter: ['class'],
       })
 
       const buttonObserver = new MutationObserver(scheduleBgUpdate)
@@ -71,10 +71,10 @@ export const PulsatingButton = React.forwardRef<
       })
 
       const syncEvents = [
-        "blur",
-        "focus",
-        "pointerenter",
-        "pointerleave",
+        'blur',
+        'focus',
+        'pointerenter',
+        'pointerleave',
       ] as const
 
       for (const eventName of syncEvents) {
@@ -99,14 +99,14 @@ export const PulsatingButton = React.forwardRef<
       <button
         ref={innerRef}
         className={cn(
-          "bg-primary text-primary-foreground relative flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-center",
-          className
+          'bg-primary text-primary-foreground relative flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-center',
+          className,
         )}
         style={
           {
-            ...(pulseColor && { "--pulse-color": pulseColor }),
-            "--duration": duration,
-            "--distance": distance,
+            ...(pulseColor && { '--pulse-color': pulseColor }),
+            '--duration': duration,
+            '--distance': distance,
           } as React.CSSProperties
         }
         {...props}
@@ -115,13 +115,13 @@ export const PulsatingButton = React.forwardRef<
         <span
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute inset-0 rounded-[inherit] bg-inherit",
-            variant === "pulse" ? "animate-pulse" : "animate-pulse-ripple"
+            'pointer-events-none absolute inset-0 rounded-[inherit] bg-inherit',
+            variant === 'pulse' ? 'animate-pulse' : 'animate-pulse-ripple',
           )}
         />
       </button>
     )
-  }
+  },
 )
 
-PulsatingButton.displayName = "PulsatingButton"
+PulsatingButton.displayName = 'PulsatingButton'

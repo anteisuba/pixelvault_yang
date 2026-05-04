@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    logger.error('[API /api/character-cards/generations] Error', { error: error instanceof Error ? error.message : String(error) })
+    logger.error('[API /api/character-cards/generations] Error', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { success: false, error: 'Failed to fetch generations' },
       { status: 500 },

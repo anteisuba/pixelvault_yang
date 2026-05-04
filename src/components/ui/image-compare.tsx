@@ -1,6 +1,11 @@
 'use client'
 
-import { useCallback, useRef, useState, type ComponentPropsWithoutRef } from 'react'
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+} from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -98,9 +103,27 @@ export function ImageCompare({
       >
         {/* Handle */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center size-8 rounded-full bg-white shadow-md border border-border/40">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-foreground/60">
-            <path d="M4 3L1 7L4 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M10 3L13 7L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            className="text-foreground/60"
+          >
+            <path
+              d="M4 3L1 7L4 11"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M10 3L13 7L10 11"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
       </div>

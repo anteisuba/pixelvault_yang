@@ -84,7 +84,10 @@ describe('GET /api/admin/models/[modelId]', () => {
   it('returns 403 when unauthenticated', async () => {
     mockUnauthenticated()
 
-    const res = await GET(createGET(`/api/admin/models/${MODEL_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/admin/models/${MODEL_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; error: string }>(res)
 
     expect(res.status).toBe(403)
@@ -95,7 +98,10 @@ describe('GET /api/admin/models/[modelId]', () => {
   it('returns 404 when model config is not found', async () => {
     mockGetModelConfigById.mockResolvedValue(null)
 
-    const res = await GET(createGET(`/api/admin/models/${MODEL_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/admin/models/${MODEL_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; error: string }>(res)
 
     expect(res.status).toBe(404)
@@ -103,7 +109,10 @@ describe('GET /api/admin/models/[modelId]', () => {
   })
 
   it('returns a model config for admins', async () => {
-    const res = await GET(createGET(`/api/admin/models/${MODEL_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/admin/models/${MODEL_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; data: unknown }>(res)
 
     expect(res.status).toBe(200)

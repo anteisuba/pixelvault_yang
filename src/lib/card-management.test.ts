@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  matchesCardSearch,
-  sortCardManagerItems,
-} from '@/lib/card-management'
+import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
 describe('card-management helpers', () => {
   it('matches search queries against names and tags', () => {
@@ -13,9 +10,9 @@ describe('card-management helpers', () => {
     expect(
       matchesCardSearch('night', ['Forest Shrine', ['mood', 'night']]),
     ).toBe(true)
-    expect(matchesCardSearch('mecha', ['Forest Shrine', ['mood', 'night']])).toBe(
-      false,
-    )
+    expect(
+      matchesCardSearch('mecha', ['Forest Shrine', ['mood', 'night']]),
+    ).toBe(false)
   })
 
   it('sorts by recent usage and falls back to created time', () => {

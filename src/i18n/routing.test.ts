@@ -1,4 +1,10 @@
-import { CJK_LOCALES, DEFAULT_LOCALE, isAppLocale, isCjkLocale, LOCALES } from '@/i18n/routing'
+import {
+  CJK_LOCALES,
+  DEFAULT_LOCALE,
+  isAppLocale,
+  isCjkLocale,
+  LOCALES,
+} from '@/i18n/routing'
 
 describe('routing', () => {
   it('keeps English as the default locale', () => {

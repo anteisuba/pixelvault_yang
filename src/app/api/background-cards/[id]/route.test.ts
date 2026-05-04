@@ -59,7 +59,10 @@ describe('GET /api/background-cards/[id]', () => {
   it('returns 401 when unauthenticated', async () => {
     mockUnauthenticated()
 
-    const res = await GET(createGET(`/api/background-cards/${CARD_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/background-cards/${CARD_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; error: string }>(res)
 
     expect(res.status).toBe(401)
@@ -69,7 +72,10 @@ describe('GET /api/background-cards/[id]', () => {
   it('returns 404 when the background card is missing', async () => {
     mockGetBackgroundCard.mockResolvedValue(null)
 
-    const res = await GET(createGET(`/api/background-cards/${CARD_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/background-cards/${CARD_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; error: string }>(res)
 
     expect(res.status).toBe(404)
@@ -77,7 +83,10 @@ describe('GET /api/background-cards/[id]', () => {
   })
 
   it('returns a background card on success', async () => {
-    const res = await GET(createGET(`/api/background-cards/${CARD_ID}`), routeParams)
+    const res = await GET(
+      createGET(`/api/background-cards/${CARD_ID}`),
+      routeParams,
+    )
     const body = await parseJSON<{ success: boolean; data: unknown }>(res)
 
     expect(res.status).toBe(200)

@@ -20,10 +20,7 @@ import { CharacterCardCreateForm } from '@/components/business/CharacterCardCrea
 import { CharacterCardItem } from '@/components/business/CharacterCardItem'
 import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
 import type { CardManagerSortMode } from '@/lib/card-management'
-import {
-  matchesCardSearch,
-  sortCardManagerItems,
-} from '@/lib/card-management'
+import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
 interface CharacterCardManagerProps {
   cards: CharacterCardRecord[]

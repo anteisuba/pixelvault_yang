@@ -233,21 +233,24 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   )
 
   /** Merge style preset negative prompt into advancedParams */
-  const composeAdvancedParams = useCallback((negativePrompt?: string) => {
-    const params = { ...state.advancedParams }
-    const negativePrompts = [
-      params.negativePrompt,
-      activePreset?.negativePrompt,
-      negativePrompt,
-    ]
-      .map((prompt) => prompt?.trim())
-      .filter((prompt): prompt is string => !!prompt)
+  const composeAdvancedParams = useCallback(
+    (negativePrompt?: string) => {
+      const params = { ...state.advancedParams }
+      const negativePrompts = [
+        params.negativePrompt,
+        activePreset?.negativePrompt,
+        negativePrompt,
+      ]
+        .map((prompt) => prompt?.trim())
+        .filter((prompt): prompt is string => !!prompt)
 
-    if (negativePrompts.length > 0) {
-      params.negativePrompt = negativePrompts.join(', ')
-    }
-    return Object.keys(params).length > 0 ? params : undefined
-  }, [state.advancedParams, activePreset])
+      if (negativePrompts.length > 0) {
+        params.negativePrompt = negativePrompts.join(', ')
+      }
+      return Object.keys(params).length > 0 ? params : undefined
+    },
+    [state.advancedParams, activePreset],
+  )
 
   // ── Generate handler ──────────────────────────────────────────
   // ── Video input builder ──────────────────────────────────────
@@ -397,8 +400,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         await generate({ mode: 'video', video })
         return
       }
-      const shouldApplyOverrides =
-        !!overrides && state.workflowMode === 'quick'
+      const shouldApplyOverrides = !!overrides && state.workflowMode === 'quick'
       const overrideModel =
         shouldApplyOverrides && overrides.modelId
           ? modelOptions.find((option) => option.modelId === overrides.modelId)

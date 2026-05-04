@@ -1,9 +1,6 @@
 import { z } from 'zod'
 
-import {
-  createApiGetRoute,
-  createApiRoute,
-} from '@/lib/api-route-factory'
+import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
 import { UpdateProfileSchema } from '@/types'
 import type { UpdateProfileResponse } from '@/types'
@@ -50,7 +47,10 @@ function mapProfileError(error: unknown): ApiRequestError {
   )
 }
 
-export const GET = createApiGetRoute<typeof EmptyQuerySchema, NonNullable<UpdateProfileResponse['data']>>({
+export const GET = createApiGetRoute<
+  typeof EmptyQuerySchema,
+  NonNullable<UpdateProfileResponse['data']>
+>({
   schema: EmptyQuerySchema,
   routeName: 'GET /api/users/me/profile',
   requireAuth: true,
@@ -85,7 +85,10 @@ export const GET = createApiGetRoute<typeof EmptyQuerySchema, NonNullable<Update
   },
 })
 
-export const PUT = createApiRoute<typeof UpdateProfileSchema, NonNullable<UpdateProfileResponse['data']>>({
+export const PUT = createApiRoute<
+  typeof UpdateProfileSchema,
+  NonNullable<UpdateProfileResponse['data']>
+>({
   schema: UpdateProfileSchema,
   routeName: 'PUT /api/users/me/profile',
   handler: async (clerkId, data) => {

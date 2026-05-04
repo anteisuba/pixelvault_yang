@@ -20,7 +20,9 @@ export async function POST() {
       data: { avatarUrl: user?.avatarUrl ?? null },
     })
   } catch (error) {
-    logger.error('[API /api/users/me/avatar-sync] Error', { error: error instanceof Error ? error.message : String(error) })
+    logger.error('[API /api/users/me/avatar-sync] Error', {
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { success: false, error: 'Failed to sync avatar' },
       { status: 500 },

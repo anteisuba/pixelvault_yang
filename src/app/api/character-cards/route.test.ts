@@ -32,7 +32,9 @@ const FAKE_CHARACTER_CARD = {
   description: null,
   sourceImageUrl: 'https://example.com/mira.png',
   sourceImages: ['https://example.com/mira.png'],
-  sourceImageEntries: [{ url: 'https://example.com/mira.png', viewType: 'front' }],
+  sourceImageEntries: [
+    { url: 'https://example.com/mira.png', viewType: 'front' },
+  ],
   characterPrompt: 'silver hair, blue eyes',
   modelPrompts: null,
   referenceImages: null,

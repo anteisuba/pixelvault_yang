@@ -106,7 +106,9 @@ describe('POST /api/collections', () => {
   })
 
   it('returns 422 when the collection limit is exceeded', async () => {
-    mockCreateCollection.mockRejectedValue(new Error('MAX_COLLECTIONS_EXCEEDED'))
+    mockCreateCollection.mockRejectedValue(
+      new Error('MAX_COLLECTIONS_EXCEEDED'),
+    )
 
     const res = await POST(createPOST('/api/collections', VALID_BODY))
     const body = await parseJSON<{ success: boolean; error: string }>(res)

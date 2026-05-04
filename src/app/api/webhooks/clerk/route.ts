@@ -81,7 +81,8 @@ export async function POST(request: Request) {
     logger.info('User created via Clerk webhook', { clerkId: id })
   } else if (event.type === 'user.updated') {
     const { id, first_name, last_name, image_url, username } = event.data
-    const displayName = [first_name, last_name].filter(Boolean).join(' ') || null
+    const displayName =
+      [first_name, last_name].filter(Boolean).join(' ') || null
 
     await syncUserFromClerk(id, {
       displayName,

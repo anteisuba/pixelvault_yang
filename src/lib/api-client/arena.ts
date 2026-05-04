@@ -180,7 +180,10 @@ export async function getArenaPersonalStatsAPI(): Promise<ArenaPersonalStatsResp
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to fetch personal stats'),
+        error: await getErrorMessage(
+          response,
+          'Failed to fetch personal stats',
+        ),
       }
     }
     return await response.json()

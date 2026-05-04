@@ -19,9 +19,7 @@ import {
   uploadToR2,
   fetchAsBuffer,
 } from '@/services/storage/r2'
-import {
-  createApiUsageEntry,
-} from '@/services/usage.service'
+import { createApiUsageEntry } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import {
   GenerateImageServiceError,

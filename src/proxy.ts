@@ -30,7 +30,8 @@ const isDev = process.env.NODE_ENV === 'development'
 function resolveLocale(pathname: string) {
   return (
     LOCALES.find(
-      (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+      (locale) =>
+        pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
     ) ?? DEFAULT_LOCALE
   )
 }
@@ -55,7 +56,8 @@ export default clerkMiddleware(
 
     const response = handleI18nRouting(request)
     const hasLocalePrefix = LOCALES.some(
-      (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+      (locale) =>
+        pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
     )
 
     if (!hasLocalePrefix) {

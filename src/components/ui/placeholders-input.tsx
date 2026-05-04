@@ -1,12 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+} from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Search } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-interface PlaceholdersInputProps extends Omit<ComponentPropsWithoutRef<'input'>, 'onChange'> {
+interface PlaceholdersInputProps extends Omit<
+  ComponentPropsWithoutRef<'input'>,
+  'onChange'
+> {
   placeholders: string[]
   value: string
   onChange: (value: string) => void

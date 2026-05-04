@@ -3,10 +3,7 @@ import 'server-only'
 import { inflateRawSync } from 'node:zlib'
 import sharp from 'sharp'
 
-import {
-  API_USAGE,
-  AI_PROVIDER_ENDPOINTS,
-} from '@/constants/config'
+import { API_USAGE, AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 

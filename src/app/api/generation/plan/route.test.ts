@@ -26,8 +26,7 @@ vi.mock('@/services/model-router.service', () => ({
 }))
 
 vi.mock('@/services/arena.service', () => ({
-  getModelWinRatesByTask: (...args: unknown[]) =>
-    mockGetModelWinRates(...args),
+  getModelWinRatesByTask: (...args: unknown[]) => mockGetModelWinRates(...args),
 }))
 
 vi.mock('@/services/prompt-compiler.service', () => ({

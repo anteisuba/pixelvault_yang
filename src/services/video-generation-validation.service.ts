@@ -87,7 +87,11 @@ export function validateVideoGenerationInput({
     )
   }
 
-  if (!resolution || duration == null || !capabilities.resolutionDurationMatrix) {
+  if (
+    !resolution ||
+    duration == null ||
+    !capabilities.resolutionDurationMatrix
+  ) {
     return
   }
 

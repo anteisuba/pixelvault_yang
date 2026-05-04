@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-import {
-  createGET,
-  mockUnauthenticated,
-  parseJSON,
-} from '@/test/api-helpers'
+import { createGET, mockUnauthenticated, parseJSON } from '@/test/api-helpers'
 
 vi.mock('@/services/arena.service', () => ({
   getModelWinRatesByTask: vi.fn(),

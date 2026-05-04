@@ -122,9 +122,7 @@ describe('i18n completeness', () => {
       const prompt = steps.prompt
       expect(isRecord(prompt)).toBe(true)
       if (!isRecord(prompt)) {
-        throw new Error(
-          `Onboarding.steps.prompt missing in ${locale}.json`,
-        )
+        throw new Error(`Onboarding.steps.prompt missing in ${locale}.json`)
       }
 
       const title = prompt.title

@@ -100,9 +100,7 @@ export function ProfileEditModal({
       if (avatarFile) {
         const avatarRes = await uploadAvatarAPI(avatarFile)
         if (!avatarRes.success) {
-          setError(
-            getApiErrorMessage(tErrors, avatarRes, t('updateFailed')),
-          )
+          setError(getApiErrorMessage(tErrors, avatarRes, t('updateFailed')))
           return
         }
       }

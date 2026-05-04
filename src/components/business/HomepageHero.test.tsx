@@ -76,9 +76,10 @@ describe('HomepageHero', () => {
 
     const links = screen.getAllByRole('link')
     expect(links).toHaveLength(2)
-    expect(
-      screen.getByRole('link', { name: 'Open studio' }),
-    ).toHaveAttribute('href', '/studio')
+    expect(screen.getByRole('link', { name: 'Open studio' })).toHaveAttribute(
+      'href',
+      '/studio',
+    )
     expect(
       screen.getByRole('link', { name: 'Browse gallery' }),
     ).toHaveAttribute('href', '/gallery')

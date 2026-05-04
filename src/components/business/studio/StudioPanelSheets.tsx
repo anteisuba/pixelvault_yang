@@ -233,10 +233,7 @@ export const StudioPanelSheets = memo(function StudioPanelSheets() {
           if (!open) closePanel('keepChange')
         }}
       >
-        <SheetContent
-          side="bottom"
-          className="max-h-[70vh] flex flex-col"
-        >
+        <SheetContent side="bottom" className="max-h-[70vh] flex flex-col">
           <SheetHeader>
             <SheetTitle className="font-display">
               {tPanels('keepChange')}

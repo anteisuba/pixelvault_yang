@@ -155,9 +155,13 @@ describe('PUT /api/collections/[id]', () => {
 
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
-    expect(mockUpdateCollection).toHaveBeenCalledWith(COLLECTION_ID, FAKE_DB_USER.id, {
-      name: 'Updated',
-    })
+    expect(mockUpdateCollection).toHaveBeenCalledWith(
+      COLLECTION_ID,
+      FAKE_DB_USER.id,
+      {
+        name: 'Updated',
+      },
+    )
   })
 })
 

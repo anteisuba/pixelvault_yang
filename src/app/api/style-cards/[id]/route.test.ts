@@ -132,9 +132,6 @@ describe('DELETE /api/style-cards/[id]', () => {
 
     expect(res.status).toBe(200)
     expect(body).toEqual({ success: true, data: null })
-    expect(mockDeleteStyleCard).toHaveBeenCalledWith(
-      'clerk_test_user',
-      CARD_ID,
-    )
+    expect(mockDeleteStyleCard).toHaveBeenCalledWith('clerk_test_user', CARD_ID)
   })
 })

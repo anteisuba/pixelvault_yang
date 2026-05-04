@@ -11,7 +11,9 @@ function getEncryptionKey(): Buffer {
   }
   const keyBuffer = Buffer.from(secret, 'hex')
   if (keyBuffer.length !== 32) {
-    throw new Error('API_KEY_ENCRYPTION_SECRET must be a 32-byte hex string (64 hex chars)')
+    throw new Error(
+      'API_KEY_ENCRYPTION_SECRET must be a 32-byte hex string (64 hex chars)',
+    )
   }
   return keyBuffer
 }
@@ -51,6 +53,9 @@ export function decryptApiKey(encrypted: string): string {
   const decipher = createDecipheriv(ALGORITHM, key, iv)
   decipher.setAuthTag(authTag)
 
-  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+  const decrypted = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ])
   return decrypted.toString('utf8')
 }

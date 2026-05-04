@@ -20,7 +20,10 @@ const SourceImageEntriesSchema = z.array(SourceImageEntrySchema)
 const NullableLorasSchema = z.array(LoraSchema).max(5).nullable()
 
 type JsonPrimitive = string | number | boolean | null
-type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue | undefined }
+type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue | undefined }
 
 export interface DbCharacterCardRow {
   id: string
@@ -61,7 +64,9 @@ function toPrismaJson<T extends JsonValue>(value: T): Prisma.InputJsonValue {
   return cloneJsonValue(value) as Prisma.InputJsonValue
 }
 
-export function mapCharacterCardRow(row: DbCharacterCardRow): CharacterCardRecord {
+export function mapCharacterCardRow(
+  row: DbCharacterCardRow,
+): CharacterCardRecord {
   return {
     id: row.id,
     name: row.name,

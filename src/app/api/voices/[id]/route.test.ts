@@ -27,10 +27,7 @@ vi.mock('@/services/fish-audio-voice.service', () => ({
 import { GET, DELETE } from './route'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
-import {
-  getVoice,
-  deleteVoice,
-} from '@/services/fish-audio-voice.service'
+import { getVoice, deleteVoice } from '@/services/fish-audio-voice.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockFindActiveKeyForAdapter = vi.mocked(findActiveKeyForAdapter)

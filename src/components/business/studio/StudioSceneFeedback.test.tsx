@@ -35,4 +35,28 @@ describe('StudioSceneFeedback', () => {
 
     expect(onAction).toHaveBeenCalledWith('continue_from_last_frame')
   })
+
+  it('disables coming soon actions', () => {
+    const onAction = vi.fn()
+    render(
+      <StudioSceneFeedback
+        sceneIndex={1}
+        onAction={onAction}
+        disabledActions={['extend_scene', 'continue_from_last_frame']}
+      />,
+    )
+
+    const extendButton = screen.getByRole('button', { name: 'extendScene' })
+    const continueButton = screen.getByRole('button', {
+      name: 'continueFromLastFrame',
+    })
+
+    expect(extendButton).toBeDisabled()
+    expect(extendButton).toHaveAttribute('title', 'comingSoon')
+    expect(continueButton).toBeDisabled()
+
+    fireEvent.click(extendButton)
+
+    expect(onAction).not.toHaveBeenCalled()
+  })
 })

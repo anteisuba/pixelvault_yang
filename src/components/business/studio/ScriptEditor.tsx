@@ -53,6 +53,7 @@ interface ScriptEditorProps {
   onDelete: () => Promise<boolean>
   onRegenerate: () => void
   sceneStatus?: SceneOrchestratorStatus | null
+  sceneError?: string | null
   isSceneBusy?: boolean
   onAdvanceScene?: () => void
   onRetryScene?: (sceneIndex: number) => void
@@ -76,6 +77,7 @@ export function ScriptEditor({
   onDelete,
   onRegenerate,
   sceneStatus = null,
+  sceneError = null,
   isSceneBusy = false,
   onAdvanceScene,
   onRetryScene,
@@ -253,6 +255,7 @@ export function ScriptEditor({
       {isConfirmed && sceneStatus && onAdvanceScene && onRetryScene && (
         <StudioSceneProgress
           status={sceneStatus}
+          error={sceneError}
           onAdvance={() => {
             if (!isSceneBusy) onAdvanceScene()
           }}
@@ -275,6 +278,7 @@ export function ScriptEditor({
               <StudioSceneFeedback
                 sceneIndex={scene.index}
                 onAction={(action) => onSceneFeedback(scene.index, action)}
+                disabledActions={['extend_scene', 'continue_from_last_frame']}
               />
             </div>
           ))}

@@ -2146,7 +2146,8 @@
     "keepStyle": "保持风格",
     "keepContinuity": "保持镜头连续",
     "extendScene": "延长这一段",
-    "continueFromLastFrame": "从最后帧继续"
+    "continueFromLastFrame": "从最后帧继续",
+    "comingSoon": "即将推出"
   },
   "StudioResultFeedback": {
     "satisfied": "满意",

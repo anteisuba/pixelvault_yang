@@ -113,4 +113,17 @@ describe('StudioSceneProgress', () => {
 
     expect(screen.getByRole('button', { name: /complete/i })).toBeDisabled()
   })
+
+  it('renders orchestration errors', () => {
+    render(
+      <StudioSceneProgress
+        status={makeStatus()}
+        error="Failed to advance scene"
+        onAdvance={vi.fn()}
+        onRetryScene={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Failed to advance scene')).toBeInTheDocument()
+  })
 })

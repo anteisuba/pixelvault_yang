@@ -2146,7 +2146,8 @@
     "keepStyle": "スタイルを維持",
     "keepContinuity": "連続性を維持",
     "extendScene": "このシーンを延長",
-    "continueFromLastFrame": "最後のフレームから続ける"
+    "continueFromLastFrame": "最後のフレームから続ける",
+    "comingSoon": "近日公開"
   },
   "StudioResultFeedback": {
     "satisfied": "満足",

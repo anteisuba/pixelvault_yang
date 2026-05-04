@@ -11,6 +11,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { ErrorAlert } from '@/components/ui/error-alert'
 import { Progress } from '@/components/ui/progress'
 import { VideoScriptSceneStatus } from '@/lib/generated/prisma/enums'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ import type { SceneOrchestratorStatus } from '@/types/video-script'
 
 interface StudioSceneProgressProps {
   status: SceneOrchestratorStatus
+  error?: string | null
   onAdvance: () => void
   onRetryScene: (sceneIndex: number) => void
 }
@@ -64,6 +66,7 @@ function isComplete(status: SceneOrchestratorStatus): boolean {
 
 export const StudioSceneProgress = memo(function StudioSceneProgress({
   status,
+  error = null,
   onAdvance,
   onRetryScene,
 }: StudioSceneProgressProps) {
@@ -95,6 +98,12 @@ export const StudioSceneProgress = memo(function StudioSceneProgress({
       </div>
 
       <Progress value={status.progress} className="mb-4 h-1.5" />
+
+      {error && (
+        <div className="mb-4">
+          <ErrorAlert message={error} />
+        </div>
+      )}
 
       <ol className="flex flex-col gap-2">
         {status.scenes.map((scene) => {

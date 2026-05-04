@@ -47,6 +47,7 @@ export function StudioScriptPanel({ className }: StudioScriptPanelProps) {
     isStarting,
     isAdvancing,
     isRetrying,
+    error: sceneError,
     start,
     advance,
     retry,
@@ -133,6 +134,7 @@ export function StudioScriptPanel({ className }: StudioScriptPanelProps) {
           onDelete={handleRemove}
           onRegenerate={handleRegenerate}
           sceneStatus={sceneStatus}
+          sceneError={sceneError}
           isSceneBusy={
             isLoadingSceneStatus || isStarting || isAdvancing || isRetrying
           }

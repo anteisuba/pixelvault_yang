@@ -2146,7 +2146,8 @@
     "keepStyle": "Keep style",
     "keepContinuity": "Keep continuity",
     "extendScene": "Extend this scene",
-    "continueFromLastFrame": "Continue from last frame"
+    "continueFromLastFrame": "Continue from last frame",
+    "comingSoon": "Coming soon"
   },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",

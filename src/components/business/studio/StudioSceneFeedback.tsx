@@ -5,6 +5,7 @@ import { ArrowRight, Link2, Palette, Plus, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 export type SceneFeedbackAction =
   | 'keep_character'
@@ -16,6 +17,7 @@ export type SceneFeedbackAction =
 interface StudioSceneFeedbackProps {
   sceneIndex: number
   onAction: (action: SceneFeedbackAction) => void
+  disabledActions?: SceneFeedbackAction[]
 }
 
 const SCENE_FEEDBACK_OPTIONS: Array<{
@@ -37,6 +39,7 @@ const SCENE_FEEDBACK_OPTIONS: Array<{
 export const StudioSceneFeedback = memo(function StudioSceneFeedback({
   sceneIndex,
   onAction,
+  disabledActions = [],
 }: StudioSceneFeedbackProps) {
   const t = useTranslations('sceneFeedback')
 
@@ -45,19 +48,28 @@ export const StudioSceneFeedback = memo(function StudioSceneFeedback({
       className="flex flex-wrap items-center gap-1.5"
       data-scene-index={sceneIndex}
     >
-      {SCENE_FEEDBACK_OPTIONS.map(({ action, labelKey, icon: Icon }) => (
-        <Button
-          key={action}
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none hover:border-primary/30 hover:text-primary"
-          onClick={() => onAction(action)}
-        >
-          <Icon className="size-3" />
-          {t(labelKey)}
-        </Button>
-      ))}
+      {SCENE_FEEDBACK_OPTIONS.map(({ action, labelKey, icon: Icon }) => {
+        const disabled = disabledActions.includes(action)
+
+        return (
+          <Button
+            key={action}
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            title={disabled ? t('comingSoon') : undefined}
+            className={cn(
+              'h-8 gap-1.5 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none hover:border-primary/30 hover:text-primary',
+              disabled && 'opacity-50',
+            )}
+            onClick={() => onAction(action)}
+          >
+            <Icon className="size-3" />
+            {t(labelKey)}
+          </Button>
+        )
+      })}
     </div>
   )
 })

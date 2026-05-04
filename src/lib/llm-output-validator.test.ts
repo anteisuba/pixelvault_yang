@@ -42,6 +42,49 @@ describe('validateLlmPromptOutput', () => {
     expect(result.usable).toBe(true)
   })
 
+  it('cleans markdown fences from prompt output', () => {
+    const result = validateLlmPromptOutput(
+      '```prompt\n\"cinematic portrait, rim light\"\n```',
+      'portrait',
+    )
+
+    expect(result.usable).toBe(true)
+    expect(result.output).not.toContain('```')
+    expect(result.output).toContain('cinematic portrait, rim light')
+  })
+
+  it('cleans surrounding quotes from plain prompt output', () => {
+    const result = validateLlmPromptOutput(
+      '"cinematic portrait, rim light"',
+      'portrait',
+    )
+
+    expect(result.usable).toBe(true)
+    expect(result.output).toBe('cinematic portrait, rim light')
+  })
+
+  it('strips extractable meta-commentary and keeps the prompt', () => {
+    const result = validateLlmPromptOutput(
+      "Here's the enhanced prompt:\n\ncinematic castle at sunrise, detailed stonework",
+      'castle',
+    )
+
+    expect(result.usable).toBe(true)
+    expect(result.output).toBe(
+      'cinematic castle at sunrise, detailed stonework',
+    )
+    expect(result.warnings).toContain(
+      'Stripped meta-commentary from LLM output',
+    )
+  })
+
+  it('rejects meta-commentary when no prompt can be extracted', () => {
+    const result = validateLlmPromptOutput('Sure, I can help with that.', 'cat')
+
+    expect(result.usable).toBe(false)
+    expect(result.reason).toMatch(/meta-commentary/i)
+  })
+
   it('adds warning when enhanced is significantly shorter than original', () => {
     const result = validateLlmPromptOutput(
       'cat',
@@ -82,6 +125,24 @@ describe('validateRecipeFusion', () => {
     )
     expect(result.usable).toBe(false)
     expect(result.reason).toMatch(/character identity/i)
+  })
+
+  it('warns but accepts low character keyword retention above the hard floor', () => {
+    const result = validateRecipeFusion('blue hero in a neon alley', {
+      characterPrompt: 'blue hero silver armor lunar crest',
+    })
+
+    expect(result.usable).toBe(true)
+    expect(result.warnings).toEqual(['Low character keyword retention: 33%'])
+  })
+
+  it('truncates overly long fusion output and adds warning', () => {
+    const result = validateRecipeFusion('painted scene '.repeat(1000), {
+      stylePrompt: 'oil painting',
+    })
+
+    expect(result.usable).toBe(true)
+    expect(result.warnings).toContain('Fused prompt truncated to max length')
   })
 
   it('returns usable=false for system prompt leakage in fusion', () => {

@@ -13,11 +13,11 @@ You are working on **Personal AI Gallery**.
 
 This is a production-oriented web application for:
 
-- multi-model AI image generation
+- multi-model AI image / video / audio generation
 - permanent archive/storage
 - user authentication
-- credit-based generation
-- future public gallery and profile pages
+- BYOK and credit / free-tier based generation
+- public gallery, creator profile, arena, storyboard, collections, and social flows
 - multilingual UI
 
 Your job is not just to "make code work".
@@ -64,25 +64,93 @@ A platform that allows users to:
 
 ## Main Stack
 
-- **Framework**: Next.js 16
+- **Framework**: Next.js 16.2.4
 - **Routing**: App Router
 - **Build**: Turbopack
-- **Language**: TypeScript
+- **Language**: TypeScript 5
+- **Runtime target**: Node 22.x
 - **Styling**: Tailwind CSS + shadcn/ui
 - **Auth**: Clerk
 - **Database**: PostgreSQL (Neon)
-- **ORM**: Prisma 7
+- **ORM**: Prisma 7.7.0
 - **Prisma Adapter**: PrismaPg Driver Adapter
 - **Storage**: Cloudflare R2
 - **AI Providers**:
   - HuggingFace Inference API
   - Google Gemini API
+  - OpenAI Images API
+  - FAL
+  - Replicate
+  - NovelAI
+  - VolcEngine
+  - Fish Audio
 
 ## Supported Models
 
-- Stable Diffusion XL
-- Animagine XL 4.0
-- Gemini 3.1 Flash Image
+The source of truth is `src/constants/models.ts`.
+
+Current catalog:
+
+- 45 `MODEL_OPTIONS` entries: 27 image, 16 video, 2 audio
+- 38 available model entries and 7 retired entries
+- 2 legacy aliases in `MODEL_ID_ALIASES`, so 47 model identifiers are recognized by normalization
+
+Available image models:
+
+- `gpt-image-2`
+- `gemini-3-pro-image-preview`
+- `flux-2-pro`
+- `seedream-4.5`
+- `seedream-5.0-lite`
+- `seedream-4.0`
+- `ideogram-3`
+- `gemini-3.1-flash-image-preview`
+- `flux-2-dev`
+- `flux-2-schnell`
+- `flux-lora`
+- `illustrious-xl`
+- `sd-3.5-large`
+- `animagine-xl-4.0`
+- `nai-diffusion-4-5-full`
+- `nai-diffusion-4-5-curated`
+- `nai-diffusion-4-full`
+- `sdxl`
+- `flux-2-max`
+- `recraft-v4-pro`
+- `flux-kontext-pro`
+- `flux-kontext-max`
+
+Available video models:
+
+- `kling-v3-pro`
+- `veo-3.1`
+- `seedance-2.0`
+- `seedance-2.0-fast`
+- `seedance-2.0-volc`
+- `seedance-2.0-fast-volc`
+- `seedance-1.5-pro`
+- `minimax-video`
+- `luma-ray-2`
+- `pika-v2.5`
+- `kling-video`
+- `runway-gen3`
+- `wan-video`
+- `hunyuan-video`
+
+Available audio models:
+
+- `fish-audio-s2-pro`
+- `fal-f5-tts`
+
+Retired model entries kept for compatibility:
+
+- `seedream-3.0`
+- `recraft-v3`
+- `nai-diffusion-3`
+- `playground-v2.5`
+- `gemini-2.5-flash-image`
+- `seedance-pro`
+- `seedance-1.0-pro`
 
 ---
 
@@ -1070,165 +1138,203 @@ service logic changes
 Do not mix unrelated categories into one chaotic patch unless the task truly demands it.
 
 26. Current Known Directory Structure
-    src/
-    ├── app/
-    │ ├── layout.tsx
-    │ ├── page.tsx
-    │ ├── [locale]/
-    │ │ ├── layout.tsx
-    │ │ ├── (auth)/
-    │ │ │ ├── sign-in/[[...sign-in]]/page.tsx
-    │ │ │ └── sign-up/[[...sign-up]]/page.tsx
-    │ │ └── (main)/
-    │ │ ├── layout.tsx
-    │ │ └── studio/page.tsx
-    │ └── api/
-    │ ├── generate/route.ts
-    │ ├── credits/route.ts
-    │ └── webhooks/clerk/route.ts
-    │
-    ├── components/
-    │ ├── ui/
-    │ ├── business/
-    │ │ ├── GenerateForm.tsx
-    │ │ └── ModelSelector.tsx
-    │ └── layout/
-    │ └── Navbar.tsx
-    │
-    ├── hooks/
-    │ ├── use-generate.ts
-    │ └── use-credits.ts
-    │
-    ├── services/
-    │ ├── generation.service.ts
-    │ ├── user.service.ts
-    │ └── storage/
-    │ └── r2.ts
-    │
-    ├── lib/
-    │ ├── db.ts
-    │ ├── api-client.ts
-    │ ├── utils.ts
-    │ └── generated/prisma/
-    │
-    ├── constants/
-    │ ├── models.ts
-    │ ├── routes.ts
-    │ └── config.ts
-    │
-    ├── types/
-    │ └── index.ts
-    │
-    └── middleware.ts
+
+Current high-level structure:
+
+```text
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── global-error.tsx
+│   ├── [locale]/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   ├── (auth)/sign-in/[[...sign-in]]/page.tsx
+│   │   ├── (auth)/sign-up/[[...sign-up]]/page.tsx
+│   │   └── (main)/
+│   │       ├── layout.tsx
+│   │       ├── studio/page.tsx
+│   │       ├── gallery/page.tsx
+│   │       ├── gallery/[id]/page.tsx
+│   │       ├── profile/page.tsx
+│   │       ├── u/[username]/page.tsx
+│   │       ├── arena/page.tsx
+│   │       ├── arena/history/page.tsx
+│   │       ├── arena/leaderboard/page.tsx
+│   │       ├── storyboard/page.tsx
+│   │       └── storyboard/[id]/page.tsx
+│   └── api/                       # 89 route.ts files
+├── components/
+│   ├── ui/                        # shadcn/Radix primitives
+│   ├── business/                  # domain-aware UI orchestration
+│   └── layout/                    # Navbar, MobileTabBar, providers
+├── constants/
+│   ├── models.ts                  # AI_MODELS + MODEL_OPTIONS
+│   ├── providers.ts               # AI_ADAPTER_TYPES
+│   ├── workflows.ts               # Balanced 8 workflow shell
+│   ├── routes.ts
+│   ├── config.ts
+│   ├── execution.ts
+│   └── domain option/config files
+├── contexts/
+│   ├── studio-context.tsx
+│   └── api-keys-context.tsx
+├── hooks/                         # 49 use-* hook files
+│   ├── use-unified-generate.ts
+│   ├── use-gallery.ts
+│   ├── use-my-profile.ts
+│   ├── use-arena.ts
+│   ├── use-storyboard.ts
+│   └── domain interaction hooks
+├── i18n/
+├── lib/
+│   ├── api-client.ts
+│   ├── api-client/
+│   ├── api-route-factory.ts
+│   ├── db.ts
+│   ├── logger.ts
+│   ├── with-retry.ts
+│   ├── circuit-breaker.ts
+│   ├── prompt-guard.ts
+│   ├── llm-output-validator.ts
+│   ├── signature-verifiers/
+│   └── generated/prisma/
+├── messages/                      # en / ja / zh next-intl messages
+├── services/                      # 46 service files
+│   ├── providers/                 # 8 provider adapters
+│   ├── storage/r2.ts
+│   ├── generation.service.ts
+│   ├── studio-generate.service.ts
+│   ├── generate-image.service.ts
+│   ├── generate-video.service.ts
+│   ├── generate-audio.service.ts
+│   ├── video-pipeline.service.ts
+│   ├── user.service.ts
+│   └── domain services
+├── test/
+├── types/
+│   └── index.ts
+└── proxy.ts
+```
 
 This structure may evolve, but Codex should preserve the same architectural direction.
 
 27. Current Missing / Planned Areas
 
-The following are known planned or incomplete areas:
+The old MVP gaps `gallery/page.tsx`, `profile/page.tsx`, `ImageCard.tsx`, `GalleryGrid.tsx`, `MobileTabBar.tsx`, and `use-gallery.ts` are now implemented.
 
-gallery/page.tsx
+Known current incomplete or planned areas:
 
-profile/page.tsx
-
-ImageCard.tsx
-
-GalleryGrid.tsx
-
-MobileTabBar.tsx
-
-use-gallery.ts
+- service tests remain missing for 11 service files, including `studio-generate.service.ts`, `arena.service.ts`, `lora-training.service.ts`, `prompt-enhance.service.ts`, and several LLM / media helpers
+- hook tests remain low coverage: 4 tested hook files out of 49 `use-*` hook files
+- 25 API route files still lack direct `route.test.ts` coverage
+- image-transform `background` / `garment` / `detail` dimensions are schema-reserved but not implemented
+- LoRA training APIs and hooks exist, but `/studio` does not expose LoRA training as a first-class workflow
+- long-video pipeline recovery semantics are not finalized
+- requestCount / credits wording still needs semantic cleanup before monetization
 
 When implementing these, follow all layering, UI, and i18n rules in this file.
 
 28. Current Development Status
-    Phase 1: MVP core generation
 
-Completed
+The project is beyond the early MVP stage.
 
-Phase 2: persistence (Prisma + R2)
+Completed or shipped:
 
-Completed
+- multi-provider image generation
+- video generation and long-video pipeline foundation
+- audio generation
+- persistent R2 storage
+- Clerk auth and webhook sync
+- BYOK API key management
+- free-tier / usage ledger infrastructure
+- protected routes and server-owned auth checks
+- gallery, generation detail page, profile, creator profile, arena, storyboard, collections, follows, and likes
+- workflow-first Studio shell with Balanced 8 workflows
 
-Phase 3: user system + credits
+Still in progress:
 
-Mostly completed
-
-Clerk sign-in/sign-up
-
-Clerk webhook sync
-
-credits logic on server
-
-route protection
-
-credits API
-
-Still incomplete:
-
-gallery page
-
-profile page
-
-Phase 4: UI refinement + gallery + deployment
-
-In progress
+- generation pipeline unification across image / video / audio
+- long-running server-owned execution beyond the current worker-covered slice
+- service and hook test coverage expansion
+- UI loading/error boundary consistency on nested pages
+- production monetization semantics for credits vs requestCount
 
 29. Data Model Snapshot
-    User
 
-id (UUID)
+Primary Prisma models currently include:
 
-clerkId
-
-email
-
-credits
-
-generations[]
-
-Generation
-
-id (UUID)
-
-outputType
-
-status
-
-url
-
-storageKey
-
-mimeType
-
-width
-
-height
-
-duration
-
-prompt
-
-negativePrompt
-
-model
-
-provider
-
-creditsCost
-
-isPublic
-
-userId
+- `User`: Clerk-linked account, public profile fields, request/credit state, and relations
+- `UserApiKey`: encrypted BYOK provider credentials
+- `Generation`: generated image/video/audio metadata and archive references
+- `GenerationJob`: durable async generation job state
+- `ApiUsageLedger`: request usage and accounting entries
+- `ArenaMatch` / `ArenaEntry`: model comparison and voting
+- `CharacterCard` / `GenerationCharacterCard`: character recipe assets and generation links
+- `BackgroundCard` / `StyleCard`: reusable prompt card assets
+- `UserLike` / `UserFollow`: social relationships
+- `Collection` / `CollectionItem`: user-created galleries
+- `VideoPipeline` / `VideoPipelineClip`: long-video pipeline state
 
 Do not assume this snapshot authorizes schema changes.
 It is documentation, not permission for casual DB drift.
 
 30. Model Catalog Snapshot
-    Model ID Name Credits Provider
-    sdxl Stable Diffusion XL 1 HuggingFace
-    animagine-xl-4.0 Animagine XL 4.0 1 HuggingFace
-    gemini-3.1-flash-image-preview Gemini 3.1 Flash Image 2 Google
+
+The source of truth is always `src/constants/models.ts`. Current `MODEL_OPTIONS` entries:
+
+| Model ID                         | Output | Provider    | Credits | Status    |
+| -------------------------------- | ------ | ----------- | ------- | --------- |
+| `gpt-image-2`                    | image  | OpenAI      | 3       | available |
+| `gemini-3-pro-image-preview`     | image  | Gemini      | 3       | available |
+| `flux-2-pro`                     | image  | FAL         | 2       | available |
+| `seedream-4.5`                   | image  | FAL         | 2       | available |
+| `seedream-5.0-lite`              | image  | VolcEngine  | 2       | available |
+| `seedream-4.0`                   | image  | VolcEngine  | 2       | available |
+| `seedream-3.0`                   | image  | VolcEngine  | 1       | retired   |
+| `ideogram-3`                     | image  | FAL         | 2       | available |
+| `recraft-v3`                     | image  | FAL         | 2       | retired   |
+| `gemini-3.1-flash-image-preview` | image  | Gemini      | 2       | available |
+| `flux-2-dev`                     | image  | FAL         | 1       | available |
+| `flux-2-schnell`                 | image  | FAL         | 1       | available |
+| `flux-lora`                      | image  | FAL         | 1       | available |
+| `illustrious-xl`                 | image  | Replicate   | 2       | available |
+| `sd-3.5-large`                   | image  | FAL         | 1       | available |
+| `animagine-xl-4.0`               | image  | HuggingFace | 1       | available |
+| `nai-diffusion-4-5-full`         | image  | NovelAI     | 2       | available |
+| `nai-diffusion-4-5-curated`      | image  | NovelAI     | 2       | available |
+| `nai-diffusion-4-full`           | image  | NovelAI     | 1       | available |
+| `nai-diffusion-3`                | image  | NovelAI     | 1       | retired   |
+| `sdxl`                           | image  | HuggingFace | 1       | available |
+| `playground-v2.5`                | image  | HuggingFace | 1       | retired   |
+| `gemini-2.5-flash-image`         | image  | Gemini      | 1       | retired   |
+| `flux-2-max`                     | image  | FAL         | 3       | available |
+| `recraft-v4-pro`                 | image  | FAL         | 2       | available |
+| `flux-kontext-pro`               | image  | FAL         | 2       | available |
+| `flux-kontext-max`               | image  | FAL         | 3       | available |
+| `kling-v3-pro`                   | video  | FAL         | 6       | available |
+| `veo-3.1`                        | video  | FAL         | 8       | available |
+| `seedance-2.0`                   | video  | FAL         | 6       | available |
+| `seedance-2.0-fast`              | video  | FAL         | 4       | available |
+| `seedance-2.0-volc`              | video  | VolcEngine  | 5       | available |
+| `seedance-2.0-fast-volc`         | video  | VolcEngine  | 3       | available |
+| `seedance-pro`                   | video  | FAL         | 4       | retired   |
+| `seedance-1.5-pro`               | video  | VolcEngine  | 5       | available |
+| `seedance-1.0-pro`               | video  | VolcEngine  | 4       | retired   |
+| `minimax-video`                  | video  | FAL         | 3       | available |
+| `luma-ray-2`                     | video  | FAL         | 4       | available |
+| `pika-v2.5`                      | video  | FAL         | 3       | available |
+| `kling-video`                    | video  | FAL         | 5       | available |
+| `runway-gen3`                    | video  | FAL         | 5       | available |
+| `wan-video`                      | video  | FAL         | 2       | available |
+| `hunyuan-video`                  | video  | FAL         | 3       | available |
+| `fish-audio-s2-pro`              | audio  | Fish Audio  | 2       | available |
+| `fal-f5-tts`                     | audio  | FAL         | 1       | available |
+
+Legacy aliases:
+
+- `veo-3` → `veo-3.1`
+- `pika-v2.2` → `pika-v2.5`
 
 Always confirm existing constants before editing model-related logic.
 

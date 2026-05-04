@@ -1,6 +1,6 @@
 # Current Status Audit
 
-> Last updated: 2026-04-28
+> Last updated: 2026-05-03
 > This file replaces the older MVP-era audit snapshot.
 
 ## Executive Summary
@@ -82,11 +82,16 @@ The current codebase still has some Studio-adjacent partial areas:
 
 ## Known Issues (carried forward)
 
-- ⚠️ `Cmd/Ctrl + K` is double-bound (command palette + prompt focus). Documented since 2026-04-13, not yet resolved.
+> Last verified: 2026-05-03 (code-level verification)
+
 - ⚠️ Workflow-shell **Phase 6 polish** (mobile real-device smoke + workflow→workflowMode override semantics) is not done. Phase 1-5 verdict: Pass on `studio-workflow-shell.md`.
-- ⚠️ `requestCount` / `credits` semantic drift in frontend copy vs. backend. Free-tier model is `FREE_TIER + requestCount`, not `User.credits` balance. Resolution required before Phase E (monetization).
-- ⚠️ 240s `maxDuration` is insufficient for some video providers; long-video pipeline lacks formal recovery points. Worker execution path mitigates this for the `CINEMATIC_SHORT_VIDEO` + FAL slice, but other paths remain on the inline timeout.
-- ⚠️ in-memory rate limiter has not been upgraded to durable shared infrastructure (roadmap Phase G).
+- ⚠️ `requestCount` / `credits` semantic drift in frontend i18n keys (`creditCount`, `creditsLabel`) vs. backend `requestCount`. 15 files affected. Resolution required before Phase E (monetization).
+- ⚠️ Non-Worker video paths are constrained by 240s `maxDuration`. Worker execution path mitigates this for `CINEMATIC_SHORT_VIDEO` + FAL; other video workflows still run inline.
+
+### Resolved (removed from tracking)
+
+- ~~`Cmd/Ctrl + K` double-bound~~ — Verified 2026-05-03: only one binding exists (`StudioCommandPalette.tsx:46`). No conflict.
+- ~~in-memory rate limiter~~ — Verified 2026-05-03: Upstash Redis distributed rate limiter is implemented (`src/lib/rate-limit.ts`) with in-memory fallback only when Redis is unavailable.
 
 ## Recent Implementation Highlights (2026-04-13 → 2026-04-28)
 
@@ -132,8 +137,8 @@ The current codebase still has some Studio-adjacent partial areas:
 
 ### Quality and testing status
 
-- 158 test files; 8 provider adapters all have unit tests; image-edit / R2 / usage / free-tier-boundary all covered
-- 14 services still without unit tests (high-priority list: `user.service`, `generation.service`, `studio-generate.service`, `arena.service`, `lora-training.service`, `prompt-enhance.service`, `civitai-token.service`, `video-pipeline.service`, `image-analysis.service`, `image-decompose.service`, `fish-audio-voice.service`, `execution-outbox.service`, `generation-feedback.service`, `character-refine.service`)
+- 161 test files; 1060 Vitest cases via static parse; 64/89 API routes have direct route tests; 35/46 service files have direct same-name service tests; 8 provider adapters all have unit tests; image-edit / R2 / usage / free-tier-boundary all covered
+- 11 services still without unit tests (high-priority list: `studio-generate.service`, `arena.service`, `lora-training.service`, `prompt-enhance.service`, `civitai-token.service`, `image-analysis.service`, `image-decompose.service`, `fish-audio-voice.service`, `execution-outbox.service`, `generation-feedback.service`, `character-refine.service`)
 - Generation pipeline refactored into 3 composable stages (W4)
 - SEO fundamentals: metadata on all pages, noindex on private pages, robots.txt + sitemap (W7)
 - Design system compliance: no pure white backgrounds, shadow levels standardized, Skeleton component usage unified

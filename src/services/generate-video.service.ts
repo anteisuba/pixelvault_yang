@@ -137,6 +137,13 @@ export async function submitVideoGeneration(
 ): Promise<VideoSubmitResponseData> {
   const dbUser = await ensureUser(clerkId)
 
+  return submitVideoGenerationForUserId(dbUser.id, input)
+}
+
+export async function submitVideoGenerationForUserId(
+  userId: string,
+  input: GenerateVideoRequest,
+): Promise<VideoSubmitResponseData> {
   // Validate prompt
   const promptCheck = validatePrompt(input.prompt)
   if (!promptCheck.valid) {
@@ -155,7 +162,7 @@ export async function submitVideoGeneration(
     resolution: input.resolution,
   })
 
-  const executionRoute = await resolveGenerationRoute(dbUser.id, input)
+  const executionRoute = await resolveGenerationRoute(userId, input)
   const provider = getProviderLabel(executionRoute.providerConfig)
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
 
@@ -175,7 +182,7 @@ export async function submitVideoGeneration(
   ) {
     return submitCinematicShortVideoWorkerRun({
       input,
-      userId: dbUser.id,
+      userId,
       adapterType: executionRoute.adapterType,
       provider,
       modelConfig,
@@ -228,7 +235,7 @@ export async function submitVideoGeneration(
   // Upload reference image to R2 if provided
   let referenceImageUrl: string | undefined
   if (input.referenceImage) {
-    const refKey = generateStorageKey('IMAGE', dbUser.id)
+    const refKey = generateStorageKey('IMAGE', userId)
     const { buffer: refBuffer, mimeType: refMimeType } = await fetchAsBuffer(
       input.referenceImage,
     )
@@ -240,7 +247,7 @@ export async function submitVideoGeneration(
   }
 
   const generationJob = await createGenerationJob({
-    userId: dbUser.id,
+    userId,
     adapterType: executionRoute.adapterType,
     provider,
     modelId: executionRoute.modelId,
@@ -385,12 +392,19 @@ export async function checkVideoGenerationStatus(
 ): Promise<VideoStatusResponseData> {
   const dbUser = await ensureUser(clerkId)
 
+  return checkVideoGenerationStatusForUserId(dbUser.id, jobId)
+}
+
+export async function checkVideoGenerationStatusForUserId(
+  userId: string,
+  jobId: string,
+): Promise<VideoStatusResponseData> {
   const job = await db.generationJob.findUnique({
     where: { id: jobId },
     include: { generation: true },
   })
 
-  if (!job || job.userId !== dbUser.id) {
+  if (!job || job.userId !== userId) {
     throw new GenerateImageServiceError(
       'JOB_NOT_FOUND',
       'Video generation job not found',
@@ -444,7 +458,7 @@ export async function checkVideoGenerationStatus(
     return { jobId: job.id, status: 'IN_PROGRESS' }
   }
 
-  const executionRoute = await resolveGenerationRoute(dbUser.id, {
+  const executionRoute = await resolveGenerationRoute(userId, {
     modelId: job.modelId,
   })
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
@@ -526,7 +540,7 @@ export async function checkVideoGenerationStatus(
   const videoResult = queueStatus.result
 
   const usageEntry = await createApiUsageEntry({
-    userId: dbUser.id,
+    userId,
     generationJobId: job.id,
     adapterType: executionRoute.adapterType,
     provider,
@@ -540,7 +554,7 @@ export async function checkVideoGenerationStatus(
     wasSuccessful: true,
   })
 
-  const storageKey = generateStorageKey('VIDEO', dbUser.id)
+  const storageKey = generateStorageKey('VIDEO', userId)
 
   try {
     const { publicUrl } = await streamUploadToR2({
@@ -563,7 +577,7 @@ export async function checkVideoGenerationStatus(
       provider,
       requestCount: videoResult.requestCount,
       outputType: 'VIDEO',
-      userId: dbUser.id,
+      userId,
       characterCardIds: queueMeta.characterCardIds,
     })
 

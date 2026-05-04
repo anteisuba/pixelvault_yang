@@ -12,6 +12,8 @@
  *   if (!validated.usable) useOriginal(originalPrompt)
  */
 
+import type { z } from 'zod'
+
 import { logger } from '@/lib/logger'
 import { MAX_COMPILED_PROMPT_LENGTH } from '@/lib/prompt-guard'
 
@@ -25,6 +27,13 @@ export interface LlmValidationResult {
   /** Reason for rejection (if not usable) */
   reason?: string
   /** Warning messages (non-blocking) */
+  warnings: string[]
+}
+
+export interface LlmStructuredValidationResult<TData> {
+  usable: boolean
+  data?: TData
+  reason?: string
   warnings: string[]
 }
 
@@ -199,6 +208,31 @@ export function validateRecipeFusion(
   }
 
   return { usable: true, output: cleaned, warnings }
+}
+
+// ─── Structured Output Validation ───────────────────────────────
+
+export function validateLlmStructuredOutput<TSchema extends z.ZodType>(
+  value: unknown,
+  schema: TSchema,
+): LlmStructuredValidationResult<z.infer<TSchema>> {
+  const parsed = schema.safeParse(value)
+
+  if (!parsed.success) {
+    return {
+      usable: false,
+      reason: parsed.error.issues
+        .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+        .join('; '),
+      warnings: [],
+    }
+  }
+
+  return {
+    usable: true,
+    data: parsed.data,
+    warnings: [],
+  }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────

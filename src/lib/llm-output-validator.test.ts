@@ -4,8 +4,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+import { z } from 'zod'
+
 import {
   validateLlmPromptOutput,
+  validateLlmStructuredOutput,
   validateRecipeFusion,
 } from '@/lib/llm-output-validator'
 
@@ -152,5 +155,25 @@ describe('validateRecipeFusion', () => {
     )
     expect(result.usable).toBe(false)
     expect(result.reason).toMatch(/system prompt/i)
+  })
+})
+
+describe('validateLlmStructuredOutput', () => {
+  const Schema = z.object({
+    subject: z.string().min(1),
+  })
+
+  it('returns typed data for schema-valid structured output', () => {
+    const result = validateLlmStructuredOutput({ subject: 'cat' }, Schema)
+
+    expect(result.usable).toBe(true)
+    expect(result.data?.subject).toBe('cat')
+  })
+
+  it('returns unusable result for schema-invalid structured output', () => {
+    const result = validateLlmStructuredOutput({ subject: '' }, Schema)
+
+    expect(result.usable).toBe(false)
+    expect(result.reason).toMatch(/subject/)
   })
 })

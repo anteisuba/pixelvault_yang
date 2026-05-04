@@ -15,7 +15,33 @@ export interface ModelStrength {
   promptStyle: 'natural-language' | 'tag-based'
   /** Hint injected into prompt enhancement system prompt */
   enhanceHint: string
+  /** Static Round-1 routing weights. Values are normalized 0.0-1.0. */
+  routerWeights?: Partial<ModelRouterWeights>
 }
+
+export interface ModelRouterWeights {
+  referenceFit: number
+  costEfficiency: number
+  latency: number
+  health: number
+}
+
+export const DEFAULT_MODEL_ROUTER_WEIGHTS: ModelRouterWeights = {
+  referenceFit: 0.4,
+  costEfficiency: 0.6,
+  latency: 0.6,
+  health: 0.8,
+}
+
+export const MODEL_ROUTER_SCORE_WEIGHTS = {
+  taskFit: 40,
+  styleFit: 30,
+  referenceFit: 12,
+  costEfficiency: 8,
+  latency: 6,
+  health: 4,
+  preferenceBoost: 8,
+} as const
 
 /**
  * Per-adapter fallback hints (shared with recipe-compiler).
@@ -45,60 +71,120 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     promptStyle: 'natural-language',
     enhanceHint:
       'This model excels at photorealism. Use camera terminology (lens, focal length, aperture), lighting setups (golden hour, studio softbox), and film stock references. Avoid anime/cartoon descriptors.',
+    routerWeights: {
+      referenceFit: 0.7,
+      costEfficiency: 0.55,
+      latency: 0.6,
+      health: 0.92,
+    },
   },
   [AI_MODELS.FLUX_2_DEV]: {
     bestFor: ['creative', 'concept', 'artistic'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model is versatile for creative and conceptual imagery. Use vivid descriptive language with emphasis on composition, mood, and artistic direction.',
+    routerWeights: {
+      referenceFit: 0.7,
+      costEfficiency: 0.8,
+      latency: 0.75,
+      health: 0.86,
+    },
   },
   [AI_MODELS.FLUX_2_SCHNELL]: {
     bestFor: ['quick-iteration', 'draft', 'general'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This is a fast model for quick iterations. Keep prompts concise but descriptive. Focus on the key visual elements rather than excessive detail.',
+    routerWeights: {
+      referenceFit: 0.35,
+      costEfficiency: 1,
+      latency: 1,
+      health: 0.82,
+    },
   },
   [AI_MODELS.GEMINI_FLASH_IMAGE]: {
     bestFor: ['general', 'concept', 'text-in-image', 'instruction-following'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model follows complex instructions well. Use rich natural language with detailed scene descriptions, spatial relationships, and specific visual requirements.',
+    routerWeights: {
+      referenceFit: 0.85,
+      costEfficiency: 0.85,
+      latency: 0.9,
+      health: 0.9,
+    },
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     bestFor: ['general', 'concept', 'creative', 'editing'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model handles diverse generation and editing tasks well. Use detailed natural language with explicit composition, visual intent, and image-editing instructions when relevant.',
+    routerWeights: {
+      referenceFit: 0.9,
+      costEfficiency: 0.45,
+      latency: 0.6,
+      health: 0.95,
+    },
   },
   [AI_MODELS.NOVELAI_V4_FULL]: {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
     enhanceHint:
       'This model specializes in anime/illustration. Use danbooru-style tags: quality tags first (masterpiece, best quality), then character features (hair, eyes, clothing), then scene tags. Avoid photographic terminology.',
+    routerWeights: {
+      referenceFit: 0.65,
+      costEfficiency: 0.7,
+      latency: 0.55,
+      health: 0.78,
+    },
   },
   [AI_MODELS.NOVELAI_V45_FULL]: {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
     enhanceHint:
       'Advanced anime model with fine detail. Use danbooru tags with emphasis syntax like (feature:1.3). Quality tags first, then character details, then style and scene tags.',
+    routerWeights: {
+      referenceFit: 0.7,
+      costEfficiency: 0.55,
+      latency: 0.45,
+      health: 0.78,
+    },
   },
   [AI_MODELS.IDEOGRAM_3]: {
     bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model excels at typography and graphic design. When the subject involves text, specify the exact text, font style, and layout. Use design terminology (minimalist, bold, geometric).',
+    routerWeights: {
+      referenceFit: 0.4,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.84,
+    },
   },
   [AI_MODELS.RECRAFT_V4_PRO]: {
     bestFor: ['illustration', 'icon', 'brand', 'vector-style'],
     promptStyle: 'natural-language',
     enhanceHint:
       'This model produces clean, professional illustrations. Use design terminology with emphasis on style consistency, color harmony, and visual hierarchy.',
+    routerWeights: {
+      referenceFit: 0.45,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.84,
+    },
   },
   [AI_MODELS.SEEDREAM_45]: {
     bestFor: ['general', 'cinematic', 'landscape', 'portrait'],
     promptStyle: 'natural-language',
     enhanceHint:
       'Advanced model good at cinematic composition. Use film terminology (wide shot, depth of field), describe lighting mood, and specify color grading references.',
+    routerWeights: {
+      referenceFit: 0.7,
+      costEfficiency: 0.65,
+      latency: 0.7,
+      health: 0.86,
+    },
   },
 }
 

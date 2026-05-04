@@ -1,18 +1,22 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-vi.mock('@/lib/api-client/generation', () => ({
-  fetchGenerationPlanAPI: vi.fn(),
-}))
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { StudioGenerationPlan } from './StudioGenerationPlan'
-import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
+import type { GenerationPlanResponse } from '@/types'
 
-const MOCK_PLAN = {
-  intent: { subject: 'cat' },
+vi.mock('next-intl', () => ({
+  useTranslations:
+    () =>
+    (key: string, values?: Record<string, unknown>): string => {
+      if (key === 'requests') return `${values?.count ?? 0} requests`
+      return key
+    },
+}))
+
+const MOCK_PLAN: GenerationPlanResponse = {
+  intent: {
+    subject: 'cat',
+  },
   recommendedModels: [
     {
       modelId: 'flux-2-pro',
@@ -21,7 +25,7 @@ const MOCK_PLAN = {
       matchedBestFor: ['portrait'],
     },
     {
-      modelId: 'flux-schnell',
+      modelId: 'flux-2-schnell',
       score: 0.7,
       reason: 'Fast generation',
       matchedBestFor: ['general'],
@@ -29,126 +33,81 @@ const MOCK_PLAN = {
   ],
   promptDraft: 'a cute cat sitting on a wooden floor, soft lighting',
   negativePromptDraft: 'blurry, low quality',
-  variationCount: 4,
+  estimatedCost: 2,
+  variationCount: 1,
 }
 
-const mockOnGenerate = vi.fn()
-const mockOnClose = vi.fn()
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
-
 describe('StudioGenerationPlan', () => {
-  it('shows loading state while fetching plan', async () => {
-    ;(fetchGenerationPlanAPI as ReturnType<typeof vi.fn>).mockReturnValue(
-      new Promise(() => {}), // never resolves
-    )
-
+  it('renders plan content with model badges, prompt, and estimated cost', () => {
     render(
       <StudioGenerationPlan
-        open
-        prompt="a cute cat"
-        onGenerate={mockOnGenerate}
-        onClose={mockOnClose}
+        plan={MOCK_PLAN}
+        onConfirm={vi.fn()}
+        onEditPrompt={vi.fn()}
+        onCancel={vi.fn()}
       />,
     )
 
-    expect(screen.getByText('loading')).toBeInTheDocument()
-  })
-
-  it('shows plan data after successful fetch', async () => {
-    ;(fetchGenerationPlanAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
-      success: true,
-      data: MOCK_PLAN,
-    })
-
-    render(
-      <StudioGenerationPlan
-        open
-        prompt="a cute cat"
-        onGenerate={mockOnGenerate}
-        onClose={mockOnClose}
-      />,
-    )
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('a cute cat sitting on a wooden floor, soft lighting'),
-      ).toBeInTheDocument()
-    })
     expect(screen.getByText('flux-2-pro')).toBeInTheDocument()
+    expect(screen.getByText('flux-2-schnell')).toBeInTheDocument()
+    expect(
+      screen.getByDisplayValue(
+        'a cute cat sitting on a wooden floor, soft lighting',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('2 requests')).toBeInTheDocument()
   })
 
-  it('calls onGenerate with selected model and compiled prompt on confirm', async () => {
-    ;(fetchGenerationPlanAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
-      success: true,
-      data: MOCK_PLAN,
-    })
+  it('calls onConfirm from the confirm button', () => {
+    const onConfirm = vi.fn()
 
     render(
       <StudioGenerationPlan
-        open
-        prompt="a cute cat"
-        onGenerate={mockOnGenerate}
-        onClose={mockOnClose}
+        plan={MOCK_PLAN}
+        onConfirm={onConfirm}
+        onEditPrompt={vi.fn()}
+        onCancel={vi.fn()}
       />,
     )
 
-    await waitFor(() => screen.getByText('generateNow'))
-    fireEvent.click(screen.getByText('generateNow'))
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }))
 
-    expect(mockOnGenerate).toHaveBeenCalledWith({
-      modelId: 'flux-2-pro',
-      compiledPrompt: 'a cute cat sitting on a wooden floor, soft lighting',
-      negativePrompt: 'blurry, low quality',
-    })
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onClose on cancel button click', async () => {
-    ;(fetchGenerationPlanAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
-      success: true,
-      data: MOCK_PLAN,
-    })
+  it('calls onCancel from the cancel button', () => {
+    const onCancel = vi.fn()
 
     render(
       <StudioGenerationPlan
-        open
-        prompt="a cute cat"
-        onGenerate={mockOnGenerate}
-        onClose={mockOnClose}
+        plan={MOCK_PLAN}
+        onConfirm={vi.fn()}
+        onEditPrompt={vi.fn()}
+        onCancel={onCancel}
       />,
     )
 
-    await waitFor(() => screen.getByText('cancel'))
-    fireEvent.click(screen.getByText('cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
 
-    expect(mockOnClose).toHaveBeenCalled()
+    expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
-  it('shows loadFailed and allows generate anyway on API error', async () => {
-    ;(fetchGenerationPlanAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
-      success: false,
-      error: 'Server error',
-    })
+  it('calls onEditPrompt when the prompt textarea changes', () => {
+    const onEditPrompt = vi.fn()
 
     render(
       <StudioGenerationPlan
-        open
-        prompt="a cute cat"
-        onGenerate={mockOnGenerate}
-        onClose={mockOnClose}
+        plan={MOCK_PLAN}
+        onConfirm={vi.fn()}
+        onEditPrompt={onEditPrompt}
+        onCancel={vi.fn()}
       />,
     )
 
-    await waitFor(() => {
-      expect(screen.getByText('loadFailed')).toBeInTheDocument()
+    fireEvent.change(screen.getByDisplayValue(MOCK_PLAN.promptDraft), {
+      target: { value: 'updated compiled prompt' },
     })
-    // generateNow button still available (generates with original prompt)
-    fireEvent.click(screen.getByText('generateNow'))
-    expect(mockOnGenerate).toHaveBeenCalledWith({
-      modelId: null,
-      compiledPrompt: 'a cute cat',
-    })
+
+    expect(onEditPrompt).toHaveBeenCalledWith('updated compiled prompt')
   })
 })

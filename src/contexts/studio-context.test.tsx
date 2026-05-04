@@ -10,6 +10,7 @@ import {
   type WorkflowId,
 } from '@/constants/workflows'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
+import type { GenerationEvaluation, GenerationPlanResponse } from '@/types'
 
 vi.mock('@/hooks/use-character-cards', () => ({
   useCharacterCards: () => ({}),
@@ -50,6 +51,28 @@ vi.mock('@/hooks/use-onboarding', () => ({
 vi.mock('@/hooks/use-usage-summary', () => ({
   useUsageSummary: () => ({ refresh: vi.fn() }),
 }))
+
+const MOCK_PLAN: GenerationPlanResponse = {
+  intent: {
+    task: 'image',
+    subject: 'cat',
+  },
+  recommendedModels: [],
+  promptDraft: 'a cat portrait',
+  estimatedCost: 1,
+  variationCount: 1,
+}
+
+const MOCK_EVALUATION: GenerationEvaluation = {
+  subjectMatch: 8,
+  styleMatch: 7,
+  compositionMatch: 8,
+  promptAdherence: 8,
+  artifactScore: 9,
+  overall: 8,
+  detectedIssues: [],
+  suggestedFixes: [],
+}
 
 function wrapper({ children }: { children: ReactNode }) {
   return <StudioProvider>{children}</StudioProvider>
@@ -165,5 +188,35 @@ describe('StudioProvider workflow selection', () => {
     })
 
     expect(result.current.state.panels.videoParams).toBe(true)
+  })
+
+  it('setCurrentPlan updates generation plan state', () => {
+    const { result } = renderHook(() => useStudioContext(), { wrapper })
+
+    act(() => {
+      result.current.generation.setCurrentPlan(MOCK_PLAN)
+    })
+
+    expect(result.current.generation.currentPlan).toEqual(MOCK_PLAN)
+  })
+
+  it('setLastEvaluation updates evaluation state', () => {
+    const { result } = renderHook(() => useStudioContext(), { wrapper })
+
+    act(() => {
+      result.current.generation.setLastEvaluation(MOCK_EVALUATION)
+    })
+
+    expect(result.current.generation.lastEvaluation).toEqual(MOCK_EVALUATION)
+  })
+
+  it('toggles the planPreview panel through form dispatch', () => {
+    const { result } = renderHook(() => useStudioContext(), { wrapper })
+
+    act(() => {
+      result.current.dispatch({ type: 'TOGGLE_PANEL', payload: 'planPreview' })
+    })
+
+    expect(result.current.state.panels.planPreview).toBe(true)
   })
 })

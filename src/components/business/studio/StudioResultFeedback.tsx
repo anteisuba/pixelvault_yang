@@ -1,121 +1,131 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ThumbsUp, User, Palette, LayoutGrid, Sun } from 'lucide-react'
+import { LayoutGrid, Palette, Sun, ThumbsUp, User } from 'lucide-react'
+
+import type { GenerationEvaluation } from '@/types'
 import { cn } from '@/lib/utils'
-import { useStudioForm } from '@/contexts/studio-context'
-import { evaluateGenerationAPI } from '@/lib/api-client/generation'
-import type { GenerationRecord, GenerationEvaluation } from '@/types'
+import { Button } from '@/components/ui/button'
 
 interface StudioResultFeedbackProps {
-  generation: GenerationRecord
+  generationId: string
+  evaluation: GenerationEvaluation | null
+  onFeedback: (tags: string[]) => void
 }
 
 type FeedbackTag =
+  | 'subject_mismatch'
+  | 'style_mismatch'
+  | 'composition_mismatch'
+  | 'lighting_issue'
   | 'satisfied'
-  | 'subjectMismatch'
-  | 'styleMismatch'
-  | 'compositionMismatch'
-  | 'lightingMismatch'
 
-const FEEDBACK_BUTTONS: Array<{
+const FEEDBACK_OPTIONS: Array<{
   tag: FeedbackTag
+  labelKey: string
   icon: React.ComponentType<{ className?: string }>
 }> = [
-  { tag: 'satisfied', icon: ThumbsUp },
-  { tag: 'subjectMismatch', icon: User },
-  { tag: 'styleMismatch', icon: Palette },
-  { tag: 'compositionMismatch', icon: LayoutGrid },
-  { tag: 'lightingMismatch', icon: Sun },
+  { tag: 'subject_mismatch', labelKey: 'subjectMismatch', icon: User },
+  { tag: 'style_mismatch', labelKey: 'styleMismatch', icon: Palette },
+  {
+    tag: 'composition_mismatch',
+    labelKey: 'compositionMismatch',
+    icon: LayoutGrid,
+  },
+  { tag: 'lighting_issue', labelKey: 'lightingIssue', icon: Sun },
+  { tag: 'satisfied', labelKey: 'satisfied', icon: ThumbsUp },
 ]
 
+function getNextTags(current: FeedbackTag[], tag: FeedbackTag): FeedbackTag[] {
+  if (current.includes(tag)) {
+    return current.filter((item) => item !== tag)
+  }
+
+  if (tag === 'satisfied') {
+    return ['satisfied']
+  }
+
+  return [...current.filter((item) => item !== 'satisfied'), tag]
+}
+
 export function StudioResultFeedback({
-  generation,
+  generationId,
+  evaluation,
+  onFeedback,
 }: StudioResultFeedbackProps) {
-  const { dispatch } = useStudioForm()
   const t = useTranslations('StudioResultFeedback')
+  const [selection, setSelection] = useState<{
+    generationId: string
+    tags: FeedbackTag[]
+  }>({ generationId, tags: [] })
+  const selectedTags =
+    selection.generationId === generationId ? selection.tags : []
+  const scorePercent =
+    evaluation === null
+      ? 0
+      : Math.max(0, Math.min(100, evaluation.overall * 10))
 
-  const [evaluating, setEvaluating] = useState(false)
-  const [evaluation, setEvaluation] = useState<GenerationEvaluation | null>(
-    null,
+  const handleToggle = useCallback(
+    (tag: FeedbackTag) => {
+      setSelection((current) => {
+        const currentTags =
+          current.generationId === generationId ? current.tags : []
+        const next = getNextTags(currentTags, tag)
+        onFeedback(next)
+        return { generationId, tags: next }
+      })
+    },
+    [generationId, onFeedback],
   )
-  const [evalError, setEvalError] = useState(false)
-  const handleSatisfied = useCallback(async () => {
-    if (evaluating) return
-    setEvaluating(true)
-    setEvalError(false)
-    const result = await evaluateGenerationAPI(generation.id)
-    setEvaluating(false)
-    if (result.success && result.data) {
-      setEvaluation(result.data)
-    } else {
-      setEvalError(true)
-    }
-  }, [generation.id, evaluating])
-
-  const handleMismatch = useCallback(() => {
-    dispatch({ type: 'OPEN_PANEL', payload: 'keepChange' })
-  }, [dispatch])
 
   return (
-    <div className="mt-2 flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {FEEDBACK_BUTTONS.map(({ tag, icon: Icon }) => (
-          <button
-            key={tag}
-            type="button"
-            onClick={
-              tag === 'satisfied'
-                ? () => void handleSatisfied()
-                : handleMismatch
-            }
-            disabled={evaluating}
-            className={cn(
-              'border-border/40 bg-background/80 flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs transition-all',
-              'hover:border-primary/30 hover:text-primary active:scale-95',
-              evaluating && 'cursor-not-allowed opacity-50',
-            )}
-          >
-            <Icon className="size-3" />
-            {t(tag)}
-          </button>
-        ))}
-      </div>
-
-      {evaluating && (
-        <p className="text-muted-foreground animate-pulse font-serif text-xs">
-          {t('evaluating')}
-        </p>
-      )}
-
-      {evaluation && !evaluating && (
-        <div className="border-border/40 bg-background/60 rounded-lg border px-3 py-2">
-          <p className="text-foreground text-xs font-medium">
-            {t('scoreLabel', {
-              score: `${evaluation.overall.toFixed(1)}/10`,
-            })}
-          </p>
-          {evaluation.suggestedFixes.length > 0 && (
-            <ul className="mt-1 space-y-0.5">
-              {evaluation.suggestedFixes.slice(0, 2).map((fix, i) => (
-                <li
-                  key={i}
-                  className="text-muted-foreground font-serif text-xs"
-                >
-                  • {fix}
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className="mt-2 flex flex-col gap-2" data-generation-id={generationId}>
+      {evaluation !== null && (
+        <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t('overallScore')}
+            </span>
+            <span className="text-xs font-semibold text-foreground">
+              {evaluation.overall.toFixed(1)}/10
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${scorePercent}%` }}
+            />
+          </div>
         </div>
       )}
 
-      {evalError && !evaluating && (
-        <p className="text-muted-foreground font-serif text-xs">
-          {t('evalFailed')}
-        </p>
-      )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {FEEDBACK_OPTIONS.map(({ tag, labelKey, icon: Icon }) => {
+          const active = selectedTags.includes(tag)
+
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-pressed={active}
+              data-active={active}
+              onClick={() => handleToggle(tag)}
+              className={cn(
+                'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                'hover:border-primary/30 hover:text-primary',
+                active &&
+                  'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10',
+              )}
+            >
+              <Icon className="size-3" />
+              {t(labelKey)}
+            </Button>
+          )
+        })}
+      </div>
     </div>
   )
 }

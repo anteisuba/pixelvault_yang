@@ -35,6 +35,7 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import {
   STYLE_PRESETS,
   getStylePresetById,
@@ -73,14 +74,19 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
   const { styles, characters, backgrounds, imageUpload, projects } =
     useStudioData()
-  const { isGenerating, generate, elapsedSeconds } = useStudioGen()
+  const {
+    isGenerating,
+    generate,
+    elapsedSeconds,
+    currentPlan,
+    setCurrentPlan,
+  } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tModels = useTranslations('Models')
   const { healthMap } = useApiKeysContext()
-  const [planOpen, setPlanOpen] = useState(false)
 
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -475,7 +481,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       state.workflowMode === 'quick' &&
       state.prompt.trim()
     ) {
-      setPlanOpen(true)
+      const result = await fetchGenerationPlanAPI({
+        naturalLanguage: state.prompt,
+      })
+      if (result.success && result.data) {
+        setCurrentPlan(result.data)
+        dispatch({ type: 'OPEN_PANEL', payload: 'planPreview' })
+        return
+      }
+
+      await executeGenerate()
       return
     }
     await executeGenerate()
@@ -486,7 +501,19 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     state.workflowMode,
     state.prompt,
     executeGenerate,
+    setCurrentPlan,
+    dispatch,
   ])
+
+  const handledGenerateRequestRef = useRef(state.generateRequestId)
+  useEffect(() => {
+    if (state.generateRequestId === handledGenerateRequestRef.current) {
+      return
+    }
+
+    handledGenerateRequestRef.current = state.generateRequestId
+    void handleGenerate()
+  }, [state.generateRequestId, handleGenerate])
 
   const handleGenerateVariants = useCallback(async () => {
     if (!canGenerate) return
@@ -850,15 +877,29 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         </div>
       )}
 
-      <StudioGenerationPlan
-        open={planOpen}
-        prompt={state.prompt}
-        onGenerate={(params) => {
-          setPlanOpen(false)
-          void executeGenerate(params)
-        }}
-        onClose={() => setPlanOpen(false)}
-      />
+      {state.panels.planPreview && currentPlan && (
+        <div className="mt-3">
+          <StudioGenerationPlan
+            plan={currentPlan}
+            onConfirm={() => {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'planPreview' })
+              void executeGenerate({
+                modelId: currentPlan.recommendedModels[0]?.modelId ?? null,
+                compiledPrompt: currentPlan.promptDraft,
+                negativePrompt:
+                  currentPlan.negativePrompt ?? currentPlan.negativePromptDraft,
+              })
+            }}
+            onEditPrompt={(newPrompt) =>
+              setCurrentPlan({ ...currentPlan, promptDraft: newPrompt })
+            }
+            onCancel={() => {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'planPreview' })
+              setCurrentPlan(null)
+            }}
+          />
+        </div>
+      )}
     </>
   )
 })

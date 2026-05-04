@@ -1747,7 +1747,8 @@
     "enhance": "プロンプト強化",
     "civitai": "Civitai トークン",
     "videoSettings": "ビデオ設定",
-    "keepChange": "保留と変更"
+    "keepChange": "保留と変更",
+    "planPreview": "プランプレビュー"
   },
   "StudioToolbar": {
     "enhance": "強化",
@@ -2080,15 +2081,13 @@
   },
   "StudioGenerationPlan": {
     "title": "生成プラン",
-    "subtitle": "生成前に設定を確認",
-    "modelsSection": "推奨モデル",
-    "promptSection": "コンパイル済みプロンプト",
-    "negativeSection": "ネガティブプロンプト",
-    "variationCount": "{count}バリエーション",
-    "loading": "プロンプトを分析中...",
-    "loadFailed": "プランを読み込めませんでした。このまま生成しますか？",
-    "generateNow": "今すぐ生成",
-    "cancel": "キャンセル",
+    "recommendedModels": "おすすめモデル",
+    "compiledPrompt": "コンパイル済みプロンプト",
+    "negativePrompt": "ネガティブプロンプト",
+    "estimatedCost": "推定コスト",
+    "requests": "{count} リクエスト",
+    "confirm": "確認して生成",
+    "cancel": "編集に戻る",
     "reasonLabel": "理由: {reason}"
   },
   "StudioResultFeedback": {
@@ -2097,23 +2096,25 @@
     "styleMismatch": "スタイルがズレ",
     "compositionMismatch": "構図がズレ",
     "lightingMismatch": "光がズレ",
+    "lightingIssue": "照明の問題",
     "refine": "改善",
+    "overallScore": "AI スコア",
     "scoreLabel": "スコア: {score}",
     "evaluating": "評価中...",
     "evalFailed": "評価できません"
   },
   "StudioKeepChangePanel": {
-    "title": "保留と変更",
-    "keepLabel": "保留",
-    "changeLabel": "変更",
+    "title": "生成を改善",
+    "keepSection": "保持",
+    "changeSection": "変更",
     "subject": "主体",
     "style": "スタイル",
     "composition": "構図",
-    "lighting": "光",
-    "color": "色",
-    "freeformLabel": "追加の指示",
-    "freeformPlaceholder": "他に変えたいことは？",
-    "generateRefined": "改善版を生成",
+    "lighting": "照明",
+    "color": "配色",
+    "freeText": "補足説明",
+    "freeTextPlaceholder": "変更したい内容を記述...",
+    "submit": "改善して生成",
     "cancel": "キャンセル"
   }
 }

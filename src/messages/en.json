@@ -1747,7 +1747,8 @@
     "enhance": "Prompt Enhancement",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
-    "keepChange": "Keep & Change"
+    "keepChange": "Keep & Change",
+    "planPreview": "Plan Preview"
   },
   "StudioToolbar": {
     "enhance": "Enhance",
@@ -2080,15 +2081,13 @@
   },
   "StudioGenerationPlan": {
     "title": "Generation Plan",
-    "subtitle": "Review settings before generating",
-    "modelsSection": "Recommended Models",
-    "promptSection": "Compiled Prompt",
-    "negativeSection": "Negative Prompt",
-    "variationCount": "{count} variations",
-    "loading": "Analyzing your prompt...",
-    "loadFailed": "Could not load plan. Generate anyway?",
-    "generateNow": "Generate Now",
-    "cancel": "Cancel",
+    "recommendedModels": "Recommended Models",
+    "compiledPrompt": "Compiled Prompt",
+    "negativePrompt": "Negative Prompt",
+    "estimatedCost": "Estimated Cost",
+    "requests": "{count} requests",
+    "confirm": "Confirm & Generate",
+    "cancel": "Back to Edit",
     "reasonLabel": "Why: {reason}"
   },
   "StudioResultFeedback": {
@@ -2097,23 +2096,25 @@
     "styleMismatch": "Style off",
     "compositionMismatch": "Composition off",
     "lightingMismatch": "Lighting off",
+    "lightingIssue": "Lighting issue",
     "refine": "Refine",
+    "overallScore": "AI Score",
     "scoreLabel": "Score: {score}",
     "evaluating": "Evaluating...",
     "evalFailed": "Evaluation unavailable"
   },
   "StudioKeepChangePanel": {
-    "title": "Keep & Change",
-    "keepLabel": "Keep",
-    "changeLabel": "Change",
+    "title": "Refine Generation",
+    "keepSection": "Keep",
+    "changeSection": "Change",
     "subject": "Subject",
     "style": "Style",
     "composition": "Composition",
     "lighting": "Lighting",
-    "color": "Color",
-    "freeformLabel": "Additional instructions",
-    "freeformPlaceholder": "What else should change?",
-    "generateRefined": "Generate Refined",
+    "color": "Color palette",
+    "freeText": "Additional notes",
+    "freeTextPlaceholder": "Describe what you want to change...",
+    "submit": "Refine & Generate",
     "cancel": "Cancel"
   }
 }

@@ -1,6 +1,13 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 
@@ -12,6 +19,7 @@ import {
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_MODELS } from '@/constants/models'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
+import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
@@ -37,6 +45,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
     retry,
     activeRun,
     selectWinner,
+    lastEvaluation,
+    setLastEvaluation,
   } = useStudioGen()
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   const errorDialogOpen = !!error && error !== errorDismissed
@@ -55,10 +65,46 @@ export const StudioCanvas = memo(function StudioCanvas() {
     rawLastGeneration && rawLastGeneration.outputType === expectedOutputType
       ? rawLastGeneration
       : null
+  const lastGenerationRef = useRef<GenerationRecord | null>(null)
+
+  useLayoutEffect(() => {
+    lastGenerationRef.current = lastGeneration
+  }, [lastGeneration])
 
   const handleSwitchModel = useCallback(() => {
     dispatch({ type: 'OPEN_PANEL', payload: 'modelSelector' })
   }, [dispatch])
+
+  useEffect(() => {
+    setLastEvaluation(null)
+  }, [lastGeneration?.id, setLastEvaluation])
+
+  const handleFeedback = useCallback(
+    (tags: string[]) => {
+      if (!lastGeneration) return
+
+      if (tags.includes('satisfied')) {
+        if (lastEvaluation !== null) return
+
+        const requestedGenerationId = lastGeneration.id
+        void evaluateGenerationAPI(requestedGenerationId).then((result) => {
+          if (lastGenerationRef.current?.id !== requestedGenerationId) {
+            return
+          }
+
+          if (result.success && result.data) {
+            setLastEvaluation(result.data)
+          }
+        })
+        return
+      }
+
+      if (tags.length > 0) {
+        dispatch({ type: 'OPEN_PANEL', payload: 'keepChange' })
+      }
+    },
+    [dispatch, lastEvaluation, lastGeneration, setLastEvaluation],
+  )
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -186,7 +232,11 @@ export const StudioCanvas = memo(function StudioCanvas() {
               onRetry={retry}
             />
             {lastGeneration?.outputType === 'IMAGE' && !activeRun?.mode && (
-              <StudioResultFeedback generation={lastGeneration} />
+              <StudioResultFeedback
+                generationId={lastGeneration.id}
+                evaluation={lastEvaluation}
+                onFeedback={handleFeedback}
+              />
             )}
           </>
         )}

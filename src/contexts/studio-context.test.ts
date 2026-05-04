@@ -32,6 +32,7 @@ function makeInitialState(
     videoResolution: null,
     longVideoMode: false,
     longVideoTargetDuration: 30,
+    generateRequestId: 0,
     panels: {
       cardManagement: false,
       projectHistory: false,
@@ -49,6 +50,7 @@ function makeInitialState(
       videoParams: false,
       script: false,
       keepChange: false,
+      planPreview: false,
     },
     ...overrides,
   }
@@ -205,6 +207,13 @@ describe('studioFormReducer', () => {
       payload: '',
     })
     expect(next.prompt).toBe('')
+  })
+
+  it('REQUEST_GENERATE increments generateRequestId', () => {
+    const state = makeInitialState({ generateRequestId: 2 })
+    const next = studioFormReducer(state, { type: 'REQUEST_GENERATE' })
+
+    expect(next.generateRequestId).toBe(3)
   })
 
   // ── SET_ASPECT_RATIO ──
@@ -444,6 +453,7 @@ describe('studioFormReducer', () => {
     'advanced',
     'refImage',
     'keepChange',
+    'planPreview',
   ])('TOGGLE_PANEL works for panel "%s"', (panel) => {
     const state = makeInitialState()
     const next = studioFormReducer(state, {

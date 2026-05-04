@@ -10,7 +10,10 @@ import { StudioPromptArea } from './StudioPromptArea'
 
 const mockDispatch = vi.hoisted(() => vi.fn())
 const mockGenerate = vi.hoisted(() => vi.fn())
+const mockSetCurrentPlan = vi.hoisted(() => vi.fn())
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
+const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
+const mockFetchGenerationPlanAPI = vi.hoisted(() => vi.fn())
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
@@ -31,6 +34,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   videoParams: false,
   script: false,
   keepChange: false,
+  planPreview: false,
 }
 
 vi.mock('next-intl', () => ({
@@ -66,6 +70,8 @@ vi.mock('@/contexts/studio-context', () => ({
     isGenerating: false,
     generate: mockGenerate,
     elapsedSeconds: 0,
+    currentPlan: null,
+    setCurrentPlan: mockSetCurrentPlan,
   }),
 }))
 
@@ -74,10 +80,11 @@ vi.mock('@/hooks/use-studio-shortcuts', () => ({
 }))
 
 vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: () => ({
-    selectedModel: null,
-    modelOptions: [],
-  }),
+  useImageModelOptions: mockUseImageModelOptions,
+}))
+
+vi.mock('@/lib/api-client/generation', () => ({
+  fetchGenerationPlanAPI: mockFetchGenerationPlanAPI,
 }))
 
 vi.mock('@/hooks/use-audio-model-options', () => ({
@@ -183,6 +190,7 @@ function setupStudioForm(
     videoResolution: '720p',
     longVideoMode: false,
     longVideoTargetDuration: 10,
+    generateRequestId: 0,
     stylePresetId: NO_STYLE_PRESET_ID,
     panels: { ...EMPTY_PANELS },
     ...overrides,
@@ -245,6 +253,11 @@ describe('StudioPromptArea', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGenerate.mockResolvedValue(null)
+    mockFetchGenerationPlanAPI.mockResolvedValue({ success: false })
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: null,
+      modelOptions: [],
+    })
     localStorage.clear()
   })
 

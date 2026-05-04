@@ -1,12 +1,28 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
+
+import type { ImageIntent } from '@/types'
 import { cn } from '@/lib/utils'
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
-import type { UnifiedGenerateInput } from '@/hooks/use-unified-generate'
+import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
+
+interface StudioKeepChangePanelProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currentIntent: ImageIntent | null
+  onSubmit: (keepTags: string[], changeTags: string[], freeText: string) => void
+}
 
 type Dimension = 'subject' | 'style' | 'composition' | 'lighting' | 'color'
+
 const DIMENSIONS: Dimension[] = [
   'subject',
   'style',
@@ -15,170 +31,132 @@ const DIMENSIONS: Dimension[] = [
   'color',
 ]
 
-export function StudioKeepChangePanel() {
-  const { state, dispatch } = useStudioForm()
-  const { generate, isGenerating } = useStudioGen()
+function toggleValue(values: Dimension[], value: Dimension): Dimension[] {
+  if (values.includes(value)) {
+    return values.filter((item) => item !== value)
+  }
+  return [...values, value]
+}
+
+export function StudioKeepChangePanel({
+  open,
+  onOpenChange,
+  currentIntent,
+  onSubmit,
+}: StudioKeepChangePanelProps) {
   const t = useTranslations('StudioKeepChangePanel')
+  const [keepTags, setKeepTags] = useState<Dimension[]>([])
+  const [changeTags, setChangeTags] = useState<Dimension[]>([])
+  const [freeText, setFreeText] = useState('')
 
-  const [keepSet, setKeepSet] = useState<Set<Dimension>>(new Set())
-  const [changeSet, setChangeSet] = useState<Set<Dimension>>(new Set())
-  const [freeform, setFreeform] = useState('')
-
-  const toggleKeep = useCallback((dim: Dimension) => {
-    setKeepSet((prev) => {
-      const next = new Set(prev)
-      if (next.has(dim)) next.delete(dim)
-      else next.add(dim)
-      return next
-    })
-    // Keep and change are mutually exclusive
-    setChangeSet((prev) => {
-      const next = new Set(prev)
-      next.delete(dim)
-      return next
-    })
+  const toggleKeep = useCallback((tag: Dimension) => {
+    setKeepTags((current) => toggleValue(current, tag))
+    setChangeTags((current) => current.filter((item) => item !== tag))
   }, [])
 
-  const toggleChange = useCallback((dim: Dimension) => {
-    setChangeSet((prev) => {
-      const next = new Set(prev)
-      if (next.has(dim)) next.delete(dim)
-      else next.add(dim)
-      return next
-    })
-    setKeepSet((prev) => {
-      const next = new Set(prev)
-      next.delete(dim)
-      return next
-    })
+  const toggleChange = useCallback((tag: Dimension) => {
+    setChangeTags((current) => toggleValue(current, tag))
+    setKeepTags((current) => current.filter((item) => item !== tag))
   }, [])
 
-  const handleGenerate = useCallback(async () => {
-    const keepParts = keepSet.size > 0 ? `Keep ${[...keepSet].join(', ')}.` : ''
-    const changeParts =
-      changeSet.size > 0 ? `Change ${[...changeSet].join(', ')}.` : ''
-    const refinementSuffix = [keepParts, changeParts, freeform]
-      .filter(Boolean)
-      .join(' ')
-    const refinedPrompt = refinementSuffix
-      ? `${state.prompt}. ${refinementSuffix}`
-      : state.prompt
-
-    dispatch({ type: 'CLOSE_ALL_PANELS' })
-
-    const input: UnifiedGenerateInput = {
-      mode: 'image',
-      image: {
-        freePrompt: refinedPrompt,
-        aspectRatio: state.aspectRatio,
-      },
-    }
-    await generate(input)
-  }, [
-    keepSet,
-    changeSet,
-    freeform,
-    state.prompt,
-    state.aspectRatio,
-    dispatch,
-    generate,
-  ])
-
-  const handleCancel = useCallback(() => {
-    dispatch({ type: 'CLOSE_ALL_PANELS' })
-  }, [dispatch])
+  const handleSubmit = useCallback(() => {
+    onSubmit(keepTags, changeTags, freeText.trim())
+  }, [changeTags, freeText, keepTags, onSubmit])
 
   return (
-    <div className="space-y-4 p-4">
-      <p className="text-foreground text-sm font-medium">{t('title')}</p>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        aria-describedby={undefined}
+        data-has-intent={currentIntent !== null}
+        className="max-h-screen md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:w-full md:max-w-md md:border-l md:border-t-0"
+      >
+        <SheetHeader>
+          <SheetTitle className="font-display">{t('title')}</SheetTitle>
+        </SheetHeader>
 
-      {/* Keep chips */}
-      <div className="space-y-1.5">
-        <p className="text-muted-foreground text-xs font-medium">
-          {t('keepLabel')}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {DIMENSIONS.map((dim) => (
-            <button
-              key={`keep-${dim}`}
-              type="button"
-              aria-pressed={keepSet.has(dim)}
-              onClick={() => toggleKeep(dim)}
-              className={cn(
-                'rounded-full px-3 py-1 text-xs font-medium transition-all',
-                keepSet.has(dim)
-                  ? 'bg-green-100 text-green-800 ring-1 ring-green-300'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-              )}
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t('keepSection')}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DIMENSIONS.map((tag) => {
+                const active = keepTags.includes(tag)
+
+                return (
+                  <Button
+                    key={`keep-${tag}`}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={active}
+                    data-active={active}
+                    onClick={() => toggleKeep(tag)}
+                    className={cn(
+                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                      active && 'border-primary/40 bg-primary/10 text-primary',
+                    )}
+                  >
+                    {t(tag)}
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t('changeSection')}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DIMENSIONS.map((tag) => {
+                const active = changeTags.includes(tag)
+                const keepActive = keepTags.includes(tag)
+
+                return (
+                  <Button
+                    key={`change-${tag}`}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={active}
+                    data-active={active}
+                    disabled={keepActive}
+                    onClick={() => toggleChange(tag)}
+                    className={cn(
+                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                      active && 'border-primary/40 bg-primary/10 text-primary',
+                    )}
+                  >
+                    {t(tag)}
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="studio-keep-change-free-text"
+              className="text-xs font-medium text-muted-foreground"
             >
-              {t(dim)}
-            </button>
-          ))}
+              {t('freeText')}
+            </label>
+            <Textarea
+              id="studio-keep-change-free-text"
+              value={freeText}
+              onChange={(event) => setFreeText(event.target.value)}
+              placeholder={t('freeTextPlaceholder')}
+              className="min-h-24 resize-none bg-background/70 font-serif text-sm"
+            />
+          </div>
+
+          <Button type="button" className="w-full" onClick={handleSubmit}>
+            {t('submit')}
+          </Button>
         </div>
-      </div>
-
-      {/* Change chips */}
-      <div className="space-y-1.5">
-        <p className="text-muted-foreground text-xs font-medium">
-          {t('changeLabel')}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {DIMENSIONS.map((dim) => (
-            <button
-              key={`change-${dim}`}
-              type="button"
-              aria-pressed={changeSet.has(dim)}
-              onClick={() => toggleChange(dim)}
-              className={cn(
-                'rounded-full px-3 py-1 text-xs font-medium transition-all',
-                changeSet.has(dim)
-                  ? 'bg-primary/10 text-primary ring-primary/30 ring-1'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-              )}
-            >
-              {t(dim)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Freeform */}
-      <div className="space-y-1">
-        <label className="text-muted-foreground text-xs font-medium">
-          {t('freeformLabel')}
-        </label>
-        <textarea
-          value={freeform}
-          onChange={(e) => setFreeform(e.target.value)}
-          placeholder={t('freeformPlaceholder')}
-          rows={2}
-          className="border-border/60 bg-background/60 placeholder:text-muted-foreground/60 focus:ring-primary/30 w-full resize-none rounded-lg border px-3 py-2 font-serif text-sm focus:outline-none focus:ring-1"
-        />
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="border-border/60 bg-background/60 text-muted-foreground hover:text-foreground flex-1 rounded-lg border py-2 text-sm transition-colors"
-        >
-          {t('cancel')}
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleGenerate()}
-          disabled={isGenerating}
-          className={cn(
-            'flex-1 rounded-lg py-2 text-sm font-medium transition-all',
-            isGenerating
-              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-primary-foreground shadow-sm hover:shadow-md active:scale-[0.97]',
-          )}
-        >
-          {t('generateRefined')}
-        </button>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -1747,7 +1747,8 @@
     "enhance": "提示词增强",
     "civitai": "Civitai Token",
     "videoSettings": "视频设置",
-    "keepChange": "保留与改变"
+    "keepChange": "保留与改变",
+    "planPreview": "计划预览"
   },
   "StudioToolbar": {
     "enhance": "增强",
@@ -2080,15 +2081,13 @@
   },
   "StudioGenerationPlan": {
     "title": "生成计划",
-    "subtitle": "生成前确认设置",
-    "modelsSection": "推荐模型",
-    "promptSection": "编译后提示词",
-    "negativeSection": "负向提示词",
-    "variationCount": "{count} 个变体",
-    "loading": "正在分析提示词...",
-    "loadFailed": "无法加载计划，直接生成？",
-    "generateNow": "立即生成",
-    "cancel": "取消",
+    "recommendedModels": "推荐模型",
+    "compiledPrompt": "编译后 Prompt",
+    "negativePrompt": "负面提示词",
+    "estimatedCost": "预估消耗",
+    "requests": "{count} 次请求",
+    "confirm": "确认生成",
+    "cancel": "返回修改",
     "reasonLabel": "原因：{reason}"
   },
   "StudioResultFeedback": {
@@ -2097,23 +2096,25 @@
     "styleMismatch": "风格偏差",
     "compositionMismatch": "构图偏差",
     "lightingMismatch": "光线偏差",
+    "lightingIssue": "光线问题",
     "refine": "继续优化",
+    "overallScore": "AI 评分",
     "scoreLabel": "评分：{score}",
     "evaluating": "正在评估...",
     "evalFailed": "评估不可用"
   },
   "StudioKeepChangePanel": {
-    "title": "保留与改变",
-    "keepLabel": "保留",
-    "changeLabel": "改变",
+    "title": "优化生成",
+    "keepSection": "保留",
+    "changeSection": "改变",
     "subject": "主体",
     "style": "风格",
     "composition": "构图",
     "lighting": "光线",
-    "color": "色彩",
-    "freeformLabel": "额外说明",
-    "freeformPlaceholder": "还需要改变什么？",
-    "generateRefined": "生成优化版",
+    "color": "配色",
+    "freeText": "补充说明",
+    "freeTextPlaceholder": "描述你想改变的内容...",
+    "submit": "优化并生成",
     "cancel": "取消"
   }
 }

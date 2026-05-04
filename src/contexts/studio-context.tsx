@@ -19,10 +19,15 @@ import {
   useReducer,
   useRef,
   useMemo,
+  useState,
   type ReactNode,
 } from 'react'
 
-import type { AdvancedParams } from '@/types'
+import type {
+  AdvancedParams,
+  GenerationEvaluation,
+  GenerationPlanResponse,
+} from '@/types'
 import {
   DEFAULT_WORKFLOW_ID,
   getWorkflowById,
@@ -69,6 +74,7 @@ export type PanelName =
   | 'videoParams'
   | 'script'
   | 'keepChange'
+  | 'planPreview'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -94,6 +100,7 @@ export interface StudioFormState {
   longVideoMode: boolean
   /** Video-specific — total target duration when long-video is on */
   longVideoTargetDuration: number
+  generateRequestId: number
   panels: Record<PanelName, boolean>
 }
 
@@ -113,6 +120,7 @@ export type StudioAction =
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
   | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
   | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
+  | { type: 'REQUEST_GENERATE' }
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
@@ -136,6 +144,7 @@ const initialPanels: Record<PanelName, boolean> = {
   videoParams: false,
   script: false,
   keepChange: false,
+  planPreview: false,
 }
 
 const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
@@ -155,6 +164,7 @@ const initialFormState: StudioFormState = {
   videoResolution: null,
   longVideoMode: false,
   longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
+  generateRequestId: 0,
   panels: { ...initialPanels },
 }
 
@@ -207,6 +217,8 @@ export function studioFormReducer(
       return { ...state, longVideoMode: action.payload }
     case 'SET_LONG_VIDEO_TARGET_DURATION':
       return { ...state, longVideoTargetDuration: action.payload }
+    case 'REQUEST_GENERATE':
+      return { ...state, generateRequestId: state.generateRequestId + 1 }
     case 'TOGGLE_PANEL': {
       const target = action.payload
       const isOpening = !state.panels[target]
@@ -260,6 +272,7 @@ export function studioFormReducer(
         longVideoMode: false,
         longVideoTargetDuration:
           VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],
+        generateRequestId: 0,
         panels: { ...initialPanels },
       }
     default:
@@ -299,7 +312,14 @@ const StudioDataContext = createContext<StudioDataContextValue | null>(null)
 // 3. GENERATION CONTEXT (COLD — changes only during generation)
 // ═══════════════════════════════════════════════════════════════════
 
-const StudioGenContext = createContext<UseUnifiedGenerateReturn | null>(null)
+interface StudioGenContextValue extends UseUnifiedGenerateReturn {
+  currentPlan: GenerationPlanResponse | null
+  lastEvaluation: GenerationEvaluation | null
+  setCurrentPlan: (plan: GenerationPlanResponse | null) => void
+  setLastEvaluation: (evaluation: GenerationEvaluation | null) => void
+}
+
+const StudioGenContext = createContext<StudioGenContextValue | null>(null)
 
 // ═══════════════════════════════════════════════════════════════════
 // COMBINED PROVIDER
@@ -364,6 +384,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // COLD — generation
   const generation = useUnifiedGenerate()
+  const [currentPlan, setCurrentPlan] = useState<GenerationPlanResponse | null>(
+    null,
+  )
+  const [lastEvaluation, setLastEvaluation] =
+    useState<GenerationEvaluation | null>(null)
+  const generationValue = useMemo<StudioGenContextValue>(
+    () => ({
+      ...generation,
+      currentPlan,
+      lastEvaluation,
+      setCurrentPlan,
+      setLastEvaluation,
+    }),
+    [generation, currentPlan, lastEvaluation],
+  )
 
   // Refresh usage summary when a generation completes
   const prevGenerationRef = useRef(generation.lastGeneration)
@@ -380,7 +415,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   return (
     <StudioFormContext.Provider value={formValue}>
       <StudioDataContext.Provider value={dataValue}>
-        <StudioGenContext.Provider value={generation}>
+        <StudioGenContext.Provider value={generationValue}>
           {children}
         </StudioGenContext.Provider>
       </StudioDataContext.Provider>
@@ -411,7 +446,7 @@ export function useStudioData(): StudioDataContextValue {
 }
 
 /** Generation state — re-renders only during generation */
-export function useStudioGen(): UseUnifiedGenerateReturn {
+export function useStudioGen(): StudioGenContextValue {
   const ctx = useContext(StudioGenContext)
   if (!ctx) {
     throw new Error('useStudioGen must be used within <StudioProvider>')

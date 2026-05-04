@@ -76,14 +76,16 @@ describe('evaluateGenerationAPI', () => {
           JSON.stringify({
             success: true,
             data: {
-              subjectMatch: 0.9,
-              styleMatch: 0.8,
-              compositionMatch: 0.85,
-              artifactScore: 0.95,
-              promptAdherence: 0.88,
-              overall: 0.88,
-              detectedIssues: [],
-              suggestedFixes: [],
+              evaluation: {
+                subjectMatch: 9,
+                styleMatch: 8,
+                compositionMatch: 8.5,
+                artifactScore: 9.5,
+                promptAdherence: 8.8,
+                overall: 8.8,
+                detectedIssues: [],
+                suggestedFixes: [],
+              },
             },
           }),
           { status: 200 },
@@ -94,7 +96,7 @@ describe('evaluateGenerationAPI', () => {
     const result = await evaluateGenerationAPI('gen_123')
 
     expect(result.success).toBe(true)
-    expect(result.data?.overall).toBe(0.88)
+    expect(result.data?.overall).toBe(8.8)
   })
 
   it('returns error when generation not found', async () => {

@@ -141,6 +141,7 @@ export const API_ENDPOINTS = {
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_SELECT_WINNER: '/api/studio/select-winner',
   GENERATION_PLAN: '/api/generation/plan',
+  GENERATION_COMPILE: '/api/generation/compile',
   GENERATION_EVALUATE: '/api/generation/evaluate',
   CIVITAI_TOKEN: '/api/civitai-token',
 

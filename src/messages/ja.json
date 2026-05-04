@@ -2098,7 +2098,7 @@
     "compositionMismatch": "構図がズレ",
     "lightingMismatch": "光がズレ",
     "refine": "改善",
-    "scoreLabel": "スコア: {score}%",
+    "scoreLabel": "スコア: {score}",
     "evaluating": "評価中...",
     "evalFailed": "評価できません"
   },

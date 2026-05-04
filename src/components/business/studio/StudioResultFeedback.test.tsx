@@ -8,14 +8,18 @@ vi.mock('@/lib/api-client/generation', () => ({
   evaluateGenerationAPI: vi.fn(),
 }))
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, opts?: Record<string, unknown>) =>
-    opts ? `${key}:${JSON.stringify(opts)}` : key,
+  useTranslations: () => (key: string, opts?: Record<string, unknown>) => {
+    if (key === 'scoreLabel' && typeof opts?.score === 'string') {
+      return opts.score
+    }
+    return opts ? `${key}:${JSON.stringify(opts)}` : key
+  },
 }))
 
 import { StudioResultFeedback } from './StudioResultFeedback'
 import { useStudioForm } from '@/contexts/studio-context'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
-import type { GenerationRecord } from '@/types'
+import type { GenerationEvaluation, GenerationRecord } from '@/types'
 
 const mockDispatch = vi.fn()
 const FAKE_GEN = {
@@ -23,6 +27,17 @@ const FAKE_GEN = {
   url: 'https://example.com/img.png',
   outputType: 'IMAGE',
 } as GenerationRecord
+
+const MOCK_EVALUATION: GenerationEvaluation = {
+  overall: 8.8,
+  subjectMatch: 9,
+  styleMatch: 8.5,
+  compositionMatch: 8.2,
+  artifactScore: 9.5,
+  promptAdherence: 8.8,
+  detectedIssues: [],
+  suggestedFixes: [],
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -45,16 +60,7 @@ describe('StudioResultFeedback', () => {
   it('calls evaluateGenerationAPI on satisfied click and shows score', async () => {
     ;(evaluateGenerationAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
-      data: {
-        overall: 0.88,
-        subjectMatch: 0.9,
-        styleMatch: 0.85,
-        compositionMatch: 0.82,
-        artifactScore: 0.95,
-        promptAdherence: 0.88,
-        detectedIssues: [],
-        suggestedFixes: [],
-      },
+      data: MOCK_EVALUATION,
     })
 
     render(<StudioResultFeedback generation={FAKE_GEN} />)
@@ -64,8 +70,20 @@ describe('StudioResultFeedback', () => {
       expect(evaluateGenerationAPI).toHaveBeenCalledWith('gen_1')
     })
     await waitFor(() => {
-      expect(screen.getByText(/scoreLabel/)).toBeInTheDocument()
+      expect(screen.getByText('8.8/10')).toBeInTheDocument()
     })
+  })
+
+  it('displays overall score as /10 format', async () => {
+    ;(evaluateGenerationAPI as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: { ...MOCK_EVALUATION, overall: 8.8 },
+    })
+
+    render(<StudioResultFeedback generation={FAKE_GEN} />)
+    fireEvent.click(screen.getByText('satisfied'))
+
+    expect(await screen.findByText('8.8/10')).toBeInTheDocument()
   })
 
   it('opens keepChange panel on mismatch button click', () => {

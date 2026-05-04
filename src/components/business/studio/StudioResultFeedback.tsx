@@ -41,7 +41,6 @@ export function StudioResultFeedback({
     null,
   )
   const [evalError, setEvalError] = useState(false)
-
   const handleSatisfied = useCallback(async () => {
     if (evaluating) return
     setEvaluating(true)
@@ -93,7 +92,9 @@ export function StudioResultFeedback({
       {evaluation && !evaluating && (
         <div className="border-border/40 bg-background/60 rounded-lg border px-3 py-2">
           <p className="text-foreground text-xs font-medium">
-            {t('scoreLabel', { score: Math.round(evaluation.overall * 100) })}
+            {t('scoreLabel', {
+              score: `${evaluation.overall.toFixed(1)}/10`,
+            })}
           </p>
           {evaluation.suggestedFixes.length > 0 && (
             <ul className="mt-1 space-y-0.5">

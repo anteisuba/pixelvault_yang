@@ -16,6 +16,7 @@ import type {
   GenerationFeedbackRequest,
   GenerationFeedbackResponse,
   GenerationEvaluation,
+  GenerationPlanRequest,
   GenerationPlanResponse,
   LongVideoRequest,
   LongVideoStatusResponse,
@@ -758,10 +759,9 @@ export async function assignToProjectAPI(
 
 // ── Generation Plan (B.1.5) ─────────────────────────────────────
 
-export async function fetchGenerationPlanAPI(params: {
-  naturalLanguage: string
-  referenceAssets?: Array<{ url: string; role: string }>
-}): Promise<{
+export async function fetchGenerationPlanAPI(
+  params: GenerationPlanRequest,
+): Promise<{
   success: boolean
   data?: GenerationPlanResponse
   error?: string
@@ -793,7 +793,7 @@ export async function fetchGenerationPlanAPI(params: {
 
 export async function evaluateGenerationAPI(generationId: string): Promise<{
   success: boolean
-  data?: GenerationEvaluation
+  data?: GenerationEvaluation | null
   error?: string
 }> {
   try {
@@ -811,7 +811,14 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
         ),
       }
     }
-    return await response.json()
+    const body = (await response.json()) as {
+      success: boolean
+      data?: { evaluation?: GenerationEvaluation | null }
+    }
+    return {
+      success: body.success,
+      data: body.data?.evaluation ?? null,
+    }
   } catch (error) {
     return {
       success: false,

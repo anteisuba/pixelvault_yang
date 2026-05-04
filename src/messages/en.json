@@ -2098,7 +2098,7 @@
     "compositionMismatch": "Composition off",
     "lightingMismatch": "Lighting off",
     "refine": "Refine",
-    "scoreLabel": "Score: {score}%",
+    "scoreLabel": "Score: {score}",
     "evaluating": "Evaluating...",
     "evalFailed": "Evaluation unavailable"
   },

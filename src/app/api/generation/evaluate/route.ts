@@ -7,13 +7,18 @@ import {
 } from '@/types'
 import { evaluateGeneration } from '@/services/generation-evaluator.service'
 
+interface GenerationEvaluateResponse {
+  evaluation: GenerationEvaluation | null
+}
+
 export const POST = createApiRoute<
   typeof GenerateEvaluationRequestSchema,
-  GenerationEvaluation
+  GenerationEvaluateResponse
 >({
   schema: GenerateEvaluationRequestSchema,
   routeName: 'POST /api/generation/evaluate',
   handler: async (clerkId, data) => {
-    return evaluateGeneration(clerkId, data.generationId)
+    const evaluation = await evaluateGeneration(clerkId, data.generationId)
+    return { evaluation }
   },
 })

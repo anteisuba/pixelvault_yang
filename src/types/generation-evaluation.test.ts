@@ -6,12 +6,12 @@ import {
 } from '@/types'
 
 const VALID_EVAL = {
-  subjectMatch: 0.9,
-  styleMatch: 0.8,
-  compositionMatch: 0.75,
-  artifactScore: 1.0,
-  promptAdherence: 0.85,
-  overall: 0.86,
+  subjectMatch: 9,
+  styleMatch: 8,
+  compositionMatch: 7.5,
+  artifactScore: 10,
+  promptAdherence: 8.5,
+  overall: 8.6,
   detectedIssues: [],
   suggestedFixes: [],
 }
@@ -24,17 +24,19 @@ describe('GenerationEvaluationSchema', () => {
   it('accepts optional referenceConsistency', () => {
     const result = GenerationEvaluationSchema.safeParse({
       ...VALID_EVAL,
-      referenceConsistency: 0.75,
+      referenceConsistency: 7.5,
       detectedIssues: ['Subject hair color wrong'],
       suggestedFixes: ['Add "blonde hair" to prompt'],
     })
     expect(result.success).toBe(true)
   })
 
-  it('rejects a score above 1.0', () => {
+  it('rejects a score above 10', () => {
     expect(
-      GenerationEvaluationSchema.safeParse({ ...VALID_EVAL, subjectMatch: 1.5 })
-        .success,
+      GenerationEvaluationSchema.safeParse({
+        ...VALID_EVAL,
+        subjectMatch: 10.5,
+      }).success,
     ).toBe(false)
   })
 

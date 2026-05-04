@@ -2333,23 +2333,23 @@ export type GenerationCompileResponse = z.infer<
 
 /**
  * LLM vision evaluation of a generated image against its prompt.
- * Scores are 0.0-1.0. Stored in Generation.evaluation as JSON.
+ * Scores are 0-10. Stored in Generation.evaluation as JSON.
  */
 export const GenerationEvaluationSchema = z.object({
   /** How well the main subject matches the prompt description */
-  subjectMatch: z.number().min(0).max(1),
+  subjectMatch: z.number().min(0).max(10),
   /** How well the visual style matches the prompt */
-  styleMatch: z.number().min(0).max(1),
+  styleMatch: z.number().min(0).max(10),
   /** How well the composition / framing matches the prompt */
-  compositionMatch: z.number().min(0).max(1),
+  compositionMatch: z.number().min(0).max(10),
   /** Reference image consistency, present only when referenceAssets were used */
-  referenceConsistency: z.number().min(0).max(1).optional(),
-  /** Image quality: 1.0 = pristine, 0.0 = severe artifacts */
-  artifactScore: z.number().min(0).max(1),
+  referenceConsistency: z.number().min(0).max(10).optional(),
+  /** Image quality: 10 = pristine, 0 = severe artifacts */
+  artifactScore: z.number().min(0).max(10),
   /** Overall prompt adherence */
-  promptAdherence: z.number().min(0).max(1),
+  promptAdherence: z.number().min(0).max(10),
   /** Weighted overall quality score */
-  overall: z.number().min(0).max(1),
+  overall: z.number().min(0).max(10),
   /** Specific visual issues detected */
   detectedIssues: z.array(z.string().max(200)).max(10),
   /** Actionable prompt improvements */

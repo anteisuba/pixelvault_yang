@@ -2098,7 +2098,7 @@
     "compositionMismatch": "构图偏差",
     "lightingMismatch": "光线偏差",
     "refine": "继续优化",
-    "scoreLabel": "评分：{score}%",
+    "scoreLabel": "评分：{score}",
     "evaluating": "正在评估...",
     "evalFailed": "评估不可用"
   },

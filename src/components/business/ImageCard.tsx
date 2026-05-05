@@ -126,7 +126,7 @@ export const ImageCard = memo(function ImageCard({
     },
     {
       label: t('requestsLabel'),
-      value: tCommon('creditCount', { count: generation.requestCount }),
+      value: tCommon('requestCount', { count: generation.requestCount }),
       key: 'requests',
       icon: <Coins className="size-3 text-primary" />,
     },

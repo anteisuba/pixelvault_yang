@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} 次请求",
+    "requestCount": "{count} 次请求",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -130,8 +130,8 @@
     }
   },
   "Navbar": {
-    "creditsLoading": "...",
-    "creditsTooltip": "已使用的 API 请求数",
+    "requestsLoading": "...",
+    "requestsTooltip": "已使用的 API 请求数",
     "signIn": "登录",
     "viewProfile": "查看主页",
     "signOut": "退出登录",
@@ -208,8 +208,8 @@
     "signals": {
       "modelCoverageLabel": "模型覆盖",
       "modelCoverageValue": "{modelCount} 个图像模型，覆盖 {providerCount} 个提供商",
-      "creditLabel": "单次生成",
-      "creditValue": "每次生成会记录为 {creditCount}",
+      "requestCostLabel": "单次生成",
+      "requestCostValue": "每次生成会记录为 {requestCount}",
       "archiveLabel": "保存内容",
       "archiveValue": "提示词、模型、提供商和输出结果会一起保存"
     },
@@ -226,7 +226,7 @@
           "title": "把值得回看的结果留下来",
           "description": "好的结果不会在一次会话后消失，它们会进入一个之后还能回看的档案。"
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "看清每次生成的成本",
           "description": "每次生成都会保留提供商和模型上下文，让用量信息保持清楚。"
         }
@@ -315,7 +315,7 @@
           "title": "留住重要结果",
           "description": "好的结果始终保存在你的档案中。"
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "用量透明",
           "description": "每次生成都显示供应商和成本。"
         },
@@ -412,7 +412,7 @@
       "modelCoverageLabel": "模型",
       "modelCoverageValue": "{modelCount} 个模型 · {providerCount} 个提供商",
       "startingCostLabel": "每次",
-      "startingCostValue": "{creditCount}",
+      "startingCostValue": "{requestCount}",
       "archiveBehaviorLabel": "自动存档",
       "archiveBehaviorValue": "结果自动保存"
     }
@@ -556,7 +556,7 @@
       "publicWorksValue": "{count, plural, =0 {暂无公开} other {#件公开}}",
       "privateWorksLabel": "私密",
       "privateWorksValue": "{count, plural, =0 {暂无私密} other {#件私密}}",
-      "creditsLabel": "API请求",
+      "requestsLabel": "API请求",
       "inlineSummary": "{total, plural, =0 {暂无作品} other {{total} 个作品}} · {publicCount} 个公开 · {privateCount} 个私有 · 已用 {requestCount} 次请求"
     },
     "collectionEyebrow": "归档",
@@ -614,7 +614,7 @@
     "formLabel": "图片生成",
     "selectedModelLabel": "当前路由",
     "providerLabel": "提供商",
-    "creditCostLabel": "单次生成",
+    "requestCostLabel": "单次生成",
     "keyStatusLabel": "路由状态",
     "keyStatusSavedRouteTitle": "正在使用这个已保存路由",
     "keyStatusSavedRouteDescription": "这个路由会使用 {label}（{maskedKey}）。",
@@ -670,7 +670,7 @@
     "resultPromptLabel": "提示词",
     "resultModelLabel": "模型",
     "resultProviderLabel": "提供商",
-    "resultCreditLabel": "已记录请求",
+    "resultRequestLabel": "已记录请求",
     "resultStorageNote": "会连同提示词和路由上下文一起保存。",
     "upgradeHint": "想要更高质量？用你自己的 API key 试试 GPT Image 或 FLUX Pro。",
     "characterCard": {
@@ -1701,7 +1701,7 @@
     "variantGenerate": "生成变体",
     "variantGenerating": "正在生成 {count} 个变体...",
     "variantSuccess": "变体已生成！",
-    "variantCredits": "消耗 {count} 积分",
+    "variantRequests": "消耗 {count} 积分",
     "compareGenerate": "对比模型",
     "compareSuccess": "对比已生成！",
     "compareSelectModels": "选择 2-3 个模型进行对比",

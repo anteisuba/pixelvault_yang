@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} リクエスト",
+    "requestCount": "{count} リクエスト",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -130,8 +130,8 @@
     }
   },
   "Navbar": {
-    "creditsLoading": "...",
-    "creditsTooltip": "使用したAPIリクエスト数",
+    "requestsLoading": "...",
+    "requestsTooltip": "使用したAPIリクエスト数",
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
     "signOut": "サインアウト",
@@ -208,8 +208,8 @@
     "signals": {
       "modelCoverageLabel": "対応モデル",
       "modelCoverageValue": "{modelCount}種類の画像モデル、{providerCount}社のプロバイダーに対応",
-      "creditLabel": "1回ごと",
-      "creditValue": "各生成は {creditCount} として記録されます",
+      "requestCostLabel": "1回ごと",
+      "requestCostValue": "各生成は {requestCount} として記録されます",
       "archiveLabel": "残る情報",
       "archiveValue": "プロンプト、モデル、プロバイダー、出力をまとめて残せます"
     },
@@ -226,7 +226,7 @@
           "title": "見返したい結果を残す",
           "description": "良い結果は1回限りで消えません。あとから戻れるアーカイブに残ります。"
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "各生成のコストを見通す",
           "description": "各生成にはプロバイダーとモデルの文脈が残るため、使用量を追いやすくなります。"
         }
@@ -315,7 +315,7 @@
           "title": "大切な結果を残す",
           "description": "良い結果はアーカイブにずっと残ります。"
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "透明な使用量",
           "description": "各生成にプロバイダーとコストが表示。"
         },
@@ -412,7 +412,7 @@
       "modelCoverageLabel": "モデル",
       "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
       "startingCostLabel": "1回",
-      "startingCostValue": "{creditCount}",
+      "startingCostValue": "{requestCount}",
       "archiveBehaviorLabel": "自動保存",
       "archiveBehaviorValue": "結果は自動保存"
     }
@@ -556,7 +556,7 @@
       "publicWorksValue": "{count, plural, =0 {公開なし} other {#件公開}}",
       "privateWorksLabel": "非公開",
       "privateWorksValue": "{count, plural, =0 {非公開なし} other {#件非公開}}",
-      "creditsLabel": "APIリクエスト",
+      "requestsLabel": "APIリクエスト",
       "inlineSummary": "{total, plural, =0 {作品なし} other {{total}作品}} · 公開{publicCount} · 非公開{privateCount} · {requestCount}リクエスト使用"
     },
     "collectionEyebrow": "アーカイブ",
@@ -614,7 +614,7 @@
     "formLabel": "画像生成",
     "selectedModelLabel": "選択中のルート",
     "providerLabel": "プロバイダー",
-    "creditCostLabel": "1回ごと",
+    "requestCostLabel": "1回ごと",
     "keyStatusLabel": "ルートの状態",
     "keyStatusSavedRouteTitle": "この保存済みルートを使用",
     "keyStatusSavedRouteDescription": "{label}（{maskedKey}）がこのルートに使われます。",
@@ -670,7 +670,7 @@
     "resultPromptLabel": "プロンプト",
     "resultModelLabel": "モデル",
     "resultProviderLabel": "プロバイダー",
-    "resultCreditLabel": "記録済みリクエスト",
+    "resultRequestLabel": "記録済みリクエスト",
     "resultStorageNote": "プロンプトとルートの文脈を添えて保存されます。",
     "upgradeHint": "もっと高画質に？GPT Image や FLUX Pro を自分の API キーで試してみましょう。",
     "characterCard": {
@@ -1694,7 +1694,7 @@
     "variantGenerate": "バリアント生成",
     "variantGenerating": "{count}個のバリアントを生成中...",
     "variantSuccess": "バリアントが生成されました！",
-    "variantCredits": "{count}クレジット使用",
+    "variantRequests": "{count}クレジット使用",
     "compareGenerate": "モデル比較",
     "compareSuccess": "比較が生成されました！",
     "compareSelectModels": "比較する2〜3つのモデルを選択",

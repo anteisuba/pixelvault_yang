@@ -853,7 +853,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     <Dices className="size-4" />
                     <span>{t('variantGenerate')}</span>
                     <span className="ml-auto text-2xs text-muted-foreground">
-                      {t('variantCredits', { count: VARIANT_COUNT })}
+                      {t('variantRequests', { count: VARIANT_COUNT })}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

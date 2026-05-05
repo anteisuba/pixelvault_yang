@@ -1837,13 +1837,42 @@
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
     "toolEdit": "Edit with AI",
+    "toolInpaint": "Inpaint",
+    "toolOutpaint": "Outpaint",
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetZoom": "Reset zoom",
     "variantSelectWinner": "Select as best",
-    "variantSelected": "Selected"
+    "variantSelected": "Selected",
+    "inpaintEditor": {
+      "title": "Inpaint — Edit Region",
+      "canvasLabel": "Inpaint mask canvas",
+      "brushSize": "Brush size",
+      "eraser": "Eraser",
+      "clearAll": "Clear all",
+      "undo": "Undo",
+      "prompt": "Describe new content for selected area",
+      "promptPlaceholder": "e.g. A red sports car",
+      "apply": "Apply Inpaint",
+      "cancel": "Cancel"
+    },
+    "outpaintEditor": {
+      "title": "Outpaint — Extend Canvas",
+      "padding": "Expansion",
+      "top": "Top",
+      "right": "Right",
+      "bottom": "Bottom",
+      "left": "Left",
+      "presetUniform64": "+64px all sides",
+      "presetUniform128": "+128px all sides",
+      "presetUniform256": "+256px all sides",
+      "prompt": "Describe content for extended area",
+      "promptPlaceholder": "e.g. Continue the landscape with mountains",
+      "apply": "Apply Outpaint",
+      "cancel": "Cancel"
+    }
   },
   "StudioAdvanced": {
     "button": "Advanced",

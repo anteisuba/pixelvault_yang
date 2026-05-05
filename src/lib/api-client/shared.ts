@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from '@/constants/config'
+
 interface ApiErrorPayload {
   error?: string
   errorCode?: string
@@ -48,7 +50,9 @@ export async function downloadRemoteAsset(
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(url)
+    const response = await fetch(
+      `${API_ENDPOINTS.DOWNLOAD}?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`,
+    )
 
     if (!response.ok) {
       const payload = await getErrorPayload(

@@ -4,6 +4,8 @@ import { useState, useRef, useCallback } from 'react'
 import { Play, Pause, Download, Maximize2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { downloadRemoteAsset } from '@/lib/api-client/shared'
+
 interface VideoPlayerProps {
   src: string
   poster?: string
@@ -64,11 +66,11 @@ export default function VideoPlayer({
     }
   }, [])
 
-  const handleDownload = useCallback(() => {
-    const a = document.createElement('a')
-    a.href = src
-    a.download = 'pixelvault-video.mp4'
-    a.click()
+  const handleDownload = useCallback(async () => {
+    const result = await downloadRemoteAsset(src, 'pixelvault-video.mp4')
+    if (!result.success) {
+      window.open(src, '_blank', 'noopener,noreferrer')
+    }
   }, [src])
 
   if (hasError) {
@@ -152,7 +154,9 @@ export default function VideoPlayer({
           <Maximize2 className="size-4" />
         </button>
         <button
-          onClick={handleDownload}
+          onClick={() => {
+            void handleDownload()
+          }}
           className="flex size-8 items-center justify-center rounded-full text-background/90 hover:text-background"
           aria-label={t('download')}
         >

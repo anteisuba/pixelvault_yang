@@ -26,7 +26,7 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 2. **No `any`** — define types via Zod schemas, infer with `z.infer<typeof schema>`
 3. **No fetch in components** — all API calls go through `src/lib/api-client.ts`
 4. **API routes do 3 things only** — auth check → Zod validate → call service
-5. **No Tailwind arbitrary values** — extend `tailwind.config.ts` instead
+5. **No Tailwind arbitrary values** — extend the `@theme` block in `src/app/globals.css` instead (project uses Tailwind v4, there is no `tailwind.config.ts`)
 6. **Feature dev order** — constants → types → services → hooks → components
 7. **Import order** — React/Next → third-party → internal constants/types → components/hooks → styles
 
@@ -147,11 +147,11 @@ See `docs/reference/design-system.md` for full spec. Key constraints:
 高风险模块（改动前必须确认影响范围）：
 
 - `src/types/index.ts` — 189 files depend on it (see `src/types/CLAUDE.md`)
-- `src/services/user.service.ts` — 22 files depend on it
+- `src/services/user.service.ts` — 90 files depend on it
 - `src/services/generate-image.service.ts` — orchestrator, 8+ service deps
-- `src/contexts/studio-context.tsx` — 23+ studio components (see `src/contexts/CLAUDE.md`)
-- `src/constants/models.ts` — 178 files import from constants (see `src/constants/CLAUDE.md`)
-- `src/services/storage/r2.ts` — 15 services depend on it
+- `src/contexts/studio-context.tsx` — 46 consumer files (see `src/contexts/CLAUDE.md`)
+- `src/constants/models.ts` — 68 files depend on it (see `src/constants/CLAUDE.md`)
+- `src/services/storage/r2.ts` — 24 files depend on it
 
 Per-directory CLAUDE.md files exist in: `types/`, `contexts/`, `components/business/studio/`, `hooks/`, `constants/`
 

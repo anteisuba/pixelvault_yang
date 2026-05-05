@@ -1,6 +1,6 @@
 # src/contexts/ — React Context Providers
 
-## Risk Level: HIGH (Studio context drives 23+ components)
+## Risk Level: HIGH (Studio context drives 46 consumer files)
 
 ## Studio Context Split (3 providers by update frequency)
 
@@ -10,7 +10,7 @@ StudioDataContext  (WARM) — cards, projects, civitai, upload — changes on us
 StudioGenContext   (COLD) — generation state — changes only during generation
 ```
 
-**Why split?** Putting fast-changing state (prompt text) in the same context as slow-changing state (cards list) causes unnecessary re-renders across 23+ components. The split prevents cascade renders.
+**Why split?** Putting fast-changing state (prompt text) in the same context as slow-changing state (cards list) causes unnecessary re-renders across 46 consumer files. The split prevents cascade renders.
 
 ## Rules
 
@@ -36,11 +36,11 @@ StudioDataContext initializes these hooks at mount time:
 
 ## Consumer Hooks
 
-| Hook              | Context     | Consumers      |
-| ----------------- | ----------- | -------------- |
-| `useStudioForm()` | FormContext | ~43 components |
-| `useStudioData()` | DataContext | ~26 components |
-| `useStudioGen()`  | GenContext  | ~18 components |
+| Hook              | Context     | Consumers         |
+| ----------------- | ----------- | ----------------- |
+| `useStudioForm()` | FormContext | 34 consumer files |
+| `useStudioData()` | DataContext | 19 consumer files |
+| `useStudioGen()`  | GenContext  | 16 consumer files |
 
 ## Change Checklist
 

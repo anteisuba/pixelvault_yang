@@ -102,7 +102,7 @@ const MESSAGES = {
     promptPrivateHint: 'Prompt is private',
   },
   Common: {
-    creditCount: '{count} credits',
+    requestCount: '{count} credits',
     close: 'Close',
   },
   Models: {},

@@ -145,7 +145,7 @@ export const StudioQuickRouteSelector = memo(function StudioQuickRouteSelector({
                     </p>
                   </div>
                   <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                    {tCommon('creditCount', { count: option.requestCount })}
+                    {tCommon('requestCount', { count: option.requestCount })}
                   </span>
                 </div>
 

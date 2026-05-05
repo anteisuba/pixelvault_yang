@@ -28,6 +28,9 @@ export const API_ENDPOINTS = {
   /** Image generation */
   GENERATE: '/api/generate',
 
+  /** Auth-gated asset download proxy */
+  DOWNLOAD: '/api/download',
+
   /** Image listing (public gallery) */
   IMAGES: '/api/images',
 

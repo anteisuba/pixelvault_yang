@@ -168,7 +168,7 @@ export function Navbar() {
                     <Coins className="size-3.5 shrink-0 text-primary" />
                     <span className="hidden sm:inline">
                       {isLoading ? (
-                        t('creditsLoading')
+                        t('requestsLoading')
                       ) : (
                         <NumberTicker
                           value={summary.totalRequests}
@@ -179,7 +179,7 @@ export function Navbar() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t('creditsTooltip')}</p>
+                  <p>{t('requestsTooltip')}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

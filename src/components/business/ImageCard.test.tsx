@@ -105,7 +105,7 @@ const MESSAGES = {
     unpinAction: 'Unpin',
   },
   Common: {
-    creditCount: '{count} credits',
+    requestCount: '{count} credits',
   },
   Models: {},
   Errors: {},

@@ -42,7 +42,7 @@ export const HOMEPAGE_FEATURES = [
     icon: 'archive',
   },
   {
-    id: 'spendCredits',
+    id: 'requestUsage',
     icon: 'shield',
   },
 ] as const
@@ -97,7 +97,7 @@ export type HomepageComparisonIcon =
 export const HOMEPAGE_VALUE_PROPS = [
   { id: 'chooseEngine', icon: 'sparkles' },
   { id: 'keepEveryKeeper', icon: 'archive' },
-  { id: 'spendCredits', icon: 'shield' },
+  { id: 'requestUsage', icon: 'shield' },
   { id: 'byok', icon: 'key' },
   { id: 'permanentArchive', icon: 'database' },
   { id: 'arena', icon: 'swords' },

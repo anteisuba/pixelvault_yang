@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count, plural, one {# request} other {# requests}}",
+    "requestCount": "{count, plural, one {# request} other {# requests}}",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -130,8 +130,8 @@
     }
   },
   "Navbar": {
-    "creditsLoading": "...",
-    "creditsTooltip": "Total API requests used",
+    "requestsLoading": "...",
+    "requestsTooltip": "Total API requests used",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "signOut": "Sign Out",
@@ -208,8 +208,8 @@
     "signals": {
       "modelCoverageLabel": "Model coverage",
       "modelCoverageValue": "{modelCount} image models across {providerCount, plural, one {# provider} other {# providers}}",
-      "creditLabel": "Per run",
-      "creditValue": "Each generation is recorded as {creditCount}",
+      "requestCostLabel": "Per run",
+      "requestCostValue": "Each generation is recorded as {requestCount}",
       "archiveLabel": "What stays saved",
       "archiveValue": "Prompt, model, provider, and output stay together"
     },
@@ -226,7 +226,7 @@
           "title": "Keep the work worth revisiting",
           "description": "Good results do not disappear after one session. They stay in an archive you can return to later."
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "See what each run costs",
           "description": "Each generation keeps its provider and model context, so usage stays understandable instead of vague."
         }
@@ -315,7 +315,7 @@
           "title": "Keep what matters",
           "description": "Good results stay in your archive, always."
         },
-        "spendCredits": {
+        "requestUsage": {
           "title": "Transparent usage",
           "description": "Every generation shows provider and cost."
         },
@@ -412,7 +412,7 @@
       "modelCoverageLabel": "Models",
       "modelCoverageValue": "{modelCount} models · {providerCount} providers",
       "startingCostLabel": "Per run",
-      "startingCostValue": "{creditCount}",
+      "startingCostValue": "{requestCount}",
       "archiveBehaviorLabel": "Auto-archive",
       "archiveBehaviorValue": "Results saved automatically"
     }
@@ -556,7 +556,7 @@
       "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
       "privateWorksLabel": "Private",
       "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
-      "creditsLabel": "API requests",
+      "requestsLabel": "API requests",
       "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used"
     },
     "collectionEyebrow": "Archive",
@@ -614,7 +614,7 @@
     "formLabel": "Image generation",
     "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
-    "creditCostLabel": "Per run",
+    "requestCostLabel": "Per run",
     "keyStatusLabel": "Route status",
     "keyStatusSavedRouteTitle": "Using this saved route",
     "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
@@ -670,7 +670,7 @@
     "resultPromptLabel": "Prompt",
     "resultModelLabel": "Model",
     "resultProviderLabel": "Provider",
-    "resultCreditLabel": "Requests logged",
+    "resultRequestLabel": "Requests logged",
     "resultStorageNote": "Stored with its prompt and route context.",
     "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "characterCard": {
@@ -1701,7 +1701,7 @@
     "variantGenerate": "Generate Variants",
     "variantGenerating": "Generating {count} variants...",
     "variantSuccess": "Variants generated!",
-    "variantCredits": "Uses {count} credits",
+    "variantRequests": "Uses {count} credits",
     "compareGenerate": "Compare Models",
     "compareSuccess": "Comparison generated!",
     "compareSelectModels": "Select 2-3 models to compare",

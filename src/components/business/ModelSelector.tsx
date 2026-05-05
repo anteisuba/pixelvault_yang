@@ -408,7 +408,7 @@ export function ModelSelector({
                           </span>
                         ) : (
                           <span className="text-xs font-medium text-muted-foreground">
-                            {tCommon('creditCount', {
+                            {tCommon('requestCount', {
                               count:
                                 option.requestCount ??
                                 API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,

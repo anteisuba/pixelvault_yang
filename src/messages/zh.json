@@ -1837,13 +1837,42 @@
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
     "toolEdit": "AI 编辑",
+    "toolInpaint": "局部重绘",
+    "toolOutpaint": "扩展画布",
     "toolDrawerTitle": "工具",
     "toolMore": "更多工具",
     "zoomIn": "放大",
     "zoomOut": "缩小",
     "resetZoom": "重置缩放",
     "variantSelectWinner": "选为最佳",
-    "variantSelected": "已选择"
+    "variantSelected": "已选择",
+    "inpaintEditor": {
+      "title": "局部重绘 — 编辑区域",
+      "canvasLabel": "局部重绘蒙版画布",
+      "brushSize": "画笔大小",
+      "eraser": "橡皮擦",
+      "clearAll": "全部清除",
+      "undo": "撤销",
+      "prompt": "描述选区中的新内容",
+      "promptPlaceholder": "例如：一辆红色跑车",
+      "apply": "应用局部重绘",
+      "cancel": "取消"
+    },
+    "outpaintEditor": {
+      "title": "扩展画布 — 延展图像",
+      "padding": "扩展范围",
+      "top": "上",
+      "right": "右",
+      "bottom": "下",
+      "left": "左",
+      "presetUniform64": "四周 +64px",
+      "presetUniform128": "四周 +128px",
+      "presetUniform256": "四周 +256px",
+      "prompt": "描述延展区域中的内容",
+      "promptPlaceholder": "例如：继续延展风景，加入山脉",
+      "apply": "应用扩展画布",
+      "cancel": "取消"
+    }
   },
   "StudioAdvanced": {
     "button": "高级",

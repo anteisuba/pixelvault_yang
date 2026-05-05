@@ -39,7 +39,7 @@ export const DIMENSION_PROVIDERS: Record<TransformationType, DimensionConfig> =
     background: {
       defaultModelId: 'fal-ai/sam-inpaint',
       defaultAdapterType: 'fal' as AI_ADAPTER_TYPES,
-      status: 'planned',
+      status: 'implemented',
       phase: 3,
     },
     garment: {

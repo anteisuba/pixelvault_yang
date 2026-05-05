@@ -57,6 +57,10 @@ export const API_ENDPOINTS = {
   ANALYZE_IMAGE: '/api/image/analyze',
   /** Image editing (upscale, remove background) */
   IMAGE_EDIT: '/api/image/edit',
+  /** Image inpainting */
+  IMAGE_INPAINT: '/api/image/inpaint',
+  /** Image outpainting */
+  IMAGE_OUTPAINT: '/api/image/outpaint',
 
   /** Image layer decomposition (See-Through) */
   IMAGE_DECOMPOSE: '/api/image/decompose',

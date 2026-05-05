@@ -1837,13 +1837,42 @@
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
     "toolEdit": "AIで編集",
+    "toolInpaint": "インペイント",
+    "toolOutpaint": "アウトペイント",
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
     "zoomIn": "拡大",
     "zoomOut": "縮小",
     "resetZoom": "ズームをリセット",
     "variantSelectWinner": "ベストに選択",
-    "variantSelected": "選択済み"
+    "variantSelected": "選択済み",
+    "inpaintEditor": {
+      "title": "インペイント — 範囲を編集",
+      "canvasLabel": "インペイント用マスクキャンバス",
+      "brushSize": "ブラシサイズ",
+      "eraser": "消しゴム",
+      "clearAll": "すべて消去",
+      "undo": "元に戻す",
+      "prompt": "選択範囲に生成する内容を説明",
+      "promptPlaceholder": "例: 赤いスポーツカー",
+      "apply": "インペイントを適用",
+      "cancel": "キャンセル"
+    },
+    "outpaintEditor": {
+      "title": "アウトペイント — キャンバスを拡張",
+      "padding": "拡張量",
+      "top": "上",
+      "right": "右",
+      "bottom": "下",
+      "left": "左",
+      "presetUniform64": "全方向 +64px",
+      "presetUniform128": "全方向 +128px",
+      "presetUniform256": "全方向 +256px",
+      "prompt": "拡張領域の内容を説明",
+      "promptPlaceholder": "例: 山のある風景を続ける",
+      "apply": "アウトペイントを適用",
+      "cancel": "キャンセル"
+    }
   },
   "StudioAdvanced": {
     "button": "詳細",

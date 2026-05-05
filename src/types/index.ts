@@ -351,6 +351,36 @@ export const ImageEditSchema = z
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
 
+export const InpaintRequestSchema = z.object({
+  imageUrl: z.string().url(),
+  maskImageUrl: z.string().trim().min(1),
+  prompt: z.string().trim().min(1).max(1000),
+  negativePrompt: z.string().max(500).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  sourceGenerationId: z.string().trim().min(1).optional(),
+})
+
+export type InpaintRequest = z.infer<typeof InpaintRequestSchema>
+
+export const OutpaintPaddingSchema = z.object({
+  top: z.number().int().min(0).max(512),
+  right: z.number().int().min(0).max(512),
+  bottom: z.number().int().min(0).max(512),
+  left: z.number().int().min(0).max(512),
+})
+
+export const OutpaintRequestSchema = z.object({
+  imageUrl: z.string().url(),
+  padding: OutpaintPaddingSchema,
+  prompt: z.string().trim().min(1).max(1000),
+  negativePrompt: z.string().max(500).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  sourceGenerationId: z.string().trim().min(1).optional(),
+})
+
+export type OutpaintRequest = z.infer<typeof OutpaintRequestSchema>
+export type OutpaintPadding = z.infer<typeof OutpaintPaddingSchema>
+
 // ─── Image Layer Decomposition (See-Through) ────────────────────
 
 export const ImageDecomposeSchema = z.object({

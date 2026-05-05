@@ -8,6 +8,7 @@ type SmokeCheck = {
 }
 
 const baseUrl = process.env.BASE_URL ?? DEFAULT_BASE_URL
+const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS
 
 const checks: SmokeCheck[] = [
   {
@@ -46,8 +47,15 @@ function buildUrl(path: string): string {
 
 async function runCheck(check: SmokeCheck): Promise<void> {
   const url = buildUrl(check.path)
+  const headers = new Headers()
+
+  if (vercelProtectionBypass) {
+    headers.set('x-vercel-protection-bypass', vercelProtectionBypass)
+  }
+
   const response = await fetch(url, {
     method: 'GET',
+    headers,
     redirect: check.allowRedirect ? 'follow' : 'manual',
   })
 

@@ -1,84 +1,53 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
+import { useTranslations } from 'next-intl'
 
 import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
 
-const VISIBLE_COUNT = 3
-const ROTATE_INTERVAL_MS = 4000
-
-const cardTransforms = [
-  { rotate: -6, x: 0, y: 0, scale: 1 },
-  { rotate: 5, x: 40, y: -20, scale: 0.92 },
-  { rotate: -3, x: -32, y: 14, scale: 0.85 },
+const tileClassNames = [
+  'row-span-2',
+  'row-span-1',
+  'row-span-2',
+  'row-span-1',
+  'row-span-2',
+  'row-span-1',
 ]
 
 export function HomepageHeroVisual() {
   const shouldReduce = useReducedMotion()
-  const [activeIndex, setActiveIndex] = useState(0)
-
-  useEffect(() => {
-    if (shouldReduce) return
-    const timer = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % HOMEPAGE_SHOWCASE.length)
-    }, ROTATE_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [shouldReduce])
-
-  const visibleItems = Array.from({ length: VISIBLE_COUNT }, (_, i) => {
-    const idx = (activeIndex + i) % HOMEPAGE_SHOWCASE.length
-    return { ...HOMEPAGE_SHOWCASE[idx], stackIndex: i }
-  })
+  const t = useTranslations('Homepage')
 
   return (
-    <div className="hidden md:block relative min-h-[280px]">
-      <div className="relative w-full h-[280px] md:h-[380px] flex items-center justify-center">
-        <AnimatePresence mode="popLayout">
-          {visibleItems.map((item) => {
-            const transform = cardTransforms[item.stackIndex]
-            return (
-              <motion.div
-                key={item.id}
-                className="homepage-hero-card w-[280px] md:w-[360px] rounded-2xl overflow-hidden"
-                initial={{
-                  opacity: 0,
-                  rotate: transform.rotate + 8,
-                  scale: 0.85,
-                }}
-                animate={{
-                  opacity: 1,
-                  rotate: transform.rotate,
-                  x: transform.x,
-                  y: transform.y,
-                  scale: transform.scale,
-                  zIndex: VISIBLE_COUNT - item.stackIndex,
-                }}
-                exit={{ opacity: 0, scale: 0.8, y: 30 }}
-                transition={{
-                  type: 'tween',
-                  ease: 'easeOut',
-                  duration: 0.6,
-                  delay: item.stackIndex * 0.15,
-                }}
-                style={{ position: 'absolute' }}
-              >
-                <Image
-                  src={item.src}
-                  alt={`${item.model} showcase`}
-                  width={320}
-                  height={240}
-                  className="block w-full h-auto object-cover"
-                  priority={item.stackIndex === 0}
-                />
-                <span className="homepage-hero-label absolute bottom-3 left-3 px-[0.6rem] py-1 rounded-full text-[0.68rem] font-semibold tracking-[0.08em] uppercase text-foreground">
-                  {item.model}
-                </span>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
+    <div className="homepage-hero-media relative">
+      <div className="homepage-media-mosaic grid grid-cols-3 gap-0 overflow-hidden rounded-[2rem]">
+        {HOMEPAGE_SHOWCASE.map((item, index) => (
+          <motion.figure
+            key={item.id}
+            className={`homepage-media-tile relative min-h-40 overflow-hidden ${tileClassNames[index]}`}
+            initial={shouldReduce ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: index * 0.06, ease: 'easeOut' }}
+          >
+            <Image
+              src={item.src}
+              alt={`${item.model} ${t('stage.label')}`}
+              width={420}
+              height={560}
+              className="h-full w-full object-cover"
+              priority={index < 2}
+            />
+            <figcaption className="absolute inset-x-3 bottom-3 rounded-full bg-background/84 px-3 py-1.5 font-display text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-foreground backdrop-blur">
+              {item.model}
+            </figcaption>
+          </motion.figure>
+        ))}
+      </div>
+
+      <div className="homepage-hero-dock rounded-full px-4 py-3">
+        <span>{t('stage.savedLabel')}</span>
+        <span>{t('stage.value')}</span>
       </div>
     </div>
   )

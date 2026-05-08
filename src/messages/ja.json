@@ -162,7 +162,7 @@
     "brandSubline": "AI画像を静かに作り、残しておくための個人アーカイブ。",
     "navigationLabel": "ホームページ",
     "navigation": {
-      "gallery": "ギャラリー",
+      "capabilities": "機能",
       "workflow": "ワークフロー",
       "models": "モデル"
     },
@@ -170,10 +170,17 @@
     "heroTitle": "意図して作り、きちんと残す。",
     "heroDescription": "マルチモデル画像生成と永久アーカイブ。",
     "hero": {
-      "title": "あらゆるAIモデルで創作",
-      "subtitle": "すべての作品を永久保存",
+      "badge": "{count}+ 種類の画像モデル",
+      "title": "テキストから画像、動画、音声を生成",
+      "subtitle": "AI画像、動画、音声、LoRAワークフローをひとつのスタジオで。",
+      "description": "プロンプトを書き、モデルを選び、PixelVault が生成ルートを読みやすく残します。すべての出力はプロンプト、モデル、プロバイダー、ファイルの文脈ごと保存されます。",
       "primaryCta": "創作を始める",
-      "secondaryCta": "ギャラリーを見る"
+      "secondaryCta": "ギャラリーを見る",
+      "stats": {
+        "models": "利用可能モデル",
+        "providers": "プロバイダー",
+        "workflows": "制作モード"
+      }
     },
     "actions": {
       "signedOutPrimary": "アーカイブを始める",
@@ -252,28 +259,65 @@
       }
     },
     "workflow": {
-      "eyebrow": "プロンプトから保存まで",
-      "title": "プロンプトから保存まで、余計な混雑なしに。",
-      "description": "モデルを選び、意図を持って書き、結果をその文脈ごと残します。",
+      "eyebrow": "使い方",
+      "title": "プロンプトから始めて、過程も残す。",
+      "description": "PixelVault はモデル一覧だけでなく、制作の流れも明確にします。モードを選び、生成し、比較し、保存します。",
       "items": {
         "frameIdea": {
-          "title": "アイデアを定める",
-          "description": "まずプロンプトを書き、その画像に合うモデルを選びます。"
+          "title": "制作モードを選ぶ",
+          "description": "テキストから画像、動画生成、音声生成、LoRAトレーニングを、複数ツールを行き来せず始められます。"
         },
         "generateWithIntent": {
-          "title": "意図を持って生成する",
-          "description": "同じ制作画面のまま、フォトリアル、アニメ、OpenAI、Gemini の出力を比較できます。"
+          "title": "モデルを選んで生成",
+          "description": "OpenAI、Google、fal.ai、NovelAI、VolcEngine などから選ぶか、推奨モデルから始められます。"
         },
         "archiveWinners": {
-          "title": "良い結果を保存する",
-          "description": "プロンプト、ルート、最終画像を一緒に残して、次回の制作を文脈から始められます。"
+          "title": "出力と文脈を保存",
+          "description": "作品、プロンプト、モデル、プロバイダー、使用量、保存ファイルをまとめて残し、再利用や比較に使えます。"
+        }
+      }
+    },
+    "capabilities": {
+      "eyebrow": "プロダクト機能",
+      "title": "単なる画像生成ページではなく、マルチメディアAIワークスペース。",
+      "description": "ユーザーが最初に探すワークフローごとに、PixelVault で何ができるかを明確に見せます。",
+      "items": {
+        "textToImage": {
+          "title": "テキストから画像",
+          "description": "商品写真、キャラクター、マーケティング素材、コンセプト画像を生成し、モデル文脈も一緒に残します。",
+          "stat": "画像モデル"
+        },
+        "videoGeneration": {
+          "title": "動画生成",
+          "description": "Kling、Veo、Seedance、Runway などで短い動画や画像から動画のクリップを生成します。",
+          "stat": "動画モデル"
+        },
+        "voiceGeneration": {
+          "title": "音声生成",
+          "description": "Fish Audio と F5-TTS でテキストを音声化し、キャラクター声、ナレーション、絵コンテの試作に使えます。",
+          "stat": "音声モデル"
+        },
+        "loraTraining": {
+          "title": "LoRAトレーニング",
+          "description": "キャラクター、スタイル、商品の再利用可能なLoRAを作り、後続生成の一貫性を保ちます。",
+          "stat": "LoRA入口"
         }
       }
     },
     "models": {
       "eyebrow": "モデル一覧",
-      "title": "マルチプロバイダーモデル、ひとつの静かな作業場。",
-      "description": "OpenAI、Google、NovelAI、オープンソースモデルを、ツールを変えずに切り替えられます。"
+      "title": "多くのプロバイダーを、ひとつの入口に。",
+      "description": "Krea の API ページのように、複雑なプロバイダーは明確な選択レイヤーの裏側へ。必要なのは用途、モデル、保存方法を選ぶことだけです。",
+      "coverageEyebrow": "モデル対応",
+      "coverageTitle": "画像、動画、音声をひとつの地図に。",
+      "coverageDescription": "OpenAI、Google、fal.ai、NovelAI、VolcEngine、Fish Audio、Replicate、オープンソースモデルを読みやすいモデル行列に整理します。",
+      "providerCount": "{count} 件のモデル",
+      "nextLink": "ワークフローを見る",
+      "media": {
+        "image": "画像",
+        "video": "動画",
+        "audio": "音声"
+      }
     },
     "scenes": {
       "items": {
@@ -334,9 +378,9 @@
       }
     },
     "footer": {
-      "eyebrow": "見返せることのために",
-      "title": "画像は成果の一部にすぎない。",
-      "description": "PixelVault は制作の文脈ごと残すので、次のアイデアを推測ではなく記憶から始められます。"
+      "eyebrow": "使い始める",
+      "title": "テキストから作品へ、そして再利用できるアーカイブへ。",
+      "description": "PixelVault を個人AIメディアワークスペースとして使い、生成、比較、保存し、前回の記録から次を続けられます。"
     }
   },
   "StudioPage": {

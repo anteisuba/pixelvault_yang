@@ -1,254 +1,168 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { ArrowRight, AudioLines, Image as ImageIcon, Video } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import {
+  HOMEPAGE_MODEL_PROVIDER_LABELS,
+  HOMEPAGE_ROUTES,
+} from '@/constants/homepage'
 import {
   getAvailableModels,
   getModelMessageKey,
   groupModelsByProvider,
-  type ModelOption,
-  type ProviderGroup,
 } from '@/constants/models'
 import { isCjkLocale } from '@/i18n/routing'
-import { BRAND_ACCENT, BRAND_ACCENT_DARK } from '@/lib/design-tokens'
 import { cn } from '@/lib/utils'
+import { Link } from '@/i18n/navigation'
 
 import { BlurFade } from '@/components/ui/blur-fade'
-import { MagicCard } from '@/components/ui/magic-card'
 import { TextAnimate } from '@/components/ui/text-animate'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-const PROVIDER_LABELS: Record<ProviderGroup, string> = {
-  openai: 'OpenAI',
-  google: 'Google',
-  novelai: 'NovelAI',
-  fal: 'fal.ai',
-  volcengine: 'VolcEngine',
-  fish_audio: 'Fish Audio',
-  opensource: 'Open Source',
-  replicate: 'Replicate',
-}
-
-function getCapabilities(model: ModelOption) {
-  const isImage = model.outputType === 'IMAGE'
-  const isVideo = model.outputType === 'VIDEO'
-  return {
-    txt2img: isImage,
-    img2img: isImage && !model.requiresReferenceImage,
-    txt2video: isVideo,
-    img2video: isVideo && !!model.i2vModelId,
-  }
-}
-
-/** Approximate API pricing per generation (USD) */
-const MODEL_PRICING: Record<string, { price: string; unit: string }> = {
-  // OpenAI
-  'gpt-image-1.5': { price: '~$0.03', unit: '/img' },
-  // Google
-  'gemini-3.1-flash-image-preview': { price: '~$0.07', unit: '/img' },
-  'gemini-3-pro-image-preview': { price: '~$0.13', unit: '/img' },
-  // fal — Image
-  'flux-2-pro': { price: '~$0.03', unit: '/img' },
-  'flux-2-dev': { price: '~$0.012', unit: '/img' },
-  'flux-2-schnell': { price: '~$0.008', unit: '/img' },
-  'flux-2-max': { price: '~$0.07', unit: '/img' },
-  'flux-lora': { price: '~$0.02', unit: '/img' },
-  'flux-kontext-pro': { price: '~$0.04', unit: '/img' },
-  'flux-kontext-max': { price: '~$0.07', unit: '/img' },
-  'ideogram-3': { price: '~$0.05', unit: '/img' },
-  'recraft-v4-pro': { price: '~$0.25', unit: '/img' },
-  // VolcEngine
-  'seedream-4.5': { price: '~$0.04', unit: '/img' },
-  'seedream-5.0-lite': { price: '~$0.035', unit: '/img' },
-  'seedream-4.0': { price: '~$0.03', unit: '/img' },
-  // NovelAI (~13 Anlas ≈ $0.026)
-  'nai-diffusion-4-5-full': { price: '~$0.026', unit: '/img' },
-  'nai-diffusion-4-5-curated': { price: '~$0.026', unit: '/img' },
-  'nai-diffusion-4-full': { price: '~$0.026', unit: '/img' },
-  'illustrious-xl': { price: '~$0.026', unit: '/img' },
-  // HuggingFace
-  sdxl: { price: '~$0.006', unit: '/img' },
-  'animagine-xl-4.0': { price: '~$0.006', unit: '/img' },
-  // Replicate
-  'sd-3.5-large': { price: '~$0.065', unit: '/img' },
-  // fal — Video
-  'kling-video': { price: '~$0.10', unit: '/sec' },
-  'kling-v3-pro': { price: '~$0.22', unit: '/sec' },
-  'minimax-video': { price: '~$0.05', unit: '/vid' },
-  'luma-ray-2': { price: '~$0.10', unit: '/sec' },
-  'wan-video': { price: '~$0.05', unit: '/sec' },
-  'hunyuan-video': { price: '~$0.075', unit: '/sec' },
-  'seedance-1.5-pro': { price: '~$0.05', unit: '/sec' },
-  'veo-3.1': { price: '~$0.40', unit: '/sec' },
-  'pika-v2.5': { price: '~$0.06', unit: '/sec' },
-  'runway-gen3': { price: '~$0.06', unit: '/sec' },
-}
-
-const capabilityLabels = {
-  txt2img: { en: 'Text→Image', ja: 'テキスト→画像', zh: '文生图' },
-  img2img: { en: 'Image→Image', ja: '画像→画像', zh: '图生图' },
-  txt2video: { en: 'Text→Video', ja: 'テキスト→動画', zh: '文生视频' },
-  img2video: { en: 'Image→Video', ja: '画像→動画', zh: '图生视频' },
-} as const
-
-const capabilityConfig = [
-  { key: 'txt2img' as const, color: 'bg-blue-500/15 text-blue-700' },
-  { key: 'img2img' as const, color: 'bg-emerald-500/15 text-emerald-700' },
-  { key: 'txt2video' as const, color: 'bg-purple-500/15 text-purple-700' },
-  { key: 'img2video' as const, color: 'bg-amber-500/15 text-amber-700' },
-]
 
 export function HomepageModels() {
   const locale = useLocale()
   const isDenseLocale = isCjkLocale(locale)
   const t = useTranslations('Homepage')
-  const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
 
-  const availableGroups = groupModelsByProvider(getAvailableModels())
+  const availableModels = getAvailableModels()
+  const availableGroups = groupModelsByProvider(availableModels)
+  const mediaStats = [
+    {
+      icon: ImageIcon,
+      id: 'image',
+      value: availableModels.filter((model) => model.outputType === 'IMAGE')
+        .length,
+    },
+    {
+      icon: Video,
+      id: 'video',
+      value: availableModels.filter((model) => model.outputType === 'VIDEO')
+        .length,
+    },
+    {
+      icon: AudioLines,
+      id: 'audio',
+      value: availableModels.filter((model) => model.outputType === 'AUDIO')
+        .length,
+    },
+  ] as const
 
   return (
-    <section
-      id="models"
-      className="grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
-    >
+    <section id="models" className="homepage-models grid gap-8 scroll-mt-24">
       <BlurFade inView>
-        <div className="grid gap-[0.65rem] max-w-[42rem]">
-          <p
-            className={cn(
-              'text-[0.72rem] font-semibold tracking-[0.18em] uppercase text-primary opacity-75',
-              isDenseLocale && 'tracking-normal normal-case',
-            )}
-          >
-            {t('models.eyebrow')}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.66fr)_minmax(18rem,0.34fr)] lg:items-end">
+          <div className="grid max-w-[50rem] gap-3">
+            <p
+              className={cn(
+                'text-xs font-semibold uppercase tracking-widest text-foreground/48',
+                isDenseLocale && 'tracking-normal normal-case',
+              )}
+            >
+              {t('models.eyebrow')}
+            </p>
+            <TextAnimate
+              as="h2"
+              by={isDenseLocale ? 'character' : 'word'}
+              animation="blurInUp"
+              duration={0.6}
+              once
+              startOnView
+              className={cn(
+                'font-display text-[clamp(2.5rem,5.4vw,5.8rem)] font-semibold leading-[0.94] tracking-[-0.06em] text-balance',
+                isDenseLocale && 'tracking-normal',
+              )}
+            >
+              {t('models.title')}
+            </TextAnimate>
+          </div>
+          <p className="max-w-[28rem] font-serif text-base leading-7 text-[var(--home-muted)] lg:justify-self-end">
+            {t('models.description')}
           </p>
-          <TextAnimate
-            as="h2"
-            by="word"
-            animation="blurInUp"
-            duration={0.6}
-            once
-            startOnView
-            className="font-display text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance"
-          >
-            {t('models.title')}
-          </TextAnimate>
         </div>
       </BlurFade>
 
-      <Tabs defaultValue={availableGroups[0]?.group}>
-        <TabsList className="flex flex-wrap gap-1 bg-transparent h-auto p-0">
-          {availableGroups.map(({ group, models }) => (
-            <TabsTrigger
-              key={group}
-              value={group}
-              className="rounded-full border border-border/60 bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary"
-            >
-              {PROVIDER_LABELS[group]}
-              <span className="ml-1.5 text-[0.6rem] opacity-70">
-                {models.length}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div className="homepage-model-board grid gap-0 overflow-hidden rounded-[2rem] lg:grid-cols-[minmax(18rem,0.42fr)_minmax(0,1fr)]">
+        <div className="homepage-model-summary grid content-between gap-10 p-6 sm:p-8">
+          <div className="grid gap-3">
+            <p className="font-display text-xs font-semibold uppercase tracking-widest text-foreground/44">
+              {t('models.coverageEyebrow')}
+            </p>
+            <h3 className="font-display text-[clamp(2rem,4vw,4.2rem)] font-semibold leading-[0.95] tracking-[-0.06em]">
+              {t('models.coverageTitle')}
+            </h3>
+            <p className="font-serif text-sm leading-7 text-[var(--home-muted)]">
+              {t('models.coverageDescription')}
+            </p>
+          </div>
 
-        {availableGroups.map(({ group, models }) => {
-          return (
-            <TabsContent key={group} value={group} className="mt-4">
-              <MagicCard
-                gradientFrom={BRAND_ACCENT}
-                gradientTo={BRAND_ACCENT_DARK}
-                gradientColor="rgba(217, 119, 87, 0.04)"
-                gradientOpacity={0.6}
-                className="rounded-2xl border-border/60 bg-transparent overflow-hidden"
-              >
-                {/* Table header */}
-                <div className="grid grid-cols-[1fr_6rem_minmax(0,16rem)] max-sm:grid-cols-[1fr_6rem] gap-2 px-5 py-3 border-b border-border/40 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span>{tCommon('model')}</span>
-                  <span className="text-center">{tCommon('cost')}</span>
-                  <span className="max-sm:hidden">
-                    {tCommon('capabilities')}
+          <div className="grid grid-cols-3 gap-2">
+            {mediaStats.map((stat) => {
+              const Icon = stat.icon
+              return (
+                <div
+                  key={stat.id}
+                  className="homepage-model-media rounded-2xl p-4"
+                >
+                  <Icon className="size-4 text-foreground/54" />
+                  <span className="mt-4 block font-display text-3xl font-semibold tabular-nums">
+                    {stat.value}
                   </span>
+                  <p className="mt-1 font-serif text-xs text-[var(--home-muted)]">
+                    {t(`models.media.${stat.id}`)}
+                  </p>
                 </div>
+              )
+            })}
+          </div>
+        </div>
 
-                {/* Model rows */}
-                {models.map((model, i) => {
-                  const caps = getCapabilities(model)
-                  return (
-                    <BlurFade
-                      key={model.id}
-                      delay={i * 0.04}
-                      inView
-                      direction="left"
-                    >
-                      <div
-                        className={cn(
-                          'grid grid-cols-[1fr_6rem_minmax(0,16rem)] max-sm:grid-cols-[1fr_6rem] gap-2 items-center px-5 py-3 transition-colors duration-200 hover:bg-primary/3',
-                          i < models.length - 1 && 'border-b border-border/20',
-                        )}
+        <div className="homepage-provider-list grid gap-0">
+          {availableGroups.map(({ group, models }, index) => {
+            const featuredModels = models.slice(0, 3)
+            return (
+              <BlurFade key={group} delay={index * 0.04} inView>
+                <article className="homepage-provider-row grid gap-4 p-5 sm:grid-cols-[3rem_minmax(9rem,0.4fr)_minmax(0,1fr)_5rem] sm:items-center">
+                  <span className="homepage-provider-index font-display text-xs font-semibold tabular-nums">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="truncate font-display text-lg font-semibold">
+                      {HOMEPAGE_MODEL_PROVIDER_LABELS[group]}
+                    </h4>
+                    <p className="mt-1 font-serif text-xs text-[var(--home-muted)]">
+                      {t('models.providerCount', { count: models.length })}
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1">
+                    {featuredModels.map((model) => (
+                      <span
+                        key={model.id}
+                        className="max-w-44 truncate font-serif text-sm text-foreground/76"
                       >
-                        {/* Model name + tags */}
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-display text-[0.95rem] font-medium leading-tight tracking-[-0.01em] truncate">
-                            {tModels(`${getModelMessageKey(model.id)}.label`)}
-                          </span>
-                          {model.qualityTier === 'premium' && (
-                            <Sparkles className="size-3.5 text-primary shrink-0" />
-                          )}
-                          {model.freeTier && (
-                            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase text-primary">
-                              Free
-                            </span>
-                          )}
-                          {model.supportsLora && (
-                            <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase text-muted-foreground">
-                              LoRA
-                            </span>
-                          )}
-                        </div>
+                        {tModels(`${getModelMessageKey(model.id)}.label`)}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="font-display text-sm font-semibold tabular-nums text-foreground/54 sm:text-right">
+                    {models.length}
+                  </span>
+                </article>
+              </BlurFade>
+            )
+          })}
+        </div>
+      </div>
 
-                        {/* Cost */}
-                        <span className="text-center font-display text-[0.78rem] font-medium tabular-nums text-foreground/70">
-                          {MODEL_PRICING[model.id]
-                            ? `${MODEL_PRICING[model.id].price}${MODEL_PRICING[model.id].unit}`
-                            : `${model.cost}cr`}
-                        </span>
-
-                        {/* Capabilities */}
-                        <div className="flex flex-wrap items-center gap-1 max-sm:hidden">
-                          {capabilityConfig
-                            .filter(({ key }) => caps[key])
-                            .map(({ key, color }) => {
-                              const labels = capabilityLabels[key]
-                              const capLabel =
-                                locale === 'ja'
-                                  ? labels.ja
-                                  : locale === 'zh'
-                                    ? labels.zh
-                                    : labels.en
-                              return (
-                                <span
-                                  key={key}
-                                  className={cn(
-                                    'inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-semibold',
-                                    color,
-                                  )}
-                                >
-                                  {capLabel}
-                                </span>
-                              )
-                            })}
-                        </div>
-                      </div>
-                    </BlurFade>
-                  )
-                })}
-              </MagicCard>
-            </TabsContent>
-          )
-        })}
-      </Tabs>
+      <div className="flex justify-end">
+        <Link
+          href={HOMEPAGE_ROUTES.workflow}
+          className="inline-flex items-center gap-2 font-display text-sm font-semibold text-foreground hover:text-primary"
+        >
+          {t('models.nextLink')}
+          <ArrowRight className="size-4" />
+        </Link>
+      </div>
     </section>
   )
 }

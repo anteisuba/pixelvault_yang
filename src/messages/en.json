@@ -162,7 +162,7 @@
     "brandSubline": "A quieter place to make and keep AI images.",
     "navigationLabel": "Homepage",
     "navigation": {
-      "gallery": "Gallery",
+      "capabilities": "Capabilities",
       "workflow": "Workflow",
       "models": "Models"
     },
@@ -170,10 +170,17 @@
     "heroTitle": "Make deliberately. Keep everything.",
     "heroDescription": "Multi-model image generation with permanent archiving.",
     "hero": {
-      "title": "Create with any AI model",
-      "subtitle": "Keep everything forever",
+      "badge": "{count}+ image models",
+      "title": "Generate images, video, and voice from text",
+      "subtitle": "One studio for AI image, video, audio, and LoRA workflows.",
+      "description": "Write a prompt, choose a model, or let PixelVault keep the generation route readable. Every output stays archived with prompt, model, provider, and file context.",
       "primaryCta": "Start Creating",
-      "secondaryCta": "Browse Gallery"
+      "secondaryCta": "Browse Gallery",
+      "stats": {
+        "models": "Available models",
+        "providers": "Providers",
+        "workflows": "Creation modes"
+      }
     },
     "actions": {
       "signedOutPrimary": "Start your archive",
@@ -252,28 +259,65 @@
       }
     },
     "workflow": {
-      "eyebrow": "From prompt to archive",
-      "title": "From prompt to archive, without clutter.",
-      "description": "Pick a model, write with intent, and keep the result with the context that produced it.",
+      "eyebrow": "How it works",
+      "title": "Start with a prompt. Keep the process too.",
+      "description": "PixelVault explains the working path, not just the model list: choose a mode, generate, compare, and archive.",
       "items": {
         "frameIdea": {
-          "title": "Frame the idea",
-          "description": "Start with the prompt and choose the model that fits the image you want to make."
+          "title": "Choose a creation mode",
+          "description": "Start from text-to-image, video generation, voice generation, or LoRA training without hopping between tools."
         },
         "generateWithIntent": {
-          "title": "Generate with intent",
-          "description": "Compare photoreal, anime, OpenAI, and Gemini outputs without leaving the same workspace."
+          "title": "Pick a model and generate",
+          "description": "Choose across OpenAI, Google, fal.ai, NovelAI, VolcEngine, and more, or begin with a recommended model."
         },
         "archiveWinners": {
-          "title": "Archive the winners",
-          "description": "Keep the prompt, route, and final image together so the next session starts with context."
+          "title": "Save output and context",
+          "description": "Work, prompt, model, provider, usage, and archived files stay together for reuse and comparison."
+        }
+      }
+    },
+    "capabilities": {
+      "eyebrow": "Product capabilities",
+      "title": "Not a single image page. A multimedia AI workspace.",
+      "description": "The homepage now explains what users can actually do in PixelVault, split by the workflows they will look for first.",
+      "items": {
+        "textToImage": {
+          "title": "Text to image",
+          "description": "Generate product shots, characters, marketing assets, and concept images while keeping model context attached.",
+          "stat": "image models"
+        },
+        "videoGeneration": {
+          "title": "Video generation",
+          "description": "Create short clips and image-to-video sequences with Kling, Veo, Seedance, Runway, and related models.",
+          "stat": "video models"
+        },
+        "voiceGeneration": {
+          "title": "Voice generation",
+          "description": "Turn text into speech with Fish Audio and F5-TTS for character voices, narration, and storyboard drafts.",
+          "stat": "voice models"
+        },
+        "loraTraining": {
+          "title": "LoRA training",
+          "description": "Train reusable LoRAs for characters, styles, or products so later generations stay consistent.",
+          "stat": "LoRA entry"
         }
       }
     },
     "models": {
       "eyebrow": "Model lineup",
-      "title": "Multi-provider models. One calm workspace.",
-      "description": "Switch between OpenAI, Google, NovelAI, and open-source models without changing tools."
+      "title": "Many providers. One unified entry point.",
+      "description": "Like Krea's API page, the complexity stays behind a clear selection layer: choose the job, the model, and how to save the result.",
+      "coverageEyebrow": "Model coverage",
+      "coverageTitle": "Images, video, and voice in one map.",
+      "coverageDescription": "OpenAI, Google, fal.ai, NovelAI, VolcEngine, Fish Audio, Replicate, and open-source models are organized into a readable model matrix.",
+      "providerCount": "{count, plural, one {# model} other {# models}}",
+      "nextLink": "See the workflow",
+      "media": {
+        "image": "Image",
+        "video": "Video",
+        "audio": "Voice"
+      }
     },
     "scenes": {
       "items": {
@@ -334,9 +378,9 @@
       }
     },
     "footer": {
-      "eyebrow": "Built to be revisited",
-      "title": "The image is only part of the work.",
-      "description": "PixelVault keeps the surrounding context intact, so the next idea starts from memory instead of guesswork."
+      "eyebrow": "Start using it",
+      "title": "From text to output, then into a reusable archive.",
+      "description": "Treat PixelVault as a personal AI media workspace: generate, compare, save, and continue from the previous record."
     }
   },
   "StudioPage": {

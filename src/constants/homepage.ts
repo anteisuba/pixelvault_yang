@@ -1,4 +1,5 @@
 import { AI_MODELS } from '@/constants/models'
+import type { ProviderGroup } from '@/constants/models'
 import { ROUTES } from '@/constants/routes'
 
 export const HOMEPAGE_METADATA = {
@@ -13,14 +14,15 @@ export const HOMEPAGE_ROUTES = {
   signIn: ROUTES.SIGN_IN,
   signUp: ROUTES.SIGN_UP,
   studio: ROUTES.STUDIO,
+  capabilities: '#capabilities',
   workflow: '#workflow',
   models: '#models',
 } as const
 
 export const HOMEPAGE_NAVIGATION = [
   {
-    href: '#gallery',
-    id: 'gallery',
+    href: HOMEPAGE_ROUTES.capabilities,
+    id: 'capabilities',
   },
   {
     href: HOMEPAGE_ROUTES.workflow,
@@ -106,6 +108,47 @@ export const HOMEPAGE_VALUE_PROPS = [
 export type HomepageValuePropIcon =
   (typeof HOMEPAGE_VALUE_PROPS)[number]['icon']
 
+export const HOMEPAGE_CAPABILITIES = [
+  {
+    id: 'textToImage',
+    icon: 'image',
+    modelIds: [
+      AI_MODELS.OPENAI_GPT_IMAGE_2,
+      AI_MODELS.FLUX_2_PRO,
+      AI_MODELS.NOVELAI_V45_FULL,
+    ],
+  },
+  {
+    id: 'videoGeneration',
+    icon: 'video',
+    modelIds: [AI_MODELS.VEO_31, AI_MODELS.KLING_V3_PRO],
+  },
+  {
+    id: 'voiceGeneration',
+    icon: 'audio',
+    modelIds: [AI_MODELS.FISH_AUDIO_S2_PRO, AI_MODELS.FAL_F5_TTS],
+  },
+  {
+    id: 'loraTraining',
+    icon: 'lora',
+    modelIds: [AI_MODELS.FLUX_LORA],
+  },
+] as const
+
+export type HomepageCapabilityIcon =
+  (typeof HOMEPAGE_CAPABILITIES)[number]['icon']
+
+export const HOMEPAGE_MODEL_PROVIDER_LABELS = {
+  openai: 'OpenAI',
+  google: 'Google',
+  novelai: 'NovelAI',
+  fal: 'fal.ai',
+  volcengine: 'VolcEngine',
+  fish_audio: 'Fish Audio',
+  opensource: 'Open Source',
+  replicate: 'Replicate',
+} as const satisfies Record<ProviderGroup, string>
+
 /** Showcase images for hero + gallery preview */
 export const HOMEPAGE_SHOWCASE = [
   {
@@ -129,7 +172,7 @@ export const HOMEPAGE_SHOWCASE = [
   {
     id: 'dalleCreative',
     src: '/showcase/showcase-04.svg',
-    model: 'DALL-E',
+    model: 'GPT Image',
     tone: 'sky',
   },
   {

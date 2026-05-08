@@ -18,71 +18,64 @@ export function HomepageWorkflow() {
   return (
     <section
       id="workflow"
-      className="grid gap-5 pt-[clamp(2rem,3.5vw,3rem)] scroll-mt-24"
+      className="homepage-workflow grid gap-8 scroll-mt-24"
     >
       <BlurFade inView>
-        <div className="grid gap-[0.65rem] max-w-[42rem]">
+        <div className="grid max-w-[50rem] gap-3">
           <p
             className={cn(
-              'text-[0.72rem] font-semibold tracking-[0.18em] uppercase text-primary opacity-75',
+              'text-xs font-semibold uppercase tracking-widest text-foreground/48',
               isDenseLocale && 'tracking-normal normal-case',
             )}
           >
             {t('workflow.eyebrow')}
           </p>
-          <h2 className="font-display text-[clamp(1.8rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
+          <h2
+            className={cn(
+              'font-display text-[clamp(2.4rem,5vw,5.4rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-balance',
+              isDenseLocale && 'tracking-normal',
+            )}
+          >
             {t('workflow.title')}
           </h2>
+          <p className="max-w-[35rem] font-serif text-base leading-7 text-[var(--home-muted)]">
+            {t('workflow.description')}
+          </p>
         </div>
       </BlurFade>
 
-      <div className="flex flex-col gap-0 md:flex-row md:items-center">
+      <div className="homepage-workflow-board grid gap-0 overflow-hidden rounded-[2rem] lg:grid-cols-3">
         {HOMEPAGE_WORKFLOW.map((item, index) => (
-          <div
+          <motion.article
             key={item.step}
-            className="flex flex-col items-start md:flex-row md:items-center md:flex-1"
+            className="homepage-workflow-card grid min-h-72 content-between gap-8 p-5 sm:p-6"
+            initial={shouldReduce ? false : { opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{
+              type: 'tween',
+              ease: 'easeOut',
+              duration: 0.4,
+              delay: index * 0.08,
+            }}
           >
-            <motion.div
-              className="flex items-center gap-[0.85rem] py-3"
-              initial={shouldReduce ? false : { opacity: 0, scale: 0.6 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{
-                type: 'tween',
-                ease: 'easeOut',
-                duration: 0.4,
-                delay: index * 0.3,
-              }}
+            <span
+              className={cn(
+                'font-display text-[clamp(3rem,6vw,6rem)] font-semibold leading-none tracking-[-0.08em] text-foreground/16',
+                isDenseLocale && 'tracking-normal',
+              )}
             >
-              <span
-                className={cn(
-                  'homepage-stepper-number inline-flex items-center justify-center w-12 h-12 shrink-0 rounded-full font-display text-[0.85rem] font-bold tracking-[0.08em] uppercase',
-                  isDenseLocale && 'tracking-normal normal-case',
-                )}
-              >
-                {item.step}
-              </span>
-              <h3 className="font-display text-[clamp(1.3rem,2vw,1.65rem)] font-semibold leading-[1.1] tracking-[-0.02em]">
+              {item.step}
+            </span>
+            <div>
+              <h3 className="font-display text-[clamp(1.4rem,2.4vw,2rem)] font-semibold leading-tight tracking-[-0.04em]">
                 {t(`workflow.items.${item.id}.title`)}
               </h3>
-            </motion.div>
-
-            {index < HOMEPAGE_WORKFLOW.length - 1 && (
-              <motion.div
-                className="homepage-stepper-line w-0.5 h-8 ml-[calc(3rem/2-1px)] rounded-[1px] md:w-auto md:h-0.5 md:flex-1 md:ml-0 md:mx-2"
-                initial={shouldReduce ? false : { scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{
-                  type: 'tween',
-                  ease: 'easeOut',
-                  duration: 0.4,
-                  delay: index * 0.3 + 0.2,
-                }}
-                style={{ transformOrigin: 'left' }}
-              />
-            )}
-          </div>
+              <p className="mt-3 font-serif text-sm leading-7 text-[var(--home-muted)]">
+                {t(`workflow.items.${item.id}.description`)}
+              </p>
+            </div>
+          </motion.article>
         ))}
       </div>
     </section>

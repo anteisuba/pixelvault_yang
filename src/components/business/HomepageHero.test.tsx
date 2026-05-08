@@ -8,20 +8,20 @@ import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    title: 'Create with any AI model',
-    subtitle: 'Keep everything forever',
+    title: 'Generate images, video, and voice from text',
+    subtitle: 'One studio for AI image, video, audio, and LoRA workflows.',
     primaryCta: 'Start Creating',
     secondaryCta: 'Browse Gallery',
   },
   zh: {
-    title: '用任意 AI 模型创作',
-    subtitle: '永久保存每一张作品',
+    title: '文本生成图像、视频和语音',
+    subtitle: '一个工作台覆盖 AI 图像、视频、语音和 LoRA 训练。',
     primaryCta: '开始创作',
     secondaryCta: '浏览画廊',
   },
   ja: {
-    title: 'あらゆるAIモデルで創作',
-    subtitle: 'すべての作品を永久保存',
+    title: 'テキストから画像、動画、音声を生成',
+    subtitle: 'AI画像、動画、音声、LoRAワークフローをひとつのスタジオで。',
     primaryCta: '創作を始める',
     secondaryCta: 'ギャラリーを見る',
   },
@@ -30,12 +30,18 @@ const EXPECTED_HERO = {
 type Locale = keyof typeof EXPECTED_HERO
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useLocale: () => 'en',
+  useTranslations: () => (key: string, values?: Record<string, number>) => {
     const map: Record<string, string> = {
-      title: EXPECTED_HERO.en.title,
-      subtitle: EXPECTED_HERO.en.subtitle,
-      primaryCta: EXPECTED_HERO.en.primaryCta,
-      secondaryCta: EXPECTED_HERO.en.secondaryCta,
+      'hero.badge': `${values?.count ?? 0}+ image models`,
+      'hero.title': EXPECTED_HERO.en.title,
+      'hero.subtitle': EXPECTED_HERO.en.subtitle,
+      'hero.description': 'Generate across media and keep the context.',
+      'hero.primaryCta': EXPECTED_HERO.en.primaryCta,
+      'hero.secondaryCta': EXPECTED_HERO.en.secondaryCta,
+      'hero.stats.models': 'Available models',
+      'hero.stats.providers': 'Providers',
+      'hero.stats.workflows': 'Creation modes',
     }
     return map[key] ?? key
   },
@@ -47,15 +53,13 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-vi.mock('@/components/ui/interactive-hover-button', () => ({
-  InteractiveHoverButton: ({ children }: { children: ReactNode }) => (
-    <span>{children}</span>
-  ),
+vi.mock('@/i18n/routing', () => ({
+  isCjkLocale: () => false,
 }))
 
-vi.mock('@/components/ui/shimmer-button', () => ({
-  ShimmerButton: ({ children }: { children: ReactNode }) => (
-    <span>{children}</span>
+vi.mock('./HomepageHeroVisual', () => ({
+  HomepageHeroVisual: () => (
+    <div data-testid="homepage-hero-visual">hero visual</div>
   ),
 }))
 

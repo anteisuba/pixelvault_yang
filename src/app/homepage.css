@@ -362,78 +362,109 @@
 .homepage-feature-tone-sky {
   background:
     radial-gradient(
-      circle at 30% 20%,
-      color-mix(in oklab, var(--secondary) 38%, var(--background)) 0%,
+      circle at 28% 22%,
+      color-mix(in oklab, var(--secondary) 70%, white) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 78% 78%,
+      color-mix(in oklab, var(--secondary) 40%, white) 0%,
       transparent 55%
     ),
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--secondary) 22%, var(--background)),
-      color-mix(in oklab, var(--secondary) 12%, var(--background))
+      color-mix(in oklab, var(--secondary) 32%, white),
+      color-mix(in oklab, var(--secondary) 18%, white)
     );
 }
 
 .homepage-feature-tone-forest {
   background:
     radial-gradient(
-      circle at 70% 30%,
-      color-mix(in oklab, var(--chart-3) 36%, var(--background)) 0%,
-      transparent 60%
+      circle at 72% 28%,
+      color-mix(in oklab, var(--chart-3) 65%, white) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 22% 80%,
+      color-mix(in oklab, var(--chart-3) 38%, white) 0%,
+      transparent 55%
     ),
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--chart-3) 20%, var(--background)),
-      color-mix(in oklab, var(--chart-3) 10%, var(--background))
+      color-mix(in oklab, var(--chart-3) 30%, white),
+      color-mix(in oklab, var(--chart-3) 16%, white)
     );
 }
 
 .homepage-feature-tone-amber {
   background:
     radial-gradient(
-      circle at 25% 75%,
-      color-mix(in oklab, var(--primary) 32%, var(--background)) 0%,
+      circle at 24% 74%,
+      color-mix(in oklab, var(--primary) 62%, white) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 76% 24%,
+      color-mix(in oklab, var(--primary) 38%, white) 0%,
       transparent 55%
     ),
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--primary) 18%, var(--background)),
-      color-mix(in oklab, var(--primary) 9%, var(--background))
+      color-mix(in oklab, var(--primary) 28%, white),
+      color-mix(in oklab, var(--primary) 14%, white)
     );
 }
 
 .homepage-feature-tone-dawn {
   background:
     radial-gradient(
-      circle at 60% 40%,
-      color-mix(in oklab, var(--chart-1) 36%, var(--background)) 0%,
-      transparent 60%
+      circle at 62% 38%,
+      color-mix(in oklab, var(--chart-1) 65%, white) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 22% 82%,
+      color-mix(in oklab, var(--chart-1) 38%, white) 0%,
+      transparent 55%
     ),
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--chart-1) 20%, var(--background)),
-      color-mix(in oklab, var(--chart-1) 10%, var(--background))
+      color-mix(in oklab, var(--chart-1) 30%, white),
+      color-mix(in oklab, var(--chart-1) 15%, white)
     );
 }
 
 .homepage-feature-tone-ink {
-  background: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--foreground) 92%, var(--background)),
-    color-mix(in oklab, var(--foreground) 72%, var(--background))
-  );
+  background:
+    radial-gradient(
+      circle at 30% 30%,
+      color-mix(in oklab, var(--foreground) 95%, white) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--foreground) 90%, white),
+      color-mix(in oklab, var(--foreground) 65%, white)
+    );
 }
 
 .homepage-feature-tone-earth {
   background:
     radial-gradient(
-      circle at 35% 65%,
-      color-mix(in oklab, var(--chart-4) 34%, var(--background)) 0%,
-      transparent 60%
+      circle at 32% 68%,
+      color-mix(in oklab, var(--chart-4) 60%, white) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 78% 28%,
+      color-mix(in oklab, var(--chart-4) 38%, white) 0%,
+      transparent 55%
     ),
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--chart-4) 20%, var(--background)),
-      color-mix(in oklab, var(--chart-4) 10%, var(--background))
+      color-mix(in oklab, var(--chart-4) 28%, white),
+      color-mix(in oklab, var(--chart-4) 14%, white)
     );
 }
 

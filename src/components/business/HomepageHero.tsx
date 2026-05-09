@@ -46,7 +46,7 @@ export function HomepageHero({
         >
           {t('title')}
         </h1>
-        <p className="homepage-hero-copy mt-6 max-w-xl font-display font-medium text-[var(--home-muted)] text-balance">
+        <p className="homepage-hero-copy mt-6 max-w-2xl font-display font-medium text-[var(--home-muted)]">
           {t('subtitle')}
         </p>
 

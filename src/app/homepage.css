@@ -278,8 +278,8 @@
 }
 
 .homepage-hero-title {
-  font-size: clamp(3rem, 6vw, 5rem);
-  line-height: 0.98;
+  font-size: clamp(3rem, 5.5vw, 4.75rem);
+  line-height: 1;
   letter-spacing: -0.045em;
 }
 
@@ -480,8 +480,8 @@
 }
 
 .homepage-feature-title {
-  font-size: clamp(2.25rem, 4vw, 3.5rem);
-  line-height: 1;
+  font-size: clamp(2.5rem, 4.2vw, 3.75rem);
+  line-height: 1.05;
   letter-spacing: -0.04em;
 }
 

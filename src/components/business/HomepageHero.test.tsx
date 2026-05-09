@@ -8,22 +8,16 @@ import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    title: 'Create with any AI model',
-    subtitle: 'Keep everything forever',
-    primaryCta: 'Start Creating',
-    secondaryCta: 'Browse Gallery',
+    eyebrow: '22 image models',
+    title: 'Text to Image',
   },
   zh: {
-    title: '用任意 AI 模型创作',
-    subtitle: '永久保存每一张作品',
-    primaryCta: '开始创作',
-    secondaryCta: '浏览画廊',
+    eyebrow: '22 个图像模型',
+    title: '文生图',
   },
   ja: {
-    title: 'あらゆるAIモデルで創作',
-    subtitle: 'すべての作品を永久保存',
-    primaryCta: '創作を始める',
-    secondaryCta: 'ギャラリーを見る',
+    eyebrow: '22 の画像モデル',
+    title: 'Text to Image',
   },
 } as const
 
@@ -32,10 +26,9 @@ type Locale = keyof typeof EXPECTED_HERO
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
+      eyebrow: EXPECTED_HERO.en.eyebrow,
       title: EXPECTED_HERO.en.title,
-      subtitle: EXPECTED_HERO.en.subtitle,
-      primaryCta: EXPECTED_HERO.en.primaryCta,
-      secondaryCta: EXPECTED_HERO.en.secondaryCta,
+      subtitle: 'Run prompts across 22 image models.',
     }
     return map[key] ?? key
   },
@@ -44,18 +37,6 @@ vi.mock('next-intl', () => ({
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href }: { children: ReactNode; href: string }) => (
     <a href={href}>{children}</a>
-  ),
-}))
-
-vi.mock('@/components/ui/interactive-hover-button', () => ({
-  InteractiveHoverButton: ({ children }: { children: ReactNode }) => (
-    <span>{children}</span>
-  ),
-}))
-
-vi.mock('@/components/ui/shimmer-button', () => ({
-  ShimmerButton: ({ children }: { children: ReactNode }) => (
-    <span>{children}</span>
   ),
 }))
 
@@ -80,20 +61,13 @@ describe('HomepageHero', () => {
     render(
       <HomepageHero
         primaryActionHref="/sign-up"
-        primaryActionLabel={EXPECTED_HERO.en.primaryCta}
-        galleryActionHref="/gallery"
-        galleryActionLabel={EXPECTED_HERO.en.secondaryCta}
+        primaryActionLabel="Start your archive"
       />,
     )
 
-    const links = screen.getAllByRole('link')
-    expect(links).toHaveLength(2)
     expect(
-      screen.getByRole('link', { name: EXPECTED_HERO.en.primaryCta }),
+      screen.getByRole('link', { name: 'Start your archive' }),
     ).toHaveAttribute('href', '/sign-up')
-    expect(
-      screen.getByRole('link', { name: EXPECTED_HERO.en.secondaryCta }),
-    ).toHaveAttribute('href', '/gallery')
   })
 
   it('uses the signed-in primary CTA href passed by the shell', () => {
@@ -101,8 +75,6 @@ describe('HomepageHero', () => {
       <HomepageHero
         primaryActionHref="/studio"
         primaryActionLabel="Open studio"
-        galleryActionHref="/gallery"
-        galleryActionLabel={EXPECTED_HERO.en.secondaryCta}
       />,
     )
 
@@ -112,7 +84,18 @@ describe('HomepageHero', () => {
     )
   })
 
-  it('keeps Homepage.hero keys present in every locale', () => {
+  it('renders only the primary CTA (no secondary gallery button)', () => {
+    render(
+      <HomepageHero
+        primaryActionHref="/studio"
+        primaryActionLabel="Open studio"
+      />,
+    )
+
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+  })
+
+  it('keeps Homepage.hero.eyebrow and title present in every locale', () => {
     for (const locale of Object.keys(EXPECTED_HERO) as Locale[]) {
       const homepage = loadMessages(locale).Homepage
       expect(isRecord(homepage)).toBe(true)
@@ -126,10 +109,10 @@ describe('HomepageHero', () => {
         throw new Error(`Homepage.hero missing in ${locale}.json`)
       }
 
+      expect(hero.eyebrow).toBe(EXPECTED_HERO[locale].eyebrow)
       expect(hero.title).toBe(EXPECTED_HERO[locale].title)
-      expect(hero.subtitle).toBe(EXPECTED_HERO[locale].subtitle)
-      expect(hero.primaryCta).toBe(EXPECTED_HERO[locale].primaryCta)
-      expect(hero.secondaryCta).toBe(EXPECTED_HERO[locale].secondaryCta)
+      expect(typeof hero.subtitle).toBe('string')
+      expect((hero.subtitle as string).length).toBeGreaterThan(20)
     }
   })
 })

@@ -247,8 +247,6 @@
       "Bash(find src/app/[locale] -name \"loading.tsx\" -o -name \"error.tsx\")"
     ],
     "deny": [
-      "Edit(src/**)",
-      "Write(src/**)",
       "Edit(prisma/**)",
       "Write(prisma/**)",
       "Edit(scripts/**)",
@@ -257,10 +255,6 @@
       "Write(e2e/**)",
       "Edit(apps/**)",
       "Write(apps/**)",
-      "Edit(components/**)",
-      "Write(components/**)",
-      "Edit(public/**)",
-      "Write(public/**)",
       "Edit(.github/workflows/**)",
       "Write(.github/workflows/**)",
       "Edit(.husky/**)",

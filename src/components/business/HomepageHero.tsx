@@ -1,75 +1,62 @@
-'use client'
-
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button'
-import { ShimmerButton } from '@/components/ui/shimmer-button'
-import { BRAND_ACCENT } from '@/lib/design-tokens'
+import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
+import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 
 interface HomepageHeroProps {
   primaryActionHref: string
   primaryActionLabel: string
-  galleryActionHref: string
-  galleryActionLabel: string
 }
 
 export function HomepageHero({
   primaryActionHref,
   primaryActionLabel,
-  galleryActionHref,
-  galleryActionLabel,
 }: HomepageHeroProps) {
   const t = useTranslations('Homepage.hero')
 
   return (
     <section
-      className="flex flex-col items-center text-center"
-      style={{
-        paddingBlock: 'clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 2rem)',
-      }}
+      className="homepage-hero-grid grid items-center gap-10 lg:gap-16"
+      aria-labelledby="homepage-hero-title"
     >
-      <h1
-        className="font-display text-hero-title font-bold leading-hero tracking-hero text-foreground animate-fade-in-up"
-        style={{ animationDuration: '500ms', animationFillMode: 'both' }}
-      >
-        {t('title')}
-      </h1>
-      <p
-        className="mt-3 font-serif text-hero-subtitle leading-relaxed text-muted-foreground animate-fade-in-up"
-        style={{
-          animationDuration: '500ms',
-          animationDelay: '150ms',
-          animationFillMode: 'both',
-        }}
-      >
-        {t('subtitle')}
-      </p>
+      <div className="homepage-hero-mosaic overflow-hidden rounded-3xl">
+        {HOMEPAGE_SHOWCASE.map((item) => (
+          <div key={item.id} className="homepage-hero-tile">
+            <Image
+              src={item.src}
+              alt={`${item.model} showcase`}
+              width={320}
+              height={320}
+              className="h-full w-full object-cover"
+              priority={item.id === HOMEPAGE_SHOWCASE[0]?.id}
+            />
+          </div>
+        ))}
+      </div>
 
-      <div
-        className="flex flex-wrap justify-center gap-4 pt-8 max-sm:flex-col max-sm:items-center animate-fade-in-up"
-        style={{
-          animationDuration: '500ms',
-          animationDelay: '300ms',
-          animationFillMode: 'both',
-        }}
-      >
-        <Link href={primaryActionHref}>
-          <ShimmerButton
-            shimmerColor={BRAND_ACCENT}
-            borderRadius="9999px"
-            background="transparent"
-            className="h-hero-btn min-w-48 px-6 text-sm font-semibold text-foreground border-border/80"
-          >
-            {primaryActionLabel}
-          </ShimmerButton>
-        </Link>
+      <div className="flex flex-col items-start text-left">
+        <span className="homepage-hero-pill mb-5 rounded-full px-4 py-2 text-sm font-semibold">
+          {t('eyebrow')}
+        </span>
+        <h1
+          id="homepage-hero-title"
+          className="homepage-hero-title font-display font-bold text-foreground text-balance"
+        >
+          {t('title')}
+        </h1>
+        <p className="homepage-hero-copy mt-6 max-w-xl font-display font-medium text-[var(--home-muted)] text-balance">
+          {t('subtitle')}
+        </p>
 
-        <Link href={galleryActionHref}>
-          <InteractiveHoverButton className="h-hero-btn min-w-48 px-6 text-sm">
-            {galleryActionLabel}
-          </InteractiveHoverButton>
-        </Link>
+        <Button
+          asChild
+          size="lg"
+          className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
+        >
+          <Link href={primaryActionHref}>{primaryActionLabel}</Link>
+        </Button>
       </div>
     </section>
   )

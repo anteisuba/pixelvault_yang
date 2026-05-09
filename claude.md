@@ -43,12 +43,23 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 ## Design Language
 
-See `docs/reference/design-system.md` for full spec. Key constraints:
+See `docs/reference/design-system.md` for full spec. Two surface modes:
 
-- Background: `#faf9f5` (米白, never `#fff`) · Text: `#141413` · Accent: `#d97757`
-- Fonts: Space Grotesk (headings) + Lora (body) — must be sans + serif pair
+**Editorial surfaces** (Studio, Gallery, Auth, Account):
+
+- Background: `#faf9f5` (米白) · Text: `#141413` · Brand accent: `#d97757`
+- Fonts: Space Grotesk (headings) + Lora (body) — sans + serif pair required
+
+**Marketing surfaces** (Homepage, landing pages):
+
+- Background may be pure `#fff` · Primary CTA = black `#141413` (not orange)
+- Single Space Grotesk allowed (no serif required)
+- Krea-style: minimal chrome, large hero typography, real imagery (not color blocks)
+
+Shared:
+
 - Motion: fade-in + translate-up only, 300–600ms ease-out
-- **Forbidden**: blue-purple gradients, neon, heavy shadows, pure white bg, generic AI aesthetic
+- **Forbidden**: blue-purple gradients, neon glows, heavy drop shadows, dark-tech aesthetic with blue glow
 
 ## Security
 

@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "requestCount": "{count} リクエスト",
+    "creditCount": "{count} リクエスト",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -130,8 +130,8 @@
     }
   },
   "Navbar": {
-    "requestsLoading": "...",
-    "requestsTooltip": "使用したAPIリクエスト数",
+    "creditsLoading": "...",
+    "creditsTooltip": "使用したAPIリクエスト数",
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
     "signOut": "サインアウト",
@@ -159,21 +159,81 @@
   },
   "Homepage": {
     "brandLabel": "パーソナルAIギャラリー",
-    "brandSubline": "AI画像を静かに作り、残しておくための個人アーカイブ。",
     "navigationLabel": "ホームページ",
-    "navigation": {
-      "gallery": "ギャラリー",
-      "workflow": "ワークフロー",
-      "models": "モデル"
+    "nav": {
+      "app": "アプリ"
     },
-    "heroEyebrow": "個人AIアーカイブ",
-    "heroTitle": "意図して作り、きちんと残す。",
-    "heroDescription": "マルチモデル画像生成と永久アーカイブ。",
+    "navigation": {
+      "image": "画像",
+      "video": "動画",
+      "lora": "LoRA",
+      "audio": "音声",
+      "arena": "Arena",
+      "gallery": "ギャラリー"
+    },
     "hero": {
-      "title": "あらゆるAIモデルで創作",
-      "subtitle": "すべての作品を永久保存",
-      "primaryCta": "創作を始める",
-      "secondaryCta": "ギャラリーを見る"
+      "eyebrow": "22 の画像モデル",
+      "title": "Text to Image",
+      "subtitle": "Flux、Gemini、OpenAI、NovelAI、Recraft、Ideogram など 22 の画像モデルを 1 つのスタジオから。プロバイダーごとにアカウントを使い分ける必要はありません。手動で選ぶか、Arena でブラインド比較して ELO に任せる。"
+    },
+    "badges": {
+      "soon": "近日公開"
+    },
+    "featureSections": {
+      "imageEditing": {
+        "eyebrow": "27 モデル中 24 対応",
+        "title": "リファレンス編集",
+        "description": "リファレンス画像を渡せば、27 のうち 24 のモデルが使ってくれます。Gemini は最大 14 枚、Flux Kontext Max は 4 枚、ほかはほぼ 1 枚。i2i、img2img、director — モデルが期待するモードに自動で乗ります。",
+        "cta": "編集してみる"
+      },
+      "video": {
+        "eyebrow": "14 の動画モデル",
+        "title": "動画生成",
+        "description": "Kling、LumaRay、Veo 3.1、Runway Gen3、Seedance — 14 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
+        "cta": "動画を生成"
+      },
+      "lora": {
+        "eyebrow": "fal.ai + Replicate",
+        "title": "LoRA トレーニング",
+        "description": "ZIP をドロップし、fal.ai か Replicate でトレーニングを開始。完了までこちらで追跡し、ライブラリに自動で着地。Flux Pro、Dev、Schnell、LoRA に直接プラグイン — あなたのスタイル、あなたのキャラクター。",
+        "cta": "LoRA を訓練"
+      },
+      "upscale": {
+        "eyebrow": "fal.ai で 4 倍",
+        "title": "アップスケール & 整理",
+        "description": "fal.ai で 4 倍にアップスケール、ワンクリックで背景除去、軽量な画像変換も同じスタジオで。別ツールを覚える必要はありません。",
+        "cta": "画像を編集"
+      },
+      "tts": {
+        "eyebrow": "2 つの TTS モデル",
+        "title": "Text to Speech",
+        "description": "Fish Audio S2 Pro と FAL F5 TTS。声を選び、速度とサンプルレートを決めて生成。音声は画像と同じアーカイブに収まります。",
+        "cta": "音声を生成"
+      },
+      "workflow": {
+        "eyebrow": "開発中",
+        "title": "ビジュアルワークフロー、ワンクリックでデプロイ",
+        "description": "ノードエディタでモデルをコードなしに連結。画像生成から拡大、動画への流し込み、分岐つきのバッチ処理まで。動いたらデプロイして、ほかのエンドポイントと同じようにコードから呼び出せます。",
+        "cta": "公開時に通知"
+      },
+      "arena": {
+        "eyebrow": "ブラインド ELO",
+        "title": "Arena",
+        "description": "4 枚並べてブラインド比較、K=32 の ELO。モデル名は伏せたまま勝者を選ぶ。投票は本当にランキングを動かします。",
+        "cta": "Arena を開く"
+      },
+      "archive": {
+        "eyebrow": "Cloudflare R2",
+        "title": "永久アーカイブ",
+        "description": "すべての生成は Cloudflare R2 へ、プロンプト・モデル・プロバイダー・シードを添えて保存。AES-256-GCM 暗号化、S3 マルチパートアップロード。期限切れも腐敗もありません。",
+        "cta": "アーカイブを見る"
+      },
+      "social": {
+        "eyebrow": "パブリックギャラリー",
+        "title": "フォロー・いいね・コレクト",
+        "description": "気になるクリエイターをフォロー、響いた作品にいいね、お気に入りをコレクションへ。ギャラリーは公開、個人アーカイブはあなただけのものです。",
+        "cta": "ギャラリーを見る"
+      }
     },
     "actions": {
       "signedOutPrimary": "アーカイブを始める",
@@ -185,158 +245,17 @@
       "signUpPrimary": "すでにアカウントがありますか？",
       "authSecondary": "ホームに戻る"
     },
-    "auth": {
-      "note": "アカウントを使うと、保存済みルート、非公開プロンプト、アーカイブ済み結果を同じ制作履歴として保てます。",
-      "signIn": {
-        "eyebrow": "おかえりなさい",
-        "title": "あなたのアーカイブへ戻る。",
-        "description": "サインインすると、生成や保存済み結果の確認、使用量の追跡をそのまま続けられます。"
+    "modelLineup": {
+      "title": "主要な AI モデル、すぐ使える",
+      "description": "OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine など 38 モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
+      "groups": {
+        "image": "画像モデル",
+        "video": "動画モデル",
+        "audio": "音声モデル"
       },
-      "signUp": {
-        "eyebrow": "アーカイブを始める",
-        "title": "落ち着いた画像制作フローを始める。",
-        "description": "アカウントを作成して複数モデルで生成し、良い結果を保存しながら、あとで見返せる記録を育てましょう。"
-      }
-    },
-    "stage": {
-      "label": "ギャラリープレビュー",
-      "title": "どう組み合わさるか見てみる。",
-      "value": "制作の流れをより素直に残す",
-      "savedLabel": "Vaultに保存",
-      "cta": "ギャラリーを見る"
-    },
-    "signals": {
-      "modelCoverageLabel": "対応モデル",
-      "modelCoverageValue": "{modelCount}種類の画像モデル、{providerCount}社のプロバイダーに対応",
-      "requestCostLabel": "1回ごと",
-      "requestCostValue": "各生成は {requestCount} として記録されます",
-      "archiveLabel": "残る情報",
-      "archiveValue": "プロンプト、モデル、プロバイダー、出力をまとめて残せます"
-    },
-    "features": {
-      "eyebrow": "静かに使える理由",
-      "title": "抑制の効いた画像制作フロー。",
-      "description": "PixelVault はスタジオを集中しやすく、アーカイブを読みやすく保ち、UI が作品より前に出ないようにします。",
-      "items": {
-        "chooseEngine": {
-          "title": "ツールを変えずにモデルを切り替える",
-          "description": "同じスタジオの中で、リアル表現、アニメ調、OpenAI 画像生成、Gemini 探索を行き来できます。"
-        },
-        "keepEveryKeeper": {
-          "title": "見返したい結果を残す",
-          "description": "良い結果は1回限りで消えません。あとから戻れるアーカイブに残ります。"
-        },
-        "requestUsage": {
-          "title": "各生成のコストを見通す",
-          "description": "各生成にはプロバイダーとモデルの文脈が残るため、使用量を追いやすくなります。"
-        }
-      }
-    },
-    "comparison": {
-      "eyebrow": "PixelVaultの特長",
-      "title": "あなたのキー。あなたの画像。追加料金ゼロ。",
-      "description": "MidjourneyやOpenArtと違い、自分のAPIキーを接続 — サブスク不要、画像ごとの課金なし、ベンダーロックインなし。",
-      "items": {
-        "byok": {
-          "title": "自分のキーを使う",
-          "description": "OpenAI、Google、fal.ai、Replicate、NovelAI、HuggingFaceのAPIキーを使用。キーはエンドツーエンドで暗号化され、私たちには見えません。"
-        },
-        "archive": {
-          "title": "永久アーカイブ",
-          "description": "すべての生成結果がCloudflare R2の個人ギャラリーに保存。期限切れリンクなし、ダウンロード前に消えることなし。"
-        },
-        "arena": {
-          "title": "アリーナ — 最適なモデルを見つける",
-          "description": "ELOランキング付きのブラインドサイドバイサイド比較。マーケティングではなく、自分の目で判断。"
-        }
-      }
-    },
-    "workflow": {
-      "eyebrow": "プロンプトから保存まで",
-      "title": "プロンプトから保存まで、余計な混雑なしに。",
-      "description": "モデルを選び、意図を持って書き、結果をその文脈ごと残します。",
-      "items": {
-        "frameIdea": {
-          "title": "アイデアを定める",
-          "description": "まずプロンプトを書き、その画像に合うモデルを選びます。"
-        },
-        "generateWithIntent": {
-          "title": "意図を持って生成する",
-          "description": "同じ制作画面のまま、フォトリアル、アニメ、OpenAI、Gemini の出力を比較できます。"
-        },
-        "archiveWinners": {
-          "title": "良い結果を保存する",
-          "description": "プロンプト、ルート、最終画像を一緒に残して、次回の制作を文脈から始められます。"
-        }
-      }
-    },
-    "models": {
-      "eyebrow": "モデル一覧",
-      "title": "マルチプロバイダーモデル、ひとつの静かな作業場。",
-      "description": "OpenAI、Google、NovelAI、オープンソースモデルを、ツールを変えずに切り替えられます。"
-    },
-    "scenes": {
-      "items": {
-        "sdxlRealism": {
-          "note": "ディテール重視のリアリズム",
-          "prompt": "静かなブルータリズム建築の中庭を横切る嵐明かり"
-        },
-        "animagineAnime": {
-          "note": "アニメらしい躍動感",
-          "prompt": "夕暮れの提灯市場をホバーボードで駆け抜ける配達員"
-        },
-        "geminiConcept": {
-          "note": "素早いコンセプト探索",
-          "prompt": "カメラ部品、金属工具、押し花を並べたエディトリアル静物"
-        },
-        "dalleCreative": {
-          "note": "クリエイティブなイラスト",
-          "prompt": "高い窓に雨が流れ落ちる居心地の良い読書スペース"
-        },
-        "fluxPro": {
-          "note": "フォトリアルなディテール",
-          "prompt": "柵の間に張られた蜘蛛の巣の朝露に朝日が差し込む"
-        },
-        "novelaiIllust": {
-          "note": "スタイル化されたイラスト",
-          "prompt": "光るボトルと散らばったメモで埋め尽くされた錬金術師の工房"
-        }
-      }
-    },
-    "valueProps": {
-      "eyebrow": "PixelVaultの特長",
-      "title": "あなたのキー。あなたの画像。追加料金ゼロ。",
-      "items": {
-        "chooseEngine": {
-          "title": "自由にモデルを切り替える",
-          "description": "リアル、アニメ、DALL-E、Gemini — ひとつのスタジオ。"
-        },
-        "keepEveryKeeper": {
-          "title": "大切な結果を残す",
-          "description": "良い結果はアーカイブにずっと残ります。"
-        },
-        "requestUsage": {
-          "title": "透明な使用量",
-          "description": "各生成にプロバイダーとコストが表示。"
-        },
-        "byok": {
-          "title": "自分のキーを使う",
-          "description": "APIキーはエンドツーエンドで暗号化。"
-        },
-        "permanentArchive": {
-          "title": "永久アーカイブ",
-          "description": "Cloudflare R2に保存。期限切れリンクなし。"
-        },
-        "arena": {
-          "title": "アリーナ比較",
-          "description": "ELOランキング付きブラインド比較。"
-        }
-      }
-    },
-    "footer": {
-      "eyebrow": "見返せることのために",
-      "title": "画像は成果の一部にすぎない。",
-      "description": "PixelVault は制作の文脈ごと残すので、次のアイデアを推測ではなく記憶から始められます。"
+      "priceImage": "{amount} / 枚",
+      "priceSecond": "{amount} / 秒",
+      "priceKChars": "{amount} / 1k 文字"
     }
   },
   "StudioPage": {
@@ -381,11 +300,6 @@
     "voiceMyEmpty": "カスタムボイスがありません。クローンして始めましょう！",
     "voiceNoResults": "ボイスが見つかりません",
     "voiceSelected": "選択済み",
-    "voiceCards": "ボイスカード",
-    "voiceCardsEmpty": "ボイスカードはまだありません",
-    "voiceCardSelected": "保存済みボイスカード",
-    "voiceCardFishAudio": "Fish Audio",
-    "voiceCardFalF5Tts": "FAL F5-TTS",
     "voicePrev": "前へ",
     "voiceNext": "次へ",
     "voiceTrainTitle": "ボイスクローン",
@@ -412,7 +326,7 @@
       "modelCoverageLabel": "モデル",
       "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
       "startingCostLabel": "1回",
-      "startingCostValue": "{requestCount}",
+      "startingCostValue": "{creditCount}",
       "archiveBehaviorLabel": "自動保存",
       "archiveBehaviorValue": "結果は自動保存"
     }
@@ -556,7 +470,7 @@
       "publicWorksValue": "{count, plural, =0 {公開なし} other {#件公開}}",
       "privateWorksLabel": "非公開",
       "privateWorksValue": "{count, plural, =0 {非公開なし} other {#件非公開}}",
-      "requestsLabel": "APIリクエスト",
+      "creditsLabel": "APIリクエスト",
       "inlineSummary": "{total, plural, =0 {作品なし} other {{total}作品}} · 公開{publicCount} · 非公開{privateCount} · {requestCount}リクエスト使用"
     },
     "collectionEyebrow": "アーカイブ",
@@ -614,7 +528,7 @@
     "formLabel": "画像生成",
     "selectedModelLabel": "選択中のルート",
     "providerLabel": "プロバイダー",
-    "requestCostLabel": "1回ごと",
+    "creditCostLabel": "1回ごと",
     "keyStatusLabel": "ルートの状態",
     "keyStatusSavedRouteTitle": "この保存済みルートを使用",
     "keyStatusSavedRouteDescription": "{label}（{maskedKey}）がこのルートに使われます。",
@@ -670,7 +584,7 @@
     "resultPromptLabel": "プロンプト",
     "resultModelLabel": "モデル",
     "resultProviderLabel": "プロバイダー",
-    "resultRequestLabel": "記録済みリクエスト",
+    "resultCreditLabel": "記録済みリクエスト",
     "resultStorageNote": "プロンプトとルートの文脈を添えて保存されます。",
     "upgradeHint": "もっと高画質に？GPT Image や FLUX Pro を自分の API キーで試してみましょう。",
     "characterCard": {
@@ -1694,7 +1608,7 @@
     "variantGenerate": "バリアント生成",
     "variantGenerating": "{count}個のバリアントを生成中...",
     "variantSuccess": "バリアントが生成されました！",
-    "variantRequests": "{count}クレジット使用",
+    "variantCredits": "{count}クレジット使用",
     "compareGenerate": "モデル比較",
     "compareSuccess": "比較が生成されました！",
     "compareSelectModels": "比較する2〜3つのモデルを選択",
@@ -1837,42 +1751,13 @@
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
     "toolEdit": "AIで編集",
-    "toolInpaint": "インペイント",
-    "toolOutpaint": "アウトペイント",
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
     "zoomIn": "拡大",
     "zoomOut": "縮小",
     "resetZoom": "ズームをリセット",
     "variantSelectWinner": "ベストに選択",
-    "variantSelected": "選択済み",
-    "inpaintEditor": {
-      "title": "インペイント — 範囲を編集",
-      "canvasLabel": "インペイント用マスクキャンバス",
-      "brushSize": "ブラシサイズ",
-      "eraser": "消しゴム",
-      "clearAll": "すべて消去",
-      "undo": "元に戻す",
-      "prompt": "選択範囲に生成する内容を説明",
-      "promptPlaceholder": "例: 赤いスポーツカー",
-      "apply": "インペイントを適用",
-      "cancel": "キャンセル"
-    },
-    "outpaintEditor": {
-      "title": "アウトペイント — キャンバスを拡張",
-      "padding": "拡張量",
-      "top": "上",
-      "right": "右",
-      "bottom": "下",
-      "left": "左",
-      "presetUniform64": "全方向 +64px",
-      "presetUniform128": "全方向 +128px",
-      "presetUniform256": "全方向 +256px",
-      "prompt": "拡張領域の内容を説明",
-      "promptPlaceholder": "例: 山のある風景を続ける",
-      "apply": "アウトペイントを適用",
-      "cancel": "キャンセル"
-    }
+    "variantSelected": "選択済み"
   },
   "StudioAdvanced": {
     "button": "詳細",
@@ -1882,8 +1767,7 @@
     "sections": {
       "mode": "モード選択",
       "routeModel": "ルートとモデル",
-      "provider": "プロバイダー設定",
-      "pronunciation": "発音辞書"
+      "provider": "プロバイダー設定"
     },
     "modeDescription": "このワークフローを直接実行するか、カード補助で進めるかを選びます。",
     "routeModelDescription": "保存済み API ルートを選ぶか、モデルセレクターで詳細に指定します。",
@@ -2124,59 +2008,6 @@
     "confirm": "確認して生成",
     "cancel": "編集に戻る",
     "reasonLabel": "理由: {reason}"
-  },
-  "audioParams": {
-    "emotion": "感情",
-    "emotionNeutral": "ニュートラル",
-    "emotionHappy": "嬉しい",
-    "emotionSad": "悲しい",
-    "emotionAngry": "怒り",
-    "emotionExcited": "興奮",
-    "emotionCalm": "落ち着き",
-    "emotionFearful": "恐れ",
-    "pace": "速度",
-    "paceSlow": "遅い",
-    "paceNormal": "標準",
-    "paceFast": "速い",
-    "pauseMarkers": "ポーズ",
-    "pauseAfterSentence1": "1文目の後",
-    "pauseAfterSentence2": "2文目の後",
-    "pauseAfterSentence3": "3文目の後",
-    "pronunciation": "発音辞書",
-    "addWord": "語句を追加",
-    "word": "語句",
-    "pronounceAs": "読み方",
-    "deleteWord": "語句を削除"
-  },
-  "audioFeedback": {
-    "voiceMismatch": "声が合わない",
-    "emotionWrong": "感情が違う",
-    "paceWrong": "速度が違う",
-    "pronunciationError": "発音エラー",
-    "pauseUnnatural": "不自然なポーズ",
-    "audioQuality": "音質の問題"
-  },
-  "sceneProgress": {
-    "title": "シーン生成の進捗",
-    "scene": "シーン {index}",
-    "pending": "待機中",
-    "generatingFrame": "キーフレーム生成中...",
-    "frameReady": "キーフレーム準備完了",
-    "generatingClip": "動画生成中...",
-    "clipReady": "完了",
-    "failed": "失敗",
-    "retry": "再試行",
-    "advance": "次のシーンへ進む",
-    "complete": "すべてのシーンが完了",
-    "progress": "{percent}% 完了"
-  },
-  "sceneFeedback": {
-    "keepCharacter": "キャラクターを維持",
-    "keepStyle": "スタイルを維持",
-    "keepContinuity": "連続性を維持",
-    "extendScene": "このシーンを延長",
-    "continueFromLastFrame": "最後のフレームから続ける",
-    "comingSoon": "近日公開"
   },
   "StudioResultFeedback": {
     "satisfied": "満足",

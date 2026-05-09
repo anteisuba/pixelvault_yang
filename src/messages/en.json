@@ -1,7 +1,7 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "requestCount": "{count, plural, one {# request} other {# requests}}",
+    "creditCount": "{count, plural, one {# request} other {# requests}}",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -130,8 +130,8 @@
     }
   },
   "Navbar": {
-    "requestsLoading": "...",
-    "requestsTooltip": "Total API requests used",
+    "creditsLoading": "...",
+    "creditsTooltip": "Total API requests used",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "signOut": "Sign Out",
@@ -159,21 +159,81 @@
   },
   "Homepage": {
     "brandLabel": "Personal AI Gallery",
-    "brandSubline": "A quieter place to make and keep AI images.",
     "navigationLabel": "Homepage",
-    "navigation": {
-      "gallery": "Gallery",
-      "workflow": "Workflow",
-      "models": "Models"
+    "nav": {
+      "app": "App"
     },
-    "heroEyebrow": "Personal AI archive",
-    "heroTitle": "Make deliberately. Keep everything.",
-    "heroDescription": "Multi-model image generation with permanent archiving.",
+    "navigation": {
+      "image": "Image",
+      "video": "Video",
+      "lora": "LoRA",
+      "audio": "Audio",
+      "arena": "Arena",
+      "gallery": "Gallery"
+    },
     "hero": {
-      "title": "Create with any AI model",
-      "subtitle": "Keep everything forever",
-      "primaryCta": "Start Creating",
-      "secondaryCta": "Browse Gallery"
+      "eyebrow": "22 image models",
+      "title": "Text to Image",
+      "subtitle": "Run prompts across 22 image models — Flux, Gemini, OpenAI, NovelAI, Recraft, Ideogram, and more — without juggling separate provider accounts. Pick by hand, or compare them blind in the Arena and let ELO decide."
+    },
+    "badges": {
+      "soon": "Soon"
+    },
+    "featureSections": {
+      "imageEditing": {
+        "eyebrow": "24 of 27 models",
+        "title": "Edit with references",
+        "description": "Drop in a reference image and 24 of our 27 models will use it. Up to 14 references on Gemini, 4 on Flux Kontext Max, 1 on most others. Native i2i, img2img, and director modes — we route to the path each model expects.",
+        "cta": "Try editing"
+      },
+      "video": {
+        "eyebrow": "14 video models",
+        "title": "Video Generation",
+        "description": "Kling, LumaRay, Veo 3.1, Runway Gen3, Seedance — 14 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
+        "cta": "Generate video"
+      },
+      "lora": {
+        "eyebrow": "fal.ai + Replicate",
+        "title": "LoRA Training",
+        "description": "Drop a ZIP, kick off training through fal.ai or Replicate, and we track the run until it lands in your library. Then plug it into Flux Pro, Dev, Schnell, or LoRA — your style, your character, your call.",
+        "cta": "Train a LoRA"
+      },
+      "upscale": {
+        "eyebrow": "4× through fal.ai",
+        "title": "Upscale & Cleanup",
+        "description": "Upscale images 4× through fal.ai. Strip backgrounds in one click. Run lightweight transforms — all from the same studio, no separate tool to learn.",
+        "cta": "Edit an image"
+      },
+      "tts": {
+        "eyebrow": "2 TTS models",
+        "title": "Text to Speech",
+        "description": "Fish Audio S2 Pro and FAL F5 TTS. Pick a voice, set speed and sample rate, hit generate. Audio drops into the same archive as your images.",
+        "cta": "Generate audio"
+      },
+      "workflow": {
+        "eyebrow": "In development",
+        "title": "Build workflows visually, ship them",
+        "description": "Chain models together in a no-code node editor. Connect image generation to upscaling, feed outputs into video, or run batch jobs with branching logic. When it works, hit deploy and call it from your code like any other endpoint.",
+        "cta": "Get notified"
+      },
+      "arena": {
+        "eyebrow": "Blind ELO ranking",
+        "title": "Arena",
+        "description": "Side-by-side blind comparison with K-factor 32 ELO. You see four results, you pick a winner — never knowing which model made what. Rankings actually move.",
+        "cta": "Open Arena"
+      },
+      "archive": {
+        "eyebrow": "Cloudflare R2",
+        "title": "Permanent archive",
+        "description": "Every generation lands on Cloudflare R2 with prompt, model, provider, and seed. AES-256-GCM encryption, S3 multipart uploads. Nothing expires, nothing rots.",
+        "cta": "Browse archive"
+      },
+      "social": {
+        "eyebrow": "Public gallery",
+        "title": "Follow, like, collect",
+        "description": "Follow other creators, like generations that resonate, build collections of your favorites. The gallery is public — your private archive is yours alone.",
+        "cta": "Browse Gallery"
+      }
     },
     "actions": {
       "signedOutPrimary": "Start your archive",
@@ -185,158 +245,17 @@
       "signUpPrimary": "Already have an account?",
       "authSecondary": "Back home"
     },
-    "auth": {
-      "note": "Your account keeps saved routes, private prompts, and archived generations together across sessions.",
-      "signIn": {
-        "eyebrow": "Welcome back",
-        "title": "Return to your archive.",
-        "description": "Sign in to continue generating, review saved work, and keep your usage history intact."
+    "modelLineup": {
+      "title": "The best AI models, ready when you are",
+      "description": "38 models from OpenAI, Google, fal.ai, NovelAI, Replicate and VolcEngine. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
+      "groups": {
+        "image": "Image Models",
+        "video": "Video Models",
+        "audio": "Audio Models"
       },
-      "signUp": {
-        "eyebrow": "Start your archive",
-        "title": "Begin a calmer image workflow.",
-        "description": "Create an account to generate with multiple models, save each keeper, and build a record you can return to later."
-      }
-    },
-    "stage": {
-      "label": "Gallery preview",
-      "title": "See how it comes together.",
-      "value": "A cleaner record of how you create",
-      "savedLabel": "Saved to vault",
-      "cta": "Explore the gallery"
-    },
-    "signals": {
-      "modelCoverageLabel": "Model coverage",
-      "modelCoverageValue": "{modelCount} image models across {providerCount, plural, one {# provider} other {# providers}}",
-      "requestCostLabel": "Per run",
-      "requestCostValue": "Each generation is recorded as {requestCount}",
-      "archiveLabel": "What stays saved",
-      "archiveValue": "Prompt, model, provider, and output stay together"
-    },
-    "features": {
-      "eyebrow": "Why it feels calmer",
-      "title": "A quieter workflow for making images.",
-      "description": "PixelVault keeps the studio focused and the archive readable, so the interface does not compete with the work.",
-      "items": {
-        "chooseEngine": {
-          "title": "Switch models without switching tools",
-          "description": "Move between realism, anime styling, OpenAI image generation, and Gemini exploration from one studio."
-        },
-        "keepEveryKeeper": {
-          "title": "Keep the work worth revisiting",
-          "description": "Good results do not disappear after one session. They stay in an archive you can return to later."
-        },
-        "requestUsage": {
-          "title": "See what each run costs",
-          "description": "Each generation keeps its provider and model context, so usage stays understandable instead of vague."
-        }
-      }
-    },
-    "comparison": {
-      "eyebrow": "Why PixelVault",
-      "title": "Your keys. Your images. Zero markup.",
-      "description": "Unlike Midjourney or OpenArt, you connect your own API keys — no subscription, no per-image fees, no vendor lock-in.",
-      "items": {
-        "byok": {
-          "title": "Bring your own keys",
-          "description": "Use API keys from OpenAI, Google, fal.ai, Replicate, NovelAI, or HuggingFace. We never see your keys — they are encrypted end-to-end."
-        },
-        "archive": {
-          "title": "Permanent archive",
-          "description": "Every generation is stored in your personal gallery on Cloudflare R2. No expiring links, no download-before-it-disappears."
-        },
-        "arena": {
-          "title": "Arena — find the best model",
-          "description": "Blind side-by-side comparison with ELO ranking. Let your eyes decide which model wins, not marketing."
-        }
-      }
-    },
-    "workflow": {
-      "eyebrow": "From prompt to archive",
-      "title": "From prompt to archive, without clutter.",
-      "description": "Pick a model, write with intent, and keep the result with the context that produced it.",
-      "items": {
-        "frameIdea": {
-          "title": "Frame the idea",
-          "description": "Start with the prompt and choose the model that fits the image you want to make."
-        },
-        "generateWithIntent": {
-          "title": "Generate with intent",
-          "description": "Compare photoreal, anime, OpenAI, and Gemini outputs without leaving the same workspace."
-        },
-        "archiveWinners": {
-          "title": "Archive the winners",
-          "description": "Keep the prompt, route, and final image together so the next session starts with context."
-        }
-      }
-    },
-    "models": {
-      "eyebrow": "Model lineup",
-      "title": "Multi-provider models. One calm workspace.",
-      "description": "Switch between OpenAI, Google, NovelAI, and open-source models without changing tools."
-    },
-    "scenes": {
-      "items": {
-        "sdxlRealism": {
-          "note": "Detail-rich realism",
-          "prompt": "Stormlight sweeping across a quiet brutalist museum courtyard"
-        },
-        "animagineAnime": {
-          "note": "Anime energy",
-          "prompt": "Courier on a hoverboard threading through a lantern market at dusk"
-        },
-        "geminiConcept": {
-          "note": "Fast concepting",
-          "prompt": "Editorial still life of camera parts, metal tools, and pressed flowers"
-        },
-        "dalleCreative": {
-          "note": "Creative illustration",
-          "prompt": "A cozy reading nook with rain streaking down a tall window"
-        },
-        "fluxPro": {
-          "note": "Photorealistic detail",
-          "prompt": "Morning light catching dewdrops on a spider web between fence posts"
-        },
-        "novelaiIllust": {
-          "note": "Stylized illustration",
-          "prompt": "Alchemist's workshop filled with glowing bottles and scattered notes"
-        }
-      }
-    },
-    "valueProps": {
-      "eyebrow": "Why PixelVault",
-      "title": "Your keys. Your images. Zero markup.",
-      "items": {
-        "chooseEngine": {
-          "title": "Switch models freely",
-          "description": "Realism, anime, DALL-E, Gemini — one studio."
-        },
-        "keepEveryKeeper": {
-          "title": "Keep what matters",
-          "description": "Good results stay in your archive, always."
-        },
-        "requestUsage": {
-          "title": "Transparent usage",
-          "description": "Every generation shows provider and cost."
-        },
-        "byok": {
-          "title": "Bring your own keys",
-          "description": "Your API keys, encrypted end-to-end."
-        },
-        "permanentArchive": {
-          "title": "Permanent archive",
-          "description": "Stored on Cloudflare R2. No expiring links."
-        },
-        "arena": {
-          "title": "Arena comparison",
-          "description": "Blind side-by-side with ELO ranking."
-        }
-      }
-    },
-    "footer": {
-      "eyebrow": "Built to be revisited",
-      "title": "The image is only part of the work.",
-      "description": "PixelVault keeps the surrounding context intact, so the next idea starts from memory instead of guesswork."
+      "priceImage": "{amount} per image",
+      "priceSecond": "{amount} per second",
+      "priceKChars": "{amount} per 1k chars"
     }
   },
   "StudioPage": {
@@ -381,11 +300,6 @@
     "voiceMyEmpty": "No custom voices yet. Clone one to get started!",
     "voiceNoResults": "No voices found",
     "voiceSelected": "Selected",
-    "voiceCards": "Voice Cards",
-    "voiceCardsEmpty": "No voice cards yet",
-    "voiceCardSelected": "Saved voice card",
-    "voiceCardFishAudio": "Fish Audio",
-    "voiceCardFalF5Tts": "FAL F5-TTS",
     "voicePrev": "Prev",
     "voiceNext": "Next",
     "voiceTrainTitle": "Voice Clone",
@@ -412,7 +326,7 @@
       "modelCoverageLabel": "Models",
       "modelCoverageValue": "{modelCount} models · {providerCount} providers",
       "startingCostLabel": "Per run",
-      "startingCostValue": "{requestCount}",
+      "startingCostValue": "{creditCount}",
       "archiveBehaviorLabel": "Auto-archive",
       "archiveBehaviorValue": "Results saved automatically"
     }
@@ -556,7 +470,7 @@
       "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
       "privateWorksLabel": "Private",
       "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
-      "requestsLabel": "API requests",
+      "creditsLabel": "API requests",
       "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used"
     },
     "collectionEyebrow": "Archive",
@@ -614,7 +528,7 @@
     "formLabel": "Image generation",
     "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
-    "requestCostLabel": "Per run",
+    "creditCostLabel": "Per run",
     "keyStatusLabel": "Route status",
     "keyStatusSavedRouteTitle": "Using this saved route",
     "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
@@ -670,7 +584,7 @@
     "resultPromptLabel": "Prompt",
     "resultModelLabel": "Model",
     "resultProviderLabel": "Provider",
-    "resultRequestLabel": "Requests logged",
+    "resultCreditLabel": "Requests logged",
     "resultStorageNote": "Stored with its prompt and route context.",
     "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "characterCard": {
@@ -1701,7 +1615,7 @@
     "variantGenerate": "Generate Variants",
     "variantGenerating": "Generating {count} variants...",
     "variantSuccess": "Variants generated!",
-    "variantRequests": "Uses {count} credits",
+    "variantCredits": "Uses {count} credits",
     "compareGenerate": "Compare Models",
     "compareSuccess": "Comparison generated!",
     "compareSelectModels": "Select 2-3 models to compare",
@@ -1837,42 +1751,13 @@
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
     "toolEdit": "Edit with AI",
-    "toolInpaint": "Inpaint",
-    "toolOutpaint": "Outpaint",
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetZoom": "Reset zoom",
     "variantSelectWinner": "Select as best",
-    "variantSelected": "Selected",
-    "inpaintEditor": {
-      "title": "Inpaint — Edit Region",
-      "canvasLabel": "Inpaint mask canvas",
-      "brushSize": "Brush size",
-      "eraser": "Eraser",
-      "clearAll": "Clear all",
-      "undo": "Undo",
-      "prompt": "Describe new content for selected area",
-      "promptPlaceholder": "e.g. A red sports car",
-      "apply": "Apply Inpaint",
-      "cancel": "Cancel"
-    },
-    "outpaintEditor": {
-      "title": "Outpaint — Extend Canvas",
-      "padding": "Expansion",
-      "top": "Top",
-      "right": "Right",
-      "bottom": "Bottom",
-      "left": "Left",
-      "presetUniform64": "+64px all sides",
-      "presetUniform128": "+128px all sides",
-      "presetUniform256": "+256px all sides",
-      "prompt": "Describe content for extended area",
-      "promptPlaceholder": "e.g. Continue the landscape with mountains",
-      "apply": "Apply Outpaint",
-      "cancel": "Cancel"
-    }
+    "variantSelected": "Selected"
   },
   "StudioAdvanced": {
     "button": "Advanced",
@@ -1882,8 +1767,7 @@
     "sections": {
       "mode": "Mode selection",
       "routeModel": "Route & model",
-      "provider": "Provider controls",
-      "pronunciation": "Pronunciation"
+      "provider": "Provider controls"
     },
     "modeDescription": "Choose whether this workflow runs directly or through card-assisted setup.",
     "routeModelDescription": "Pick saved API routes or open the model selector for detailed routing.",
@@ -2124,59 +2008,6 @@
     "confirm": "Confirm & Generate",
     "cancel": "Back to Edit",
     "reasonLabel": "Why: {reason}"
-  },
-  "audioParams": {
-    "emotion": "Emotion",
-    "emotionNeutral": "Neutral",
-    "emotionHappy": "Happy",
-    "emotionSad": "Sad",
-    "emotionAngry": "Angry",
-    "emotionExcited": "Excited",
-    "emotionCalm": "Calm",
-    "emotionFearful": "Fearful",
-    "pace": "Pace",
-    "paceSlow": "Slow",
-    "paceNormal": "Normal",
-    "paceFast": "Fast",
-    "pauseMarkers": "Pauses",
-    "pauseAfterSentence1": "After sentence 1",
-    "pauseAfterSentence2": "After sentence 2",
-    "pauseAfterSentence3": "After sentence 3",
-    "pronunciation": "Pronunciation Dictionary",
-    "addWord": "Add word",
-    "word": "Word",
-    "pronounceAs": "Pronounce as",
-    "deleteWord": "Delete word"
-  },
-  "audioFeedback": {
-    "voiceMismatch": "Voice doesn't match",
-    "emotionWrong": "Wrong emotion",
-    "paceWrong": "Wrong pace",
-    "pronunciationError": "Pronunciation error",
-    "pauseUnnatural": "Unnatural pauses",
-    "audioQuality": "Audio quality issue"
-  },
-  "sceneProgress": {
-    "title": "Scene Generation Progress",
-    "scene": "Scene {index}",
-    "pending": "Pending",
-    "generatingFrame": "Generating keyframe...",
-    "frameReady": "Keyframe ready",
-    "generatingClip": "Generating video...",
-    "clipReady": "Complete",
-    "failed": "Failed",
-    "retry": "Retry",
-    "advance": "Continue to next scene",
-    "complete": "All scenes complete",
-    "progress": "{percent}% complete"
-  },
-  "sceneFeedback": {
-    "keepCharacter": "Keep character",
-    "keepStyle": "Keep style",
-    "keepContinuity": "Keep continuity",
-    "extendScene": "Extend this scene",
-    "continueFromLastFrame": "Continue from last frame",
-    "comingSoon": "Coming soon"
   },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",

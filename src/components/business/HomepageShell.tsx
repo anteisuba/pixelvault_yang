@@ -1,23 +1,19 @@
-import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { HOMEPAGE_ROUTES } from '@/constants/homepage'
-import { ROUTES } from '@/constants/routes'
+import {
+  HOMEPAGE_FEATURE_SECTIONS,
+  HOMEPAGE_NAVIGATION,
+  HOMEPAGE_ROUTES,
+} from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-import { BlurFade } from '@/components/ui/blur-fade'
-import { HyperText } from '@/components/ui/hyper-text'
 import { Button } from '@/components/ui/button'
-import { Particles } from '@/components/ui/particles'
-import { ShinyButton } from '@/components/ui/shiny-button'
 import { Link } from '@/i18n/navigation'
 
 import '@/app/homepage.css'
 
+import { HomepageFeatureSection } from './HomepageFeatureSection'
 import { HomepageHero } from './HomepageHero'
-import { HomepageModels } from './HomepageModels'
-
-import { HomepageValueProps } from './HomepageValueProps'
-import { HomepageWorkflow } from './HomepageWorkflow'
+import { HomepageModelLineup } from './HomepageModelLineup'
 
 interface HomepageShellProps {
   primaryActionHref: string
@@ -37,36 +33,55 @@ export function HomepageShell({
 
   return (
     <div className="homepage relative">
-      <Particles
-        className="fixed inset-0 z-[1]"
-        quantity={180}
-        staticity={30}
-        ease={40}
-        size={2}
-        color="#c4653f"
-      />
-      <header className="homepage-header sticky top-0 z-20 py-[0.9rem_1rem]">
-        <div className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-          <Link href={HOMEPAGE_ROUTES.home} className="min-w-0">
-            <HyperText
-              as="span"
-              duration={600}
-              animateOnHover
-              startOnView
-              className="font-display text-[clamp(1.4rem,2vw,1.7rem)] font-bold leading-none tracking-[-0.03em] max-sm:text-[1.2rem] !py-0"
-            >
-              {tCommon('brand')}
-            </HyperText>
+      <header className="homepage-header sticky top-0 z-20">
+        <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link
+            href={HOMEPAGE_ROUTES.home}
+            className="flex min-w-0 items-center gap-2"
+            aria-label={tCommon('brand')}
+          >
+            <span className="homepage-brand-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <span className="sr-only">{tCommon('brand')}</span>
           </Link>
 
-          <div className="flex items-center justify-end gap-3 shrink-0 max-sm:gap-2">
+          <nav
+            aria-label={t('navigationLabel')}
+            className="hidden items-center justify-center gap-9 text-sm font-medium text-foreground md:flex"
+          >
+            <Link href={HOMEPAGE_ROUTES.studio} className="homepage-top-link">
+              {t('nav.app')}
+            </Link>
+            {HOMEPAGE_NAVIGATION.map((item) =>
+              item.href.startsWith('#') ? (
+                <a key={item.id} href={item.href} className="homepage-top-link">
+                  {t(`navigation.${item.id}`)}
+                </a>
+              ) : (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="homepage-top-link"
+                >
+                  {t(`navigation.${item.id}`)}
+                </Link>
+              ),
+            )}
+          </nav>
+
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <LocaleSwitcher />
 
-            <Link href={utilityActionHref}>
-              <ShinyButton className="h-9 rounded-full border-border/80 px-5">
-                {utilityActionLabel}
-              </ShinyButton>
-            </Link>
+            <Button
+              asChild
+              className="homepage-nav-login h-10 rounded-full px-5 text-sm font-medium"
+            >
+              <Link href={utilityActionHref}>{utilityActionLabel}</Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -75,40 +90,26 @@ export function HomepageShell({
         <main
           className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]"
           style={{
-            paddingBlock: 'clamp(1.5rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem)',
+            paddingBlock: 'clamp(2.5rem, 5vw, 5rem) clamp(3rem, 5vw, 4rem)',
           }}
         >
           <HomepageHero
             primaryActionHref={primaryActionHref}
             primaryActionLabel={primaryActionLabel}
-            galleryActionHref={ROUTES.GALLERY}
-            galleryActionLabel={t('hero.secondaryCta')}
           />
 
-          <HomepageValueProps />
-          <HomepageWorkflow />
-          <HomepageModels />
+          {HOMEPAGE_FEATURE_SECTIONS.map((section) => (
+            <HomepageFeatureSection
+              key={section.id}
+              id={section.id}
+              ctaHref={section.ctaHref}
+              tone={section.tone}
+              reverse={section.reverse}
+              comingSoon={'comingSoon' in section ? section.comingSoon : false}
+            />
+          ))}
 
-          {/* Footer CTA */}
-          <BlurFade inView>
-            <section className="homepage-border-top grid gap-3 pt-[clamp(2rem,3.5vw,3rem)] max-sm:pb-8">
-              <h2 className="max-w-[18ch] font-display text-[clamp(2rem,4vw,3rem)] font-semibold leading-none tracking-[-0.04em] text-balance">
-                {t('footer.title')}
-              </h2>
-              <div className="pt-[0.45rem]">
-                <Button
-                  asChild
-                  size="lg"
-                  className="homepage-primary-btn h-[2.85rem] min-w-48 px-[1.45rem] rounded-full max-sm:w-full max-sm:min-w-0"
-                >
-                  <Link href={primaryActionHref}>
-                    {primaryActionLabel}
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
-            </section>
-          </BlurFade>
+          <HomepageModelLineup />
         </main>
       </div>
     </div>

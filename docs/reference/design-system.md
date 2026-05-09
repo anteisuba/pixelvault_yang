@@ -1,28 +1,33 @@
 # Design System
 
-Reference: Anthropic.com "Warm Editorial" aesthetic.
+Two surface modes coexist in PixelVault:
+
+- **Editorial surfaces** (Studio, Gallery, Auth, Account) — Anthropic.com "Warm Editorial" aesthetic
+- **Marketing surfaces** (Homepage, landing pages) — Krea-style minimal, near-white, single-sans
 
 ## Color Palette
 
-| Token      | Hex       | Usage                                               |
-| ---------- | --------- | --------------------------------------------------- |
-| Background | `#faf9f5` | Page background (warm off-white, never pure `#fff`) |
-| Foreground | `#141413` | Primary text (near-black, never pure `#000`)        |
-| Muted      | `#b0aea5` | Secondary text, captions                            |
-| Border     | `#e8e6dc` | Section dividers, card borders                      |
-| Primary    | `#d97757` | Terracotta orange — CTAs, accent                    |
-| Secondary  | `#6a9bcc` | Cool blue — links, info states                      |
-| Tertiary   | `#788c5d` | Olive green — success, tags                         |
+| Token      | Hex       | Editorial Usage                              | Marketing Usage                            |
+| ---------- | --------- | -------------------------------------------- | ------------------------------------------ |
+| Background | `#faf9f5` | Default page background (warm off-white)     | Pure `#fff` is allowed for crisper hero    |
+| Foreground | `#141413` | Primary text (near-black, never pure `#000`) | Also used as **primary CTA background**    |
+| Muted      | `#b0aea5` | Secondary text, captions                     | Same                                       |
+| Border     | `#e8e6dc` | Section dividers, card borders               | Same                                       |
+| Primary    | `#d97757` | Terracotta orange — accent, brand mark       | Brand accent only — **not** main CTA color |
+| Secondary  | `#6a9bcc` | Cool blue — links, info states               | Same                                       |
+| Tertiary   | `#788c5d` | Olive green — success, tags                  | Same                                       |
+
+CTA hierarchy on marketing pages: **black pill (`#141413`) for primary**, outline + warm-white for secondary. The terracotta accent stays for brand mark, badges, and editorial surfaces.
 
 ## Typography
 
-| Role      | Family              | Notes                                                 |
-| --------- | ------------------- | ----------------------------------------------------- |
-| Headings  | Space Grotesk       | Sans-serif, `font-display`                            |
-| Body      | Lora / system serif | Serif, `font-serif`                                   |
-| UI labels | Space Grotesk       | Uppercase + tracking for non-CJK; normal case for CJK |
+| Role      | Family              | Editorial                  | Marketing                                |
+| --------- | ------------------- | -------------------------- | ---------------------------------------- |
+| Headings  | Space Grotesk       | Sans-serif, `font-display` | Same, but tighter tracking, larger scale |
+| Body      | Lora / system serif | Serif, `font-serif`        | **Single sans (Space Grotesk) allowed**  |
+| UI labels | Space Grotesk       | Uppercase + tracking       | Normal case, no tracking                 |
 
-Title and body **must** be a sans + serif pairing.
+Editorial surfaces **must** be sans + serif pairing. Marketing surfaces may use single Space Grotesk for a cleaner presentation.
 
 ## Layout
 
@@ -40,7 +45,6 @@ Title and body **must** be a sans + serif pairing.
 
 - Blue-purple gradients, neon glows
 - Heavy drop-shadow cards
-- Pure white `#ffffff` backgrounds
-- Inter / Roboto / generic sans-serif
-- "Generic AI" look: dark backgrounds + blue glow + tech aesthetic
+- Inter / Roboto / generic sans-serif (use Space Grotesk)
+- Dark backgrounds + blue glow + tech aesthetic
 - Tailwind arbitrary values (e.g. `w-[256px]`) — extend config instead

@@ -18,18 +18,12 @@ export const HOMEPAGE_ROUTES = {
 } as const
 
 export const HOMEPAGE_NAVIGATION = [
-  {
-    href: '#gallery',
-    id: 'gallery',
-  },
-  {
-    href: HOMEPAGE_ROUTES.workflow,
-    id: 'workflow',
-  },
-  {
-    href: HOMEPAGE_ROUTES.models,
-    id: 'models',
-  },
+  { id: 'image', href: '#imageEditing' },
+  { id: 'video', href: '#video' },
+  { id: 'lora', href: '#lora' },
+  { id: 'audio', href: '#tts' },
+  { id: 'arena', href: ROUTES.ARENA },
+  { id: 'gallery', href: HOMEPAGE_ROUTES.gallery },
 ] as const
 
 export const HOMEPAGE_FEATURES = [
@@ -105,6 +99,68 @@ export const HOMEPAGE_VALUE_PROPS = [
 
 export type HomepageValuePropIcon =
   (typeof HOMEPAGE_VALUE_PROPS)[number]['icon']
+
+/** Krea-style feature sections — left-image / right-text alternating */
+export const HOMEPAGE_FEATURE_SECTIONS = [
+  {
+    id: 'imageEditing',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'sky',
+    reverse: false,
+  },
+  {
+    id: 'video',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'forest',
+    reverse: true,
+  },
+  {
+    id: 'lora',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'amber',
+    reverse: false,
+  },
+  {
+    id: 'upscale',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'dawn',
+    reverse: true,
+  },
+  {
+    id: 'tts',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'ink',
+    reverse: false,
+  },
+  {
+    id: 'workflow',
+    ctaHref: ROUTES.STUDIO,
+    tone: 'forest',
+    reverse: true,
+    comingSoon: true,
+  },
+  {
+    id: 'arena',
+    ctaHref: ROUTES.ARENA,
+    tone: 'amber',
+    reverse: false,
+  },
+  {
+    id: 'archive',
+    ctaHref: ROUTES.GALLERY,
+    tone: 'earth',
+    reverse: true,
+  },
+  {
+    id: 'social',
+    ctaHref: ROUTES.GALLERY,
+    tone: 'sky',
+    reverse: false,
+  },
+] as const
+
+export type HomepageFeatureSectionTone =
+  (typeof HOMEPAGE_FEATURE_SECTIONS)[number]['tone']
 
 /** Showcase images for hero + gallery preview */
 export const HOMEPAGE_SHOWCASE = [

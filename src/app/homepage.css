@@ -1,53 +1,12 @@
 .homepage {
-  --home-border: color-mix(in oklab, var(--border) 80%, transparent);
-  --home-muted: color-mix(in oklab, var(--foreground) 62%, var(--background));
-  --home-surface: color-mix(in oklab, var(--card) 92%, var(--background));
-  --home-surface-soft: color-mix(
-    in oklab,
-    var(--secondary) 72%,
-    var(--background)
-  );
+  --home-border: color-mix(in oklab, var(--border) 72%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 68%, white);
+  --home-surface: color-mix(in oklab, var(--card) 94%, white);
+  --home-surface-soft: color-mix(in oklab, var(--secondary) 72%, white);
   position: relative;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      ellipse 80% 50% at 50% -8%,
-      color-mix(in oklab, var(--primary) 7%, transparent),
-      transparent 60%
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--primary) 3%, transparent),
-      transparent 22rem
-    ),
-    var(--background);
+  background: #fff;
   color: var(--foreground);
-}
-
-.homepage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in oklab, var(--border) 12%, transparent) 50%,
-    transparent
-  );
-  pointer-events: none;
-}
-
-.homepage::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.25;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 256px 256px;
-  pointer-events: none;
-  z-index: 0;
-  mix-blend-mode: multiply;
 }
 
 .homepage-nav-link {
@@ -100,38 +59,26 @@
   box-shadow: inset 0 3px 0 color-mix(in oklab, var(--chart-2) 45%, white);
 }
 
-.homepage-primary-btn {
+.homepage .homepage-primary-btn {
+  background: var(--foreground);
+  color: var(--background);
   box-shadow:
-    0 1px 2px color-mix(in oklab, var(--primary) 25%, transparent),
-    0 4px 12px color-mix(in oklab, var(--primary) 15%, transparent);
+    0 1px 2px color-mix(in oklab, var(--foreground) 18%, transparent),
+    0 4px 12px color-mix(in oklab, var(--foreground) 10%, transparent);
   transition:
     box-shadow 200ms ease,
-    transform 200ms ease;
-}
-.homepage-primary-btn:hover {
-  box-shadow:
-    0 2px 4px color-mix(in oklab, var(--primary) 30%, transparent),
-    0 8px 20px color-mix(in oklab, var(--primary) 18%, transparent);
-  transform: translateY(-1px);
-}
-.homepage-primary-btn:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
-  outline-offset: 2px;
-}
-
-.homepage-secondary-btn {
-  border-color: var(--home-border);
-  background: color-mix(in oklab, var(--background) 70%, transparent);
-  backdrop-filter: blur(8px);
-  transition:
-    border-color 200ms ease,
+    transform 200ms ease,
     background 200ms ease;
 }
-.homepage-secondary-btn:hover {
-  border-color: color-mix(in oklab, var(--primary) 30%, var(--border));
+.homepage .homepage-primary-btn:hover {
+  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  box-shadow:
+    0 2px 4px color-mix(in oklab, var(--foreground) 22%, transparent),
+    0 8px 20px color-mix(in oklab, var(--foreground) 12%, transparent);
+  transform: translateY(-1px);
 }
-.homepage-secondary-btn:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--ring) 75%, transparent);
+.homepage .homepage-primary-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 65%, transparent);
   outline-offset: 2px;
 }
 
@@ -216,9 +163,70 @@
 
 .homepage-header {
   border-bottom: 1px solid var(--home-border);
-  background: color-mix(in oklab, var(--background) 82%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.homepage-brand-mark {
+  display: grid;
+  width: 1.5rem;
+  height: 1.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.16rem;
+}
+
+.homepage-brand-mark span {
+  border-radius: 999px;
+  background: var(--foreground);
+}
+
+.homepage-brand-mark span:nth-child(1) {
+  transform: translateY(0.16rem) rotate(-12deg);
+}
+
+.homepage-brand-mark span:nth-child(2) {
+  transform: translateY(0.35rem) rotate(12deg);
+}
+
+.homepage-brand-mark span:nth-child(3) {
+  transform: translateY(-0.08rem) rotate(12deg);
+}
+
+.homepage-brand-mark span:nth-child(4) {
+  transform: translateY(-0.25rem) rotate(-12deg);
+}
+
+.homepage-top-link {
+  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.homepage-top-link:hover,
+.homepage-top-link:focus-visible {
+  color: var(--foreground);
+  transform: translateY(-1px);
+}
+
+.homepage-nav-gallery {
+  border-color: var(--home-border);
+  background: color-mix(in oklab, var(--background) 88%, white);
+  color: var(--foreground);
+}
+
+.homepage-nav-gallery:hover {
+  background: color-mix(in oklab, var(--secondary) 42%, var(--background));
+}
+
+.homepage-nav-login {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.homepage-nav-login:hover {
+  background: color-mix(in oklab, var(--foreground) 88%, var(--primary));
 }
 
 .homepage-showcase-surface {
@@ -259,6 +267,248 @@
   backdrop-filter: blur(8px);
 }
 
+.homepage-hero-grid {
+  min-height: clamp(31rem, 62vh, 39rem);
+}
+
+@media (min-width: 1024px) {
+  .homepage-hero-grid {
+    grid-template-columns: minmax(0, 0.95fr) minmax(26rem, 0.85fr);
+  }
+}
+
+.homepage-hero-title {
+  font-size: clamp(3rem, 6vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.homepage-hero-copy {
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  line-height: 1.45;
+}
+
+.homepage-hero-mosaic {
+  display: grid;
+  height: clamp(19rem, 33vw, 28rem);
+  grid-template-areas:
+    'tile-a tile-b tile-c tile-d'
+    'tile-a tile-b tile-c tile-e'
+    'tile-f tile-f tile-c tile-e';
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  background: var(--home-surface);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.homepage-hero-tile {
+  min-height: 8rem;
+  overflow: hidden;
+}
+
+.homepage-hero-tile:nth-child(1) {
+  grid-area: tile-a;
+}
+
+.homepage-hero-tile:nth-child(2) {
+  grid-area: tile-b;
+}
+
+.homepage-hero-tile:nth-child(3) {
+  grid-area: tile-c;
+}
+
+.homepage-hero-tile:nth-child(4) {
+  grid-area: tile-d;
+}
+
+.homepage-hero-tile:nth-child(5) {
+  grid-area: tile-e;
+}
+
+.homepage-hero-tile:nth-child(6) {
+  grid-area: tile-f;
+}
+
+.homepage-hero-pill {
+  background: color-mix(in oklab, var(--secondary) 50%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+}
+
+.homepage-feature-section {
+  min-height: clamp(28rem, 50vw, 36rem);
+}
+
+@media (min-width: 1024px) {
+  .homepage-feature-section {
+    grid-template-columns: minmax(0, 0.95fr) minmax(26rem, 0.85fr);
+  }
+}
+
+@media (max-width: 1023px) {
+  .homepage-feature-section {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+}
+
+.homepage-feature-media-container {
+  height: clamp(19rem, 33vw, 28rem);
+  border: 1px solid var(--home-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.homepage-feature-tone-sky {
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in oklab, var(--secondary) 38%, var(--background)) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--secondary) 22%, var(--background)),
+      color-mix(in oklab, var(--secondary) 12%, var(--background))
+    );
+}
+
+.homepage-feature-tone-forest {
+  background:
+    radial-gradient(
+      circle at 70% 30%,
+      color-mix(in oklab, var(--chart-3) 36%, var(--background)) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--chart-3) 20%, var(--background)),
+      color-mix(in oklab, var(--chart-3) 10%, var(--background))
+    );
+}
+
+.homepage-feature-tone-amber {
+  background:
+    radial-gradient(
+      circle at 25% 75%,
+      color-mix(in oklab, var(--primary) 32%, var(--background)) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--primary) 18%, var(--background)),
+      color-mix(in oklab, var(--primary) 9%, var(--background))
+    );
+}
+
+.homepage-feature-tone-dawn {
+  background:
+    radial-gradient(
+      circle at 60% 40%,
+      color-mix(in oklab, var(--chart-1) 36%, var(--background)) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--chart-1) 20%, var(--background)),
+      color-mix(in oklab, var(--chart-1) 10%, var(--background))
+    );
+}
+
+.homepage-feature-tone-ink {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--foreground) 92%, var(--background)),
+    color-mix(in oklab, var(--foreground) 72%, var(--background))
+  );
+}
+
+.homepage-feature-tone-earth {
+  background:
+    radial-gradient(
+      circle at 35% 65%,
+      color-mix(in oklab, var(--chart-4) 34%, var(--background)) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--chart-4) 20%, var(--background)),
+      color-mix(in oklab, var(--chart-4) 10%, var(--background))
+    );
+}
+
+.homepage-feature-pill {
+  background: color-mix(in oklab, var(--secondary) 50%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+}
+
+.homepage-feature-badge {
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 600;
+}
+
+.homepage-feature-title {
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.homepage-feature-copy {
+  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+  line-height: 1.55;
+}
+
+.homepage-model-lineup {
+  padding-top: clamp(2rem, 4vw, 4rem);
+}
+
+.homepage-model-group-label {
+  color: color-mix(in oklab, var(--foreground) 55%, var(--background));
+}
+
+.homepage-model-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--home-border);
+  background: color-mix(in oklab, var(--background) 92%, var(--card));
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    transform 200ms ease;
+}
+
+.homepage-model-card:hover {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--home-border));
+  background: color-mix(in oklab, var(--background) 96%, var(--card));
+  transform: translateY(-1px);
+}
+
+.homepage-model-card-name {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.homepage-model-card-provider {
+  color: color-mix(in oklab, var(--foreground) 55%, var(--background));
+  margin-top: 0.125rem;
+}
+
+.homepage-model-price {
+  background: color-mix(in oklab, var(--foreground) 92%, white);
+  color: #fff;
+}
+
+.homepage-model-price-muted {
+  background: color-mix(in oklab, var(--foreground) 8%, white);
+  color: color-mix(in oklab, var(--foreground) 50%, white);
+}
+
 .homepage-model-group {
   border-top: 1px solid var(--home-border);
 }
@@ -278,4 +528,27 @@
 }
 .homepage-value-prop-grid > *:nth-child(-n + 2) .homepage-value-title {
   font-size: clamp(1.25rem, 1.8vw, 1.5rem);
+}
+
+@media (max-width: 1023px) {
+  .homepage-hero-grid {
+    min-height: auto;
+  }
+
+  .homepage-hero-mosaic {
+    order: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .homepage-hero-mosaic {
+    height: 22rem;
+    grid-template-areas:
+      'tile-a tile-b'
+      'tile-c tile-d'
+      'tile-c tile-e'
+      'tile-f tile-f';
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
 }

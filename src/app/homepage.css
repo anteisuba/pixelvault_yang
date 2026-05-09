@@ -71,11 +71,18 @@
     background 200ms ease;
 }
 .homepage .homepage-primary-btn:hover {
-  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  background: color-mix(in oklab, var(--foreground) 92%, black);
   box-shadow:
-    0 2px 4px color-mix(in oklab, var(--foreground) 22%, transparent),
-    0 8px 20px color-mix(in oklab, var(--foreground) 12%, transparent);
+    0 3px 6px color-mix(in oklab, var(--foreground) 28%, transparent),
+    0 10px 24px color-mix(in oklab, var(--foreground) 14%, transparent);
   transform: translateY(-1px);
+}
+.homepage .homepage-primary-btn:active {
+  background: color-mix(in oklab, var(--foreground) 82%, black);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 22%, transparent),
+    0 2px 6px color-mix(in oklab, var(--foreground) 8%, transparent);
+  transform: translateY(0);
 }
 .homepage .homepage-primary-btn:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--foreground) 65%, transparent);

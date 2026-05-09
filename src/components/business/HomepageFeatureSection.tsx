@@ -43,14 +43,16 @@ export function HomepageFeatureSection({
           reverse && 'lg:order-1',
         )}
       >
-        <span className="homepage-feature-pill mb-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold">
-          {t('eyebrow')}
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="homepage-feature-pill rounded-full px-4 py-2 text-sm font-semibold">
+            {t('eyebrow')}
+          </span>
           {comingSoon && (
-            <span className="homepage-feature-badge rounded-full px-2 py-0.5 text-[0.65rem] uppercase tracking-wider">
+            <span className="homepage-feature-badge rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em]">
               {tCommon('badges.soon')}
             </span>
           )}
-        </span>
+        </div>
         <h2
           id={`homepage-feature-${id}-title`}
           className="homepage-feature-title font-display font-bold text-foreground text-balance"

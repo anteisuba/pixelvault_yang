@@ -1600,6 +1600,40 @@
       "voiceNarration": "欢迎来到 PixelVault，在这里，AI 的力量让你的想象变为现实"
     }
   },
+  "StudioTools": {
+    "groupLabel": "工具",
+    "comingSoon": "敬请期待",
+    "tools": {
+      "image": {
+        "label": "图像"
+      },
+      "edit": {
+        "label": "编辑",
+        "title": "编辑",
+        "description": "局部重绘、画面扩展、对象重排，一站式编辑你的图像。"
+      },
+      "enhance": {
+        "label": "增强",
+        "title": "增强",
+        "description": "4 倍超分、移除背景、细节优化。"
+      },
+      "analyze": {
+        "label": "解析",
+        "title": "提示词解析",
+        "description": "从任意图像反推提示词，提取风格、角色、标签。"
+      },
+      "lora": {
+        "label": "LoRA 训练",
+        "title": "LoRA 训练",
+        "description": "用你的数据集训练专属风格或角色 LoRA。"
+      },
+      "node": {
+        "label": "节点编辑",
+        "title": "节点编辑器",
+        "description": "可视化工作流，串联生成、编辑、解析等步骤。"
+      }
+    }
+  },
   "StudioV2": {
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",

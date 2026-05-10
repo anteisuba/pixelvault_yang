@@ -15,6 +15,11 @@ export const ROUTES = {
 
   /** Protected pages */
   STUDIO: '/studio',
+  STUDIO_EDIT: '/studio/edit',
+  STUDIO_ENHANCE: '/studio/enhance',
+  STUDIO_ANALYZE: '/studio/analyze',
+  STUDIO_LORA: '/studio/lora',
+  STUDIO_NODE: '/studio/node',
   PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',

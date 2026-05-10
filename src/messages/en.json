@@ -1600,6 +1600,40 @@
       "voiceNarration": "Welcome to PixelVault, where your imagination becomes reality through the power of AI"
     }
   },
+  "StudioTools": {
+    "groupLabel": "Tools",
+    "comingSoon": "Coming Soon",
+    "tools": {
+      "image": {
+        "label": "Image"
+      },
+      "edit": {
+        "label": "Edit",
+        "title": "Edit",
+        "description": "Inpaint, outpaint, and rearrange objects across your images."
+      },
+      "enhance": {
+        "label": "Enhance",
+        "title": "Enhance",
+        "description": "Upscale to 4× resolution, remove backgrounds, and refine details."
+      },
+      "analyze": {
+        "label": "Analyze",
+        "title": "Prompt Analysis",
+        "description": "Reverse-engineer prompts and extract style, character, and tags from any image."
+      },
+      "lora": {
+        "label": "LoRA Training",
+        "title": "LoRA Training",
+        "description": "Train a personal style or character LoRA on your own dataset."
+      },
+      "node": {
+        "label": "Node Editor",
+        "title": "Node Editor",
+        "description": "Build visual workflows that chain generation, editing, and analysis steps."
+      }
+    }
+  },
   "StudioV2": {
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",

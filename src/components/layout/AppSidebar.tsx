@@ -6,13 +6,19 @@ import Image from 'next/image'
 import {
   BookOpen,
   Coins,
+  Image as ImageIcon,
   LayoutGrid,
   Library,
   LogOut,
+  Lock,
+  Palette,
+  ScanSearch,
   Sparkles,
   Swords,
   User,
   UserCircle,
+  Wand2,
+  Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -31,8 +37,10 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
@@ -133,6 +141,7 @@ function AppSidebarHeader() {
 function AppSidebarContent() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
+  const tTools = useTranslations('StudioTools')
 
   const signedInLinks = [
     {
@@ -162,6 +171,54 @@ function AppSidebarContent() {
     },
   ] as const
 
+  // Tools group — Krea-aligned per-tool entries. Image points to /studio
+  // (current behaviour); the rest are Coming Soon placeholders for now.
+  // video/audio land in Phase 3 when /studio is split per media type.
+  const toolLinks = [
+    {
+      href: ROUTES.STUDIO,
+      label: tTools('tools.image.label'),
+      icon: ImageIcon,
+      comingSoon: false,
+      activePaths: [ROUTES.STUDIO],
+    },
+    {
+      href: ROUTES.STUDIO_EDIT,
+      label: tTools('tools.edit.label'),
+      icon: Wand2,
+      comingSoon: true,
+      activePaths: [ROUTES.STUDIO_EDIT],
+    },
+    {
+      href: ROUTES.STUDIO_ENHANCE,
+      label: tTools('tools.enhance.label'),
+      icon: Sparkles,
+      comingSoon: true,
+      activePaths: [ROUTES.STUDIO_ENHANCE],
+    },
+    {
+      href: ROUTES.STUDIO_ANALYZE,
+      label: tTools('tools.analyze.label'),
+      icon: ScanSearch,
+      comingSoon: true,
+      activePaths: [ROUTES.STUDIO_ANALYZE],
+    },
+    {
+      href: ROUTES.STUDIO_LORA,
+      label: tTools('tools.lora.label'),
+      icon: Palette,
+      comingSoon: true,
+      activePaths: [ROUTES.STUDIO_LORA],
+    },
+    {
+      href: ROUTES.STUDIO_NODE,
+      label: tTools('tools.node.label'),
+      icon: Workflow,
+      comingSoon: true,
+      activePaths: [ROUTES.STUDIO_NODE],
+    },
+  ] as const
+
   return (
     <SidebarContent>
       <SignedIn>
@@ -183,6 +240,39 @@ function AppSidebarContent() {
                         <span>{link.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/60">
+            {tTools('groupLabel')}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {toolLinks.map((tool) => {
+                const isActive = tool.activePaths.some((p) => pathname === p)
+                const Icon = tool.icon
+                return (
+                  <SidebarMenuItem key={tool.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={tool.label}
+                    >
+                      <Link href={tool.href}>
+                        <Icon className="size-4 shrink-0" />
+                        <span>{tool.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    {tool.comingSoon && (
+                      <SidebarMenuBadge className="text-sidebar-foreground/50">
+                        <Lock className="size-3" />
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 )
               })}

@@ -1600,6 +1600,40 @@
       "voiceNarration": "PixelVaultへようこそ。AIの力であなたの想像が現実になる場所です"
     }
   },
+  "StudioTools": {
+    "groupLabel": "ツール",
+    "comingSoon": "近日公開",
+    "tools": {
+      "image": {
+        "label": "画像"
+      },
+      "edit": {
+        "label": "編集",
+        "title": "編集",
+        "description": "インペイントとアウトペイント、オブジェクトの再配置で画像を編集。"
+      },
+      "enhance": {
+        "label": "エンハンサー",
+        "title": "エンハンサー",
+        "description": "4倍解像度へのアップスケール、背景除去、ディテール強化。"
+      },
+      "analyze": {
+        "label": "解析",
+        "title": "プロンプト解析",
+        "description": "画像からプロンプトを逆算し、スタイル・キャラ・タグを抽出。"
+      },
+      "lora": {
+        "label": "LoRA訓練",
+        "title": "LoRA訓練",
+        "description": "独自のスタイルやキャラクターを LoRA で学習。"
+      },
+      "node": {
+        "label": "ノード",
+        "title": "ノードエディター",
+        "description": "生成・編集・解析を視覚的にチェーン構築するワークフロー。"
+      }
+    }
+  },
   "StudioV2": {
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",

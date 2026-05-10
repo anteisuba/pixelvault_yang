@@ -20,13 +20,16 @@ interface AssetSelectorDialogProps {
 }
 
 /**
- * AssetSelectorDialog — full-screen modal that wraps KreaAssetBrowser so the
- * Studio Image chip's "Select asset" view matches Krea's full-bleed asset
- * picker (sidebar + grid) instead of being squeezed into a small popover.
+ * AssetSelectorDialog — full-screen Krea Overlay modal that wraps
+ * KreaAssetBrowser. Uses the `dark` className on the inner wrapper to
+ * flip --sidebar / --background / --foreground tokens to their dark
+ * variants (see docs/reference/design-system.md → "Krea Overlay
+ * Surface"); the surrounding editorial canvas underneath stays warm
+ * off-white so the user's eye locks onto the asset grid in the modal.
  *
- * Caller controls open state and gets the picked generation via onSelect.
- * KreaAssetBrowser handles its own fetching, so this dialog stays a thin
- * presentational wrapper around the existing browser component.
+ * The DialogContent classes use `!` (important) to override shadcn's
+ * default centred sm:max-w-lg layout — Radix's CSS-variable-driven
+ * default has higher specificity than a plain Tailwind class would.
  */
 export function AssetSelectorDialog({
   open,
@@ -37,20 +40,16 @@ export function AssetSelectorDialog({
 }: AssetSelectorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        // Override the default centred sm:max-w-lg dialog for a proper
-        // full-bleed Krea-style asset picker
-        className="left-0 top-0 grid h-screen w-screen max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-0 p-0 sm:rounded-none"
-      >
+      <DialogContent className="!fixed !left-0 !top-0 !grid !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !gap-0 !rounded-none !border-0 !bg-transparent !p-0 !shadow-none sm:!rounded-none">
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description}</DialogDescription>
-        <div className="flex h-screen flex-col">
+        <div className="dark flex size-full flex-col bg-sidebar text-sidebar-foreground">
           <KreaAssetBrowser
             onSelect={(gen) => {
               onSelect(gen)
               onOpenChange(false)
             }}
-            className="!h-[100vh]"
+            className="!h-full !bg-transparent"
           />
         </div>
       </DialogContent>

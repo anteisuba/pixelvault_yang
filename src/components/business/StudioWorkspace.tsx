@@ -9,7 +9,6 @@ import {
   StudioCanvas,
   StudioBottomDock,
   StudioSidebar,
-  StudioGallery,
   StudioFlowLayout,
   StudioCommandPalette,
 } from '@/components/business/studio'
@@ -96,11 +95,15 @@ function StudioWorkspaceInner({ defaultMediaGroup }: StudioWorkspaceProps) {
           className="studio-layout-v2"
         >
           <StudioTopBar />
-          {/* Unified canvas-centric layout for image / video / audio */}
+          {/*
+           * Unified canvas-centric layout for image / video / audio. The
+           * inline gallery strip was removed in Phase 5.5d — users now
+           * reach their archive through the Image chip popover's "Select
+           * asset" path, which is also where reference images are picked.
+           */}
           <StudioFlowLayout
             canvas={<StudioCanvas />}
             dock={<StudioBottomDock />}
-            gallery={<StudioGallery />}
           />
         </div>
       </SidebarInset>

@@ -30,8 +30,6 @@ interface StudioToolbarProps {
   onReverse?: () => void
   onAdvanced?: () => void
   advancedOpen?: boolean
-  onReferenceImage?: () => void
-  referenceImageCount?: number
   onLayerDecompose?: () => void
   onTransform?: () => void
   transformOpen?: boolean
@@ -100,8 +98,6 @@ export function StudioToolbar({
   onReverse,
   onAdvanced,
   advancedOpen,
-  onReferenceImage,
-  referenceImageCount,
   onLayerDecompose,
   onTransform,
   transformOpen,
@@ -147,12 +143,9 @@ export function StudioToolbar({
           />
         )}
         {/*
-         * Reference image entry merged into a single Krea-style chip in
-         * Phase 5.5b (Image chip popover with Upload + Select asset).
-         * The legacy panel toggle (onReferenceImage) is still wired in
-         * the props surface for callers that haven't migrated, but the
-         * inline ToolButton was removed to avoid two competing entry
-         * points in the same toolbar.
+         * Reference image entry is the Krea-style chip (Phase 5.5b) — it
+         * owns its own popover (Upload + Select asset), so the toolbar
+         * doesn't need to drive a parent-controlled panel for it.
          */}
         <ReferenceImageChip disabled={disabled} />
         <ToolButton

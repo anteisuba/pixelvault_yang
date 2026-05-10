@@ -108,6 +108,10 @@
       "title": "个人中心 — PixelVault",
       "description": "你的生成历史、积分和保存的 API 路由。"
     },
+    "assets": {
+      "title": "素材 — PixelVault",
+      "description": "浏览和管理你的所有生成作品，按项目和文件夹组织。"
+    },
     "arena": {
       "title": "竞技场 — PixelVault",
       "description": "盲测 AI 图像模型并投票选出最佳结果。"
@@ -139,7 +143,8 @@
       "studio": "工作台",
       "arena": "竞技场",
       "storyboard": "故事",
-      "library": "档案"
+      "library": "档案",
+      "assets": "素材"
     },
     "requestsLoading": "...",
     "requestsTooltip": "已使用的 API 请求数"
@@ -561,6 +566,13 @@
     "filterAll": "全部",
     "filterImage": "图像",
     "filterVideo": "视频"
+  },
+  "AssetsPage": {
+    "title": "素材",
+    "description": "你的所有作品集中管理 — 按项目和文件夹组织。",
+    "signedOutTitle": "需要登录",
+    "signedOutDescription": "登录后才能查看你的素材。",
+    "signedOutAction": "打开工作台"
   },
   "Collections": {
     "title": "合集",

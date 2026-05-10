@@ -108,6 +108,10 @@
       "title": "Profile — PixelVault",
       "description": "Your generation history, credits, and saved API routes."
     },
+    "assets": {
+      "title": "Assets — PixelVault",
+      "description": "Browse and manage every generation you've made, organised by project and folder."
+    },
     "arena": {
       "title": "Arena — PixelVault",
       "description": "Blind-test AI image models and vote for the best result."
@@ -139,7 +143,8 @@
       "studio": "Studio",
       "arena": "Arena",
       "storyboard": "Stories",
-      "library": "Archive"
+      "library": "Archive",
+      "assets": "Assets"
     },
     "requestsLoading": "...",
     "requestsTooltip": "Total API requests used"
@@ -561,6 +566,13 @@
     "filterAll": "All",
     "filterImage": "Images",
     "filterVideo": "Videos"
+  },
+  "AssetsPage": {
+    "title": "Assets",
+    "description": "All your generations in one place — organised by project and folder.",
+    "signedOutTitle": "Sign in required",
+    "signedOutDescription": "Sign in to view your assets.",
+    "signedOutAction": "Open Studio"
   },
   "Collections": {
     "title": "Collections",

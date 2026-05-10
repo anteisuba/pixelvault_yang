@@ -108,6 +108,10 @@
       "title": "プロフィール — PixelVault",
       "description": "生成履歴、クレジット、保存済みAPIルートの管理。"
     },
+    "assets": {
+      "title": "アセット — PixelVault",
+      "description": "あなたの作品をまとめて閲覧・管理。プロジェクトとフォルダで整理。"
+    },
     "arena": {
       "title": "アリーナ — PixelVault",
       "description": "AIモデルをブラインドテストして最良の結果に投票。"
@@ -139,7 +143,8 @@
       "studio": "スタジオ",
       "arena": "アリーナ",
       "storyboard": "ストーリー",
-      "library": "アーカイブ"
+      "library": "アーカイブ",
+      "assets": "アセット"
     },
     "requestsLoading": "...",
     "requestsTooltip": "使用したAPIリクエスト数"
@@ -561,6 +566,13 @@
     "filterAll": "すべて",
     "filterImage": "画像",
     "filterVideo": "動画"
+  },
+  "AssetsPage": {
+    "title": "アセット",
+    "description": "あなたのすべての生成物をひとつの場所で。プロジェクトとフォルダで整理。",
+    "signedOutTitle": "サインインが必要です",
+    "signedOutDescription": "アセットを表示するにはサインインしてください。",
+    "signedOutAction": "スタジオへ"
   },
   "Collections": {
     "title": "コレクション",

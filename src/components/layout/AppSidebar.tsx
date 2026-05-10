@@ -166,8 +166,12 @@ function AppSidebarContent() {
       icon: BookOpen,
     },
     {
-      href: ROUTES.PROFILE,
-      label: t('links.library'),
+      // Krea-style asset browser. Replaces the legacy /profile entry in the
+      // sidebar — /profile remains addressable for back-compat (deeplinks,
+      // search results) but no longer surfaces in the main nav since the
+      // Assets page is a strict superset (project filter + media filters).
+      href: ROUTES.ASSETS,
+      label: t('links.assets'),
       icon: Library,
     },
   ] as const

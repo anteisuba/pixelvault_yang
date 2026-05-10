@@ -331,6 +331,11 @@
     "voiceTrainCreate": "创建声音",
     "voiceTrainSuccess": "声音创建成功！",
     "voiceTrainFailed": "创建声音失败",
+    "voiceCards": "声音卡片",
+    "voiceCardsEmpty": "还没有声音卡片",
+    "voiceCardSelected": "使用中",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "高级选项",
     "freeQuota": "今日免费 {remaining}/{limit}",
     "toggleSidebar": "切换侧边栏",
@@ -343,6 +348,24 @@
       "archiveBehaviorLabel": "自动存档",
       "archiveBehaviorValue": "结果自动保存"
     }
+  },
+  "audioParams": {
+    "emotion": "情感",
+    "pace": "语速",
+    "pauseMarkers": "停顿位置",
+    "emotionNeutral": "中性",
+    "emotionHappy": "高兴",
+    "emotionSad": "悲伤",
+    "emotionAngry": "愤怒",
+    "emotionExcited": "兴奋",
+    "emotionCalm": "平静",
+    "emotionFearful": "恐惧",
+    "paceSlow": "慢",
+    "paceNormal": "正常",
+    "paceFast": "快",
+    "pauseAfterSentence1": "第 1 句后",
+    "pauseAfterSentence2": "第 2 句后",
+    "pauseAfterSentence3": "第 3 句后"
   },
   "VideoGenerate": {
     "modelLabel": "视频模型",

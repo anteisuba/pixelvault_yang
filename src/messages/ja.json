@@ -331,6 +331,11 @@
     "voiceTrainCreate": "ボイスを作成",
     "voiceTrainSuccess": "ボイスの作成に成功しました！",
     "voiceTrainFailed": "ボイスの作成に失敗しました",
+    "voiceCards": "ボイスカード",
+    "voiceCardsEmpty": "ボイスカードがまだありません",
+    "voiceCardSelected": "使用中",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "詳細設定",
     "freeQuota": "本日の無料回数 {remaining}/{limit}",
     "toggleSidebar": "サイドバーを切り替え",
@@ -343,6 +348,24 @@
       "archiveBehaviorLabel": "自動保存",
       "archiveBehaviorValue": "結果は自動保存"
     }
+  },
+  "audioParams": {
+    "emotion": "感情",
+    "pace": "話す速度",
+    "pauseMarkers": "ポーズ位置",
+    "emotionNeutral": "ニュートラル",
+    "emotionHappy": "嬉しい",
+    "emotionSad": "悲しい",
+    "emotionAngry": "怒り",
+    "emotionExcited": "興奮",
+    "emotionCalm": "穏やか",
+    "emotionFearful": "恐れ",
+    "paceSlow": "遅い",
+    "paceNormal": "標準",
+    "paceFast": "速い",
+    "pauseAfterSentence1": "1文目の後",
+    "pauseAfterSentence2": "2文目の後",
+    "pauseAfterSentence3": "3文目の後"
   },
   "VideoGenerate": {
     "modelLabel": "動画モデル",

@@ -331,6 +331,11 @@
     "voiceTrainCreate": "Create Voice",
     "voiceTrainSuccess": "Voice created successfully!",
     "voiceTrainFailed": "Failed to create voice",
+    "voiceCards": "Voice Cards",
+    "voiceCardsEmpty": "No voice cards yet",
+    "voiceCardSelected": "In use",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "Advanced Options",
     "freeQuota": "{remaining}/{limit} free today",
     "toggleSidebar": "Toggle sidebar",
@@ -343,6 +348,24 @@
       "archiveBehaviorLabel": "Auto-archive",
       "archiveBehaviorValue": "Results saved automatically"
     }
+  },
+  "audioParams": {
+    "emotion": "Emotion",
+    "pace": "Pace",
+    "pauseMarkers": "Pause Markers",
+    "emotionNeutral": "Neutral",
+    "emotionHappy": "Happy",
+    "emotionSad": "Sad",
+    "emotionAngry": "Angry",
+    "emotionExcited": "Excited",
+    "emotionCalm": "Calm",
+    "emotionFearful": "Fearful",
+    "paceSlow": "Slow",
+    "paceNormal": "Normal",
+    "paceFast": "Fast",
+    "pauseAfterSentence1": "After sentence 1",
+    "pauseAfterSentence2": "After sentence 2",
+    "pauseAfterSentence3": "After sentence 3"
   },
   "VideoGenerate": {
     "modelLabel": "Video Model",

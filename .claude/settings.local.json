@@ -279,8 +279,6 @@
       "Write(playwright.config.ts)",
       "Edit(postcss.config.mjs)",
       "Write(postcss.config.mjs)",
-      "Edit(vitest.config.ts)",
-      "Write(vitest.config.ts)",
       "Edit(vitest.setup.ts)",
       "Write(vitest.setup.ts)",
       "Edit(components.json)",

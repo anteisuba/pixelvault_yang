@@ -12,7 +12,7 @@ export default defineConfig({
     globals: true,
     exclude: [
       'e2e/**',
-      '**/.claude/worktrees/**/e2e/**',
+      '**/.claude/worktrees/**',
       'node_modules/**',
       'workers/**',
     ],

@@ -166,37 +166,37 @@ export type HomepageFeatureSectionTone =
 export const HOMEPAGE_SHOWCASE = [
   {
     id: 'sdxlRealism',
-    src: '/showcase/showcase-01.svg',
+    src: '/showcase/showcase-01.webp',
     model: 'SDXL',
     tone: 'dawn',
   },
   {
     id: 'animagineAnime',
-    src: '/showcase/showcase-02.svg',
+    src: '/showcase/showcase-02.webp',
     model: 'Animagine',
     tone: 'forest',
   },
   {
     id: 'geminiConcept',
-    src: '/showcase/showcase-03.svg',
+    src: '/showcase/showcase-03.webp',
     model: 'Gemini',
     tone: 'ink',
   },
   {
     id: 'dalleCreative',
-    src: '/showcase/showcase-04.svg',
+    src: '/showcase/showcase-04.webp',
     model: 'DALL-E',
     tone: 'sky',
   },
   {
     id: 'fluxPro',
-    src: '/showcase/showcase-05.svg',
+    src: '/showcase/showcase-05.webp',
     model: 'Flux',
     tone: 'amber',
   },
   {
     id: 'novelaiIllust',
-    src: '/showcase/showcase-06.svg',
+    src: '/showcase/showcase-06.webp',
     model: 'NovelAI',
     tone: 'earth',
   },

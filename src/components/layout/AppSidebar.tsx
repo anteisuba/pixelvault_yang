@@ -110,6 +110,7 @@ function AppSidebarHeader() {
             as="span"
             duration={600}
             animateOnHover
+            animateOnMount={false}
             className="font-display text-brand font-bold leading-none tracking-brand text-sidebar-foreground !py-0"
           >
             {tCommon('brand')}

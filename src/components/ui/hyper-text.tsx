@@ -52,6 +52,12 @@ interface HyperTextProps extends Omit<MotionProps, 'children'> {
   delay?: number
   /** Component to render as - defaults to div */
   as?: MotionElementType
+  /**
+   * Run the scramble once when the component mounts. Disable for stable
+   * surfaces (e.g. brand wordmarks) where the first paint should be the
+   * resolved text and the effect should only fire on hover.
+   */
+  animateOnMount?: boolean
   /** Whether to start animation when element comes into view */
   startOnView?: boolean
   /** Whether to trigger animation on hover */
@@ -72,6 +78,7 @@ export function HyperText({
   duration = 800,
   delay = 0,
   as: Component = 'div',
+  animateOnMount = true,
   startOnView = false,
   animateOnHover = true,
   characterSet = DEFAULT_CHARACTER_SET,
@@ -95,6 +102,8 @@ export function HyperText({
 
   // Handle animation start based on view or delay
   useEffect(() => {
+    if (!animateOnMount) return
+
     if (!startOnView) {
       const startTimeout = setTimeout(() => {
         setIsAnimating(true)
@@ -119,7 +128,7 @@ export function HyperText({
     }
 
     return () => observer.disconnect()
-  }, [delay, startOnView])
+  }, [animateOnMount, delay, startOnView])
 
   // Handle scramble animation
   useEffect(() => {

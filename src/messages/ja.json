@@ -536,7 +536,16 @@
     "batchFailed": "一括操作に失敗しました",
     "projectFilterLabel": "プロジェクト",
     "projectAll": "すべて",
-    "projectNone": "未分類"
+    "projectNone": "未分類",
+    "projectCreate": "新規プロジェクト",
+    "projectCreateTitle": "プロジェクトを作成",
+    "projectCreateDescription": "作品をプロジェクトにまとめて整理できます。",
+    "projectNamePlaceholder": "プロジェクト名（例：表紙イラスト）",
+    "projectDescriptionPlaceholder": "説明（任意）",
+    "projectCreateSubmit": "作成",
+    "projectCreating": "作成中...",
+    "projectCreated": "プロジェクトを作成しました",
+    "projectCreateFailed": "プロジェクトの作成に失敗しました"
   },
   "Collections": {
     "title": "コレクション",

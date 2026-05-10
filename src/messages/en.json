@@ -536,7 +536,16 @@
     "batchFailed": "Batch operation failed",
     "projectFilterLabel": "Project",
     "projectAll": "All",
-    "projectNone": "Unassigned"
+    "projectNone": "Unassigned",
+    "projectCreate": "New project",
+    "projectCreateTitle": "Create project",
+    "projectCreateDescription": "Group related generations into a project so the archive stays organised.",
+    "projectNamePlaceholder": "Project name (e.g. Cover illustrations)",
+    "projectDescriptionPlaceholder": "Optional description",
+    "projectCreateSubmit": "Create",
+    "projectCreating": "Creating…",
+    "projectCreated": "Project created",
+    "projectCreateFailed": "Failed to create project"
   },
   "Collections": {
     "title": "Collections",

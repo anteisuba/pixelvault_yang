@@ -536,7 +536,16 @@
     "batchFailed": "批量操作失败",
     "projectFilterLabel": "项目",
     "projectAll": "全部",
-    "projectNone": "未分类"
+    "projectNone": "未分类",
+    "projectCreate": "新建项目",
+    "projectCreateTitle": "创建项目",
+    "projectCreateDescription": "把相关作品归到一个项目，让你的归档保持整洁。",
+    "projectNamePlaceholder": "项目名（例：封面插画）",
+    "projectDescriptionPlaceholder": "可选描述",
+    "projectCreateSubmit": "创建",
+    "projectCreating": "创建中…",
+    "projectCreated": "项目已创建",
+    "projectCreateFailed": "创建项目失败"
   },
   "Collections": {
     "title": "合集",

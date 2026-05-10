@@ -1,7 +1,10 @@
 'use client'
 
+import { X } from 'lucide-react'
+
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -26,16 +29,21 @@ interface AssetSelectorDialogProps {
 }
 
 /**
- * AssetSelectorDialog — full-screen Krea Overlay modal that wraps
+ * AssetSelectorDialog — centred Krea Overlay modal that wraps
  * KreaAssetBrowser. Uses the `dark` className on the inner wrapper to
  * flip --sidebar / --background / --foreground tokens to their dark
  * variants (see docs/reference/design-system.md → "Krea Overlay
- * Surface"); the surrounding editorial canvas underneath stays warm
- * off-white so the user's eye locks onto the asset grid in the modal.
+ * Surface"); the editorial canvas behind the dimmed overlay stays warm
+ * off-white so the user keeps their bearings inside the studio.
  *
- * The DialogContent classes use `!` (important) to override shadcn's
- * default centred sm:max-w-lg layout — Radix's CSS-variable-driven
- * default has higher specificity than a plain Tailwind class would.
+ * Sized to leave the studio chrome visible — Krea-style — rather than
+ * taking over the viewport. The `!` overrides on DialogContent unset
+ * shadcn's default `sm:max-w-lg`/`p-6`/`gap-4`/`bg-background` so the
+ * dark inner surface owns the full content area.
+ *
+ * Default close button is suppressed because its black-on-white styling
+ * disappears against the dark interior; a dark-themed X is rendered
+ * inside the wrapper instead.
  */
 export function AssetSelectorDialog({
   open,
@@ -47,10 +55,19 @@ export function AssetSelectorDialog({
 }: AssetSelectorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !left-0 !top-0 !grid !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !gap-0 !rounded-none !border-0 !bg-transparent !p-0 !shadow-none sm:!rounded-none">
+      <DialogContent
+        showCloseButton={false}
+        className="h-[min(80vh,720px)] w-[calc(100%-2rem)] !max-w-6xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-6xl"
+      >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description}</DialogDescription>
-        <div className="dark flex size-full flex-col bg-sidebar text-sidebar-foreground">
+        <div className="dark relative flex size-full flex-col overflow-hidden rounded-xl bg-sidebar text-sidebar-foreground ring-1 ring-border/40">
+          <DialogClose
+            aria-label={title}
+            className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <X className="size-4" />
+          </DialogClose>
           <KreaAssetBrowser
             onSelect={(gen) => {
               onSelect(gen)

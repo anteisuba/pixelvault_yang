@@ -505,7 +505,25 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   )
 
   const handleGenerate = useCallback(async () => {
-    if (!canGenerate) return
+    if (isGenerating) return
+    if (!canGenerate) {
+      // Krea-style: button stays clickable; click surfaces the missing piece
+      // instead of silently doing nothing.
+      // TODO: replace inline strings with StudioV3.generateBlocked* keys
+      //       once the i18n edit lands.
+      if (usesStyleCardForModel && !styles.activeCardId) {
+        toast.info('Pick a style card first')
+      } else if (!usesStyleCardForModel && !selectedModel?.modelId) {
+        toast.info('Pick a model first')
+      } else if (!usesStyleCardForModel && !state.prompt.trim()) {
+        toast.info('Type a prompt to generate')
+        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      } else if (modelRequiresRef && !hasRefImage) {
+        toast.info('This model needs a reference image')
+        dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+      }
+      return
+    }
     if (
       !isAudioMode &&
       !isVideoMode &&
@@ -527,6 +545,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     await executeGenerate()
   }, [
     canGenerate,
+    isGenerating,
+    usesStyleCardForModel,
+    styles.activeCardId,
+    selectedModel?.modelId,
+    modelRequiresRef,
+    hasRefImage,
     isAudioMode,
     isVideoMode,
     state.workflowMode,
@@ -746,18 +770,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={isGenerating || !canGenerate}
+              disabled={isGenerating}
               aria-busy={isGenerating}
               aria-disabled={!canGenerate}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
                 'transition-all duration-200',
                 isAudioMode || isVideoMode ? 'rounded-xl' : 'rounded-l-xl',
-                canGenerate && !isGenerating
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]'
-                  : isGenerating
-                    ? 'bg-primary text-primary-foreground studio-generating'
-                    : 'bg-muted text-muted-foreground cursor-not-allowed',
+                isGenerating
+                  ? 'bg-primary text-primary-foreground studio-generating'
+                  : 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]',
               )}
               style={{
                 transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
@@ -785,13 +807,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    disabled={isGenerating || !canGenerate}
+                    disabled={isGenerating}
                     className={cn(
                       'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
                       'transition-all duration-200',
-                      canGenerate && !isGenerating
-                        ? 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]'
-                        : 'bg-muted text-muted-foreground cursor-not-allowed',
+                      isGenerating
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                        : 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]',
                     )}
                   >
                     <ChevronDown className="size-3.5" />

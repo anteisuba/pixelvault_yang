@@ -25,6 +25,11 @@ const ReverseEngineerPanel = dynamic(() =>
     (mod) => mod.ReverseEngineerPanel,
   ),
 )
+const StudioTransformPanel = dynamic(() =>
+  import('@/components/business/studio/StudioTransformPanel').then(
+    (mod) => mod.StudioTransformPanel,
+  ),
+)
 
 const LLM_CAPABLE_ADAPTERS = new Set([
   AI_ADAPTER_TYPES.GEMINI,
@@ -47,6 +52,15 @@ const ENHANCE_DIALOG_CLASSES =
  */
 const REVERSE_DIALOG_CLASSES =
   'max-h-[80vh] w-[calc(100%-2rem)] !max-w-2xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-2xl'
+
+/**
+ * Transform — image upload + 6 style presets + preservation control + 1×/4×
+ * variants grid. Same shape as Reverse: starts compact (just the dropzone),
+ * grows once an image is loaded; max-h keeps the variants grid scrollable
+ * without forcing whitespace before upload.
+ */
+const TRANSFORM_DIALOG_CLASSES =
+  'max-h-[85vh] w-[calc(100%-2rem)] !max-w-xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-xl'
 
 /**
  * StudioPanelDialogs — `enhance` (prompt assistant) and `reverse` (image
@@ -129,6 +143,24 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
                 dispatch({ type: 'CLOSE_PANEL', payload: 'reverse' })
               }}
             />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Transform (图像风格转换) ──────────────────────────── */}
+      <Dialog
+        open={state.panels.transform}
+        onOpenChange={(open) => {
+          if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'transform' })
+        }}
+      >
+        <DialogContent showCloseButton className={TRANSFORM_DIALOG_CLASSES}>
+          <DialogTitle className="sr-only">{tPanels('transform')}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('transform')}
+          </DialogDescription>
+          <div className="flex max-h-full flex-col overflow-y-auto rounded-xl border border-border/40 bg-background p-4 shadow-2xl">
+            <StudioTransformPanel />
           </div>
         </DialogContent>
       </Dialog>

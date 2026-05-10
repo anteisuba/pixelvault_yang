@@ -38,11 +38,7 @@ import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
-import {
-  STYLE_PRESETS,
-  getStylePresetById,
-  NO_STYLE_PRESET_ID,
-} from '@/constants/style-presets'
+import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { cn } from '@/lib/utils'
 import {
@@ -584,7 +580,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   })
 
   const tStudio = useTranslations('StudioPage')
-  const tPresets = useTranslations('StylePresets')
 
   const placeholder = isAudioMode
     ? tStudio('audioPlaceholder')
@@ -596,49 +591,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   return (
     <>
-      {/* Style preset chips — image/card mode only */}
-      {!isAudioMode && (
-        <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-2xs font-medium text-muted-foreground/70 mr-0.5">
-            {tPresets('label')}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              dispatch({
-                type: 'SET_STYLE_PRESET',
-                payload: NO_STYLE_PRESET_ID,
-              })
-            }
-            className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
-              state.stylePresetId === NO_STYLE_PRESET_ID
-                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-            )}
-          >
-            {tPresets('none')}
-          </button>
-          {STYLE_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() =>
-                dispatch({ type: 'SET_STYLE_PRESET', payload: preset.id })
-              }
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
-                state.stylePresetId === preset.id
-                  ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-              )}
-            >
-              <span>{preset.icon}</span>
-              <span>{tPresets(preset.messageKey)}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {/*
+       * Inline style preset chips were removed in Phase 4.1 to compress the
+       * dock to a Krea-style single-row compose bar. The state field
+       * `state.stylePresetId` and the SET_STYLE_PRESET reducer action are kept
+       * intact so Phase 4.2 (Style transfer chip popover) can re-expose the
+       * presets inside the chip — no functionality is lost, only the inline
+       * UI is suppressed.
+       */}
 
       <PromptInput
         id="studio-prompt"

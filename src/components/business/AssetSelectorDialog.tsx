@@ -57,7 +57,7 @@ export function AssetSelectorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="h-[min(80vh,720px)] w-[calc(100%-2rem)] !max-w-6xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-6xl"
+        className="h-[min(65vh,600px)] w-[calc(100%-2rem)] !max-w-3xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-3xl"
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description}</DialogDescription>

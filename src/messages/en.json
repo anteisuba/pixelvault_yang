@@ -256,6 +256,19 @@
       "priceImage": "{amount} per image",
       "priceSecond": "{amount} per second",
       "priceKChars": "{amount} per 1k chars"
+    },
+    "auth": {
+      "note": "Your account keeps saved routes, private prompts, and archived generations together across sessions.",
+      "signIn": {
+        "eyebrow": "Welcome back",
+        "title": "Return to your archive.",
+        "description": "Sign in to continue generating, review saved work, and keep your usage history intact."
+      },
+      "signUp": {
+        "eyebrow": "Start your archive",
+        "title": "Begin a calmer image workflow.",
+        "description": "Create an account to generate with multiple models, save each keeper, and build a record you can return to later."
+      }
     }
   },
   "StudioPage": {

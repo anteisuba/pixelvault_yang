@@ -256,6 +256,19 @@
       "priceImage": "{amount} / 张",
       "priceSecond": "{amount} / 秒",
       "priceKChars": "{amount} / 千字符"
+    },
+    "auth": {
+      "note": "账号会把已保存路由、私有提示词和归档结果保留在同一条创作记录里。",
+      "signIn": {
+        "eyebrow": "欢迎回来",
+        "title": "回到你的档案。",
+        "description": "登录后继续生成、查看已保存结果，并保留你的用量记录。"
+      },
+      "signUp": {
+        "eyebrow": "开始建立档案",
+        "title": "从更安静的图像工作流开始。",
+        "description": "创建账号后即可使用多个模型生成、保存每个满意结果，并在以后继续回看。"
+      }
     }
   },
   "StudioPage": {

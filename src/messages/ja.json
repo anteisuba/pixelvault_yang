@@ -551,9 +551,13 @@
     "assetBrowserLoading": "読み込み中..."
   },
   "ImageChip": {
-    "label": "アセット",
-    "selectFromArchive": "アーカイブから選ぶ",
+    "label": "画像",
+    "description": "画像を添付して編集、またはそのスタイルと内容を生成に適用します。",
+    "upload": "アップロード",
+    "selectAsset": "アーカイブから選ぶ",
+    "back": "戻る",
     "selectAssetEmpty": "保存済みの画像がありません",
+    "selectFromArchive": "アーカイブから選ぶ",
     "filterAll": "すべて",
     "filterImage": "画像",
     "filterVideo": "動画"

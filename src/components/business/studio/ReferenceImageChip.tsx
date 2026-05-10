@@ -1,7 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { Image as ImageIcon, Loader2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  FolderOpen,
+  Image as ImageIcon,
+  Loader2,
+  Plus,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -19,80 +25,156 @@ interface ReferenceImageChipProps {
   disabled?: boolean
 }
 
+type View = 'menu' | 'browse'
+
 /**
- * ReferenceImageChip — Krea-style "Asset" chip for the Studio compose bar.
- * Opens a popover that renders <AssetBrowser /> over the user's saved
- * generations. Tapping a thumbnail fetches the asset and pushes it into
- * the existing reference-image store via useImageUpload.addFromUrl, so
- * the same downstream generate code path consumes both file uploads
- * (legacy "参照画像" panel) and archive-picked images (this chip).
+ * ReferenceImageChip — Krea-style "Image" chip combining Upload + Select asset
+ * into a single compose-bar entry point.
  *
- * Phase 5.5 — pairs with Phase 5.4's AssetBrowser. Coexists with the
- * legacy reference-image panel for now; a later phase can fold both
- * entry points into a single Image chip with Upload / Select tabs.
+ * View flow (mirrors Krea's popover):
+ *   menu   → description + Upload (primary) + Select asset (secondary)
+ *   browse → ← Back + AssetBrowser thumbnail grid
+ *
+ * Routing: both Upload and Select asset feed the same useImageUpload store
+ * via addReferenceImage / addFromUrl, so downstream generation code
+ * doesn't care which path the user took.
+ *
+ * Uploads use a chip-local hidden file input (instead of useImageUpload's
+ * shared fileInputRef) so the legacy "参照画像" panel can keep mounting
+ * its own input without ref collisions during the migration window.
  */
 export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const t = useTranslations('ImageChip')
   const { imageUpload } = useStudioData()
   const [open, setOpen] = useState(false)
-  const [isAdding, setIsAdding] = useState(false)
+  const [view, setView] = useState<View>('menu')
+  const [isAddingFromUrl, setIsAddingFromUrl] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const referenceCount = imageUpload.referenceImages.length
   const isActive = referenceCount > 0
 
-  const handleSelect = async (gen: GenerationRecord) => {
-    if (isAdding) return
-    setIsAdding(true)
+  const resetAndClose = () => {
+    setOpen(false)
+    setView('menu')
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = '' // allow picking the same file twice in a row
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      imageUpload.addReferenceImage(reader.result as string)
+      resetAndClose()
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSelectAsset = async (gen: GenerationRecord) => {
+    if (isAddingFromUrl) return
+    setIsAddingFromUrl(true)
     try {
       await imageUpload.addFromUrl(gen.url)
-      setOpen(false)
+      resetAndClose()
     } finally {
-      setIsAdding(false)
+      setIsAddingFromUrl(false)
     }
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Toolbar.Button
-          type="button"
-          disabled={disabled}
-          aria-label={t('label')}
-          className={cn(
-            'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-            isActive && 'bg-muted/30 text-primary',
-          )}
-        >
-          <ImageIcon className="size-3.5 shrink-0" />
-          <span className="hidden sm:inline">{t('label')}</span>
-          {referenceCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
-              {referenceCount}
-            </span>
-          )}
-        </Toolbar.Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[28rem] max-w-[calc(100vw-2rem)] p-3"
-        align="start"
-        sideOffset={6}
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setView('menu')
+        }}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-            {t('selectFromArchive')}
-          </span>
-          {isAdding && (
-            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+        <PopoverTrigger asChild>
+          <Toolbar.Button
+            type="button"
+            disabled={disabled}
+            aria-label={t('label')}
+            className={cn(
+              'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
+              'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+              isActive && 'bg-muted/30 text-primary',
+            )}
+          >
+            <ImageIcon className="size-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t('label')}</span>
+            {referenceCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+                {referenceCount}
+              </span>
+            )}
+          </Toolbar.Button>
+        </PopoverTrigger>
+
+        <PopoverContent
+          className="w-[28rem] max-w-[calc(100vw-2rem)] p-3"
+          align="start"
+          sideOffset={6}
+        >
+          {view === 'menu' ? (
+            <div className="space-y-3">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {t('description')}
+              </p>
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+              >
+                <Plus className="size-4" />
+                {t('upload')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('browse')}
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-border/60 bg-card/70 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-card"
+              >
+                <FolderOpen className="size-4" />
+                {t('selectAsset')}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setView('menu')}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  {t('back')}
+                </button>
+                {isAddingFromUrl && (
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              <AssetBrowser
+                mediaType="image"
+                onSelect={handleSelectAsset}
+                emptyLabel={t('selectAssetEmpty')}
+              />
+            </div>
           )}
-        </div>
-        <AssetBrowser
-          mediaType="image"
-          onSelect={handleSelect}
-          emptyLabel={t('selectAssetEmpty')}
-        />
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </>
   )
 }

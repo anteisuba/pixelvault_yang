@@ -551,9 +551,13 @@
     "assetBrowserLoading": "加载中…"
   },
   "ImageChip": {
-    "label": "素材",
-    "selectFromArchive": "从档案选择",
+    "label": "图像",
+    "description": "附加一张图片用于编辑，或将其风格和内容应用到生成。",
+    "upload": "上传",
+    "selectAsset": "选择素材",
+    "back": "返回",
     "selectAssetEmpty": "还没有保存的素材",
+    "selectFromArchive": "从档案选择",
     "filterAll": "全部",
     "filterImage": "图像",
     "filterVideo": "视频"

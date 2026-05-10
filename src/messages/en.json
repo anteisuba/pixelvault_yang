@@ -551,9 +551,13 @@
     "assetBrowserLoading": "Loading…"
   },
   "ImageChip": {
-    "label": "Asset",
-    "selectFromArchive": "Pick from archive",
+    "label": "Image",
+    "description": "Attach an image to edit it, or to apply its style and content to your generation.",
+    "upload": "Upload",
+    "selectAsset": "Select asset",
+    "back": "Back",
     "selectAssetEmpty": "No saved assets yet",
+    "selectFromArchive": "Pick from archive",
     "filterAll": "All",
     "filterImage": "Images",
     "filterVideo": "Videos"

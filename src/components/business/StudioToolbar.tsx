@@ -4,7 +4,6 @@ import {
   Sparkles,
   ScanText,
   Settings2,
-  Image as ImageIcon,
   Key,
   Layers,
   RatioIcon,
@@ -147,13 +146,14 @@ export function StudioToolbar({
             disabled={disabled}
           />
         )}
-        <ToolButton
-          icon={<ImageIcon className="h-3.5 w-3.5" />}
-          label={t('referenceImage')}
-          onClick={onReferenceImage}
-          badge={referenceImageCount}
-          disabled={disabled}
-        />
+        {/*
+         * Reference image entry merged into a single Krea-style chip in
+         * Phase 5.5b (Image chip popover with Upload + Select asset).
+         * The legacy panel toggle (onReferenceImage) is still wired in
+         * the props surface for callers that haven't migrated, but the
+         * inline ToolButton was removed to avoid two competing entry
+         * points in the same toolbar.
+         */}
         <ReferenceImageChip disabled={disabled} />
         <ToolButton
           icon={<Wand2 className="h-3.5 w-3.5" />}

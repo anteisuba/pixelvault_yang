@@ -360,14 +360,8 @@ html:lang(zh) {
   .editorial-hero::after {
     content: '';
     grid-column: 1 / -1;
-    height: 3px;
-    border-radius: 2px;
-    background: linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--primary) 40%, transparent),
-      color-mix(in oklab, var(--primary) 12%, transparent) 60%,
-      transparent
-    );
+    height: 1px;
+    background: color-mix(in oklab, var(--border) 80%, transparent);
   }
 
   .editorial-hero-copy {

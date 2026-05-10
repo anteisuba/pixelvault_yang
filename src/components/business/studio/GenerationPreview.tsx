@@ -192,14 +192,14 @@ export const GenerationPreview = memo(function GenerationPreview({
     const hintKey =
       state.outputType === 'audio' ? 'emptyStateHintAudio' : 'emptyStateHint'
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 px-6 py-12 sm:py-16">
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-6 text-primary/60" />
+      <div className="flex flex-col items-center justify-center rounded-2xl px-6 py-16">
+        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
+          <Sparkles className="size-5 text-primary/60" />
         </div>
         <p className="mt-4 text-sm font-medium text-foreground">
           {t('emptyStateTitle')}
         </p>
-        <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
           {t(hintKey)}
         </p>
         {showSuggestions && (
@@ -214,7 +214,7 @@ export const GenerationPreview = memo(function GenerationPreview({
                     payload: t(`suggestion.${key}`),
                   })
                 }
-                className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 font-serif text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               >
                 {t(`suggestion.${key}`)}
               </button>

@@ -1,7 +1,6 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count} 次请求",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -25,7 +24,8 @@
     },
     "model": "模型",
     "cost": "消费",
-    "capabilities": "功能"
+    "capabilities": "功能",
+    "requestCount": "{count} 次请求"
   },
   "Toasts": {
     "createSuccess": "创建成功",
@@ -130,8 +130,6 @@
     }
   },
   "Navbar": {
-    "creditsLoading": "...",
-    "creditsTooltip": "已使用的 API 请求数",
     "signIn": "登录",
     "viewProfile": "查看主页",
     "signOut": "退出登录",
@@ -142,7 +140,9 @@
       "arena": "竞技场",
       "storyboard": "故事",
       "library": "档案"
-    }
+    },
+    "requestsLoading": "...",
+    "requestsTooltip": "已使用的 API 请求数"
   },
   "LocaleSwitcher": {
     "label": "语言",
@@ -483,8 +483,8 @@
       "publicWorksValue": "{count, plural, =0 {暂无公开} other {#件公开}}",
       "privateWorksLabel": "私密",
       "privateWorksValue": "{count, plural, =0 {暂无私密} other {#件私密}}",
-      "creditsLabel": "API请求",
-      "inlineSummary": "{total, plural, =0 {暂无作品} other {{total} 个作品}} · {publicCount} 个公开 · {privateCount} 个私有 · 已用 {requestCount} 次请求"
+      "inlineSummary": "{total, plural, =0 {暂无作品} other {{total} 个作品}} · {publicCount} 个公开 · {privateCount} 个私有 · 已用 {requestCount} 次请求",
+      "requestsLabel": "API请求"
     },
     "collectionEyebrow": "归档",
     "collectionTitle": "最近生成",
@@ -541,7 +541,6 @@
     "formLabel": "图片生成",
     "selectedModelLabel": "当前路由",
     "providerLabel": "提供商",
-    "creditCostLabel": "单次生成",
     "keyStatusLabel": "路由状态",
     "keyStatusSavedRouteTitle": "正在使用这个已保存路由",
     "keyStatusSavedRouteDescription": "这个路由会使用 {label}（{maskedKey}）。",
@@ -597,7 +596,6 @@
     "resultPromptLabel": "提示词",
     "resultModelLabel": "模型",
     "resultProviderLabel": "提供商",
-    "resultCreditLabel": "已记录请求",
     "resultStorageNote": "会连同提示词和路由上下文一起保存。",
     "upgradeHint": "想要更高质量？用你自己的 API key 试试 GPT Image 或 FLUX Pro。",
     "characterCard": {
@@ -632,7 +630,9 @@
       "modelsSelected": "已选 {count}/{max}",
       "unlockMore": "添加 API Key 解锁 {count} 个更多模型",
       "unlockHint": "在侧边栏添加 API Key 即可使用这些服务商。"
-    }
+    },
+    "requestCostLabel": "单次生成",
+    "resultRequestLabel": "已记录请求"
   },
   "StudioApiKeys": {
     "triggerLabel": "API 路由",
@@ -1628,7 +1628,6 @@
     "variantGenerate": "生成变体",
     "variantGenerating": "正在生成 {count} 个变体...",
     "variantSuccess": "变体已生成！",
-    "variantCredits": "消耗 {count} 积分",
     "compareGenerate": "对比模型",
     "compareSuccess": "对比已生成！",
     "compareSelectModels": "选择 2-3 个模型进行对比",
@@ -1667,7 +1666,8 @@
         "insufficient_credits": "今日免费生成次数已用完",
         "unknown": "发生了未知错误"
       }
-    }
+    },
+    "variantRequests": "消耗 {count} 积分"
   },
   "StudioPanels": {
     "reference": "参考图",

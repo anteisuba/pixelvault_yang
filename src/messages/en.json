@@ -1,7 +1,6 @@
 {
   "Common": {
     "brand": "PixelVault",
-    "creditCount": "{count, plural, one {# request} other {# requests}}",
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
@@ -25,7 +24,8 @@
     },
     "model": "Model",
     "cost": "Cost",
-    "capabilities": "Capabilities"
+    "capabilities": "Capabilities",
+    "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
   "Toasts": {
     "createSuccess": "Created successfully",
@@ -130,8 +130,6 @@
     }
   },
   "Navbar": {
-    "creditsLoading": "...",
-    "creditsTooltip": "Total API requests used",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
     "signOut": "Sign Out",
@@ -142,7 +140,9 @@
       "arena": "Arena",
       "storyboard": "Stories",
       "library": "Archive"
-    }
+    },
+    "requestsLoading": "...",
+    "requestsTooltip": "Total API requests used"
   },
   "LocaleSwitcher": {
     "label": "Language",
@@ -483,8 +483,8 @@
       "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
       "privateWorksLabel": "Private",
       "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
-      "creditsLabel": "API requests",
-      "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used"
+      "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used",
+      "requestsLabel": "API requests"
     },
     "collectionEyebrow": "Archive",
     "collectionTitle": "Recent generations",
@@ -541,7 +541,6 @@
     "formLabel": "Image generation",
     "selectedModelLabel": "Selected route",
     "providerLabel": "Provider",
-    "creditCostLabel": "Per run",
     "keyStatusLabel": "Route status",
     "keyStatusSavedRouteTitle": "Using this saved route",
     "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
@@ -597,7 +596,6 @@
     "resultPromptLabel": "Prompt",
     "resultModelLabel": "Model",
     "resultProviderLabel": "Provider",
-    "resultCreditLabel": "Requests logged",
     "resultStorageNote": "Stored with its prompt and route context.",
     "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "characterCard": {
@@ -632,7 +630,9 @@
       "modelsSelected": "{count}/{max} selected",
       "unlockMore": "Add API keys to unlock {count} more models",
       "unlockHint": "Add your own API keys in the sidebar to access these providers."
-    }
+    },
+    "requestCostLabel": "Per run",
+    "resultRequestLabel": "Requests logged"
   },
   "StudioApiKeys": {
     "triggerLabel": "API Routes",
@@ -1628,7 +1628,6 @@
     "variantGenerate": "Generate Variants",
     "variantGenerating": "Generating {count} variants...",
     "variantSuccess": "Variants generated!",
-    "variantCredits": "Uses {count} credits",
     "compareGenerate": "Compare Models",
     "compareSuccess": "Comparison generated!",
     "compareSelectModels": "Select 2-3 models to compare",
@@ -1667,7 +1666,8 @@
         "insufficient_credits": "Daily free generation limit reached",
         "unknown": "An unexpected error occurred"
       }
-    }
+    },
+    "variantRequests": "Uses {count} credits"
   },
   "StudioPanels": {
     "reference": "Reference Images",

@@ -1607,6 +1607,12 @@
       "image": {
         "label": "画像"
       },
+      "video": {
+        "label": "動画"
+      },
+      "audio": {
+        "label": "音声"
+      },
       "edit": {
         "label": "編集",
         "title": "編集",

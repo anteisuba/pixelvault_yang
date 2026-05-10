@@ -11,12 +11,14 @@ import {
   Library,
   LogOut,
   Lock,
+  Mic,
   Palette,
   ScanSearch,
   Sparkles,
   Swords,
   User,
   UserCircle,
+  Video,
   Wand2,
   Workflow,
 } from 'lucide-react'
@@ -170,16 +172,30 @@ function AppSidebarContent() {
     },
   ] as const
 
-  // Tools group — Krea-aligned per-tool entries. Image points to /studio
-  // (current behaviour); the rest are Coming Soon placeholders for now.
-  // video/audio land in Phase 3 when /studio is split per media type.
+  // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
+  // their per-media-type routes (Phase 3); Edit / Enhance / Analyze / LoRA /
+  // Node are Coming Soon placeholders until Phase 6 swaps in real UI.
   const toolLinks = [
     {
-      href: ROUTES.STUDIO,
+      href: ROUTES.STUDIO_IMAGE,
       label: tTools('tools.image.label'),
       icon: ImageIcon,
       comingSoon: false,
-      activePaths: [ROUTES.STUDIO],
+      activePaths: [ROUTES.STUDIO, ROUTES.STUDIO_IMAGE],
+    },
+    {
+      href: ROUTES.STUDIO_VIDEO,
+      label: tTools('tools.video.label'),
+      icon: Video,
+      comingSoon: false,
+      activePaths: [ROUTES.STUDIO_VIDEO],
+    },
+    {
+      href: ROUTES.STUDIO_AUDIO,
+      label: tTools('tools.audio.label'),
+      icon: Mic,
+      comingSoon: false,
+      activePaths: [ROUTES.STUDIO_AUDIO],
     },
     {
       href: ROUTES.STUDIO_EDIT,

@@ -13,26 +13,34 @@ import {
   StudioFlowLayout,
   StudioCommandPalette,
 } from '@/components/business/studio'
-import { StudioWorkflowGroupTabs } from '@/components/business/studio/StudioWorkflowGroupTabs'
-import { StudioWorkflowPicker } from '@/components/business/studio/StudioWorkflowPicker'
-import { StudioWorkflowSummary } from '@/components/business/studio/StudioWorkflowSummary'
 
 import {
   StudioProvider,
   useStudioForm,
   useStudioData,
 } from '@/contexts/studio-context'
+import { WORKFLOWS, type WorkflowMediaGroup } from '@/constants/workflows'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
+
+interface StudioWorkspaceProps {
+  /**
+   * When set, the workspace dispatches to the first workflow of this media
+   * group on mount, so /studio/image, /studio/video and /studio/audio each
+   * land on the right canvas without the user having to use the (now-removed)
+   * center tabs to switch mode.
+   */
+  defaultMediaGroup?: WorkflowMediaGroup
+}
 
 /**
  * StudioWorkspace — wrapped with StudioProvider for state management.
  * Canvas-centric layout: TopBar → Canvas → BottomDock → Gallery.
  */
-export function StudioWorkspace() {
+export function StudioWorkspace({ defaultMediaGroup }: StudioWorkspaceProps) {
   return (
     <StudioProvider>
-      <StudioWorkspaceInner />
+      <StudioWorkspaceInner defaultMediaGroup={defaultMediaGroup} />
     </StudioProvider>
   )
 }
@@ -41,7 +49,7 @@ export function StudioWorkspace() {
 // INNER — consumes the split contexts
 // ═══════════════════════════════════════════════════════════════════
 
-function StudioWorkspaceInner() {
+function StudioWorkspaceInner({ defaultMediaGroup }: StudioWorkspaceProps) {
   const { state, dispatch } = useStudioForm()
   const { onboarding } = useStudioData()
 
@@ -57,6 +65,19 @@ function StudioWorkspaceInner() {
   useEffect(() => {
     localStorage.setItem(STUDIO_MODE_KEY, state.workflowMode)
   }, [state.workflowMode])
+
+  // Sync mediaGroup with the route — /studio/{image,video,audio} pages pass
+  // their group via prop, and we dispatch into the workflow that matches.
+  // Skips when the current outputType already matches to avoid feedback loops.
+  useEffect(() => {
+    if (!defaultMediaGroup) return
+    if (state.outputType === defaultMediaGroup) return
+
+    const target = WORKFLOWS.find((w) => w.mediaGroup === defaultMediaGroup)
+    if (target) {
+      dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: target.id })
+    }
+  }, [defaultMediaGroup, state.outputType, dispatch])
 
   return (
     <SidebarProvider defaultOpen={false} className="!min-h-0 bg-background">
@@ -75,20 +96,6 @@ function StudioWorkspaceInner() {
           className="studio-layout-v2"
         >
           <StudioTopBar />
-          <div className="border-b border-border/60 bg-background px-2 py-3 sm:px-6">
-            <div className="grid w-full gap-3 animate-in fade-in-0 slide-in-from-top-2 duration-500 ease-out">
-              <StudioWorkflowGroupTabs>
-                {(currentMediaGroup) => (
-                  <>
-                    <StudioWorkflowSummary />
-                    <StudioWorkflowPicker
-                      currentMediaGroup={currentMediaGroup}
-                    />
-                  </>
-                )}
-              </StudioWorkflowGroupTabs>
-            </div>
-          </div>
           {/* Unified canvas-centric layout for image / video / audio */}
           <StudioFlowLayout
             canvas={<StudioCanvas />}

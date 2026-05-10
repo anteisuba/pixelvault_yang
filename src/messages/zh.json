@@ -1607,6 +1607,12 @@
       "image": {
         "label": "图像"
       },
+      "video": {
+        "label": "视频"
+      },
+      "audio": {
+        "label": "音频"
+      },
       "edit": {
         "label": "编辑",
         "title": "编辑",

@@ -1607,6 +1607,12 @@
       "image": {
         "label": "Image"
       },
+      "video": {
+        "label": "Video"
+      },
+      "audio": {
+        "label": "Audio"
+      },
       "edit": {
         "label": "Edit",
         "title": "Edit",

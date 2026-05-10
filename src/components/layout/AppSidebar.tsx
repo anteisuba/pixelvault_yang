@@ -90,45 +90,31 @@ function AppSidebarHeader() {
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
 
+  // Brand link is rendered unconditionally (no SignedIn / SignedOut wrapper)
+  // — Clerk's auth status is unknown at SSR time, so wrapping it caused a
+  // hydration mismatch where the server saw only <SidebarTrigger> while the
+  // client (after Clerk hydrated) inserted an <a> before it. Pointing the
+  // brand at /studio works for both states: signed-in users land in their
+  // workspace; signed-out users hit the protected-route redirect to sign-in.
   return (
     <SidebarHeader className="border-b border-sidebar-border/40">
       <div className="flex items-center justify-between gap-1 px-1">
-        <SignedIn>
-          <Link
-            href={ROUTES.STUDIO}
-            className={cn(
-              'flex shrink-0 items-center px-1 py-1.5',
-              isCollapsed && 'hidden',
-            )}
+        <Link
+          href={ROUTES.STUDIO}
+          className={cn(
+            'flex shrink-0 items-center px-1 py-1.5',
+            isCollapsed && 'hidden',
+          )}
+        >
+          <HyperText
+            as="span"
+            duration={600}
+            animateOnHover
+            className="font-display text-brand font-bold leading-none tracking-brand text-sidebar-foreground !py-0"
           >
-            <HyperText
-              as="span"
-              duration={600}
-              animateOnHover
-              className="font-display text-brand font-bold leading-none tracking-brand text-sidebar-foreground !py-0"
-            >
-              {tCommon('brand')}
-            </HyperText>
-          </Link>
-        </SignedIn>
-        <SignedOut>
-          <Link
-            href={ROUTES.HOME}
-            className={cn(
-              'flex shrink-0 items-center px-1 py-1.5',
-              isCollapsed && 'hidden',
-            )}
-          >
-            <HyperText
-              as="span"
-              duration={600}
-              animateOnHover
-              className="font-display text-brand font-bold leading-none tracking-brand text-sidebar-foreground !py-0"
-            >
-              {tCommon('brand')}
-            </HyperText>
-          </Link>
-        </SignedOut>
+            {tCommon('brand')}
+          </HyperText>
+        </Link>
         <SidebarTrigger className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
       </div>
     </SidebarHeader>

@@ -6,7 +6,6 @@ import {
   Settings2,
   Key,
   Layers,
-  RatioIcon,
   Wand2,
   Cpu,
 } from 'lucide-react'
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui/tooltip'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
 interface StudioToolbarProps {
@@ -33,8 +33,6 @@ interface StudioToolbarProps {
   onLayerDecompose?: () => void
   onTransform?: () => void
   transformOpen?: boolean
-  onAspectRatio?: () => void
-  aspectRatioOpen?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
@@ -101,8 +99,6 @@ export function StudioToolbar({
   onLayerDecompose,
   onTransform,
   transformOpen,
-  onAspectRatio,
-  aspectRatioOpen,
   onCivitaiToken,
   hasToken,
   disabled,
@@ -163,13 +159,13 @@ export function StudioToolbar({
             disabled={disabled}
           />
         )}
-        <ToolButton
-          icon={<RatioIcon className="h-3.5 w-3.5" />}
-          label={t('aspectRatioLabel')}
-          onClick={onAspectRatio}
-          active={aspectRatioOpen}
-          disabled={disabled}
-        />
+        {/*
+         * AspectRatio entry is the Krea-style popover (Phase 5.5c) — it
+         * owns its own popover anchored to this button and renders pills
+         * + visual ratio preview, so the toolbar doesn't drive a parent
+         * panel for it any more.
+         */}
+        <StudioAspectRatioPopover disabled={disabled} />
         {!quickMode && (
           <>
             <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

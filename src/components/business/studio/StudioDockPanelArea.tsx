@@ -11,31 +11,12 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 
-/** Adapter types that support LLM text generation (for prompt assistant) */
-const LLM_CAPABLE_ADAPTERS = new Set([
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.VOLCENGINE,
-])
-import { StudioGenerateBar } from './StudioGenerateBar'
-
-const PromptAssistantPanel = dynamic(() =>
-  import('@/components/business/PromptAssistantPanel').then(
-    (mod) => mod.PromptAssistantPanel,
-  ),
-)
 const AdvancedSettings = dynamic(() =>
   import('@/components/business/AdvancedSettings').then(
     (mod) => mod.AdvancedSettings,
-  ),
-)
-const ReverseEngineerPanel = dynamic(() =>
-  import('@/components/business/ReverseEngineerPanel').then(
-    (mod) => mod.ReverseEngineerPanel,
   ),
 )
 const ReferenceImageSection = dynamic(() =>
@@ -75,9 +56,10 @@ const StudioScriptPanel = dynamic(() =>
 )
 
 /**
- * StudioDockPanelArea — renders ALL 6 tool panels inline in the right
- * side of the dock. Only one panel visible at a time (mutually exclusive).
- * Replaces both StudioPanelPopovers and StudioPanelSheets.
+ * StudioDockPanelArea — renders the inline tool panels in the dock's
+ * right 40% column. Three sibling panels (enhance, reverse, aspectRatio)
+ * have moved to dialogs/popovers and are intentionally NOT included
+ * here so they don't trigger the dock's two-column layout.
  */
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
@@ -86,12 +68,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const { selectedModel } = useImageModelOptions()
-  const { keys: apiKeys } = useApiKeysContext()
-
-  // Filter to LLM-capable API keys for the prompt assistant
-  const llmApiKeys = apiKeys
-    .filter((k) => k.isActive && LLM_CAPABLE_ADAPTERS.has(k.adapterType))
-    .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
 
   const selectedStyleCard = styles.activeCard
   const adapterType =
@@ -118,15 +94,14 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     }
   }, [state.tokenInput, civitai, dispatch])
 
-  // Check if any panel is open
+  // Check if any panel is open. enhance / reverse / aspectRatio render in
+  // their own dialogs/popovers (StudioPanelDialogs, StudioAspectRatioPopover)
+  // and intentionally do NOT trigger the dock's right-side 40% column.
   const hasOpenPanel =
-    state.panels.enhance ||
     state.panels.advanced ||
     state.panels.civitai ||
     state.panels.refImage ||
-    state.panels.reverse ||
     state.panels.layerDecompose ||
-    state.panels.aspectRatio ||
     state.panels.voiceSelector ||
     state.panels.voiceTrainer ||
     state.panels.videoParams ||
@@ -136,22 +111,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* ── Prompt Assistant (Chat-based) ──────────────────── */}
-      {state.panels.enhance && (
-        <PromptAssistantPanel
-          currentPrompt={state.prompt}
-          modelId={modelId}
-          referenceImageData={imageUpload.referenceImages[0]}
-          llmApiKeys={llmApiKeys}
-          onUsePrompt={(text) => {
-            dispatch({ type: 'SET_PROMPT', payload: text })
-          }}
-          onClose={() => {
-            dispatch({ type: 'CLOSE_PANEL', payload: 'enhance' })
-          }}
-        />
-      )}
-
       {/* ── Advanced Settings ────────────────────────────────── */}
       {state.panels.advanced &&
         (selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
@@ -252,23 +211,10 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
         />
       )}
 
-      {/* ── Reverse Engineer ──────────────────────────────────── */}
-      {state.panels.reverse && (
-        <ReverseEngineerPanel
-          onUsePrompt={(prompt) => {
-            dispatch({ type: 'SET_PROMPT', payload: prompt })
-            dispatch({ type: 'CLOSE_PANEL', payload: 'reverse' })
-          }}
-        />
-      )}
-
       {/* ── Layer Decompose ───────────────────────────────────── */}
       {state.panels.layerDecompose && (
         <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
       )}
-
-      {/* ── Aspect Ratio ─────────────────────────────────────── */}
-      {state.panels.aspectRatio && <StudioGenerateBar />}
 
       {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
       {state.panels.voiceSelector && (

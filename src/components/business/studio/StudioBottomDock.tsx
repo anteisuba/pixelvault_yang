@@ -8,6 +8,7 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer'
 
 import { StudioCardSection } from './StudioCardSection'
 import { StudioKeepChangePanel } from './StudioKeepChangePanel'
+import { StudioPanelDialogs } from './StudioPanelDialogs'
 import { StudioPromptArea } from './StudioPromptArea'
 import { StudioToolbarPanels } from './StudioToolbarPanels'
 import { StudioDockPanelArea } from './StudioDockPanelArea'
@@ -40,14 +41,14 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
   const { currentPlan } = useStudioGen()
   const isMobile = useIsMobile()
 
+  // enhance / reverse / aspectRatio render in their own dialogs/popover
+  // (StudioPanelDialogs, StudioAspectRatioPopover) and intentionally do
+  // NOT trigger the dock's two-column layout.
   const hasOpenPanel =
-    state.panels.enhance ||
     state.panels.advanced ||
     state.panels.civitai ||
     state.panels.refImage ||
-    state.panels.reverse ||
     state.panels.layerDecompose ||
-    state.panels.aspectRatio ||
     state.panels.voiceSelector ||
     state.panels.voiceTrainer ||
     state.panels.videoParams ||
@@ -108,6 +109,7 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
             </div>
           </DrawerContent>
         </Drawer>
+        <StudioPanelDialogs />
         {keepChangePanel}
       </div>
     )
@@ -137,6 +139,7 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
           {hasOpenPanel && <StudioDockPanelArea />}
         </div>
       </div>
+      <StudioPanelDialogs />
       {keepChangePanel}
     </>
   )

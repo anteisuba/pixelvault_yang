@@ -178,10 +178,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }
-      onAspectRatio={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'aspectRatio' })
-      }
-      aspectRatioOpen={state.panels.aspectRatio}
       onCivitaiToken={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
       }

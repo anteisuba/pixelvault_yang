@@ -56,6 +56,7 @@ export default async function ProfilePage({
         type: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: false,
+        projectId: filterResult.data.projectId ?? '',
       }
     : {
         search: '',
@@ -64,6 +65,7 @@ export default async function ProfilePage({
         type: 'all' as const,
         timeRange: 'all' as const,
         liked: false,
+        projectId: '',
       }
   const isDenseLocale = isCjkLocale(locale)
   const t = await getTranslations({
@@ -107,6 +109,7 @@ export default async function ProfilePage({
         sort: initialFilters.sort,
         type: initialFilters.type,
         userId: user.id,
+        projectId: initialFilters.projectId || undefined,
       }),
       countUserGenerations(user.id),
       countUserPublicGenerations(user.id),
@@ -115,6 +118,7 @@ export default async function ProfilePage({
         model: initialFilters.model || undefined,
         type: initialFilters.type,
         userId: user.id,
+        projectId: initialFilters.projectId || undefined,
       }),
     ])
   const privateTotal = Math.max(total - publicTotal, 0)

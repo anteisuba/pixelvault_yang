@@ -74,6 +74,13 @@ export interface GalleryQueryOptions {
   likedByUserId?: string
   /** When set, include isLiked for this viewer */
   viewerUserId?: string
+  /**
+   * Optional project filter:
+   * - undefined  → no project filter (all projects)
+   * - "none"     → only generations with projectId = null
+   * - "<uuid>"   → only generations belonging to that project
+   */
+  projectId?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -99,6 +106,7 @@ function buildGalleryWhere(options: {
   timeRange?: GalleryTimeRange
   userId?: string
   likedByUserId?: string
+  projectId?: string
 }) {
   const where: Record<string, unknown> = {}
 
@@ -106,6 +114,14 @@ function buildGalleryWhere(options: {
     where.userId = options.userId
   } else {
     where.isPublic = true
+  }
+
+  // Project scoping: caller passes either a UUID, the literal "none" for
+  // unassigned generations, or omits to disable the filter.
+  if (options.projectId === 'none') {
+    where.projectId = null
+  } else if (options.projectId) {
+    where.projectId = options.projectId
   }
 
   if (options.search) {
@@ -352,6 +368,7 @@ export async function getPublicGenerations({
   userId,
   likedByUserId,
   viewerUserId,
+  projectId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
   const results = await db.generation.findMany({
     where: buildGalleryWhere({
@@ -361,6 +378,7 @@ export async function getPublicGenerations({
       timeRange,
       userId,
       likedByUserId,
+      projectId,
     }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
@@ -488,7 +506,13 @@ export async function toggleGenerationVisibility(
 export async function countPublicGenerations(
   options: Pick<
     GalleryQueryOptions,
-    'search' | 'model' | 'type' | 'timeRange' | 'userId' | 'likedByUserId'
+    | 'search'
+    | 'model'
+    | 'type'
+    | 'timeRange'
+    | 'userId'
+    | 'likedByUserId'
+    | 'projectId'
   > = {},
 ): Promise<number> {
   return db.generation.count({

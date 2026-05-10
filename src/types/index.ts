@@ -763,6 +763,13 @@ export const GallerySearchSchema = z.object({
   type: z.enum(OUTPUT_TYPE_FILTER_OPTIONS).default('all'),
   timeRange: z.enum(GALLERY_TIME_RANGE_OPTIONS).default('all'),
   liked: z.enum(['1']).optional(),
+  /**
+   * Filter generations by project. Pass a project UUID to scope the feed to
+   * that project, the literal "none" to surface unassigned generations only,
+   * or omit the field for "all projects". Optional — does not break existing
+   * call sites.
+   */
+  projectId: z.string().trim().max(64).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })

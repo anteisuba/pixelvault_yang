@@ -2,8 +2,10 @@
 
 Two surface modes coexist in PixelVault:
 
-- **Editorial surfaces** (Studio, Gallery, Auth, Account) — Anthropic.com "Warm Editorial" aesthetic
-- **Marketing surfaces** (Homepage, landing pages) — Krea-style minimal, near-white, single-sans
+- **Editorial surfaces** (Studio, Gallery, Account) — Anthropic.com "Warm Editorial" aesthetic
+- **Marketing surfaces** (Homepage, landing pages, **Auth**) — Krea-style minimal, near-white, single-sans
+
+Auth (sign-in, sign-up) is part of the marketing funnel: a user clicking "登录"/"Sign in" from the homepage expects visual continuity. They cross into Editorial only after authentication succeeds and they land in Studio.
 
 ## Color Palette
 

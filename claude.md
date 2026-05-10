@@ -45,16 +45,17 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 See `docs/reference/design-system.md` for full spec. Two surface modes:
 
-**Editorial surfaces** (Studio, Gallery, Auth, Account):
+**Editorial surfaces** (Studio, Gallery, Account):
 
 - Background: `#faf9f5` (米白) · Text: `#141413` · Brand accent: `#d97757`
 - Fonts: Space Grotesk (headings) + Lora (body) — sans + serif pair required
 
-**Marketing surfaces** (Homepage, landing pages):
+**Marketing surfaces** (Homepage, landing pages, Auth):
 
-- Background may be pure `#fff` · Primary CTA = black `#141413` (not orange)
-- Single Space Grotesk allowed (no serif required)
-- Krea-style: minimal chrome, large hero typography, real imagery (not color blocks)
+- Background pure `#fff` · Primary CTA = black `#141413` (not orange)
+- Single Space Grotesk only (no serif)
+- Krea-style: minimal chrome, large hero typography, real imagery
+- Auth pages share this surface so the funnel reads continuous
 
 Shared:
 

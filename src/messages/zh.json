@@ -1815,6 +1815,7 @@
     "generationComplete": "生成完成",
     "emptyStateTitle": "预览结果会显示在这里",
     "emptyStateHint": "在下方写下描述，开始你的第一次创作",
+    "emptyStateHintAudio": "在下方输入想要听到的文本，开始你的第一次创作",
     "suggestion": {
       "s1": "黄昏时分宁静的日本庭院",
       "s2": "暖土色调的几何抽象艺术",

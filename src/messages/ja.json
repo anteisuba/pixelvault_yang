@@ -1815,6 +1815,7 @@
     "generationComplete": "生成が完了しました",
     "emptyStateTitle": "ここにプレビューが表示されます",
     "emptyStateHint": "下に説明を書いて作成を開始",
+    "emptyStateHintAudio": "下に読み上げたいテキストを入力して作成を開始",
     "suggestion": {
       "s1": "黄昏時の静かな日本庭園",
       "s2": "暖かい土の色調の抽象幾何学アート",

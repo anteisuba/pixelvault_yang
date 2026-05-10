@@ -187,6 +187,10 @@ export const GenerationPreview = memo(function GenerationPreview({
     // Suggestion pills are image-prompt phrases; only meaningful in image mode.
     // Video and audio modes have their own input semantics (motion, TTS text).
     const showSuggestions = state.outputType === 'image'
+    // Audio mode is text-to-speech: "Write a description" misleads users into
+    // describing a sound instead of typing the literal text to be spoken.
+    const hintKey =
+      state.outputType === 'audio' ? 'emptyStateHintAudio' : 'emptyStateHint'
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 px-6 py-12 sm:py-16">
         <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
@@ -196,7 +200,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           {t('emptyStateTitle')}
         </p>
         <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
-          {t('emptyStateHint')}
+          {t(hintKey)}
         </p>
         {showSuggestions && (
           <div className="mt-6 flex flex-wrap justify-center gap-2">

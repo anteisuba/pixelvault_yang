@@ -1815,6 +1815,7 @@
     "generationComplete": "Generation complete",
     "emptyStateTitle": "Your preview will appear here",
     "emptyStateHint": "Write a description below to start creating",
+    "emptyStateHintAudio": "Type the text you want to hear below to start creating",
     "suggestion": {
       "s1": "A serene Japanese garden at golden hour",
       "s2": "Abstract geometric art in warm earth tones",

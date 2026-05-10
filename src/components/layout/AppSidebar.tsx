@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SignedIn, SignedOut, useClerk } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import {
   BookOpen,
@@ -129,6 +129,16 @@ function AppSidebarContent() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
   const tTools = useTranslations('StudioTools')
+  // Clerk's `<SignedIn>` / `<SignedOut>` resolve to null during SSR (auth
+  // state isn't known on the server) and only emit content after the Clerk
+  // client hydrates. Wrapping nav groups directly in them produced a
+  // server vs client tree mismatch — React then re-mounted the whole
+  // subtree, which showed up in the studio as a brief "refresh" flash on
+  // first interaction. Gating on Clerk's own `isLoaded` flag keeps the
+  // first client render aligned with the server (both return an empty
+  // SidebarContent), then re-renders with auth-aware content once Clerk
+  // is ready.
+  const { isLoaded } = useUser()
 
   const signedInLinks = [
     {
@@ -224,6 +234,10 @@ function AppSidebarContent() {
     },
   ] as const
 
+  if (!isLoaded) {
+    return <SidebarContent />
+  }
+
   return (
     <SidebarContent>
       <SignedIn>
@@ -316,6 +330,11 @@ function AppSidebarContent() {
 
 function AppSidebarFooter() {
   const t = useTranslations('Navbar')
+  const { isLoaded } = useUser()
+
+  if (!isLoaded) {
+    return <SidebarFooter className="border-t border-sidebar-border/40 gap-2" />
+  }
 
   return (
     <SidebarFooter className="border-t border-sidebar-border/40 gap-2">

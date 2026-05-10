@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -62,6 +62,9 @@ function TabList({ tabs, pathname }: TabListProps) {
 export function MobileTabBar() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
+  // Same hydration story as AppSidebar — wait for Clerk before rendering
+  // the auth-conditional tab list.
+  const { isLoaded } = useUser()
 
   const signedInTabs: TabItem[] = [
     { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
@@ -83,12 +86,16 @@ export function MobileTabBar() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-14">
-        <SignedIn>
-          <TabList tabs={signedInTabs} pathname={pathname} />
-        </SignedIn>
-        <SignedOut>
-          <TabList tabs={signedOutTabs} pathname={pathname} />
-        </SignedOut>
+        {isLoaded && (
+          <>
+            <SignedIn>
+              <TabList tabs={signedInTabs} pathname={pathname} />
+            </SignedIn>
+            <SignedOut>
+              <TabList tabs={signedOutTabs} pathname={pathname} />
+            </SignedOut>
+          </>
+        )}
       </div>
     </nav>
   )

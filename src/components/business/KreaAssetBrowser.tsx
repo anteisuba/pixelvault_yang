@@ -25,6 +25,8 @@ import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
+type LockedMediaType = 'image' | 'video' | 'audio'
+
 interface KreaAssetBrowserProps {
   initialGenerations?: GenerationRecord[]
   initialPage?: number
@@ -37,6 +39,14 @@ interface KreaAssetBrowserProps {
    * chip can pick a reference asset without navigating away.
    */
   onSelect?: (generation: GenerationRecord) => void
+  /**
+   * Lock the browser to a single media type. The Tools sidebar group is
+   * hidden, sections always reset to this type instead of 'all', and
+   * initialFilters.type is overridden. Used by ReferenceImageChip so a
+   * caller asking for an *image* reference can never receive a video/audio
+   * asset (which would be silently dropped downstream by addFromUrl).
+   */
+  mediaType?: LockedMediaType
   className?: string
 }
 
@@ -57,14 +67,18 @@ type Section =
   | { kind: 'unassigned' }
   | { kind: 'project'; id: string }
 
-function sectionFromFilters(filters: GalleryFilters): Section {
+function sectionFromFilters(
+  filters: GalleryFilters,
+  lockedMediaType?: 'image' | 'video' | 'audio',
+): Section {
   if (filters.liked) return { kind: 'favorites' }
   if (filters.projectId === 'none') return { kind: 'unassigned' }
   if (filters.projectId) return { kind: 'project', id: filters.projectId }
   if (
-    filters.type === 'image' ||
-    filters.type === 'video' ||
-    filters.type === 'audio'
+    !lockedMediaType &&
+    (filters.type === 'image' ||
+      filters.type === 'video' ||
+      filters.type === 'audio')
   ) {
     return { kind: 'type', type: filters.type }
   }
@@ -87,11 +101,16 @@ export function KreaAssetBrowser({
   initialTotal = 0,
   initialFilters = DEFAULT_FILTERS,
   onSelect,
+  mediaType,
   className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
 
-  const [searchInput, setSearchInput] = useState(initialFilters.search)
+  const effectiveInitialFilters: GalleryFilters = mediaType
+    ? { ...initialFilters, type: mediaType }
+    : initialFilters
+
+  const [searchInput, setSearchInput] = useState(effectiveInitialFilters.search)
   const {
     generations,
     total,
@@ -105,7 +124,7 @@ export function KreaAssetBrowser({
     initialPage,
     initialHasMore,
     initialTotal,
-    initialFilters,
+    initialFilters: effectiveInitialFilters,
     mine: true,
     limit: 24,
   })
@@ -125,7 +144,10 @@ export function KreaAssetBrowser({
   }, [])
 
   const { projects, refresh: refreshProjects } = useProjects()
-  const section = useMemo(() => sectionFromFilters(filters), [filters])
+  const section = useMemo(
+    () => sectionFromFilters(filters, mediaType),
+    [filters, mediaType],
+  )
 
   const setSection = (next: Section) => {
     const base: GalleryFilters = {
@@ -134,7 +156,10 @@ export function KreaAssetBrowser({
       // mental model simple — sections are mutually exclusive in Krea.
       liked: false,
       projectId: '',
-      type: 'all',
+      // When mediaType is locked the browser is acting as a single-type
+      // picker (e.g. image-only reference selection), so 'All' inside that
+      // mode means "all <mediaType>" rather than every media kind.
+      type: mediaType ?? 'all',
     }
     switch (next.kind) {
       case 'all':
@@ -275,25 +300,34 @@ export function KreaAssetBrowser({
             onClick={() => setSection({ kind: 'favorites' })}
           />
 
-          <SidebarHeading label={t('sidebarTools')} />
-          <SidebarItem
-            active={section.kind === 'type' && section.type === 'image'}
-            icon={<ImageIcon className="size-4" />}
-            label={t('sidebarImages')}
-            onClick={() => setSection({ kind: 'type', type: 'image' })}
-          />
-          <SidebarItem
-            active={section.kind === 'type' && section.type === 'video'}
-            icon={<Video className="size-4" />}
-            label={t('sidebarVideos')}
-            onClick={() => setSection({ kind: 'type', type: 'video' })}
-          />
-          <SidebarItem
-            active={section.kind === 'type' && section.type === 'audio'}
-            icon={<Mic className="size-4" />}
-            label={t('sidebarAudio')}
-            onClick={() => setSection({ kind: 'type', type: 'audio' })}
-          />
+          {/*
+           * Tools section lets the user switch across media types — hide it
+           * when mediaType is locked so a "Select image" picker can't lead
+           * to the video/audio buckets.
+           */}
+          {!mediaType && (
+            <>
+              <SidebarHeading label={t('sidebarTools')} />
+              <SidebarItem
+                active={section.kind === 'type' && section.type === 'image'}
+                icon={<ImageIcon className="size-4" />}
+                label={t('sidebarImages')}
+                onClick={() => setSection({ kind: 'type', type: 'image' })}
+              />
+              <SidebarItem
+                active={section.kind === 'type' && section.type === 'video'}
+                icon={<Video className="size-4" />}
+                label={t('sidebarVideos')}
+                onClick={() => setSection({ kind: 'type', type: 'video' })}
+              />
+              <SidebarItem
+                active={section.kind === 'type' && section.type === 'audio'}
+                icon={<Mic className="size-4" />}
+                label={t('sidebarAudio')}
+                onClick={() => setSection({ kind: 'type', type: 'audio' })}
+              />
+            </>
+          )}
 
           <div className="mt-4 mb-1 flex items-center justify-between">
             <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">

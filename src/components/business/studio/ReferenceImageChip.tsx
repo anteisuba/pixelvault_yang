@@ -61,6 +61,11 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   }
 
   const handleSelectAsset = async (gen: GenerationRecord) => {
+    // Defensive guard: even though AssetSelectorDialog is locked to
+    // mediaType="image", a future caller wiring this chip up differently
+    // could pass through a video/audio asset and addFromUrl would silently
+    // attach it as a "reference image", breaking downstream generation.
+    if (gen.outputType !== 'IMAGE') return
     await imageUpload.addFromUrl(gen.url)
   }
 
@@ -161,6 +166,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
         onSelect={handleSelectAsset}
         title={t('selectAsset')}
         description={t('description')}
+        mediaType="image"
       />
     </>
   )

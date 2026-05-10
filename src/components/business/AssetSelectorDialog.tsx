@@ -17,6 +17,12 @@ interface AssetSelectorDialogProps {
   title: string
   /** Visually-hidden description for screen readers. */
   description: string
+  /**
+   * Restrict the picker to a single media type. Forwarded to KreaAssetBrowser
+   * which hides the Tools sidebar group and locks the type filter so callers
+   * (e.g. the Image reference chip) can never receive a video/audio asset.
+   */
+  mediaType?: 'image' | 'video' | 'audio'
 }
 
 /**
@@ -37,6 +43,7 @@ export function AssetSelectorDialog({
   onSelect,
   title,
   description,
+  mediaType,
 }: AssetSelectorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,6 +56,7 @@ export function AssetSelectorDialog({
               onSelect(gen)
               onOpenChange(false)
             }}
+            mediaType={mediaType}
             className="!h-full !bg-transparent"
           />
         </div>

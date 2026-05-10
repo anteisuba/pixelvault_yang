@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Folder,
   FolderOpen,
@@ -26,11 +26,28 @@ import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 interface KreaAssetBrowserProps {
-  initialGenerations: GenerationRecord[]
-  initialPage: number
-  initialHasMore: boolean
-  initialTotal: number
-  initialFilters: GalleryFilters
+  initialGenerations?: GenerationRecord[]
+  initialPage?: number
+  initialHasMore?: boolean
+  initialTotal?: number
+  initialFilters?: GalleryFilters
+  /**
+   * When provided, thumbnails become buttons that call onSelect instead of
+   * links into the gallery — used by AssetSelectorDialog so the Studio Image
+   * chip can pick a reference asset without navigating away.
+   */
+  onSelect?: (generation: GenerationRecord) => void
+  className?: string
+}
+
+const DEFAULT_FILTERS: GalleryFilters = {
+  search: '',
+  model: '',
+  sort: 'newest',
+  type: 'all',
+  timeRange: 'all',
+  liked: false,
+  projectId: '',
 }
 
 type Section =
@@ -64,11 +81,13 @@ function sectionFromFilters(filters: GalleryFilters): Section {
  * they didn't ask for.
  */
 export function KreaAssetBrowser({
-  initialGenerations,
-  initialPage,
-  initialHasMore,
-  initialTotal,
-  initialFilters,
+  initialGenerations = [],
+  initialPage = 1,
+  initialHasMore = false,
+  initialTotal = 0,
+  initialFilters = DEFAULT_FILTERS,
+  onSelect,
+  className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
 
@@ -90,6 +109,20 @@ export function KreaAssetBrowser({
     mine: true,
     limit: 24,
   })
+
+  // When mounted without SSR data (e.g. inside AssetSelectorDialog),
+  // re-apply the filters once so useGallery actually fetches the first
+  // page — it doesn't auto-fetch on mount because page-level callers
+  // already supply server-rendered initialGenerations.
+  const didInitialFetchRef = useRef(false)
+  useEffect(() => {
+    if (didInitialFetchRef.current) return
+    didInitialFetchRef.current = true
+    if (initialGenerations.length === 0) {
+      setFilters(filters)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { projects, refresh: refreshProjects } = useProjects()
   const section = useMemo(() => sectionFromFilters(filters), [filters])
@@ -130,7 +163,12 @@ export function KreaAssetBrowser({
   const isEmpty = !isLoading && generations.length === 0
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] flex-col bg-background">
+    <div
+      className={cn(
+        'flex h-[calc(100vh-3rem)] flex-col bg-background',
+        className,
+      )}
+    >
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
         <main className="flex-1 min-w-0 overflow-y-auto py-4">
@@ -159,15 +197,11 @@ export function KreaAssetBrowser({
                       className="aspect-square animate-pulse rounded-md bg-muted/40"
                     />
                   ))
-                : generations.map((gen) => (
-                    <Link
-                      key={gen.id}
-                      href={`${ROUTES.GALLERY}/${gen.id}`}
-                      className="group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200 hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-                      aria-label={gen.prompt || gen.id}
-                      title={gen.prompt || undefined}
-                    >
-                      {gen.outputType === 'VIDEO' ? (
+                : generations.map((gen) => {
+                    const tileClass =
+                      'group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200 hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none'
+                    const tileChildren =
+                      gen.outputType === 'VIDEO' ? (
                         <video
                           src={`${gen.url}#t=0.1`}
                           muted
@@ -188,9 +222,30 @@ export function KreaAssetBrowser({
                           className="object-cover"
                           loading="lazy"
                         />
-                      )}
-                    </Link>
-                  ))}
+                      )
+                    return onSelect ? (
+                      <button
+                        key={gen.id}
+                        type="button"
+                        onClick={() => onSelect(gen)}
+                        className={tileClass}
+                        aria-label={gen.prompt || gen.id}
+                        title={gen.prompt || undefined}
+                      >
+                        {tileChildren}
+                      </button>
+                    ) : (
+                      <Link
+                        key={gen.id}
+                        href={`${ROUTES.GALLERY}/${gen.id}`}
+                        className={tileClass}
+                        aria-label={gen.prompt || gen.id}
+                        title={gen.prompt || undefined}
+                      >
+                        {tileChildren}
+                      </Link>
+                    )
+                  })}
               {hasMore && (
                 <div ref={sentinelRef} className="col-span-full h-2" />
               )}

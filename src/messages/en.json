@@ -572,7 +572,21 @@
     "description": "All your generations in one place — organised by project and folder.",
     "signedOutTitle": "Sign in required",
     "signedOutDescription": "Sign in to view your assets.",
-    "signedOutAction": "Open Studio"
+    "signedOutAction": "Open Studio",
+    "search": "Search assets...",
+    "sidebarAll": "All",
+    "sidebarFavorites": "Favorites",
+    "sidebarTools": "Tools",
+    "sidebarImages": "Images",
+    "sidebarVideos": "Videos",
+    "sidebarAudio": "Audio",
+    "sidebarFolders": "Folders",
+    "sidebarUnassigned": "Unassigned",
+    "emptyTitle": "No assets yet",
+    "emptyDescription": "Your generations will appear here.",
+    "emptyAction": "Generate images",
+    "selectedAsset": "Reference",
+    "removeReference": "Remove"
   },
   "Collections": {
     "title": "Collections",

@@ -572,7 +572,21 @@
     "description": "你的所有作品集中管理 — 按项目和文件夹组织。",
     "signedOutTitle": "需要登录",
     "signedOutDescription": "登录后才能查看你的素材。",
-    "signedOutAction": "打开工作台"
+    "signedOutAction": "打开工作台",
+    "search": "搜索素材...",
+    "sidebarAll": "全部",
+    "sidebarFavorites": "收藏",
+    "sidebarTools": "工具",
+    "sidebarImages": "图像",
+    "sidebarVideos": "视频",
+    "sidebarAudio": "音频",
+    "sidebarFolders": "文件夹",
+    "sidebarUnassigned": "未分类",
+    "emptyTitle": "还没有素材",
+    "emptyDescription": "你的生成作品会显示在这里。",
+    "emptyAction": "生成图像",
+    "selectedAsset": "参考图",
+    "removeReference": "移除"
   },
   "Collections": {
     "title": "合集",

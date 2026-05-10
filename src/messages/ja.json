@@ -572,7 +572,21 @@
     "description": "あなたのすべての生成物をひとつの場所で。プロジェクトとフォルダで整理。",
     "signedOutTitle": "サインインが必要です",
     "signedOutDescription": "アセットを表示するにはサインインしてください。",
-    "signedOutAction": "スタジオへ"
+    "signedOutAction": "スタジオへ",
+    "search": "アセットを検索...",
+    "sidebarAll": "すべて",
+    "sidebarFavorites": "お気に入り",
+    "sidebarTools": "ツール",
+    "sidebarImages": "画像",
+    "sidebarVideos": "動画",
+    "sidebarAudio": "音声",
+    "sidebarFolders": "フォルダ",
+    "sidebarUnassigned": "未分類",
+    "emptyTitle": "アセットがまだありません",
+    "emptyDescription": "あなたの生成物がここに表示されます。",
+    "emptyAction": "画像を生成",
+    "selectedAsset": "参照画像",
+    "removeReference": "削除"
   },
   "Collections": {
     "title": "コレクション",

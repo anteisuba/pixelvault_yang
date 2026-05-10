@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { PAGINATION } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 
-import { ProfileFeed } from '@/components/business/ProfileFeed'
+import { KreaAssetBrowser } from '@/components/business/KreaAssetBrowser'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
@@ -122,32 +122,14 @@ export default async function AssetsPage({
   ])
 
   return (
-    <div className="editorial-page">
-      <div className="editorial-container">
-        <section className="editorial-panel">
-          <div className="editorial-panel-head">
-            <div className="editorial-section-head">
-              <h1 className="editorial-section-title">{t('title')}</h1>
-              <p className="editorial-section-copy max-w-3xl">
-                {t('description')}
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-6">
-            <ProfileFeed
-              initialGenerations={generations}
-              initialPage={PAGINATION.DEFAULT_PAGE}
-              initialHasMore={
-                PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT <
-                filteredTotal
-              }
-              total={filteredTotal}
-              initialFilters={initialFilters}
-            />
-          </div>
-        </section>
-      </div>
-    </div>
+    <KreaAssetBrowser
+      initialGenerations={generations}
+      initialPage={PAGINATION.DEFAULT_PAGE}
+      initialHasMore={
+        PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < filteredTotal
+      }
+      initialTotal={filteredTotal}
+      initialFilters={initialFilters}
+    />
   )
 }

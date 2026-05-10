@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Plus,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -131,6 +132,39 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
         >
           {view === 'menu' ? (
             <div className="space-y-3">
+              {/*
+               * Selected-reference preview row — shows a thumbnail per
+               * already-attached reference image (Krea screenshot 1
+               * shows a single picked asset above the Upload / Select
+               * asset CTAs). Each chip carries its own × button so
+               * users can remove an individual reference without
+               * clearing the whole set.
+               */}
+              {referenceCount > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {imageUpload.referenceImages.map((src, idx) => (
+                    <div
+                      key={`${idx}-${src.slice(0, 24)}`}
+                      className="group relative size-16 overflow-hidden rounded-lg border border-border/60 bg-muted/40"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageUpload.removeReferenceImage(idx)}
+                        aria-label={t('back')}
+                        className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition-opacity group-hover:opacity-100"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {t('description')}
               </p>

@@ -600,6 +600,128 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
        * UI is suppressed.
        */}
 
+      {/*
+       * Model selector lives ABOVE the prompt (Krea-style) rather than
+       * inside the bottom action row. Card mode hides it entirely since
+       * the active style card supplies the model — leaving an empty row
+       * here would just be visual noise.
+       */}
+      {state.workflowMode === 'quick' && (
+        <div className="mb-2 flex">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-full bg-background/60 border border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/40"
+              >
+                {selectedModel?.keyId && (
+                  <ApiKeyHealthDot status={healthMap[selectedModel.keyId]} />
+                )}
+                <span className="font-medium max-w-40 truncate">
+                  {selectedModel
+                    ? (selectedModel.keyLabel ??
+                      getTranslatedModelLabel(tModels, selectedModel.modelId))
+                    : t('noModelHint')}
+                </span>
+                {selectedModel && (
+                  <span className="text-muted-foreground/50">
+                    {getProviderLabel(selectedModel.providerConfig)}
+                  </span>
+                )}
+                <ChevronDown className="size-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              sideOffset={6}
+              className="min-w-72 max-h-[60vh] overflow-y-auto"
+            >
+              {availableModels.length > 0 && (
+                <>
+                  <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
+                    {tSetup('available')}
+                  </DropdownMenuLabel>
+                  {availableModels.map((option) => (
+                    <DropdownMenuItem
+                      key={option.optionId}
+                      onClick={() =>
+                        dispatch({
+                          type: 'SET_OPTION_ID',
+                          payload: option.optionId,
+                        })
+                      }
+                      className={cn(
+                        option.optionId === state.selectedOptionId &&
+                          'bg-accent/60',
+                      )}
+                    >
+                      {option.keyId && (
+                        <ApiKeyHealthDot status={healthMap[option.keyId]} />
+                      )}
+                      {option.freeTier && !option.keyId && (
+                        <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
+                      )}
+                      <span className="font-medium">
+                        {option.keyLabel ??
+                          getTranslatedModelLabel(tModels, option.modelId)}
+                      </span>
+                      <span className="ml-auto text-2xs text-muted-foreground">
+                        {getProviderLabel(option.providerConfig)}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              {lockedModels.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
+                    {tSetup('needsKey')}
+                  </DropdownMenuLabel>
+                  {lockedModels.map((option) => (
+                    <DropdownMenuItem
+                      key={option.optionId}
+                      onClick={() =>
+                        setQuickSetup({
+                          open: true,
+                          modelId: option.modelId,
+                          modelLabel: getTranslatedModelLabel(
+                            tModels,
+                            option.modelId,
+                          ),
+                          adapterType: option.adapterType,
+                          optionId: option.optionId,
+                        })
+                      }
+                      className="text-muted-foreground/70"
+                    >
+                      <Key className="size-3 shrink-0" />
+                      <span>
+                        {getTranslatedModelLabel(tModels, option.modelId)}
+                      </span>
+                      <span className="ml-auto text-2xs">
+                        {getProviderLabel(option.providerConfig)}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <QuickSetupDialog
+            open={quickSetup.open}
+            onOpenChange={(v) =>
+              setQuickSetup((prev) => ({ ...prev, open: v }))
+            }
+            modelId={quickSetup.modelId}
+            modelLabel={quickSetup.modelLabel}
+            adapterType={quickSetup.adapterType}
+            optionId={quickSetup.optionId}
+          />
+        </div>
+      )}
+
       <PromptInput
         id="studio-prompt"
         isLoading={isGenerating}
@@ -618,132 +740,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           placeholder={placeholder}
           className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
         />
-        <PromptInputActions className="justify-between px-2 pb-2">
-          {/* Quick mode: grouped model selector | Card mode: contextual hint */}
-          {state.workflowMode === 'quick' ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50"
-                  >
-                    {selectedModel?.keyId && (
-                      <ApiKeyHealthDot
-                        status={healthMap[selectedModel.keyId]}
-                      />
-                    )}
-                    <span className="font-medium max-w-32 truncate">
-                      {selectedModel
-                        ? (selectedModel.keyLabel ??
-                          getTranslatedModelLabel(
-                            tModels,
-                            selectedModel.modelId,
-                          ))
-                        : t('noModelHint')}
-                    </span>
-                    {selectedModel && (
-                      <span className="text-muted-foreground/50">
-                        {getProviderLabel(selectedModel.providerConfig)}
-                      </span>
-                    )}
-                    <ChevronDown className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="min-w-56 max-h-72 overflow-y-auto"
-                >
-                  {/* Available models */}
-                  {availableModels.length > 0 && (
-                    <>
-                      <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
-                        {tSetup('available')}
-                      </DropdownMenuLabel>
-                      {availableModels.map((option) => (
-                        <DropdownMenuItem
-                          key={option.optionId}
-                          onClick={() =>
-                            dispatch({
-                              type: 'SET_OPTION_ID',
-                              payload: option.optionId,
-                            })
-                          }
-                          className={cn(
-                            option.optionId === state.selectedOptionId &&
-                              'bg-accent/60',
-                          )}
-                        >
-                          {option.keyId && (
-                            <ApiKeyHealthDot status={healthMap[option.keyId]} />
-                          )}
-                          {option.freeTier && !option.keyId && (
-                            <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
-                          )}
-                          <span className="font-medium">
-                            {option.keyLabel ??
-                              getTranslatedModelLabel(tModels, option.modelId)}
-                          </span>
-                          <span className="ml-auto text-2xs text-muted-foreground">
-                            {getProviderLabel(option.providerConfig)}
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                  {/* Locked models (need API key) */}
-                  {lockedModels.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
-                        {tSetup('needsKey')}
-                      </DropdownMenuLabel>
-                      {lockedModels.map((option) => (
-                        <DropdownMenuItem
-                          key={option.optionId}
-                          onClick={() =>
-                            setQuickSetup({
-                              open: true,
-                              modelId: option.modelId,
-                              modelLabel: getTranslatedModelLabel(
-                                tModels,
-                                option.modelId,
-                              ),
-                              adapterType: option.adapterType,
-                              optionId: option.optionId,
-                            })
-                          }
-                          className="text-muted-foreground/70"
-                        >
-                          <Key className="size-3 shrink-0" />
-                          <span>
-                            {getTranslatedModelLabel(tModels, option.modelId)}
-                          </span>
-                          <span className="ml-auto text-2xs">
-                            {getProviderLabel(option.providerConfig)}
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <QuickSetupDialog
-                open={quickSetup.open}
-                onOpenChange={(v) =>
-                  setQuickSetup((prev) => ({ ...prev, open: v }))
-                }
-                modelId={quickSetup.modelId}
-                modelLabel={quickSetup.modelLabel}
-                adapterType={quickSetup.adapterType}
-                optionId={quickSetup.optionId}
-              />
-            </>
-          ) : (
-            // Card mode: reserve the row so layout stays balanced
-            <span className="text-2xs text-muted-foreground/60 max-w-48 truncate" />
-          )}
-
+        <PromptInputActions className="justify-end px-2 pb-2">
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
           <div className="flex items-center">
             <button

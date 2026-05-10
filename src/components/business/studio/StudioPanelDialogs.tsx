@@ -32,8 +32,21 @@ const LLM_CAPABLE_ADAPTERS = new Set([
   AI_ADAPTER_TYPES.VOLCENGINE,
 ])
 
-const DIALOG_CLASSES =
+/**
+ * Enhance is a chat panel — content scrolls inside, so it deserves a
+ * fixed height so the conversation area has somewhere to live.
+ */
+const ENHANCE_DIALOG_CLASSES =
   'h-[min(70vh,640px)] w-[calc(100%-2rem)] !max-w-2xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-2xl'
+
+/**
+ * Reverse engineer starts as a small upload dropzone, then grows when
+ * the user picks dimensions / sees results. A fixed height left a wall
+ * of empty space below the dropzone in the initial state, so this dialog
+ * uses max-h instead and fits the content vertically.
+ */
+const REVERSE_DIALOG_CLASSES =
+  'max-h-[80vh] w-[calc(100%-2rem)] !max-w-2xl !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl sm:!max-w-2xl'
 
 /**
  * StudioPanelDialogs — `enhance` (prompt assistant) and `reverse` (image
@@ -72,7 +85,10 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
           if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'enhance' })
         }}
       >
-        <DialogContent showCloseButton={false} className={DIALOG_CLASSES}>
+        <DialogContent
+          showCloseButton={false}
+          className={ENHANCE_DIALOG_CLASSES}
+        >
           <DialogTitle className="sr-only">{tPanels('enhance')}</DialogTitle>
           <DialogDescription className="sr-only">
             {tPanels('enhance')}
@@ -101,12 +117,12 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
           if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'reverse' })
         }}
       >
-        <DialogContent showCloseButton className={DIALOG_CLASSES}>
+        <DialogContent showCloseButton className={REVERSE_DIALOG_CLASSES}>
           <DialogTitle className="sr-only">{tPanels('reverse')}</DialogTitle>
           <DialogDescription className="sr-only">
             {tPanels('reverse')}
           </DialogDescription>
-          <div className="flex size-full flex-col overflow-hidden rounded-xl border border-border/40 bg-background p-4 shadow-2xl">
+          <div className="flex max-h-full flex-col overflow-y-auto rounded-xl border border-border/40 bg-background p-4 shadow-2xl">
             <ReverseEngineerPanel
               onUsePrompt={(prompt) => {
                 dispatch({ type: 'SET_PROMPT', payload: prompt })

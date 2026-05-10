@@ -5,12 +5,14 @@ import { memo } from 'react'
 // ── Studio Flow Layout ──────────────────────────────────────────────
 // Canvas + Dock fill at least one viewport height (min-h-full + flex).
 // Canvas expands (flex-1) to push Dock to the bottom.
-// Gallery lives below the fold — scroll to reveal.
+// Gallery is optional — Krea-aligned dock no longer renders an inline
+// history strip because the new "素材" / Image chip popover already
+// surfaces the user's archive on demand.
 
 interface StudioFlowLayoutProps {
   canvas: React.ReactNode
   dock: React.ReactNode
-  gallery: React.ReactNode
+  gallery?: React.ReactNode
 }
 
 export const StudioFlowLayout = memo(function StudioFlowLayout({
@@ -29,8 +31,10 @@ export const StudioFlowLayout = memo(function StudioFlowLayout({
         <div className="shrink-0">{dock}</div>
       </div>
 
-      {/* Gallery — natural page flow, scroll down to reveal */}
-      <div className="px-2 pb-20 sm:px-6 sm:pb-4">{gallery}</div>
+      {/* Gallery — optional natural-flow strip below the fold */}
+      {gallery ? (
+        <div className="px-2 pb-20 sm:px-6 sm:pb-4">{gallery}</div>
+      ) : null}
     </div>
   )
 })

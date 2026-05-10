@@ -1,0 +1,113 @@
+'use client'
+
+import { RatioIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import * as Toolbar from '@radix-ui/react-toolbar'
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { useStudioForm } from '@/contexts/studio-context'
+import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
+import { cn } from '@/lib/utils'
+import type { AspectRatio } from '@/constants/config'
+
+interface StudioAspectRatioPopoverProps {
+  disabled?: boolean
+}
+
+/**
+ * Visual preview rectangle for the selected aspect ratio — Krea shows the
+ * picked ratio as a wireframe so the user can see at-a-glance whether the
+ * canvas is portrait, square or landscape. The container is sized to a
+ * fixed bounding box; the rectangle inside scales to match the ratio while
+ * staying inscribed.
+ */
+function RatioPreview({ ratio }: { ratio: AspectRatio }) {
+  const [w, h] = ratio.split(':').map(Number)
+  // Inscribe the ratio in a 96×96 box so portrait/landscape both fit.
+  const BOX = 96
+  const scale = w >= h ? BOX / w : BOX / h
+  const width = w * scale
+  const height = h * scale
+  return (
+    <div className="flex size-24 shrink-0 items-center justify-center rounded-md border border-border/40 bg-muted/20">
+      <div
+        className="rounded-sm border-2 border-foreground/80"
+        style={{ width: `${width}px`, height: `${height}px` }}
+        aria-hidden
+      />
+    </div>
+  )
+}
+
+/**
+ * StudioAspectRatioPopover — Krea-style aspect ratio picker. Replaces the
+ * inline aspect ratio panel that used to render in the dock's right 40%
+ * column when `state.panels.aspectRatio` was true. Anchors a popover to
+ * the toolbar AspectRatio button; content shows the ratio pills next to
+ * a visual wireframe preview of the selected ratio.
+ *
+ * Self-contained (consumes StudioForm context directly) to mirror
+ * StylePresetButton + ReferenceImageChip and keep StudioToolbar's prop
+ * surface free of yet-another-handler.
+ */
+export function StudioAspectRatioPopover({
+  disabled,
+}: StudioAspectRatioPopoverProps) {
+  const { state, dispatch } = useStudioForm()
+  const t = useTranslations('StudioV2')
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Toolbar.Button
+          type="button"
+          disabled={disabled}
+          aria-label={t('aspectRatioLabel')}
+          className={cn(
+            'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
+            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            'data-[state=open]:bg-muted/30 data-[state=open]:text-primary',
+          )}
+        >
+          <RatioIcon className="h-3.5 w-3.5 shrink-0" />
+          <span className="hidden sm:inline">{state.aspectRatio}</span>
+        </Toolbar.Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-3" align="start" sideOffset={6}>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-1.5">
+            {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={state.aspectRatio === r}
+                onClick={() =>
+                  dispatch({ type: 'SET_ASPECT_RATIO', payload: r })
+                }
+                className={cn(
+                  'inline-flex min-w-14 items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
+                  'hover:scale-[1.03] active:scale-[0.95]',
+                  state.aspectRatio === r
+                    ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
+                    : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
+                )}
+                style={{
+                  transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                }}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <RatioPreview ratio={state.aspectRatio} />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}

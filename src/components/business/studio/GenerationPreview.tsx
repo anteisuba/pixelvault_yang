@@ -72,7 +72,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   onRetry,
 }: GenerationPreviewProps) {
   const { error, isGenerating, elapsedSeconds } = useStudioGen()
-  const { dispatch } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV3')
   const isMobile = useIsMobile()
   const [detailOpen, setDetailOpen] = useState(false)
@@ -184,6 +184,13 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
     const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4'] as const
+    // Suggestion pills are image-prompt phrases; only meaningful in image mode.
+    // Video and audio modes have their own input semantics (motion, TTS text).
+    const showSuggestions = state.outputType === 'image'
+    // Audio mode is text-to-speech: "Write a description" misleads users into
+    // describing a sound instead of typing the literal text to be spoken.
+    const hintKey =
+      state.outputType === 'audio' ? 'emptyStateHintAudio' : 'emptyStateHint'
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/10 px-6 py-12 sm:py-16">
         <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
@@ -193,25 +200,27 @@ export const GenerationPreview = memo(function GenerationPreview({
           {t('emptyStateTitle')}
         </p>
         <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
-          {t('emptyStateHint')}
+          {t(hintKey)}
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {SUGGESTION_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() =>
-                dispatch({
-                  type: 'SET_PROMPT',
-                  payload: t(`suggestion.${key}`),
-                })
-              }
-              className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 font-serif text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-            >
-              {t(`suggestion.${key}`)}
-            </button>
-          ))}
-        </div>
+        {showSuggestions && (
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {SUGGESTION_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: 'SET_PROMPT',
+                    payload: t(`suggestion.${key}`),
+                  })
+                }
+                className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5 font-serif text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                {t(`suggestion.${key}`)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }

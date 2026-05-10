@@ -2,15 +2,15 @@
 
 import {
   BookOpen,
+  FolderOpen,
   LayoutGrid,
   LogIn,
   Sparkles,
   Swords,
-  User,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { SignedIn, SignedOut } from '@clerk/nextjs'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -27,6 +27,16 @@ interface TabListProps {
   pathname: string
 }
 
+/**
+ * Whether `pathname` should activate a tab pointing at `href`. Equality covers
+ * the literal route, prefix-with-trailing-slash covers per-media-type Studio
+ * routes (`/studio/image|video|audio` all activate the `/studio` tab) and the
+ * Assets sub-routes if any are added later.
+ */
+function isTabActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 function TabList({ tabs, pathname }: TabListProps) {
   return (
     <div className="flex h-full items-stretch">
@@ -36,7 +46,7 @@ function TabList({ tabs, pathname }: TabListProps) {
           href={href}
           className={cn(
             'flex flex-1 flex-col items-center justify-center gap-[0.35rem] text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
-            pathname === href && 'text-primary',
+            isTabActive(pathname, href) && 'text-primary',
           )}
         >
           <Icon className="size-5" />
@@ -52,13 +62,16 @@ function TabList({ tabs, pathname }: TabListProps) {
 export function MobileTabBar() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
+  // Same hydration story as AppSidebar — wait for Clerk before rendering
+  // the auth-conditional tab list.
+  const { isLoaded } = useUser()
 
   const signedInTabs: TabItem[] = [
     { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
     { href: ROUTES.STUDIO, label: t('links.studio'), icon: Sparkles },
     { href: ROUTES.ARENA, label: t('links.arena'), icon: Swords },
     { href: ROUTES.STORYBOARD, label: t('links.storyboard'), icon: BookOpen },
-    { href: ROUTES.PROFILE, label: t('links.library'), icon: User },
+    { href: ROUTES.ASSETS, label: t('links.assets'), icon: FolderOpen },
   ]
 
   const signedOutTabs: TabItem[] = [
@@ -73,12 +86,16 @@ export function MobileTabBar() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-14">
-        <SignedIn>
-          <TabList tabs={signedInTabs} pathname={pathname} />
-        </SignedIn>
-        <SignedOut>
-          <TabList tabs={signedOutTabs} pathname={pathname} />
-        </SignedOut>
+        {isLoaded && (
+          <>
+            <SignedIn>
+              <TabList tabs={signedInTabs} pathname={pathname} />
+            </SignedIn>
+            <SignedOut>
+              <TabList tabs={signedOutTabs} pathname={pathname} />
+            </SignedOut>
+          </>
+        )}
       </div>
     </nav>
   )

@@ -108,6 +108,10 @@
       "title": "个人中心 — PixelVault",
       "description": "你的生成历史、积分和保存的 API 路由。"
     },
+    "assets": {
+      "title": "素材 — PixelVault",
+      "description": "浏览和管理你的所有生成作品，按项目和文件夹组织。"
+    },
     "arena": {
       "title": "竞技场 — PixelVault",
       "description": "盲测 AI 图像模型并投票选出最佳结果。"
@@ -139,7 +143,8 @@
       "studio": "工作台",
       "arena": "竞技场",
       "storyboard": "故事",
-      "library": "档案"
+      "library": "档案",
+      "assets": "素材"
     },
     "requestsLoading": "...",
     "requestsTooltip": "已使用的 API 请求数"
@@ -331,6 +336,11 @@
     "voiceTrainCreate": "创建声音",
     "voiceTrainSuccess": "声音创建成功！",
     "voiceTrainFailed": "创建声音失败",
+    "voiceCards": "声音卡片",
+    "voiceCardsEmpty": "还没有声音卡片",
+    "voiceCardSelected": "使用中",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "高级选项",
     "freeQuota": "今日免费 {remaining}/{limit}",
     "toggleSidebar": "切换侧边栏",
@@ -343,6 +353,24 @@
       "archiveBehaviorLabel": "自动存档",
       "archiveBehaviorValue": "结果自动保存"
     }
+  },
+  "audioParams": {
+    "emotion": "情感",
+    "pace": "语速",
+    "pauseMarkers": "停顿位置",
+    "emotionNeutral": "中性",
+    "emotionHappy": "高兴",
+    "emotionSad": "悲伤",
+    "emotionAngry": "愤怒",
+    "emotionExcited": "兴奋",
+    "emotionCalm": "平静",
+    "emotionFearful": "恐惧",
+    "paceSlow": "慢",
+    "paceNormal": "正常",
+    "paceFast": "快",
+    "pauseAfterSentence1": "第 1 句后",
+    "pauseAfterSentence2": "第 2 句后",
+    "pauseAfterSentence3": "第 3 句后"
   },
   "VideoGenerate": {
     "modelLabel": "视频模型",
@@ -510,7 +538,55 @@
     "batchDeleteConfirmTitle": "删除 {count} 项？",
     "batchDeleteConfirmDescription": "将永久删除所选的生成内容及其存储文件。",
     "batchSuccess": "批量操作完成",
-    "batchFailed": "批量操作失败"
+    "batchFailed": "批量操作失败",
+    "projectFilterLabel": "项目",
+    "projectAll": "全部",
+    "projectNone": "未分类",
+    "projectCreate": "新建项目",
+    "projectCreateTitle": "创建项目",
+    "projectCreateDescription": "把相关作品归到一个项目，让你的归档保持整洁。",
+    "projectNamePlaceholder": "项目名（例：封面插画）",
+    "projectDescriptionPlaceholder": "可选描述",
+    "projectCreateSubmit": "创建",
+    "projectCreating": "创建中…",
+    "projectCreated": "项目已创建",
+    "projectCreateFailed": "创建项目失败",
+    "assetBrowserSearch": "搜索资产…",
+    "assetBrowserEmpty": "这里还没有资产",
+    "assetBrowserLoading": "加载中…"
+  },
+  "ImageChip": {
+    "label": "图像",
+    "description": "附加一张图片用于编辑，或将其风格和内容应用到生成。",
+    "upload": "上传",
+    "selectAsset": "选择素材",
+    "back": "返回",
+    "selectAssetEmpty": "还没有保存的素材",
+    "selectFromArchive": "从档案选择",
+    "filterAll": "全部",
+    "filterImage": "图像",
+    "filterVideo": "视频"
+  },
+  "AssetsPage": {
+    "title": "素材",
+    "description": "你的所有作品集中管理 — 按项目和文件夹组织。",
+    "signedOutTitle": "需要登录",
+    "signedOutDescription": "登录后才能查看你的素材。",
+    "signedOutAction": "打开工作台",
+    "search": "搜索素材...",
+    "sidebarAll": "全部",
+    "sidebarFavorites": "收藏",
+    "sidebarTools": "工具",
+    "sidebarImages": "图像",
+    "sidebarVideos": "视频",
+    "sidebarAudio": "音频",
+    "sidebarFolders": "文件夹",
+    "sidebarUnassigned": "未分类",
+    "emptyTitle": "还没有素材",
+    "emptyDescription": "你的生成作品会显示在这里。",
+    "emptyAction": "生成图像",
+    "selectedAsset": "参考图",
+    "removeReference": "移除"
   },
   "Collections": {
     "title": "合集",
@@ -1600,6 +1676,46 @@
       "voiceNarration": "欢迎来到 PixelVault，在这里，AI 的力量让你的想象变为现实"
     }
   },
+  "StudioTools": {
+    "groupLabel": "工具",
+    "comingSoon": "敬请期待",
+    "tools": {
+      "image": {
+        "label": "图像"
+      },
+      "video": {
+        "label": "视频"
+      },
+      "audio": {
+        "label": "音频"
+      },
+      "edit": {
+        "label": "编辑",
+        "title": "编辑",
+        "description": "局部重绘、画面扩展、对象重排，一站式编辑你的图像。"
+      },
+      "enhance": {
+        "label": "增强",
+        "title": "增强",
+        "description": "4 倍超分、移除背景、细节优化。"
+      },
+      "analyze": {
+        "label": "解析",
+        "title": "提示词解析",
+        "description": "从任意图像反推提示词，提取风格、角色、标签。"
+      },
+      "lora": {
+        "label": "LoRA 训练",
+        "title": "LoRA 训练",
+        "description": "用你的数据集训练专属风格或角色 LoRA。"
+      },
+      "node": {
+        "label": "节点编辑",
+        "title": "节点编辑器",
+        "description": "可视化工作流，串联生成、编辑、解析等步骤。"
+      }
+    }
+  },
   "StudioV2": {
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",
@@ -1634,8 +1750,8 @@
     "aspectRatioLabel": "宽高比",
     "freePromptPlaceholder": "描述动作、场景或表情...",
     "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
-    "enhance": "追加",
-    "reverse": "图片反向工程",
+    "enhance": "增强",
+    "reverse": "反向工程",
     "advanced": "高级",
     "referenceImage": "参考图",
     "referenceFormats": "JPG、PNG、WebP",
@@ -1698,7 +1814,8 @@
     "historySelection": "历史预览",
     "generationComplete": "生成完成",
     "emptyStateTitle": "预览结果会显示在这里",
-    "emptyStateHint": "在左侧写下描述，开始你的第一次创作",
+    "emptyStateHint": "在下方写下描述，开始你的第一次创作",
+    "emptyStateHintAudio": "在下方输入想要听到的文本，开始你的第一次创作",
     "suggestion": {
       "s1": "黄昏时分宁静的日本庭院",
       "s2": "暖土色调的几何抽象艺术",

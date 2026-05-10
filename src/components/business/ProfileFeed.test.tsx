@@ -50,6 +50,21 @@ vi.mock('@/lib/api-client', () => ({
   batchDeleteGenerationsAPI: vi.fn(),
   batchUpdateVisibilityAPI: vi.fn(),
   deleteGenerationAPI: vi.fn(),
+  // ProjectChipFilter (added in Phase 5.1b) reaches into useProjects, which
+  // calls these on mount — return empty payloads so the test renders fast
+  // without making real network calls.
+  listProjectsAPI: vi.fn(() =>
+    Promise.resolve({ success: true, data: { projects: [] } }),
+  ),
+  createProjectAPI: vi.fn(),
+  updateProjectAPI: vi.fn(),
+  deleteProjectAPI: vi.fn(),
+  getProjectHistoryAPI: vi.fn(() =>
+    Promise.resolve({
+      success: true,
+      data: { generations: [], total: 0, hasMore: false },
+    }),
+  ),
 }))
 
 vi.mock('@/lib/gallery-query', () => ({
@@ -119,6 +134,7 @@ const DEFAULT_PROPS = {
     type: 'all' as const,
     timeRange: 'all' as const,
     liked: false,
+    projectId: '',
   },
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useState } from 'react'
-import { Gift, PanelLeft, SlidersHorizontal } from 'lucide-react'
+import { Gift, SlidersHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'
@@ -9,7 +9,6 @@ import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { useSidebar } from '@/components/ui/sidebar'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -18,7 +17,11 @@ import { cn } from '@/lib/utils'
 import { StudioAdvancedDrawer } from './StudioAdvancedDrawer'
 
 /**
- * StudioTopBar — Slim 44px bar: sidebar toggle + route indicator + advanced path + credits.
+ * StudioTopBar — Slim 44px bar: route indicator + advanced path + credits.
+ *
+ * The sidebar toggle button was removed in Phase 3.1 — the global AppSidebar
+ * provides its own toggle in the sidebar header, so the Studio-internal toggle
+ * was a redundant control point for users.
  */
 export const StudioTopBar = memo(function StudioTopBar() {
   const { state } = useStudioForm()
@@ -27,7 +30,6 @@ export const StudioTopBar = memo(function StudioTopBar() {
   const tModels = useTranslations('Models')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const { summary } = useUsageSummary()
-  const { toggleSidebar } = useSidebar()
   const { selectedModel: imageModel } = useImageModelOptions()
   const { selectedModel: audioModel } = useAudioModelOptions()
   const selectedModel = state.outputType === 'audio' ? audioModel : imageModel
@@ -51,22 +53,9 @@ export const StudioTopBar = memo(function StudioTopBar() {
   return (
     <>
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-3 font-display sm:gap-3 sm:px-4">
-        {/* Sidebar toggle */}
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className={cn(
-            'flex size-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-all duration-200',
-            'hover:border-primary/30 hover:text-foreground',
-          )}
-          aria-label={tStudio('toggleSidebar')}
-        >
-          <PanelLeft className="size-4.5" />
-        </button>
-
         {/* Active route indicator — hidden on mobile */}
         {routeLabel && (
-          <div className="ml-1 hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
+          <div className="hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
             <ApiKeyHealthDot status={routeHealth} />
             <span className="font-medium text-foreground">{routeLabel}</span>
             {routeProvider && <span>{routeProvider}</span>}

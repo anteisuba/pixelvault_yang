@@ -108,6 +108,10 @@
       "title": "Profile — PixelVault",
       "description": "Your generation history, credits, and saved API routes."
     },
+    "assets": {
+      "title": "Assets — PixelVault",
+      "description": "Browse and manage every generation you've made, organised by project and folder."
+    },
     "arena": {
       "title": "Arena — PixelVault",
       "description": "Blind-test AI image models and vote for the best result."
@@ -139,7 +143,8 @@
       "studio": "Studio",
       "arena": "Arena",
       "storyboard": "Stories",
-      "library": "Archive"
+      "library": "Archive",
+      "assets": "Assets"
     },
     "requestsLoading": "...",
     "requestsTooltip": "Total API requests used"
@@ -331,6 +336,11 @@
     "voiceTrainCreate": "Create Voice",
     "voiceTrainSuccess": "Voice created successfully!",
     "voiceTrainFailed": "Failed to create voice",
+    "voiceCards": "Voice Cards",
+    "voiceCardsEmpty": "No voice cards yet",
+    "voiceCardSelected": "In use",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "Advanced Options",
     "freeQuota": "{remaining}/{limit} free today",
     "toggleSidebar": "Toggle sidebar",
@@ -343,6 +353,24 @@
       "archiveBehaviorLabel": "Auto-archive",
       "archiveBehaviorValue": "Results saved automatically"
     }
+  },
+  "audioParams": {
+    "emotion": "Emotion",
+    "pace": "Pace",
+    "pauseMarkers": "Pause Markers",
+    "emotionNeutral": "Neutral",
+    "emotionHappy": "Happy",
+    "emotionSad": "Sad",
+    "emotionAngry": "Angry",
+    "emotionExcited": "Excited",
+    "emotionCalm": "Calm",
+    "emotionFearful": "Fearful",
+    "paceSlow": "Slow",
+    "paceNormal": "Normal",
+    "paceFast": "Fast",
+    "pauseAfterSentence1": "After sentence 1",
+    "pauseAfterSentence2": "After sentence 2",
+    "pauseAfterSentence3": "After sentence 3"
   },
   "VideoGenerate": {
     "modelLabel": "Video Model",
@@ -510,7 +538,55 @@
     "batchDeleteConfirmTitle": "Delete {count} generations?",
     "batchDeleteConfirmDescription": "This will permanently delete the selected generations and their stored files.",
     "batchSuccess": "Batch operation completed",
-    "batchFailed": "Batch operation failed"
+    "batchFailed": "Batch operation failed",
+    "projectFilterLabel": "Project",
+    "projectAll": "All",
+    "projectNone": "Unassigned",
+    "projectCreate": "New project",
+    "projectCreateTitle": "Create project",
+    "projectCreateDescription": "Group related generations into a project so the archive stays organised.",
+    "projectNamePlaceholder": "Project name (e.g. Cover illustrations)",
+    "projectDescriptionPlaceholder": "Optional description",
+    "projectCreateSubmit": "Create",
+    "projectCreating": "Creating…",
+    "projectCreated": "Project created",
+    "projectCreateFailed": "Failed to create project",
+    "assetBrowserSearch": "Search assets…",
+    "assetBrowserEmpty": "No assets to show here yet",
+    "assetBrowserLoading": "Loading…"
+  },
+  "ImageChip": {
+    "label": "Image",
+    "description": "Attach an image to edit it, or to apply its style and content to your generation.",
+    "upload": "Upload",
+    "selectAsset": "Select asset",
+    "back": "Back",
+    "selectAssetEmpty": "No saved assets yet",
+    "selectFromArchive": "Pick from archive",
+    "filterAll": "All",
+    "filterImage": "Images",
+    "filterVideo": "Videos"
+  },
+  "AssetsPage": {
+    "title": "Assets",
+    "description": "All your generations in one place — organised by project and folder.",
+    "signedOutTitle": "Sign in required",
+    "signedOutDescription": "Sign in to view your assets.",
+    "signedOutAction": "Open Studio",
+    "search": "Search assets...",
+    "sidebarAll": "All",
+    "sidebarFavorites": "Favorites",
+    "sidebarTools": "Tools",
+    "sidebarImages": "Images",
+    "sidebarVideos": "Videos",
+    "sidebarAudio": "Audio",
+    "sidebarFolders": "Folders",
+    "sidebarUnassigned": "Unassigned",
+    "emptyTitle": "No assets yet",
+    "emptyDescription": "Your generations will appear here.",
+    "emptyAction": "Generate images",
+    "selectedAsset": "Reference",
+    "removeReference": "Remove"
   },
   "Collections": {
     "title": "Collections",
@@ -1600,6 +1676,46 @@
       "voiceNarration": "Welcome to PixelVault, where your imagination becomes reality through the power of AI"
     }
   },
+  "StudioTools": {
+    "groupLabel": "Tools",
+    "comingSoon": "Coming Soon",
+    "tools": {
+      "image": {
+        "label": "Image"
+      },
+      "video": {
+        "label": "Video"
+      },
+      "audio": {
+        "label": "Audio"
+      },
+      "edit": {
+        "label": "Edit",
+        "title": "Edit",
+        "description": "Inpaint, outpaint, and rearrange objects across your images."
+      },
+      "enhance": {
+        "label": "Enhance",
+        "title": "Enhance",
+        "description": "Upscale to 4× resolution, remove backgrounds, and refine details."
+      },
+      "analyze": {
+        "label": "Analyze",
+        "title": "Prompt Analysis",
+        "description": "Reverse-engineer prompts and extract style, character, and tags from any image."
+      },
+      "lora": {
+        "label": "LoRA Training",
+        "title": "LoRA Training",
+        "description": "Train a personal style or character LoRA on your own dataset."
+      },
+      "node": {
+        "label": "Node Editor",
+        "title": "Node Editor",
+        "description": "Build visual workflows that chain generation, editing, and analysis steps."
+      }
+    }
+  },
   "StudioV2": {
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",
@@ -1634,8 +1750,8 @@
     "aspectRatioLabel": "Aspect Ratio",
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
-    "enhance": "Append",
-    "reverse": "Image Reverse",
+    "enhance": "Enhance",
+    "reverse": "Reverse",
     "advanced": "Advanced",
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
@@ -1698,7 +1814,8 @@
     "historySelection": "History selection",
     "generationComplete": "Generation complete",
     "emptyStateTitle": "Your preview will appear here",
-    "emptyStateHint": "Write a description on the left to start creating",
+    "emptyStateHint": "Write a description below to start creating",
+    "emptyStateHintAudio": "Type the text you want to hear below to start creating",
     "suggestion": {
       "s1": "A serene Japanese garden at golden hour",
       "s2": "Abstract geometric art in warm earth tones",

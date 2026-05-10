@@ -15,6 +15,16 @@ export const ROUTES = {
 
   /** Protected pages */
   STUDIO: '/studio',
+  STUDIO_IMAGE: '/studio/image',
+  STUDIO_VIDEO: '/studio/video',
+  STUDIO_AUDIO: '/studio/audio',
+  STUDIO_EDIT: '/studio/edit',
+  STUDIO_ENHANCE: '/studio/enhance',
+  STUDIO_ANALYZE: '/studio/analyze',
+  STUDIO_LORA: '/studio/lora',
+  STUDIO_NODE: '/studio/node',
+  /** Krea-style Asset browser — superset of the legacy /profile feed */
+  ASSETS: '/assets',
   PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',

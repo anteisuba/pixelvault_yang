@@ -47,6 +47,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         type: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: filterResult.data.liked === '1',
+        projectId: filterResult.data.projectId ?? '',
       }
     : {
         search: '',
@@ -55,6 +56,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         type: 'all' as const,
         timeRange: 'all' as const,
         liked: false,
+        projectId: '',
       }
   const [generations, total] = await Promise.all([
     getPublicGenerations({

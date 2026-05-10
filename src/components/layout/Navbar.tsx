@@ -133,6 +133,7 @@ export function Navbar() {
                 as="span"
                 duration={600}
                 animateOnHover
+                animateOnMount={false}
                 className="font-display text-brand font-bold leading-none tracking-brand max-sm:text-sm !py-0"
               >
                 {tCommon('brand')}
@@ -145,6 +146,7 @@ export function Navbar() {
                 as="span"
                 duration={600}
                 animateOnHover
+                animateOnMount={false}
                 className="font-display text-brand font-bold leading-none tracking-brand max-sm:text-sm !py-0"
               >
                 {tCommon('brand')}

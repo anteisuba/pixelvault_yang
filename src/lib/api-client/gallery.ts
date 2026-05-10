@@ -14,6 +14,11 @@ export async function fetchGalleryImages(
     timeRange?: string
     liked?: boolean
     mine?: boolean
+    /**
+     * Project scope: a project UUID, the literal "none" for unassigned
+     * generations only, or omit/empty for all projects.
+     */
+    projectId?: string
   },
 ): Promise<GalleryResponse> {
   try {
@@ -32,6 +37,7 @@ export async function fetchGalleryImages(
     }
     if (filters?.liked) params.set('liked', '1')
     if (filters?.mine) params.set('mine', '1')
+    if (filters?.projectId) params.set('projectId', filters.projectId)
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
     if (!response.ok) {

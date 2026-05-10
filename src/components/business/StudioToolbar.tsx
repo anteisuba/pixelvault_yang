@@ -4,10 +4,8 @@ import {
   Sparkles,
   ScanText,
   Settings2,
-  Image as ImageIcon,
   Key,
   Layers,
-  RatioIcon,
   Wand2,
   Cpu,
 } from 'lucide-react'
@@ -22,6 +20,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
+import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
 interface StudioToolbarProps {
   onEnhance?: () => void
@@ -29,13 +30,9 @@ interface StudioToolbarProps {
   onReverse?: () => void
   onAdvanced?: () => void
   advancedOpen?: boolean
-  onReferenceImage?: () => void
-  referenceImageCount?: number
   onLayerDecompose?: () => void
   onTransform?: () => void
   transformOpen?: boolean
-  onAspectRatio?: () => void
-  aspectRatioOpen?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
@@ -99,13 +96,9 @@ export function StudioToolbar({
   onReverse,
   onAdvanced,
   advancedOpen,
-  onReferenceImage,
-  referenceImageCount,
   onLayerDecompose,
   onTransform,
   transformOpen,
-  onAspectRatio,
-  aspectRatioOpen,
   onCivitaiToken,
   hasToken,
   disabled,
@@ -135,6 +128,7 @@ export function StudioToolbar({
           onClick={onReverse}
           disabled={disabled}
         />
+        <StylePresetButton disabled={disabled} />
         {!quickMode && (
           <ToolButton
             icon={<Settings2 className="h-3.5 w-3.5" />}
@@ -144,13 +138,12 @@ export function StudioToolbar({
             disabled={disabled}
           />
         )}
-        <ToolButton
-          icon={<ImageIcon className="h-3.5 w-3.5" />}
-          label={t('referenceImage')}
-          onClick={onReferenceImage}
-          badge={referenceImageCount}
-          disabled={disabled}
-        />
+        {/*
+         * Reference image entry is the Krea-style chip (Phase 5.5b) — it
+         * owns its own popover (Upload + Select asset), so the toolbar
+         * doesn't need to drive a parent-controlled panel for it.
+         */}
+        <ReferenceImageChip disabled={disabled} />
         <ToolButton
           icon={<Wand2 className="h-3.5 w-3.5" />}
           label={t('transform')}
@@ -166,13 +159,13 @@ export function StudioToolbar({
             disabled={disabled}
           />
         )}
-        <ToolButton
-          icon={<RatioIcon className="h-3.5 w-3.5" />}
-          label={t('aspectRatioLabel')}
-          onClick={onAspectRatio}
-          active={aspectRatioOpen}
-          disabled={disabled}
-        />
+        {/*
+         * AspectRatio entry is the Krea-style popover (Phase 5.5c) — it
+         * owns its own popover anchored to this button and renders pills
+         * + visual ratio preview, so the toolbar doesn't drive a parent
+         * panel for it any more.
+         */}
+        <StudioAspectRatioPopover disabled={disabled} />
         {!quickMode && (
           <>
             <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

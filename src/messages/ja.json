@@ -108,6 +108,10 @@
       "title": "プロフィール — PixelVault",
       "description": "生成履歴、クレジット、保存済みAPIルートの管理。"
     },
+    "assets": {
+      "title": "アセット — PixelVault",
+      "description": "あなたの作品をまとめて閲覧・管理。プロジェクトとフォルダで整理。"
+    },
     "arena": {
       "title": "アリーナ — PixelVault",
       "description": "AIモデルをブラインドテストして最良の結果に投票。"
@@ -139,7 +143,8 @@
       "studio": "スタジオ",
       "arena": "アリーナ",
       "storyboard": "ストーリー",
-      "library": "アーカイブ"
+      "library": "アーカイブ",
+      "assets": "アセット"
     },
     "requestsLoading": "...",
     "requestsTooltip": "使用したAPIリクエスト数"
@@ -331,6 +336,11 @@
     "voiceTrainCreate": "ボイスを作成",
     "voiceTrainSuccess": "ボイスの作成に成功しました！",
     "voiceTrainFailed": "ボイスの作成に失敗しました",
+    "voiceCards": "ボイスカード",
+    "voiceCardsEmpty": "ボイスカードがまだありません",
+    "voiceCardSelected": "使用中",
+    "voiceCardFishAudio": "Fish Audio",
+    "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "詳細設定",
     "freeQuota": "本日の無料回数 {remaining}/{limit}",
     "toggleSidebar": "サイドバーを切り替え",
@@ -343,6 +353,24 @@
       "archiveBehaviorLabel": "自動保存",
       "archiveBehaviorValue": "結果は自動保存"
     }
+  },
+  "audioParams": {
+    "emotion": "感情",
+    "pace": "話す速度",
+    "pauseMarkers": "ポーズ位置",
+    "emotionNeutral": "ニュートラル",
+    "emotionHappy": "嬉しい",
+    "emotionSad": "悲しい",
+    "emotionAngry": "怒り",
+    "emotionExcited": "興奮",
+    "emotionCalm": "穏やか",
+    "emotionFearful": "恐れ",
+    "paceSlow": "遅い",
+    "paceNormal": "標準",
+    "paceFast": "速い",
+    "pauseAfterSentence1": "1文目の後",
+    "pauseAfterSentence2": "2文目の後",
+    "pauseAfterSentence3": "3文目の後"
   },
   "VideoGenerate": {
     "modelLabel": "動画モデル",
@@ -510,7 +538,55 @@
     "batchDeleteConfirmTitle": "{count}件を削除しますか？",
     "batchDeleteConfirmDescription": "選択した生成結果とそのファイルが完全に削除されます。",
     "batchSuccess": "一括操作が完了しました",
-    "batchFailed": "一括操作に失敗しました"
+    "batchFailed": "一括操作に失敗しました",
+    "projectFilterLabel": "プロジェクト",
+    "projectAll": "すべて",
+    "projectNone": "未分類",
+    "projectCreate": "新規プロジェクト",
+    "projectCreateTitle": "プロジェクトを作成",
+    "projectCreateDescription": "作品をプロジェクトにまとめて整理できます。",
+    "projectNamePlaceholder": "プロジェクト名（例：表紙イラスト）",
+    "projectDescriptionPlaceholder": "説明（任意）",
+    "projectCreateSubmit": "作成",
+    "projectCreating": "作成中...",
+    "projectCreated": "プロジェクトを作成しました",
+    "projectCreateFailed": "プロジェクトの作成に失敗しました",
+    "assetBrowserSearch": "アセットを検索...",
+    "assetBrowserEmpty": "ここに表示するアセットはありません",
+    "assetBrowserLoading": "読み込み中..."
+  },
+  "ImageChip": {
+    "label": "画像",
+    "description": "画像を添付して編集、またはそのスタイルと内容を生成に適用します。",
+    "upload": "アップロード",
+    "selectAsset": "アーカイブから選ぶ",
+    "back": "戻る",
+    "selectAssetEmpty": "保存済みの画像がありません",
+    "selectFromArchive": "アーカイブから選ぶ",
+    "filterAll": "すべて",
+    "filterImage": "画像",
+    "filterVideo": "動画"
+  },
+  "AssetsPage": {
+    "title": "アセット",
+    "description": "あなたのすべての生成物をひとつの場所で。プロジェクトとフォルダで整理。",
+    "signedOutTitle": "サインインが必要です",
+    "signedOutDescription": "アセットを表示するにはサインインしてください。",
+    "signedOutAction": "スタジオへ",
+    "search": "アセットを検索...",
+    "sidebarAll": "すべて",
+    "sidebarFavorites": "お気に入り",
+    "sidebarTools": "ツール",
+    "sidebarImages": "画像",
+    "sidebarVideos": "動画",
+    "sidebarAudio": "音声",
+    "sidebarFolders": "フォルダ",
+    "sidebarUnassigned": "未分類",
+    "emptyTitle": "アセットがまだありません",
+    "emptyDescription": "あなたの生成物がここに表示されます。",
+    "emptyAction": "画像を生成",
+    "selectedAsset": "参照画像",
+    "removeReference": "削除"
   },
   "Collections": {
     "title": "コレクション",
@@ -1600,6 +1676,46 @@
       "voiceNarration": "PixelVaultへようこそ。AIの力であなたの想像が現実になる場所です"
     }
   },
+  "StudioTools": {
+    "groupLabel": "ツール",
+    "comingSoon": "近日公開",
+    "tools": {
+      "image": {
+        "label": "画像"
+      },
+      "video": {
+        "label": "動画"
+      },
+      "audio": {
+        "label": "音声"
+      },
+      "edit": {
+        "label": "編集",
+        "title": "編集",
+        "description": "インペイントとアウトペイント、オブジェクトの再配置で画像を編集。"
+      },
+      "enhance": {
+        "label": "エンハンサー",
+        "title": "エンハンサー",
+        "description": "4倍解像度へのアップスケール、背景除去、ディテール強化。"
+      },
+      "analyze": {
+        "label": "解析",
+        "title": "プロンプト解析",
+        "description": "画像からプロンプトを逆算し、スタイル・キャラ・タグを抽出。"
+      },
+      "lora": {
+        "label": "LoRA訓練",
+        "title": "LoRA訓練",
+        "description": "独自のスタイルやキャラクターを LoRA で学習。"
+      },
+      "node": {
+        "label": "ノード",
+        "title": "ノードエディター",
+        "description": "生成・編集・解析を視覚的にチェーン構築するワークフロー。"
+      }
+    }
+  },
   "StudioV2": {
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",
@@ -1627,8 +1743,8 @@
     "aspectRatioLabel": "アスペクト比",
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
     "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
-    "enhance": "追加",
-    "reverse": "画像リバース",
+    "enhance": "強化",
+    "reverse": "リバース",
     "advanced": "詳細",
     "referenceImage": "参照画像",
     "referenceFormats": "JPG、PNG、WebP",
@@ -1698,7 +1814,8 @@
     "historySelection": "履歴プレビュー",
     "generationComplete": "生成が完了しました",
     "emptyStateTitle": "ここにプレビューが表示されます",
-    "emptyStateHint": "左側に説明を書いて作成を開始",
+    "emptyStateHint": "下に説明を書いて作成を開始",
+    "emptyStateHintAudio": "下に読み上げたいテキストを入力して作成を開始",
     "suggestion": {
       "s1": "黄昏時の静かな日本庭園",
       "s2": "暖かい土の色調の抽象幾何学アート",

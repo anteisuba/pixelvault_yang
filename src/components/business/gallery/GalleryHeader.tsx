@@ -152,9 +152,10 @@ export const GalleryHeader = memo(function GalleryHeader({
       sort: filters.sort,
       type: 'all',
       timeRange: 'all',
+      projectId: filters.projectId,
       liked: false,
     })
-  }, [filters.sort, onFiltersChange])
+  }, [filters.sort, filters.projectId, onFiltersChange])
 
   return (
     <div className="space-y-3">

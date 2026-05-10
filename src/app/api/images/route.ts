@@ -52,6 +52,7 @@ export const GET = createApiGetRoute<
           userId,
           likedByUserId,
           viewerUserId,
+          projectId: data.projectId,
         }),
         countPublicGenerations({
           search: data.search,
@@ -60,6 +61,7 @@ export const GET = createApiGetRoute<
           timeRange: data.timeRange,
           userId,
           likedByUserId,
+          projectId: data.projectId,
         }),
       ])
 

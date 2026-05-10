@@ -171,10 +171,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       onReverse={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'reverse' })}
       onAdvanced={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'advanced' })}
       advancedOpen={state.panels.advanced}
-      onReferenceImage={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'refImage' })
-      }
-      referenceImageCount={imageUpload.referenceImages.length}
       onTransform={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'transform' })
       }
@@ -182,10 +178,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }
-      onAspectRatio={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'aspectRatio' })
-      }
-      aspectRatioOpen={state.panels.aspectRatio}
       onCivitaiToken={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
       }

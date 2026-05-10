@@ -43,9 +43,9 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 ## Design Language
 
-See `docs/reference/design-system.md` for full spec. Two surface modes:
+See `docs/reference/design-system.md` for full spec. Three surface modes:
 
-**Editorial surfaces** (Studio, Gallery, Account):
+**Editorial surfaces** (Studio canvas, Gallery, Account):
 
 - Background: `#faf9f5` (米白) · Text: `#141413` · Brand accent: `#d97757`
 - Fonts: Space Grotesk (headings) + Lora (body) — sans + serif pair required
@@ -56,6 +56,19 @@ See `docs/reference/design-system.md` for full spec. Two surface modes:
 - Single Space Grotesk only (no serif)
 - Krea-style: minimal chrome, large hero typography, real imagery
 - Auth pages share this surface so the funnel reads continuous
+
+**Krea Overlay surfaces** (AppSidebar, full-screen modals, asset browsers):
+
+- Background: dark `--sidebar` token · Text: dark `--sidebar-foreground`
+- Activated by adding the `dark` className to the wrapper, which flips
+  the sidebar / background / foreground / accent / border tokens to
+  their dark-mode oklch values defined in `src/app/globals.css`
+- Used for: AppSidebar (always), AssetSelectorDialog (full-screen
+  modal), and any other immersive overlay where the canvas is asset
+  thumbnails rather than editorial prose
+- Pairs with the editorial main surface — the user's eye tracks the
+  high-contrast dark chrome to navigation / overlays, then settles on
+  the warm editorial canvas for actual creation
 
 Shared:
 

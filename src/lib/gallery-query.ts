@@ -27,5 +27,9 @@ export function buildGalleryQueryString(filters: GalleryFilters): string {
     params.set('liked', '1')
   }
 
+  if (filters.projectId) {
+    params.set('projectId', filters.projectId)
+  }
+
   return params.toString()
 }

@@ -27,6 +27,13 @@ export interface GalleryFilters {
   type: OutputTypeFilter
   timeRange: GalleryTimeRange
   liked: boolean
+  /**
+   * Optional project scope:
+   * - ''      → all projects (default)
+   * - 'none'  → only generations not assigned to any project
+   * - <uuid>  → only generations belonging to that project
+   */
+  projectId: string
 }
 
 interface UseGalleryOptions {
@@ -63,6 +70,7 @@ const DEFAULT_FILTERS: GalleryFilters = {
   type: 'all',
   timeRange: 'all',
   liked: false,
+  projectId: '',
 }
 
 function mergeGenerations(
@@ -132,6 +140,7 @@ export function useGallery({
           timeRange: f.timeRange || undefined,
           liked: f.liked || undefined,
           mine,
+          projectId: f.projectId || undefined,
         }
         const response = await fetchGalleryImages(
           targetPage,

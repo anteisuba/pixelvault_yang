@@ -21,12 +21,11 @@ import {
   Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useLocale, useTranslations } from 'next-intl'
-import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { LOCALES, type AppLocale } from '@/i18n/routing'
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { CardDrawer } from '@/components/business/CardDrawer'
 import { Button } from '@/components/ui/button'
 import { HyperText } from '@/components/ui/hyper-text'
@@ -318,6 +317,9 @@ function AppSidebarFooter() {
         <SidebarFooterCardDrawer />
         <SidebarFooterCreditBadge />
         <SidebarFooterUserMenu />
+        <div className="group-data-[collapsible=icon]:hidden">
+          <LocaleSwitcher className="w-full justify-center !border-sidebar-border/50 !bg-sidebar-accent" />
+        </div>
       </SignedIn>
 
       <SignedOut>
@@ -400,17 +402,11 @@ function SidebarFooterCreditBadge() {
 function SidebarFooterUserMenu() {
   const { profile: myProfile } = useMyProfile()
   const t = useTranslations('Navbar')
-  const tLocale = useTranslations('LocaleSwitcher')
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const locale = useLocale() as AppLocale
   const { signOut } = useClerk()
   const router = useRouter()
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
-
-  const queryString = searchParams.toString()
-  const localeHref = queryString ? `${pathname}?${queryString}` : pathname
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPathname, setMenuPathname] = useState<string | null>(null)
@@ -498,30 +494,6 @@ function SidebarFooterUserMenu() {
               <User className="size-4 text-sidebar-foreground/70" />
               {t('viewProfile')}
             </button>
-            <div className="mx-2 my-1 border-t border-sidebar-border/40" />
-            {LOCALES.map((option) => {
-              const isActive = locale === option
-              return (
-                <Link
-                  key={option}
-                  href={localeHref}
-                  locale={option}
-                  onClick={() => setMenuOpen(false)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={cn(
-                    'flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors',
-                    isActive
-                      ? 'bg-sidebar-accent text-sidebar-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                  )}
-                >
-                  <span className="inline-flex size-4 shrink-0 items-center justify-center text-xs font-semibold uppercase text-sidebar-foreground/70">
-                    {option.toUpperCase()}
-                  </span>
-                  {tLocale(`names.${option}`)}
-                </Link>
-              )
-            })}
             <div className="mx-2 my-1 border-t border-sidebar-border/40" />
             <button
               type="button"

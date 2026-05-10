@@ -263,6 +263,7 @@ export function GalleryFilterBar({
                 type: 'all',
                 timeRange: 'all',
                 liked: false,
+                projectId: filters.projectId,
               })
             }
             className="shrink-0 rounded-full text-muted-foreground"

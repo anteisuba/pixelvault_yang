@@ -60,7 +60,8 @@ export function ProjectCreateDialog({
     const trimmedDescription = description.trim()
     const response = await createProjectAPI({
       name: trimmedName,
-      description: trimmedDescription.length > 0 ? trimmedDescription : null,
+      description:
+        trimmedDescription.length > 0 ? trimmedDescription : undefined,
     })
     setIsCreating(false)
     if (response.success && response.data) {

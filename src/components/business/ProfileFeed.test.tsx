@@ -119,6 +119,7 @@ const DEFAULT_PROPS = {
     type: 'all' as const,
     timeRange: 'all' as const,
     liked: false,
+    projectId: '',
   },
 }
 

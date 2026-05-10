@@ -1,16 +1,16 @@
 import {
   Geist_Mono,
-  Inter,
   Lora,
   Noto_Sans_JP,
   Noto_Sans_SC,
   Space_Grotesk,
 } from 'next/font/google'
 
-export const appSans = Inter({
+export const appSans = Space_Grotesk({
   variable: '--font-app-sans',
   subsets: ['latin'],
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 })
 
 export const displayFont = Space_Grotesk({

@@ -3,11 +3,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import NextImage from 'next/image'
 
 import { Input } from '@/components/ui/input'
 import { useGallery } from '@/hooks/use-gallery'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, OutputTypeFilter } from '@/types'
+
+/**
+ * Smaller initial batch keeps the popover snappy when the archive is large
+ * (PixelVault accounts with hundreds of saved generations would otherwise
+ * stall on the first /api/images response). The infinite-scroll sentinel
+ * still pulls more pages as the user scrolls.
+ */
+const POPOVER_LIMIT = 12
 
 interface AssetBrowserProps {
   /**
@@ -61,6 +70,7 @@ export function AssetBrowser({
         projectId,
       },
       mine: true,
+      limit: POPOVER_LIMIT,
     })
 
   // useGallery doesn't auto-fetch on mount (it expects SSR-supplied
@@ -100,37 +110,51 @@ export function AssetBrowser({
         </div>
       ) : (
         <div className="grid grid-cols-4 gap-1.5">
-          {generations.map((gen) => (
-            <button
-              key={gen.id}
-              type="button"
-              onClick={() => onSelect(gen)}
-              className={cn(
-                'group relative overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200',
-                'hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-              )}
-              aria-label={gen.prompt || gen.id}
-              title={gen.prompt || undefined}
-            >
-              {gen.outputType === 'VIDEO' ? (
-                <video
-                  src={`${gen.url}#t=0.1`}
-                  muted
-                  playsInline
-                  preload="metadata"
-                  className="aspect-square w-full object-cover"
+          {generations.length === 0 && isLoading
+            ? // Skeleton tiles while the first page is in flight — same grid
+              // shape so the layout doesn't pop when real thumbnails arrive.
+              Array.from({ length: POPOVER_LIMIT }).map((_, idx) => (
+                <div
+                  key={`skeleton-${idx}`}
+                  className="aspect-square animate-pulse rounded-md bg-muted/40"
                 />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={gen.url}
-                  alt={gen.prompt || ''}
-                  className="aspect-square w-full object-cover"
-                  loading="lazy"
-                />
-              )}
-            </button>
-          ))}
+              ))
+            : generations.map((gen) => (
+                <button
+                  key={gen.id}
+                  type="button"
+                  onClick={() => onSelect(gen)}
+                  className={cn(
+                    'group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200',
+                    'hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                  )}
+                  aria-label={gen.prompt || gen.id}
+                  title={gen.prompt || undefined}
+                >
+                  {gen.outputType === 'VIDEO' ? (
+                    <video
+                      src={`${gen.url}#t=0.1`}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  ) : (
+                    // next/image with fill + a tight sizes hint asks the
+                    // optimizer for the 200px AVIF/WebP variant configured in
+                    // next.config.ts — much smaller payload than the original
+                    // R2 asset, and lazy-loaded below the fold by default.
+                    <NextImage
+                      src={gen.url}
+                      alt={gen.prompt || ''}
+                      fill
+                      sizes="200px"
+                      className="object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                </button>
+              ))}
           {hasMore && <div ref={sentinelRef} className="col-span-4 h-2" />}
         </div>
       )}

@@ -30,7 +30,7 @@ export function HomepageHero({
               width={320}
               height={320}
               className="h-full w-full object-cover"
-              priority={item.id === HOMEPAGE_SHOWCASE[0]?.id}
+              priority
             />
           </div>
         ))}

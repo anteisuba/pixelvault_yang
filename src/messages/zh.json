@@ -545,7 +545,18 @@
     "projectCreateSubmit": "创建",
     "projectCreating": "创建中…",
     "projectCreated": "项目已创建",
-    "projectCreateFailed": "创建项目失败"
+    "projectCreateFailed": "创建项目失败",
+    "assetBrowserSearch": "搜索资产…",
+    "assetBrowserEmpty": "这里还没有资产",
+    "assetBrowserLoading": "加载中…"
+  },
+  "ImageChip": {
+    "label": "素材",
+    "selectFromArchive": "从档案选择",
+    "selectAssetEmpty": "还没有保存的素材",
+    "filterAll": "全部",
+    "filterImage": "图像",
+    "filterVideo": "视频"
   },
   "Collections": {
     "title": "合集",

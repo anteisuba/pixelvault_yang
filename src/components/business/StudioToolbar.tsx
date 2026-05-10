@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
 interface StudioToolbarProps {
@@ -153,6 +154,7 @@ export function StudioToolbar({
           badge={referenceImageCount}
           disabled={disabled}
         />
+        <ReferenceImageChip disabled={disabled} />
         <ToolButton
           icon={<Wand2 className="h-3.5 w-3.5" />}
           label={t('transform')}

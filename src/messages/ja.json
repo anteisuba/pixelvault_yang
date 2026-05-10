@@ -545,7 +545,18 @@
     "projectCreateSubmit": "作成",
     "projectCreating": "作成中...",
     "projectCreated": "プロジェクトを作成しました",
-    "projectCreateFailed": "プロジェクトの作成に失敗しました"
+    "projectCreateFailed": "プロジェクトの作成に失敗しました",
+    "assetBrowserSearch": "アセットを検索...",
+    "assetBrowserEmpty": "ここに表示するアセットはありません",
+    "assetBrowserLoading": "読み込み中..."
+  },
+  "ImageChip": {
+    "label": "アセット",
+    "selectFromArchive": "アーカイブから選ぶ",
+    "selectAssetEmpty": "保存済みの画像がありません",
+    "filterAll": "すべて",
+    "filterImage": "画像",
+    "filterVideo": "動画"
   },
   "Collections": {
     "title": "コレクション",

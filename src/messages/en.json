@@ -545,7 +545,18 @@
     "projectCreateSubmit": "Create",
     "projectCreating": "Creating…",
     "projectCreated": "Project created",
-    "projectCreateFailed": "Failed to create project"
+    "projectCreateFailed": "Failed to create project",
+    "assetBrowserSearch": "Search assets…",
+    "assetBrowserEmpty": "No assets to show here yet",
+    "assetBrowserLoading": "Loading…"
+  },
+  "ImageChip": {
+    "label": "Asset",
+    "selectFromArchive": "Pick from archive",
+    "selectAssetEmpty": "No saved assets yet",
+    "filterAll": "All",
+    "filterImage": "Images",
+    "filterVideo": "Videos"
   },
   "Collections": {
     "title": "Collections",

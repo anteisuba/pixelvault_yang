@@ -1,6 +1,7 @@
+import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
-import { Navbar } from '@/components/layout/Navbar'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 
 export default function MainLayout({
@@ -17,10 +18,12 @@ export default function MainLayout({
         Skip to main content
       </a>
       <MainProviders>
-        <Navbar />
-        <main id="main-content" className="pb-14 md:pb-0">
-          {children}
-        </main>
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+          <SidebarInset id="main-content" className="pb-14 md:pb-0">
+            {children}
+          </SidebarInset>
+        </SidebarProvider>
         <MobileTabBar />
       </MainProviders>
       <Toaster />

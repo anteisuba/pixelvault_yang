@@ -533,7 +533,10 @@
     "batchDeleteConfirmTitle": "删除 {count} 项？",
     "batchDeleteConfirmDescription": "将永久删除所选的生成内容及其存储文件。",
     "batchSuccess": "批量操作完成",
-    "batchFailed": "批量操作失败"
+    "batchFailed": "批量操作失败",
+    "projectFilterLabel": "项目",
+    "projectAll": "全部",
+    "projectNone": "未分类"
   },
   "Collections": {
     "title": "合集",

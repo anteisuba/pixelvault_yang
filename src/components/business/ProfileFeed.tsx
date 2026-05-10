@@ -24,6 +24,7 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryFilterBar } from '@/components/business/GalleryFilterBar'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
+import { ProjectChipFilter } from '@/components/business/ProjectChipFilter'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
@@ -155,7 +156,11 @@ export function ProfileFeed({
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
+      <ProjectChipFilter
+        selectedProjectId={filters.projectId}
+        onChange={(projectId) => handleFiltersChange({ ...filters, projectId })}
+      />
       <GalleryFilterBar
         filters={filters}
         onFiltersChange={handleFiltersChange}

@@ -533,7 +533,10 @@
     "batchDeleteConfirmTitle": "Delete {count} generations?",
     "batchDeleteConfirmDescription": "This will permanently delete the selected generations and their stored files.",
     "batchSuccess": "Batch operation completed",
-    "batchFailed": "Batch operation failed"
+    "batchFailed": "Batch operation failed",
+    "projectFilterLabel": "Project",
+    "projectAll": "All",
+    "projectNone": "Unassigned"
   },
   "Collections": {
     "title": "Collections",

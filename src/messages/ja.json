@@ -533,7 +533,10 @@
     "batchDeleteConfirmTitle": "{count}件を削除しますか？",
     "batchDeleteConfirmDescription": "選択した生成結果とそのファイルが完全に削除されます。",
     "batchSuccess": "一括操作が完了しました",
-    "batchFailed": "一括操作に失敗しました"
+    "batchFailed": "一括操作に失敗しました",
+    "projectFilterLabel": "プロジェクト",
+    "projectAll": "すべて",
+    "projectNone": "未分類"
   },
   "Collections": {
     "title": "コレクション",

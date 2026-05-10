@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
 interface StudioToolbarProps {
   onEnhance?: () => void
@@ -135,6 +136,7 @@ export function StudioToolbar({
           onClick={onReverse}
           disabled={disabled}
         />
+        <StylePresetButton disabled={disabled} />
         {!quickMode && (
           <ToolButton
             icon={<Settings2 className="h-3.5 w-3.5" />}

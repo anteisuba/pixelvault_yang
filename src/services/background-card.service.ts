@@ -12,6 +12,7 @@ import type {
 import { ensureUser } from '@/services/user.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { extractBackgroundAttributes } from '@/services/recipe-compiler.service'
+import { ownedBy } from '@/lib/db-scope'
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ export async function createBackgroundCard(
 
   // Check limit
   const count = await db.backgroundCard.count({
-    where: { userId: user.id, isDeleted: false },
+    where: { ...ownedBy(user.id), isDeleted: false },
   })
   if (count >= BACKGROUND_CARD.MAX_CARDS_PER_USER) {
     throw new Error(

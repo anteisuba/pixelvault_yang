@@ -13,6 +13,7 @@ import { ensureUser } from '@/services/user.service'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { extractStyleAttributes } from '@/services/recipe-compiler.service'
 import { logger } from '@/lib/logger'
+import { ownedBy } from '@/lib/db-scope'
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ export async function createStyleCard(
   const user = await ensureUser(clerkId)
 
   const count = await db.styleCard.count({
-    where: { userId: user.id, isDeleted: false },
+    where: { ...ownedBy(user.id), isDeleted: false },
   })
   if (count >= STYLE_CARD.MAX_CARDS_PER_USER) {
     throw new Error(

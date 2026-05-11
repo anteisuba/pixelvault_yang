@@ -23,6 +23,7 @@ import {
 } from '@/services/character-card.mapper'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
+import { ownedBy } from '@/lib/db-scope'
 
 // ─── System Prompts ────────────────────────────────────────────
 
@@ -283,7 +284,7 @@ export async function createCharacterCard(
 
   // Check card limit
   const count = await db.characterCard.count({
-    where: { userId: dbUser.id, isDeleted: false },
+    where: { ...ownedBy(dbUser.id), isDeleted: false },
   })
   if (count >= CHARACTER_CARD.MAX_CARDS_PER_USER) {
     throw new Error(

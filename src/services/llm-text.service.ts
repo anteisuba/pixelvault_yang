@@ -7,6 +7,8 @@ import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 import { getSystemApiKey } from '@/lib/platform-keys'
+import { logger } from '@/lib/logger'
+import { validatePrompt } from '@/lib/prompt-guard'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -384,10 +386,29 @@ async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
+ * Reject prompts that match a known injection pattern (e.g. `[INST]`,
+ * "ignore previous instructions"). System prompts are platform-controlled so
+ * they're trusted; only user-supplied content is checked. Callers don't have
+ * to remember to call `validatePrompt` themselves — this is the single
+ * choke-point every LLM request flows through.
+ */
+function guardUserPrompt(prompt: string): void {
+  if (!prompt) return
+  const result = validatePrompt(prompt)
+  if (!result.valid) {
+    throw new Error(`Prompt rejected by guard: ${result.reason}`)
+  }
+  if (result.warnings.length > 0) {
+    logger.warn('Prompt guard warnings', { warnings: result.warnings })
+  }
+}
+
+/**
  * Complete a text prompt using the specified LLM provider.
  * Supports pure text and multimodal (image + text) input.
  */
 export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
+  guardUserPrompt(input.userPrompt)
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
       return geminiTextCompletion(input)

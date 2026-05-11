@@ -641,6 +641,8 @@ export interface GenerationRecord {
   isPromptPublic: boolean
   isFeatured?: boolean
   userId?: string | null
+  /** Project (folder) the generation belongs to. `null` means Unassigned. */
+  projectId?: string | null
   /** Creator info — present in gallery context */
   creator?: {
     username: string

@@ -1,4 +1,8 @@
-import type { AssetSectionCounts, GalleryResponse } from '@/types'
+import type {
+  AssetSectionCounts,
+  GalleryResponse,
+  GenerationRecord,
+} from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
@@ -53,6 +57,71 @@ export async function fetchGalleryImages(
       }
     }
     return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Fetch the full owner-scoped generation row (including snapshot) for
+ * detail-style consumers like the Studio remix bootstrap. Slim list
+ * payloads intentionally exclude snapshot, so the cross-route remix
+ * flow uses this endpoint to rebuild the original preset.
+ */
+export async function fetchGenerationByIdAPI(
+  id: string,
+): Promise<
+  { success: true; data: GenerationRecord } | { success: false; error: string }
+> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}`)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Move a generation between folders (or unset it). `projectId === null`
+ * sends it back to Unassigned.
+ */
+export async function assignGenerationProjectAPI(
+  id: string,
+  projectId: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}/project`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId }),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return { success: true }
   } catch (error) {
     return {
       success: false,

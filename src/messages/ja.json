@@ -1909,6 +1909,14 @@
     "linkCopied": "リンクをコピーしました",
     "toolRemix": "リミックス",
     "toolEdit": "AIで編集",
+    "toolInpaint": "部分修復",
+    "toolOutpaint": "キャンバス拡張",
+    "inpaintEditor": {
+      "title": "部分修復"
+    },
+    "outpaintEditor": {
+      "title": "キャンバス拡張"
+    },
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
     "zoomIn": "拡大",

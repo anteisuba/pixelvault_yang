@@ -1909,6 +1909,14 @@
     "linkCopied": "Link copied",
     "toolRemix": "Remix",
     "toolEdit": "Edit with AI",
+    "toolInpaint": "Inpaint",
+    "toolOutpaint": "Outpaint",
+    "inpaintEditor": {
+      "title": "Inpaint"
+    },
+    "outpaintEditor": {
+      "title": "Outpaint"
+    },
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
     "zoomIn": "Zoom in",

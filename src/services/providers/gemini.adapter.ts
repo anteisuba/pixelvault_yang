@@ -114,7 +114,10 @@ export const geminiAdapter: ProviderAdapter = {
           },
         },
       }),
-      signal: AbortSignal.timeout(230_000),
+      // 60s cap. A healthy Gemini call returns in 5–15s. The previous
+      // 230s budget meant a slow-rolling 503 ("experiencing high demand")
+      // could hang the user for 4+ minutes once retries were factored in.
+      signal: AbortSignal.timeout(60_000),
     })
 
     if (!response.ok) {

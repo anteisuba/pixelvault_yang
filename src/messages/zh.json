@@ -1909,6 +1909,14 @@
     "linkCopied": "链接已复制",
     "toolRemix": "重混",
     "toolEdit": "AI 编辑",
+    "toolInpaint": "局部重绘",
+    "toolOutpaint": "扩展画布",
+    "inpaintEditor": {
+      "title": "局部重绘"
+    },
+    "outpaintEditor": {
+      "title": "扩展画布"
+    },
     "toolDrawerTitle": "工具",
     "toolMore": "更多工具",
     "zoomIn": "放大",

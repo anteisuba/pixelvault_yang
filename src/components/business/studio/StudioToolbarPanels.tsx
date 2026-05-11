@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useCallback, useState } from 'react'
 import {
   FileText,
   Image as ImageIcon,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   useStudioForm,
@@ -19,6 +20,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { StudioToolbar } from '@/components/business/StudioToolbar'
+import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import { cn } from '@/lib/utils'
 
 /**
@@ -30,9 +32,36 @@ import { cn } from '@/lib/utils'
 export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, promptEnhance, civitai } = useStudioData()
-  const { isGenerating } = useStudioGen()
+  const { isGenerating, setCurrentPlan } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
+  const tV2 = useTranslations('StudioV2')
+
+  const [isPlanning, setIsPlanning] = useState(false)
+  // Plan flow is opt-in from the toolbar (image quick-mode only). It asks
+  // the AI to suggest models / compile a prompt / estimate cost; the user
+  // then confirms or discards in the plan dialog. Manually picking a model
+  // and clicking Generate skips this entirely (see StudioPromptArea).
+  const handleOpenPlan = useCallback(async () => {
+    if (isPlanning) return
+    const prompt = state.prompt.trim()
+    if (!prompt) {
+      toast.info(tV2('planNeedsPrompt'))
+      return
+    }
+    setIsPlanning(true)
+    try {
+      const result = await fetchGenerationPlanAPI({ naturalLanguage: prompt })
+      if (result.success && result.data) {
+        setCurrentPlan(result.data)
+        dispatch({ type: 'OPEN_PANEL', payload: 'planPreview' })
+      } else {
+        toast.error(result.error ?? 'Failed to generate plan')
+      }
+    } finally {
+      setIsPlanning(false)
+    }
+  }, [isPlanning, state.prompt, tV2, setCurrentPlan, dispatch])
 
   // Video mode: show video-specific toolbar (enhance, refImage, aspectRatio, videoParams)
   if (state.outputType === 'video') {
@@ -176,6 +205,9 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         dispatch({ type: 'TOGGLE_PANEL', payload: 'transform' })
       }
       transformOpen={state.panels.transform}
+      onPlan={handleOpenPlan}
+      planLoading={isPlanning}
+      planActive={state.panels.planPreview}
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }

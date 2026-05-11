@@ -8,6 +8,7 @@ import {
   Layers,
   Wand2,
   Cpu,
+  Compass,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -33,6 +34,9 @@ interface StudioToolbarProps {
   onLayerDecompose?: () => void
   onTransform?: () => void
   transformOpen?: boolean
+  onPlan?: () => void
+  planLoading?: boolean
+  planActive?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
   disabled?: boolean
@@ -99,6 +103,9 @@ export function StudioToolbar({
   onLayerDecompose,
   onTransform,
   transformOpen,
+  onPlan,
+  planLoading,
+  planActive,
   onCivitaiToken,
   hasToken,
   disabled,
@@ -151,6 +158,19 @@ export function StudioToolbar({
           active={transformOpen}
           disabled={disabled}
         />
+        {onPlan && (
+          <ToolButton
+            icon={
+              <Compass
+                className={cn('h-3.5 w-3.5', planLoading && 'animate-spin')}
+              />
+            }
+            label={planLoading ? t('planLoading') : t('plan')}
+            onClick={onPlan}
+            active={planActive}
+            disabled={disabled || planLoading}
+          />
+        )}
         {!quickMode && (
           <ToolButton
             icon={<Layers className="h-3.5 w-3.5" />}

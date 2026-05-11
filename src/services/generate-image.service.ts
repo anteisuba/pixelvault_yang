@@ -495,13 +495,37 @@ async function persistGeneratedImage(params: {
 
 // ─── Orchestrator ───────────────────────────────────────────────
 
+/**
+ * Optional injection seams for the orchestrator. Callers (tests, alternate
+ * worker entry points, future cohort/A-B branches) can override individual
+ * collaborators without `vi.mock`-ing the whole module. Production keeps the
+ * existing behaviour because every field falls back to the real
+ * implementation imported at the top of this file.
+ */
+export interface GenerateImageDeps {
+  ensureUser?: typeof ensureUser
+  validatePrompt?: typeof validatePrompt
+  resolveGenerationRoute?: typeof resolveGenerationRoute
+  getModelById?: typeof getModelById
+  createGenerationJob?: typeof createGenerationJob
+  getProviderAdapter?: typeof getProviderAdapter
+}
+
 export async function generateImageForUser(
   clerkId: string,
   input: GenerateRequest,
+  deps: GenerateImageDeps = {},
 ): Promise<GenerationRecord> {
-  const dbUser = await ensureUser(clerkId)
+  const ensureUserFn = deps.ensureUser ?? ensureUser
+  const validatePromptFn = deps.validatePrompt ?? validatePrompt
+  const resolveRouteFn = deps.resolveGenerationRoute ?? resolveGenerationRoute
+  const getModelByIdFn = deps.getModelById ?? getModelById
+  const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
+  const getProviderAdapterFn = deps.getProviderAdapter ?? getProviderAdapter
 
-  const promptCheck = validatePrompt(input.prompt)
+  const dbUser = await ensureUserFn(clerkId)
+
+  const promptCheck = validatePromptFn(input.prompt)
   if (!promptCheck.valid) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',
@@ -510,9 +534,9 @@ export async function generateImageForUser(
     )
   }
 
-  const route = await resolveGenerationRoute(dbUser.id, input)
+  const route = await resolveRouteFn(dbUser.id, input)
 
-  const builtInModel = getModelById(input.modelId)
+  const builtInModel = getModelByIdFn(input.modelId)
   if (builtInModel?.requiresReferenceImage) {
     const hasRef =
       input.referenceImage || (input.referenceImages?.length ?? 0) > 0
@@ -526,7 +550,7 @@ export async function generateImageForUser(
   }
 
   const provider = getProviderLabel(route.providerConfig)
-  const providerAdapter = getProviderAdapter(route.adapterType)
+  const providerAdapter = getProviderAdapterFn(route.adapterType)
   if (!providerAdapter) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
@@ -535,7 +559,7 @@ export async function generateImageForUser(
     )
   }
 
-  const job = await createGenerationJob({
+  const job = await createGenerationJobFn({
     userId: dbUser.id,
     adapterType: route.adapterType,
     provider,

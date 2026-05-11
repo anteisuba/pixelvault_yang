@@ -14,6 +14,7 @@ import {
 vi.mock('@/services/generation.service', () => ({
   getPublicGenerations: vi.fn(),
   countPublicGenerations: vi.fn(),
+  getAnonymousPublicGalleryPage: vi.fn(),
 }))
 
 vi.mock('@/services/user.service', () => ({
@@ -24,11 +25,13 @@ import { GET } from '@/app/api/images/route'
 import {
   getPublicGenerations,
   countPublicGenerations,
+  getAnonymousPublicGalleryPage,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 
 const mockGetPublic = vi.mocked(getPublicGenerations)
 const mockCountPublic = vi.mocked(countPublicGenerations)
+const mockGetAnonPage = vi.mocked(getAnonymousPublicGalleryPage)
 const mockEnsureUser = vi.mocked(ensureUser)
 
 // ─── Tests ────────────────────────────────────────────────────────
@@ -38,6 +41,10 @@ describe('GET /api/images', () => {
     vi.clearAllMocks()
     mockGetPublic.mockResolvedValue([FAKE_GENERATION as never])
     mockCountPublic.mockResolvedValue(1)
+    mockGetAnonPage.mockResolvedValue({
+      generations: [FAKE_GENERATION as never],
+      total: 1,
+    })
   })
 
   it('returns public generations with default pagination', async () => {
@@ -61,9 +68,11 @@ describe('GET /api/images', () => {
     expect(json.data.limit).toBe(20)
     expect(json.data.total).toBe(1)
     expect(json.data.hasMore).toBe(false)
-    expect(mockGetPublic).toHaveBeenCalledWith(
+    // Anonymous public path goes through the cached helper, not the raw service.
+    expect(mockGetAnonPage).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, limit: 20 }),
     )
+    expect(mockGetPublic).not.toHaveBeenCalled()
   })
 
   it('supports search/model/type/sort filters', async () => {
@@ -80,7 +89,7 @@ describe('GET /api/images', () => {
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(mockGetPublic).toHaveBeenCalledWith(
+    expect(mockGetAnonPage).toHaveBeenCalledWith(
       expect.objectContaining({
         search: 'sunset',
         model: 'sdxl',
@@ -131,7 +140,9 @@ describe('GET /api/images', () => {
   })
 
   it('returns 500 when service throws', async () => {
-    mockGetPublic.mockRejectedValue(new Error('DB down'))
+    mockUnauthenticated()
+    mockGetAnonPage.mockReset()
+    mockGetAnonPage.mockRejectedValueOnce(new Error('DB down'))
     const req = createGET('/api/images')
     const res = await GET(req)
     const json = await parseJSON<{ success: boolean; error: string }>(res)

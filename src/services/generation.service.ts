@@ -3,6 +3,11 @@ import 'server-only'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
+import {
+  CACHE_TAGS,
+  cacheableFn,
+  invalidatePublicGalleryCache,
+} from '@/lib/cache-tags'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
   AssetSectionCounts,
@@ -288,6 +293,10 @@ export async function createGeneration(
     })
   }
 
+  if (input.isPublic) {
+    invalidatePublicGalleryCache()
+  }
+
   return generation
 }
 
@@ -553,6 +562,10 @@ export async function toggleGenerationVisibility(
     },
   })
 
+  if (field === 'isPublic') {
+    invalidatePublicGalleryCache()
+  }
+
   return updated
 }
 
@@ -575,6 +588,54 @@ export async function countPublicGenerations(
   return db.generation.count({
     where: buildGalleryWhere(options),
   })
+}
+
+/**
+ * Cached variant for the **anonymous public gallery only**. Routes must call
+ * this only when there is no viewer/owner/liked-by filter (i.e. the response
+ * is identical for every anonymous visitor). On any user-scoped path, call
+ * the un-cached `getPublicGenerations` / `countPublicGenerations` directly.
+ *
+ * Tagged with CACHE_TAGS.galleryPublic so it invalidates when a new public
+ * generation is created or visibility is toggled.
+ */
+type PublicGalleryCacheKey = {
+  page: number
+  limit: number
+  search?: string
+  model?: string
+  sort: GallerySortOption
+  type?: OutputTypeFilter
+  timeRange?: GalleryTimeRange
+  projectId?: string
+}
+
+const fetchAnonymousPublicGalleryUncached = async (
+  key: PublicGalleryCacheKey,
+): Promise<{ generations: GenerationRecord[]; total: number }> => {
+  const [generations, total] = await Promise.all([
+    getPublicGenerations(key),
+    countPublicGenerations({
+      search: key.search,
+      model: key.model,
+      type: key.type,
+      timeRange: key.timeRange,
+      projectId: key.projectId,
+    }),
+  ])
+  return { generations, total }
+}
+
+const cachedAnonymousPublicGallery = cacheableFn(
+  fetchAnonymousPublicGalleryUncached,
+  ['gallery:public:anon:v1'],
+  { tags: [CACHE_TAGS.galleryPublic], revalidate: 30 },
+)
+
+export async function getAnonymousPublicGalleryPage(
+  key: PublicGalleryCacheKey,
+): Promise<{ generations: GenerationRecord[]; total: number }> {
+  return cachedAnonymousPublicGallery(key)
 }
 
 /**
@@ -672,6 +733,10 @@ export async function deleteGeneration(
 
   await db.generation.delete({ where: { id } })
 
+  if (generation.isPublic) {
+    invalidatePublicGalleryCache()
+  }
+
   return { storageKey: generation.storageKey }
 }
 
@@ -693,6 +758,8 @@ export async function batchDeleteGenerations(
   const ownedIds = generations.map((g) => g.id)
   await db.generation.deleteMany({ where: { id: { in: ownedIds } } })
 
+  invalidatePublicGalleryCache()
+
   return {
     deletedCount: generations.length,
     storageKeys: generations.map((g) => g.storageKey),
@@ -712,6 +779,9 @@ export async function batchUpdateVisibility(
     where: { id: { in: ids }, userId },
     data: { [field]: value },
   })
+  if (field === 'isPublic' && result.count > 0) {
+    invalidatePublicGalleryCache()
+  }
   return result.count
 }
 

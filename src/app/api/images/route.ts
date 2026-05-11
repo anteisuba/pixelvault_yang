@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { createApiGetRoute } from '@/lib/api-route-factory'
 import { AuthError, ApiRequestError } from '@/lib/errors'
 import { GallerySearchSchema, type GalleryResponseData } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   getPublicGenerations,
   countPublicGenerations,
+  getAnonymousPublicGalleryPage,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 
@@ -19,6 +21,7 @@ export const GET = createApiGetRoute<
 >({
   schema: GalleryRequestSchema,
   routeName: 'GET /api/images',
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId, data }): Promise<GalleryResponseData> => {
     try {
       const mine = data.mine === '1'
@@ -40,30 +43,46 @@ export const GET = createApiGetRoute<
         }
       }
 
-      const [generations, total] = await Promise.all([
-        getPublicGenerations({
-          page: data.page,
-          limit: data.limit,
-          search: data.search,
-          model: data.model,
-          sort: data.sort,
-          type: data.type,
-          timeRange: data.timeRange,
-          userId,
-          likedByUserId,
-          viewerUserId,
-          projectId: data.projectId,
-        }),
-        countPublicGenerations({
-          search: data.search,
-          model: data.model,
-          type: data.type,
-          timeRange: data.timeRange,
-          userId,
-          likedByUserId,
-          projectId: data.projectId,
-        }),
-      ])
+      const canUseAnonymousCache = !userId && !likedByUserId && !viewerUserId
+
+      const { generations, total } = canUseAnonymousCache
+        ? await getAnonymousPublicGalleryPage({
+            page: data.page,
+            limit: data.limit,
+            search: data.search,
+            model: data.model,
+            sort: data.sort,
+            type: data.type,
+            timeRange: data.timeRange,
+            projectId: data.projectId,
+          })
+        : await (async () => {
+            const [gens, tot] = await Promise.all([
+              getPublicGenerations({
+                page: data.page,
+                limit: data.limit,
+                search: data.search,
+                model: data.model,
+                sort: data.sort,
+                type: data.type,
+                timeRange: data.timeRange,
+                userId,
+                likedByUserId,
+                viewerUserId,
+                projectId: data.projectId,
+              }),
+              countPublicGenerations({
+                search: data.search,
+                model: data.model,
+                type: data.type,
+                timeRange: data.timeRange,
+                userId,
+                likedByUserId,
+                projectId: data.projectId,
+              }),
+            ])
+            return { generations: gens, total: tot }
+          })()
 
       return {
         generations,

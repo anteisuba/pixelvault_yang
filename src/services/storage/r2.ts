@@ -9,6 +9,7 @@ import {
 import { Upload } from '@aws-sdk/lib-storage'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
+import { assertSafeUrl } from '@/lib/url-guard'
 
 // ─── R2 Client ────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ export async function fetchAsBuffer(
     return { buffer, mimeType }
   }
 
+  assertSafeUrl(url)
   const response = await fetch(url, headers ? { headers } : undefined)
   if (!response.ok) {
     throw new Error(`Failed to fetch image (${response.status}): ${url}`)

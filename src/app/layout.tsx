@@ -26,7 +26,12 @@ export default async function RootLayout({
   const locale = await getLocale()
 
   return (
-    <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
+    <html
+      lang={locale}
+      className="dark"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <body
         className={`${appSans.variable} ${displayFont.variable} ${serifFont.variable} ${geistMono.variable} ${japaneseSans.variable} ${chineseSans.variable} font-sans antialiased`}
       >

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Folder,
   FolderOpen,
@@ -22,8 +22,9 @@ import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
+import { fetchAssetSectionCounts } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import type { GenerationRecord } from '@/types'
+import type { AssetSectionCounts, GenerationRecord } from '@/types'
 
 type LockedMediaType = 'image' | 'video' | 'audio'
 
@@ -127,17 +128,23 @@ export function KreaAssetBrowser({
     initialFilters: effectiveInitialFilters,
     mine: true,
     limit: 24,
+    // Page-level callers (AssetsPage) supply SSR data — the additional
+    // initial fetch was double-loading every visit. Dialog callers pass
+    // no SSR data, so we only refetch when the initial list is empty
+    // AND there's no SSR-provided total to trust.
+    keepPreviousOnFilterChange: true,
   })
 
   // When mounted without SSR data (e.g. inside AssetSelectorDialog),
   // re-apply the filters once so useGallery actually fetches the first
   // page — it doesn't auto-fetch on mount because page-level callers
   // already supply server-rendered initialGenerations.
+  const ssrPrimed = initialGenerations.length > 0 || initialTotal > 0
   const didInitialFetchRef = useRef(false)
   useEffect(() => {
     if (didInitialFetchRef.current) return
     didInitialFetchRef.current = true
-    if (initialGenerations.length === 0) {
+    if (!ssrPrimed) {
       setFilters(filters)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +155,17 @@ export function KreaAssetBrowser({
     () => sectionFromFilters(filters, mediaType),
     [filters, mediaType],
   )
+
+  // Aggregate sidebar counts. One request per page load instead of one
+  // per item — and the All count stays stable as the user filters down.
+  const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
+  const refreshCounts = useCallback(async () => {
+    const response = await fetchAssetSectionCounts()
+    if (response.success) setCounts(response.data)
+  }, [])
+  useEffect(() => {
+    void refreshCounts()
+  }, [refreshCounts])
 
   const setSection = (next: Section) => {
     const base: GalleryFilters = {
@@ -186,6 +204,27 @@ export function KreaAssetBrowser({
   }
 
   const isEmpty = !isLoading && generations.length === 0
+
+  // Per-section counts — fall back to live `total` only for the bucket the
+  // user is currently viewing so the sidebar still moves on add/delete
+  // before the next refreshCounts() lands.
+  const allCount = counts?.all ?? (section.kind === 'all' ? total : undefined)
+  const favoritesCount =
+    counts?.favorites ?? (section.kind === 'favorites' ? total : undefined)
+  const imageCount =
+    counts?.image ??
+    (section.kind === 'type' && section.type === 'image' ? total : undefined)
+  const videoCount =
+    counts?.video ??
+    (section.kind === 'type' && section.type === 'video' ? total : undefined)
+  const audioCount =
+    counts?.audio ??
+    (section.kind === 'type' && section.type === 'audio' ? total : undefined)
+  const unassignedCount =
+    counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
+  const projectCount = (id: string): number | undefined =>
+    counts?.byProject[id] ??
+    (section.kind === 'project' && section.id === id ? total : undefined)
 
   return (
     <div
@@ -290,13 +329,14 @@ export function KreaAssetBrowser({
             active={section.kind === 'all'}
             icon={<FolderOpen className="size-4" />}
             label={t('sidebarAll')}
-            count={total}
+            count={allCount}
             onClick={() => setSection({ kind: 'all' })}
           />
           <SidebarItem
             active={section.kind === 'favorites'}
             icon={<Heart className="size-4" />}
             label={t('sidebarFavorites')}
+            count={favoritesCount}
             onClick={() => setSection({ kind: 'favorites' })}
           />
 
@@ -312,18 +352,21 @@ export function KreaAssetBrowser({
                 active={section.kind === 'type' && section.type === 'image'}
                 icon={<ImageIcon className="size-4" />}
                 label={t('sidebarImages')}
+                count={imageCount}
                 onClick={() => setSection({ kind: 'type', type: 'image' })}
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'video'}
                 icon={<Video className="size-4" />}
                 label={t('sidebarVideos')}
+                count={videoCount}
                 onClick={() => setSection({ kind: 'type', type: 'video' })}
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'audio'}
                 icon={<Mic className="size-4" />}
                 label={t('sidebarAudio')}
+                count={audioCount}
                 onClick={() => setSection({ kind: 'type', type: 'audio' })}
               />
             </>
@@ -336,6 +379,7 @@ export function KreaAssetBrowser({
             <ProjectCreateDialog
               onCreated={(project) => {
                 void refreshProjects()
+                void refreshCounts()
                 setSection({ kind: 'project', id: project.id })
               }}
               trigger={
@@ -353,6 +397,7 @@ export function KreaAssetBrowser({
             active={section.kind === 'unassigned'}
             icon={<FolderX className="size-4" />}
             label={t('sidebarUnassigned')}
+            count={unassignedCount}
             onClick={() => setSection({ kind: 'unassigned' })}
           />
           {projects.map((project) => (
@@ -361,6 +406,7 @@ export function KreaAssetBrowser({
               active={section.kind === 'project' && section.id === project.id}
               icon={<Folder className="size-4" />}
               label={project.name}
+              count={projectCount(project.id)}
               onClick={() => setSection({ kind: 'project', id: project.id })}
             />
           ))}

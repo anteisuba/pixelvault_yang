@@ -786,6 +786,22 @@ export interface GalleryResponseData {
   hasMore: boolean
 }
 
+/**
+ * Aggregate counts powering the /assets right-sidebar. Returned by
+ * GET /api/assets/section-counts so each sidebar entry can render its
+ * own number without one count query per item.
+ */
+export interface AssetSectionCounts {
+  all: number
+  favorites: number
+  image: number
+  video: number
+  audio: number
+  unassigned: number
+  /** Keyed by project UUID. */
+  byProject: Record<string, number>
+}
+
 export interface GalleryResponse {
   success: boolean
   data?: GalleryResponseData

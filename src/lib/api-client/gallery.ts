@@ -1,4 +1,4 @@
-import type { GalleryResponse } from '@/types'
+import type { AssetSectionCounts, GalleryResponse } from '@/types'
 import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
@@ -100,6 +100,35 @@ export async function batchDeleteGenerationsAPI(ids: string[]): Promise<{
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', ids }),
     })
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export type AssetSectionCountsResponse =
+  | { success: true; data: AssetSectionCounts }
+  | { success: false; error: string }
+
+/**
+ * Fetch the aggregate counts powering the /assets right-sidebar.
+ */
+export async function fetchAssetSectionCounts(): Promise<AssetSectionCountsResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ASSET_SECTION_COUNTS)
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
     return await response.json()
   } catch (error) {
     return {

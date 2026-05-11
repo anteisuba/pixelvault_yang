@@ -45,6 +45,13 @@ interface UseGalleryOptions {
   limit?: number
   /** When true, fetches current user's own generations (including private) */
   mine?: boolean
+  /**
+   * When true, `setFilters` will keep the previous list / total visible
+   * until the new fetch resolves, instead of clearing them to 0 / [].
+   * Used by the /assets browser so switching the right-sidebar section
+   * doesn't flash an empty grid.
+   */
+  keepPreviousOnFilterChange?: boolean
 }
 
 export interface UseGalleryReturn {
@@ -91,6 +98,7 @@ export function useGallery({
   initialFilters,
   limit = PAGINATION.DEFAULT_LIMIT,
   mine = false,
+  keepPreviousOnFilterChange = false,
 }: UseGalleryOptions = {}): UseGalleryReturn {
   const tErrors = useTranslations('Errors')
   const [generations, setGenerations] =
@@ -188,12 +196,18 @@ export function useGallery({
       filtersRef.current = newFilters
       pageRef.current = 1
       setPage(1)
-      setGenerations([])
-      setTotal(0)
-      setHasMore(false)
+      // When the caller opts into keepPrevious, leave the existing list
+      // and total in place — the next fetchPage() will replace them on
+      // success. This avoids the empty-grid flash when the /assets
+      // sidebar switches sections.
+      if (!keepPreviousOnFilterChange) {
+        setGenerations([])
+        setTotal(0)
+        setHasMore(false)
+      }
       void fetchPage(1, false)
     },
-    [fetchPage],
+    [fetchPage, keepPreviousOnFilterChange],
   )
 
   useEffect(() => {

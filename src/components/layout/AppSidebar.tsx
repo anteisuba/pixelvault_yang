@@ -5,6 +5,7 @@ import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import {
   BookOpen,
+  ChevronDown,
   Coins,
   Image as ImageIcon,
   LayoutGrid,
@@ -130,6 +131,7 @@ function AppSidebarContent() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
   const tTools = useTranslations('StudioTools')
+  const [showComingSoon, setShowComingSoon] = useState(false)
   // Clerk's `<SignedIn>` / `<SignedOut>` resolve to null during SSR (auth
   // state isn't known on the server) and only emit content after the Clerk
   // client hydrates. Wrapping nav groups directly in them produced a
@@ -273,29 +275,75 @@ function AppSidebarContent() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {toolLinks.map((tool) => {
-                const isActive = tool.activePaths.some((p) => pathname === p)
-                const Icon = tool.icon
-                return (
-                  <SidebarMenuItem key={tool.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={tool.label}
-                    >
-                      <Link href={tool.href}>
-                        <Icon className="size-4 shrink-0" />
-                        <span>{tool.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    {tool.comingSoon && (
-                      <SidebarMenuBadge className="text-sidebar-foreground/50">
-                        <Lock className="size-3" />
-                      </SidebarMenuBadge>
+              {toolLinks
+                .filter((tool) => !tool.comingSoon)
+                .map((tool) => {
+                  const isActive = tool.activePaths.some((p) => pathname === p)
+                  const Icon = tool.icon
+                  return (
+                    <SidebarMenuItem key={tool.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={tool.label}
+                      >
+                        <Link href={tool.href}>
+                          <Icon className="size-4 shrink-0" />
+                          <span>{tool.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+
+              {/* Coming Soon expander — keeps 5 locked tools out of the
+                  default fold while staying discoverable. */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setShowComingSoon((v) => !v)}
+                  tooltip={tTools('comingSoon')}
+                  aria-expanded={showComingSoon}
+                  className="text-sidebar-foreground/60"
+                >
+                  <ChevronDown
+                    className={cn(
+                      'size-4 shrink-0 transition-transform duration-200',
+                      !showComingSoon && '-rotate-90',
                     )}
-                  </SidebarMenuItem>
-                )
-              })}
+                  />
+                  <span>{tTools('comingSoon')}</span>
+                </SidebarMenuButton>
+                <SidebarMenuBadge className="text-sidebar-foreground/40">
+                  {toolLinks.filter((t) => t.comingSoon).length}
+                </SidebarMenuBadge>
+              </SidebarMenuItem>
+
+              {showComingSoon &&
+                toolLinks
+                  .filter((tool) => tool.comingSoon)
+                  .map((tool) => {
+                    const isActive = tool.activePaths.some(
+                      (p) => pathname === p,
+                    )
+                    const Icon = tool.icon
+                    return (
+                      <SidebarMenuItem key={tool.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tool.label}
+                        >
+                          <Link href={tool.href}>
+                            <Icon className="size-4 shrink-0" />
+                            <span>{tool.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        <SidebarMenuBadge className="text-sidebar-foreground/50">
+                          <Lock className="size-3" />
+                        </SidebarMenuBadge>
+                      </SidebarMenuItem>
+                    )
+                  })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

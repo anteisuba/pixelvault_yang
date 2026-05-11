@@ -398,6 +398,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           value={aspectRatio}
           onChange={(v) => setAspectRatio(v as AspectRatio)}
           disabled={isCreating}
+          variant="neutral"
         />
       </div>
 

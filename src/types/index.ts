@@ -641,6 +641,8 @@ export interface GenerationRecord {
   isPromptPublic: boolean
   isFeatured?: boolean
   userId?: string | null
+  /** Project (folder) the generation belongs to. `null` means Unassigned. */
+  projectId?: string | null
   /** Creator info — present in gallery context */
   creator?: {
     username: string
@@ -784,6 +786,22 @@ export interface GalleryResponseData {
   limit: number
   total: number
   hasMore: boolean
+}
+
+/**
+ * Aggregate counts powering the /assets right-sidebar. Returned by
+ * GET /api/assets/section-counts so each sidebar entry can render its
+ * own number without one count query per item.
+ */
+export interface AssetSectionCounts {
+  all: number
+  favorites: number
+  image: number
+  video: number
+  audio: number
+  unassigned: number
+  /** Keyed by project UUID. */
+  byProject: Record<string, number>
 }
 
 export interface GalleryResponse {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Folder,
   FolderOpen,
@@ -16,14 +16,16 @@ import {
 import { useTranslations } from 'next-intl'
 import NextImage from 'next/image'
 
+import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
 import { Input } from '@/components/ui/input'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
+import { fetchAssetSectionCounts } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import type { GenerationRecord } from '@/types'
+import type { AssetSectionCounts, GenerationRecord } from '@/types'
 
 type LockedMediaType = 'image' | 'video' | 'audio'
 
@@ -66,6 +68,29 @@ type Section =
   | { kind: 'type'; type: 'image' | 'video' | 'audio' }
   | { kind: 'unassigned' }
   | { kind: 'project'; id: string }
+
+type Density = 'comfortable' | 'normal' | 'compact'
+const DENSITIES: readonly Density[] = ['comfortable', 'normal', 'compact']
+const DENSITY_STORAGE_KEY = 'pv:assets:density'
+const DENSITY_GRID_CLASS: Record<Density, string> = {
+  comfortable: 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
+  normal: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6',
+  compact: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8',
+}
+const DENSITY_IMAGE_SIZES: Record<Density, string> = {
+  comfortable: '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw',
+  normal: '(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw',
+  compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
+}
+const DENSITY_XL_COLS: Record<Density, number> = {
+  comfortable: 4,
+  normal: 6,
+  compact: 8,
+}
+
+function isDensity(value: string | null): value is Density {
+  return value === 'comfortable' || value === 'normal' || value === 'compact'
+}
 
 function sectionFromFilters(
   filters: GalleryFilters,
@@ -111,6 +136,7 @@ export function KreaAssetBrowser({
     : initialFilters
 
   const [searchInput, setSearchInput] = useState(effectiveInitialFilters.search)
+  const isPickerMode = !!onSelect
   const {
     generations,
     total,
@@ -119,6 +145,7 @@ export function KreaAssetBrowser({
     sentinelRef,
     filters,
     setFilters,
+    removeGeneration,
   } = useGallery({
     initialGenerations,
     initialPage,
@@ -127,17 +154,23 @@ export function KreaAssetBrowser({
     initialFilters: effectiveInitialFilters,
     mine: true,
     limit: 24,
+    // Page-level callers (AssetsPage) supply SSR data — the additional
+    // initial fetch was double-loading every visit. Dialog callers pass
+    // no SSR data, so we only refetch when the initial list is empty
+    // AND there's no SSR-provided total to trust.
+    keepPreviousOnFilterChange: true,
   })
 
   // When mounted without SSR data (e.g. inside AssetSelectorDialog),
   // re-apply the filters once so useGallery actually fetches the first
   // page — it doesn't auto-fetch on mount because page-level callers
   // already supply server-rendered initialGenerations.
+  const ssrPrimed = initialGenerations.length > 0 || initialTotal > 0
   const didInitialFetchRef = useRef(false)
   useEffect(() => {
     if (didInitialFetchRef.current) return
     didInitialFetchRef.current = true
-    if (initialGenerations.length === 0) {
+    if (!ssrPrimed) {
       setFilters(filters)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +181,63 @@ export function KreaAssetBrowser({
     () => sectionFromFilters(filters, mediaType),
     [filters, mediaType],
   )
+
+  // Aggregate sidebar counts. One request per page load instead of one
+  // per item — and the All count stays stable as the user filters down.
+  const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
+  const refreshCounts = useCallback(async () => {
+    const response = await fetchAssetSectionCounts()
+    if (response.success) setCounts(response.data)
+  }, [])
+  useEffect(() => {
+    void refreshCounts()
+  }, [refreshCounts])
+
+  // Detail sheet — only used outside picker mode. In picker mode the
+  // tile click resolves the asset picker via onSelect, so a detail
+  // sheet would steal the click target.
+  const [selectedGeneration, setSelectedGeneration] =
+    useState<GenerationRecord | null>(null)
+  const handleAssetDeleted = useCallback(
+    (id: string) => {
+      removeGeneration(id)
+      void refreshCounts()
+    },
+    [removeGeneration, refreshCounts],
+  )
+
+  // Folder reassignment may push the asset out of the current section
+  // (e.g. user is viewing "Unassigned" and moves into a folder). Drop
+  // it locally so the grid reflects the move without a refetch, then
+  // refresh the sidebar counts so both buckets update.
+  const handleAssetMoved = useCallback(
+    (id: string) => {
+      removeGeneration(id)
+      void refreshCounts()
+    },
+    [removeGeneration, refreshCounts],
+  )
+
+  // Grid density — persisted per device. SSR renders the default
+  // ('normal') so we don't mismatch hydration; the stored preference
+  // is applied in an effect after mount.
+  const [density, setDensity] = useState<Density>('normal')
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY)
+      if (isDensity(stored)) setDensity(stored)
+    } catch {
+      // localStorage unavailable (e.g. Safari private mode) — keep default.
+    }
+  }, [])
+  const changeDensity = useCallback((next: Density) => {
+    setDensity(next)
+    try {
+      window.localStorage.setItem(DENSITY_STORAGE_KEY, next)
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const setSection = (next: Section) => {
     const base: GalleryFilters = {
@@ -187,6 +277,27 @@ export function KreaAssetBrowser({
 
   const isEmpty = !isLoading && generations.length === 0
 
+  // Per-section counts — fall back to live `total` only for the bucket the
+  // user is currently viewing so the sidebar still moves on add/delete
+  // before the next refreshCounts() lands.
+  const allCount = counts?.all ?? (section.kind === 'all' ? total : undefined)
+  const favoritesCount =
+    counts?.favorites ?? (section.kind === 'favorites' ? total : undefined)
+  const imageCount =
+    counts?.image ??
+    (section.kind === 'type' && section.type === 'image' ? total : undefined)
+  const videoCount =
+    counts?.video ??
+    (section.kind === 'type' && section.type === 'video' ? total : undefined)
+  const audioCount =
+    counts?.audio ??
+    (section.kind === 'type' && section.type === 'audio' ? total : undefined)
+  const unassignedCount =
+    counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
+  const projectCount = (id: string): number | undefined =>
+    counts?.byProject[id] ??
+    (section.kind === 'project' && section.id === id ? total : undefined)
+
   return (
     <div
       className={cn(
@@ -197,24 +308,29 @@ export function KreaAssetBrowser({
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
         <main className="flex-1 min-w-0 overflow-y-auto py-4">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="relative mb-4 max-w-md"
-          >
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t('search')}
-              className="h-10 pl-9 text-sm"
-            />
-          </form>
+          <div className="mb-4 flex items-center gap-3">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="relative max-w-md flex-1"
+            >
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t('search')}
+                className="h-10 pl-9 text-sm"
+              />
+            </form>
+            {!isPickerMode && (
+              <DensityToggle density={density} onChange={changeDensity} />
+            )}
+          </div>
 
           {isEmpty ? (
             <EmptyState />
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+            <div className={cn('grid gap-2', DENSITY_GRID_CLASS[density])}>
               {generations.length === 0 && isLoading
                 ? Array.from({ length: 12 }).map((_, idx) => (
                     <div
@@ -243,32 +359,24 @@ export function KreaAssetBrowser({
                           src={gen.url}
                           alt={gen.prompt || ''}
                           fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                          sizes={DENSITY_IMAGE_SIZES[density]}
                           className="object-cover"
                           loading="lazy"
                         />
                       )
-                    return onSelect ? (
+                    return (
                       <button
                         key={gen.id}
                         type="button"
-                        onClick={() => onSelect(gen)}
+                        onClick={() =>
+                          onSelect ? onSelect(gen) : setSelectedGeneration(gen)
+                        }
                         className={tileClass}
                         aria-label={gen.prompt || gen.id}
                         title={gen.prompt || undefined}
                       >
                         {tileChildren}
                       </button>
-                    ) : (
-                      <Link
-                        key={gen.id}
-                        href={`${ROUTES.GALLERY}/${gen.id}`}
-                        className={tileClass}
-                        aria-label={gen.prompt || gen.id}
-                        title={gen.prompt || undefined}
-                      >
-                        {tileChildren}
-                      </Link>
                     )
                   })}
               {hasMore && (
@@ -290,13 +398,14 @@ export function KreaAssetBrowser({
             active={section.kind === 'all'}
             icon={<FolderOpen className="size-4" />}
             label={t('sidebarAll')}
-            count={total}
+            count={allCount}
             onClick={() => setSection({ kind: 'all' })}
           />
           <SidebarItem
             active={section.kind === 'favorites'}
             icon={<Heart className="size-4" />}
             label={t('sidebarFavorites')}
+            count={favoritesCount}
             onClick={() => setSection({ kind: 'favorites' })}
           />
 
@@ -312,18 +421,21 @@ export function KreaAssetBrowser({
                 active={section.kind === 'type' && section.type === 'image'}
                 icon={<ImageIcon className="size-4" />}
                 label={t('sidebarImages')}
+                count={imageCount}
                 onClick={() => setSection({ kind: 'type', type: 'image' })}
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'video'}
                 icon={<Video className="size-4" />}
                 label={t('sidebarVideos')}
+                count={videoCount}
                 onClick={() => setSection({ kind: 'type', type: 'video' })}
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'audio'}
                 icon={<Mic className="size-4" />}
                 label={t('sidebarAudio')}
+                count={audioCount}
                 onClick={() => setSection({ kind: 'type', type: 'audio' })}
               />
             </>
@@ -336,6 +448,7 @@ export function KreaAssetBrowser({
             <ProjectCreateDialog
               onCreated={(project) => {
                 void refreshProjects()
+                void refreshCounts()
                 setSection({ kind: 'project', id: project.id })
               }}
               trigger={
@@ -353,6 +466,7 @@ export function KreaAssetBrowser({
             active={section.kind === 'unassigned'}
             icon={<FolderX className="size-4" />}
             label={t('sidebarUnassigned')}
+            count={unassignedCount}
             onClick={() => setSection({ kind: 'unassigned' })}
           />
           {projects.map((project) => (
@@ -361,11 +475,62 @@ export function KreaAssetBrowser({
               active={section.kind === 'project' && section.id === project.id}
               icon={<Folder className="size-4" />}
               label={project.name}
+              count={projectCount(project.id)}
               onClick={() => setSection({ kind: 'project', id: project.id })}
             />
           ))}
         </aside>
       </div>
+      {!isPickerMode && (
+        <AssetDetailSheet
+          generation={selectedGeneration}
+          onOpenChange={(open) => {
+            if (!open) setSelectedGeneration(null)
+          }}
+          projects={projects}
+          onDeleted={handleAssetDeleted}
+          onMoved={handleAssetMoved}
+        />
+      )}
+    </div>
+  )
+}
+
+interface DensityToggleProps {
+  density: Density
+  onChange: (next: Density) => void
+}
+
+function DensityToggle({ density, onChange }: DensityToggleProps) {
+  const t = useTranslations('AssetsPage')
+  const labels: Record<Density, string> = {
+    comfortable: t('densityComfortable'),
+    normal: t('densityNormal'),
+    compact: t('densityCompact'),
+  }
+  return (
+    <div
+      role="group"
+      aria-label={t('densityLabel')}
+      className="hidden shrink-0 items-center rounded-full border border-border/60 p-0.5 text-xs sm:inline-flex"
+    >
+      {DENSITIES.map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => onChange(d)}
+          aria-pressed={density === d}
+          title={labels[d]}
+          className={cn(
+            'flex h-7 w-9 items-center justify-center rounded-full font-medium tabular-nums transition-colors',
+            density === d
+              ? 'bg-foreground text-background'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {DENSITY_XL_COLS[d]}
+        </button>
+      ))}
     </div>
   )
 }

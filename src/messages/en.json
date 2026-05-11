@@ -1804,6 +1804,7 @@
       "reasons": {
         "provider_timeout": "The AI provider took too long to respond",
         "provider_rate_limit": "Too many requests, please wait a moment",
+        "provider_overloaded": "This model is at capacity right now. Try another model.",
         "invalid_api_key": "Your API key is invalid or expired",
         "content_filtered": "Content was filtered by the provider's safety system",
         "model_unavailable": "This model is temporarily unavailable",

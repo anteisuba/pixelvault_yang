@@ -1804,6 +1804,7 @@
       "reasons": {
         "provider_timeout": "AI 服务商响应超时",
         "provider_rate_limit": "请求过于频繁，请稍后再试",
+        "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
         "invalid_api_key": "你的 API Key 无效或已过期",
         "content_filtered": "内容被服务商安全系统过滤",
         "model_unavailable": "该模型暂时不可用",

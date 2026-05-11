@@ -1804,6 +1804,7 @@
       "reasons": {
         "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
         "provider_rate_limit": "リクエストが多すぎます。しばらくお待ちください",
+        "provider_overloaded": "このモデルは現在混雑しています。別のモデルをお試しください。",
         "invalid_api_key": "APIキーが無効または期限切れです",
         "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
         "model_unavailable": "このモデルは一時的に利用できません",

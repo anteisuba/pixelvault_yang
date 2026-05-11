@@ -21,10 +21,9 @@ StudioPage
 ├── StudioBottomDock
 │   ├── StudioPromptArea (prompt input + generate button)
 │   ├── StudioGenerateBar (aspect ratio + generate action)
-│   ├── StudioDockPanelArea (mobile panel area)
+│   ├── StudioDockPanelArea (inline panels: advanced, civitai, refImage, etc.)
+│   ├── StudioPanelDialogs (modals: enhance, reverse, transform)
 │   └── StudioGallery (sidebar history gallery)
-├── StudioPanelSheets (mobile drawer panels)
-├── StudioPanelPopovers (desktop popover panels)
 ├── StudioLightbox (fullscreen image viewer)
 ├── StudioCommandPalette (Cmd+K quick actions)
 └── StudioErrorBoundary (error recovery)
@@ -50,7 +49,7 @@ GenerationPreview renders result
 
 1. **Before modifying any component**: check which context hooks it uses (`useStudioForm`, `useStudioData`, `useStudioGen`)
 2. **Panels**: controlled by `StudioFormState.panels` — toggling is handled by reducer dispatch, not local state
-3. **Mobile vs Desktop**: `StudioPanelSheets` (mobile) and `StudioPanelPopovers` (desktop) render the same panel content — changes must update both
+3. **Panel hosts**: `StudioDockPanelArea` renders inline panels (advanced, civitai, refImage, layerDecompose, voiceSelector, voiceTrainer, videoParams, script). `StudioPanelDialogs` renders modal panels (enhance, reverse, transform). Both are mounted by `StudioBottomDock`. The `aspectRatio` panel is its own popover (`StudioAspectRatioPopover`).
 4. **Entry point**: `index.ts` re-exports the main component
 
 ## Relatively Isolated Components (safer to modify)

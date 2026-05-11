@@ -5,6 +5,7 @@ const mockGenerationFindMany = vi.hoisted(() => vi.fn())
 const mockGenerationFindUnique = vi.hoisted(() => vi.fn())
 const mockGenerationFindFirst = vi.hoisted(() => vi.fn())
 const mockGenerationCount = vi.hoisted(() => vi.fn())
+const mockGenerationGroupBy = vi.hoisted(() => vi.fn())
 const mockGenerationUpdate = vi.hoisted(() => vi.fn())
 const mockGenerationUpdateMany = vi.hoisted(() => vi.fn())
 const mockGenerationDelete = vi.hoisted(() => vi.fn())
@@ -26,6 +27,7 @@ vi.mock('@/lib/db', () => ({
       findUnique: (...args: unknown[]) => mockGenerationFindUnique(...args),
       findFirst: (...args: unknown[]) => mockGenerationFindFirst(...args),
       count: (...args: unknown[]) => mockGenerationCount(...args),
+      groupBy: (...args: unknown[]) => mockGenerationGroupBy(...args),
       update: (...args: unknown[]) => mockGenerationUpdate(...args),
       updateMany: (...args: unknown[]) => mockGenerationUpdateMany(...args),
       delete: (...args: unknown[]) => mockGenerationDelete(...args),
@@ -46,6 +48,7 @@ import {
   countUserGenerationsByType,
   createGeneration,
   deleteGeneration,
+  getAssetSectionCounts,
   getGenerationById,
   getGenerationsByCharacterCombination,
   getPublicGenerations,
@@ -187,13 +190,19 @@ describe('generation.service', () => {
       const result = await getUserGenerations('user-1', { page: 3, limit: 10 })
 
       expect(result[0]).toMatchObject(BASE_GENERATION)
-      expect(result[0].referenceImages).toEqual([])
-      expect(mockGenerationFindMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
-        orderBy: { createdAt: 'desc' },
-        skip: 20,
-        take: 10,
-      })
+      // List paths intentionally skip the snapshot column, so we no
+      // longer derive a referenceImages array here — that lives on
+      // getGenerationById which still loads the full row.
+      expect(result[0].referenceImages).toBeUndefined()
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'user-1' },
+          orderBy: { createdAt: 'desc' },
+          skip: 20,
+          take: 10,
+        }),
+      )
+      expect(mockGenerationFindMany.mock.calls[0][0]).toHaveProperty('select')
     })
 
     it('propagates list query failures', async () => {
@@ -451,6 +460,66 @@ describe('generation.service', () => {
       await expect(countUserGenerationsByType('user-1')).resolves.toEqual({
         images: 5,
         videos: 3,
+      })
+    })
+  })
+
+  describe('getAssetSectionCounts', () => {
+    it('aggregates type, project, and favorites counts in one round-trip', async () => {
+      mockGenerationGroupBy
+        .mockResolvedValueOnce([
+          { outputType: 'IMAGE', _count: { _all: 7 } },
+          { outputType: 'VIDEO', _count: { _all: 3 } },
+          { outputType: 'AUDIO', _count: { _all: 2 } },
+        ])
+        .mockResolvedValueOnce([
+          { projectId: null, _count: { _all: 4 } },
+          { projectId: 'proj-a', _count: { _all: 5 } },
+          { projectId: 'proj-b', _count: { _all: 3 } },
+        ])
+      mockGenerationCount.mockResolvedValueOnce(6)
+
+      const counts = await getAssetSectionCounts('user-1')
+
+      expect(counts).toEqual({
+        all: 12,
+        favorites: 6,
+        image: 7,
+        video: 3,
+        audio: 2,
+        unassigned: 4,
+        byProject: {
+          'proj-a': 5,
+          'proj-b': 3,
+        },
+      })
+      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(1, {
+        by: ['outputType'],
+        where: { userId: 'user-1' },
+        _count: { _all: true },
+      })
+      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(2, {
+        by: ['projectId'],
+        where: { userId: 'user-1' },
+        _count: { _all: true },
+      })
+      expect(mockGenerationCount).toHaveBeenCalledWith({
+        where: { userId: 'user-1', likes: { some: { userId: 'user-1' } } },
+      })
+    })
+
+    it('returns zeroed buckets when the user has no generations', async () => {
+      mockGenerationGroupBy.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+      mockGenerationCount.mockResolvedValueOnce(0)
+
+      await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
+        all: 0,
+        favorites: 0,
+        image: 0,
+        video: 0,
+        audio: 0,
+        unassigned: 0,
+        byProject: {},
       })
     })
   })

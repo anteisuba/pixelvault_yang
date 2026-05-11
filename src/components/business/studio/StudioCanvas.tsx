@@ -10,6 +10,7 @@ import {
 } from 'react'
 
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
+import { useSearchParams } from 'next/navigation'
 
 import {
   useStudioForm,
@@ -18,6 +19,8 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_MODELS } from '@/constants/models'
+import { usePathname, useRouter } from '@/i18n/navigation'
+import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
@@ -180,6 +183,33 @@ export const StudioCanvas = memo(function StudioCanvas() {
     },
     [dispatch, modelOptions],
   )
+
+  // Bootstrap remix from `/studio/<mode>?remix=<id>` — the /assets detail
+  // sheet links here when the user clicks "Remix in Studio". We fetch
+  // the full row (including snapshot, which the slim /api/images list
+  // intentionally excludes) before invoking handleRemix, then strip the
+  // query param so a refresh doesn't re-apply.
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const remixHandledRef = useRef<string | null>(null)
+  useEffect(() => {
+    const remixId = searchParams.get('remix')
+    if (!remixId || remixHandledRef.current === remixId) return
+    if (modelOptions.length === 0) return // wait until model list is ready
+    remixHandledRef.current = remixId
+    void (async () => {
+      const response = await fetchGenerationByIdAPI(remixId)
+      if (response.success) {
+        handleRemix(response.data)
+      }
+      // Strip ?remix= so a refresh doesn't re-apply the preset.
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('remix')
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    })()
+  }, [searchParams, router, pathname, handleRemix, modelOptions.length])
 
   // C3: Edit with Kontext — set reference image + switch to Kontext Pro + focus prompt
   const handleEdit = useCallback(

@@ -5,6 +5,7 @@ import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
+  AssetSectionCounts,
   GenerationRecord,
   GallerySortOption,
   GalleryTimeRange,
@@ -84,6 +85,46 @@ export interface GalleryQueryOptions {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Fields included in list-style queries. Deliberately excludes the
+ * heavy JSON columns (`snapshot`, `recipeSnapshot`, `evaluation`) — a
+ * single generation row can be 7 MB when the user uploaded base64
+ * dataURL reference images, so a 24-item page balloons to 30 MB+.
+ * Detail-style queries (`getGenerationById`, studio remix) still load
+ * the full row.
+ */
+const LIST_GENERATION_SELECT = {
+  id: true,
+  createdAt: true,
+  outputType: true,
+  status: true,
+  url: true,
+  storageKey: true,
+  mimeType: true,
+  width: true,
+  height: true,
+  duration: true,
+  referenceImageUrl: true,
+  prompt: true,
+  negativePrompt: true,
+  model: true,
+  provider: true,
+  requestCount: true,
+  isFreeGeneration: true,
+  isPublic: true,
+  isPromptPublic: true,
+  isFeatured: true,
+  userId: true,
+  projectId: true,
+  characterCardId: true,
+  cardRecipeId: true,
+  runGroupId: true,
+  runGroupType: true,
+  runGroupIndex: true,
+  isWinner: true,
+  seed: true,
+} as const satisfies Prisma.GenerationSelect
 
 function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
   if (type === 'image') return 'IMAGE'
@@ -331,9 +372,10 @@ export async function getUserGenerations(
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * limit,
     take: limit,
+    select: LIST_GENERATION_SELECT,
   })
 
-  return normalizeGenerationReferenceImageList(generations)
+  return generations as GenerationRecord[]
 }
 
 export async function countUserGenerations(userId: string): Promise<number> {
@@ -370,6 +412,32 @@ export async function getPublicGenerations({
   viewerUserId,
   projectId,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
+  // Owner-scoped queries (mine=1, /assets) don't render like badges, so
+  // we skip the join + aggregate. Public/community queries still need
+  // _count.likes for the heart counter and the optional viewer.likes
+  // probe to mark isLiked.
+  const isOwnerView = !!userId
+  const creatorSelect = {
+    user: {
+      select: {
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+  } as const
+
+  const select = isOwnerView
+    ? { ...LIST_GENERATION_SELECT, ...creatorSelect }
+    : {
+        ...LIST_GENERATION_SELECT,
+        ...creatorSelect,
+        _count: { select: { likes: true } },
+        ...(viewerUserId
+          ? { likes: { where: { userId: viewerUserId }, take: 1 } }
+          : {}),
+      }
+
   const results = await db.generation.findMany({
     where: buildGalleryWhere({
       search,
@@ -383,25 +451,13 @@ export async function getPublicGenerations({
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
     take: limit,
-    include: {
-      user: {
-        select: {
-          username: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-      _count: { select: { likes: true } },
-      ...(viewerUserId
-        ? { likes: { where: { userId: viewerUserId }, take: 1 } }
-        : {}),
-    },
+    select,
   })
 
   // Map creator info + like data onto records
   const mapped: GenerationRecord[] = results.map((r) => {
     const { user, _count, likes, ...rest } = r as typeof r & {
-      _count: { likes: number }
+      _count?: { likes: number }
       likes?: { id: string }[]
     }
     return {
@@ -413,15 +469,16 @@ export async function getPublicGenerations({
             avatarUrl: user.avatarUrl,
           }
         : null,
-      likeCount: _count.likes,
+      likeCount: _count?.likes ?? 0,
       isLiked: viewerUserId ? (likes?.length ?? 0) > 0 : undefined,
     }
   })
 
-  const normalized = normalizeGenerationReferenceImageList(mapped)
-
-  // Owner sees full data; public viewers get redacted prompts
-  return userId ? normalized : redactPrompts(normalized)
+  // Owner sees full data; public viewers get redacted prompts.
+  // No referenceImage normalization in list paths — that's derived from
+  // the (intentionally excluded) snapshot column. Detail views still go
+  // through getGenerationById which keeps the full row.
+  return userId ? mapped : redactPrompts(mapped)
 }
 
 /**
@@ -534,6 +591,60 @@ export async function countUserGenerationsByType(
 }
 
 /**
+ * Aggregate counts powering the /assets right-sidebar. One round-trip per
+ * dimension (type, project, favorites) instead of one count per sidebar
+ * item — keeps the sidebar honest at any scale.
+ *
+ * `byProject` is keyed by project UUID; `unassigned` is the projectId=null
+ * bucket pulled out of the same groupBy.
+ */
+export async function getAssetSectionCounts(
+  userId: string,
+): Promise<AssetSectionCounts> {
+  const [byType, byProject, favorites] = await Promise.all([
+    db.generation.groupBy({
+      by: ['outputType'],
+      where: { userId },
+      _count: { _all: true },
+    }),
+    db.generation.groupBy({
+      by: ['projectId'],
+      where: { userId },
+      _count: { _all: true },
+    }),
+    db.generation.count({
+      where: { userId, likes: { some: { userId } } },
+    }),
+  ])
+
+  const counts: AssetSectionCounts = {
+    all: 0,
+    favorites,
+    image: 0,
+    video: 0,
+    audio: 0,
+    unassigned: 0,
+    byProject: {},
+  }
+
+  for (const row of byType) {
+    const n = row._count._all
+    counts.all += n
+    if (row.outputType === 'IMAGE') counts.image = n
+    else if (row.outputType === 'VIDEO') counts.video = n
+    else if (row.outputType === 'AUDIO') counts.audio = n
+  }
+
+  for (const row of byProject) {
+    const n = row._count._all
+    if (row.projectId === null) counts.unassigned = n
+    else counts.byProject[row.projectId] = n
+  }
+
+  return counts
+}
+
+/**
  * Hard-delete a generation: remove from DB and return storageKey for R2 cleanup.
  * Returns null if not found or not owned by the user.
  */
@@ -630,12 +741,13 @@ export async function getGenerationsByCharacterCard(
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
+      select: LIST_GENERATION_SELECT,
     }),
     db.generation.count({ where }),
   ])
 
   return {
-    generations: normalizeGenerationReferenceImageList(generations),
+    generations: generations as GenerationRecord[],
     total,
   }
 }
@@ -675,12 +787,13 @@ export async function getGenerationsByCharacterCombination(
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
+      select: LIST_GENERATION_SELECT,
     }),
     db.generation.count({ where }),
   ])
 
   return {
-    generations: normalizeGenerationReferenceImageList(generations),
+    generations: generations as GenerationRecord[],
     total,
   }
 }

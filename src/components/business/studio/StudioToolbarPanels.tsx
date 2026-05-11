@@ -23,8 +23,9 @@ import { cn } from '@/lib/utils'
 
 /**
  * StudioToolbarRow — renders ONLY the toolbar button row.
- * Panel content is rendered by StudioPanelPopovers + StudioPanelSheets
- * outside the dock DOM flow (zero layout impact).
+ * Panel content is rendered by StudioDockPanelArea (inline panels) and
+ * StudioPanelDialogs (enhance / reverse / transform modals) — see
+ * StudioBottomDock for the actual mounts.
  */
 export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()

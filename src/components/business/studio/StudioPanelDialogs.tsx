@@ -1,6 +1,7 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
@@ -15,20 +16,66 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-const PromptAssistantPanel = dynamic(() =>
-  import('@/components/business/PromptAssistantPanel').then(
-    (mod) => mod.PromptAssistantPanel,
-  ),
+/**
+ * Shared loading state for dynamically-imported panel bodies. The first
+ * click on Enhance / Reverse / Transform downloads the panel chunk before
+ * the dialog can render — without a fallback, the overlay just dims the
+ * page for ~1–2 s while the chunk arrives, which reads as "the screen
+ * went white" to users. A centred spinner keeps the dialog feeling
+ * intentional during that window.
+ */
+function PanelLoadingFallback() {
+  return (
+    <div className="flex h-32 items-center justify-center">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+    </div>
+  )
+}
+
+/**
+ * Radix Dialog suffers an open-and-immediately-close race when the trigger
+ * is a sibling button outside the overlay: the same pointerdown that opens
+ * the dialog bubbles up to the overlay's outside-click listener as soon as
+ * the content mounts, and the dialog closes before the user sees it.
+ *
+ * Track the moment the panel goes from closed → open and ignore any
+ * pointer-outside / interaction-outside event for the next 200 ms — long
+ * enough for the trigger's pointer chain to finish, short enough that a
+ * deliberate overlay click still dismisses the dialog.
+ */
+function useJustOpenedGuard(open: boolean) {
+  const justOpenedRef = useRef(false)
+  useEffect(() => {
+    if (!open) return
+    justOpenedRef.current = true
+    const id = window.setTimeout(() => {
+      justOpenedRef.current = false
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [open])
+  return justOpenedRef
+}
+
+const PromptAssistantPanel = dynamic(
+  () =>
+    import('@/components/business/PromptAssistantPanel').then(
+      (mod) => mod.PromptAssistantPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
 )
-const ReverseEngineerPanel = dynamic(() =>
-  import('@/components/business/ReverseEngineerPanel').then(
-    (mod) => mod.ReverseEngineerPanel,
-  ),
+const ReverseEngineerPanel = dynamic(
+  () =>
+    import('@/components/business/ReverseEngineerPanel').then(
+      (mod) => mod.ReverseEngineerPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
 )
-const StudioTransformPanel = dynamic(() =>
-  import('@/components/business/studio/StudioTransformPanel').then(
-    (mod) => mod.StudioTransformPanel,
-  ),
+const StudioTransformPanel = dynamic(
+  () =>
+    import('@/components/business/studio/StudioTransformPanel').then(
+      (mod) => mod.StudioTransformPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
 )
 
 const LLM_CAPABLE_ADAPTERS = new Set([
@@ -90,6 +137,10 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
       ? selectedModel.modelId
       : (selectedStyleCard?.modelId ?? undefined)
 
+  const enhanceGuard = useJustOpenedGuard(state.panels.enhance)
+  const reverseGuard = useJustOpenedGuard(state.panels.reverse)
+  const transformGuard = useJustOpenedGuard(state.panels.transform)
+
   return (
     <>
       {/* ── Prompt Assistant (Enhance / 追加) ─────────────────── */}
@@ -102,6 +153,12 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
         <DialogContent
           showCloseButton={false}
           className={ENHANCE_DIALOG_CLASSES}
+          onPointerDownOutside={(e) => {
+            if (enhanceGuard.current) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (enhanceGuard.current) e.preventDefault()
+          }}
         >
           <DialogTitle className="sr-only">{tPanels('enhance')}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -131,7 +188,16 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
           if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'reverse' })
         }}
       >
-        <DialogContent showCloseButton className={REVERSE_DIALOG_CLASSES}>
+        <DialogContent
+          showCloseButton
+          className={REVERSE_DIALOG_CLASSES}
+          onPointerDownOutside={(e) => {
+            if (reverseGuard.current) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (reverseGuard.current) e.preventDefault()
+          }}
+        >
           <DialogTitle className="sr-only">{tPanels('reverse')}</DialogTitle>
           <DialogDescription className="sr-only">
             {tPanels('reverse')}
@@ -154,7 +220,16 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
           if (!open) dispatch({ type: 'CLOSE_PANEL', payload: 'transform' })
         }}
       >
-        <DialogContent showCloseButton className={TRANSFORM_DIALOG_CLASSES}>
+        <DialogContent
+          showCloseButton
+          className={TRANSFORM_DIALOG_CLASSES}
+          onPointerDownOutside={(e) => {
+            if (transformGuard.current) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (transformGuard.current) e.preventDefault()
+          }}
+        >
           <DialogTitle className="sr-only">{tPanels('transform')}</DialogTitle>
           <DialogDescription className="sr-only">
             {tPanels('transform')}

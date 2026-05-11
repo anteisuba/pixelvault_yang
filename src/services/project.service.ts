@@ -144,6 +144,31 @@ export async function getProjectHistory(
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      // DB-level slim select — previously this function fetched full rows
+      // (incl. the 7 MB snapshot/referenceImages blob per row) and then
+      // hand-projected them in JS, which still spent the wire time. The
+      // 10s `projects/unassigned/history` request came from here.
+      select: {
+        id: true,
+        createdAt: true,
+        outputType: true,
+        status: true,
+        url: true,
+        storageKey: true,
+        mimeType: true,
+        width: true,
+        height: true,
+        duration: true,
+        referenceImageUrl: true,
+        prompt: true,
+        negativePrompt: true,
+        model: true,
+        provider: true,
+        requestCount: true,
+        isPublic: true,
+        isPromptPublic: true,
+        userId: true,
+      },
     }),
     db.generation.count({ where }),
   ])
@@ -152,27 +177,7 @@ export async function getProjectHistory(
   const items = hasMore ? generations.slice(0, limit) : generations
 
   return {
-    generations: items.map((g) => ({
-      id: g.id,
-      createdAt: g.createdAt,
-      outputType: g.outputType,
-      status: g.status,
-      url: g.url,
-      storageKey: g.storageKey,
-      mimeType: g.mimeType,
-      width: g.width,
-      height: g.height,
-      duration: g.duration,
-      referenceImageUrl: g.referenceImageUrl,
-      prompt: g.prompt,
-      negativePrompt: g.negativePrompt,
-      model: g.model,
-      provider: g.provider,
-      requestCount: g.requestCount,
-      isPublic: g.isPublic,
-      isPromptPublic: g.isPromptPublic,
-      userId: g.userId,
-    })),
+    generations: items as GenerationRecord[],
     total,
     hasMore,
   }

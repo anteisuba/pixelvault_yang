@@ -34,6 +34,9 @@ export const API_ENDPOINTS = {
   /** Image listing (public gallery) */
   IMAGES: '/api/images',
 
+  /** Sidebar counts for the /assets browser */
+  ASSET_SECTION_COUNTS: '/api/assets/section-counts',
+
   /** User API usage summary */
   USAGE_SUMMARY: '/api/usage-summary',
 

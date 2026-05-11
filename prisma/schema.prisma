@@ -103,28 +103,28 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  generations      Generation[]
-  userApiKeys      UserApiKey[]
-  generationJobs   GenerationJob[]
-  apiUsageLedger   ApiUsageLedger[]
-  imageAnalyses    ImageAnalysis[]
-  arenaMatches     ArenaMatch[]
-  stories          Story[]
-  projects         Project[]
-  characterCards   CharacterCard[]
-  likesGiven       UserLike[]        @relation("LikesGiven")
-  followsGiven     UserFollow[]      @relation("FollowsGiven")
-  followsReceived  UserFollow[]      @relation("FollowsReceived")
-  collections      Collection[]
-  backgroundCards  BackgroundCard[]
-  styleCards       StyleCard[]
-  cardRecipes      CardRecipe[]
-  recipes          Recipe[]
-  voiceCards       VoiceCard[]
+  generations        Generation[]
+  userApiKeys        UserApiKey[]
+  generationJobs     GenerationJob[]
+  apiUsageLedger     ApiUsageLedger[]
+  imageAnalyses      ImageAnalysis[]
+  arenaMatches       ArenaMatch[]
+  stories            Story[]
+  projects           Project[]
+  characterCards     CharacterCard[]
+  likesGiven         UserLike[]              @relation("LikesGiven")
+  followsGiven       UserFollow[]            @relation("FollowsGiven")
+  followsReceived    UserFollow[]            @relation("FollowsReceived")
+  collections        Collection[]
+  backgroundCards    BackgroundCard[]
+  styleCards         StyleCard[]
+  cardRecipes        CardRecipe[]
+  recipes            Recipe[]
+  voiceCards         VoiceCard[]
   creativePreference UserCreativePreference?
-  videoPipelines   VideoPipeline[]
-  loraTrainingJobs LoraTrainingJob[]
-  videoScripts     VideoScript[]
+  videoPipelines     VideoPipeline[]
+  loraTrainingJobs   LoraTrainingJob[]
+  videoScripts       VideoScript[]
 
   @@index([username])
   @@index([isDeleted])
@@ -165,6 +165,11 @@ model UserApiKey {
 
   @@unique([userId, adapterType, modelId])
   @@index([userId, modelId, adapterType])
+  // Hot path for `findActiveKeyForAdapter` — picks the most recent active key
+  // for a given user × adapter without touching modelId.
+  @@index([userId, adapterType, isActive, createdAt(sort: Desc)])
+  // Hot path for `listUserApiKeys` — returns the full list newest first.
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Generation {
@@ -273,19 +278,19 @@ model GenerationJob {
 }
 
 model ExecutionOutbox {
-  id              String               @id @default(uuid())
-  generationJobId String               @unique
-  generationJob   GenerationJob        @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+  id              String                @id @default(uuid())
+  generationJobId String                @unique
+  generationJob   GenerationJob         @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
   kind            String
   status          ExecutionOutboxStatus @default(PENDING)
   payload         Json
   result          Json?
-  attemptCount    Int                  @default(0)
-  lastError       String?              @db.Text
+  attemptCount    Int                   @default(0)
+  lastError       String?               @db.Text
   leaseExpiresAt  DateTime?
   processedAt     DateTime?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
   @@index([status, leaseExpiresAt, createdAt(sort: Desc)])
 }
@@ -350,25 +355,25 @@ model Recipe {
 }
 
 model VoiceCard {
-  id                          String   @id @default(cuid())
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                        String
-  provider                    String   @default("fish_audio")
-  modelId                     String?
-  voiceId                     String?
-  referenceAudioUrl           String?  @db.Text
-  referenceAudioStorageKey    String?
-  gender                      String?
-  age                         String?
-  tone                        Json     @default("[]")
-  pace                        String   @default("normal")
-  pitch                       String?
-  pronunciationDictionary     Json     @default("{}")
-  sampleText                  String?  @db.Text
-  isDeleted                   Boolean  @default(false)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                     String
+  provider                 String   @default("fish_audio")
+  modelId                  String?
+  voiceId                  String?
+  referenceAudioUrl        String?  @db.Text
+  referenceAudioStorageKey String?
+  gender                   String?
+  age                      String?
+  tone                     Json     @default("[]")
+  pace                     String   @default("normal")
+  pitch                    String?
+  pronunciationDictionary  Json     @default("{}")
+  sampleText               String?  @db.Text
+  isDeleted                Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
 }

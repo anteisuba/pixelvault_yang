@@ -21,6 +21,19 @@ const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
 const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: PROXY_CLIENT_MAX_BODY_SIZE,
+    // Tree-shake barrel imports for heavy icon/UI packages. Without this, a
+    // single `import { Foo } from 'lucide-react'` drags in the entire icon
+    // set on the client bundle.
+    optimizePackageImports: [
+      'lucide-react',
+      'radix-ui',
+      '@radix-ui/react-icons',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-toolbar',
+      'motion',
+      'cmdk',
+    ],
   },
   outputFileTracingRoot: PROJECT_ROOT,
   turbopack: {

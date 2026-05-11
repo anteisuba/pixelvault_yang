@@ -11,6 +11,7 @@ import {
   createApiPutRoute,
   createApiDeleteRoute,
 } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import type { StoryResponse } from '@/types'
@@ -54,10 +55,12 @@ export async function GET(
 export const PUT = createApiPutRoute({
   schema: UpdateStoryRequestSchema,
   routeName: 'PUT /api/stories/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => updateStory(id, clerkId, data),
 })
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/stories/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => deleteStory(id, clerkId),
 })

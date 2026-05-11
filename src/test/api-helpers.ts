@@ -22,18 +22,20 @@ export function mockUnauthenticated() {
 
 // ─── Mock Rate Limiter ───────────────────────────────────────────
 
-const mockRateLimit = vi.fn()
+// Default to allowing all requests so route tests don't have to opt-in.
+// Implementation survives vi.clearAllMocks() (only call history is cleared).
+const mockRateLimit = vi.fn().mockResolvedValue({ success: true, remaining: 9 })
 
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }))
 
 export function mockRateLimitAllowed() {
-  mockRateLimit.mockReturnValue({ success: true, remaining: 9 })
+  mockRateLimit.mockResolvedValue({ success: true, remaining: 9 })
 }
 
 export function mockRateLimitExceeded() {
-  mockRateLimit.mockReturnValue({ success: false, remaining: 0 })
+  mockRateLimit.mockResolvedValue({ success: false, remaining: 0 })
 }
 
 // ─── Request Builders ────────────────────────────────────────────

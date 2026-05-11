@@ -6,11 +6,13 @@ import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 import { ensureUser } from '@/services/user.service'
 import { advanceScene } from '@/services/video-scene-orchestrator.service'
 import { VideoScriptNotFoundError } from '@/services/video-script.service'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const POST = createApiPostByIdRoute({
   schema: z.object({}),
   routeName: 'POST /api/video-script/[id]/advance',
   notFoundMessage: 'Video script not found',
+  rateLimit: RATE_LIMIT_CONFIGS.studioGenerate,
   handler: async (clerkId, id) => {
     const dbUser = await ensureUser(clerkId)
     try {

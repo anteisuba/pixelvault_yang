@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { UpdateBackgroundCardSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   getBackgroundCard,
   updateBackgroundCard,
@@ -20,10 +21,12 @@ export const GET = createApiGetByIdRoute({
 export const PUT = createApiPutRoute({
   schema: UpdateBackgroundCardSchema,
   routeName: 'PUT /api/background-cards/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => updateBackgroundCard(clerkId, id, data),
 })
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/background-cards/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => deleteBackgroundCard(clerkId, id),
 })

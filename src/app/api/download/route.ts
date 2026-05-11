@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
+import { rateLimit } from '@/lib/rate-limit'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 const QuerySchema = z.object({
   url: z.string().url(),
@@ -47,6 +49,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },
+    )
+  }
+
+  const { success: allowed } = await rateLimit(
+    `download:${userId}`,
+    RATE_LIMIT_CONFIGS.outboundProbe,
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429 },
     )
   }
 

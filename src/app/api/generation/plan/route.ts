@@ -15,6 +15,7 @@ import {
   compileNegativePrompt,
 } from '@/services/prompt-compiler.service'
 import { ensureUser } from '@/services/user.service'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const POST = createApiRoute<
   typeof GenerationPlanRequestSchema,
@@ -22,6 +23,7 @@ export const POST = createApiRoute<
 >({
   schema: GenerationPlanRequestSchema,
   routeName: 'POST /api/generation/plan',
+  rateLimit: RATE_LIMIT_CONFIGS.promptAssistant,
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
     const intent = await parseImageIntent(

@@ -6,6 +6,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 import { CivitaiTokenSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   setCivitaiToken,
   hasCivitaiToken,
@@ -17,6 +18,7 @@ export const GET = createApiGetRoute({
   schema: z.object({}),
   routeName: 'GET /api/civitai-token',
   requireAuth: true,
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId }) => {
     const hasToken = await hasCivitaiToken(clerkId!)
     return { hasToken }
@@ -26,6 +28,7 @@ export const GET = createApiGetRoute({
 export const PUT = createApiRoute({
   schema: CivitaiTokenSchema,
   routeName: 'PUT /api/civitai-token',
+  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
   handler: async (clerkId, data) => {
     await setCivitaiToken(clerkId, data.token)
     return {}

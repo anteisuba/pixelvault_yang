@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { UpdateCharacterCardSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   getCharacterCard,
   updateCharacterCard,
@@ -22,11 +23,13 @@ export const PUT = createApiPutRoute({
   schema: UpdateCharacterCardSchema,
   routeName: 'PUT /api/character-cards/[id]',
   notFoundMessage: 'Character card not found',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => updateCharacterCard(clerkId, id, data),
 })
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/character-cards/[id]',
   notFoundMessage: 'Character card not found',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => deleteCharacterCard(clerkId, id),
 })

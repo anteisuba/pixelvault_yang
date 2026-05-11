@@ -3,11 +3,13 @@ import 'server-only'
 import { ArenaVoteRequestSchema } from '@/types'
 import { submitArenaVote } from '@/services/arena.service'
 import { ApiRequestError } from '@/lib/errors'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const POST = createApiPostByIdRoute({
   schema: ArenaVoteRequestSchema,
   routeName: 'POST /api/arena/matches/[id]/vote',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     try {
       return await submitArenaVote(id, data.winnerEntryId, clerkId)

@@ -4,6 +4,7 @@ import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
 import { UpdateProfileSchema } from '@/types'
 import type { UpdateProfileResponse } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { ensureUser, updateProfile } from '@/services/user.service'
 
 const EmptyQuerySchema = z.object({})
@@ -54,6 +55,7 @@ export const GET = createApiGetRoute<
   schema: EmptyQuerySchema,
   routeName: 'GET /api/users/me/profile',
   requireAuth: true,
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId }) => {
     if (!clerkId) {
       throw new ApiRequestError(
@@ -91,6 +93,7 @@ export const PUT = createApiRoute<
 >({
   schema: UpdateProfileSchema,
   routeName: 'PUT /api/users/me/profile',
+  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
   handler: async (clerkId, data) => {
     try {
       const user = await ensureUser(clerkId)

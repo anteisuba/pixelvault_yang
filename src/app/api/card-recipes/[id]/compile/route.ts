@@ -7,10 +7,12 @@ import { ensureUser } from '@/services/user.service'
 import { getCardRecipe } from '@/services/card-recipe.service'
 import { compileRecipe } from '@/services/recipe-compiler.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const POST = createApiPostByIdRoute({
   schema: z.object({}),
   routeName: 'POST /api/card-recipes/[id]/compile',
+  rateLimit: RATE_LIMIT_CONFIGS.promptAssistant,
   handler: async (clerkId, id) => {
     const recipe = await getCardRecipe(clerkId, id)
     if (!recipe) {

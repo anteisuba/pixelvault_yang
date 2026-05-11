@@ -5,11 +5,13 @@ import { z } from 'zod'
 import { ensureUser } from '@/services/user.service'
 import { verifyApiKey } from '@/services/apiKey.service'
 import { ApiRequestError } from '@/lib/errors'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const POST = createApiPostByIdRoute({
   schema: z.object({}),
   routeName: 'POST /api/api-keys/[id]/verify',
+  rateLimit: RATE_LIMIT_CONFIGS.outboundProbe,
   handler: async (clerkId, id) => {
     const dbUser = await ensureUser(clerkId)
     try {

@@ -11,6 +11,7 @@ import {
   createApiDeleteRoute,
   createApiGetByIdRoute,
 } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import type { GenerationRecord } from '@/types'
 
 /**
@@ -33,6 +34,7 @@ export const GET = createApiGetByIdRoute<GenerationRecord>({
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/generations/[id]',
   notFoundMessage: 'Generation not found or access denied',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => {
     const user = await ensureUser(clerkId)
     const result = await deleteGeneration(id, user.id)

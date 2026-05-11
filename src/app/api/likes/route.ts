@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { ToggleLikeSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { rateLimit } from '@/lib/rate-limit'
 import { ensureUser } from '@/services/user.service'
 import { toggleLike, getUserLikes } from '@/services/like.service'
 import { createApiRoute } from '@/lib/api-route-factory'
@@ -17,6 +19,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
+      )
+    }
+
+    const { success: allowed } = await rateLimit(
+      `likes-get:${clerkId}`,
+      RATE_LIMIT_CONFIGS.authedRead,
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429 },
       )
     }
 
@@ -54,6 +67,7 @@ export async function GET(request: NextRequest) {
 export const POST = createApiRoute({
   schema: ToggleLikeSchema,
   routeName: 'POST /api/likes',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
     return toggleLike(user.id, data.generationId)

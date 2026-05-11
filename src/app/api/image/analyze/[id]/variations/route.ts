@@ -7,12 +7,14 @@ import {
   generateVariations,
 } from '@/services/image-analysis.service'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const maxDuration = 55
 
 export const POST = createApiPostByIdRoute({
   schema: GenerateVariationsRequestSchema,
   routeName: 'POST /api/image/analyze/[id]/variations',
+  rateLimit: RATE_LIMIT_CONFIGS.imageAnalyze,
   handler: async (clerkId, id, data) => {
     const analysis = await getAnalysisById(id, clerkId)
     if (!analysis) {

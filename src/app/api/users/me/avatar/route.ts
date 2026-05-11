@@ -2,6 +2,7 @@ import { UploadProfileImageSchema } from '@/types'
 import type { UploadProfileImageResponse } from '@/types'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { ensureUser, uploadAvatar } from '@/services/user.service'
 
 function mapAvatarUploadError(error: unknown): ApiRequestError {
@@ -40,6 +41,7 @@ export const POST = createApiRoute<
 >({
   schema: UploadProfileImageSchema,
   routeName: 'POST /api/users/me/avatar',
+  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
   handler: async (clerkId, data) => {
     try {
       const user = await ensureUser(clerkId)

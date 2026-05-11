@@ -9,6 +9,7 @@ import {
 import { deleteFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { createApiRoute } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 const BatchDeleteSchema = z.object({
   action: z.literal('delete'),
@@ -30,6 +31,7 @@ const BatchRequestSchema = z.discriminatedUnion('action', [
 export const POST = createApiRoute({
   schema: BatchRequestSchema,
   routeName: 'POST /api/generations/batch',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
 

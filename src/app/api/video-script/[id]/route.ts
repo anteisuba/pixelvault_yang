@@ -17,6 +17,7 @@ import {
   updateScenes,
   VideoScriptNotFoundError,
 } from '@/services/video-script.service'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 export const GET = createApiGetByIdRoute({
   routeName: 'GET /api/video-script/[id]',
@@ -36,6 +37,7 @@ export const PATCH = createApiPatchByIdRoute({
   schema: UpdateVideoScriptInputSchema,
   routeName: 'PATCH /api/video-script/[id]',
   notFoundMessage: 'Video script not found',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     const dbUser = await ensureUser(clerkId)
     try {
@@ -57,6 +59,7 @@ export const PATCH = createApiPatchByIdRoute({
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/video-script/[id]',
   notFoundMessage: 'Video script not found',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => {
     const dbUser = await ensureUser(clerkId)
     try {

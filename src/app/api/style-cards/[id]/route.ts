@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { UpdateStyleCardSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   getStyleCard,
   updateStyleCard,
@@ -20,10 +21,12 @@ export const GET = createApiGetByIdRoute({
 export const PUT = createApiPutRoute({
   schema: UpdateStyleCardSchema,
   routeName: 'PUT /api/style-cards/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => updateStyleCard(clerkId, id, data),
 })
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/style-cards/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => deleteStyleCard(clerkId, id),
 })

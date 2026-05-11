@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { UpdateApiKeySchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { ensureUser } from '@/services/user.service'
 import { updateApiKey, deleteApiKey } from '@/services/apiKey.service'
 import { ApiRequestError } from '@/lib/errors'
@@ -12,6 +13,7 @@ import {
 export const PUT = createApiPutRoute({
   schema: UpdateApiKeySchema,
   routeName: 'PUT /api/api-keys/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
   handler: async (clerkId, id, data) => {
     const dbUser = await ensureUser(clerkId)
     try {
@@ -29,6 +31,7 @@ export const PUT = createApiPutRoute({
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/api-keys/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
   handler: async (clerkId, id) => {
     const dbUser = await ensureUser(clerkId)
     try {

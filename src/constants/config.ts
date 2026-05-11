@@ -344,6 +344,15 @@ export const RATE_LIMIT_CONFIGS = {
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
+  // ─── Generic presets ─────────────────────────────────────────
+  /** Authenticated list/read endpoints (cards, recipes, history) */
+  authedRead: { limit: 120, windowSeconds: 60 },
+  /** Authenticated CRUD mutations (likes, follows, project updates) */
+  authedWrite: { limit: 30, windowSeconds: 60 },
+  /** Sensitive credential/config writes (api-keys, civitai tokens, avatar) */
+  sensitiveWrite: { limit: 10, windowSeconds: 60 },
+  /** Outbound verification / proxy / download endpoints */
+  outboundProbe: { limit: 6, windowSeconds: 60 },
 } as const
 
 /** Centralized maxDuration configs for serverless functions */

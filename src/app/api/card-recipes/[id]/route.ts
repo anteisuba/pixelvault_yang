@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { UpdateCardRecipeSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   getCardRecipe,
   updateCardRecipe,
@@ -20,10 +21,12 @@ export const GET = createApiGetByIdRoute({
 export const PUT = createApiPutRoute({
   schema: UpdateCardRecipeSchema,
   routeName: 'PUT /api/card-recipes/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => updateCardRecipe(clerkId, id, data),
 })
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/card-recipes/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => deleteCardRecipe(clerkId, id),
 })

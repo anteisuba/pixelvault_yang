@@ -8,6 +8,7 @@ import {
 } from '@/services/collection.service'
 import { ensureUser } from '@/services/user.service'
 import { CreateCollectionSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { ApiRequestError } from '@/lib/errors'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 
@@ -15,6 +16,7 @@ export const GET = createApiGetRoute({
   schema: z.object({}),
   routeName: 'GET /api/collections',
   requireAuth: true,
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId }) => {
     const user = await ensureUser(clerkId!)
     return getUserCollections(user.id)
@@ -24,6 +26,7 @@ export const GET = createApiGetRoute({
 export const POST = createApiRoute({
   schema: CreateCollectionSchema,
   routeName: 'POST /api/collections',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
     try {

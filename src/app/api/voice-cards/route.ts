@@ -8,10 +8,12 @@ import {
   CreateVoiceCardRequestSchema,
   ListVoiceCardsQuerySchema,
 } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 const createVoiceCardRoute = createApiRoute({
   schema: CreateVoiceCardRequestSchema,
   routeName: 'POST /api/voice-cards',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => createVoiceCard(clerkId, data),
 })
 
@@ -27,6 +29,7 @@ export const GET = createApiGetRoute({
   schema: ListVoiceCardsQuerySchema,
   routeName: 'GET /api/voice-cards',
   requireAuth: true,
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId, data }) =>
     listVoiceCards(clerkId!, data.page, data.pageSize),
 })

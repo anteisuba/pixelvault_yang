@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { ToggleFollowSchema } from '@/types'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { ensureUser } from '@/services/user.service'
 import { toggleFollow } from '@/services/follow.service'
 import { ApiRequestError } from '@/lib/errors'
@@ -9,6 +10,7 @@ import { createApiRoute } from '@/lib/api-route-factory'
 export const POST = createApiRoute({
   schema: ToggleFollowSchema,
   routeName: 'POST /api/follows',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
     try {

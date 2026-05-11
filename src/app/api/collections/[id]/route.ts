@@ -14,6 +14,7 @@ import {
   createApiPutRoute,
   createApiDeleteRoute,
 } from '@/lib/api-route-factory'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import type { CollectionDetailResponse } from '@/types'
 
 // GET is intentionally manual: optional-auth with pagination query params
@@ -48,6 +49,7 @@ export async function GET(
 export const PUT = createApiPutRoute({
   schema: UpdateCollectionSchema,
   routeName: 'PUT /api/collections/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     const user = await ensureUser(clerkId)
     return updateCollection(id, user.id, data)
@@ -56,6 +58,7 @@ export const PUT = createApiPutRoute({
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/collections/[id]',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id) => {
     const user = await ensureUser(clerkId)
     return deleteCollection(id, user.id)

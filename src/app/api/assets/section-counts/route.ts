@@ -4,6 +4,7 @@ import { createApiGetRoute } from '@/lib/api-route-factory'
 import { ApiRequestError, AuthError } from '@/lib/errors'
 import { getAssetSectionCounts } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import type { AssetSectionCounts } from '@/types'
 
 const SectionCountsQuerySchema = z.object({})
@@ -22,6 +23,7 @@ export const GET = createApiGetRoute<
   schema: SectionCountsQuerySchema,
   routeName: 'GET /api/assets/section-counts',
   requireAuth: true,
+  rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId }) => {
     if (!clerkId) throw new AuthError()
     try {

@@ -202,14 +202,20 @@ function handleRouteError(
   }
 
   const errorMessage = error instanceof Error ? error.message : String(error)
+  const errorStack = error instanceof Error ? error.stack : undefined
 
   logger.error(`${routeName} unhandled error`, {
     error: errorMessage,
+    stack: errorStack,
     durationMs: Date.now() - startedAt,
   })
 
-  // For known temporary errors (503, rate limit), surface the actual message
-  const isTemporaryError =
+  // Only a short whitelist of upstream-status messages is surfaced verbatim
+  // to the client (so the UI can show "service temporarily unavailable" toasts).
+  // Everything else collapses to a generic string — provider names, internal
+  // paths, and SQL error fragments must never reach response bodies. The
+  // logger above keeps the real error for operators.
+  const isTransientUpstream =
     errorMessage.includes('temporarily unavailable') ||
     errorMessage.includes('high demand') ||
     errorMessage.includes('rate limit')
@@ -219,7 +225,7 @@ function handleRouteError(
       'INTERNAL_ERROR',
       500,
       'errors.common.unexpected',
-      isTemporaryError
+      isTransientUpstream
         ? errorMessage
         : 'An unexpected error occurred. Please try again.',
     ),
@@ -358,6 +364,7 @@ interface PutByIdConfig<TSchema extends z.ZodType, TResult> {
 interface DeleteByIdConfig {
   routeName: string
   notFoundMessage?: string
+  rateLimit?: { limit: number; windowSeconds: number }
   /** Return false to produce a 404. Return void/true for success (→ 200 { success: true }). */
   handler: (clerkId: string, id: string) => Promise<boolean | void>
 }
@@ -473,6 +480,16 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
     const startedAt = Date.now()
     try {
       const clerkId = await getClerkId(true)
+
+      if (config.rateLimit) {
+        const { errorResponse } = await applyUserRateLimit(
+          config.routeName,
+          clerkId!,
+          config.rateLimit,
+        )
+        if (errorResponse) return errorResponse
+      }
+
       const { id } = await context.params
       const result = await config.handler(clerkId!, id)
       if (result === false) {

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+import { rateLimit } from '@/lib/rate-limit'
+import { assertSafeUrl } from '@/lib/url-guard'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 const QuerySchema = z.object({
   url: z.string().url(),
@@ -24,7 +27,19 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 2. Validate
+  // 2. Rate limit (outbound fetch — strict)
+  const { success: allowed } = await rateLimit(
+    `image-proxy:${userId}`,
+    RATE_LIMIT_CONFIGS.outboundProbe,
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429 },
+    )
+  }
+
+  // 3. Validate
   const url = request.nextUrl.searchParams.get('url')
   const parsed = QuerySchema.safeParse({ url })
   if (!parsed.success) {
@@ -34,7 +49,16 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 3. Fetch and proxy
+  try {
+    assertSafeUrl(parsed.data.url)
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'URL is not allowed' },
+      { status: 400 },
+    )
+  }
+
+  // 4. Fetch and proxy
   try {
     const res = await fetch(parsed.data.url)
     if (!res.ok) {

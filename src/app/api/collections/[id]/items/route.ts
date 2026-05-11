@@ -10,11 +10,14 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { AddToCollectionSchema } from '@/types'
 import { ApiRequestError } from '@/lib/errors'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { rateLimit } from '@/lib/rate-limit'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 export const POST = createApiPostByIdRoute({
   schema: AddToCollectionSchema,
   routeName: 'POST /api/collections/[id]/items',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     const user = await ensureUser(clerkId)
     try {
@@ -55,6 +58,17 @@ export async function DELETE(
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },
+    )
+  }
+
+  const { success: allowed } = await rateLimit(
+    `collection-items-delete:${clerkId}`,
+    RATE_LIMIT_CONFIGS.authedWrite,
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429 },
     )
   }
 

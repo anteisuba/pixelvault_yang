@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { toggleGenerationVisibility } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import { ApiRequestError } from '@/lib/errors'
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPatchByIdRoute } from '@/lib/api-route-factory'
 
 const VisibilitySchema = z.object({
@@ -17,6 +18,7 @@ export const PATCH = createApiPatchByIdRoute({
   schema: VisibilitySchema,
   routeName: 'PATCH /api/generations/[id]/visibility',
   notFoundMessage: 'Generation not found or access denied',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     const user = await ensureUser(clerkId)
     const result = await toggleGenerationVisibility(id, user.id, data.field)

@@ -184,7 +184,12 @@ function humanizeProviderError(
   if (status === 429) {
     return `${provider} rate limit reached. Please wait and try again.`
   }
-  if (status === 502 || status === 503) {
+  if (status === 503) {
+    // Specific to upstream "spike in demand" — usually minute-scale,
+    // suggest swapping to another model instead of retrying.
+    return `${provider} is at capacity right now. Switch to another model (e.g. Gemini Flash, GPT-Image-2, Flux 2 Pro) and try again.`
+  }
+  if (status === 502) {
     return `${provider} is temporarily unavailable. Please try again in a moment.`
   }
 

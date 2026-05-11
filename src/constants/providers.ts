@@ -173,6 +173,9 @@ export const isAiAdapterType = (value: string): value is AI_ADAPTER_TYPES =>
  */
 export const PROVIDER_FALLBACK_MAP: Partial<Record<string, string>> = {
   // Image model fallbacks (cross-provider)
+  // Pro is currently capacity-constrained (frequent 503); fall back to
+  // the more reliable Flash before crossing providers.
+  'gemini-3-pro-image-preview': 'gemini-3.1-flash-image-preview',
   'gemini-3.1-flash-image-preview': 'gpt-image-2',
   'gpt-image-2': 'gemini-3.1-flash-image-preview',
   'flux-2-pro': 'gemini-3.1-flash-image-preview',

@@ -298,6 +298,32 @@ async function callProviderWithFallback(params: {
           maxAttempts: 2,
           baseDelayMs: 1500,
           label: `${route.adapterType}.generateImage`,
+          // Default retry policy treats every 5xx the same. For 503
+          // ("UNAVAILABLE" / "high demand") the upstream provider is
+          // explicitly telling us the spike is minutes long — a 1.5s
+          // wait won't clear it and just doubles the user's wait
+          // before the eventual failure. Retry 500/502/504 + network
+          // errors as before; let 503 fail fast so the user can swap
+          // models within seconds instead of minutes.
+          isRetryable: (error: unknown) => {
+            const status = (error as { status?: number })?.status
+            if (status === 503) return false
+            if (typeof status === 'number') {
+              return status >= 500 || status === 429
+            }
+            if (error instanceof Error) {
+              const msg = error.message.toLowerCase()
+              return (
+                msg.includes('timeout') ||
+                msg.includes('econnreset') ||
+                msg.includes('econnrefused') ||
+                msg.includes('fetch failed') ||
+                msg.includes('network') ||
+                msg.includes('socket hang up')
+              )
+            }
+            return false
+          },
         },
       ),
     )

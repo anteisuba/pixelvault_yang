@@ -106,6 +106,7 @@ export function HomepageShell({
               tone={section.tone}
               reverse={section.reverse}
               comingSoon={'comingSoon' in section ? section.comingSoon : false}
+              media={section.media}
             />
           ))}
 

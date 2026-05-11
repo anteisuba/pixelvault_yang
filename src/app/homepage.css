@@ -373,6 +373,16 @@
   overflow: hidden;
 }
 
+/* Image / video fills the tile; the tone gradient still paints below so
+   it works as a poster while the media warms up. */
+.homepage-feature-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .homepage-feature-tone-sky {
   background:
     radial-gradient(

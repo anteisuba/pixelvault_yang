@@ -1,5 +1,7 @@
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
+import type { HomepageFeatureMedia } from '@/constants/homepage'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
@@ -10,6 +12,11 @@ interface HomepageFeatureSectionProps {
   tone: string
   reverse?: boolean
   comingSoon?: boolean
+  /**
+   * Optional media to fill the section tile. When omitted the tile keeps
+   * the gradient fallback so sections can ship art incrementally.
+   */
+  media?: HomepageFeatureMedia
 }
 
 export function HomepageFeatureSection({
@@ -18,6 +25,7 @@ export function HomepageFeatureSection({
   tone,
   reverse = false,
   comingSoon = false,
+  media,
 }: HomepageFeatureSectionProps) {
   const t = useTranslations(`Homepage.featureSections.${id}`)
   const tCommon = useTranslations('Homepage')
@@ -34,8 +42,32 @@ export function HomepageFeatureSection({
           `homepage-feature-tone-${tone}`,
           reverse && 'lg:order-2',
         )}
-        aria-hidden="true"
-      />
+        aria-hidden={media ? undefined : 'true'}
+      >
+        {media?.type === 'image' && (
+          <Image
+            src={media.src}
+            alt={media.alt}
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="homepage-feature-media object-cover"
+            priority={false}
+          />
+        )}
+        {media?.type === 'video' && (
+          <video
+            className="homepage-feature-media h-full w-full object-cover"
+            src={media.src}
+            poster={media.poster}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label={media.alt}
+          />
+        )}
+      </div>
 
       <div
         className={cn(

@@ -100,6 +100,22 @@ export const HOMEPAGE_VALUE_PROPS = [
 export type HomepageValuePropIcon =
   (typeof HOMEPAGE_VALUE_PROPS)[number]['icon']
 
+/**
+ * Optional media shown inside each feature section's media tile.
+ *
+ * - `image` files live in `public/homepage/<id>.webp` (16:10, ≥1600px wide).
+ *   Run Gemini 3 Pro Image or GPT-Image-2 with the prompt next to each
+ *   section below, export to webp, drop in `public/homepage/`.
+ * - `video` files live in `public/homepage/<id>.mp4` (h264, ≤2 MB, ≤8 s
+ *   loop, muted, optionally with a `<id>-poster.webp` first-frame poster).
+ *
+ * When `media` is omitted, the section keeps the existing gradient tile,
+ * so sections can ship images incrementally.
+ */
+export type HomepageFeatureMedia =
+  | { type: 'image'; src: string; alt: string }
+  | { type: 'video'; src: string; poster?: string; alt: string }
+
 /** Krea-style feature sections — left-image / right-text alternating */
 export const HOMEPAGE_FEATURE_SECTIONS = [
   {
@@ -107,30 +123,50 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'sky',
     reverse: false,
+    // Prompt: a portrait of a young woman on the left + 3 stylised
+    // re-renders (Ghibli / oil / watercolor) tiled on the right, soft
+    // editorial layout, plenty of negative space, 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'video',
     ctaHref: ROUTES.STUDIO,
     tone: 'forest',
     reverse: true,
+    // Prompt: a film-strip storyboard with 4 cinematic frames of a
+    // dragon swooping over mountains, golden-hour lighting, frame
+    // numbers along the top, 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'lora',
     ctaHref: ROUTES.STUDIO,
     tone: 'amber',
     reverse: false,
+    // Prompt: a contact sheet of training images on the left + the
+    // resulting consistent character on the right, "before / after"
+    // label, soft warm light, 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'upscale',
     ctaHref: ROUTES.STUDIO,
     tone: 'dawn',
     reverse: true,
+    // Prompt: a single image split vertically — left half blurry low-res,
+    // right half tack-sharp 4× upscale, magnifier loupe over the seam,
+    // 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'tts',
     ctaHref: ROUTES.STUDIO,
     tone: 'ink',
     reverse: false,
+    // Prompt: a sound-wave ribbon flowing across the frame with a
+    // floating speech bubble of multilingual text, dark ink palette,
+    // 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'workflow',
@@ -138,26 +174,49 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     tone: 'forest',
     reverse: true,
     comingSoon: true,
+    // VIDEO. Prompt for Veo 3.1 / Seedance 2.0: a node-based visual
+    // workflow editor; mouse drags a connection between an "image gen"
+    // node and an "upscale" node, then a "deploy" button pulses and
+    // turns green. 6–8s loop, no audio.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'arena',
     ctaHref: ROUTES.ARENA,
     tone: 'amber',
     reverse: false,
+    // Prompt: four AI portraits in a 2x2 grid, one tagged with a glowing
+    // "winner" ribbon and a small ELO scoreboard in the corner, 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'archive',
     ctaHref: ROUTES.GALLERY,
     tone: 'earth',
     reverse: true,
+    // Prompt: a vast wall of generation thumbnails fading into the
+    // distance, a timeline ribbon along the bottom, earthy palette,
+    // 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
   {
     id: 'social',
     ctaHref: ROUTES.GALLERY,
     tone: 'sky',
     reverse: false,
+    // Prompt: three artwork cards stacked at gentle angles with avatars,
+    // like counts, and a "follow" badge, soft sky-blue background,
+    // 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
   },
-] as const
+] as const satisfies ReadonlyArray<{
+  id: string
+  ctaHref: string
+  tone: string
+  reverse: boolean
+  comingSoon?: boolean
+  media: HomepageFeatureMedia | undefined
+}>
 
 export type HomepageFeatureSectionTone =
   (typeof HOMEPAGE_FEATURE_SECTIONS)[number]['tone']

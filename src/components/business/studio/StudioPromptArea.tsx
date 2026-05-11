@@ -524,11 +524,17 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       }
       return
     }
+    // Plan-then-generate route: only when the user has NOT picked a
+    // specific model. Once they've selected one (Gemini Flash Image,
+    // Flux 2 Pro, ...) we must honour that selection — the plan flow
+    // would overwrite it with `recommendedModels[0]` on confirm.
+    const userPickedModel = !!selectedModel?.modelId
     if (
       !isAudioMode &&
       !isVideoMode &&
       state.workflowMode === 'quick' &&
-      state.prompt.trim()
+      state.prompt.trim() &&
+      !userPickedModel
     ) {
       const result = await fetchGenerationPlanAPI({
         naturalLanguage: state.prompt,

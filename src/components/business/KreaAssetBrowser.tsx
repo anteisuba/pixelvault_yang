@@ -15,7 +15,9 @@ import {
   Pencil,
   Plus,
   Search,
+  Box,
   Trash2,
+  UploadCloud,
   Video,
   X,
 } from 'lucide-react'
@@ -39,6 +41,7 @@ import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
 import {
   batchDeleteGenerationsAPI,
@@ -88,12 +91,14 @@ const DEFAULT_FILTERS: GalleryFilters = {
   timeRange: 'all',
   liked: false,
   projectId: '',
+  provider: '',
 }
 
 type Section =
   | { kind: 'all' }
   | { kind: 'favorites' }
-  | { kind: 'type'; type: 'image' | 'video' | 'audio' }
+  | { kind: 'uploads' }
+  | { kind: 'type'; type: 'image' | 'video' | 'audio' | 'model_3d' }
   | { kind: 'unassigned' }
   | { kind: 'project'; id: string }
 
@@ -125,13 +130,15 @@ function sectionFromFilters(
   lockedMediaType?: 'image' | 'video' | 'audio',
 ): Section {
   if (filters.liked) return { kind: 'favorites' }
+  if (filters.provider === USER_UPLOAD_PROVIDER) return { kind: 'uploads' }
   if (filters.projectId === 'none') return { kind: 'unassigned' }
   if (filters.projectId) return { kind: 'project', id: filters.projectId }
   if (
     !lockedMediaType &&
     (filters.type === 'image' ||
       filters.type === 'video' ||
-      filters.type === 'audio')
+      filters.type === 'audio' ||
+      filters.type === 'model_3d')
   ) {
     return { kind: 'type', type: filters.type }
   }
@@ -415,6 +422,7 @@ export function KreaAssetBrowser({
         // Krea.
         liked: false,
         projectId: '',
+        provider: '',
         // When mediaType is locked the browser is acting as a
         // single-type picker (e.g. image-only reference selection), so
         // 'All' inside that mode means "all <mediaType>" rather than
@@ -426,6 +434,8 @@ export function KreaAssetBrowser({
           return base
         case 'favorites':
           return { ...base, liked: true }
+        case 'uploads':
+          return { ...base, provider: USER_UPLOAD_PROVIDER }
         case 'type':
           return { ...base, type: next.type }
         case 'unassigned':
@@ -467,6 +477,7 @@ export function KreaAssetBrowser({
         liked: targetFilters.liked || undefined,
         mine: true,
         projectId: targetFilters.projectId || undefined,
+        provider: targetFilters.provider || undefined,
       }
       void fetchGalleryImages(1, 24, filterParams).then((response) => {
         if (response.success && response.data) {
@@ -525,6 +536,9 @@ export function KreaAssetBrowser({
   const audioCount =
     counts?.audio ??
     (section.kind === 'type' && section.type === 'audio' ? total : undefined)
+  const model3DCount =
+    counts?.model_3d ??
+    (section.kind === 'type' && section.type === 'model_3d' ? total : undefined)
   const unassignedCount =
     counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
   const projectCount = (id: string): number | undefined =>
@@ -723,6 +737,13 @@ export function KreaAssetBrowser({
             onClick={() => setSection({ kind: 'favorites' })}
             onPrefetch={() => prefetchSection({ kind: 'favorites' })}
           />
+          <SidebarItem
+            active={section.kind === 'uploads'}
+            icon={<UploadCloud className="size-4" />}
+            label={t('sidebarUploads')}
+            onClick={() => setSection({ kind: 'uploads' })}
+            onPrefetch={() => prefetchSection({ kind: 'uploads' })}
+          />
 
           {/*
            * Tools section lets the user switch across media types — hide it
@@ -760,6 +781,16 @@ export function KreaAssetBrowser({
                 onClick={() => setSection({ kind: 'type', type: 'audio' })}
                 onPrefetch={() =>
                   prefetchSection({ kind: 'type', type: 'audio' })
+                }
+              />
+              <SidebarItem
+                active={section.kind === 'type' && section.type === 'model_3d'}
+                icon={<Box className="size-4" />}
+                label={t('sidebarModel3D')}
+                count={model3DCount}
+                onClick={() => setSection({ kind: 'type', type: 'model_3d' })}
+                onPrefetch={() =>
+                  prefetchSection({ kind: 'type', type: 'model_3d' })
                 }
               />
             </>

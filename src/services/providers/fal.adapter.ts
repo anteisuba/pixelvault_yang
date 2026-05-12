@@ -63,6 +63,7 @@ import {
   type ProviderQueueSubmitInput,
   type ProviderQueueStatusInput,
   type ProviderExtendVideoInput,
+  type ProviderModel3DInput,
 } from '@/services/providers/types'
 import { buildFalVideoQueueRequest } from '@/services/providers/fal/video-request-builders'
 
@@ -99,10 +100,55 @@ const FAL_QUEUE_SUBMIT_SCHEMA = z.object({
   response_url: z.string().url(),
 })
 
-const FAL_QUEUE_STATUS_SCHEMA = z.object({
-  status: z.enum(['IN_QUEUE', 'IN_PROGRESS', 'COMPLETED']),
-  response_url: z.string().url().optional(),
-})
+// fal occasionally returns status values outside the documented set
+// (e.g. ERROR, CANCELED, or future additions). Keep the schema permissive
+// so an unknown status surfaces as a clean "failed" rather than a zod
+// parse error → 502. fal also routinely sends `null` for optional fields
+// (e.g. `logs: null` in IN_QUEUE state), so every field is `nullable()`
+// in addition to `optional()` to avoid spurious schema rejections.
+const FAL_QUEUE_STATUS_SCHEMA = z
+  .object({
+    status: z.string(),
+    response_url: z.string().url().nullable().optional(),
+    logs: z
+      .array(
+        z
+          .object({
+            message: z.string().nullable().optional(),
+            level: z.string().nullable().optional(),
+          })
+          .passthrough(),
+      )
+      .nullable()
+      .optional(),
+    error: z.unknown().nullable().optional(),
+    detail: z.unknown().nullable().optional(),
+  })
+  .passthrough()
+
+const FAL_MODEL_3D_RESPONSE_SCHEMA = z
+  .object({
+    model_mesh: z
+      .object({
+        url: z.string().url(),
+        content_type: z.string().nullable().optional(),
+        file_name: z.string().nullable().optional(),
+        file_size: z.number().nullable().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough()
+
+// fal.ai exposes Hunyuan3D under both `input_image_url` and `image_url`
+// depending on entry point. TripoSR uses `image_url`. The map keeps the
+// per-model field name explicit so we don't over-broadcast.
+const FAL_MODEL_3D_IMAGE_FIELD: Record<
+  string,
+  'input_image_url' | 'image_url'
+> = {
+  'fal-ai/hunyuan3d/v2': 'input_image_url',
+  'fal-ai/triposr': 'image_url',
+}
 
 const FAL_IMAGE_SIZES: Record<string, string> = {
   '1:1': 'square_hd',
@@ -482,6 +528,188 @@ export const falAdapter: ProviderAdapter = {
         width,
         height,
         duration: VIDEO_GENERATION.DEFAULT_DURATION,
+        requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      },
+    }
+  },
+
+  async submitModel3DToQueue({
+    imageUrl,
+    modelId,
+    apiKey,
+    texturedMesh,
+    octreeResolution,
+    removeBackground,
+    seed,
+  }: ProviderModel3DInput) {
+    const externalModelId = getExecutionModelId(modelId)
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
+    const imageField = FAL_MODEL_3D_IMAGE_FIELD[externalModelId] ?? 'image_url'
+
+    const body: Record<string, unknown> = {
+      [imageField]: imageUrl,
+    }
+    if (texturedMesh != null) body.textured_mesh = texturedMesh
+    if (octreeResolution != null) body.octree_resolution = octreeResolution
+    if (removeBackground != null) body.do_remove_background = removeBackground
+    if (seed != null && seed >= 0) body.seed = seed
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      logger.error('fal.ai submitModel3DToQueue failed', {
+        status: response.status,
+        modelId,
+        endpoint,
+        errorBody: errorBody.slice(0, 500),
+      })
+      throw new ProviderError(
+        'fal.ai',
+        response.status,
+        formatFalError(response.status, errorBody),
+      )
+    }
+
+    const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+    return {
+      requestId: data.request_id,
+      statusUrl: data.status_url,
+      responseUrl: data.response_url,
+    }
+  },
+
+  async checkModel3DQueueStatus({
+    statusUrl,
+    responseUrl,
+    apiKey,
+  }: ProviderQueueStatusInput) {
+    const statusResponse = await fetch(statusUrl, {
+      method: 'GET',
+      headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!statusResponse.ok) {
+      const errorBody = await statusResponse.text().catch(() => 'Unknown error')
+      logger.error('[3D-DEBUG] fal status non-OK HTTP', {
+        status: statusResponse.status,
+        statusUrl,
+        errorBody: errorBody.slice(0, 2000),
+      })
+      throw new ProviderError(
+        'fal.ai',
+        statusResponse.status,
+        `[3D-status-http-${statusResponse.status}] ${errorBody.slice(0, 500)}`,
+      )
+    }
+
+    const statusJson = await statusResponse.json()
+    // ALWAYS log raw fal status response — temporary diagnostic so we can
+    // see exactly what shape fal returns for failed/unknown jobs.
+    logger.info('[3D-DEBUG] fal status raw body', {
+      statusUrl,
+      body: JSON.stringify(statusJson).slice(0, 1500),
+    })
+    const statusParse = FAL_QUEUE_STATUS_SCHEMA.safeParse(statusJson)
+    if (!statusParse.success) {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `[3D-status-schema-mismatch] body=${JSON.stringify(statusJson).slice(0, 500)} zod=${statusParse.error.message.slice(0, 200)}`,
+      )
+    }
+    const statusData = statusParse.data
+
+    if (
+      statusData.status === 'IN_QUEUE' ||
+      statusData.status === 'IN_PROGRESS'
+    ) {
+      return { status: statusData.status }
+    }
+
+    if (statusData.status !== 'COMPLETED') {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `[3D-status-${statusData.status}] full=${JSON.stringify(statusJson).slice(0, 500)}`,
+      )
+    }
+
+    logger.info('[3D-DEBUG] about to fetch result endpoint', { responseUrl })
+
+    let resultResponse: Response
+    try {
+      resultResponse = await fetch(responseUrl, {
+        method: 'GET',
+        headers: { Authorization: `Key ${apiKey}` },
+        signal: AbortSignal.timeout(30_000),
+      })
+    } catch (fetchErr) {
+      const msg =
+        fetchErr instanceof Error ? fetchErr.message : String(fetchErr)
+      logger.error('[3D-DEBUG] result fetch threw', { responseUrl, msg })
+      throw new ProviderError('fal.ai', 502, `[3D-result-fetch-error] ${msg}`)
+    }
+
+    let resultRawText = ''
+    try {
+      resultRawText = await resultResponse.text()
+    } catch (readErr) {
+      const msg = readErr instanceof Error ? readErr.message : String(readErr)
+      logger.error('[3D-DEBUG] result body read threw', { responseUrl, msg })
+      throw new ProviderError('fal.ai', 502, `[3D-result-read-error] ${msg}`)
+    }
+
+    logger.info('[3D-DEBUG] fal result raw response', {
+      httpStatus: resultResponse.status,
+      responseUrl,
+      bodyLength: resultRawText.length,
+      bodyExcerpt: resultRawText.slice(0, 2000),
+    })
+
+    if (!resultResponse.ok) {
+      throw new ProviderError(
+        'fal.ai',
+        resultResponse.status,
+        `[3D-result-http-${resultResponse.status}] ${resultRawText.slice(0, 500)}`,
+      )
+    }
+
+    let resultJson: unknown
+    try {
+      resultJson = JSON.parse(resultRawText)
+    } catch {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `[3D-result-not-json] ${resultRawText.slice(0, 500)}`,
+      )
+    }
+
+    const resultParse = FAL_MODEL_3D_RESPONSE_SCHEMA.safeParse(resultJson)
+    if (!resultParse.success) {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `[3D-result-schema-mismatch] body=${JSON.stringify(resultJson).slice(0, 500)} zod=${resultParse.error.message.slice(0, 200)}`,
+      )
+    }
+
+    return {
+      status: 'COMPLETED' as const,
+      result: {
+        modelUrl: resultParse.data.model_mesh.url,
+        contentType: resultParse.data.model_mesh.content_type ?? undefined,
+        fileSize: resultParse.data.model_mesh.file_size ?? undefined,
         requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
       },
     }

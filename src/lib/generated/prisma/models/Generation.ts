@@ -55,6 +55,8 @@ export type GenerationMinAggregateOutputType = {
   width: number | null
   height: number | null
   duration: number | null
+  modelUrl: string | null
+  modelStorageKey: string | null
   referenceImageUrl: string | null
   prompt: string | null
   negativePrompt: string | null
@@ -87,6 +89,8 @@ export type GenerationMaxAggregateOutputType = {
   width: number | null
   height: number | null
   duration: number | null
+  modelUrl: string | null
+  modelStorageKey: string | null
   referenceImageUrl: string | null
   prompt: string | null
   negativePrompt: string | null
@@ -119,6 +123,8 @@ export type GenerationCountAggregateOutputType = {
   width: number
   height: number
   duration: number
+  modelUrl: number
+  modelStorageKey: number
   referenceImageUrl: number
   prompt: number
   negativePrompt: number
@@ -174,6 +180,8 @@ export type GenerationMinAggregateInputType = {
   width?: true
   height?: true
   duration?: true
+  modelUrl?: true
+  modelStorageKey?: true
   referenceImageUrl?: true
   prompt?: true
   negativePrompt?: true
@@ -206,6 +214,8 @@ export type GenerationMaxAggregateInputType = {
   width?: true
   height?: true
   duration?: true
+  modelUrl?: true
+  modelStorageKey?: true
   referenceImageUrl?: true
   prompt?: true
   negativePrompt?: true
@@ -238,6 +248,8 @@ export type GenerationCountAggregateInputType = {
   width?: true
   height?: true
   duration?: true
+  modelUrl?: true
+  modelStorageKey?: true
   referenceImageUrl?: true
   prompt?: true
   negativePrompt?: true
@@ -360,6 +372,8 @@ export type GenerationGroupByOutputType = {
   width: number
   height: number
   duration: number | null
+  modelUrl: string | null
+  modelStorageKey: string | null
   referenceImageUrl: string | null
   prompt: string
   negativePrompt: string | null
@@ -418,6 +432,8 @@ export type GenerationWhereInput = {
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
+  modelUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  modelStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   referenceImageUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
   prompt?: Prisma.StringFilter<"Generation"> | string
   negativePrompt?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -465,6 +481,8 @@ export type GenerationOrderByWithRelationInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceImageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   prompt?: Prisma.SortOrder
   negativePrompt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -515,6 +533,8 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
+  modelUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  modelStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   referenceImageUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
   prompt?: Prisma.StringFilter<"Generation"> | string
   negativePrompt?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -562,6 +582,8 @@ export type GenerationOrderByWithAggregationInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  modelStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   referenceImageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   prompt?: Prisma.SortOrder
   negativePrompt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -605,6 +627,8 @@ export type GenerationScalarWhereWithAggregatesInput = {
   width?: Prisma.IntWithAggregatesFilter<"Generation"> | number
   height?: Prisma.IntWithAggregatesFilter<"Generation"> | number
   duration?: Prisma.FloatNullableWithAggregatesFilter<"Generation"> | number | null
+  modelUrl?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
+  modelStorageKey?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   referenceImageUrl?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   prompt?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   negativePrompt?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
@@ -640,6 +664,8 @@ export type GenerationCreateInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -683,6 +709,8 @@ export type GenerationUncheckedCreateInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -726,6 +754,8 @@ export type GenerationUpdateInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -769,6 +799,8 @@ export type GenerationUncheckedUpdateInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -812,6 +844,8 @@ export type GenerationCreateManyInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -847,6 +881,8 @@ export type GenerationUpdateManyMutationInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -878,6 +914,8 @@ export type GenerationUncheckedUpdateManyInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -923,6 +961,8 @@ export type GenerationCountOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
+  modelUrl?: Prisma.SortOrder
+  modelStorageKey?: Prisma.SortOrder
   referenceImageUrl?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   negativePrompt?: Prisma.SortOrder
@@ -967,6 +1007,8 @@ export type GenerationMaxOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
+  modelUrl?: Prisma.SortOrder
+  modelStorageKey?: Prisma.SortOrder
   referenceImageUrl?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   negativePrompt?: Prisma.SortOrder
@@ -999,6 +1041,8 @@ export type GenerationMinOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
+  modelUrl?: Prisma.SortOrder
+  modelStorageKey?: Prisma.SortOrder
   referenceImageUrl?: Prisma.SortOrder
   prompt?: Prisma.SortOrder
   negativePrompt?: Prisma.SortOrder
@@ -1370,6 +1414,8 @@ export type GenerationCreateWithoutUserInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1412,6 +1458,8 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1483,6 +1531,8 @@ export type GenerationScalarWhereInput = {
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
+  modelUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  modelStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   referenceImageUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
   prompt?: Prisma.StringFilter<"Generation"> | string
   negativePrompt?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -1518,6 +1568,8 @@ export type GenerationCreateWithoutProjectInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1560,6 +1612,8 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1628,6 +1682,8 @@ export type GenerationCreateWithoutGenerationJobInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1670,6 +1726,8 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1728,6 +1786,8 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1770,6 +1830,8 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1812,6 +1874,8 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1854,6 +1918,8 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -1912,6 +1978,8 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1954,6 +2022,8 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1996,6 +2066,8 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2038,6 +2110,8 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2096,6 +2170,8 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2138,6 +2214,8 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2180,6 +2258,8 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2222,6 +2302,8 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2280,6 +2362,8 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2322,6 +2406,8 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2364,6 +2450,8 @@ export type GenerationCreateWithoutCharacterCardInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2406,6 +2494,8 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2474,6 +2564,8 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2516,6 +2608,8 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2574,6 +2668,8 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2616,6 +2712,8 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2658,6 +2756,8 @@ export type GenerationCreateWithoutLikesInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2700,6 +2800,8 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2758,6 +2860,8 @@ export type GenerationUpdateWithoutLikesInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2800,6 +2904,8 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2842,6 +2948,8 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2884,6 +2992,8 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -2942,6 +3052,8 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2984,6 +3096,8 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3026,6 +3140,8 @@ export type GenerationCreateWithoutCardRecipeInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3068,6 +3184,8 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3136,6 +3254,8 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3178,6 +3298,8 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3236,6 +3358,8 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3278,6 +3402,8 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3320,6 +3446,8 @@ export type GenerationCreateManyUserInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3354,6 +3482,8 @@ export type GenerationUpdateWithoutUserInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3396,6 +3526,8 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3438,6 +3570,8 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3472,6 +3606,8 @@ export type GenerationCreateManyProjectInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3506,6 +3642,8 @@ export type GenerationUpdateWithoutProjectInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3548,6 +3686,8 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3590,6 +3730,8 @@ export type GenerationUncheckedUpdateManyWithoutProjectInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3624,6 +3766,8 @@ export type GenerationCreateManyCharacterCardInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3658,6 +3802,8 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3700,6 +3846,8 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3742,6 +3890,8 @@ export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3776,6 +3926,8 @@ export type GenerationCreateManyCardRecipeInput = {
   width?: number
   height?: number
   duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
   referenceImageUrl?: string | null
   prompt: string
   negativePrompt?: string | null
@@ -3810,6 +3962,8 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3852,6 +4006,8 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3894,6 +4050,8 @@ export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   prompt?: Prisma.StringFieldUpdateOperationsInput | string
   negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4004,6 +4162,8 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   width?: boolean
   height?: boolean
   duration?: boolean
+  modelUrl?: boolean
+  modelStorageKey?: boolean
   referenceImageUrl?: boolean
   prompt?: boolean
   negativePrompt?: boolean
@@ -4052,6 +4212,8 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   width?: boolean
   height?: boolean
   duration?: boolean
+  modelUrl?: boolean
+  modelStorageKey?: boolean
   referenceImageUrl?: boolean
   prompt?: boolean
   negativePrompt?: boolean
@@ -4091,6 +4253,8 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   width?: boolean
   height?: boolean
   duration?: boolean
+  modelUrl?: boolean
+  modelStorageKey?: boolean
   referenceImageUrl?: boolean
   prompt?: boolean
   negativePrompt?: boolean
@@ -4130,6 +4294,8 @@ export type GenerationSelectScalar = {
   width?: boolean
   height?: boolean
   duration?: boolean
+  modelUrl?: boolean
+  modelStorageKey?: boolean
   referenceImageUrl?: boolean
   prompt?: boolean
   negativePrompt?: boolean
@@ -4154,7 +4320,7 @@ export type GenerationSelectScalar = {
   seed?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
@@ -4210,6 +4376,8 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     width: number
     height: number
     duration: number | null
+    modelUrl: string | null
+    modelStorageKey: string | null
     referenceImageUrl: string | null
     prompt: string
     negativePrompt: string | null
@@ -4677,6 +4845,8 @@ export interface GenerationFieldRefs {
   readonly width: Prisma.FieldRef<"Generation", 'Int'>
   readonly height: Prisma.FieldRef<"Generation", 'Int'>
   readonly duration: Prisma.FieldRef<"Generation", 'Float'>
+  readonly modelUrl: Prisma.FieldRef<"Generation", 'String'>
+  readonly modelStorageKey: Prisma.FieldRef<"Generation", 'String'>
   readonly referenceImageUrl: Prisma.FieldRef<"Generation", 'String'>
   readonly prompt: Prisma.FieldRef<"Generation", 'String'>
   readonly negativePrompt: Prisma.FieldRef<"Generation", 'String'>

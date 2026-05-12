@@ -23,6 +23,8 @@ export async function fetchGalleryImages(
      * generations only, or omit/empty for all projects.
      */
     projectId?: string
+    /** Filter by Generation.provider (e.g. 'user-upload' for local assets). */
+    provider?: string
   },
 ): Promise<GalleryResponse> {
   try {
@@ -42,6 +44,7 @@ export async function fetchGalleryImages(
     if (filters?.liked) params.set('liked', '1')
     if (filters?.mine) params.set('mine', '1')
     if (filters?.projectId) params.set('projectId', filters.projectId)
+    if (filters?.provider) params.set('provider', filters.provider)
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
     if (!response.ok) {

@@ -54,4 +54,7 @@ export enum AI_MODELS {
   VEO_31 = 'veo-3.1',
   PIKA_V25 = 'pika-v2.5',
   RUNWAY_GEN3 = 'runway-gen3',
+  // 3D models (image-to-3D)
+  HUNYUAN3D_2_1 = 'hunyuan3d-2.1',
+  TRIPOSR = 'triposr',
 }

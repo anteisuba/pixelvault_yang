@@ -487,6 +487,7 @@ describe('generation.service', () => {
         image: 7,
         video: 3,
         audio: 2,
+        model_3d: 0,
         unassigned: 4,
         byProject: {
           'proj-a': 5,
@@ -518,6 +519,7 @@ describe('generation.service', () => {
         image: 0,
         video: 0,
         audio: 0,
+        model_3d: 0,
         unassigned: 0,
         byProject: {},
       })

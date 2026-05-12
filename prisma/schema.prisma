@@ -13,6 +13,7 @@ enum OutputType {
   IMAGE
   VIDEO
   AUDIO
+  MODEL_3D
 }
 
 enum GenerationStatus {
@@ -189,6 +190,12 @@ model Generation {
 
   // 視頻專用（圖片留 null）
   duration Float? // 秒數，例如 5.0
+
+  // ── 3D 專用（其他媒體留 null）────────────────────────────────────
+  // url / storageKey 對 MODEL_3D 存的是 poster PNG（客戶端 toBlob 截圖回填），
+  // 真正的 GLB 文件存在 modelUrl / modelStorageKey。
+  modelUrl        String? // R2 永久 URL（GLB 文件）
+  modelStorageKey String? // R2 bucket 內的 GLB 文件路徑
 
   // ── 參考圖片 ────────────────────────────────────────────────────
   referenceImageUrl String? // R2 永久 URL（用戶上傳的參考圖）

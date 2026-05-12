@@ -1,7 +1,9 @@
 'use client'
 
 import {
+  Box,
   Check,
+  Download,
   FolderInput,
   Globe,
   GlobeLock,
@@ -16,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import NextImage from 'next/image'
 import { toast } from 'sonner'
 
+import { ModelViewer } from '@/components/business/ModelViewer'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
@@ -78,17 +81,24 @@ export function AssetDetailSheet({
 
   const open = generation !== null
 
-  const studioModeFor = (gen: GenerationRecord): 'image' | 'video' | 'audio' =>
+  const studioModeFor = (
+    gen: GenerationRecord,
+  ): 'image' | 'video' | 'audio' | '3d' =>
     gen.outputType === 'VIDEO'
       ? 'video'
       : gen.outputType === 'AUDIO'
         ? 'audio'
-        : 'image'
+        : gen.outputType === 'MODEL_3D'
+          ? '3d'
+          : 'image'
 
   const handleRemix = () => {
     if (!generation) return
     const mode = studioModeFor(generation)
-    router.push(`/studio/${mode}?remix=${generation.id}`)
+    // 3D Studio uses ?gen=<id> to load an existing GLB for viewing,
+    // not ?remix= (since 3D outputs aren't remix-able sources).
+    const param = mode === '3d' ? 'gen' : 'remix'
+    router.push(`/studio/${mode}?${param}=${generation.id}`)
     onOpenChange(false)
   }
 
@@ -376,6 +386,13 @@ function Preview({ generation }: { generation: GenerationRecord }) {
       </div>
     )
   }
+  if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
+    // Render the actual GLB. `url` is the poster PNG (uploaded by the
+    // client ModelViewer after first paint, see M3.B); `modelUrl` is the
+    // GLB itself. Poster used as the initial frame so the viewer doesn't
+    // flash empty while the mesh downloads.
+    return <Model3DPreview generation={generation} />
+  }
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40">
       <NextImage
@@ -385,6 +402,55 @@ function Preview({ generation }: { generation: GenerationRecord }) {
         sizes="480px"
         className="object-contain"
       />
+    </div>
+  )
+}
+
+/**
+ * 3D preview block — viewer + dedicated Download GLB and AR action buttons.
+ * The AR button uses model-viewer's `slot="ar-button"` so it replaces the
+ * default AR icon and is automatically wired to launch AR (or show a QR
+ * fallback on devices that can't handle WebXR / Scene Viewer / Quick Look).
+ */
+function Model3DPreview({ generation }: { generation: GenerationRecord }) {
+  const t = useTranslations('Model3DGenerate')
+  if (!generation.modelUrl) return null
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="aspect-square w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40">
+        <ModelViewer
+          src={generation.modelUrl}
+          poster={
+            generation.url && generation.url !== generation.modelUrl
+              ? generation.url
+              : undefined
+          }
+          alt={generation.prompt || '3D model'}
+          className="h-full w-full"
+        >
+          {/*
+           * model-viewer recognises `slot="ar-button"` and wires it so any
+           * click triggers AR launch. Restyles the default green AR pill
+           * to match the editorial surface here.
+           */}
+          <button
+            slot="ar-button"
+            type="button"
+            className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <Box className="size-3.5" />
+            {t('openInAR')}
+          </button>
+        </ModelViewer>
+      </div>
+      <div className="flex gap-2">
+        <Button asChild variant="secondary" size="sm" className="flex-1">
+          <a href={generation.modelUrl} download>
+            <Download className="mr-1.5 size-3.5" />
+            {t('downloadGlb')}
+          </a>
+        </Button>
+      </div>
     </div>
   )
 }

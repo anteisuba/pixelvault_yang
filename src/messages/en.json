@@ -186,6 +186,7 @@
       "video": "Video",
       "lora": "LoRA",
       "audio": "Audio",
+      "model3d": "3D",
       "arena": "Arena",
       "gallery": "Gallery"
     },
@@ -227,6 +228,12 @@
         "title": "Text to Speech",
         "description": "Fish Audio S2 Pro and FAL F5 TTS. Pick a voice, set speed and sample rate, hit generate. Audio drops into the same archive as your images.",
         "cta": "Generate audio"
+      },
+      "model3d": {
+        "eyebrow": "2 image-to-3D models",
+        "title": "Image-to-3D Models",
+        "description": "Hunyuan3D 2.1 and TripoSR — one for PBR-textured detail, one for second-grade geometry previews. Pick an image from your archive, get a rotatable GLB, drag it in the browser, scan a code to drop it into AR. 3D assets archive alongside images, video, and audio.",
+        "cta": "Generate 3D"
       },
       "workflow": {
         "eyebrow": "In development",
@@ -424,6 +431,42 @@
       "imageWarning": "Only 1st card's image used for video"
     }
   },
+  "Model3DGenerate": {
+    "title": "Image-to-3D",
+    "description": "Pick an image from your archive and generate a rotatable GLB model.",
+    "modelLabel": "3D Model",
+    "modelPlaceholder": "Select 3D model",
+    "sourceImageLabel": "Source image",
+    "sourceImagePlaceholder": "Pick an image from the archive",
+    "selectFromAssets": "Select from assets",
+    "generateButton": "Generate 3D",
+    "generating": "Generating...",
+    "stageQueued": "Queued",
+    "stageGenerating": "Generating",
+    "stageUploading": "Uploading",
+    "elapsed": "Elapsed {seconds}",
+    "texturedMeshLabel": "PBR textures (3x cost)",
+    "texturedMeshHint": "Hunyuan3D only — generate mesh with PBR materials",
+    "octreeResolutionLabel": "Geometry resolution",
+    "removeBackgroundLabel": "Remove background",
+    "removeBackgroundHint": "TripoSR only — strip background before reconstruction",
+    "errorFallback": "3D generation failed, please retry.",
+    "errorUnexpected": "An unexpected error occurred.",
+    "errorTimeout": "3D generation timed out, please retry.",
+    "errorNoSourceImage": "Pick a source image first.",
+    "toastSuccess": "3D model generated!",
+    "viewerLoading": "Loading 3D model...",
+    "viewerError": "Failed to load 3D model.",
+    "downloadGlb": "Download GLB",
+    "openInAR": "View in AR",
+    "uploadButton": "Upload image",
+    "uploading": "Uploading...",
+    "uploadSuccess": "Image uploaded to local assets.",
+    "errorUnsupportedFile": "Only image files are supported.",
+    "errorFileTooLarge": "File too large (max {maxMb} MB).",
+    "apiKeyMissingTitle": "fal.ai API key not configured",
+    "apiKeyMissingDescription": "Hunyuan3D 2.1 and TripoSR both run on fal.ai. Add an active fal key before generating."
+  },
   "LongVideo": {
     "toggle": "Long Video",
     "targetDuration": "Target Duration",
@@ -589,6 +632,8 @@
     "search": "Search assets...",
     "sidebarAll": "All",
     "sidebarFavorites": "Favorites",
+    "sidebarUploads": "Local assets",
+    "sidebarModel3D": "3D",
     "sidebarTools": "Tools",
     "sidebarImages": "Images",
     "sidebarVideos": "Videos",
@@ -1469,6 +1514,14 @@
     "falF5Tts": {
       "label": "F5-TTS",
       "description": "Open-source zero-shot voice cloning on fal.ai"
+    },
+    "hunyuan3d21": {
+      "label": "Hunyuan3D 2.1",
+      "description": "Tencent image-to-3D, high-fidelity geometry + PBR textures"
+    },
+    "triposr": {
+      "label": "TripoSR",
+      "description": "Sub-second geometry reconstruction, untextured preview"
     }
   },
   "PromptPresets": {
@@ -1774,6 +1827,9 @@
       "audio": {
         "label": "Audio"
       },
+      "model3d": {
+        "label": "3D"
+      },
       "edit": {
         "label": "Edit",
         "title": "Edit",
@@ -1842,6 +1898,7 @@
     "referenceFormats": "JPG, PNG, WebP",
     "layerDecompose": "Layers",
     "transform": "Transform",
+    "make3DReady": "3D Ready",
     "plan": "Plan",
     "planLoading": "Planning…",
     "planNeedsPrompt": "Type a prompt to plan",
@@ -1893,7 +1950,11 @@
     "video": "Video",
     "voice": "Voice",
     "voiceSelected": "✓ Voice",
-    "clone": "Clone"
+    "clone": "Clone",
+    "make3DReady": "3D Ready",
+    "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
+    "make3DReadyOn": "3D-ready template applied — generation will produce a Hunyuan3D / TripoSR-friendly source.",
+    "make3DReadyOff": "3D-ready template removed."
   },
   "StudioV3": {
     "quickMode": "Quick Generate",

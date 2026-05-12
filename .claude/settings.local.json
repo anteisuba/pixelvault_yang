@@ -247,8 +247,6 @@
       "Bash(find src/app/[locale] -name \"loading.tsx\" -o -name \"error.tsx\")"
     ],
     "deny": [
-      "Edit(prisma/**)",
-      "Write(prisma/**)",
       "Edit(scripts/**)",
       "Write(scripts/**)",
       "Edit(e2e/**)",
@@ -265,8 +263,6 @@
       "Write(package-lock.json)",
       "Edit(pnpm-lock.yaml)",
       "Write(pnpm-lock.yaml)",
-      "Edit(next.config.ts)",
-      "Write(next.config.ts)",
       "Edit(tsconfig.json)",
       "Write(tsconfig.json)",
       "Edit(tsconfig.*.json)",

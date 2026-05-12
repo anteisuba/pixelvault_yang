@@ -1,17 +1,20 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Plus, Trash2, Loader2, Globe, Upload } from 'lucide-react'
+import { Plus, Trash2, Loader2, Globe, Upload, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import type {
   CharacterCardRecord,
   CreateCharacterCardRequest,
+  GenerationRecord,
   SourceImageUpload,
 } from '@/types'
 import { CHARACTER_CARD } from '@/constants/character-card'
+import { CARDIFY } from '@/constants/cardify'
 import type { SourceImageViewType } from '@/constants/character-card'
+import { CardifyPreview } from '@/components/business/CardifyPreview'
 
 interface CharacterCardCreateFormProps {
   onSubmit: (
@@ -31,10 +34,18 @@ export function CharacterCardCreateForm({
 }: CharacterCardCreateFormProps) {
   const t = useTranslations('CharacterCard')
   const tView = useTranslations('CharacterCard.viewTypes')
+  const tCardify = useTranslations('Cardify')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [variantLabel, setVariantLabel] = useState('')
   const [images, setImages] = useState<SourceImageUpload[]>([])
+  const [cardifyEnabled, setCardifyEnabled] = useState(false)
+  const [cardifyState, setCardifyState] = useState<{
+    originalImage: string
+    renderedUrl: string | null
+    isRendering: boolean
+    error: string | null
+  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,16 +80,97 @@ export function CharacterCardCreateForm({
     )
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim() || images.length === 0) return
+  const renderCardify = async (originalImage: string) => {
+    setCardifyState({
+      originalImage,
+      renderedUrl: null,
+      isRendering: true,
+      error: null,
+    })
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: CARDIFY.PROMPT,
+          modelId: CARDIFY.DEFAULT_MODEL_ID,
+          aspectRatio: CARDIFY.ASPECT_RATIO,
+          referenceImage: originalImage,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = (await res.json()) as { generation?: GenerationRecord }
+      const url = json.generation?.url
+      if (!url) throw new Error('no url')
+      setCardifyState({
+        originalImage,
+        renderedUrl: url,
+        isRendering: false,
+        error: null,
+      })
+    } catch {
+      setCardifyState((prev) =>
+        prev
+          ? {
+              ...prev,
+              isRendering: false,
+              error: tCardify('errorRender'),
+            }
+          : null,
+      )
+    }
+  }
+
+  const submitWithImages = async (finalImages: SourceImageUpload[]) => {
     await onSubmit({
       name: name.trim(),
       description: description.trim() || undefined,
-      sourceImages: images,
+      sourceImages: finalImages,
       parentId,
       variantLabel: variantLabel.trim() || undefined,
     })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || images.length === 0) return
+    if (cardifyEnabled) {
+      await renderCardify(images[0].data)
+      return
+    }
+    await submitWithImages(images)
+  }
+
+  const handleAcceptCardify = async () => {
+    if (!cardifyState?.renderedUrl) return
+    const replacedImages: SourceImageUpload[] = [
+      { ...images[0], data: cardifyState.renderedUrl },
+      ...images.slice(1),
+    ]
+    await submitWithImages(replacedImages)
+    setCardifyState(null)
+  }
+
+  const handleUseOriginal = async () => {
+    await submitWithImages(images)
+    setCardifyState(null)
+  }
+
+  if (cardifyState) {
+    return (
+      <CardifyPreview
+        originalImage={cardifyState.originalImage}
+        renderedImage={cardifyState.renderedUrl}
+        isRendering={cardifyState.isRendering}
+        isSubmitting={isSubmitting}
+        error={cardifyState.error}
+        onAccept={handleAcceptCardify}
+        onRegenerate={() => renderCardify(cardifyState.originalImage)}
+        onUseOriginal={handleUseOriginal}
+        onCancel={() => setCardifyState(null)}
+      />
+    )
   }
 
   return (
@@ -86,7 +178,6 @@ export function CharacterCardCreateForm({
       onSubmit={handleSubmit}
       className="space-y-4 rounded-lg border border-border/60 bg-background/50 p-4"
     >
-      {/* Name */}
       <div>
         <label className="mb-1 block text-sm font-medium">{t('name')}</label>
         <input
@@ -104,7 +195,6 @@ export function CharacterCardCreateForm({
         </p>
       </div>
 
-      {/* Variant label (only for variant creation) */}
       {parentId && (
         <div>
           <label className="mb-1 block text-sm font-medium">
@@ -121,7 +211,6 @@ export function CharacterCardCreateForm({
         </div>
       )}
 
-      {/* Description */}
       <div>
         <label className="mb-1 block text-sm font-medium">
           {t('descriptionLabel')}
@@ -136,7 +225,6 @@ export function CharacterCardCreateForm({
         />
       </div>
 
-      {/* Multi-image upload */}
       <div>
         <label className="mb-1 block text-sm font-medium">
           {t('sourceImage')}
@@ -199,7 +287,26 @@ export function CharacterCardCreateForm({
         </div>
       </div>
 
-      {/* Actions */}
+      {images.length > 0 && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
+          <input
+            type="checkbox"
+            checked={cardifyEnabled}
+            onChange={(e) => setCardifyEnabled(e.target.checked)}
+            className="mt-0.5 size-4 accent-primary"
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 text-sm font-medium">
+              <Sparkles className="size-3.5 text-primary" />
+              {tCardify('toggleLabel')}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {tCardify('toggleHint')}
+            </p>
+          </div>
+        </label>
+      )}
+
       <div className="flex gap-2">
         <button
           type="submit"

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   User,
   Loader2,
+  Plus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -15,9 +16,16 @@ import type {
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
 } from '@/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
 import { CharacterCardCreateForm } from '@/components/business/CharacterCardCreateForm'
 import { CharacterCardItem } from '@/components/business/CharacterCardItem'
+import { CharacterCardTile } from '@/components/business/CharacterCardTile'
 import { CharacterCardGallery } from '@/components/business/CharacterCardGallery'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
@@ -51,9 +59,14 @@ export function CharacterCardManager({
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<CardManagerSortMode>('recent')
+
+  const detailCard = useMemo(
+    () => cards.find((c) => c.id === detailCardId) ?? null,
+    [cards, detailCardId],
+  )
 
   const selectedCount = activeCardIds.length
 
@@ -167,13 +180,17 @@ export function CharacterCardManager({
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : cards.length === 0 && !showCreateForm ? (
-            <div className="rounded-lg border border-dashed border-border/60 py-8 text-center">
-              <Sparkles className="mx-auto mb-2 size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">{t('noCards')}</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(true)}
+              className="group flex aspect-[3/4] w-1/2 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground"
+            >
+              <Plus className="size-6 transition-transform group-hover:scale-110" />
+              <span className="text-xs font-medium">{t('createNew')}</span>
+              <span className="px-3 text-center text-[10px] text-muted-foreground/70">
                 {t('noCardsHint')}
-              </p>
-            </div>
+              </span>
+            </button>
           ) : visibleCards.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/60 py-8 text-center">
               <Sparkles className="mx-auto mb-2 size-8 text-muted-foreground/40" />
@@ -182,21 +199,38 @@ export function CharacterCardManager({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
               {visibleCards.map((card) => (
-                <CharacterCardItem
+                <CharacterCardTile
                   key={card.id}
                   card={card}
                   isSelected={activeCardIds.includes(card.id)}
-                  isExpanded={expandedCardId === card.id}
                   onToggleSelect={() => onToggleSelect(card.id)}
-                  onToggleExpand={() =>
-                    setExpandedCardId(
-                      expandedCardId === card.id ? null : card.id,
-                    )
-                  }
-                  onDelete={() => onDelete(card.id)}
-                  onUpdate={(data) => onUpdate(card.id, data)}
+                  onOpenDetail={() => setDetailCardId(card.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <Dialog
+            open={detailCard !== null}
+            onOpenChange={(open) => {
+              if (!open) setDetailCardId(null)
+            }}
+          >
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
+              </DialogHeader>
+              {detailCard && (
+                <CharacterCardItem
+                  card={detailCard}
+                  isSelected={activeCardIds.includes(detailCard.id)}
+                  isExpanded
+                  onToggleSelect={() => onToggleSelect(detailCard.id)}
+                  onToggleExpand={() => setDetailCardId(null)}
+                  onDelete={() => onDelete(detailCard.id)}
+                  onUpdate={(data) => onUpdate(detailCard.id, data)}
                   onCreate={onCreate}
                   onDuplicateCard={handleDuplicate}
                   activeCardIds={activeCardIds}
@@ -204,9 +238,9 @@ export function CharacterCardManager({
                   onDeleteCard={onDelete}
                   onUpdateCard={onUpdate}
                 />
-              ))}
-            </div>
-          )}
+              )}
+            </DialogContent>
+          </Dialog>
 
           {activeCardIds.length >= 2 && (
             <div className="space-y-2 rounded-lg border border-border/40 bg-background/60 p-3">

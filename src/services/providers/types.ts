@@ -127,6 +127,14 @@ function humanizeProviderError(
       else if (typeof parsed.detail === 'string') {
         message = parsed.detail
       }
+      // Google format: { error: { message: "..." } }
+      else if (
+        typeof parsed.error === 'object' &&
+        parsed.error !== null &&
+        typeof (parsed.error as { message?: unknown }).message === 'string'
+      ) {
+        message = (parsed.error as { message: string }).message
+      }
       // Generic: { message: "..." } or { error: "..." }
       else if (typeof parsed.message === 'string') {
         message = parsed.message
@@ -185,9 +193,11 @@ function humanizeProviderError(
     return `${provider} rate limit reached. Please wait and try again.`
   }
   if (status === 503) {
-    // Specific to upstream "spike in demand" — usually minute-scale,
-    // suggest swapping to another model instead of retrying.
-    return `${provider} is at capacity right now. Switch to another model (e.g. Gemini Flash, GPT-Image-2, Flux 2 Pro) and try again.`
+    if (provider.toLowerCase().includes('gemini')) {
+      return 'The selected Gemini model is temporarily unavailable because Google is experiencing high demand. This is not an API key or billing error. Please try again later, or use Gemini 3.1 Flash Image for now.'
+    }
+
+    return `${provider} is temporarily overloaded. Please try again later or switch to another model.`
   }
   if (status === 502) {
     return `${provider} is temporarily unavailable. Please try again in a moment.`

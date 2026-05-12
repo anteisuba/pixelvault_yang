@@ -129,7 +129,7 @@ export const CardDrawer = memo(function CardDrawer({
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-full sm:w-[420px] sm:max-w-[480px] flex flex-col p-0"
+        className="dark w-full sm:w-[420px] sm:max-w-[480px] flex flex-col p-0 border-l border-white/10 bg-sidebar text-sidebar-foreground"
       >
         {open && <CardDrawerContent />}
       </SheetContent>

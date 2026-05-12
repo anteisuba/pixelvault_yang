@@ -5,14 +5,13 @@ import {
   Copy,
   Pencil,
   Trash2,
-  Check,
   ChevronDown,
   ChevronRight,
   Palette,
+  Plus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { cn } from '@/lib/utils'
 import { isBuiltInModel } from '@/constants/models'
 import { isAiAdapterType } from '@/constants/providers'
 import type {
@@ -21,7 +20,14 @@ import type {
   UpdateStyleCardRequest,
 } from '@/types'
 import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
+import { MediaCardTile } from '@/components/business/MediaCardTile'
 import { StyleCardEditor } from '@/components/business/StyleCardEditor'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
@@ -69,6 +75,12 @@ export function StyleCardManager({
   const [isSaving, setIsSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<CardManagerSortMode>('recent')
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
+
+  const detailCard = useMemo(
+    () => cards.find((c) => c.id === detailCardId) ?? null,
+    [cards, detailCardId],
+  )
 
   const handleSave = async (
     data: CreateStyleCardRequest | UpdateStyleCardRequest,
@@ -227,84 +239,124 @@ export function StyleCardManager({
           />
 
           {cards.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setView({ type: 'create' })}
+              className="group flex aspect-square w-1/3 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground"
+            >
+              <Plus className="size-6 transition-transform group-hover:scale-110" />
+              <span className="text-xs font-medium">{t('new')}</span>
+              <span className="px-3 text-center text-[10px] text-muted-foreground/70">
+                {tStyle('empty')}
+              </span>
+            </button>
+          )}
+
+          {cards.length > 0 && visibleCards.length === 0 && (
             <p className="py-3 text-center text-xs text-muted-foreground">
-              {tStyle('empty')}
+              {t('cardSearchEmpty')}
             </p>
           )}
 
-          <div className="space-y-1">
-            {cards.length > 0 && visibleCards.length === 0 ? (
-              <p className="py-3 text-center text-xs text-muted-foreground">
-                {t('cardSearchEmpty')}
-              </p>
-            ) : null}
-            {visibleCards.map((card) => {
-              const isActive = card.id === activeCardId
-              return (
-                <div
-                  key={card.id}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
-                    isActive
-                      ? 'border-primary/40 bg-primary/5'
-                      : 'border-border/60 bg-background hover:bg-muted/30',
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onSelect(isActive ? null : card.id)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                  >
-                    {isActive && (
-                      <Check className="h-3 w-3 flex-shrink-0 text-primary" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {card.name}
-                      </p>
-                      {card.modelId ? (
-                        <p className="truncate text-xs text-muted-foreground">
-                          {card.modelId}
-                          {card.advancedParams?.loras?.length
-                            ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
-                            : ''}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-amber-600">{t('noModel')}</p>
-                      )}
-                    </div>
-                  </button>
+          {visibleCards.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {visibleCards.map((card) => {
+                const subtitle = card.modelId
+                  ? `${card.modelId}${
+                      card.advancedParams?.loras?.length
+                        ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
+                        : ''
+                    }`
+                  : t('noModel')
+                return (
+                  <MediaCardTile
+                    key={card.id}
+                    name={card.name}
+                    sourceImageUrl={card.sourceImageUrl ?? null}
+                    subtitle={subtitle}
+                    isSelected={card.id === activeCardId}
+                    aspect="square"
+                    selectLabel={tCard('select')}
+                    deselectLabel={tCard('change')}
+                    onToggleSelect={() =>
+                      onSelect(card.id === activeCardId ? null : card.id)
+                    }
+                    onOpenDetail={() => setDetailCardId(card.id)}
+                  />
+                )
+              })}
+            </div>
+          )}
 
-                  <div className="flex items-center gap-1">
+          <Dialog
+            open={detailCard !== null}
+            onOpenChange={(open) => {
+              if (!open) setDetailCardId(null)
+            }}
+          >
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
+              </DialogHeader>
+              {detailCard && (
+                <div className="space-y-3">
+                  {detailCard.modelId ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="text-foreground">
+                        {detailCard.modelId}
+                      </span>
+                      {detailCard.advancedParams?.loras?.length ? (
+                        <span>
+                          {' '}
+                          · {detailCard.advancedParams.loras.length}{' '}
+                          {tV3('loraBadge')}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-500">{t('noModel')}</p>
+                  )}
+                  {detailCard.stylePrompt && (
+                    <p className="text-xs font-serif text-foreground/80">
+                      {detailCard.stylePrompt}
+                    </p>
+                  )}
+                  <div className="flex gap-2 border-t border-border/40 pt-3">
                     <button
                       type="button"
-                      onClick={() => setView({ type: 'edit', card })}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      title={t('edit')}
+                      onClick={() => {
+                        setView({ type: 'edit', card: detailCard })
+                        setDetailCardId(null)
+                      }}
+                      className="flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="size-3" />
+                      {t('edit')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => void handleDuplicate(card)}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      title={tCard('duplicate')}
+                      onClick={() => void handleDuplicate(detailCard)}
+                      className="flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <Copy className="h-3 w-3" />
+                      <Copy className="size-3" />
+                      {tCard('duplicate')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setView({ type: 'confirmDelete', card })}
-                      className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
-                      title={tStyle('delete')}
+                      onClick={() => {
+                        setView({ type: 'confirmDelete', card: detailCard })
+                        setDetailCardId(null)
+                      }}
+                      className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="size-3" />
+                      {tStyle('delete')}
                     </button>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Palette,
   Copy,
+  Plus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -20,6 +21,16 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { CardType } from '@/constants/card-types'
 import { CardManagerToolbar } from '@/components/business/CardManagerToolbar'
+import {
+  MediaCardTile,
+  type MediaCardAspect,
+} from '@/components/business/MediaCardTile'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
@@ -86,6 +97,18 @@ const CARD_COLORS: Record<CardType, string> = {
   STYLE: 'text-primary',
 }
 
+const CARD_ASPECT: Record<CardType, MediaCardAspect> = {
+  CHARACTER: 'portrait',
+  BACKGROUND: 'video',
+  STYLE: 'square',
+}
+
+const CARD_GRID_COLS: Record<CardType, string> = {
+  CHARACTER: 'grid-cols-2',
+  BACKGROUND: 'grid-cols-2',
+  STYLE: 'grid-cols-3',
+}
+
 // ─── Component ──────────────────────────────────────────────────
 
 export function SimpleCardManager({
@@ -108,7 +131,7 @@ export function SimpleCardManager({
 }: SimpleCardManagerProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [detailCardId, setDetailCardId] = useState<string | null>(null)
   const [editingCardId, setEditingCardId] = useState<string | null>(null)
   const [editPrompt, setEditPrompt] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -127,6 +150,13 @@ export function SimpleCardManager({
   const tv2 = useTranslations('StudioV2')
   const Icon = CARD_ICONS[cardType]
   const color = CARD_COLORS[cardType]
+  const aspect = CARD_ASPECT[cardType]
+  const gridCols = CARD_GRID_COLS[cardType]
+
+  const detailCard = useMemo(
+    () => cards.find((c) => c.id === detailCardId) ?? null,
+    [cards, detailCardId],
+  )
 
   const visibleCards = useMemo(
     () =>
@@ -447,177 +477,51 @@ export function SimpleCardManager({
             </div>
           )}
 
-          {/* Loading */}
           {isLoading && (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           )}
 
-          {/* Card list */}
-          {!isLoading &&
-            visibleCards.map((card) => (
-              <div
-                key={card.id}
-                className={cn(
-                  'rounded-lg border transition-colors',
-                  activeCardId === card.id
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-border/40 bg-background/50',
-                )}
-              >
-                {/* Card header row */}
-                <div className="flex items-center gap-2 px-3 py-2">
-                  {/* Select checkbox */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onSelect(activeCardId === card.id ? null : card.id)
-                    }
-                    className={cn(
-                      'size-4 shrink-0 rounded border transition-colors',
-                      activeCardId === card.id
-                        ? 'border-primary bg-primary'
-                        : 'border-border/60 hover:border-primary/40',
-                    )}
-                  >
-                    {activeCardId === card.id && (
-                      <Check className="size-3 text-primary-foreground mx-auto" />
-                    )}
-                  </button>
-
-                  {/* Thumbnail */}
-                  {card.sourceImageUrl && (
-                    <div className="relative size-8 shrink-0 overflow-hidden rounded">
-                      <Image
-                        src={card.sourceImageUrl}
-                        alt={card.name}
-                        fill
-                        className="object-cover"
-                        sizes="32px"
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
-
-                  {/* Name */}
-                  <span className="flex-1 truncate text-sm font-medium text-foreground">
-                    {card.name}
-                  </span>
-
-                  {/* Expand / actions */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedCardId(
-                        expandedCardId === card.id ? null : card.id,
-                      )
-                    }
-                    className="p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    {expandedCardId === card.id ? (
-                      <ChevronDown className="size-3.5" />
-                    ) : (
-                      <ChevronRight className="size-3.5" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Expanded detail */}
-                {expandedCardId === card.id && (
-                  <div className="border-t border-border/30 px-3 py-2 space-y-2">
-                    {/* Prompt / description */}
-                    <div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {promptLabel ?? t('promptLabel')}
-                      </span>
-                      {editingCardId === card.id ? (
-                        <div className="mt-1 space-y-1">
-                          <textarea
-                            value={editPrompt}
-                            onChange={(e) => setEditPrompt(e.target.value)}
-                            rows={3}
-                            className="w-full rounded-md border border-border/60 bg-background px-2 py-1 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
-                          />
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(card.id)}
-                              className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground"
-                            >
-                              {tv2('save')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingCardId(null)}
-                              className="rounded border border-border/60 px-2 py-0.5 text-xs text-muted-foreground"
-                            >
-                              {tv2('cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="mt-0.5 text-xs font-serif text-foreground/80 line-clamp-3">
-                          {card.prompt}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Tags */}
-                    {card.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {card.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(card)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit3 className="size-3" />
-                        {tv2('edit')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDuplicate(card)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <Copy className="size-3" />
-                        {t('duplicate')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(card.id)}
-                        className="flex items-center gap-1 text-xs text-red-500/70 hover:text-red-500"
-                      >
-                        <Trash2 className="size-3" />
-                        {t('delete')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-          {/* Empty state */}
-          {!isLoading && cards.length === 0 && !showCreateForm && (
-            <div className="flex flex-col items-center gap-1.5 py-6 text-center">
-              <Palette className="size-5 text-muted-foreground/30" />
-              <p className="text-xs text-muted-foreground/60 font-serif">
-                {t('emptyState')}
-              </p>
+          {!isLoading && visibleCards.length > 0 && (
+            <div className={cn('grid gap-3', gridCols)}>
+              {visibleCards.map((card) => (
+                <MediaCardTile
+                  key={card.id}
+                  name={card.name}
+                  sourceImageUrl={card.sourceImageUrl}
+                  isSelected={activeCardId === card.id}
+                  aspect={aspect}
+                  selectLabel={t('select')}
+                  deselectLabel={t('change')}
+                  onToggleSelect={() =>
+                    onSelect(activeCardId === card.id ? null : card.id)
+                  }
+                  onOpenDetail={() => setDetailCardId(card.id)}
+                />
+              ))}
             </div>
           )}
+
+          {!isLoading && cards.length === 0 && !showCreateForm && (
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(true)}
+              className={cn(
+                'group flex w-1/2 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground',
+                aspect === 'portrait' && 'aspect-[3/4]',
+                aspect === 'video' && 'aspect-video',
+                aspect === 'square' && 'aspect-square',
+              )}
+            >
+              <Plus className="size-6 transition-transform group-hover:scale-110" />
+              <span className="text-xs font-medium">{t('create')}</span>
+              <span className="px-3 text-center text-[10px] text-muted-foreground/70">
+                {t('emptyState')}
+              </span>
+            </button>
+          )}
+
           {!isLoading &&
             cards.length > 0 &&
             visibleCards.length === 0 &&
@@ -629,6 +533,127 @@ export function SimpleCardManager({
                 </p>
               </div>
             )}
+
+          <Dialog
+            open={detailCard !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDetailCardId(null)
+                setEditingCardId(null)
+              }
+            }}
+          >
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
+              </DialogHeader>
+              {detailCard && (
+                <div className="space-y-3">
+                  {detailCard.sourceImageUrl && (
+                    <div
+                      className={cn(
+                        'relative w-full overflow-hidden rounded-md border border-white/10',
+                        aspect === 'portrait' && 'aspect-[3/4]',
+                        aspect === 'video' && 'aspect-video',
+                        aspect === 'square' && 'aspect-square',
+                      )}
+                    >
+                      <Image
+                        src={detailCard.sourceImageUrl}
+                        alt={detailCard.name}
+                        fill
+                        sizes="400px"
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {promptLabel ?? t('promptLabel')}
+                      </span>
+                      {editingCardId !== detailCard.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(detailCard)}
+                          className="flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <Edit3 className="size-3" />
+                          {tv2('edit')}
+                        </button>
+                      )}
+                    </div>
+                    {editingCardId === detailCard.id ? (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={editPrompt}
+                          onChange={(e) => setEditPrompt(e.target.value)}
+                          rows={4}
+                          className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs font-serif focus:border-primary/40 focus:outline-none resize-none"
+                        />
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(detailCard.id)}
+                            className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
+                          >
+                            {tv2('save')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCardId(null)}
+                            className="rounded border border-border/60 px-3 py-1 text-xs text-muted-foreground"
+                          >
+                            {tv2('cancel')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-serif text-foreground/80">
+                        {detailCard.prompt}
+                      </p>
+                    )}
+                  </div>
+
+                  {detailCard.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {detailCard.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 border-t border-border/40 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleDuplicate(detailCard)}
+                      className="flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Copy className="size-3" />
+                      {t('duplicate')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await onDelete(detailCard.id)
+                        if (ok) setDetailCardId(null)
+                      }}
+                      className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="size-3" />
+                      {t('delete')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

@@ -67,6 +67,29 @@ describe('geminiAdapter.generateImage', () => {
     await expect(geminiAdapter.generateImage(BASE_INPUT)).rejects.toThrow()
   })
 
+  it('returns a billing-safe message when Gemini is overloaded', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 503,
+              message:
+                'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.',
+              status: 'UNAVAILABLE',
+            },
+          }),
+          { status: 503 },
+        ),
+      ),
+    )
+
+    await expect(geminiAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
+      'The selected Gemini model is temporarily unavailable because Google is experiencing high demand. This is not an API key or billing error. Please try again later, or use Gemini 3.1 Flash Image for now.',
+    )
+  })
+
   it('routes Gemini Pro Image to the current documented model ID', async () => {
     const fakeBase64 = Buffer.from('fake-image').toString('base64')
     const fetchMock = vi.fn().mockResolvedValue(

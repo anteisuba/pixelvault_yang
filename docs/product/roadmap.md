@@ -240,6 +240,17 @@
 - Currently scoped to `CINEMATIC_SHORT_VIDEO` + FAL + saved API key; other paths still inline
 - ⚠️ `execution-callback` finalize is not yet wrapped in `db.$transaction` (audio finalize is)
 
+## Model Candidates Under Review
+
+### Vidu Omni Video Pro — WAITING FOR API
+
+- Reference-to-Video, Q3 系列衍生 SKU，2026-05-10 在 vidu.com 消费版软启动
+- 能力：多参考图角色一致性 + 1080p 1–15s + 强动漫风格（实测对标字节 Seedance 2.0）
+- 缺口：不支持音频参考；platform.vidu.com 尚未开放 API（消费版独占）
+- 差异化：现有 Kling / Runway / Wan / Hunyuan / MiniMax / Seedance 不覆盖「多参考图角色一致性 R2V + 动漫强项」组合
+- 状态：等官方放出 API SKU ID 与稳定定价后再评估接入
+- 复查节点：**2026-05-25**（重新检查 [model-map](https://platform.vidu.com/docs/model-map) 与 release notes）
+
 ## Current Studio Highlights
 
 - Workflow-first shell (Balanced 8) at the entry layer

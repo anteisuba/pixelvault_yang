@@ -63,6 +63,9 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
 
   const [sourceImage, setSourceImage] = useState<GenerationRecord | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  // Separate picker for "open an existing 3D asset" — locked to model_3d so
+  // it lists previously generated GLB rows rather than source images.
+  const [existingModelPickerOpen, setExistingModelPickerOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>(
@@ -241,7 +244,23 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
                     void uploadGenerationPosterAPI(generatedGeneration.id, blob)
                   }
                 }}
-              />
+              >
+                {/*
+                 * model-viewer wires `slot="ar-button"` to its AR launcher.
+                 * On AR-capable devices (iOS Quick Look / Android Scene
+                 * Viewer / WebXR) the click enters AR directly; on desktop
+                 * model-viewer falls back to a QR code overlay so the user
+                 * can scan-to-AR with their phone.
+                 */}
+                <button
+                  slot="ar-button"
+                  type="button"
+                  className="absolute bottom-6 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  <Box className="size-3.5" />
+                  {t('openInAR')}
+                </button>
+              </ModelViewer>
               <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2">
                 <Button asChild variant="secondary" size="sm">
                   <a
@@ -271,6 +290,22 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
               <p className="font-serif text-sm">
                 {t('sourceImagePlaceholder')}
               </p>
+              {/*
+               * Empty-canvas affordance to load a previously generated 3D
+               * back into the viewer — same effect as the `?gen=<id>`
+               * deeplink that AssetDetailSheet's "Remix in Studio" produces,
+               * but reachable without leaving 3D Studio.
+               */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setExistingModelPickerOpen(true)}
+                className="rounded-full"
+              >
+                <FolderOpen className="mr-1.5 size-3.5" />
+                {t('openExistingModel')}
+              </Button>
             </div>
           )}
 
@@ -294,10 +329,10 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
         {/* Right panel — image picker + model + params + generate */}
         <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
           {/*
-           * API key banner — shown when the user has no active fal key.
-           * Hunyuan3D / TripoSR both go through fal, so without a key the
-           * generate flow would 400 at submit time. Drawer trigger reuses
-           * the site-wide ApiKeyManager UI.
+           * API key entry — always-visible trigger so users can manage / swap
+           * keys at any time, not only when missing. The warning banner only
+           * renders when no active fal key is present (Hunyuan3D / TripoSR
+           * both run through fal, so generation would 400 without one).
            */}
           {!isLoadingKeys && !hasFalKey && (
             <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
@@ -308,16 +343,16 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
               <p className="font-serif text-xs leading-5 text-muted-foreground">
                 {t('apiKeyMissingDescription')}
               </p>
-              {/*
-               * ApiKeyDrawerTrigger renders its own button (the trigger);
-               * children populate the drawer's body so ApiKeyManager
-               * shows once the user clicks Configure.
-               */}
-              <ApiKeyDrawerTrigger className="self-start">
-                <ApiKeyManager />
-              </ApiKeyDrawerTrigger>
             </div>
           )}
+          {/*
+           * ApiKeyDrawerTrigger is its own button (KeyRound + count badge)
+           * and opens the drawer that hosts ApiKeyManager. Rendering it
+           * unconditionally gives the user a permanent entry point.
+           */}
+          <ApiKeyDrawerTrigger className="self-start">
+            <ApiKeyManager />
+          </ApiKeyDrawerTrigger>
 
           {/* Compact image picker — mirrors Image Studio bottom-toolbar chip pattern */}
           <div className="flex flex-col gap-2">
@@ -493,6 +528,20 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
         title={t('sourceImageLabel')}
         description={t('sourceImagePlaceholder')}
         mediaType="image"
+      />
+      {/*
+       * Existing-3D picker — locked to model_3d so the user can only pick
+       * previously generated GLB rows. On select we mirror the deeplink
+       * path by pushing it into hydratedGeneration, so the live-generated
+       * row still wins if the user later clicks Generate.
+       */}
+      <AssetSelectorDialog
+        open={existingModelPickerOpen}
+        onOpenChange={setExistingModelPickerOpen}
+        onSelect={(gen) => setHydratedGeneration(gen)}
+        title={t('openExistingModelTitle')}
+        description={t('openExistingModelDescription')}
+        mediaType="model_3d"
       />
     </div>
   )

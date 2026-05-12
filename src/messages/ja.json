@@ -465,7 +465,10 @@
     "errorUnsupportedFile": "画像ファイルのみサポートしています。",
     "errorFileTooLarge": "ファイルが大きすぎます（最大 {maxMb} MB）。",
     "apiKeyMissingTitle": "fal.ai API キーが未設定",
-    "apiKeyMissingDescription": "Hunyuan3D 2.1 と TripoSR はどちらも fal.ai 経由で実行されます。3D を生成する前に有効な fal キーを追加してください。"
+    "apiKeyMissingDescription": "Hunyuan3D 2.1 と TripoSR はどちらも fal.ai 経由で実行されます。3D を生成する前に有効な fal キーを追加してください。",
+    "openExistingModel": "既存の 3D を開く",
+    "openExistingModelTitle": "既存の 3D モデルを選択",
+    "openExistingModelDescription": "アセットから過去に生成した 3D モデルを読み込みます。"
   },
   "LongVideo": {
     "toggle": "ロング動画",

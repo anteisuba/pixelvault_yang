@@ -465,7 +465,10 @@
     "errorUnsupportedFile": "Only image files are supported.",
     "errorFileTooLarge": "File too large (max {maxMb} MB).",
     "apiKeyMissingTitle": "fal.ai API key not configured",
-    "apiKeyMissingDescription": "Hunyuan3D 2.1 and TripoSR both run on fal.ai. Add an active fal key before generating."
+    "apiKeyMissingDescription": "Hunyuan3D 2.1 and TripoSR both run on fal.ai. Add an active fal key before generating.",
+    "openExistingModel": "Open existing 3D",
+    "openExistingModelTitle": "Pick an existing 3D model",
+    "openExistingModelDescription": "Load a previously generated 3D model from your assets."
   },
   "LongVideo": {
     "toggle": "Long Video",

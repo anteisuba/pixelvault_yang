@@ -58,7 +58,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { AssetSectionCounts, GenerationRecord } from '@/types'
 
-type LockedMediaType = 'image' | 'video' | 'audio'
+type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
 
 interface KreaAssetBrowserProps {
   initialGenerations?: GenerationRecord[]
@@ -127,7 +127,7 @@ function isDensity(value: string | null): value is Density {
 
 function sectionFromFilters(
   filters: GalleryFilters,
-  lockedMediaType?: 'image' | 'video' | 'audio',
+  lockedMediaType?: LockedMediaType,
 ): Section {
   if (filters.liked) return { kind: 'favorites' }
   if (filters.provider === USER_UPLOAD_PROVIDER) return { kind: 'uploads' }

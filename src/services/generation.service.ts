@@ -120,6 +120,8 @@ const LIST_GENERATION_SELECT = {
   height: true,
   duration: true,
   referenceImageUrl: true,
+  modelUrl: true,
+  modelStorageKey: true,
   prompt: true,
   negativePrompt: true,
   model: true,

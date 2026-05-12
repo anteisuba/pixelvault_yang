@@ -25,7 +25,7 @@ interface AssetSelectorDialogProps {
    * which hides the Tools sidebar group and locks the type filter so callers
    * (e.g. the Image reference chip) can never receive a video/audio asset.
    */
-  mediaType?: 'image' | 'video' | 'audio'
+  mediaType?: 'image' | 'video' | 'audio' | 'model_3d'
 }
 
 /**

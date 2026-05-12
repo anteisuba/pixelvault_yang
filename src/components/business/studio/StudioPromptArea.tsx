@@ -41,6 +41,7 @@ import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { cn } from '@/lib/utils'
+import { composeCharacterInjection } from '@/lib/character-card-injection'
 import {
   PromptInput,
   PromptInputTextarea,
@@ -366,17 +367,44 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       const imageModelForGeneration = overrides?.selectedModel ?? selectedModel
 
       if (state.workflowMode === 'quick' && imageModelForGeneration) {
+        const injection = composeCharacterInjection(characters.activeCards)
+        const basePrompt =
+          overrides?.compiledPrompt ?? composePrompt(state.prompt)
+        const freePrompt = injection.promptPrefix
+          ? `${injection.promptPrefix}\n\n${basePrompt ?? ''}`.trim() ||
+            undefined
+          : basePrompt
+        const mergedReferenceImages =
+          imageUpload.referenceImages.length > 0
+            ? imageUpload.referenceImages
+            : injection.referenceImageUrl
+              ? [injection.referenceImageUrl]
+              : undefined
+        const baseAdvancedParams = composeAdvancedParams(
+          overrides?.negativePrompt,
+        )
+        const advancedParams =
+          injection.loras.length > 0
+            ? {
+                ...(baseAdvancedParams ?? {}),
+                loras: [
+                  ...(baseAdvancedParams?.loras ?? []),
+                  ...injection.loras,
+                ],
+              }
+            : baseAdvancedParams
         return {
           modelId: imageModelForGeneration.modelId,
           apiKeyId: imageModelForGeneration.keyId,
-          freePrompt: overrides?.compiledPrompt ?? composePrompt(state.prompt),
+          freePrompt,
           aspectRatio: state.aspectRatio,
           projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
+          referenceImages: mergedReferenceImages,
+          advancedParams,
+          characterCardIds:
+            injection.appliedCardIds.length > 0
+              ? injection.appliedCardIds
               : undefined,
-          advancedParams: composeAdvancedParams(overrides?.negativePrompt),
         }
       }
       if (state.workflowMode === 'card' && styles.activeCardId) {
@@ -408,6 +436,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       styles.activeCardId,
       projects.activeProjectId,
       imageUpload.referenceImages,
+      characters.activeCards,
     ],
   )
 

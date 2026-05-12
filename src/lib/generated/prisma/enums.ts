@@ -12,7 +12,8 @@
 export const OutputType = {
   IMAGE: 'IMAGE',
   VIDEO: 'VIDEO',
-  AUDIO: 'AUDIO'
+  AUDIO: 'AUDIO',
+  MODEL_3D: 'MODEL_3D'
 } as const
 
 export type OutputType = (typeof OutputType)[keyof typeof OutputType]

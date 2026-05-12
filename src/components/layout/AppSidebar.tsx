@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Library,
   LogOut,
+  Box,
   Lock,
   Mic,
   Palette,
@@ -203,6 +204,13 @@ function AppSidebarContent() {
       icon: Mic,
       comingSoon: false,
       activePaths: [ROUTES.STUDIO_AUDIO],
+    },
+    {
+      href: ROUTES.STUDIO_3D,
+      label: tTools('tools.model3d.label'),
+      icon: Box,
+      comingSoon: false,
+      activePaths: [ROUTES.STUDIO_3D],
     },
     {
       href: ROUTES.STUDIO_EDIT,

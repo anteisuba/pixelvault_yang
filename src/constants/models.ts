@@ -10,6 +10,7 @@ import type {
 import { IMAGE_MODEL_OPTIONS } from '@/constants/models/image'
 import { VIDEO_MODEL_OPTIONS } from '@/constants/models/video'
 import { AUDIO_MODEL_OPTIONS } from '@/constants/models/audio'
+import { MODEL_3D_OPTIONS } from '@/constants/models/model-3d'
 
 // ─── Re-exports for backwards compatibility ──────────────────────
 // Historically every consumer imported from `@/constants/models`. Splitting
@@ -73,6 +74,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.VEO_31]: 'veo31',
   [AI_MODELS.PIKA_V25]: 'pikaV25',
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
+  [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
+  [AI_MODELS.TRIPOSR]: 'triposr',
 } as const
 
 export const MODEL_ID_ALIASES: Record<string, AI_MODELS> = {
@@ -108,6 +111,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   ...IMAGE_MODEL_OPTIONS,
   ...VIDEO_MODEL_OPTIONS,
   ...AUDIO_MODEL_OPTIONS,
+  ...MODEL_3D_OPTIONS,
 ]
 
 /**
@@ -162,6 +166,9 @@ export const MODEL_FAMILIES: Record<string, string> = {
   // Audio families
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
   [AI_MODELS.FAL_F5_TTS]: 'F5-TTS',
+  // 3D families
+  [AI_MODELS.HUNYUAN3D_2_1]: 'Hunyuan3D',
+  [AI_MODELS.TRIPOSR]: 'TripoSR',
 }
 
 /** Get the model family for a model ID */
@@ -215,6 +222,12 @@ export const getAvailableImageModels = (): ModelOption[] =>
 export const getAvailableAudioModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter(
     (model) => model.available && model.outputType === 'AUDIO',
+  )
+
+/** Get only the currently available 3D models (image-to-3D) */
+export const getAvailableModel3DModels = (): ModelOption[] =>
+  MODEL_OPTIONS.filter(
+    (model) => model.available && model.outputType === 'MODEL_3D',
   )
 
 /** Get only the free tier models */

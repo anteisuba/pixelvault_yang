@@ -78,6 +78,39 @@ export interface ProviderQueueStatusResult {
   result?: ProviderVideoResult
 }
 
+// ─── 3D (image-to-3D) Provider Types ─────────────────────────────
+
+export interface ProviderModel3DInput {
+  /** Public URL of the source image (already in R2) */
+  imageUrl: string
+  modelId: string
+  providerConfig: ProviderConfig
+  apiKey: string
+  /** Hunyuan3D: enables PBR-textured mesh (3x cost) */
+  texturedMesh?: boolean
+  /** Hunyuan3D octree resolution (256/512/1024) */
+  octreeResolution?: number
+  /** TripoSR: remove background before reconstruction */
+  removeBackground?: boolean
+  /** Reproducibility seed */
+  seed?: number
+}
+
+export interface ProviderModel3DResult {
+  /** Public URL of the generated GLB file (provider-temporary; download to R2) */
+  modelUrl: string
+  /** MIME type, typically 'application/octet-stream' or 'model/gltf-binary' */
+  contentType?: string
+  /** File size in bytes */
+  fileSize?: number
+  requestCount: number
+}
+
+export interface ProviderModel3DQueueStatusResult {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  result?: ProviderModel3DResult
+}
+
 export interface HealthCheckInput {
   modelId: string
   apiKey: string
@@ -271,5 +304,13 @@ export interface ProviderAdapter {
   checkAudioQueueStatus?(
     input: ProviderQueueStatusInput,
   ): Promise<ProviderAudioQueueStatusResult>
+  /** Async 3D queue submission (e.g. fal Hunyuan3D / TripoSR) */
+  submitModel3DToQueue?(
+    input: ProviderModel3DInput,
+  ): Promise<ProviderQueueSubmitResult>
+  /** Async 3D queue status polling */
+  checkModel3DQueueStatus?(
+    input: ProviderQueueStatusInput,
+  ): Promise<ProviderModel3DQueueStatusResult>
   healthCheck?(input: HealthCheckInput): Promise<HealthCheckResult>
 }

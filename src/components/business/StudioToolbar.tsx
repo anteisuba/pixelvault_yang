@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Box,
   Sparkles,
   ScanText,
   Settings2,
@@ -39,6 +40,12 @@ interface StudioToolbarProps {
   planActive?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
+  /**
+   * Wrap the user's prompt with a 3D-friendly template
+   * (white background, 3/4 view, A-pose, etc.) so the next
+   * generation produces a Hunyuan3D / TripoSR-ready source image.
+   */
+  onMake3DReady?: () => void
   disabled?: boolean
   /** Quick mode hides advanced tools */
   quickMode?: boolean
@@ -108,6 +115,7 @@ export function StudioToolbar({
   planActive,
   onCivitaiToken,
   hasToken,
+  onMake3DReady,
   disabled,
   quickMode,
 }: StudioToolbarProps) {
@@ -158,6 +166,14 @@ export function StudioToolbar({
           active={transformOpen}
           disabled={disabled}
         />
+        {onMake3DReady && (
+          <ToolButton
+            icon={<Box className="h-3.5 w-3.5" />}
+            label={t('make3DReady')}
+            onClick={onMake3DReady}
+            disabled={disabled}
+          />
+        )}
         {onPlan && (
           <ToolButton
             icon={

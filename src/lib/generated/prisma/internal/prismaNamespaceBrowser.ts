@@ -163,6 +163,8 @@ export const GenerationScalarFieldEnum = {
   width: 'width',
   height: 'height',
   duration: 'duration',
+  modelUrl: 'modelUrl',
+  modelStorageKey: 'modelStorageKey',
   referenceImageUrl: 'referenceImageUrl',
   prompt: 'prompt',
   negativePrompt: 'negativePrompt',

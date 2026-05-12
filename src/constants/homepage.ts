@@ -22,6 +22,7 @@ export const HOMEPAGE_NAVIGATION = [
   { id: 'video', href: '#video' },
   { id: 'lora', href: '#lora' },
   { id: 'audio', href: '#tts' },
+  { id: 'model3d', href: '#model3d' },
   { id: 'arena', href: ROUTES.ARENA },
   { id: 'gallery', href: HOMEPAGE_ROUTES.gallery },
 ] as const
@@ -166,6 +167,16 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     // Prompt: a sound-wave ribbon flowing across the frame with a
     // floating speech bubble of multilingual text, dark ink palette,
     // 16:10.
+    media: undefined as HomepageFeatureMedia | undefined,
+  },
+  {
+    id: 'model3d',
+    ctaHref: ROUTES.STUDIO_3D,
+    tone: 'forest',
+    reverse: true,
+    // Prompt: a single anime character on the left morphing into a
+    // rotating 3D mesh on the right, white studio background, soft
+    // turntable lighting, 16:10.
     media: undefined as HomepageFeatureMedia | undefined,
   },
   {

@@ -184,7 +184,7 @@ export interface GenerateResponse {
 
 /** Unified generation config schema covering image, video, and audio modes */
 export const GenerationConfigSchema = z.object({
-  outputType: z.enum(['image', 'video', 'audio']),
+  outputType: z.enum(['image', 'video', 'audio', 'model_3d']),
   prompt: z
     .string()
     .trim()
@@ -447,6 +447,73 @@ export interface VideoStatusResponse {
   error?: string
 }
 
+// ─── User Image Upload ──────────────────────────────────────────
+
+export const UploadImageRequestSchema = z.object({
+  /** Image as a data URL (data:image/png;base64,...). Decoded server-side. */
+  imageDataUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .startsWith('data:', 'Must be a data URL'),
+  /** Optional note saved as the prompt field for browsing context */
+  note: z.string().trim().max(500).optional(),
+  /** Optional project to assign the upload to */
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type UploadImageRequest = z.infer<typeof UploadImageRequestSchema>
+
+export interface UploadImageResponse {
+  success: boolean
+  data?: { generation: GenerationRecord }
+  error?: string
+}
+
+// ─── 3D Generate Request + Queue (submit + poll) ─────────────────
+
+export const Generate3DRequestSchema = z.object({
+  /** Public URL of the source image (already in user's R2 / asset library) */
+  imageUrl: z.string().trim().url('Source image URL is required'),
+  modelId: z.string().trim().min(1, 'Model is required').max(160),
+  /** Hunyuan3D: enable PBR-textured mesh (3x cost). Ignored by TripoSR. */
+  texturedMesh: z.boolean().optional(),
+  /** Hunyuan3D octree resolution: 256 / 512 / 1024 */
+  octreeResolution: z
+    .union([z.literal(256), z.literal(512), z.literal(1024)])
+    .optional(),
+  /** TripoSR: remove background before reconstruction */
+  removeBackground: z.boolean().optional(),
+  /** Reproducibility seed (-1 or omitted = random) */
+  seed: z.number().int().min(-1).optional(),
+  /** Saved API key ID (BYOK) */
+  apiKeyId: z.string().trim().min(1).optional(),
+  /** Source image generation ID (for lineage tracking, optional) */
+  sourceGenerationId: z.string().trim().min(1).optional(),
+  /** Project ID for grouping */
+  projectId: z.string().trim().min(1).optional(),
+  /** Prompt note saved with the generation (the source image's prompt is the real driver) */
+  prompt: z.string().trim().max(1000).optional(),
+})
+
+export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
+
+export const Model3DStatusRequestSchema = AudioStatusRequestSchema
+export type Model3DSubmitResponseData = AsyncJobSubmitResponseData
+export type Model3DStatusResponseData = AudioStatusResponseData
+
+export interface Model3DSubmitResponse {
+  success: boolean
+  data?: Model3DSubmitResponseData
+  error?: string
+}
+
+export interface Model3DStatusResponse {
+  success: boolean
+  data?: Model3DStatusResponseData
+  error?: string
+}
+
 // ─── Execution Worker Callback ───────────────────────────────────
 
 export const ExecutionCallbackPayloadSchema = z.object({
@@ -616,7 +683,7 @@ export interface LongVideoStatusResponse {
 
 // ─── Image Record ─────────────────────────────────────────────────
 
-export type OutputType = 'IMAGE' | 'VIDEO' | 'AUDIO'
+export type OutputType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D'
 export type GenerationStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
 
 export interface GenerationRecord {
@@ -632,6 +699,10 @@ export interface GenerationRecord {
   duration?: number | null
   referenceImageUrl?: string | null
   referenceImages?: ReferenceAsset[]
+  /** GLB file URL for MODEL_3D outputs */
+  modelUrl?: string | null
+  /** R2 storage key for the GLB file */
+  modelStorageKey?: string | null
   prompt: string
   negativePrompt?: string | null
   model: string
@@ -752,6 +823,7 @@ export const OUTPUT_TYPE_FILTER_OPTIONS = [
   'image',
   'video',
   'audio',
+  'model_3d',
 ] as const
 export type OutputTypeFilter = (typeof OUTPUT_TYPE_FILTER_OPTIONS)[number]
 
@@ -772,6 +844,11 @@ export const GallerySearchSchema = z.object({
    * call sites.
    */
   projectId: z.string().trim().max(64).optional(),
+  /**
+   * Filter by Generation.provider — used by the asset browser's
+   * "Local assets" sidebar entry to scope to user-uploaded rows.
+   */
+  provider: z.string().trim().max(64).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })
@@ -799,6 +876,8 @@ export interface AssetSectionCounts {
   image: number
   video: number
   audio: number
+  /** Optional — only populated once the section-counts service knows about MODEL_3D. */
+  model_3d?: number
   unassigned: number
   /** Keyed by project UUID. */
   byProject: Record<string, number>
@@ -1560,7 +1639,7 @@ export const ModelConfigSchema = z.object({
   modelId: z.string().trim().min(1).max(100),
   externalModelId: z.string().trim().min(1).max(300),
   adapterType: z.string().trim().min(1).max(50),
-  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO']),
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']),
   cost: z.number().int().min(0).max(100),
   available: z.boolean(),
   officialUrl: z.string().url().optional().nullable(),
@@ -2444,7 +2523,7 @@ export const CreateRecipeRequestSchema = z.object({
   /** Display name for the recipe */
   name: z.string().max(200).default(''),
   /** Media type this recipe produces */
-  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO']).default('IMAGE'),
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']).default('IMAGE'),
   /** Structured intent parsed from the user's natural language */
   userIntent: ImageIntentSchema.optional(),
   /** Compiled, model-ready prompt string */
@@ -2478,7 +2557,7 @@ export type ListRecipesQuery = z.infer<typeof ListRecipesQuerySchema>
 export type RecipeRecord = {
   id: string
   userId: string
-  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO'
+  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D'
   name: string
   compiledPrompt: string
   negativePrompt: string | null

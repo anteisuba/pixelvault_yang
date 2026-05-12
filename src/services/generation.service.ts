@@ -35,6 +35,10 @@ export interface CreateGenerationInput {
   height: number
   duration?: number
   referenceImageUrl?: string
+  /** GLB file URL for MODEL_3D outputs (null for other types) */
+  modelUrl?: string
+  /** R2 storage key for the GLB file */
+  modelStorageKey?: string
   prompt: string
   negativePrompt?: string
   model: string
@@ -87,6 +91,11 @@ export interface GalleryQueryOptions {
    * - "<uuid>"   → only generations belonging to that project
    */
   projectId?: string
+  /**
+   * Filter by Generation.provider. Used by the asset browser's "Local
+   * assets" sidebar entry to scope to `USER_UPLOAD_PROVIDER` rows.
+   */
+  provider?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -135,6 +144,7 @@ function outputTypeToEnum(type?: OutputTypeFilter): OutputType | undefined {
   if (type === 'image') return 'IMAGE'
   if (type === 'video') return 'VIDEO'
   if (type === 'audio') return 'AUDIO'
+  if (type === 'model_3d') return 'MODEL_3D'
   return undefined
 }
 
@@ -153,6 +163,7 @@ function buildGalleryWhere(options: {
   userId?: string
   likedByUserId?: string
   projectId?: string
+  provider?: string
 }) {
   const where: Record<string, unknown> = {}
 
@@ -184,6 +195,9 @@ function buildGalleryWhere(options: {
   }
   if (options.model) {
     where.model = options.model
+  }
+  if (options.provider) {
+    where.provider = options.provider
   }
   const outputType = outputTypeToEnum(options.type)
   if (outputType) {
@@ -264,6 +278,8 @@ export async function createGeneration(
       height: input.height,
       duration: input.duration,
       referenceImageUrl: input.referenceImageUrl,
+      modelUrl: input.modelUrl,
+      modelStorageKey: input.modelStorageKey,
       prompt: input.prompt,
       negativePrompt: input.negativePrompt,
       model: input.model,
@@ -420,6 +436,7 @@ export async function getPublicGenerations({
   likedByUserId,
   viewerUserId,
   projectId,
+  provider,
 }: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
   // Owner-scoped queries (mine=1, /assets) don't render like badges, so
   // we skip the join + aggregate. Public/community queries still need
@@ -456,6 +473,7 @@ export async function getPublicGenerations({
       userId,
       likedByUserId,
       projectId,
+      provider,
     }),
     orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
     skip: (page - 1) * limit,
@@ -583,6 +601,7 @@ export async function countPublicGenerations(
     | 'userId'
     | 'likedByUserId'
     | 'projectId'
+    | 'provider'
   > = {},
 ): Promise<number> {
   return db.generation.count({
@@ -684,6 +703,7 @@ export async function getAssetSectionCounts(
     image: 0,
     video: 0,
     audio: 0,
+    model_3d: 0,
     unassigned: 0,
     byProject: {},
   }
@@ -694,6 +714,7 @@ export async function getAssetSectionCounts(
     if (row.outputType === 'IMAGE') counts.image = n
     else if (row.outputType === 'VIDEO') counts.video = n
     else if (row.outputType === 'AUDIO') counts.audio = n
+    else if (row.outputType === 'MODEL_3D') counts.model_3d = n
   }
 
   for (const row of byProject) {

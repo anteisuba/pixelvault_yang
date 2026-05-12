@@ -89,6 +89,16 @@ export const API_ENDPOINTS = {
   /** Video generation status polling */
   GENERATE_VIDEO_STATUS: '/api/generate-video/status',
 
+  /** 3D generation (image-to-3D) */
+  GENERATE_3D: '/api/generate-3d',
+  GENERATE_3D_STATUS: '/api/generate-3d/status',
+
+  /** Upload a local image as a Generation row (user-upload provider) */
+  UPLOAD_IMAGE: '/api/upload-image',
+
+  /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
+  GENERATION_POSTER: '/api/generations',
+
   /** Long video pipeline */
   GENERATE_LONG_VIDEO: '/api/generate-long-video',
   GENERATE_LONG_VIDEO_STATUS: '/api/generate-long-video/status',

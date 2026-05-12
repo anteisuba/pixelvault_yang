@@ -12,8 +12,10 @@ import type {
   GenerateResponse,
   GenerateVariationsRequest,
   GenerateVariationsResponse,
+  Generate3DRequest,
   GenerateVideoRequest,
   GenerationFeedbackRequest,
+  GenerationRecord,
   GenerationFeedbackResponse,
   GenerationEvaluation,
   GenerationPlanRequest,
@@ -26,6 +28,10 @@ import type {
   ImageDecomposeResult,
   StudioGenerateRequest,
   ToggleVisibilityResponse,
+  Model3DStatusResponse,
+  Model3DSubmitResponse,
+  UploadImageRequest,
+  UploadImageResponse,
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
@@ -83,6 +89,138 @@ export async function checkVideoStatusAPI(
         error: await getErrorMessage(
           response,
           `Status check failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Upload a client-rendered poster PNG (or any image) for a MODEL_3D
+ * generation. Server overwrites the row's `url` / `storageKey` so the
+ * asset browser can render a real thumbnail. Idempotent — calling twice
+ * returns the existing row without re-uploading.
+ */
+export async function uploadGenerationPosterAPI(
+  generationId: string,
+  blob: Blob,
+): Promise<{
+  success: boolean
+  data?: { generation: GenerationRecord }
+  error?: string
+}> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATION_POSTER}/${encodeURIComponent(generationId)}/poster`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || 'image/png' },
+        body: blob,
+      },
+    )
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Poster upload failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function uploadImageAPI(
+  params: UploadImageRequest,
+): Promise<UploadImageResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.UPLOAD_IMAGE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Upload failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function submit3DAPI(
+  params: Generate3DRequest,
+): Promise<Model3DSubmitResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_3D, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `3D generation failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function check3DStatusAPI(
+  jobId: string,
+): Promise<Model3DStatusResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATE_3D_STATUS}?jobId=${encodeURIComponent(jobId)}`,
+    )
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `3D status check failed with status ${response.status}`,
         ),
       }
     }

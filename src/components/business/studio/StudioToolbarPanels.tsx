@@ -59,6 +59,34 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
     }
   }, [isPlanning, state.prompt, tV2, setCurrentPlan, dispatch])
 
+  // 3D Ready: wrap the user's prompt with a Hunyuan3D / TripoSR-friendly
+  // template. The marker `[3D-READY]` lets us avoid double-wrapping when
+  // the user clicks twice; if the marker is already present, we strip it
+  // (toggle behaviour) so the user doesn't have to manually un-do it.
+  // Defined BEFORE the early returns below — React rules-of-hooks
+  // forbids calling hooks after a conditional return.
+  const handleMake3DReady = useCallback(() => {
+    const marker = '[3D-READY]'
+    const template = tBar('make3DReadyTemplate')
+    const current = state.prompt
+    if (current.includes(marker)) {
+      const stripped = current
+        .replace(`\n\n${marker}\n${template}`, '')
+        .replace(`${marker}\n${template}`, '')
+        .replace(marker, '')
+        .trim()
+      dispatch({ type: 'SET_PROMPT', payload: stripped })
+      toast.info(tBar('make3DReadyOff'))
+      return
+    }
+    const subject = current.trim()
+    const wrapped = subject
+      ? `${subject}\n\n${marker}\n${template}`
+      : `${marker}\n${template}`
+    dispatch({ type: 'SET_PROMPT', payload: wrapped })
+    toast.success(tBar('make3DReadyOn'))
+  }, [state.prompt, dispatch, tBar])
+
   // Video mode: show video-specific toolbar (enhance, refImage, aspectRatio, videoParams)
   if (state.outputType === 'video') {
     const pillBase =
@@ -200,6 +228,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         dispatch({ type: 'TOGGLE_PANEL', payload: 'civitai' })
       }
       hasToken={civitai.hasToken}
+      onMake3DReady={handleMake3DReady}
       disabled={isGenerating}
       quickMode={state.workflowMode === 'quick'}
     />

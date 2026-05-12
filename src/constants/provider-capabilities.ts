@@ -169,6 +169,19 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxLoras: 5,
     referenceImageMode: 'native' as const,
   },
+  // 3D models: image-to-3D — only `seed` from the generic capability set
+  // applies. Per-model 3D-specific params (textured_mesh, octree_resolution,
+  // remove_background) live on the 3D Studio page directly.
+  [AI_MODELS.HUNYUAN3D_2_1]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 1,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.TRIPOSR]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 1,
+    referenceImageMode: 'native' as const,
+  },
 }
 
 /** Resolve effective capability config: model override → adapter fallback */

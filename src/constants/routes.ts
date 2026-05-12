@@ -18,6 +18,7 @@ export const ROUTES = {
   STUDIO_IMAGE: '/studio/image',
   STUDIO_VIDEO: '/studio/video',
   STUDIO_AUDIO: '/studio/audio',
+  STUDIO_3D: '/studio/3d',
   STUDIO_EDIT: '/studio/edit',
   STUDIO_ENHANCE: '/studio/enhance',
   STUDIO_ANALYZE: '/studio/analyze',

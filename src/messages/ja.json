@@ -186,6 +186,7 @@
       "video": "動画",
       "lora": "LoRA",
       "audio": "音声",
+      "model3d": "3D",
       "arena": "Arena",
       "gallery": "ギャラリー"
     },
@@ -227,6 +228,12 @@
         "title": "Text to Speech",
         "description": "Fish Audio S2 Pro と FAL F5 TTS。声を選び、速度とサンプルレートを決めて生成。音声は画像と同じアーカイブに収まります。",
         "cta": "音声を生成"
+      },
+      "model3d": {
+        "eyebrow": "2つの画像→3Dモデル",
+        "title": "画像→3Dモデル",
+        "description": "Hunyuan3D 2.1 と TripoSR — 片方は PBR テクスチャ重視、もう片方は秒速ジオメトリプレビュー。アーカイブから画像を選んで、回転可能な GLB を生成。ブラウザでドラッグ、QR で AR 配置。3D アセットも画像・動画・音声と同じ書庫へ。",
+        "cta": "3Dを生成"
       },
       "workflow": {
         "eyebrow": "開発中",
@@ -424,6 +431,42 @@
       "imageWarning": "動画では最初のカードの画像のみ使用されます"
     }
   },
+  "Model3DGenerate": {
+    "title": "画像から3D",
+    "description": "アーカイブから画像を選んで、回転可能なGLBモデルを生成します。",
+    "modelLabel": "3Dモデル",
+    "modelPlaceholder": "3Dモデルを選択",
+    "sourceImageLabel": "ソース画像",
+    "sourceImagePlaceholder": "アーカイブから画像を選択",
+    "selectFromAssets": "素材から選択",
+    "generateButton": "3Dを生成",
+    "generating": "生成中...",
+    "stageQueued": "待機中",
+    "stageGenerating": "生成中",
+    "stageUploading": "アップロード中",
+    "elapsed": "経過 {seconds}",
+    "texturedMeshLabel": "PBRテクスチャ（3倍コスト）",
+    "texturedMeshHint": "Hunyuan3D専用 — PBRマテリアル付きメッシュを生成",
+    "octreeResolutionLabel": "ジオメトリ精度",
+    "removeBackgroundLabel": "背景を削除",
+    "removeBackgroundHint": "TripoSR専用 — 背景を除去してから再構成",
+    "errorFallback": "3D生成に失敗しました。もう一度お試しください。",
+    "errorUnexpected": "予期しないエラーが発生しました。",
+    "errorTimeout": "3D生成がタイムアウトしました。",
+    "errorNoSourceImage": "先にソース画像を選択してください。",
+    "toastSuccess": "3Dモデルが生成されました！",
+    "viewerLoading": "3Dモデルを読み込み中...",
+    "viewerError": "3Dモデルを読み込めませんでした。",
+    "downloadGlb": "GLBをダウンロード",
+    "openInAR": "ARで表示",
+    "uploadButton": "画像をアップロード",
+    "uploading": "アップロード中...",
+    "uploadSuccess": "画像がローカル素材に追加されました。",
+    "errorUnsupportedFile": "画像ファイルのみサポートしています。",
+    "errorFileTooLarge": "ファイルが大きすぎます（最大 {maxMb} MB）。",
+    "apiKeyMissingTitle": "fal.ai API キーが未設定",
+    "apiKeyMissingDescription": "Hunyuan3D 2.1 と TripoSR はどちらも fal.ai 経由で実行されます。3D を生成する前に有効な fal キーを追加してください。"
+  },
   "LongVideo": {
     "toggle": "ロング動画",
     "targetDuration": "目標時間",
@@ -589,6 +632,8 @@
     "search": "アセットを検索...",
     "sidebarAll": "すべて",
     "sidebarFavorites": "お気に入り",
+    "sidebarUploads": "ローカル素材",
+    "sidebarModel3D": "3D",
     "sidebarTools": "ツール",
     "sidebarImages": "画像",
     "sidebarVideos": "動画",
@@ -1469,6 +1514,14 @@
     "falF5Tts": {
       "label": "F5-TTS",
       "description": "オープンソースのゼロショット音声クローニング（fal.ai）"
+    },
+    "hunyuan3d21": {
+      "label": "Hunyuan3D 2.1",
+      "description": "テンセントの画像→3D、高忠実度ジオメトリ + PBRテクスチャ"
+    },
+    "triposr": {
+      "label": "TripoSR",
+      "description": "秒速ジオメトリ再構成、テクスチャなしプレビュー"
     }
   },
   "PromptPresets": {
@@ -1774,6 +1827,9 @@
       "audio": {
         "label": "音声"
       },
+      "model3d": {
+        "label": "3D"
+      },
       "edit": {
         "label": "編集",
         "title": "編集",
@@ -1835,6 +1891,7 @@
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "レイヤー分解",
     "transform": "変換",
+    "make3DReady": "3D対応",
     "plan": "計画",
     "planLoading": "計画中…",
     "planNeedsPrompt": "プロンプトを入力してください",
@@ -1893,7 +1950,11 @@
     "video": "ビデオ",
     "voice": "音声",
     "voiceSelected": "✓ 音声",
-    "clone": "クローン"
+    "clone": "クローン",
+    "make3DReady": "3D対応",
+    "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
+    "make3DReadyOn": "3D対応テンプレートを適用しました — 生成画像はそのまま 3D Studio に投入できます。",
+    "make3DReadyOff": "3D対応テンプレートを解除しました。"
   },
   "StudioV3": {
     "quickMode": "クイック生成",

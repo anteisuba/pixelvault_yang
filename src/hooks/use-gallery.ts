@@ -39,6 +39,8 @@ export interface GalleryFilters {
    * - <uuid>  → only generations belonging to that project
    */
   projectId: string
+  /** Filter by Generation.provider (e.g. USER_UPLOAD_PROVIDER for local uploads). */
+  provider?: string
 }
 
 interface UseGalleryOptions {
@@ -85,6 +87,7 @@ const DEFAULT_FILTERS: GalleryFilters = {
   timeRange: 'all',
   liked: false,
   projectId: '',
+  provider: '',
 }
 
 function mergeGenerations(
@@ -131,15 +134,25 @@ export function useGallery({
   // ref init pattern keeps this idempotent across renders without
   // tripping the react-hooks/refs rule (which forbids reading a ref's
   // `.current` during render unless it's the null-check init form).
+  //
+  // CRITICAL: only seed when we actually have data to keep. Seeding empty
+  // pre-poisons the cache so the next setFilters() call hits an empty
+  // snapshot and triggers a SILENT revalidate — silent fetches don't
+  // update the visible list (line 216-220 of fetchPage), so the UI stays
+  // stuck on "no assets" forever. This was the AssetSelectorDialog bug:
+  // dialog callers mount with no SSR data, hit the empty seed, and never
+  // see the data the silent fetch loads.
   const seedRef = useRef<boolean | null>(null)
   if (seedRef.current == null) {
     seedRef.current = true
-    const initial = { ...DEFAULT_FILTERS, ...initialFilters }
-    writeGalleryCache(makeGalleryCacheKey(initial, mine, limit), {
-      generations: initialGenerations,
-      total: initialTotal,
-      hasMore: initialHasMore,
-    })
+    if (initialGenerations.length > 0 || initialTotal > 0) {
+      const initial = { ...DEFAULT_FILTERS, ...initialFilters }
+      writeGalleryCache(makeGalleryCacheKey(initial, mine, limit), {
+        generations: initialGenerations,
+        total: initialTotal,
+        hasMore: initialHasMore,
+      })
+    }
   }
 
   useEffect(() => {
@@ -183,6 +196,7 @@ export function useGallery({
           liked: f.liked || undefined,
           mine,
           projectId: f.projectId || undefined,
+          provider: f.provider || undefined,
         }
         const response = await fetchGalleryImages(
           targetPage,

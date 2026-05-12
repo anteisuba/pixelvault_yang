@@ -49,6 +49,7 @@
     "@clerk/localizations": "^4.5.2",
     "@clerk/nextjs": "^6.39.2",
     "@formkit/auto-animate": "^0.9.0",
+    "@google/model-viewer": "^4.2.0",
     "@gradio/client": "^2.1.0",
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.8.0",

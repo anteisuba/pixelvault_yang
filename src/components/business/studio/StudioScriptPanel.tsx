@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { useTranslations } from 'next-intl'
 
 import { useCreateVideoScript, useVideoScript } from '@/hooks/use-video-script'
 import { useSceneOrchestrator } from '@/hooks/use-scene-orchestrator'
@@ -20,8 +19,6 @@ interface StudioScriptPanelProps {
 }
 
 export function StudioScriptPanel({ className }: StudioScriptPanelProps) {
-  const t = useTranslations('VideoScript')
-
   // Active script id — null = empty state (show topic input)
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -106,16 +103,7 @@ export function StudioScriptPanel({ className }: StudioScriptPanelProps) {
   const showEditor = activeId != null && script != null
 
   return (
-    <section className={className} aria-labelledby="studio-script-panel-title">
-      <header className="mb-3">
-        <h2
-          id="studio-script-panel-title"
-          className="font-display text-base font-medium"
-        >
-          {t('panelTitle')}
-        </h2>
-      </header>
-
+    <section className={className}>
       {!showEditor && (
         <ScriptTopicInput
           isGenerating={isCreating}

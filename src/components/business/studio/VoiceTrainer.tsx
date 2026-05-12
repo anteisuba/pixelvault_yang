@@ -90,19 +90,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-          <Mic className="size-4 text-primary" />
-        </div>
-        <div>
-          <h4 className="text-sm font-medium text-foreground">
-            {t('voiceTrainTitle')}
-          </h4>
-          <p className="text-2xs text-muted-foreground">
-            {t('voiceTrainDesc')}
-          </p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">{t('voiceTrainDesc')}</p>
 
       {/* Voice name */}
       <div className="flex flex-col gap-1.5">

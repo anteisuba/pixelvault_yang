@@ -4,6 +4,11 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import {
+  makeCardCacheKey,
+  readCardCache,
+  writeCardCache,
+} from '@/lib/card-cache'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -65,26 +70,43 @@ export function useCardManager<
 >(
   config: CardManagerConfig<TRecord, TCreate, TUpdate>,
 ): UseCardManagerReturn<TRecord, TCreate, TUpdate> {
-  const [cards, setCards] = useState<TRecord[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cacheKey = makeCardCacheKey(config.cardType, config.projectId)
+  // Seed React state from the module-level cache (if any) so the second+
+  // mount of a CardDrawer / panel renders cards instantly instead of
+  // showing a spinner while the same data refetches.
+  const [cards, setCards] = useState<TRecord[]>(
+    () => readCardCache<TRecord[]>(cacheKey) ?? [],
+  )
+  const [isLoading, setIsLoading] = useState(
+    () => readCardCache<TRecord[]>(cacheKey) === undefined,
+  )
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [activeCardIds, setActiveCardIds] = useState<string[]>([])
   const t = useTranslations('Toasts')
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true)
-    const result = await config.api.list(config.projectId)
-    if (result.success && result.data) {
-      setCards(result.data)
-    }
-    setIsLoading(false)
-  }, [config.api, config.projectId])
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      // `silent` keeps the spinner off while a cache hit is on screen —
+      // it's the SWR background pass after an instant cached render.
+      if (!opts?.silent) setIsLoading(true)
+      const result = await config.api.list(config.projectId)
+      if (result.success && result.data) {
+        setCards(result.data)
+        writeCardCache(cacheKey, result.data)
+      }
+      if (!opts?.silent) setIsLoading(false)
+    },
+    [config.api, config.projectId, cacheKey],
+  )
 
   useEffect(() => {
     return deferEffectTask(() => {
-      void refresh()
+      // Cache hit → silent background revalidate. Cache miss → visible
+      // loading state until the first fetch lands.
+      const hasCached = readCardCache<TRecord[]>(cacheKey) !== undefined
+      void refresh({ silent: hasCached })
     })
-  }, [refresh])
+  }, [refresh, cacheKey])
 
   const toggleCardSelection = useCallback(
     (id: string) => {
@@ -105,35 +127,47 @@ export function useCardManager<
     async (data: TCreate): Promise<TRecord | null> => {
       const result = await config.api.create(data)
       if (result.success && result.data) {
-        setCards((prev) => [result.data!, ...prev])
+        setCards((prev) => {
+          const next = [result.data!, ...prev]
+          writeCardCache(cacheKey, next)
+          return next
+        })
         toast.success(t('createSuccess'))
         return result.data
       }
       toast.error(result.error ?? t('createFailed'))
       return null
     },
-    [config.api, t],
+    [config.api, t, cacheKey],
   )
 
   const update = useCallback(
     async (id: string, data: TUpdate): Promise<boolean> => {
       const result = await config.api.update(id, data)
       if (result.success && result.data) {
-        setCards((prev) => prev.map((c) => (c.id === id ? result.data! : c)))
+        setCards((prev) => {
+          const next = prev.map((c) => (c.id === id ? result.data! : c))
+          writeCardCache(cacheKey, next)
+          return next
+        })
         toast.success(t('updateSuccess'))
         return true
       }
       toast.error(result.error ?? t('updateFailed'))
       return false
     },
-    [config.api, t],
+    [config.api, t, cacheKey],
   )
 
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
       const result = await config.api.delete(id)
       if (result.success) {
-        setCards((prev) => prev.filter((c) => c.id !== id))
+        setCards((prev) => {
+          const next = prev.filter((c) => c.id !== id)
+          writeCardCache(cacheKey, next)
+          return next
+        })
         // Clean up selections
         if (activeCardId === id) setActiveCardId(null)
         setActiveCardIds((prev) => prev.filter((x) => x !== id))
@@ -143,7 +177,7 @@ export function useCardManager<
       toast.error(result.error ?? t('deleteFailed'))
       return false
     },
-    [activeCardId, t, config.api],
+    [activeCardId, t, config.api, cacheKey],
   )
 
   const activeCard = useMemo(

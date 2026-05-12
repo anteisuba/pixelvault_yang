@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Coins,
   Image as ImageIcon,
+  KeyRound,
   LayoutGrid,
   Library,
   LogOut,
@@ -29,10 +30,18 @@ import { useTranslations } from 'next-intl'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
+import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { CardDrawer } from '@/components/business/CardDrawer'
 import { Button } from '@/components/ui/button'
 import { HyperText } from '@/components/ui/hyper-text'
 import { NumberTicker } from '@/components/ui/number-ticker'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import {
   Sidebar,
   SidebarContent,
@@ -148,11 +157,6 @@ function AppSidebarContent() {
       href: ROUTES.GALLERY,
       label: t('links.gallery'),
       icon: LayoutGrid,
-    },
-    {
-      href: ROUTES.STUDIO,
-      label: t('links.studio'),
-      icon: Sparkles,
     },
     {
       href: ROUTES.ARENA,
@@ -476,6 +480,7 @@ function SidebarFooterCreditBadge() {
 function SidebarFooterUserMenu() {
   const { profile: myProfile } = useMyProfile()
   const t = useTranslations('Navbar')
+  const tApiKeys = useTranslations('StudioApiKeys')
   const pathname = usePathname()
   const { signOut } = useClerk()
   const router = useRouter()
@@ -484,6 +489,7 @@ function SidebarFooterUserMenu() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPathname, setMenuPathname] = useState<string | null>(null)
+  const [apiKeysOpen, setApiKeysOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const isMenuOpen = menuOpen && menuPathname === pathname
 
@@ -505,6 +511,11 @@ function SidebarFooterUserMenu() {
       : ROUTES.PROFILE
     router.push(href)
   }, [myProfile, router])
+
+  const handleOpenApiKeys = useCallback(() => {
+    setMenuOpen(false)
+    setApiKeysOpen(true)
+  }, [])
 
   const handleSignOut = useCallback(() => {
     setMenuOpen(false)
@@ -568,6 +579,14 @@ function SidebarFooterUserMenu() {
               <User className="size-4 text-sidebar-foreground/70" />
               {t('viewProfile')}
             </button>
+            <button
+              type="button"
+              onClick={handleOpenApiKeys}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <KeyRound className="size-4 text-sidebar-foreground/70" />
+              {t('apiKeys')}
+            </button>
             <div className="mx-2 my-1 border-t border-sidebar-border/40" />
             <button
               type="button"
@@ -580,6 +599,23 @@ function SidebarFooterUserMenu() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
+        <SheetContent className="w-full overflow-y-auto border-l bg-background/95 px-0 sm:max-w-2xl">
+          <SheetHeader className="gap-3 border-b px-6 pb-5 pt-6">
+            <SheetTitle className="flex items-center gap-2 font-display text-lg font-medium">
+              <KeyRound className="size-4" />
+              {tApiKeys('sheetTitle')}
+            </SheetTitle>
+            <SheetDescription className="max-w-md font-serif leading-6">
+              {tApiKeys('sheetDescription')}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-6 py-6">
+            <ApiKeyManager />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

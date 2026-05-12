@@ -2,8 +2,10 @@
 
 import {
   Check,
-  ExternalLink,
   FolderInput,
+  Globe,
+  GlobeLock,
+  Heart,
   Loader2,
   Mic,
   Sparkles,
@@ -30,11 +32,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ROUTES } from '@/constants/routes'
-import { Link, useRouter } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import {
   assignGenerationProjectAPI,
   deleteGenerationAPI,
+  toggleGenerationVisibility,
+  toggleLikeAPI,
 } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, ProjectRecord } from '@/types'
@@ -48,6 +51,8 @@ interface AssetDetailSheetProps {
   onDeleted?: (id: string) => void
   /** Called after a successful folder move so the parent can refresh the affected counts. */
   onMoved?: (id: string, projectId: string | null) => void
+  /** Called after publish/favorite toggles so the grid mirrors the new state. */
+  onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
 }
 
 /**
@@ -62,11 +67,14 @@ export function AssetDetailSheet({
   projects,
   onDeleted,
   onMoved,
+  onUpdated,
 }: AssetDetailSheetProps) {
   const t = useTranslations('AssetsPage')
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [isFavoriting, setIsFavoriting] = useState(false)
 
   const open = generation !== null
 
@@ -113,6 +121,44 @@ export function AssetDetailSheet({
       onOpenChange(false)
     } else {
       toast.error(response.error ?? t('detailDeleteFailed'))
+    }
+  }
+
+  const handleTogglePublish = async () => {
+    if (!generation || isPublishing) return
+    const willPublish = !generation.isPublic
+    setIsPublishing(true)
+    const response = await toggleGenerationVisibility(generation.id, 'isPublic')
+    setIsPublishing(false)
+    if (response.success && response.data) {
+      onUpdated?.(generation.id, { isPublic: response.data.isPublic })
+      toast.success(
+        response.data.isPublic ? t('detailPublished') : t('detailUnpublished'),
+      )
+    } else {
+      // The optimistic message must match what the user just tried to do, not
+      // the (failed) inverse — flipping back to "unpublish failed" when the
+      // user clicked Publish would be confusing.
+      toast.error(t('detailPublishFailed'))
+      void willPublish
+    }
+  }
+
+  const handleToggleFavorite = async () => {
+    if (!generation || isFavoriting) return
+    setIsFavoriting(true)
+    const response = await toggleLikeAPI(generation.id)
+    setIsFavoriting(false)
+    if (response.success && response.data) {
+      onUpdated?.(generation.id, {
+        isLiked: response.data.liked,
+        likeCount: response.data.likeCount,
+      })
+      toast.success(
+        response.data.liked ? t('detailFavorited') : t('detailUnfavorited'),
+      )
+    } else {
+      toast.error(t('detailFavoriteFailed'))
     }
   }
 
@@ -235,11 +281,49 @@ export function AssetDetailSheet({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button asChild variant="ghost" size="sm" className="gap-1.5">
-                  <Link href={`${ROUTES.GALLERY}/${generation.id}`}>
-                    <ExternalLink className="size-4" />
-                    {t('detailOpenInGallery')}
-                  </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => void handleTogglePublish()}
+                  disabled={isPublishing}
+                  aria-pressed={generation.isPublic}
+                >
+                  {isPublishing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : generation.isPublic ? (
+                    <GlobeLock className="size-4" />
+                  ) : (
+                    <Globe className="size-4" />
+                  )}
+                  {generation.isPublic
+                    ? t('detailUnpublish')
+                    : t('detailPublish')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'gap-1.5',
+                    generation.isLiked && 'text-rose-500 hover:text-rose-500',
+                  )}
+                  onClick={() => void handleToggleFavorite()}
+                  disabled={isFavoriting}
+                  aria-pressed={!!generation.isLiked}
+                >
+                  {isFavoriting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Heart
+                      className={cn(
+                        'size-4',
+                        generation.isLiked && 'fill-current',
+                      )}
+                    />
+                  )}
+                  {generation.isLiked
+                    ? t('detailUnfavorite')
+                    : t('detailFavorite')}
                 </Button>
                 <ConfirmDialog
                   title={t('detailDeleteConfirmTitle')}

@@ -7,44 +7,12 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: {
-      outputType: 'image',
-    },
-  }),
-}))
-
 vi.mock('@/hooks/use-usage-summary', () => ({
   useUsageSummary: () => ({
     summary: {
       freeGenerationLimit: 10,
       freeGenerationsToday: 2,
     },
-  }),
-}))
-
-vi.mock('@/components/ui/sidebar', () => ({
-  useSidebar: () => ({
-    toggleSidebar: vi.fn(),
-  }),
-}))
-
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: () => ({
-    selectedModel: null,
-  }),
-}))
-
-vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: () => ({
-    selectedModel: null,
-  }),
-}))
-
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: () => ({
-    healthMap: {},
   }),
 }))
 

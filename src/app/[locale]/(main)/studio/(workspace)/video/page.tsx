@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { StudioWorkspace } from '@/components/business/StudioWorkspace'
+import { StudioModeSync } from '@/components/business/StudioModeSync'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioVideoPageProps {
@@ -14,12 +14,13 @@ export async function generateMetadata({
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Metadata' })
   return {
-    title: t('studio.title'),
-    description: t('studio.description'),
+    title: t('studio.video.title'),
+    description: t('studio.video.description'),
     robots: 'noindex, nofollow',
   }
 }
 
+/** See StudioImagePage — same pattern; UI lives in the shared layout. */
 export default function StudioVideoPage() {
-  return <StudioWorkspace defaultMediaGroup="video" />
+  return <StudioModeSync mode="video" />
 }

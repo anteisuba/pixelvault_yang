@@ -1,7 +1,6 @@
 'use client'
 
 import { memo } from 'react'
-import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'
@@ -11,16 +10,13 @@ import { OptionGroup } from '@/components/ui/option-group'
 const RESOLUTION_OPTIONS = ['480p', '720p', '1080p'] as const
 
 /**
- * StudioVideoParams — video-mode dock panel.
- * Hosts duration / resolution / negative prompt / long-video toggle.
- * Aspect ratio lives in StudioGenerateBar (shared cross-mode).
+ * StudioVideoParams — video-mode panel body. Rendered inside the centred
+ * Dialog from StudioDockPanelArea, which owns the title + close button —
+ * this component renders only the controls.
  */
 export const StudioVideoParams = memo(function StudioVideoParams() {
   const { state, dispatch } = useStudioForm()
-  const tPanels = useTranslations('StudioPanels')
   const tVideo = useTranslations('VideoGenerate')
-
-  const close = () => dispatch({ type: 'CLOSE_PANEL', payload: 'videoParams' })
 
   const negativePrompt = state.advancedParams.negativePrompt ?? ''
 
@@ -32,19 +28,6 @@ export const StudioVideoParams = memo(function StudioVideoParams() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-2xs font-medium text-muted-foreground/70">
-          {tPanels('videoSettings')}
-        </span>
-        <button
-          type="button"
-          onClick={close}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-
       {/* Duration */}
       <div>
         <label className="mb-2 block text-2xs font-medium text-muted-foreground/70">

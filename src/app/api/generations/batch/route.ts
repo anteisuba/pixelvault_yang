@@ -6,6 +6,7 @@ import {
   batchDeleteGenerations,
   batchUpdateVisibility,
 } from '@/services/generation.service'
+import { batchSetLike } from '@/services/like.service'
 import { deleteFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { createApiRoute } from '@/lib/api-route-factory'
@@ -23,9 +24,16 @@ const BatchVisibilitySchema = z.object({
   value: z.boolean(),
 })
 
+const BatchLikeSchema = z.object({
+  action: z.literal('like'),
+  ids: z.array(z.string().uuid()).min(1).max(100),
+  value: z.boolean(),
+})
+
 const BatchRequestSchema = z.discriminatedUnion('action', [
   BatchDeleteSchema,
   BatchVisibilitySchema,
+  BatchLikeSchema,
 ])
 
 export const POST = createApiRoute({
@@ -44,6 +52,11 @@ export const POST = createApiRoute({
         deleteFromR2(key).catch(() => {})
       }
       return { deletedCount }
+    }
+
+    if (data.action === 'like') {
+      const { updatedCount } = await batchSetLike(user.id, data.ids, data.value)
+      return { updatedCount }
     }
 
     const updatedCount = await batchUpdateVisibility(

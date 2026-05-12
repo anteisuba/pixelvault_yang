@@ -4,65 +4,32 @@ import { memo, useState } from 'react'
 import { Gift, SlidersHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioForm } from '@/contexts/studio-context'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
-import { getProviderLabel } from '@/constants/providers'
-import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 
 import { StudioAdvancedDrawer } from './StudioAdvancedDrawer'
 
 /**
- * StudioTopBar — Slim 44px bar: route indicator + advanced path + credits.
+ * StudioTopBar — Slim 48px bar: advanced path + free-credit badge.
  *
- * The sidebar toggle button was removed in Phase 3.1 — the global AppSidebar
- * provides its own toggle in the sidebar header, so the Studio-internal toggle
- * was a redundant control point for users.
+ * The model/route indicator was removed once the prompt area gained its own
+ * model dropdown — duplicating it here just doubled the "which model is
+ * active?" surface. The sidebar toggle was already removed in Phase 3.1
+ * (the global AppSidebar owns navigation).
  */
 export const StudioTopBar = memo(function StudioTopBar() {
-  const { state } = useStudioForm()
   const tStudio = useTranslations('StudioPage')
   const tAdvanced = useTranslations('StudioAdvanced')
-  const tModels = useTranslations('Models')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const { summary } = useUsageSummary()
-  const { selectedModel: imageModel } = useImageModelOptions()
-  const { selectedModel: audioModel } = useAudioModelOptions()
-  const selectedModel = state.outputType === 'audio' ? audioModel : imageModel
-  const { healthMap } = useApiKeysContext()
 
   const freeRemaining =
     summary.freeGenerationLimit - summary.freeGenerationsToday
 
-  // Active route indicator
-  const routeHealth = selectedModel?.keyId
-    ? healthMap[selectedModel.keyId]
-    : undefined
-  const routeLabel = selectedModel
-    ? (selectedModel.keyLabel ??
-      getTranslatedModelLabel(tModels, selectedModel.modelId))
-    : null
-  const routeProvider = selectedModel
-    ? getProviderLabel(selectedModel.providerConfig)
-    : null
-
   return (
     <>
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-3 font-display sm:gap-3 sm:px-4">
-        {/* Active route indicator — hidden on mobile */}
-        {routeLabel && (
-          <div className="hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
-            <ApiKeyHealthDot status={routeHealth} />
-            <span className="font-medium text-foreground">{routeLabel}</span>
-            {routeProvider && <span>{routeProvider}</span>}
-          </div>
-        )}
-
-        {/* Spacer */}
+        {/* Spacer — keeps right-aligned controls anchored */}
         <div className="flex-1" />
 
         <button

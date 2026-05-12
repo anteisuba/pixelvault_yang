@@ -132,7 +132,10 @@ describe('StudioScriptPanel', () => {
     mockHooks({ script: null })
     renderPanel()
 
-    expect(screen.getByRole('heading', { name: 'Script' })).toBeInTheDocument()
+    // The panel title was removed once the component started rendering inside
+    // a centred Dialog (StudioDockPanelArea owns the title now). The empty
+    // state still has to show the topic input so the user can kick off a
+    // script — that's the assertion that matters.
     expect(
       screen.getByPlaceholderText('A cat learns to fly'),
     ).toBeInTheDocument()

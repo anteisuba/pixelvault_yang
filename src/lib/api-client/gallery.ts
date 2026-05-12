@@ -232,3 +232,27 @@ export async function batchUpdateVisibilityAPI(
     }
   }
 }
+
+export async function batchSetLikeAPI(
+  ids: string[],
+  value: boolean,
+): Promise<{
+  success: boolean
+  data?: { updatedCount: number }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'like', ids, value }),
+    })
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}

@@ -98,7 +98,19 @@
     "keywords": "AI画像生成, AIアート, Gemini画像, FLUX AI, パーソナルAIギャラリー, AI動画生成, テキストから画像",
     "studio": {
       "title": "スタジオ — PixelVault",
-      "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。"
+      "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。",
+      "image": {
+        "title": "画像スタジオ — PixelVault",
+        "description": "複数のAIモデルでひとつのワークスペースから画像を生成。"
+      },
+      "video": {
+        "title": "動画スタジオ — PixelVault",
+        "description": "ショット、動き、シーンの展開をAIで動画化。"
+      },
+      "audio": {
+        "title": "音声スタジオ — PixelVault",
+        "description": "テキスト読み上げと音声クローンで音声を生成。"
+      }
     },
     "gallery": {
       "title": "ギャラリー — PixelVault",
@@ -136,6 +148,7 @@
   "Navbar": {
     "signIn": "サインイン",
     "viewProfile": "プロフィールを見る",
+    "apiKeys": "APIキー",
     "signOut": "サインアウト",
     "mobileNavigation": "モバイルナビゲーション",
     "links": {
@@ -582,9 +595,31 @@
     "sidebarAudio": "音声",
     "sidebarFolders": "フォルダ",
     "sidebarUnassigned": "未分類",
+    "folderRename": "名前を変更",
+    "folderDelete": "削除",
+    "folderRenamePrompt": "フォルダ名を変更：",
+    "folderDeleteConfirm": "このフォルダを削除？中の素材は未分類になります。",
+    "selectMode": "選択",
+    "selectExit": "キャンセル",
+    "selectAll": "すべて選択",
+    "selectClear": "クリア",
+    "selectedCount": "{count} 件選択中",
+    "bulkDelete": "削除",
+    "bulkDeleteConfirm": "{count} 件の素材を削除しますか？元に戻せません。",
+    "bulkDeleteSuccess": "{count} 件の素材を削除しました",
+    "bulkDeleteFailed": "削除に失敗しました",
+    "bulkPublish": "ギャラリーに公開",
+    "bulkPublishConfirm": "{count} 件の素材を公開ギャラリーに発行しますか？",
+    "bulkPublishSuccess": "{count} 件の素材をギャラリーに公開しました",
+    "bulkPublishFailed": "公開に失敗しました",
+    "bulkFavorite": "お気に入り",
+    "bulkFavoriteConfirm": "{count} 件の素材をお気に入りに追加しますか？",
+    "bulkFavoriteSuccess": "{count} 件の素材をお気に入りに追加しました",
+    "bulkFavoriteFailed": "お気に入りに失敗しました",
     "emptyTitle": "アセットがまだありません",
     "emptyDescription": "あなたの生成物がここに表示されます。",
     "emptyAction": "画像を生成",
+    "loading": "読み込み中…",
     "selectedAsset": "参照画像",
     "removeReference": "削除",
     "detailTitle": "アセット詳細",
@@ -602,6 +637,16 @@
     "detailSeed": "シード",
     "detailCreatedAt": "作成日時",
     "detailOpenInGallery": "ギャラリーで開く",
+    "detailPublish": "ギャラリーに公開",
+    "detailUnpublish": "非公開にする",
+    "detailPublished": "ギャラリーに公開しました",
+    "detailUnpublished": "公開を解除しました",
+    "detailPublishFailed": "公開に失敗しました",
+    "detailFavorite": "お気に入り",
+    "detailUnfavorite": "お気に入り解除",
+    "detailFavorited": "お気に入りに追加",
+    "detailUnfavorited": "お気に入りから削除",
+    "detailFavoriteFailed": "操作に失敗しました",
     "detailDelete": "削除",
     "detailDeleteCancel": "キャンセル",
     "detailDeleteConfirmTitle": "このアセットを削除しますか？",
@@ -1680,7 +1725,22 @@
     "loraLabel": "LoRA",
     "addLora": "LoRA を追加",
     "loraEmptyHint": "LoRA を追加して設定してください。",
-    "copySuffix": "コピー"
+    "copySuffix": "コピー",
+    "viewDetails": "詳細を表示"
+  },
+  "Cardify": {
+    "toggleLabel": "AI でカード風にレンダリング",
+    "toggleHint": "アップロード画像を統一されたダークグレーのカード台紙にレンダリングします（生成 1 回分を消費）",
+    "title": "カードレンダリングプレビュー",
+    "subtitle": "原画と AI カードを比較して、保存するものを選んでください",
+    "original": "原画",
+    "rendered": "AI カード",
+    "renderingHint": "Gemini Flash Image でレンダリング中…",
+    "accept": "このカードを使う",
+    "regenerate": "再レンダリング",
+    "useOriginal": "原画を使う",
+    "close": "プレビューを閉じる",
+    "errorRender": "カードレンダリングに失敗しました。再試行するか原画を使用してください"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Tokenを保存しました",
@@ -1845,6 +1905,7 @@
     "emptyStateTitle": "ここにプレビューが表示されます",
     "emptyStateHint": "下に説明を書いて作成を開始",
     "emptyStateHintAudio": "下に読み上げたいテキストを入力して作成を開始",
+    "emptyStateHintVideo": "ショット、動き、シーンの展開を下に書いて作成を開始",
     "suggestion": {
       "s1": "黄昏時の静かな日本庭園",
       "s2": "暖かい土の色調の抽象幾何学アート",
@@ -1934,7 +1995,8 @@
     "sections": {
       "mode": "モード選択",
       "routeModel": "ルートとモデル",
-      "provider": "プロバイダー設定"
+      "provider": "プロバイダー設定",
+      "pronunciation": "発音設定"
     },
     "modeDescription": "このワークフローを直接実行するか、カード補助で進めるかを選びます。",
     "routeModelDescription": "保存済み API ルートを選ぶか、モデルセレクターで詳細に指定します。",
@@ -1993,6 +2055,9 @@
     "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",
     "step1": "1. APIキーを取得",
     "step2": "2. ここに貼り付け",
+    "step3": "3. 名前を付ける",
+    "labelPlaceholder": "キーを区別するための名前",
+    "labelHint": "アカウントや用途を入れると分かりやすい（例：「Gemini メイン」）",
     "keyPlaceholder": "APIキーを貼り付け...",
     "verify": "検証して有効化",
     "verifying": "検証中...",

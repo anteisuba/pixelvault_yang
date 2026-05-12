@@ -160,9 +160,6 @@ export function LayerDecomposePanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
-              {t('title')}
-            </h3>
           </div>
           <Button
             type="button"
@@ -205,9 +202,6 @@ export function LayerDecomposePanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">
-              {t('title')}
-            </h3>
           </div>
           <Button
             type="button"
@@ -231,9 +225,6 @@ export function LayerDecomposePanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            {t('title')}
-          </h3>
           <span className="text-xs text-muted-foreground">
             {t('layerCount', { count: layerCount })}
           </span>

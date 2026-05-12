@@ -1,17 +1,10 @@
 'use client'
 
 import { memo, useCallback, useState } from 'react'
-import {
-  FileText,
-  Image as ImageIcon,
-  Mic,
-  Plus,
-  Ratio,
-  SlidersHorizontal,
-  Sparkles,
-} from 'lucide-react'
+import { FileText, Mic, Plus, SlidersHorizontal, Sparkles } from 'lucide-react'
 
 import { useTranslations } from 'next-intl'
+import * as Toolbar from '@radix-ui/react-toolbar'
 import { toast } from 'sonner'
 
 import {
@@ -23,6 +16,9 @@ import { StudioToolbar } from '@/components/business/StudioToolbar'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import { cn } from '@/lib/utils'
 
+import { ReferenceImageChip } from './ReferenceImageChip'
+import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
+
 /**
  * StudioToolbarRow — renders ONLY the toolbar button row.
  * Panel content is rendered by StudioDockPanelArea (inline panels) and
@@ -31,7 +27,7 @@ import { cn } from '@/lib/utils'
  */
 export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload, promptEnhance, civitai } = useStudioData()
+  const { promptEnhance, civitai } = useStudioData()
   const { isGenerating, setCurrentPlan } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
@@ -71,7 +67,11 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
+      // Wrap in Toolbar.Root so the shared chips (ReferenceImageChip,
+      // StudioAspectRatioPopover) — which use Radix Toolbar.Button under
+      // the hood — can find their roving-focus context. Plain `button`
+      // children stay valid inside Toolbar.Root.
+      <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           onClick={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
@@ -85,39 +85,10 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           <Sparkles className="size-3.5" />
           {tBar('enhance')}
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            dispatch({ type: 'TOGGLE_PANEL', payload: 'refImage' })
-          }
-          disabled={isGenerating}
-          className={cn(
-            pillBase,
-            state.panels.refImage ? pillActive : pillInactive,
-          )}
-        >
-          <ImageIcon className="size-3.5" />
-          {tBar('reference')}
-          {imageUpload.referenceImages.length > 0 && (
-            <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-3xs text-primary">
-              {imageUpload.referenceImages.length}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            dispatch({ type: 'TOGGLE_PANEL', payload: 'aspectRatio' })
-          }
-          disabled={isGenerating}
-          className={cn(
-            pillBase,
-            state.panels.aspectRatio ? pillActive : pillInactive,
-          )}
-        >
-          <Ratio className="size-3.5" />
-          {state.aspectRatio}
-        </button>
+        {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
+        <ReferenceImageChip disabled={isGenerating} />
+        {/* Aspect ratio: same popover as image mode — video-specific ratios are picked inside the popover based on outputType. */}
+        <StudioAspectRatioPopover disabled={isGenerating} />
         <button
           type="button"
           onClick={() =>
@@ -144,14 +115,32 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           <FileText className="size-3.5" />
           {tScript('panelTitle')}
         </button>
-      </div>
+      </Toolbar.Root>
     )
   }
 
   // Audio mode: show audio-specific toolbar
   if (state.outputType === 'audio') {
+    const pillBase =
+      'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors'
+    const pillInactive =
+      'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
+    const pillActive = 'bg-primary/10 text-primary border border-primary/30'
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
+          disabled={isGenerating || promptEnhance.isEnhancing}
+          className={cn(
+            pillBase,
+            state.panels.enhance ? pillActive : pillInactive,
+            promptEnhance.isEnhancing && 'opacity-70',
+          )}
+        >
+          <Sparkles className="size-3.5" />
+          {tBar('enhance')}
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -162,10 +151,8 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           }}
           disabled={isGenerating}
           className={cn(
-            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-            state.panels.voiceSelector
-              ? 'bg-primary/10 text-primary border border-primary/30'
-              : 'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+            pillBase,
+            state.panels.voiceSelector ? pillActive : pillInactive,
           )}
         >
           <Mic className="size-3.5" />
@@ -181,10 +168,8 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           }}
           disabled={isGenerating}
           className={cn(
-            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-            state.panels.voiceTrainer
-              ? 'bg-primary/10 text-primary border border-primary/30'
-              : 'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+            pillBase,
+            state.panels.voiceTrainer ? pillActive : pillInactive,
           )}
         >
           <Plus className="size-3.5" />

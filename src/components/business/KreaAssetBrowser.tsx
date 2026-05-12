@@ -2,28 +2,56 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  CheckCircle2,
+  Circle,
   Folder,
   FolderOpen,
   FolderX,
+  Globe,
   Heart,
   Image as ImageIcon,
   Loader2,
   Mic,
+  Pencil,
   Plus,
   Search,
+  Trash2,
   Video,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NextImage from 'next/image'
+import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
-import { fetchAssetSectionCounts } from '@/lib/api-client'
+import {
+  batchDeleteGenerationsAPI,
+  batchSetLikeAPI,
+  batchUpdateVisibilityAPI,
+  fetchAssetSectionCounts,
+  fetchGalleryImages,
+} from '@/lib/api-client'
+import {
+  makeGalleryCacheKey,
+  readGalleryCache,
+  writeGalleryCache,
+} from '@/lib/gallery-cache'
 import { cn } from '@/lib/utils'
 import type { AssetSectionCounts, GenerationRecord } from '@/types'
 
@@ -146,6 +174,7 @@ export function KreaAssetBrowser({
     filters,
     setFilters,
     removeGeneration,
+    updateGeneration,
   } = useGallery({
     initialGenerations,
     initialPage,
@@ -158,7 +187,12 @@ export function KreaAssetBrowser({
     // initial fetch was double-loading every visit. Dialog callers pass
     // no SSR data, so we only refetch when the initial list is empty
     // AND there's no SSR-provided total to trust.
-    keepPreviousOnFilterChange: true,
+    //
+    // `keepPreviousOnFilterChange` intentionally omitted: useGallery now
+    // serves cached snapshots for previously-visited filter combinations
+    // (instant switch back) and clears to the skeleton state on the
+    // genuinely-uncached miss, which is the Krea-style feedback users
+    // expect.
   })
 
   // When mounted without SSR data (e.g. inside AssetSelectorDialog),
@@ -176,7 +210,12 @@ export function KreaAssetBrowser({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { projects, refresh: refreshProjects } = useProjects()
+  const {
+    projects,
+    refresh: refreshProjects,
+    update: updateProject,
+    remove: removeProject,
+  } = useProjects()
   const section = useMemo(
     () => sectionFromFilters(filters, mediaType),
     [filters, mediaType],
@@ -198,6 +237,49 @@ export function KreaAssetBrowser({
   // sheet would steal the click target.
   const [selectedGeneration, setSelectedGeneration] =
     useState<GenerationRecord | null>(null)
+
+  // ── Multi-select state ────────────────────────────────────────
+  // Picker mode (asset selector dialog) intentionally does NOT support
+  // bulk selection — its click target must always resolve onSelect.
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkPublishing, setIsBulkPublishing] = useState(false)
+  const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
+
+  // ── Confirm action state ──────────────────────────────────────
+  // One AlertDialog handles every destructive flow (bulk delete, publish,
+  // favorite, folder delete) — keeps the Krea-style modal consistent and
+  // replaces the native window.confirm() pop-up which looked out of place.
+  type ConfirmAction =
+    | { kind: 'delete-bulk'; count: number }
+    | { kind: 'publish-bulk'; count: number }
+    | { kind: 'favorite-bulk'; count: number }
+    | { kind: 'delete-folder'; id: string; name: string }
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set())
+  }, [])
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false)
+    clearSelection()
+  }, [clearSelection])
+
+  const enterSelectionWith = useCallback((id: string) => {
+    setSelectionMode(true)
+    setSelectedIds(new Set([id]))
+  }, [])
   const handleAssetDeleted = useCallback(
     (id: string) => {
       removeGeneration(id)
@@ -205,6 +287,91 @@ export function KreaAssetBrowser({
     },
     [removeGeneration, refreshCounts],
   )
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(generations.map((g) => g.id)))
+  }, [generations])
+
+  const requestBulkDelete = useCallback(() => {
+    const count = selectedIds.size
+    if (count === 0) return
+    setConfirmAction({ kind: 'delete-bulk', count })
+  }, [selectedIds])
+
+  const performBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setIsBulkDeleting(true)
+    try {
+      const result = await batchDeleteGenerationsAPI(ids)
+      if (!result.success) {
+        toast.error(result.error ?? t('bulkDeleteFailed'))
+        return
+      }
+      const deletedCount = result.data?.deletedCount ?? ids.length
+      ids.forEach((id) => removeGeneration(id))
+      void refreshCounts()
+      toast.success(t('bulkDeleteSuccess', { count: deletedCount }))
+      exitSelectionMode()
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }, [selectedIds, t, removeGeneration, refreshCounts, exitSelectionMode])
+
+  const requestBulkPublish = useCallback(() => {
+    const count = selectedIds.size
+    if (count === 0) return
+    setConfirmAction({ kind: 'publish-bulk', count })
+  }, [selectedIds])
+
+  const performBulkPublish = useCallback(async () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setIsBulkPublishing(true)
+    try {
+      const result = await batchUpdateVisibilityAPI(ids, 'isPublic', true)
+      if (!result.success) {
+        toast.error(result.error ?? t('bulkPublishFailed'))
+        return
+      }
+      const updatedCount = result.data?.updatedCount ?? ids.length
+      toast.success(t('bulkPublishSuccess', { count: updatedCount }))
+      exitSelectionMode()
+    } finally {
+      setIsBulkPublishing(false)
+    }
+  }, [selectedIds, t, exitSelectionMode])
+
+  const requestBulkFavorite = useCallback(() => {
+    const count = selectedIds.size
+    if (count === 0) return
+    setConfirmAction({ kind: 'favorite-bulk', count })
+  }, [selectedIds])
+
+  const performBulkFavorite = useCallback(async () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setIsBulkFavoriting(true)
+    try {
+      // Always set liked=true for the bulk path — Krea-style. Removing
+      // favorites at scale is rare enough that single-tile unlike from
+      // the detail sheet covers it.
+      const result = await batchSetLikeAPI(ids, true)
+      if (!result.success) {
+        toast.error(result.error ?? t('bulkFavoriteFailed'))
+        return
+      }
+      const updatedCount = result.data?.updatedCount ?? ids.length
+      // Mirror the new liked state in the grid so heart indicators light
+      // up immediately, without waiting for a refetch.
+      ids.forEach((id) => updateGeneration(id, { isLiked: true }))
+      void refreshCounts()
+      toast.success(t('bulkFavoriteSuccess', { count: updatedCount }))
+      exitSelectionMode()
+    } finally {
+      setIsBulkFavoriting(false)
+    }
+  }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
 
   // Folder reassignment may push the asset out of the current section
   // (e.g. user is viewing "Unassigned" and moves into a folder). Drop
@@ -239,40 +406,106 @@ export function KreaAssetBrowser({
     }
   }, [])
 
+  const filtersForSection = useCallback(
+    (next: Section): GalleryFilters => {
+      const base: GalleryFilters = {
+        ...filters,
+        // Reset orthogonal dimensions when navigating sections to keep
+        // the mental model simple — sections are mutually exclusive in
+        // Krea.
+        liked: false,
+        projectId: '',
+        // When mediaType is locked the browser is acting as a
+        // single-type picker (e.g. image-only reference selection), so
+        // 'All' inside that mode means "all <mediaType>" rather than
+        // every media kind.
+        type: mediaType ?? 'all',
+      }
+      switch (next.kind) {
+        case 'all':
+          return base
+        case 'favorites':
+          return { ...base, liked: true }
+        case 'type':
+          return { ...base, type: next.type }
+        case 'unassigned':
+          return { ...base, projectId: 'none' }
+        case 'project':
+          return { ...base, projectId: next.id }
+      }
+    },
+    [filters, mediaType],
+  )
+
   const setSection = (next: Section) => {
-    const base: GalleryFilters = {
-      ...filters,
-      // Reset orthogonal dimensions when navigating sections to keep the
-      // mental model simple — sections are mutually exclusive in Krea.
-      liked: false,
-      projectId: '',
-      // When mediaType is locked the browser is acting as a single-type
-      // picker (e.g. image-only reference selection), so 'All' inside that
-      // mode means "all <mediaType>" rather than every media kind.
-      type: mediaType ?? 'all',
-    }
-    switch (next.kind) {
-      case 'all':
-        setFilters(base)
-        return
-      case 'favorites':
-        setFilters({ ...base, liked: true })
-        return
-      case 'type':
-        setFilters({ ...base, type: next.type })
-        return
-      case 'unassigned':
-        setFilters({ ...base, projectId: 'none' })
-        return
-      case 'project':
-        setFilters({ ...base, projectId: next.id })
-        return
-    }
+    setFilters(filtersForSection(next))
   }
+
+  // Warm the module-level gallery cache for a section the cursor is
+  // about to click. By the time setFilters runs there's a cache hit,
+  // turning the click → render into a 0ms transition. Skips when the
+  // target filter is already cached so we don't double-fetch.
+  const prefetchSection = useCallback(
+    (next: Section) => {
+      const targetFilters = filtersForSection(next)
+      const key = makeGalleryCacheKey(targetFilters, true, 24)
+      if (readGalleryCache(key)) return
+      // Reserve the slot synchronously with an empty entry so a quick
+      // double-hover doesn't fire two parallel requests. The real data
+      // overwrites it when the fetch resolves.
+      writeGalleryCache(key, {
+        generations: [],
+        total: 0,
+        hasMore: false,
+      })
+      const filterParams = {
+        search: targetFilters.search || undefined,
+        model: targetFilters.model || undefined,
+        sort: targetFilters.sort,
+        type: targetFilters.type || undefined,
+        timeRange: targetFilters.timeRange || undefined,
+        liked: targetFilters.liked || undefined,
+        mine: true,
+        projectId: targetFilters.projectId || undefined,
+      }
+      void fetchGalleryImages(1, 24, filterParams).then((response) => {
+        if (response.success && response.data) {
+          writeGalleryCache(key, {
+            generations: response.data.generations ?? [],
+            total: response.data.total ?? 0,
+            hasMore: response.data.hasMore ?? false,
+          })
+        }
+      })
+    },
+    [filtersForSection],
+  )
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setFilters({ ...filters, search: searchInput.trim() })
+  }
+
+  const handleRenameProject = async (id: string, currentName: string) => {
+    const next = window.prompt(t('folderRenamePrompt'), currentName)
+    const trimmed = next?.trim()
+    if (!trimmed || trimmed === currentName) return
+    const ok = await updateProject(id, { name: trimmed })
+    if (ok) void refreshCounts()
+  }
+
+  const requestDeleteProject = (id: string, name: string) => {
+    setConfirmAction({ kind: 'delete-folder', id, name })
+  }
+
+  const performDeleteProject = async (id: string) => {
+    const ok = await removeProject(id)
+    if (!ok) return
+    // If the user was viewing this folder, snap them back to All.
+    if (section.kind === 'project' && section.id === id) {
+      setSection({ kind: 'all' })
+    }
+    void refreshCounts()
   }
 
   const isEmpty = !isLoading && generations.length === 0
@@ -323,10 +556,42 @@ export function KreaAssetBrowser({
               />
             </form>
             {!isPickerMode && (
-              <DensityToggle density={density} onChange={changeDensity} />
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectionMode) exitSelectionMode()
+                    else setSelectionMode(true)
+                  }}
+                  className={cn(
+                    'flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+                    selectionMode
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
+                  )}
+                >
+                  {selectionMode ? (
+                    <>
+                      <X className="size-3.5" />
+                      {t('selectExit')}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-3.5" />
+                      {t('selectMode')}
+                    </>
+                  )}
+                </button>
+                <DensityToggle density={density} onChange={changeDensity} />
+              </>
             )}
           </div>
 
+          {/* Krea-style switching: useGallery serves cached snapshots
+              instantly (0ms) and falls through to the grid skeleton on
+              the genuinely-uncached miss. No top banner / pill — the
+              skeleton is the feedback. Errored fetches still show via
+              the existing error path below. */}
           {isEmpty ? (
             <EmptyState />
           ) : (
@@ -339,8 +604,13 @@ export function KreaAssetBrowser({
                     />
                   ))
                 : generations.map((gen) => {
-                    const tileClass =
-                      'group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200 hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none'
+                    const isSelected = selectedIds.has(gen.id)
+                    const tileClass = cn(
+                      'group relative aspect-square overflow-hidden rounded-md border bg-muted/40 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                      isSelected
+                        ? 'border-primary ring-2 ring-primary/40 scale-[0.97]'
+                        : 'border-border/60 hover:border-primary/40 hover:scale-[1.02]',
+                    )
                     const tileChildren =
                       gen.outputType === 'VIDEO' ? (
                         <video
@@ -364,18 +634,61 @@ export function KreaAssetBrowser({
                           loading="lazy"
                         />
                       )
+                    const handleTileClick = () => {
+                      if (onSelect) {
+                        onSelect(gen)
+                        return
+                      }
+                      if (selectionMode) {
+                        toggleSelection(gen.id)
+                        return
+                      }
+                      setSelectedGeneration(gen)
+                    }
+                    const handleTileContextMenu = (
+                      e: React.MouseEvent<HTMLButtonElement>,
+                    ) => {
+                      if (onSelect) return
+                      e.preventDefault()
+                      if (selectionMode) toggleSelection(gen.id)
+                      else enterSelectionWith(gen.id)
+                    }
                     return (
                       <button
                         key={gen.id}
                         type="button"
-                        onClick={() =>
-                          onSelect ? onSelect(gen) : setSelectedGeneration(gen)
-                        }
+                        onClick={handleTileClick}
+                        onContextMenu={handleTileContextMenu}
                         className={tileClass}
                         aria-label={gen.prompt || gen.id}
+                        aria-pressed={selectionMode ? isSelected : undefined}
                         title={gen.prompt || undefined}
                       >
                         {tileChildren}
+                        {!isPickerMode && selectionMode && (
+                          <span
+                            className={cn(
+                              'pointer-events-none absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full',
+                              isSelected
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background/90 text-foreground/70',
+                            )}
+                          >
+                            {isSelected ? (
+                              <CheckCircle2 className="size-3.5" />
+                            ) : (
+                              <Circle className="size-3.5" />
+                            )}
+                          </span>
+                        )}
+                        {gen.isLiked && !selectionMode && (
+                          <span
+                            className="pointer-events-none absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-background/80 text-rose-500 shadow-sm backdrop-blur-sm"
+                            aria-hidden
+                          >
+                            <Heart className="size-3 fill-current" />
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -400,6 +713,7 @@ export function KreaAssetBrowser({
             label={t('sidebarAll')}
             count={allCount}
             onClick={() => setSection({ kind: 'all' })}
+            onPrefetch={() => prefetchSection({ kind: 'all' })}
           />
           <SidebarItem
             active={section.kind === 'favorites'}
@@ -407,6 +721,7 @@ export function KreaAssetBrowser({
             label={t('sidebarFavorites')}
             count={favoritesCount}
             onClick={() => setSection({ kind: 'favorites' })}
+            onPrefetch={() => prefetchSection({ kind: 'favorites' })}
           />
 
           {/*
@@ -423,6 +738,9 @@ export function KreaAssetBrowser({
                 label={t('sidebarImages')}
                 count={imageCount}
                 onClick={() => setSection({ kind: 'type', type: 'image' })}
+                onPrefetch={() =>
+                  prefetchSection({ kind: 'type', type: 'image' })
+                }
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'video'}
@@ -430,6 +748,9 @@ export function KreaAssetBrowser({
                 label={t('sidebarVideos')}
                 count={videoCount}
                 onClick={() => setSection({ kind: 'type', type: 'video' })}
+                onPrefetch={() =>
+                  prefetchSection({ kind: 'type', type: 'video' })
+                }
               />
               <SidebarItem
                 active={section.kind === 'type' && section.type === 'audio'}
@@ -437,6 +758,9 @@ export function KreaAssetBrowser({
                 label={t('sidebarAudio')}
                 count={audioCount}
                 onClick={() => setSection({ kind: 'type', type: 'audio' })}
+                onPrefetch={() =>
+                  prefetchSection({ kind: 'type', type: 'audio' })
+                }
               />
             </>
           )}
@@ -468,6 +792,7 @@ export function KreaAssetBrowser({
             label={t('sidebarUnassigned')}
             count={unassignedCount}
             onClick={() => setSection({ kind: 'unassigned' })}
+            onPrefetch={() => prefetchSection({ kind: 'unassigned' })}
           />
           {projects.map((project) => (
             <SidebarItem
@@ -477,6 +802,37 @@ export function KreaAssetBrowser({
               label={project.name}
               count={projectCount(project.id)}
               onClick={() => setSection({ kind: 'project', id: project.id })}
+              onPrefetch={() =>
+                prefetchSection({ kind: 'project', id: project.id })
+              }
+              actions={
+                <>
+                  <button
+                    type="button"
+                    aria-label={t('folderRename')}
+                    title={t('folderRename')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleRenameProject(project.id, project.name)
+                    }}
+                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('folderDelete')}
+                    title={t('folderDelete')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      requestDeleteProject(project.id, project.name)
+                    }}
+                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </>
+              }
             />
           ))}
         </aside>
@@ -490,8 +846,153 @@ export function KreaAssetBrowser({
           projects={projects}
           onDeleted={handleAssetDeleted}
           onMoved={handleAssetMoved}
+          onUpdated={(id, patch) => {
+            updateGeneration(id, patch)
+            // Keep the open sheet's `generation` in sync so the buttons
+            // reflect the new isPublic/isLiked state without a refetch.
+            setSelectedGeneration((prev) =>
+              prev && prev.id === id ? { ...prev, ...patch } : prev,
+            )
+            // Liking/unliking moves the asset in/out of the Favorites
+            // section, so its sidebar count needs to refresh too.
+            if ('isLiked' in patch) {
+              void refreshCounts()
+            }
+          }}
         />
       )}
+      {/* ─── Bulk selection action bar ─────────────────────────── */}
+      {!isPickerMode && selectionMode && selectedIds.size > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-4 md:pb-6">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
+            <span className="px-2 text-xs font-medium tabular-nums">
+              {t('selectedCount', { count: selectedIds.size })}
+            </span>
+            <span className="h-4 w-px bg-border/60" />
+            <button
+              type="button"
+              onClick={selectAllVisible}
+              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              {t('selectAll')}
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              {t('selectClear')}
+            </button>
+            <span className="h-4 w-px bg-border/60" />
+            <button
+              type="button"
+              onClick={requestBulkFavorite}
+              disabled={isBulkFavoriting || isBulkPublishing || isBulkDeleting}
+              className="flex items-center gap-1.5 rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
+            >
+              {isBulkFavoriting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Heart className="size-3.5" />
+              )}
+              {t('bulkFavorite')}
+            </button>
+            <button
+              type="button"
+              onClick={requestBulkPublish}
+              disabled={isBulkPublishing || isBulkDeleting || isBulkFavoriting}
+              className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isBulkPublishing ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Globe className="size-3.5" />
+              )}
+              {t('bulkPublish')}
+            </button>
+            <button
+              type="button"
+              onClick={requestBulkDelete}
+              disabled={isBulkDeleting || isBulkPublishing || isBulkFavoriting}
+              className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            >
+              {isBulkDeleting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="size-3.5" />
+              )}
+              {t('bulkDelete')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Confirm dialog for destructive flows ──────────────── */}
+      <AlertDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmAction(null)
+        }}
+      >
+        <AlertDialogContent>
+          {confirmAction && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {confirmAction.kind === 'delete-bulk'
+                    ? t('bulkDelete')
+                    : confirmAction.kind === 'publish-bulk'
+                      ? t('bulkPublish')
+                      : confirmAction.kind === 'favorite-bulk'
+                        ? t('bulkFavorite')
+                        : t('folderDelete')}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {confirmAction.kind === 'delete-bulk'
+                    ? t('bulkDeleteConfirm', { count: confirmAction.count })
+                    : confirmAction.kind === 'publish-bulk'
+                      ? t('bulkPublishConfirm', { count: confirmAction.count })
+                      : confirmAction.kind === 'favorite-bulk'
+                        ? t('bulkFavoriteConfirm', {
+                            count: confirmAction.count,
+                          })
+                        : t('folderDeleteConfirm')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('selectExit')}</AlertDialogCancel>
+                <AlertDialogAction
+                  variant={
+                    confirmAction.kind === 'publish-bulk' ||
+                    confirmAction.kind === 'favorite-bulk'
+                      ? 'default'
+                      : 'destructive'
+                  }
+                  onClick={() => {
+                    const action = confirmAction
+                    setConfirmAction(null)
+                    if (action.kind === 'delete-bulk') {
+                      void performBulkDelete()
+                    } else if (action.kind === 'publish-bulk') {
+                      void performBulkPublish()
+                    } else if (action.kind === 'favorite-bulk') {
+                      void performBulkFavorite()
+                    } else {
+                      void performDeleteProject(action.id)
+                    }
+                  }}
+                >
+                  {confirmAction.kind === 'publish-bulk'
+                    ? t('bulkPublish')
+                    : confirmAction.kind === 'favorite-bulk'
+                      ? t('bulkFavorite')
+                      : t('folderDelete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -543,6 +1044,20 @@ interface SidebarItemProps {
   label: string
   count?: number
   onClick: () => void
+  /**
+   * Fires when the user moves the pointer onto the row — used to warm
+   * the gallery cache before the click lands, so by the time setFilters
+   * runs there's a cache hit waiting. Should be a no-op when the
+   * destination filter is already cached.
+   */
+  onPrefetch?: () => void
+  /**
+   * Optional trailing controls (e.g. rename / delete for project rows).
+   * Rendered after the count and revealed on hover only. The host should
+   * call `stopPropagation` inside any clickable child so it doesn't also
+   * trigger the row's own onClick.
+   */
+  actions?: React.ReactNode
 }
 
 function SidebarItem({
@@ -551,36 +1066,49 @@ function SidebarItem({
   label,
   count,
   onClick,
+  onPrefetch,
+  actions,
 }: SidebarItemProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
+    <div
       className={cn(
-        'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+        'group/sidebar-item flex w-full items-center gap-1 rounded-md pl-2 pr-1 py-1.5 text-sm transition-colors',
         active
           ? 'bg-primary/10 text-primary'
           : 'text-foreground/80 hover:bg-muted/40 hover:text-foreground',
       )}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        <span
-          className={cn(
-            'shrink-0',
-            active ? 'text-primary' : 'text-muted-foreground/70',
-          )}
-        >
-          {icon}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn(
+              'shrink-0',
+              active ? 'text-primary' : 'text-muted-foreground/70',
+            )}
+          >
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
         </span>
-        <span className="truncate">{label}</span>
-      </span>
-      {typeof count === 'number' && (
-        <span className="shrink-0 text-2xs text-muted-foreground/70 tabular-nums">
-          {count}
+        {typeof count === 'number' && (
+          <span className="shrink-0 text-2xs text-muted-foreground/70 tabular-nums">
+            {count}
+          </span>
+        )}
+      </button>
+      {actions ? (
+        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/sidebar-item:opacity-100 focus-within:opacity-100">
+          {actions}
         </span>
-      )}
-    </button>
+      ) : null}
+    </div>
   )
 }
 

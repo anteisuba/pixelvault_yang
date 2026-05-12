@@ -41,6 +41,19 @@ interface GetRouteConfig<TSchema extends z.ZodType, TResult> {
   skipAuth?: boolean
   /** Optional rate limit config (auth-bound routes only) */
   rateLimit?: { limit: number; windowSeconds: number }
+  /**
+   * Optional Cache-Control header value attached to successful responses.
+   * Accepts a string (single value used for every request) or a function
+   * receiving the validated query + clerkId so the route can choose
+   * `public` (CDN-cacheable) vs `private` (per-viewer) based on the
+   * request shape. Return `undefined` to skip the header entirely.
+   */
+  cacheHeader?:
+    | string
+    | ((args: {
+        data: z.infer<TSchema>
+        clerkId: string | null
+      }) => string | undefined)
   /** Handler receives the validated query object */
   handler: (args: {
     clerkId: string | null
@@ -629,10 +642,22 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
         durationMs: Date.now() - startedAt,
       })
 
-      return NextResponse.json<SuccessResponse<TResult>>({
+      const response = NextResponse.json<SuccessResponse<TResult>>({
         success: true,
         data: toJsonSafe(result),
       })
+
+      if (config.cacheHeader) {
+        const value =
+          typeof config.cacheHeader === 'function'
+            ? config.cacheHeader({ data: parseResult.data, clerkId })
+            : config.cacheHeader
+        if (value) {
+          response.headers.set('Cache-Control', value)
+        }
+      }
+
+      return response
     } catch (error) {
       return handleRouteError(config.routeName, startedAt, error)
     }

@@ -13,6 +13,11 @@ import { useTranslations } from 'next-intl'
 import { PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  makeGalleryCacheKey,
+  readGalleryCache,
+  writeGalleryCache,
+} from '@/lib/gallery-cache'
 import type {
   GallerySortOption,
   GalleryTimeRange,
@@ -68,6 +73,8 @@ export interface UseGalleryReturn {
   removeGeneration: (id: string) => void
   /** Remove multiple generations from the local list (after batch deletion) */
   removeGenerations: (ids: Set<string>) => void
+  /** Patch a generation in place (after publish/like/etc) so the grid mirrors the new state without refetching. */
+  updateGeneration: (id: string, patch: Partial<GenerationRecord>) => void
 }
 
 const DEFAULT_FILTERS: GalleryFilters = {
@@ -118,6 +125,22 @@ export function useGallery({
   const hasMoreRef = useRef(initialHasMore)
   const isFetchingRef = useRef(false)
   const filtersRef = useRef(filters)
+  // Seed the module-level gallery cache once with the SSR snapshot so
+  // flipping away from the initial filter and back lands on a cache hit
+  // instead of refetching the data the page already shipped with. Lazy
+  // ref init pattern keeps this idempotent across renders without
+  // tripping the react-hooks/refs rule (which forbids reading a ref's
+  // `.current` during render unless it's the null-check init form).
+  const seedRef = useRef<boolean | null>(null)
+  if (seedRef.current == null) {
+    seedRef.current = true
+    const initial = { ...DEFAULT_FILTERS, ...initialFilters }
+    writeGalleryCache(makeGalleryCacheKey(initial, mine, limit), {
+      generations: initialGenerations,
+      total: initialTotal,
+      hasMore: initialHasMore,
+    })
+  }
 
   useEffect(() => {
     pageRef.current = page
@@ -132,11 +155,22 @@ export function useGallery({
   }, [filters])
 
   const fetchPage = useCallback(
-    async (targetPage: number, append: boolean) => {
+    /**
+     * @param silent When true, the fetch runs entirely in the background:
+     *               it doesn't toggle `isFetching` and doesn't replace the
+     *               currently-visible list. The cache is still updated so
+     *               the next switch back gets the latest data. Used for
+     *               stale-while-revalidate after a cache hit.
+     */
+    async (
+      targetPage: number,
+      append: boolean,
+      opts?: { silent?: boolean },
+    ) => {
       if (isFetchingRef.current) return
       isFetchingRef.current = true
 
-      setIsFetching(true)
+      if (!opts?.silent) setIsFetching(true)
 
       try {
         const f = filtersRef.current
@@ -157,19 +191,42 @@ export function useGallery({
         )
 
         if (response.success && response.data) {
-          startTransition(() => {
-            if (append) {
-              setGenerations((current) =>
-                mergeGenerations(current, response.data?.generations ?? []),
-              )
-            } else {
-              setGenerations(response.data?.generations ?? [])
-            }
-            setPage(response.data?.page ?? targetPage)
-            setTotal(response.data?.total ?? 0)
-            setHasMore(response.data?.hasMore ?? false)
+          const fresh = response.data.generations ?? []
+          const freshTotal = response.data.total ?? 0
+          const freshHasMore = response.data.hasMore ?? false
+
+          // Only the first-page response represents the full cacheable
+          // snapshot. Pagination (`append`) extends the visible list but
+          // doesn't replace what the cache holds for instant switch-back.
+          if (targetPage === 1) {
+            writeGalleryCache(
+              makeGalleryCacheKey(filtersRef.current, mine, limit),
+              {
+                generations: fresh,
+                total: freshTotal,
+                hasMore: freshHasMore,
+              },
+            )
+          }
+
+          if (opts?.silent) {
+            // Silent revalidate: keep React state untouched so we don't
+            // interrupt scrolling / load-more in progress. Cache is the
+            // source of truth for the next visit.
             setError(null)
-          })
+          } else {
+            startTransition(() => {
+              if (append) {
+                setGenerations((current) => mergeGenerations(current, fresh))
+              } else {
+                setGenerations(fresh)
+              }
+              setPage(response.data?.page ?? targetPage)
+              setTotal(freshTotal)
+              setHasMore(freshHasMore)
+              setError(null)
+            })
+          }
         } else {
           setError(
             getApiErrorMessage(tErrors, response, 'Failed to load gallery'),
@@ -181,9 +238,24 @@ export function useGallery({
         )
       }
       isFetchingRef.current = false
-      setIsFetching(false)
+      if (!opts?.silent) setIsFetching(false)
     },
-    [limit, mine, startTransition, tErrors],
+    // State setters are listed for React Compiler's
+    // preserve-manual-memoization rule — they're stable references, so
+    // including them is cosmetic for the runtime but lets the compiler
+    // verify the manual memoization is correct.
+    [
+      limit,
+      mine,
+      startTransition,
+      tErrors,
+      setIsFetching,
+      setError,
+      setGenerations,
+      setPage,
+      setTotal,
+      setHasMore,
+    ],
   )
 
   const loadMore = useCallback(() => {
@@ -196,10 +268,29 @@ export function useGallery({
       filtersRef.current = newFilters
       pageRef.current = 1
       setPage(1)
-      // When the caller opts into keepPrevious, leave the existing list
-      // and total in place — the next fetchPage() will replace them on
-      // success. This avoids the empty-grid flash when the /assets
-      // sidebar switches sections.
+
+      const key = makeGalleryCacheKey(newFilters, mine, limit)
+      const cached = readGalleryCache(key)
+
+      if (cached) {
+        // Cache hit → render the cached snapshot instantly (Krea-style
+        // 0ms switch) and revalidate silently in the background so the
+        // next visit picks up any server-side changes.
+        startTransition(() => {
+          setGenerations(cached.generations)
+          setTotal(cached.total)
+          setHasMore(cached.hasMore)
+          setError(null)
+        })
+        void fetchPage(1, false, { silent: true })
+        return
+      }
+
+      // Cache miss → clear the list immediately so the grid shows its
+      // skeleton placeholders while the real data lands. The previous
+      // `keepPreviousOnFilterChange` short-circuit produced a confusing
+      // "no feedback" state on uncached switches, so we honour the flag
+      // only when there's something cached to keep in its place.
       if (!keepPreviousOnFilterChange) {
         setGenerations([])
         setTotal(0)
@@ -207,7 +298,21 @@ export function useGallery({
       }
       void fetchPage(1, false)
     },
-    [fetchPage, keepPreviousOnFilterChange],
+    // State setters explicit for React Compiler — same rationale as
+    // fetchPage above.
+    [
+      fetchPage,
+      keepPreviousOnFilterChange,
+      limit,
+      mine,
+      startTransition,
+      setFiltersState,
+      setPage,
+      setGenerations,
+      setTotal,
+      setHasMore,
+      setError,
+    ],
   )
 
   useEffect(() => {
@@ -235,15 +340,30 @@ export function useGallery({
     }
   }, [hasMore, fetchPage])
 
-  const removeGeneration = useCallback((id: string) => {
-    setGenerations((current) => current.filter((g) => g.id !== id))
-    setTotal((prev) => Math.max(prev - 1, 0))
-  }, [])
+  const removeGeneration = useCallback(
+    (id: string) => {
+      setGenerations((current) => current.filter((g) => g.id !== id))
+      setTotal((prev) => Math.max(prev - 1, 0))
+    },
+    [setGenerations, setTotal],
+  )
 
-  const removeGenerations = useCallback((ids: Set<string>) => {
-    setGenerations((current) => current.filter((g) => !ids.has(g.id)))
-    setTotal((prev) => Math.max(prev - ids.size, 0))
-  }, [])
+  const removeGenerations = useCallback(
+    (ids: Set<string>) => {
+      setGenerations((current) => current.filter((g) => !ids.has(g.id)))
+      setTotal((prev) => Math.max(prev - ids.size, 0))
+    },
+    [setGenerations, setTotal],
+  )
+
+  const updateGeneration = useCallback(
+    (id: string, patch: Partial<GenerationRecord>) => {
+      setGenerations((current) =>
+        current.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+      )
+    },
+    [setGenerations],
+  )
 
   return {
     generations,
@@ -257,5 +377,6 @@ export function useGallery({
     sentinelRef,
     removeGeneration,
     removeGenerations,
+    updateGeneration,
   }
 }

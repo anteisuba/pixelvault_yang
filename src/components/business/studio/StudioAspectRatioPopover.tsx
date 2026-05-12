@@ -10,7 +10,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useStudioForm } from '@/contexts/studio-context'
-import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
+import {
+  STUDIO_IMAGE_ASPECT_RATIOS,
+  STUDIO_VIDEO_ASPECT_RATIOS,
+} from '@/constants/studio'
 import { cn } from '@/lib/utils'
 import type { AspectRatio } from '@/constants/config'
 
@@ -59,6 +62,12 @@ export function StudioAspectRatioPopover({
 }: StudioAspectRatioPopoverProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV2')
+  // Video supports more ratios than image (4:3 / 3:4 added for video-only
+  // pipelines). Audio mode never opens this popover.
+  const ratios =
+    state.outputType === 'video'
+      ? STUDIO_VIDEO_ASPECT_RATIOS
+      : STUDIO_IMAGE_ASPECT_RATIOS
 
   return (
     <Popover>
@@ -81,7 +90,7 @@ export function StudioAspectRatioPopover({
       <PopoverContent className="w-auto p-3" align="start" sideOffset={6}>
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1.5">
-            {STUDIO_IMAGE_ASPECT_RATIOS.map((r) => (
+            {ratios.map((r) => (
               <button
                 key={r}
                 type="button"

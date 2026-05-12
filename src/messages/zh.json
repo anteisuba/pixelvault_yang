@@ -98,7 +98,19 @@
     "keywords": "AI 图像生成, AI 绘画, Gemini 图像, FLUX AI, 个人 AI 画廊, AI 视频生成, 文字生成图片",
     "studio": {
       "title": "工作台 — PixelVault",
-      "description": "在同一工作区使用多个 AI 模型生成图像和视频。"
+      "description": "在同一工作区使用多个 AI 模型生成图像和视频。",
+      "image": {
+        "title": "图片工作台 — PixelVault",
+        "description": "在同一工作区使用多个 AI 模型生成图片。"
+      },
+      "video": {
+        "title": "视频工作台 — PixelVault",
+        "description": "用 AI 把镜头、动作和场景演变变成视频。"
+      },
+      "audio": {
+        "title": "音频工作台 — PixelVault",
+        "description": "用文本转语音和声音克隆生成音频。"
+      }
     },
     "gallery": {
       "title": "画廊 — PixelVault",
@@ -136,6 +148,7 @@
   "Navbar": {
     "signIn": "登录",
     "viewProfile": "查看主页",
+    "apiKeys": "API 密钥",
     "signOut": "退出登录",
     "mobileNavigation": "移动端导航",
     "links": {
@@ -582,9 +595,31 @@
     "sidebarAudio": "音频",
     "sidebarFolders": "文件夹",
     "sidebarUnassigned": "未分类",
+    "folderRename": "重命名",
+    "folderDelete": "删除",
+    "folderRenamePrompt": "重命名文件夹：",
+    "folderDeleteConfirm": "删除该文件夹？里面的素材会变成未分类。",
+    "selectMode": "选择",
+    "selectExit": "取消选择",
+    "selectAll": "全选",
+    "selectClear": "清除",
+    "selectedCount": "已选 {count}",
+    "bulkDelete": "删除",
+    "bulkDeleteConfirm": "确认删除 {count} 个素材？此操作无法撤销。",
+    "bulkDeleteSuccess": "已删除 {count} 个素材",
+    "bulkDeleteFailed": "删除失败",
+    "bulkPublish": "发布到画廊",
+    "bulkPublishConfirm": "把 {count} 个素材发布到公开画廊？",
+    "bulkPublishSuccess": "已发布 {count} 个素材到画廊",
+    "bulkPublishFailed": "发布失败",
+    "bulkFavorite": "收藏",
+    "bulkFavoriteConfirm": "把 {count} 个素材加入收藏？",
+    "bulkFavoriteSuccess": "已加入 {count} 个素材到收藏",
+    "bulkFavoriteFailed": "收藏失败",
     "emptyTitle": "还没有素材",
     "emptyDescription": "你的生成作品会显示在这里。",
     "emptyAction": "生成图像",
+    "loading": "加载中…",
     "selectedAsset": "参考图",
     "removeReference": "移除",
     "detailTitle": "素材详情",
@@ -602,6 +637,16 @@
     "detailSeed": "种子",
     "detailCreatedAt": "创建时间",
     "detailOpenInGallery": "在画廊中打开",
+    "detailPublish": "发布到画廊",
+    "detailUnpublish": "取消公开",
+    "detailPublished": "已发布到画廊",
+    "detailUnpublished": "已取消公开",
+    "detailPublishFailed": "发布失败",
+    "detailFavorite": "收藏",
+    "detailUnfavorite": "取消收藏",
+    "detailFavorited": "已加入收藏",
+    "detailUnfavorited": "已取消收藏",
+    "detailFavoriteFailed": "操作失败",
     "detailDelete": "删除",
     "detailDeleteCancel": "取消",
     "detailDeleteConfirmTitle": "确认删除该素材？",
@@ -1680,7 +1725,22 @@
     "loraLabel": "LoRA",
     "addLora": "添加 LoRA",
     "loraEmptyHint": "添加一个 LoRA 开始配置。",
-    "copySuffix": "副本"
+    "copySuffix": "副本",
+    "viewDetails": "查看详情"
+  },
+  "Cardify": {
+    "toggleLabel": "让 AI 渲染成卡牌样式",
+    "toggleHint": "将原图渲染成统一的深灰底白边陈列卡（会消耗 1 次生成）",
+    "title": "卡牌渲染预览",
+    "subtitle": "对比原图和 AI 渲染卡牌后，选一个入库",
+    "original": "原图",
+    "rendered": "AI 卡牌",
+    "renderingHint": "正在用 Gemini Flash Image 渲染...",
+    "accept": "采用此卡牌",
+    "regenerate": "重新渲染",
+    "useOriginal": "改用原图",
+    "close": "关闭预览",
+    "errorRender": "卡牌渲染失败，请重试或直接使用原图"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",
@@ -1845,6 +1905,7 @@
     "emptyStateTitle": "预览结果会显示在这里",
     "emptyStateHint": "在下方写下描述，开始你的第一次创作",
     "emptyStateHintAudio": "在下方输入想要听到的文本，开始你的第一次创作",
+    "emptyStateHintVideo": "在下方描述镜头、动作或场景演变，开始你的第一次创作",
     "suggestion": {
       "s1": "黄昏时分宁静的日本庭院",
       "s2": "暖土色调的几何抽象艺术",
@@ -1934,7 +1995,8 @@
     "sections": {
       "mode": "模式选择",
       "routeModel": "路由与模型",
-      "provider": "提供商设置"
+      "provider": "提供商设置",
+      "pronunciation": "发音设置"
     },
     "modeDescription": "选择这个工作流直接运行，还是通过卡片辅助创作。",
     "routeModelDescription": "选择已保存的 API 路由，或打开模型选择器做更细的路由控制。",
@@ -1993,6 +2055,9 @@
     "description": "2 分钟获取 API key，解锁该模型。",
     "step1": "1. 获取 API key",
     "step2": "2. 粘贴到这里",
+    "step3": "3. 自定义名称",
+    "labelPlaceholder": "用来区分不同 key 的名称",
+    "labelHint": "建议带上账号或用途，例如「Gemini 主账号」",
     "keyPlaceholder": "粘贴你的 API key...",
     "verify": "验证并激活",
     "verifying": "验证中...",

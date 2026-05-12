@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ExternalLink, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
-import { createApiKey } from '@/lib/api-client'
+import { createApiKey, deleteApiKey } from '@/lib/api-client'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import { getDefaultProviderConfig } from '@/constants/providers'
@@ -45,59 +45,92 @@ export function QuickSetupDialog({
   adapterType,
   optionId,
 }: QuickSetupDialogProps) {
+  const [labelValue, setLabelValue] = useState('')
   const [keyValue, setKeyValue] = useState('')
   const [step, setStep] = useState<SetupStep>('guide')
   const [errorMsg, setErrorMsg] = useState('')
-  const { refresh } = useApiKeysContext()
+  const { refresh, verify } = useApiKeysContext()
   const { dispatch } = useStudioForm()
   const t = useTranslations('QuickSetup')
 
   const guide = getAdapterApiGuide(adapterType)
   const providerConfig = getDefaultProviderConfig(adapterType)
 
+  // Prefill the label with the model name so a user who doesn't care about
+  // naming can just paste the key and click Verify. Reset every time the
+  // dialog opens for a new model. Syncing local state to an `open` prop is
+  // exactly the case React's set-state-in-effect rule disallows, but the
+  // alternative (forcing the parent to key= the dialog on modelId) leaks
+  // an implementation detail just to suppress a lint rule.
+  useEffect(() => {
+    if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLabelValue(modelLabel)
+  }, [open, modelLabel])
+
   const handleVerify = useCallback(async () => {
     if (keyValue.trim().length < 10) return
+    const finalLabel = labelValue.trim() || modelLabel
     setStep('verifying')
     setErrorMsg('')
 
-    const result = await createApiKey({
+    // Step 1: persist the key. createApiKey only stores it — the actual
+    // upstream check happens in step 2.
+    const created = await createApiKey({
       adapterType,
       providerConfig,
       modelId,
-      label: `${providerConfig.label} (Quick Setup)`,
+      label: finalLabel,
       keyValue: keyValue.trim(),
     })
 
-    if (result.success) {
-      setStep('success')
-      await refresh()
-      // Auto-select the newly created key's model option
-      // The saved route option ID format is `saved:<keyId>`
-      if (result.data?.id) {
-        dispatch({
-          type: 'SET_OPTION_ID',
-          payload: `saved:${result.data.id}`,
-        })
-      } else {
-        dispatch({ type: 'SET_OPTION_ID', payload: optionId })
-      }
-      // Auto-close after short delay
-      setTimeout(() => {
-        onOpenChange(false)
-        setStep('guide')
-        setKeyValue('')
-      }, 1500)
-    } else {
+    if (!created.success || !created.data?.id) {
       setStep('error')
-      setErrorMsg(result.error ?? t('verifyFailed'))
+      setErrorMsg(created.error ?? t('verifyFailed'))
+      return
     }
+
+    const keyId = created.data.id
+
+    // Step 2: actually hit the provider to check the key works. Only flip
+    // to "available" (green dot) once this passes — saving a bad key used
+    // to leave the dot green until the next generation failed.
+    const status = await verify(keyId)
+    if (status !== 'available') {
+      // Roll back the stored key so the user doesn't end up with a dud
+      // route taking up a slot in the picker.
+      await deleteApiKey(keyId)
+      await refresh()
+      setStep('error')
+      setErrorMsg(t('verifyFailed'))
+      return
+    }
+
+    await refresh()
+    setStep('success')
+    // Auto-select the newly created key's model option.
+    // The saved route option ID format is `saved:<keyId>`.
+    dispatch({
+      type: 'SET_OPTION_ID',
+      payload: `saved:${keyId}`,
+    })
+    void optionId
+    setTimeout(() => {
+      onOpenChange(false)
+      setStep('guide')
+      setKeyValue('')
+      setLabelValue('')
+    }, 1500)
   }, [
     keyValue,
+    labelValue,
+    modelLabel,
     adapterType,
     providerConfig,
     modelId,
     optionId,
     refresh,
+    verify,
     dispatch,
     onOpenChange,
     t,
@@ -107,6 +140,7 @@ export function QuickSetupDialog({
     if (!v) {
       setStep('guide')
       setKeyValue('')
+      setLabelValue('')
       setErrorMsg('')
     }
     onOpenChange(v)
@@ -155,6 +189,31 @@ export function QuickSetupDialog({
               className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
               disabled={step === 'verifying' || step === 'success'}
             />
+          </div>
+
+          {/* Step 3: Custom label so the user can distinguish multiple keys
+              that share the same provider (e.g. a personal + a work Gemini
+              account). Defaults to the model name. */}
+          <div className="space-y-2">
+            <label htmlFor="quick-setup-label" className="text-sm font-medium">
+              {t('step3')}
+            </label>
+            <input
+              id="quick-setup-label"
+              type="text"
+              value={labelValue}
+              onChange={(e) => {
+                setLabelValue(e.target.value)
+                if (step === 'error') setStep('guide')
+              }}
+              placeholder={t('labelPlaceholder')}
+              className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+              disabled={step === 'verifying' || step === 'success'}
+              maxLength={64}
+            />
+            <p className="text-2xs text-muted-foreground/70">
+              {t('labelHint')}
+            </p>
           </div>
 
           {/* Error message */}

@@ -19,7 +19,14 @@ import {
   deleteCharacterCardAPI,
   refineCharacterCardAPI,
 } from '@/lib/api-client'
+import {
+  makeCardCacheKey,
+  readCardCache,
+  writeCardCache,
+} from '@/lib/card-cache'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+
+const CHARACTER_CARDS_CACHE_KEY = makeCardCacheKey('character')
 
 export interface UseCharacterCardsReturn {
   cards: CharacterCardRecord[]
@@ -57,9 +64,17 @@ export interface UseCharacterCardsReturn {
 }
 
 export function useCharacterCards(): UseCharacterCardsReturn {
-  const [cards, setCards] = useState<CharacterCardRecord[]>([])
+  // Seed from the module-level cache so repeated CardDrawer opens render
+  // instantly. Mirrors `useCardManager` for style/background cards.
+  const [cards, setCards] = useState<CharacterCardRecord[]>(
+    () => readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ?? [],
+  )
   const [activeCardIds, setActiveCardIds] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(
+    () =>
+      readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ===
+      undefined,
+  )
   const [error, setError] = useState<string | null>(null)
   const [isRefining, setIsRefining] = useState(false)
   const t = useTranslations('Toasts')
@@ -108,21 +123,26 @@ export function useCharacterCards(): UseCharacterCardsReturn {
 
   // ─── Card CRUD ────────────────────────────────────────────────
 
-  const fetchCards = useCallback(async () => {
-    setIsLoading(true)
+  const fetchCards = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIsLoading(true)
     setError(null)
     const response = await listCharacterCardsAPI()
     if (response.success && response.data) {
       setCards(response.data)
+      writeCardCache(CHARACTER_CARDS_CACHE_KEY, response.data)
     } else {
       setError(response.error ?? 'Failed to load character cards')
     }
-    setIsLoading(false)
+    if (!opts?.silent) setIsLoading(false)
   }, [])
 
   useEffect(() => {
+    const hasCached =
+      readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) !==
+      undefined
     return deferEffectTask(() => {
-      void fetchCards()
+      // Cache hit → silent SWR refresh; cache miss → visible loading.
+      void fetchCards({ silent: hasCached })
     })
   }, [fetchCards])
 
@@ -134,19 +154,19 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       if (response.success && response.data) {
         setError(null)
         const newCard = response.data
-        if (newCard.parentId) {
-          // Variant created — add to parent's variants array
-          setCards((prev) =>
-            prev.map((c) =>
-              c.id === newCard.parentId
-                ? { ...c, variants: [newCard, ...c.variants] }
-                : c,
-            ),
-          )
-        } else {
-          // Root card created
-          setCards((prev) => [newCard, ...prev])
-        }
+        setCards((prev) => {
+          const next = newCard.parentId
+            ? // Variant created — add to parent's variants array
+              prev.map((c) =>
+                c.id === newCard.parentId
+                  ? { ...c, variants: [newCard, ...c.variants] }
+                  : c,
+              )
+            : // Root card created
+              [newCard, ...prev]
+          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+          return next
+        })
         toast.success(t('characterCardCreated'))
         return newCard
       }
@@ -167,16 +187,19 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         setCards((prev) => {
           // Try root-level update
           const idx = prev.findIndex((c) => c.id === id)
+          let next: CharacterCardRecord[]
           if (idx >= 0) {
-            const next = [...prev]
+            next = [...prev]
             next[idx] = updated
-            return next
+          } else {
+            // Must be a variant — update inside parent
+            next = prev.map((c) => ({
+              ...c,
+              variants: c.variants.map((v) => (v.id === id ? updated : v)),
+            }))
           }
-          // Must be a variant — update inside parent
-          return prev.map((c) => ({
-            ...c,
-            variants: c.variants.map((v) => (v.id === id ? updated : v)),
-          }))
+          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+          return next
         })
         toast.success(t('characterCardUpdated'))
         return true
@@ -198,12 +221,16 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         setCards((prev) => {
           // Try root-level first
           const filtered = prev.filter((c) => c.id !== id)
-          if (filtered.length < prev.length) return filtered
-          // Must be a variant — remove from parent
-          return prev.map((c) => ({
-            ...c,
-            variants: c.variants.filter((v) => v.id !== id),
-          }))
+          const next =
+            filtered.length < prev.length
+              ? filtered
+              : // Must be a variant — remove from parent
+                prev.map((c) => ({
+                  ...c,
+                  variants: c.variants.filter((v) => v.id !== id),
+                }))
+          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+          return next
         })
         // Remove from active selection
         setActiveCardIds((prev) => prev.filter((cid) => cid !== id))

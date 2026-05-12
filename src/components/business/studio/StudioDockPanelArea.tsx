@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect } from 'react'
-import { Key, X } from 'lucide-react'
+import { Key, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 
@@ -9,57 +9,112 @@ import {
   useStudioForm,
   useStudioData,
   useStudioGen,
+  type PanelName,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-
-const AdvancedSettings = dynamic(() =>
-  import('@/components/business/AdvancedSettings').then(
-    (mod) => mod.AdvancedSettings,
-  ),
-)
-const ReferenceImageSection = dynamic(() =>
-  import('@/components/ui/reference-image-section').then(
-    (mod) => mod.ReferenceImageSection,
-  ),
-)
-const LayerDecomposePanel = dynamic(() =>
-  import('@/components/business/LayerDecomposePanel').then(
-    (mod) => mod.LayerDecomposePanel,
-  ),
-)
-const VoiceSelector = dynamic(() =>
-  import('@/components/business/studio/VoiceSelector').then(
-    (mod) => mod.VoiceSelector,
-  ),
-)
-const StudioAudioParams = dynamic(() =>
-  import('@/components/business/studio/StudioAudioParams').then(
-    (mod) => mod.StudioAudioParams,
-  ),
-)
-const VoiceTrainer = dynamic(() =>
-  import('@/components/business/studio/VoiceTrainer').then(
-    (mod) => mod.VoiceTrainer,
-  ),
-)
-const StudioVideoParams = dynamic(() =>
-  import('@/components/business/studio/StudioVideoParams').then(
-    (mod) => mod.StudioVideoParams,
-  ),
-)
-const StudioScriptPanel = dynamic(() =>
-  import('@/components/business/studio/StudioScriptPanel').then(
-    (mod) => mod.StudioScriptPanel,
-  ),
-)
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 /**
- * StudioDockPanelArea — renders the inline tool panels in the dock's
- * right 40% column. Three sibling panels (enhance, reverse, aspectRatio)
- * have moved to dialogs/popovers and are intentionally NOT included
- * here so they don't trigger the dock's two-column layout.
+ * Shared spinner for panel bodies that ship as separate chunks. Without
+ * this, the dialog mounts with an empty white box for the ~500ms it takes
+ * to download the chunk (most visible on the Script panel, which is the
+ * largest). The fallback matches the layout — same vertical rhythm as
+ * the dialog body so the dialog doesn't visibly jump when the real panel
+ * arrives.
+ */
+function PanelLoadingFallback() {
+  return (
+    <div className="flex h-40 items-center justify-center">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+    </div>
+  )
+}
+
+const AdvancedSettings = dynamic(
+  () =>
+    import('@/components/business/AdvancedSettings').then(
+      (mod) => mod.AdvancedSettings,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const ReferenceImageSection = dynamic(
+  () =>
+    import('@/components/ui/reference-image-section').then(
+      (mod) => mod.ReferenceImageSection,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const LayerDecomposePanel = dynamic(
+  () =>
+    import('@/components/business/LayerDecomposePanel').then(
+      (mod) => mod.LayerDecomposePanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const VoiceSelector = dynamic(
+  () =>
+    import('@/components/business/studio/VoiceSelector').then(
+      (mod) => mod.VoiceSelector,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const StudioAudioParams = dynamic(
+  () =>
+    import('@/components/business/studio/StudioAudioParams').then(
+      (mod) => mod.StudioAudioParams,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const VoiceTrainer = dynamic(
+  () =>
+    import('@/components/business/studio/VoiceTrainer').then(
+      (mod) => mod.VoiceTrainer,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const StudioVideoParams = dynamic(
+  () =>
+    import('@/components/business/studio/StudioVideoParams').then(
+      (mod) => mod.StudioVideoParams,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+const StudioScriptPanel = dynamic(
+  () =>
+    import('@/components/business/studio/StudioScriptPanel').then(
+      (mod) => mod.StudioScriptPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+
+// Krea-aligned panel dialog sizing — centred, capped width, vertical scroll
+// inside the content area. Each panel picks the closest fit so the dialog
+// doesn't feel oversized for short controls (civitai = one input) or
+// cramped for longer flows (voice selector + audio params).
+const DIALOG_BASE =
+  '!gap-0 !p-0 max-h-[85vh] overflow-hidden border-border/40 bg-background shadow-2xl'
+const DIALOG_BODY = 'overflow-y-auto px-5 pb-5 pt-1'
+const DIALOG_HEADER =
+  'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'
+
+/**
+ * StudioDockPanelArea — Krea-style centred dialogs for every toolbar pill
+ * that used to dock into the bottom-right 40% column. Each panel is its
+ * own Dialog wired to `state.panels.X` and dispatches CLOSE_PANEL when
+ * dismissed (overlay click, Esc, X button). No grid layout, no drawer —
+ * one consistent floating surface across image / video / audio modes.
+ *
+ * Panels that already had their own popovers/dialogs (enhance, reverse,
+ * transform, aspectRatio, refImage chip, style preset) intentionally
+ * still live in their own files; this component owns only the ones that
+ * used to render inline in the dock.
  */
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
@@ -67,6 +122,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { isGenerating } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
+  const tBar = useTranslations('StudioToolbar')
   const { selectedModel } = useImageModelOptions()
 
   const selectedStyleCard = styles.activeCard
@@ -85,7 +141,13 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     imageUpload.setMaxImages(maxRefImages)
   }, [maxRefImages, imageUpload])
 
-  // ── Civitai handlers ──────────────────────────────────────────
+  const closePanel = useCallback(
+    (panel: PanelName) => {
+      dispatch({ type: 'CLOSE_PANEL', payload: panel })
+    },
+    [dispatch],
+  )
+
   const handleSaveToken = useCallback(async () => {
     if (!state.tokenInput.trim()) return
     const ok = await civitai.save(state.tokenInput.trim())
@@ -94,158 +156,248 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     }
   }, [state.tokenInput, civitai, dispatch])
 
-  // Check if any panel is open. enhance / reverse / aspectRatio render in
-  // their own dialogs/popovers (StudioPanelDialogs, StudioAspectRatioPopover)
-  // and intentionally do NOT trigger the dock's right-side 40% column.
-  const hasOpenPanel =
-    state.panels.advanced ||
-    state.panels.civitai ||
-    state.panels.refImage ||
-    state.panels.layerDecompose ||
-    state.panels.voiceSelector ||
-    state.panels.voiceTrainer ||
-    state.panels.videoParams ||
-    state.panels.script
-
-  if (!hasOpenPanel) return null
-
   return (
-    <div className="h-full overflow-y-auto">
+    <>
       {/* ── Advanced Settings ────────────────────────────────── */}
-      {state.panels.advanced &&
-        (selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
-          <AdvancedSettings
-            adapterType={adapterType}
-            modelId={modelId}
-            params={state.advancedParams}
-            onChange={(params) =>
-              dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })
-            }
-            hasReferenceImage={imageUpload.referenceImages.length > 0}
-            disabled={isGenerating}
-          />
-        ) : (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            {t('selectModelFirst')}
-          </p>
-        ))}
-
-      {/* ── Civitai Token ────────────────────────────────────── */}
-      {state.panels.civitai && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Key className="size-3.5 text-primary" />
-              <span className="text-xs font-medium font-display">
-                {tPanels('civitai')}
-              </span>
-              {civitai.hasToken && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
-                  {t('tokenSaved')}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({ type: 'CLOSE_PANEL', payload: 'civitai' })
-              }
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={state.tokenInput}
-              onChange={(e) =>
-                dispatch({
-                  type: 'SET_TOKEN_INPUT',
-                  payload: e.target.value,
-                })
-              }
-              placeholder={t('tokenPlaceholder')}
-              className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs font-mono focus:border-primary/40 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={handleSaveToken}
-              disabled={!state.tokenInput.trim()}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
-            >
-              {t('save')}
-            </button>
-            {civitai.hasToken && (
-              <button
-                type="button"
-                onClick={() => civitai.remove()}
-                className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/5"
-              >
-                {t('removeToken')}
-              </button>
+      <Dialog
+        open={state.panels.advanced}
+        onOpenChange={(open) => {
+          if (!open) closePanel('advanced')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tPanels('advanced')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('advanced')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            {selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
+              <AdvancedSettings
+                adapterType={adapterType}
+                modelId={modelId}
+                params={state.advancedParams}
+                onChange={(params) =>
+                  dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })
+                }
+                hasReferenceImage={imageUpload.referenceImages.length > 0}
+                disabled={isGenerating}
+              />
+            ) : (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                {t('selectModelFirst')}
+              </p>
             )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Civitai Token ────────────────────────────────────── */}
+      <Dialog
+        open={state.panels.civitai}
+        onOpenChange={(open) => {
+          if (!open) closePanel('civitai')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-md`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            <Key className="size-3.5 text-primary" />
+            {tPanels('civitai')}
+            {civitai.hasToken && (
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                {t('tokenSaved')}
+              </span>
+            )}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('civitai')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <div className="flex flex-col gap-2">
+              <input
+                type="password"
+                value={state.tokenInput}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'SET_TOKEN_INPUT',
+                    payload: e.target.value,
+                  })
+                }
+                placeholder={t('tokenPlaceholder')}
+                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs font-mono focus:border-primary/40 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveToken}
+                  disabled={!state.tokenInput.trim()}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                >
+                  {t('save')}
+                </button>
+                {civitai.hasToken && (
+                  <button
+                    type="button"
+                    onClick={() => civitai.remove()}
+                    className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/5"
+                  >
+                    {t('removeToken')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Reference Image ──────────────────────────────────── */}
-      {state.panels.refImage && (
-        <ReferenceImageSection
-          referenceImages={imageUpload.referenceImages}
-          maxImages={maxRefImages}
-          isDragging={imageUpload.isDragging}
-          fileInputRef={imageUpload.fileInputRef}
-          onDrop={imageUpload.handleDrop}
-          onDragOver={imageUpload.handleDragOver}
-          onDragLeave={imageUpload.handleDragLeave}
-          onOpenFilePicker={imageUpload.openFilePicker}
-          onInputChange={imageUpload.handleInputChange}
-          onRemoveImage={imageUpload.removeReferenceImage}
-          onClearAll={imageUpload.clearAllImages}
-          previewAlt={t('referenceImage')}
-          removeLabel={t('cancel')}
-          uploadLabel={t('referenceImage')}
-          formatsLabel="JPG · PNG · WEBP"
-          counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
-        />
-      )}
+      <Dialog
+        open={state.panels.refImage}
+        onOpenChange={(open) => {
+          if (!open) closePanel('refImage')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tPanels('reference')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('reference')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <ReferenceImageSection
+              referenceImages={imageUpload.referenceImages}
+              maxImages={maxRefImages}
+              isDragging={imageUpload.isDragging}
+              fileInputRef={imageUpload.fileInputRef}
+              onDrop={imageUpload.handleDrop}
+              onDragOver={imageUpload.handleDragOver}
+              onDragLeave={imageUpload.handleDragLeave}
+              onOpenFilePicker={imageUpload.openFilePicker}
+              onInputChange={imageUpload.handleInputChange}
+              onRemoveImage={imageUpload.removeReferenceImage}
+              onClearAll={imageUpload.clearAllImages}
+              previewAlt={t('referenceImage')}
+              removeLabel={t('cancel')}
+              uploadLabel={t('referenceImage')}
+              formatsLabel="JPG · PNG · WEBP"
+              counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Layer Decompose ───────────────────────────────────── */}
-      {state.panels.layerDecompose && (
-        <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
-      )}
+      <Dialog
+        open={state.panels.layerDecompose}
+        onOpenChange={(open) => {
+          if (!open) closePanel('layerDecompose')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tPanels('layers')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('layers')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <LayerDecomposePanel onAddAsReference={imageUpload.addFromUrl} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
-      {state.panels.voiceSelector && (
-        <div className="space-y-4">
-          <VoiceSelector />
-          <StudioAudioParams
-            voiceCardId={state.voiceCardId}
-            emotion={state.audioEmotion}
-            pace={state.audioPace}
-            pauseMarkers={state.audioPauseMarkers}
-            onChangeEmotion={(emotion) =>
-              dispatch({ type: 'SET_AUDIO_EMOTION', payload: emotion })
-            }
-            onChangePace={(pace) =>
-              dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
-            }
-            onChangePauseMarkers={(markers) =>
-              dispatch({ type: 'SET_AUDIO_PAUSE_MARKERS', payload: markers })
-            }
-          />
-        </div>
-      )}
+      <Dialog
+        open={state.panels.voiceSelector}
+        onOpenChange={(open) => {
+          if (!open) closePanel('voiceSelector')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
+          <DialogTitle className={DIALOG_HEADER}>{tBar('voice')}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {tBar('voice')}
+          </DialogDescription>
+          <div className={`${DIALOG_BODY} space-y-4`}>
+            <VoiceSelector />
+            <StudioAudioParams
+              voiceCardId={state.voiceCardId}
+              emotion={state.audioEmotion}
+              pace={state.audioPace}
+              pauseMarkers={state.audioPauseMarkers}
+              onChangeEmotion={(emotion) =>
+                dispatch({ type: 'SET_AUDIO_EMOTION', payload: emotion })
+              }
+              onChangePace={(pace) =>
+                dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
+              }
+              onChangePauseMarkers={(markers) =>
+                dispatch({ type: 'SET_AUDIO_PAUSE_MARKERS', payload: markers })
+              }
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Voice Trainer (audio mode) ────────────────────────── */}
-      {state.panels.voiceTrainer && <VoiceTrainer />}
+      <Dialog
+        open={state.panels.voiceTrainer}
+        onOpenChange={(open) => {
+          if (!open) closePanel('voiceTrainer')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <DialogTitle className={DIALOG_HEADER}>{tBar('clone')}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {tBar('clone')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <VoiceTrainer />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Video Params (video mode) ─────────────────────────── */}
-      {state.panels.videoParams && <StudioVideoParams />}
+      <Dialog
+        open={state.panels.videoParams}
+        onOpenChange={(open) => {
+          if (!open) closePanel('videoParams')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tPanels('videoSettings')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('videoSettings')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <StudioVideoParams />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Video Script (video mode) ─────────────────────────── */}
-      {state.panels.script && <StudioScriptPanel />}
-    </div>
+      <Dialog
+        open={state.panels.script}
+        onOpenChange={(open) => {
+          if (!open) closePanel('script')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tPanels('script')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tPanels('script')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <StudioScriptPanel />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 })

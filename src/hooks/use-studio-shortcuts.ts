@@ -2,13 +2,24 @@
 
 import { useEffect } from 'react'
 
+import { ROUTES } from '@/constants/routes'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { useStudioForm } from '@/contexts/studio-context'
+import { useRouter } from '@/i18n/navigation'
 
 interface UseStudioShortcutsOptions {
   enabled?: boolean
   onGenerate?: () => void
   onGenerateVariants?: () => void
+}
+
+// Cmd/Ctrl + Shift + 1/2/3 jumps between the per-media Studio routes.
+// Shift is required so we don't collide with the browser's native Cmd+1/2/3
+// tab-switch binding — Krea uses the same pattern.
+const MODE_SHORTCUT_ROUTES: Record<string, string> = {
+  '1': ROUTES.STUDIO_IMAGE,
+  '2': ROUTES.STUDIO_VIDEO,
+  '3': ROUTES.STUDIO_AUDIO,
 }
 
 export function useStudioShortcuts({
@@ -17,6 +28,7 @@ export function useStudioShortcuts({
   onGenerateVariants,
 }: UseStudioShortcutsOptions) {
   const { state, dispatch } = useStudioForm()
+  const router = useRouter()
 
   useEffect(() => {
     if (!enabled) {
@@ -38,6 +50,12 @@ export function useStudioShortcuts({
       if (hasModifier && event.shiftKey && key === 'enter') {
         event.preventDefault()
         onGenerateVariants?.()
+        return
+      }
+
+      if (hasModifier && event.shiftKey && key in MODE_SHORTCUT_ROUTES) {
+        event.preventDefault()
+        router.push(MODE_SHORTCUT_ROUTES[key])
         return
       }
 
@@ -86,6 +104,7 @@ export function useStudioShortcuts({
     enabled,
     onGenerate,
     onGenerateVariants,
+    router,
     state.panels,
     state.prompt,
   ])

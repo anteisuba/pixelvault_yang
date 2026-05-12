@@ -189,8 +189,14 @@ export const GenerationPreview = memo(function GenerationPreview({
     const showSuggestions = state.outputType === 'image'
     // Audio mode is text-to-speech: "Write a description" misleads users into
     // describing a sound instead of typing the literal text to be spoken.
+    // Video prompts describe motion/camera rather than static visuals, so it
+    // gets its own hint too.
     const hintKey =
-      state.outputType === 'audio' ? 'emptyStateHintAudio' : 'emptyStateHint'
+      state.outputType === 'audio'
+        ? 'emptyStateHintAudio'
+        : state.outputType === 'video'
+          ? 'emptyStateHintVideo'
+          : 'emptyStateHint'
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl px-6 py-16">
         <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">

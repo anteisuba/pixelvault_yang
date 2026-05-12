@@ -58,6 +58,8 @@ import {
   uploadToR2,
   streamUploadToR2,
   deleteFromR2,
+  isOwnedStorageUrl,
+  uploadFromHttpToR2,
 } from './r2'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -218,5 +220,112 @@ describe('deleteFromR2', () => {
   it('sends DeleteObjectCommand', async () => {
     await deleteFromR2('test/key.png')
     expect(mockSend).toHaveBeenCalledOnce()
+  })
+})
+
+describe('isOwnedStorageUrl', () => {
+  it('returns true for the configured storage base URL host', () => {
+    expect(isOwnedStorageUrl('https://cdn.test.com/foo/bar.png')).toBe(true)
+  })
+
+  it('returns true for the legacy r2.dev public domain', () => {
+    expect(
+      isOwnedStorageUrl(
+        'https://pub-5346558f8dc549f9ba5217489fe5395e.r2.dev/x.png',
+      ),
+    ).toBe(true)
+  })
+
+  it('returns false for external hosts', () => {
+    expect(isOwnedStorageUrl('https://fal.media/files/abc.png')).toBe(false)
+    expect(isOwnedStorageUrl('https://replicate.delivery/x.png')).toBe(false)
+  })
+
+  it('returns false for data: URLs and malformed input', () => {
+    expect(isOwnedStorageUrl('data:image/png;base64,AAAA')).toBe(false)
+    expect(isOwnedStorageUrl('not a url')).toBe(false)
+    expect(isOwnedStorageUrl('')).toBe(false)
+  })
+})
+
+describe('uploadFromHttpToR2', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('fetches the source and pipes the body into the multipart upload', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('payload', {
+        status: 200,
+        headers: { 'content-type': 'image/webp' },
+      }),
+    )
+
+    const result = await uploadFromHttpToR2({
+      sourceUrl: 'https://fal.media/files/img.webp',
+      key: 'generations/u1/image/x.png',
+    })
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://fal.media/files/img.webp',
+      expect.any(Object),
+    )
+    expect(result).toEqual({
+      publicUrl: 'https://cdn.test.com/generations/u1/image/x.png',
+      mimeType: 'image/webp',
+    })
+    fetchSpy.mockRestore()
+  })
+
+  it('falls back to image/png when the response omits content-type', async () => {
+    // `new Response()` always sets content-type by default. Construct a
+    // mock response with an empty Headers map to simulate an upstream that
+    // strips the header.
+    const headersWithout = new Headers()
+    headersWithout.delete('content-type')
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('payload'))
+          controller.close()
+        },
+      }),
+      headers: headersWithout,
+    } as unknown as Response
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(mockResponse)
+
+    const result = await uploadFromHttpToR2({
+      sourceUrl: 'https://fal.media/files/img.bin',
+      key: 'k.png',
+    })
+
+    expect(result.mimeType).toBe('image/png')
+    fetchSpy.mockRestore()
+  })
+
+  it('throws when the upstream fetch is not OK', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('nope', { status: 404 }))
+
+    await expect(
+      uploadFromHttpToR2({
+        sourceUrl: 'https://fal.media/missing.png',
+        key: 'k.png',
+      }),
+    ).rejects.toThrow(/404/)
+    fetchSpy.mockRestore()
+  })
+
+  it('rejects non-https URLs via the url-guard', async () => {
+    await expect(
+      uploadFromHttpToR2({
+        sourceUrl: 'http://internal-host/secret.png',
+        key: 'k.png',
+      }),
+    ).rejects.toThrow(/Disallowed protocol/)
   })
 })

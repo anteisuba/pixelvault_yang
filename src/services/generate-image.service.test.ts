@@ -19,6 +19,8 @@ vi.mock('@/services/storage/r2', () => ({
   fetchAsBuffer: vi.fn(),
   generateStorageKey: vi.fn(),
   uploadToR2: vi.fn(),
+  uploadFromHttpToR2: vi.fn(),
+  isOwnedStorageUrl: vi.fn(() => false),
 }))
 vi.mock('@/services/usage.service', () => ({
   atomicReserveFreeTierSlot: vi.fn(),
@@ -82,6 +84,8 @@ import { getProviderAdapter } from '@/services/providers/registry'
 import {
   fetchAsBuffer,
   generateStorageKey,
+  isOwnedStorageUrl,
+  uploadFromHttpToR2,
   uploadToR2,
 } from '@/services/storage/r2'
 import {
@@ -160,6 +164,11 @@ function setupHappyPath() {
   })
   vi.mocked(generateStorageKey).mockReturnValue('storage/key.png')
   vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/image.png')
+  vi.mocked(uploadFromHttpToR2).mockResolvedValue({
+    publicUrl: 'https://cdn.example.com/image.png',
+    mimeType: 'image/png',
+  })
+  vi.mocked(isOwnedStorageUrl).mockReturnValue(false)
   vi.mocked(createGeneration).mockResolvedValue(FAKE_GENERATION as never)
   vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
   vi.mocked(attachUsageEntryToGeneration).mockResolvedValue(undefined as never)
@@ -313,11 +322,50 @@ describe('generateImageForUser', () => {
     expect(validatePrompt).toHaveBeenCalledWith('A red circle')
     expect(createGenerationJob).toHaveBeenCalled()
     expect(createApiUsageEntry).toHaveBeenCalled()
-    expect(fetchAsBuffer).toHaveBeenCalled()
-    expect(uploadToR2).toHaveBeenCalled()
+    // BASE_INPUT has no reference image and the provider returns an https://
+    // URL, so persistGeneratedImage routes through uploadFromHttpToR2 (stream
+    // path) — fetchAsBuffer/uploadToR2 are only hit for data: URLs.
+    expect(uploadFromHttpToR2).toHaveBeenCalled()
     expect(createGeneration).toHaveBeenCalled()
     expect(completeGenerationJob).toHaveBeenCalled()
     expect(attachUsageEntryToGeneration).toHaveBeenCalled()
+  })
+
+  it('reuses same-origin reference image URL without re-uploading', async () => {
+    const sameOriginRef = 'https://cdn.test.com/generations/u1/image/ref.png'
+    vi.mocked(isOwnedStorageUrl).mockImplementation(
+      (url: string) => url === sameOriginRef,
+    )
+
+    await generateImageForUser('clerk-1', {
+      ...BASE_INPUT,
+      referenceImage: sameOriginRef,
+    })
+
+    // Main image still uploaded (https provider URL), but the reference image
+    // was passed through verbatim — exactly one upload call for the gen, none
+    // for the ref.
+    expect(uploadFromHttpToR2).toHaveBeenCalledTimes(1)
+    expect(uploadFromHttpToR2).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceUrl: 'https://provider.com/result.png' }),
+    )
+    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ referenceImageUrl: sameOriginRef }),
+    )
+  })
+
+  it('stream-uploads external reference image when not same-origin', async () => {
+    vi.mocked(isOwnedStorageUrl).mockReturnValue(false)
+
+    await generateImageForUser('clerk-1', {
+      ...BASE_INPUT,
+      referenceImage: 'https://example.com/external-ref.png',
+    })
+
+    // Both ref + gen go through the stream path.
+    expect(uploadFromHttpToR2).toHaveBeenCalledTimes(2)
+    expect(uploadToR2).not.toHaveBeenCalled()
   })
 
   it('rejects invalid prompts', async () => {
@@ -436,7 +484,9 @@ describe('generateImageForUser', () => {
   })
 
   it('marks job as failed when R2 upload throws', async () => {
-    vi.mocked(fetchAsBuffer).mockRejectedValue(new Error('R2 fetch failed'))
+    vi.mocked(uploadFromHttpToR2).mockRejectedValue(
+      new Error('R2 fetch failed'),
+    )
 
     await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
       'R2 fetch failed',

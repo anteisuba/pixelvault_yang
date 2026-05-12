@@ -6,28 +6,16 @@ import {
   HOMEPAGE_ROUTES,
 } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 
 import '@/app/homepage.css'
 
+import { HomepageAuthCta } from './HomepageAuthCta'
 import { HomepageFeatureSection } from './HomepageFeatureSection'
 import { HomepageHero } from './HomepageHero'
 import { HomepageModelLineup } from './HomepageModelLineup'
 
-interface HomepageShellProps {
-  primaryActionHref: string
-  primaryActionLabel: string
-  utilityActionHref: string
-  utilityActionLabel: string
-}
-
-export function HomepageShell({
-  primaryActionHref,
-  primaryActionLabel,
-  utilityActionHref,
-  utilityActionLabel,
-}: HomepageShellProps) {
+export function HomepageShell() {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
 
@@ -76,12 +64,7 @@ export function HomepageShell({
           <div className="flex shrink-0 items-center justify-end gap-2">
             <LocaleSwitcher />
 
-            <Button
-              asChild
-              className="homepage-nav-login h-10 rounded-full px-5 text-sm font-medium"
-            >
-              <Link href={utilityActionHref}>{utilityActionLabel}</Link>
-            </Button>
+            <HomepageAuthCta variant="nav-utility" />
           </div>
         </div>
       </header>
@@ -93,10 +76,7 @@ export function HomepageShell({
             paddingBlock: 'clamp(2.5rem, 5vw, 5rem) clamp(3rem, 5vw, 4rem)',
           }}
         >
-          <HomepageHero
-            primaryActionHref={primaryActionHref}
-            primaryActionLabel={primaryActionLabel}
-          />
+          <HomepageHero />
 
           {HOMEPAGE_FEATURE_SECTIONS.map((section) => (
             <HomepageFeatureSection

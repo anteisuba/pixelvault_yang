@@ -22,6 +22,8 @@ import {
 import {
   fetchAsBuffer,
   generateStorageKey,
+  isOwnedStorageUrl,
+  uploadFromHttpToR2,
   uploadToR2,
 } from '@/services/storage/r2'
 import {
@@ -434,33 +436,67 @@ async function persistGeneratedImage(params: {
   const storageKey = generateStorageKey('IMAGE', userId)
   const effectiveRefImage =
     input.referenceImage || input.referenceImages?.[0] || undefined
-  const refKey = effectiveRefImage
-    ? generateStorageKey('IMAGE', userId)
-    : undefined
 
   try {
-    const [refData, genData] = await Promise.all([
-      effectiveRefImage
-        ? fetchAsBuffer(effectiveRefImage)
-        : Promise.resolve(null),
-      fetchAsBuffer(asset.imageUrl),
-    ])
+    // Reference image persistence:
+    //   - Already a URL inside our R2 bucket → reuse it verbatim. The DB never
+    //     stored a separate storage-key for reference images and deletion
+    //     never cleaned them up, so the prior "always re-upload to a fresh
+    //     key" path was just silently orphaning duplicate copies of the same
+    //     bytes. Reusing the source URL saves a fetch + upload (~0.5–2s)
+    //     without changing observable behaviour.
+    //   - data: URL → buffer path (base64 decoded in-process).
+    //   - External HTTP URL → fetch + stream pipe to R2.
+    const refImagePromise: Promise<string | undefined> = (async () => {
+      if (!effectiveRefImage) return undefined
+      if (isOwnedStorageUrl(effectiveRefImage)) return effectiveRefImage
 
-    const [referenceImageUrl, permanentUrl] = await Promise.all([
-      refData && refKey
-        ? uploadToR2({
-            data: refData.buffer,
-            key: refKey,
-            mimeType: refData.mimeType,
+      const refKey = generateStorageKey('IMAGE', userId)
+      if (effectiveRefImage.startsWith('data:')) {
+        const refData = await fetchAsBuffer(effectiveRefImage)
+        return uploadToR2({
+          data: refData.buffer,
+          key: refKey,
+          mimeType: refData.mimeType,
+        })
+      }
+      const { publicUrl } = await uploadFromHttpToR2({
+        sourceUrl: effectiveRefImage,
+        key: refKey,
+      })
+      return publicUrl
+    })()
+
+    // Main generated image:
+    //   - HTTP URL (fal / replicate / HuggingFace) → fetch + stream pipe to
+    //     R2 (no full-image buffer in lambda memory between download and
+    //     upload).
+    //   - data: URL (Gemini / OpenAI base64) → buffer path (we already have
+    //     the bytes in-process from the base64 decode).
+    const genImagePromise: Promise<{ url: string; mimeType: string }> =
+      (async () => {
+        if (asset.imageUrl.startsWith('data:')) {
+          const genData = await fetchAsBuffer(asset.imageUrl)
+          const url = await uploadToR2({
+            data: genData.buffer,
+            key: storageKey,
+            mimeType: genData.mimeType,
           })
-        : Promise.resolve(undefined),
-      uploadToR2({
-        data: genData.buffer,
-        key: storageKey,
-        mimeType: genData.mimeType,
-      }),
+          return { url, mimeType: genData.mimeType }
+        }
+        const { publicUrl, mimeType: mt } = await uploadFromHttpToR2({
+          sourceUrl: asset.imageUrl,
+          key: storageKey,
+        })
+        return { url: publicUrl, mimeType: mt }
+      })()
+
+    const [referenceImageUrl, gen] = await Promise.all([
+      refImagePromise,
+      genImagePromise,
     ])
-    const mimeType = genData.mimeType
+    const permanentUrl = gen.url
+    const mimeType = gen.mimeType
 
     const generation = await createGeneration({
       url: permanentUrl,

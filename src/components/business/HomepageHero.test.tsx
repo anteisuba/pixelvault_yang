@@ -40,6 +40,15 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
+// Hero now delegates the auth-aware CTA to HomepageAuthCta. Stub it to keep
+// this test focused on Hero's own rendering — CTA behaviour is covered in
+// HomepageAuthCta.test.tsx.
+vi.mock('./HomepageAuthCta', () => ({
+  HomepageAuthCta: ({ variant }: { variant: string }) => (
+    <button data-testid={`auth-cta-${variant}`}>cta</button>
+  ),
+}))
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -57,42 +66,16 @@ function loadMessages(locale: Locale): Record<string, unknown> {
 }
 
 describe('HomepageHero', () => {
-  it('uses the signed-out primary CTA href passed by the shell', () => {
-    render(
-      <HomepageHero
-        primaryActionHref="/sign-up"
-        primaryActionLabel="Start your archive"
-      />,
-    )
+  it('renders eyebrow, title and subtitle copy', () => {
+    render(<HomepageHero />)
 
-    expect(
-      screen.getByRole('link', { name: 'Start your archive' }),
-    ).toHaveAttribute('href', '/sign-up')
+    expect(screen.getByText(EXPECTED_HERO.en.eyebrow)).toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.title)).toBeInTheDocument()
   })
 
-  it('uses the signed-in primary CTA href passed by the shell', () => {
-    render(
-      <HomepageHero
-        primaryActionHref="/studio"
-        primaryActionLabel="Open studio"
-      />,
-    )
-
-    expect(screen.getByRole('link', { name: 'Open studio' })).toHaveAttribute(
-      'href',
-      '/studio',
-    )
-  })
-
-  it('renders only the primary CTA (no secondary gallery button)', () => {
-    render(
-      <HomepageHero
-        primaryActionHref="/studio"
-        primaryActionLabel="Open studio"
-      />,
-    )
-
-    expect(screen.getAllByRole('link')).toHaveLength(1)
+  it('mounts the hero-variant auth CTA placeholder', () => {
+    render(<HomepageHero />)
+    expect(screen.getByTestId('auth-cta-hero')).toBeInTheDocument()
   })
 
   it('keeps Homepage.hero.eyebrow and title present in every locale', () => {

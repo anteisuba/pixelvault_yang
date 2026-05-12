@@ -2,18 +2,10 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
-import { Button } from '@/components/ui/button'
-import { Link } from '@/i18n/navigation'
 
-interface HomepageHeroProps {
-  primaryActionHref: string
-  primaryActionLabel: string
-}
+import { HomepageAuthCta } from './HomepageAuthCta'
 
-export function HomepageHero({
-  primaryActionHref,
-  primaryActionLabel,
-}: HomepageHeroProps) {
+export function HomepageHero() {
   const t = useTranslations('Homepage.hero')
 
   return (
@@ -50,13 +42,7 @@ export function HomepageHero({
           {t('subtitle')}
         </p>
 
-        <Button
-          asChild
-          size="lg"
-          className="homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold"
-        >
-          <Link href={primaryActionHref}>{primaryActionLabel}</Link>
-        </Button>
+        <HomepageAuthCta variant="hero" />
       </div>
     </section>
   )

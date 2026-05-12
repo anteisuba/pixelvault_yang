@@ -29,7 +29,7 @@ const r2 = new S3Client({
  * Format: generations/{userId}/image/YYYY-MM-DD_<24-char random>.png
  */
 export function generateStorageKey(
-  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO',
+  outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D',
   userId: string,
   audioFormat?: string,
 ): string {
@@ -40,6 +40,10 @@ export function generateStorageKey(
     const ext =
       audioFormat === 'wav' ? 'wav' : audioFormat === 'opus' ? 'opus' : 'mp3'
     return `generations/${userId}/audio/${date}_${random}.${ext}`
+  }
+
+  if (outputType === 'MODEL_3D') {
+    return `generations/${userId}/model_3d/${date}_${random}.glb`
   }
 
   const subdir = outputType === 'VIDEO' ? 'video' : 'image'
@@ -105,6 +109,40 @@ export async function uploadToR2(params: {
   return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`
 }
 
+// ─── Same-Origin Storage URL Detection ────────────────────────────
+
+/**
+ * Hostnames whose objects already live in our R2 bucket. Used to short-circuit
+ * re-uploads when a provider's reference image is already a URL we own — we
+ * can reuse it directly instead of fetching + re-uploading to a fresh key.
+ */
+function ownedStorageHostnames(): Set<string> {
+  const hosts = new Set<string>()
+  const base = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+  if (base) {
+    try {
+      hosts.add(new URL(base).hostname.toLowerCase())
+    } catch {
+      // ignore malformed env
+    }
+  }
+  // Legacy r2.dev domain — existing rows in DB still reference this and it is
+  // still our bucket, just a different public CDN host.
+  hosts.add('pub-5346558f8dc549f9ba5217489fe5395e.r2.dev')
+  return hosts
+}
+
+export function isOwnedStorageUrl(url: string): boolean {
+  if (!url || url.startsWith('data:')) return false
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  return ownedStorageHostnames().has(parsed.hostname.toLowerCase())
+}
+
 // ─── Stream Upload to R2 (for large files like video) ────────────
 
 /**
@@ -160,6 +198,70 @@ export async function streamUploadToR2(params: {
       }
     },
     { maxAttempts: 2, baseDelayMs: 2000, label: 'r2.streamUpload' },
+  )
+}
+
+// ─── Fetch + Stream Upload (provider HTTP URL → R2) ──────────────
+
+/**
+ * Fetch a remote HTTP image and stream it straight into R2.
+ *
+ * Compared to `fetchAsBuffer` + `uploadToR2`, this pipelines the download and
+ * upload (no full-image buffer sits in lambda memory between the two), and
+ * returns the response's `content-type` so callers don't need to read headers
+ * separately. For the image generation hot path on URL-returning providers
+ * (fal / replicate / HuggingFace) this saves the cost of materialising the
+ * payload in memory twice.
+ *
+ * Do NOT use this for `data:` URLs — base64 payloads must go through
+ * `fetchAsBuffer` + `uploadToR2`.
+ */
+export async function uploadFromHttpToR2(params: {
+  sourceUrl: string
+  key: string
+  fetchHeaders?: Record<string, string>
+}): Promise<{ publicUrl: string; mimeType: string }> {
+  assertSafeUrl(params.sourceUrl)
+
+  return withRetry(
+    async () => {
+      const response = await fetch(params.sourceUrl, {
+        headers: params.fetchHeaders,
+      })
+      if (!response.ok || !response.body) {
+        throw new Error(
+          `Failed to fetch image (${response.status}): ${params.sourceUrl}`,
+        )
+      }
+
+      const mimeType = response.headers.get('content-type') ?? 'image/png'
+
+      const upload = new Upload({
+        client: r2,
+        params: {
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: params.key,
+          Body: response.body as ReadableStream,
+          ContentType: mimeType,
+          CacheControl: 'public, max-age=31536000, immutable',
+        },
+        queueSize: 1,
+        partSize: 5 * 1024 * 1024,
+      })
+
+      await upload.done()
+
+      logger.info('Uploaded HTTP source to R2', {
+        key: params.key,
+        mimeType,
+      })
+
+      return {
+        publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
+        mimeType,
+      }
+    },
+    { maxAttempts: 2, baseDelayMs: 1000, label: 'r2.uploadFromHttp' },
   )
 }
 

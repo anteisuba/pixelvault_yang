@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { isOwnedStorageUrl } from '@/services/storage/r2'
 
 const QuerySchema = z.object({
   url: z.string().url(),
@@ -58,7 +59,16 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 4. Fetch and proxy
+  // 4a. Same-origin short-circuit: if the URL is already in our R2 bucket the
+  // proxy doesn't need to fetch+stream it — the browser can hit the CDN
+  // directly. Skipping the Lambda hop saves the request a full US-East
+  // round-trip (significant for non-US clients). Auth + rate-limit gates
+  // above still apply, so the abuse surface is unchanged.
+  if (isOwnedStorageUrl(parsed.data.url)) {
+    return NextResponse.redirect(parsed.data.url, 302)
+  }
+
+  // 4b. Fetch and proxy
   try {
     const res = await fetch(parsed.data.url)
     if (!res.ok) {

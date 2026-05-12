@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
-import { auth } from '@clerk/nextjs/server'
 import { getTranslations } from 'next-intl/server'
 
 import { HomepageShell } from '@/components/business/HomepageShell'
-import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 import type { AppLocale } from '@/i18n/routing'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+// Marketing homepage is auth-agnostic on the server — the auth-aware CTA is
+// resolved client-side via Clerk's useUser(). This lets the page be served
+// from Vercel's edge cache for non-US visitors instead of round-tripping to
+// the us-east-1 lambda + Neon. Revalidate every hour so translation/content
+// updates land within an hour without a redeploy.
+export const revalidate = 3600
 
 export async function generateMetadata({
   params,
@@ -41,32 +46,10 @@ interface LocalizedRootPageProps {
 export default async function LocalizedRootPage({
   params,
 }: LocalizedRootPageProps) {
-  const { userId } = await auth()
-  const { locale } = await params
-  const t = await getTranslations({
-    locale,
-    namespace: 'Homepage',
-  })
+  // Touch params so the static generation pipeline records the route — but
+  // don't branch on it. The locale itself is consumed by next-intl via the
+  // request scope set up in [locale]/layout.tsx.
+  await params
 
-  const primaryActionHref = userId
-    ? HOMEPAGE_ROUTES.studio
-    : HOMEPAGE_ROUTES.signUp
-  const primaryActionLabel = userId
-    ? t('actions.signedInPrimary')
-    : t('actions.signedOutPrimary')
-  const utilityActionHref = userId
-    ? HOMEPAGE_ROUTES.studio
-    : HOMEPAGE_ROUTES.signIn
-  const utilityActionLabel = userId
-    ? t('actions.signedInUtility')
-    : t('actions.signedOutUtility')
-
-  return (
-    <HomepageShell
-      primaryActionHref={primaryActionHref}
-      primaryActionLabel={primaryActionLabel}
-      utilityActionHref={utilityActionHref}
-      utilityActionLabel={utilityActionLabel}
-    />
-  )
+  return <HomepageShell />
 }

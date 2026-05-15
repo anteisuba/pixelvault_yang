@@ -6,7 +6,6 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { fetchAsBuffer } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type { ConversationMessage, GenerationFeedbackResult } from '@/types'
 
@@ -72,9 +71,10 @@ export async function conversationalRefine(
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  // Convert the generated image to base64 for vision LLM
-  const { buffer, mimeType } = await fetchAsBuffer(imageUrl)
-  const base64 = `data:${mimeType};base64,${buffer.toString('base64')}`
+  // llmTextCompletion now accepts both data: and http URLs and normalizes
+  // per provider — Gemini fetches+inlines, OpenAI/VolcEngine pass URL
+  // through. Saves a buffer round-trip for the OpenAI/VolcEngine path,
+  // and removes a base64 inflation for Gemini callers passing data URLs.
 
   // Build the user prompt with conversation history
   let userPrompt = `Original prompt used to generate this image:\n"${originalPrompt}"\n`
@@ -93,7 +93,7 @@ export async function conversationalRefine(
   const raw = await llmTextCompletion({
     systemPrompt: buildSystemPrompt(locale),
     userPrompt,
-    imageData: base64,
+    imageData: imageUrl,
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,

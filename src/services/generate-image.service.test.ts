@@ -16,6 +16,7 @@ vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
 }))
 vi.mock('@/services/storage/r2', () => ({
+  createImagePreviewAssets: vi.fn(),
   fetchAsBuffer: vi.fn(),
   generateStorageKey: vi.fn(),
   uploadToR2: vi.fn(),
@@ -82,6 +83,7 @@ import {
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
+  createImagePreviewAssets,
   fetchAsBuffer,
   generateStorageKey,
   isOwnedStorageUrl,
@@ -165,6 +167,12 @@ function setupHappyPath() {
   })
   vi.mocked(generateStorageKey).mockReturnValue('storage/key.png')
   vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/image.png')
+  vi.mocked(createImagePreviewAssets).mockResolvedValue({
+    thumbnailUrl: 'https://cdn.example.com/image.thumbnail.webp',
+    thumbnailStorageKey: 'storage/key.thumbnail.webp',
+    previewUrl: 'https://cdn.example.com/image.preview.webp',
+    previewStorageKey: 'storage/key.preview.webp',
+  })
   vi.mocked(uploadFromHttpToR2).mockResolvedValue({
     publicUrl: 'https://cdn.example.com/image.png',
     mimeType: 'image/png',
@@ -323,11 +331,27 @@ describe('generateImageForUser', () => {
     expect(validatePrompt).toHaveBeenCalledWith('A red circle')
     expect(createGenerationJob).toHaveBeenCalled()
     expect(createApiUsageEntry).toHaveBeenCalled()
-    // BASE_INPUT has no reference image and the provider returns an https://
-    // URL, so persistGeneratedImage routes through uploadFromHttpToR2 (stream
-    // path) — fetchAsBuffer/uploadToR2 are only hit for data: URLs.
-    expect(uploadFromHttpToR2).toHaveBeenCalled()
+    expect(fetchAsBuffer).toHaveBeenCalledWith(
+      'https://provider.com/result.png',
+    )
+    expect(uploadToR2).toHaveBeenCalledWith({
+      data: Buffer.from('fake'),
+      key: 'storage/key.png',
+      mimeType: 'image/png',
+    })
+    expect(createImagePreviewAssets).toHaveBeenCalledWith({
+      sourceBuffer: Buffer.from('fake'),
+      sourceStorageKey: 'storage/key.png',
+    })
     expect(createGeneration).toHaveBeenCalled()
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thumbnailUrl: 'https://cdn.example.com/image.thumbnail.webp',
+        thumbnailStorageKey: 'storage/key.thumbnail.webp',
+        previewUrl: 'https://cdn.example.com/image.preview.webp',
+        previewStorageKey: 'storage/key.preview.webp',
+      }),
+    )
     expect(completeGenerationJob).toHaveBeenCalled()
     expect(attachUsageEntryToGeneration).toHaveBeenCalled()
   })
@@ -343,14 +367,8 @@ describe('generateImageForUser', () => {
       referenceImage: sameOriginRef,
     })
 
-    // Main image still uploaded (https provider URL), but the reference image
-    // was passed through verbatim — exactly one upload call for the gen, none
-    // for the ref.
-    expect(uploadFromHttpToR2).toHaveBeenCalledTimes(1)
-    expect(uploadFromHttpToR2).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceUrl: 'https://provider.com/result.png' }),
-    )
-    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(uploadFromHttpToR2).not.toHaveBeenCalled()
+    expect(uploadToR2).toHaveBeenCalledTimes(1)
     expect(createGeneration).toHaveBeenCalledWith(
       expect.objectContaining({ referenceImageUrl: sameOriginRef }),
     )
@@ -364,9 +382,13 @@ describe('generateImageForUser', () => {
       referenceImage: 'https://example.com/external-ref.png',
     })
 
-    // Both ref + gen go through the stream path.
-    expect(uploadFromHttpToR2).toHaveBeenCalledTimes(2)
-    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(uploadFromHttpToR2).toHaveBeenCalledTimes(1)
+    expect(uploadFromHttpToR2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceUrl: 'https://example.com/external-ref.png',
+      }),
+    )
+    expect(uploadToR2).toHaveBeenCalledTimes(1)
   })
 
   it('rejects invalid prompts', async () => {
@@ -539,17 +561,15 @@ describe('generateImageForUser', () => {
   })
 
   it('marks job as failed when R2 upload throws', async () => {
-    vi.mocked(uploadFromHttpToR2).mockRejectedValue(
-      new Error('R2 fetch failed'),
-    )
+    vi.mocked(uploadToR2).mockRejectedValue(new Error('R2 upload failed'))
 
     await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
-      'R2 fetch failed',
+      'R2 upload failed',
     )
 
     expect(failGenerationJob).toHaveBeenCalledWith(
       'job-1',
-      expect.objectContaining({ errorMessage: 'R2 fetch failed' }),
+      expect.objectContaining({ errorMessage: 'R2 upload failed' }),
     )
   })
 

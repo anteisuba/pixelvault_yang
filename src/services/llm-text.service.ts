@@ -9,13 +9,23 @@ import { decryptApiKey } from '@/lib/crypto'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/lib/prompt-guard'
+import { fetchAsBuffer } from '@/services/storage/r2'
 
 // ─── Types ───────────────────────────────────────────────────────
 
 export interface LlmTextInput {
   systemPrompt: string
   userPrompt: string
-  imageData?: string | string[] // base64 data URL(s) for multimodal (single or multiple images)
+  /**
+   * Image input(s) for multimodal completion. Each entry may be either a
+   * `data:` URL or an `http(s)` URL — the implementation normalizes per
+   * provider:
+   *  - Gemini: requires inline base64, so any http(s) URL is fetched
+   *    server-side via `fetchAsBuffer` (which guards against SSRF).
+   *  - OpenAI / VolcEngine: their chat APIs accept both forms in
+   *    `image_url.url`, so the value is forwarded as-is.
+   */
+  imageData?: string | string[]
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
@@ -85,6 +95,8 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'VolcEngine',
 }
+
+const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
   switch (adapterType) {
@@ -192,6 +204,28 @@ export async function resolveLlmTextRoute(
 
 // ─── Provider Implementations ────────────────────────────────────
 
+/**
+ * Resolve an image input (data URL or http(s) URL) to the Gemini-required
+ * `inlineData` shape. Http(s) URLs are fetched server-side — `fetchAsBuffer`
+ * applies the SSRF guard, so we don't need a separate check here.
+ */
+async function toGeminiInlinePart(
+  image: string,
+): Promise<{ inlineData: { mimeType: string; data: string } }> {
+  const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/)
+  if (dataUrlMatch) {
+    return {
+      inlineData: { mimeType: dataUrlMatch[1], data: dataUrlMatch[2] },
+    }
+  }
+  const { buffer, mimeType } = await fetchAsBuffer(image, {
+    maxBytes: LLM_TEXT_IMAGE_MAX_BYTES,
+  })
+  return {
+    inlineData: { mimeType, data: buffer.toString('base64') },
+  }
+}
+
 async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
@@ -199,22 +233,12 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   const parts: Array<Record<string, unknown>> = []
 
-  // Add image(s) if multimodal
   if (input.imageData) {
     const images = Array.isArray(input.imageData)
       ? input.imageData
       : [input.imageData]
-    for (const img of images) {
-      const dataUrlMatch = img.match(/^data:([^;]+);base64,(.+)$/)
-      if (dataUrlMatch) {
-        parts.push({
-          inlineData: {
-            mimeType: dataUrlMatch[1],
-            data: dataUrlMatch[2],
-          },
-        })
-      }
-    }
+    const imageParts = await Promise.all(images.map(toGeminiInlinePart))
+    parts.push(...imageParts)
   }
 
   parts.push({ text: input.userPrompt })

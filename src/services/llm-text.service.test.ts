@@ -85,6 +85,70 @@ describe('llmTextCompletion - Gemini', () => {
     expect(result).toBe('hello world')
   })
 
+  it('fetches http image URLs before sending them to Gemini inlineData', async () => {
+    const imageBytes = new Uint8Array([1, 2, 3])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(imageBytes, {
+          status: 200,
+          headers: {
+            'content-type': 'image/png',
+            'content-length': String(imageBytes.byteLength),
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: 'image analyzed' }] } }],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'You are helpful.',
+      userPrompt: 'Analyze this image.',
+      imageData: 'http://example.com/ref.png',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const requestInit = fetchMock.mock.calls[1]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected Gemini request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      contents: Array<{
+        parts: Array<{
+          inlineData?: { mimeType: string; data: string }
+          text?: string
+        }>
+      }>
+    }
+
+    expect(result).toBe('image analyzed')
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://example.com/ref.png',
+      undefined,
+    )
+    expect(payload.contents[0]?.parts[0]?.inlineData).toEqual({
+      mimeType: 'image/png',
+      data: Buffer.from(imageBytes).toString('base64'),
+    })
+    expect(payload.contents[0]?.parts[1]).toEqual({
+      text: 'Analyze this image.',
+    })
+  })
+
   it('throws a user-friendly error on 503 response', async () => {
     vi.stubGlobal(
       'fetch',

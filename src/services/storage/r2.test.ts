@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import sharp from 'sharp'
 
 // ─── Mocks (must precede imports) ───────────────────────────────
 
@@ -54,6 +55,7 @@ vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test.com')
 
 import {
   generateStorageKey,
+  createImagePreviewAssets,
   fetchAsBuffer,
   uploadToR2,
   streamUploadToR2,
@@ -111,6 +113,14 @@ describe('fetchAsBuffer', () => {
     expect(result.buffer.toString()).toBe('hello')
   })
 
+  it('enforces maxBytes for data: URLs', async () => {
+    const b64 = Buffer.from('hello').toString('base64')
+
+    await expect(
+      fetchAsBuffer(`data:image/jpeg;base64,${b64}`, { maxBytes: 4 }),
+    ).rejects.toThrow('Image exceeds maximum size of 4 bytes')
+  })
+
   it('fetches https URL and returns buffer', async () => {
     const mockBody = new Uint8Array([1, 2, 3])
     global.fetch = vi.fn().mockResolvedValue({
@@ -123,6 +133,50 @@ describe('fetchAsBuffer', () => {
 
     expect(result.mimeType).toBe('image/webp')
     expect(result.buffer.length).toBe(3)
+  })
+
+  it('allows plain http URLs while still using URL guard checks', async () => {
+    const mockBody = new Uint8Array([1])
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(mockBody.buffer),
+      headers: new Headers({ 'content-type': 'image/png' }),
+    })
+
+    const result = await fetchAsBuffer('http://example.com/img.png')
+
+    expect(result.mimeType).toBe('image/png')
+    expect(result.buffer.length).toBe(1)
+  })
+
+  it('enforces maxBytes from content-length before downloading', async () => {
+    const arrayBuffer = vi.fn()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer,
+      headers: new Headers({
+        'content-type': 'image/webp',
+        'content-length': '5',
+      }),
+    })
+
+    await expect(
+      fetchAsBuffer('https://example.com/img.webp', { maxBytes: 4 }),
+    ).rejects.toThrow('Image exceeds maximum size of 4 bytes')
+    expect(arrayBuffer).not.toHaveBeenCalled()
+  })
+
+  it('enforces maxBytes against the actual downloaded size', async () => {
+    const mockBody = new Uint8Array([1, 2, 3, 4, 5])
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(mockBody.buffer),
+      headers: new Headers({ 'content-type': 'image/webp' }),
+    })
+
+    await expect(
+      fetchAsBuffer('https://example.com/img.webp', { maxBytes: 4 }),
+    ).rejects.toThrow('Image exceeds maximum size of 4 bytes')
   })
 
   it('defaults mimeType to image/png if header missing', async () => {
@@ -160,6 +214,57 @@ describe('uploadToR2', () => {
 
     expect(url).toBe('https://cdn.test.com/test/key.png')
     expect(mockSend).toHaveBeenCalledOnce()
+  })
+})
+
+describe('createImagePreviewAssets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend.mockResolvedValue({})
+  })
+
+  it('uploads WebP thumbnail and preview derivatives next to the source key', async () => {
+    const sourceBuffer = await sharp({
+      create: {
+        width: 32,
+        height: 24,
+        channels: 3,
+        background: '#ff0000',
+      },
+    })
+      .png()
+      .toBuffer()
+
+    const result = await createImagePreviewAssets({
+      sourceBuffer,
+      sourceStorageKey: 'generations/user-1/image/source.png',
+    })
+
+    expect(result).toEqual({
+      thumbnailUrl:
+        'https://cdn.test.com/generations/user-1/image/source.thumbnail.webp',
+      thumbnailStorageKey: 'generations/user-1/image/source.thumbnail.webp',
+      previewUrl:
+        'https://cdn.test.com/generations/user-1/image/source.preview.webp',
+      previewStorageKey: 'generations/user-1/image/source.preview.webp',
+    })
+    expect(mockSend).toHaveBeenCalledTimes(2)
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          Key: 'generations/user-1/image/source.thumbnail.webp',
+          ContentType: 'image/webp',
+        }),
+      }),
+    )
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          Key: 'generations/user-1/image/source.preview.webp',
+          ContentType: 'image/webp',
+        }),
+      }),
+    )
   })
 })
 
@@ -374,12 +479,12 @@ describe('uploadFromHttpToR2', () => {
     fetchSpy.mockRestore()
   })
 
-  it('rejects non-https URLs via the url-guard', async () => {
+  it('rejects private http URLs via the url-guard', async () => {
     await expect(
       uploadFromHttpToR2({
-        sourceUrl: 'http://internal-host/secret.png',
+        sourceUrl: 'http://127.0.0.1/secret.png',
         key: 'k.png',
       }),
-    ).rejects.toThrow(/Disallowed protocol/)
+    ).rejects.toThrow(/Blocked private IPv4/)
   })
 })

@@ -55,6 +55,7 @@ import {
   readGalleryCache,
   writeGalleryCache,
 } from '@/lib/gallery-cache'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { AssetSectionCounts, GenerationRecord } from '@/types'
 
@@ -652,7 +653,7 @@ export function KreaAssetBrowser({
                         </div>
                       ) : (
                         <NextImage
-                          src={gen.url}
+                          src={getGenerationThumbnailUrl(gen)}
                           alt={gen.prompt || ''}
                           fill
                           sizes={DENSITY_IMAGE_SIZES[density]}

@@ -42,6 +42,7 @@ import {
   toggleGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
+import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, ProjectRecord } from '@/types'
 
@@ -396,7 +397,7 @@ function Preview({ generation }: { generation: GenerationRecord }) {
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border/60 bg-muted/40">
       <NextImage
-        src={generation.url}
+        src={getGenerationPreviewUrl(generation)}
         alt={generation.prompt || generation.id}
         fill
         sizes="480px"

@@ -15,6 +15,7 @@ import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
+import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import { getPublicGenerationById } from '@/services/generation.service'
 
@@ -158,6 +159,7 @@ export default async function ImageDetailPage({
       icon: <Coins className="size-3 text-primary" />,
     },
   ]
+  const previewUrl = getGenerationPreviewUrl(generation)
 
   return (
     <div className="editorial-page">
@@ -190,7 +192,7 @@ export default async function ImageDetailPage({
               />
             ) : (
               <img
-                src={generation.url}
+                src={previewUrl}
                 alt={generation.isPromptPublic ? generation.prompt : modelLabel}
                 className="h-auto max-h-[70svh] w-full object-contain"
                 style={{ aspectRatio }}

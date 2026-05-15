@@ -118,6 +118,34 @@ describe('POST /api/image/analyze', () => {
     )
   })
 
+  it('allows http image URLs without applying data URL payload length validation', async () => {
+    mockAuthenticated()
+    mockRateLimitAllowed()
+
+    const analysisResult = {
+      id: 'analysis_url_123',
+      generatedPrompt: 'A clean product photo',
+      dimensions: null,
+      sourceImageUrl: 'https://storage.example.com/uploaded-url.png',
+    }
+    vi.mocked(analyzeImage).mockResolvedValue(analysisResult)
+
+    const req = createPOST('/api/image/analyze', {
+      imageData: 'http://example.com/reference.png',
+    })
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    const body = await parseJSON(res)
+    expect(body).toEqual({ success: true, data: analysisResult })
+    expect(analyzeImage).toHaveBeenCalledWith(
+      'clerk_test_user',
+      'http://example.com/reference.png',
+      undefined,
+      undefined,
+    )
+  })
+
   it('returns 500 when service throws', async () => {
     mockAuthenticated()
     mockRateLimitAllowed()

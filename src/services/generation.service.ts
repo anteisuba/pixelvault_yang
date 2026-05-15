@@ -31,6 +31,10 @@ export interface CreateGenerationInput {
   url: string
   storageKey: string
   mimeType: string
+  thumbnailUrl?: string
+  thumbnailStorageKey?: string
+  previewUrl?: string
+  previewStorageKey?: string
   width: number
   height: number
   duration?: number
@@ -116,6 +120,10 @@ const LIST_GENERATION_SELECT = {
   url: true,
   storageKey: true,
   mimeType: true,
+  thumbnailUrl: true,
+  thumbnailStorageKey: true,
+  previewUrl: true,
+  previewStorageKey: true,
   width: true,
   height: true,
   duration: true,
@@ -255,12 +263,6 @@ function normalizeGenerationReferenceImages(
   }
 }
 
-function normalizeGenerationReferenceImageList(
-  generations: GenerationRecord[],
-): GenerationRecord[] {
-  return generations.map(normalizeGenerationReferenceImages)
-}
-
 // ─── Service Functions ────────────────────────────────────────────
 
 /**
@@ -276,6 +278,10 @@ export async function createGeneration(
       url: input.url,
       storageKey: input.storageKey,
       mimeType: input.mimeType,
+      thumbnailUrl: input.thumbnailUrl,
+      thumbnailStorageKey: input.thumbnailStorageKey,
+      previewUrl: input.previewUrl,
+      previewStorageKey: input.previewStorageKey,
       width: input.width,
       height: input.height,
       duration: input.duration,

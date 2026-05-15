@@ -8,7 +8,6 @@ import {
   llmTextCompletion,
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
-import { fetchAsBuffer } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 
 // ─── System Prompt ─────────────────────────────────────────────
@@ -78,17 +77,14 @@ export async function scoreConsistency(
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  // Convert URLs to base64 data URLs for LLM input
-  const [sourceData, generatedData] = await Promise.all([
-    urlToDataUrl(sourceImageUrl),
-    urlToDataUrl(generatedImageUrl),
-  ])
-
+  // llmTextCompletion accepts both data: and http URLs — pass URLs
+  // straight through. The Gemini path fetches+inlines server-side; the
+  // OpenAI/VolcEngine paths forward the URL to their vision endpoints.
   const raw = await llmTextCompletion({
     systemPrompt: SCORING_SYSTEM_PROMPT,
     userPrompt:
       'Image 1 is the SOURCE (original character). Image 2 is the GENERATED image. Score the character consistency.',
-    imageData: [sourceData, generatedData],
+    imageData: [sourceImageUrl, generatedImageUrl],
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
@@ -140,17 +136,4 @@ export async function scoreGenerationForCard(
     generation.url,
     apiKeyId,
   )
-}
-
-// ─── Helpers ───────────────────────────────────────────────────
-
-/**
- * Convert an HTTPS URL to a base64 data URL for LLM multimodal input.
- */
-async function urlToDataUrl(url: string): Promise<string> {
-  if (url.startsWith('data:')) return url
-
-  const { buffer, mimeType } = await fetchAsBuffer(url)
-  const base64 = buffer.toString('base64')
-  return `data:${mimeType};base64,${base64}`
 }

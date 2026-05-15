@@ -184,6 +184,12 @@ model Generation {
   storageKey String // R2 bucket 內的文件路徑
   mimeType   String           @default("image/png")
 
+  // ── 圖片衍生素材（列表 / 詳情預覽）───────────────────────────────
+  thumbnailUrl        String?
+  thumbnailStorageKey String?
+  previewUrl          String?
+  previewStorageKey   String?
+
   // 圖片 / 影格尺寸
   width  Int @default(1024)
   height Int @default(1024)

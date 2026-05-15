@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { fetchImageAsDataUrl } from '@/lib/fetch-image-data-url'
 
 interface UseImageUploadReturn {
   /** First reference image (backward compat for single-image adapters) */
@@ -12,7 +11,11 @@ interface UseImageUploadReturn {
   addReferenceImage: (image: string) => void
   removeReferenceImage: (index: number) => void
   clearAllImages: () => void
-  /** Add a reference image from an HTTPS URL (fetches + converts to base64) */
+  /**
+   * Add a reference image from an http(s) URL. Stores the URL as-is — the
+   * server-side LLM/provider pipeline handles both `data:` and `http(s)`
+   * inputs, so we no longer fetch + base64 the asset on the client.
+   */
   addFromUrl: (url: string) => Promise<void>
   /** Set the max number of reference images allowed. Enforced in addReferenceImage/addFromUrl. */
   setMaxImages: (max: number) => void
@@ -69,8 +72,13 @@ export function useImageUpload(): UseImageUploadReturn {
 
   const addFromUrl = useCallback(
     async (url: string) => {
-      const dataUrl = await fetchImageAsDataUrl(url)
-      addReferenceImage(dataUrl)
+      // Pass-through: keep the http(s) URL. Previously we downloaded the
+      // asset and re-encoded it as a PNG data URL, which dominated the
+      // "use as reference" interaction time and bloated request payloads.
+      // The server already normalizes both forms, so the client doesn't
+      // need to materialize the bytes anymore.
+      if (!url) return
+      addReferenceImage(url)
     },
     [addReferenceImage],
   )

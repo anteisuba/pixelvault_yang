@@ -7,6 +7,7 @@ import {
 } from '@/constants/uploads'
 import { createGeneration } from '@/services/generation.service'
 import {
+  createImagePreviewAssets,
   fetchAsBuffer,
   generateStorageKey,
   uploadToR2,
@@ -63,16 +64,26 @@ export async function uploadUserImageForUserId(
   }
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const publicUrl = await uploadToR2({
-    data: buffer,
-    key: storageKey,
-    mimeType,
-  })
+  const [publicUrl, previewAssets] = await Promise.all([
+    uploadToR2({
+      data: buffer,
+      key: storageKey,
+      mimeType,
+    }),
+    createImagePreviewAssets({
+      sourceBuffer: buffer,
+      sourceStorageKey: storageKey,
+    }),
+  ])
 
   return createGeneration({
     url: publicUrl,
     storageKey,
     mimeType,
+    thumbnailUrl: previewAssets.thumbnailUrl,
+    thumbnailStorageKey: previewAssets.thumbnailStorageKey,
+    previewUrl: previewAssets.previewUrl,
+    previewStorageKey: previewAssets.previewStorageKey,
     width: 0, // unknown without decoding; client may patch later
     height: 0,
     prompt: input.note ?? '',

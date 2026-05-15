@@ -190,7 +190,7 @@ describe('ImageCard', () => {
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
   })
 
-  it('opens detail modal when Open button clicked', () => {
+  it('opens detail modal when Open button clicked', async () => {
     renderCard()
     // Initially modal is not open
     expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
@@ -199,7 +199,7 @@ describe('ImageCard', () => {
     const openBtn = screen.getByText('Open')
     fireEvent.click(openBtn)
 
-    expect(screen.getByTestId('detail-modal')).toBeInTheDocument()
+    expect(await screen.findByTestId('detail-modal')).toBeInTheDocument()
   })
 
   it('renders like button with count', () => {

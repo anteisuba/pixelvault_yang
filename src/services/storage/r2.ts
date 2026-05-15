@@ -7,6 +7,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
+import sharp from 'sharp'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { assertSafeUrl } from '@/lib/url-guard'
@@ -53,29 +54,88 @@ export function generateStorageKey(
 
 // ─── Fetch as Buffer ──────────────────────────────────────────────
 
+export interface FetchAsBufferOptions {
+  headers?: Record<string, string>
+  /**
+   * Hard cap on the resolved buffer size, in bytes. Applied for both
+   * `data:` URLs (counted before decode-bound expansion) and remote
+   * URLs (checked against `Content-Length`, then against the actual
+   * downloaded size). Throws when exceeded so callers don't have to
+   * defensively re-validate.
+   *
+   * Use this on any path where the URL comes from end-user input —
+   * provider-controlled URLs (e.g. fal.ai output) can leave it unset.
+   */
+  maxBytes?: number
+}
+
+function isFetchAsBufferOptions(
+  value: Record<string, string> | FetchAsBufferOptions,
+): value is FetchAsBufferOptions {
+  return 'headers' in value || 'maxBytes' in value
+}
+
 /**
  * Normalize an image URL to a Buffer + mimeType pair.
- * Handles both base64 data URLs and plain https URLs.
+ * Handles both base64 data URLs and plain http(s) URLs.
+ *
+ * Accepts the legacy `headers` shorthand for backward compatibility, or
+ * the richer options object including `maxBytes`.
  */
 export async function fetchAsBuffer(
   url: string,
-  headers?: Record<string, string>,
+  headersOrOptions?: Record<string, string> | FetchAsBufferOptions,
 ): Promise<{ buffer: Buffer; mimeType: string }> {
+  const options: FetchAsBufferOptions =
+    headersOrOptions && isFetchAsBufferOptions(headersOrOptions)
+      ? headersOrOptions
+      : headersOrOptions
+        ? { headers: headersOrOptions }
+        : {}
+  const { headers, maxBytes } = options
+
+  if (maxBytes !== undefined && (!Number.isFinite(maxBytes) || maxBytes < 0)) {
+    throw new Error('Invalid maxBytes option.')
+  }
+
   if (url.startsWith('data:')) {
-    const [meta, base64] = url.split(',')
-    const mimeType = meta.split(':')[1].split(';')[0]
-    const buffer = Buffer.from(base64, 'base64')
+    const dataUrlMatch = url.match(/^data:([^;]+);base64,(.+)$/)
+    if (!dataUrlMatch) throw new Error('Invalid data URL')
+    const mimeType = dataUrlMatch[1]
+    const buffer = Buffer.from(dataUrlMatch[2], 'base64')
+    if (maxBytes !== undefined && buffer.byteLength > maxBytes) {
+      throw new Error(
+        `Image exceeds maximum size of ${maxBytes} bytes (got ${buffer.byteLength}).`,
+      )
+    }
     return { buffer, mimeType }
   }
 
-  assertSafeUrl(url)
+  assertSafeUrl(url, { allowedProtocols: ['http:', 'https:'] })
   const response = await fetch(url, headers ? { headers } : undefined)
   if (!response.ok) {
     throw new Error(`Failed to fetch image (${response.status}): ${url}`)
   }
 
+  if (maxBytes !== undefined) {
+    const declared = Number.parseInt(
+      response.headers.get('content-length') ?? '',
+      10,
+    )
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      throw new Error(
+        `Image exceeds maximum size of ${maxBytes} bytes (declared ${declared}).`,
+      )
+    }
+  }
+
   const arrayBuffer = await response.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
+  if (maxBytes !== undefined && buffer.byteLength > maxBytes) {
+    throw new Error(
+      `Image exceeds maximum size of ${maxBytes} bytes (got ${buffer.byteLength}).`,
+    )
+  }
   const mimeType = response.headers.get('content-type') ?? 'image/png'
 
   return { buffer, mimeType }
@@ -107,6 +167,89 @@ export async function uploadToR2(params: {
 
   logger.info('Uploaded to R2', { key: params.key, mimeType: params.mimeType })
   return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`
+}
+
+// ─── Image Preview Derivatives ──────────────────────────────────
+
+const IMAGE_PREVIEW_VARIANTS = {
+  thumbnail: { maxSize: 384, quality: 78 },
+  preview: { maxSize: 1280, quality: 82 },
+} as const
+
+type ImagePreviewVariant = keyof typeof IMAGE_PREVIEW_VARIANTS
+
+export interface ImagePreviewAssets {
+  thumbnailUrl: string
+  thumbnailStorageKey: string
+  previewUrl: string
+  previewStorageKey: string
+}
+
+function buildImageDerivativeStorageKey(
+  sourceKey: string,
+  variant: ImagePreviewVariant,
+): string {
+  const slashIndex = sourceKey.lastIndexOf('/')
+  const directory = slashIndex >= 0 ? sourceKey.slice(0, slashIndex + 1) : ''
+  const filename = slashIndex >= 0 ? sourceKey.slice(slashIndex + 1) : sourceKey
+  const basename = filename.replace(/\.[^.]+$/, '') || filename
+  return `${directory}${basename}.${variant}.webp`
+}
+
+async function createImageDerivativeBuffer(
+  sourceBuffer: Buffer,
+  variant: ImagePreviewVariant,
+): Promise<Buffer> {
+  const spec = IMAGE_PREVIEW_VARIANTS[variant]
+  return sharp(sourceBuffer, { animated: false })
+    .rotate()
+    .resize({
+      width: spec.maxSize,
+      height: spec.maxSize,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: spec.quality, effort: 4 })
+    .toBuffer()
+}
+
+export async function createImagePreviewAssets(params: {
+  sourceBuffer: Buffer
+  sourceStorageKey: string
+}): Promise<ImagePreviewAssets> {
+  const thumbnailStorageKey = buildImageDerivativeStorageKey(
+    params.sourceStorageKey,
+    'thumbnail',
+  )
+  const previewStorageKey = buildImageDerivativeStorageKey(
+    params.sourceStorageKey,
+    'preview',
+  )
+
+  const [thumbnailBuffer, previewBuffer] = await Promise.all([
+    createImageDerivativeBuffer(params.sourceBuffer, 'thumbnail'),
+    createImageDerivativeBuffer(params.sourceBuffer, 'preview'),
+  ])
+
+  const [thumbnailUrl, previewUrl] = await Promise.all([
+    uploadToR2({
+      data: thumbnailBuffer,
+      key: thumbnailStorageKey,
+      mimeType: 'image/webp',
+    }),
+    uploadToR2({
+      data: previewBuffer,
+      key: previewStorageKey,
+      mimeType: 'image/webp',
+    }),
+  ])
+
+  return {
+    thumbnailUrl,
+    thumbnailStorageKey,
+    previewUrl,
+    previewStorageKey,
+  }
 }
 
 // ─── Same-Origin Storage URL Detection ────────────────────────────
@@ -221,7 +364,7 @@ export async function uploadFromHttpToR2(params: {
   key: string
   fetchHeaders?: Record<string, string>
 }): Promise<{ publicUrl: string; mimeType: string }> {
-  assertSafeUrl(params.sourceUrl)
+  assertSafeUrl(params.sourceUrl, { allowedProtocols: ['http:', 'https:'] })
 
   return withRetry(
     async () => {

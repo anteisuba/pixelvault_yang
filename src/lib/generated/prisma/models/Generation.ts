@@ -52,6 +52,10 @@ export type GenerationMinAggregateOutputType = {
   url: string | null
   storageKey: string | null
   mimeType: string | null
+  thumbnailUrl: string | null
+  thumbnailStorageKey: string | null
+  previewUrl: string | null
+  previewStorageKey: string | null
   width: number | null
   height: number | null
   duration: number | null
@@ -86,6 +90,10 @@ export type GenerationMaxAggregateOutputType = {
   url: string | null
   storageKey: string | null
   mimeType: string | null
+  thumbnailUrl: string | null
+  thumbnailStorageKey: string | null
+  previewUrl: string | null
+  previewStorageKey: string | null
   width: number | null
   height: number | null
   duration: number | null
@@ -120,6 +128,10 @@ export type GenerationCountAggregateOutputType = {
   url: number
   storageKey: number
   mimeType: number
+  thumbnailUrl: number
+  thumbnailStorageKey: number
+  previewUrl: number
+  previewStorageKey: number
   width: number
   height: number
   duration: number
@@ -177,6 +189,10 @@ export type GenerationMinAggregateInputType = {
   url?: true
   storageKey?: true
   mimeType?: true
+  thumbnailUrl?: true
+  thumbnailStorageKey?: true
+  previewUrl?: true
+  previewStorageKey?: true
   width?: true
   height?: true
   duration?: true
@@ -211,6 +227,10 @@ export type GenerationMaxAggregateInputType = {
   url?: true
   storageKey?: true
   mimeType?: true
+  thumbnailUrl?: true
+  thumbnailStorageKey?: true
+  previewUrl?: true
+  previewStorageKey?: true
   width?: true
   height?: true
   duration?: true
@@ -245,6 +265,10 @@ export type GenerationCountAggregateInputType = {
   url?: true
   storageKey?: true
   mimeType?: true
+  thumbnailUrl?: true
+  thumbnailStorageKey?: true
+  previewUrl?: true
+  previewStorageKey?: true
   width?: true
   height?: true
   duration?: true
@@ -369,6 +393,10 @@ export type GenerationGroupByOutputType = {
   url: string
   storageKey: string
   mimeType: string
+  thumbnailUrl: string | null
+  thumbnailStorageKey: string | null
+  previewUrl: string | null
+  previewStorageKey: string | null
   width: number
   height: number
   duration: number | null
@@ -429,6 +457,10 @@ export type GenerationWhereInput = {
   url?: Prisma.StringFilter<"Generation"> | string
   storageKey?: Prisma.StringFilter<"Generation"> | string
   mimeType?: Prisma.StringFilter<"Generation"> | string
+  thumbnailUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  thumbnailStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
@@ -478,6 +510,10 @@ export type GenerationOrderByWithRelationInput = {
   url?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
+  thumbnailUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  thumbnailStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -530,6 +566,10 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   url?: Prisma.StringFilter<"Generation"> | string
   storageKey?: Prisma.StringFilter<"Generation"> | string
   mimeType?: Prisma.StringFilter<"Generation"> | string
+  thumbnailUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  thumbnailStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
@@ -579,6 +619,10 @@ export type GenerationOrderByWithAggregationInput = {
   url?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
+  thumbnailUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  thumbnailStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -624,6 +668,10 @@ export type GenerationScalarWhereWithAggregatesInput = {
   url?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   storageKey?: Prisma.StringWithAggregatesFilter<"Generation"> | string
   mimeType?: Prisma.StringWithAggregatesFilter<"Generation"> | string
+  thumbnailUrl?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
+  thumbnailStorageKey?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
+  previewUrl?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
+  previewStorageKey?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   width?: Prisma.IntWithAggregatesFilter<"Generation"> | number
   height?: Prisma.IntWithAggregatesFilter<"Generation"> | number
   duration?: Prisma.FloatNullableWithAggregatesFilter<"Generation"> | number | null
@@ -661,6 +709,10 @@ export type GenerationCreateInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -706,6 +758,10 @@ export type GenerationUncheckedCreateInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -751,6 +807,10 @@ export type GenerationUpdateInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -796,6 +856,10 @@ export type GenerationUncheckedUpdateInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -841,6 +905,10 @@ export type GenerationCreateManyInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -878,6 +946,10 @@ export type GenerationUpdateManyMutationInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -911,6 +983,10 @@ export type GenerationUncheckedUpdateManyInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -958,6 +1034,10 @@ export type GenerationCountOrderByAggregateInput = {
   url?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
+  thumbnailUrl?: Prisma.SortOrder
+  thumbnailStorageKey?: Prisma.SortOrder
+  previewUrl?: Prisma.SortOrder
+  previewStorageKey?: Prisma.SortOrder
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
@@ -1004,6 +1084,10 @@ export type GenerationMaxOrderByAggregateInput = {
   url?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
+  thumbnailUrl?: Prisma.SortOrder
+  thumbnailStorageKey?: Prisma.SortOrder
+  previewUrl?: Prisma.SortOrder
+  previewStorageKey?: Prisma.SortOrder
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
@@ -1038,6 +1122,10 @@ export type GenerationMinOrderByAggregateInput = {
   url?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
+  thumbnailUrl?: Prisma.SortOrder
+  thumbnailStorageKey?: Prisma.SortOrder
+  previewUrl?: Prisma.SortOrder
+  previewStorageKey?: Prisma.SortOrder
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   duration?: Prisma.SortOrder
@@ -1411,6 +1499,10 @@ export type GenerationCreateWithoutUserInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1455,6 +1547,10 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1528,6 +1624,10 @@ export type GenerationScalarWhereInput = {
   url?: Prisma.StringFilter<"Generation"> | string
   storageKey?: Prisma.StringFilter<"Generation"> | string
   mimeType?: Prisma.StringFilter<"Generation"> | string
+  thumbnailUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  thumbnailStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewUrl?: Prisma.StringNullableFilter<"Generation"> | string | null
+  previewStorageKey?: Prisma.StringNullableFilter<"Generation"> | string | null
   width?: Prisma.IntFilter<"Generation"> | number
   height?: Prisma.IntFilter<"Generation"> | number
   duration?: Prisma.FloatNullableFilter<"Generation"> | number | null
@@ -1565,6 +1665,10 @@ export type GenerationCreateWithoutProjectInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1609,6 +1713,10 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1679,6 +1787,10 @@ export type GenerationCreateWithoutGenerationJobInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1723,6 +1835,10 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1783,6 +1899,10 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -1827,6 +1947,10 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -1871,6 +1995,10 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1915,6 +2043,10 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -1975,6 +2107,10 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2019,6 +2155,10 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2063,6 +2203,10 @@ export type GenerationCreateWithoutArenaEntriesInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2107,6 +2251,10 @@ export type GenerationUncheckedCreateWithoutArenaEntriesInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2167,6 +2315,10 @@ export type GenerationUpdateWithoutArenaEntriesInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2211,6 +2363,10 @@ export type GenerationUncheckedUpdateWithoutArenaEntriesInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2255,6 +2411,10 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2299,6 +2459,10 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2359,6 +2523,10 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2403,6 +2571,10 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2447,6 +2619,10 @@ export type GenerationCreateWithoutCharacterCardInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2491,6 +2667,10 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2561,6 +2741,10 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2605,6 +2789,10 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2665,6 +2853,10 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2709,6 +2901,10 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2753,6 +2949,10 @@ export type GenerationCreateWithoutLikesInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2797,6 +2997,10 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2857,6 +3061,10 @@ export type GenerationUpdateWithoutLikesInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2901,6 +3109,10 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -2945,6 +3157,10 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -2989,6 +3205,10 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3049,6 +3269,10 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3093,6 +3317,10 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3137,6 +3365,10 @@ export type GenerationCreateWithoutCardRecipeInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3181,6 +3413,10 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3251,6 +3487,10 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3295,6 +3535,10 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3355,6 +3599,10 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3399,6 +3647,10 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3443,6 +3695,10 @@ export type GenerationCreateManyUserInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3479,6 +3735,10 @@ export type GenerationUpdateWithoutUserInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3523,6 +3783,10 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3567,6 +3831,10 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3603,6 +3871,10 @@ export type GenerationCreateManyProjectInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3639,6 +3911,10 @@ export type GenerationUpdateWithoutProjectInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3683,6 +3959,10 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3727,6 +4007,10 @@ export type GenerationUncheckedUpdateManyWithoutProjectInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3763,6 +4047,10 @@ export type GenerationCreateManyCharacterCardInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3799,6 +4087,10 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3843,6 +4135,10 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3887,6 +4183,10 @@ export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -3923,6 +4223,10 @@ export type GenerationCreateManyCardRecipeInput = {
   url: string
   storageKey: string
   mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width?: number
   height?: number
   duration?: number | null
@@ -3959,6 +4263,10 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -4003,6 +4311,10 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -4047,6 +4359,10 @@ export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   width?: Prisma.IntFieldUpdateOperationsInput | number
   height?: Prisma.IntFieldUpdateOperationsInput | number
   duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -4159,6 +4475,10 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   url?: boolean
   storageKey?: boolean
   mimeType?: boolean
+  thumbnailUrl?: boolean
+  thumbnailStorageKey?: boolean
+  previewUrl?: boolean
+  previewStorageKey?: boolean
   width?: boolean
   height?: boolean
   duration?: boolean
@@ -4209,6 +4529,10 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   url?: boolean
   storageKey?: boolean
   mimeType?: boolean
+  thumbnailUrl?: boolean
+  thumbnailStorageKey?: boolean
+  previewUrl?: boolean
+  previewStorageKey?: boolean
   width?: boolean
   height?: boolean
   duration?: boolean
@@ -4250,6 +4574,10 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   url?: boolean
   storageKey?: boolean
   mimeType?: boolean
+  thumbnailUrl?: boolean
+  thumbnailStorageKey?: boolean
+  previewUrl?: boolean
+  previewStorageKey?: boolean
   width?: boolean
   height?: boolean
   duration?: boolean
@@ -4291,6 +4619,10 @@ export type GenerationSelectScalar = {
   url?: boolean
   storageKey?: boolean
   mimeType?: boolean
+  thumbnailUrl?: boolean
+  thumbnailStorageKey?: boolean
+  previewUrl?: boolean
+  previewStorageKey?: boolean
   width?: boolean
   height?: boolean
   duration?: boolean
@@ -4320,7 +4652,7 @@ export type GenerationSelectScalar = {
   seed?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "thumbnailUrl" | "thumbnailStorageKey" | "previewUrl" | "previewStorageKey" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
@@ -4373,6 +4705,10 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     url: string
     storageKey: string
     mimeType: string
+    thumbnailUrl: string | null
+    thumbnailStorageKey: string | null
+    previewUrl: string | null
+    previewStorageKey: string | null
     width: number
     height: number
     duration: number | null
@@ -4842,6 +5178,10 @@ export interface GenerationFieldRefs {
   readonly url: Prisma.FieldRef<"Generation", 'String'>
   readonly storageKey: Prisma.FieldRef<"Generation", 'String'>
   readonly mimeType: Prisma.FieldRef<"Generation", 'String'>
+  readonly thumbnailUrl: Prisma.FieldRef<"Generation", 'String'>
+  readonly thumbnailStorageKey: Prisma.FieldRef<"Generation", 'String'>
+  readonly previewUrl: Prisma.FieldRef<"Generation", 'String'>
+  readonly previewStorageKey: Prisma.FieldRef<"Generation", 'String'>
   readonly width: Prisma.FieldRef<"Generation", 'Int'>
   readonly height: Prisma.FieldRef<"Generation", 'Int'>
   readonly duration: Prisma.FieldRef<"Generation", 'Float'>

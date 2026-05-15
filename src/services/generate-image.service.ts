@@ -20,11 +20,13 @@ import {
   type ProviderGenerationResult,
 } from '@/services/providers/types'
 import {
+  createImagePreviewAssets,
   fetchAsBuffer,
   generateStorageKey,
   isOwnedStorageUrl,
   uploadFromHttpToR2,
   uploadToR2,
+  type ImagePreviewAssets,
 } from '@/services/storage/r2'
 import {
   attachUsageEntryToGeneration,
@@ -460,6 +462,24 @@ async function persistGeneratedImage(params: {
   const effectiveRefImage =
     input.referenceImage || input.referenceImages?.[0] || undefined
 
+  async function tryCreatePreviewAssets(
+    sourceBuffer: Buffer,
+  ): Promise<ImagePreviewAssets | undefined> {
+    try {
+      return await createImagePreviewAssets({
+        sourceBuffer,
+        sourceStorageKey: storageKey,
+      })
+    } catch (error) {
+      logger.warn('Image preview derivative creation failed', {
+        generationJobId,
+        storageKey,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return undefined
+    }
+  }
+
   try {
     // Reference image persistence:
     //   - Already a URL inside our R2 bucket → reuse it verbatim. The DB never
@@ -496,23 +516,22 @@ async function persistGeneratedImage(params: {
     //     upload).
     //   - data: URL (Gemini / OpenAI base64) → buffer path (we already have
     //     the bytes in-process from the base64 decode).
-    const genImagePromise: Promise<{ url: string; mimeType: string }> =
-      (async () => {
-        if (asset.imageUrl.startsWith('data:')) {
-          const genData = await fetchAsBuffer(asset.imageUrl)
-          const url = await uploadToR2({
-            data: genData.buffer,
-            key: storageKey,
-            mimeType: genData.mimeType,
-          })
-          return { url, mimeType: genData.mimeType }
-        }
-        const { publicUrl, mimeType: mt } = await uploadFromHttpToR2({
-          sourceUrl: asset.imageUrl,
+    const genImagePromise: Promise<{
+      url: string
+      mimeType: string
+      previewAssets?: ImagePreviewAssets
+    }> = (async () => {
+      const genData = await fetchAsBuffer(asset.imageUrl)
+      const [url, previewAssets] = await Promise.all([
+        uploadToR2({
+          data: genData.buffer,
           key: storageKey,
-        })
-        return { url: publicUrl, mimeType: mt }
-      })()
+          mimeType: genData.mimeType,
+        }),
+        tryCreatePreviewAssets(genData.buffer),
+      ])
+      return { url, mimeType: genData.mimeType, previewAssets }
+    })()
 
     const [referenceImageUrl, gen] = await Promise.all([
       refImagePromise,
@@ -520,11 +539,16 @@ async function persistGeneratedImage(params: {
     ])
     const permanentUrl = gen.url
     const mimeType = gen.mimeType
+    const previewAssets = gen.previewAssets
 
     const generation = await createGeneration({
       url: permanentUrl,
       storageKey,
       mimeType,
+      thumbnailUrl: previewAssets?.thumbnailUrl,
+      thumbnailStorageKey: previewAssets?.thumbnailStorageKey,
+      previewUrl: previewAssets?.previewUrl,
+      previewStorageKey: previewAssets?.previewStorageKey,
       width: asset.width,
       height: asset.height,
       referenceImageUrl,

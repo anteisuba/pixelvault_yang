@@ -65,6 +65,10 @@ const BASE_GENERATION = {
   url: 'https://cdn.example.com/gen.png',
   storageKey: 'generations/gen.png',
   mimeType: 'image/png',
+  thumbnailUrl: null,
+  thumbnailStorageKey: null,
+  previewUrl: null,
+  previewStorageKey: null,
   width: 1024,
   height: 1024,
   duration: null,
@@ -160,6 +164,41 @@ describe('generation.service', () => {
           { generationId: 'gen-2', characterCardId: 'card-1' },
           { generationId: 'gen-2', characterCardId: 'card-2' },
         ],
+      })
+    })
+
+    it('persists image thumbnail and preview asset URLs when provided', async () => {
+      mockGenerationCreate.mockResolvedValue({
+        ...BASE_GENERATION,
+        thumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
+        thumbnailStorageKey: 'generations/gen.thumbnail.webp',
+        previewUrl: 'https://cdn.example.com/gen.preview.webp',
+        previewStorageKey: 'generations/gen.preview.webp',
+      })
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        thumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
+        thumbnailStorageKey: 'generations/gen.thumbnail.webp',
+        previewUrl: 'https://cdn.example.com/gen.preview.webp',
+        previewStorageKey: 'generations/gen.preview.webp',
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+      })
+
+      expect(mockGenerationCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          thumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
+          thumbnailStorageKey: 'generations/gen.thumbnail.webp',
+          previewUrl: 'https://cdn.example.com/gen.preview.webp',
+          previewStorageKey: 'generations/gen.preview.webp',
+        }),
       })
     })
 

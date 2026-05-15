@@ -861,6 +861,10 @@ export interface GenerationRecord {
   url: string
   storageKey: string
   mimeType: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width: number
   height: number
   duration?: number | null
@@ -1231,8 +1235,9 @@ export const AnalyzeImageRequestSchema = z.object({
         data.startsWith('data:image/jpeg') ||
         data.startsWith('data:image/webp') ||
         data.startsWith('data:image/gif') ||
+        data.startsWith('http://') ||
         data.startsWith('https://'),
-      'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTPS URL',
+      'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTP(S) URL',
     ),
   /** Which dimensions to extract. If omitted, returns a single combined prompt (legacy). */
   dimensions: z.array(AnalysisDimensionEnum).min(1).optional(),

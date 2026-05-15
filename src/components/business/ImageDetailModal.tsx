@@ -36,6 +36,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { useImageEditing } from '@/hooks/use-image-editing'
 import type { GenerationRecord } from '@/types'
+import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -104,6 +105,7 @@ export function ImageDetailModal({
 
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
+  const previewUrl = getGenerationPreviewUrl(generation)
 
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(
     generation.height,
@@ -182,14 +184,14 @@ export function ImageDetailModal({
           ) : generation.referenceImageUrl ? (
             <ImageCompare
               beforeSrc={generation.referenceImageUrl}
-              afterSrc={generation.url}
+              afterSrc={previewUrl}
               beforeLabel={t('referenceLabel')}
               afterLabel={t('generatedLabel')}
               className="max-h-[60svh]"
             />
           ) : (
             <img
-              src={generation.url}
+              src={previewUrl}
               alt={generation.prompt}
               className="h-auto max-h-[60svh] w-full object-contain"
               style={{ aspectRatio }}

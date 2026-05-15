@@ -1,6 +1,7 @@
 import { ImageIcon, Music, Play } from 'lucide-react'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 
 interface ImageCardMediaProps {
@@ -26,6 +27,8 @@ export function ImageCardMedia({
   referenceImageLabel,
   priority,
 }: ImageCardMediaProps) {
+  const imageSrc = getGenerationThumbnailUrl(generation)
+
   return (
     <>
       <button
@@ -59,7 +62,7 @@ export function ImageCardMedia({
           />
         ) : (
           <OptimizedImage
-            src={generation.url}
+            src={imageSrc}
             alt={generation.prompt}
             width={generation.width}
             height={generation.height}

@@ -8,7 +8,12 @@ import {
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { generateImageForUser } from '@/services/generate-image.service'
-import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
+import {
+  fetchAsBuffer,
+  generateStorageKey,
+  isOwnedStorageUrl,
+  uploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 
 const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.`
@@ -63,6 +68,72 @@ export interface AnalyzeImageResult {
   sourceImageUrl: string
 }
 
+/** ~10 MB — matches the route's data-URL string-length budget. */
+export const ANALYSIS_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+/**
+ * Resolve `imageData` (data URL OR http(s) URL) into the `sourceImageUrl` we
+ * persist on `ImageAnalysis`. We always want a self-hosted R2 URL so the
+ * record stays valid after the original asset disappears.
+ *
+ *   - data URL → decode + upload to a fresh R2 key
+ *   - http(s) URL pointing at our own R2 bucket → reuse the URL as-is
+ *   - any other http(s) URL → fetch + re-upload (keeps records self-contained
+ *     and prevents drift if the third-party origin disappears)
+ */
+interface ResolvedSourceUpload {
+  /** Public R2 URL we persist on the ImageAnalysis row. */
+  url: string
+  /** Storage key — required by the schema, derived from the URL when reusing. */
+  storageKey: string
+}
+
+/**
+ * Strip the public storage base URL prefix off an owned R2 URL to recover
+ * the underlying object key. Falls back to the full URL when the env var
+ * isn't set (matches the legacy r2.dev path that callers may also pass).
+ */
+function deriveOwnedStorageKey(url: string): string {
+  const base = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+  if (base && url.startsWith(`${base}/`)) {
+    return url.slice(base.length + 1)
+  }
+  try {
+    return new URL(url).pathname.replace(/^\//, '')
+  } catch {
+    return url
+  }
+}
+
+async function resolveAnalysisSourceUrl(
+  imageData: string,
+  userId: string,
+): Promise<ResolvedSourceUpload> {
+  if (imageData.startsWith('data:')) {
+    const { buffer, mimeType } = await fetchAsBuffer(imageData, {
+      maxBytes: ANALYSIS_MAX_IMAGE_BYTES,
+    })
+    const storageKey = generateStorageKey('IMAGE', userId)
+    const url = await uploadToR2({ data: buffer, key: storageKey, mimeType })
+    return { url, storageKey }
+  }
+
+  if (isOwnedStorageUrl(imageData)) {
+    return { url: imageData, storageKey: deriveOwnedStorageKey(imageData) }
+  }
+
+  // Third-party URL — fetch and re-upload so the analysis row stays valid
+  // if the original origin disappears. fetchAsBuffer enforces SSRF guards
+  // and the size cap matches the route-level data-URL ceiling so users
+  // can't trivially bypass it by passing a URL pointing at a huge file.
+  const { buffer, mimeType } = await fetchAsBuffer(imageData, {
+    maxBytes: ANALYSIS_MAX_IMAGE_BYTES,
+  })
+  const storageKey = generateStorageKey('IMAGE', userId)
+  const url = await uploadToR2({ data: buffer, key: storageKey, mimeType })
+  return { url, storageKey }
+}
+
 export async function analyzeImage(
   clerkId: string,
   imageData: string,
@@ -71,18 +142,10 @@ export async function analyzeImage(
 ): Promise<AnalyzeImageResult> {
   const dbUser = await ensureUser(clerkId)
 
-  // Upload source image to R2
-  const dataUrlMatch = imageData.match(/^data:([^;]+);base64,(.+)$/)
-  if (!dataUrlMatch) throw new Error('Invalid image data format')
-
-  const mimeType = dataUrlMatch[1]
-  const buffer = Buffer.from(dataUrlMatch[2], 'base64')
-  const storageKey = generateStorageKey('IMAGE', dbUser.id)
-  const sourceImageUrl = await uploadToR2({
-    data: buffer,
-    key: storageKey,
-    mimeType,
-  })
+  const { url: sourceImageUrl, storageKey } = await resolveAnalysisSourceUrl(
+    imageData,
+    dbUser.id,
+  )
 
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
@@ -98,7 +161,7 @@ export async function analyzeImage(
   const rawResult = await llmTextCompletion({
     systemPrompt,
     userPrompt,
-    imageData,
+    imageData: sourceImageUrl,
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,

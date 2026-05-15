@@ -13,9 +13,10 @@ import {
 } from '@/services/apiKey.service'
 import { ProviderError } from '@/services/providers/types'
 import {
+  createImagePreviewAssets,
   fetchAsBuffer,
-  uploadToR2,
   generateStorageKey,
+  uploadToR2,
 } from '@/services/storage/r2'
 import { createGeneration } from '@/services/generation.service'
 import type { GenerationRecord } from '@/types'
@@ -268,16 +269,26 @@ export async function persistEditedImage(params: {
 }): Promise<GenerationRecord> {
   const storageKey = generateStorageKey('IMAGE', params.userId)
   const { buffer, mimeType } = await fetchAsBuffer(params.resultUrl)
-  const permanentUrl = await uploadToR2({
-    data: buffer,
-    key: storageKey,
-    mimeType,
-  })
+  const [permanentUrl, previewAssets] = await Promise.all([
+    uploadToR2({
+      data: buffer,
+      key: storageKey,
+      mimeType,
+    }),
+    createImagePreviewAssets({
+      sourceBuffer: buffer,
+      sourceStorageKey: storageKey,
+    }),
+  ])
 
   return createGeneration({
     url: permanentUrl,
     storageKey,
     mimeType,
+    thumbnailUrl: previewAssets.thumbnailUrl,
+    thumbnailStorageKey: previewAssets.thumbnailStorageKey,
+    previewUrl: previewAssets.previewUrl,
+    previewStorageKey: previewAssets.previewStorageKey,
     width: params.width,
     height: params.height,
     prompt: params.sourceGenerationId

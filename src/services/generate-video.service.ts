@@ -617,6 +617,10 @@ function mapGenerationToRecord(gen: {
   url: string
   storageKey: string
   mimeType: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
   width: number
   height: number
   duration?: number | null
@@ -637,6 +641,10 @@ function mapGenerationToRecord(gen: {
     url: gen.url,
     storageKey: gen.storageKey,
     mimeType: gen.mimeType,
+    thumbnailUrl: gen.thumbnailUrl,
+    thumbnailStorageKey: gen.thumbnailStorageKey,
+    previewUrl: gen.previewUrl,
+    previewStorageKey: gen.previewStorageKey,
     width: gen.width,
     height: gen.height,
     duration: gen.duration,

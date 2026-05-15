@@ -183,7 +183,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     id: 'workflow',
     ctaHref: ROUTES.STUDIO,
     tone: 'forest',
-    reverse: true,
+    reverse: false,
     comingSoon: true,
     // VIDEO. Prompt for Veo 3.1 / Seedance 2.0: a node-based visual
     // workflow editor; mouse drags a connection between an "image gen"
@@ -195,7 +195,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     id: 'arena',
     ctaHref: ROUTES.ARENA,
     tone: 'amber',
-    reverse: false,
+    reverse: true,
     // Prompt: four AI portraits in a 2x2 grid, one tagged with a glowing
     // "winner" ribbon and a small ELO scoreboard in the corner, 16:10.
     media: undefined as HomepageFeatureMedia | undefined,
@@ -204,7 +204,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     id: 'archive',
     ctaHref: ROUTES.GALLERY,
     tone: 'earth',
-    reverse: true,
+    reverse: false,
     // Prompt: a vast wall of generation thumbnails fading into the
     // distance, a timeline ribbon along the bottom, earthy palette,
     // 16:10.
@@ -214,7 +214,7 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     id: 'social',
     ctaHref: ROUTES.GALLERY,
     tone: 'sky',
-    reverse: false,
+    reverse: true,
     // Prompt: three artwork cards stacked at gentle angles with avatars,
     // like counts, and a "follow" badge, soft sky-blue background,
     // 16:10.

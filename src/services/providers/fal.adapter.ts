@@ -6,6 +6,7 @@ import {
   API_USAGE,
   AI_PROVIDER_ENDPOINTS,
   IMAGE_SIZES,
+  MAX_DURATION_CONFIGS,
   VIDEO_GENERATION,
 } from '@/constants/config'
 import { getExecutionModelId, getModelById } from '@/constants/models'
@@ -158,6 +159,14 @@ const FAL_IMAGE_SIZES: Record<string, string> = {
   '3:4': 'portrait_4_3',
 }
 
+const FAL_IMAGE_QUEUE_POLL_INTERVAL_MS = 2_000
+const FAL_IMAGE_QUEUE_SUBMIT_TIMEOUT_MS = 20_000
+const FAL_IMAGE_QUEUE_REQUEST_TIMEOUT_MS = 120_000
+const FAL_IMAGE_QUEUE_ROUTE_MARGIN_MS = 20_000
+const FAL_IMAGE_QUEUE_DEFAULT_TIMEOUT_MS = 210_000
+const FAL_IMAGE_QUEUE_MAX_TIMEOUT_MS =
+  MAX_DURATION_CONFIGS.generate * 1000 - FAL_IMAGE_QUEUE_ROUTE_MARGIN_MS
+
 function warnUnverifiedFalVideoBody(
   modelId: string,
   endpoint: string,
@@ -172,22 +181,230 @@ function warnUnverifiedFalVideoBody(
   })
 }
 
+function stringifyFalQueueError(value: unknown): string | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && value !== null) {
+    if ('message' in value && typeof value.message === 'string') {
+      return value.message
+    }
+    if ('msg' in value && typeof value.msg === 'string') {
+      return value.msg
+    }
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function isFalQueueFailureStatus(status: string): boolean {
+  const normalized = status.toUpperCase()
+  return (
+    normalized === 'FAILED' ||
+    normalized === 'ERROR' ||
+    normalized === 'CANCELED' ||
+    normalized === 'CANCELLED'
+  )
+}
+
+function getFalImageQueueTimeoutMs(modelId: string): number {
+  const modelTimeoutMs = getModelById(modelId)?.timeoutMs
+  const requestedTimeoutMs =
+    modelTimeoutMs && modelTimeoutMs > 0
+      ? modelTimeoutMs
+      : FAL_IMAGE_QUEUE_DEFAULT_TIMEOUT_MS
+
+  return Math.min(requestedTimeoutMs, FAL_IMAGE_QUEUE_MAX_TIMEOUT_MS)
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isAbortLikeError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const name =
+    'name' in error && typeof error.name === 'string' ? error.name : undefined
+  const message =
+    'message' in error && typeof error.message === 'string'
+      ? error.message.toLowerCase()
+      : undefined
+
+  return (
+    name === 'AbortError' ||
+    name === 'TimeoutError' ||
+    message?.includes('aborted due to timeout') === true
+  )
+}
+
+async function fetchFalQueue(
+  phase: 'submit' | 'status' | 'result',
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+  } catch (error) {
+    if (isAbortLikeError(error)) {
+      logger.warn('fal.ai queue request timed out', {
+        phase,
+        endpoint: String(input).split('?')[0],
+        timeoutMs,
+      })
+      throw new ProviderError(
+        'fal.ai',
+        504,
+        `fal.ai queue ${phase} request timed out after ${Math.round(timeoutMs / 1000)}s`,
+      )
+    }
+    throw error
+  }
+}
+
+async function submitFalImageQueue(params: {
+  endpoint: string
+  apiKey: string
+  body: Record<string, unknown>
+}): Promise<z.infer<typeof FAL_QUEUE_SUBMIT_SCHEMA>> {
+  logger.info('fal.ai image queue submit started', {
+    endpoint: params.endpoint,
+    timeoutMs: FAL_IMAGE_QUEUE_SUBMIT_TIMEOUT_MS,
+  })
+
+  const response = await fetchFalQueue(
+    'submit',
+    params.endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Key ${params.apiKey}`,
+        'Content-Type': 'application/json',
+        'x-fal-queue-priority': 'normal',
+      },
+      body: JSON.stringify(params.body),
+    },
+    FAL_IMAGE_QUEUE_SUBMIT_TIMEOUT_MS,
+  )
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError(
+      'fal.ai',
+      response.status,
+      formatFalError(response.status, errorBody),
+    )
+  }
+
+  const queue = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+  logger.info('fal.ai image queue submitted', {
+    requestId: queue.request_id,
+    statusUrl: queue.status_url,
+  })
+  return queue
+}
+
+async function pollFalImageQueue(params: {
+  statusUrl: string
+  responseUrl: string
+  apiKey: string
+  timeoutMs: number
+}): Promise<z.infer<typeof FAL_RESPONSE_SCHEMA>> {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < params.timeoutMs) {
+    const statusResponse = await fetchFalQueue(
+      'status',
+      `${params.statusUrl}?logs=1`,
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Key ${params.apiKey}`,
+        },
+      },
+      FAL_IMAGE_QUEUE_REQUEST_TIMEOUT_MS,
+    )
+
+    if (!statusResponse.ok) {
+      const errorBody = await statusResponse.text().catch(() => 'Unknown error')
+      throw new ProviderError(
+        'fal.ai',
+        statusResponse.status,
+        formatFalError(statusResponse.status, errorBody),
+      )
+    }
+
+    const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
+      await statusResponse.json(),
+    )
+
+    if (isFalQueueFailureStatus(statusData.status)) {
+      const errorMessage =
+        stringifyFalQueueError(statusData.error) ??
+        stringifyFalQueueError(statusData.detail) ??
+        `Queue request failed with status ${statusData.status}`
+      throw new ProviderError('fal.ai', 502, errorMessage)
+    }
+
+    if (statusData.status === 'COMPLETED') {
+      const resultResponse = await fetchFalQueue(
+        'result',
+        statusData.response_url ?? params.responseUrl,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Key ${params.apiKey}`,
+          },
+        },
+        FAL_IMAGE_QUEUE_REQUEST_TIMEOUT_MS,
+      )
+
+      if (!resultResponse.ok) {
+        const errorBody = await resultResponse
+          .text()
+          .catch(() => 'Unknown error')
+        throw new ProviderError(
+          'fal.ai',
+          resultResponse.status,
+          formatFalError(resultResponse.status, errorBody),
+        )
+      }
+
+      return FAL_RESPONSE_SCHEMA.parse(await resultResponse.json())
+    }
+
+    await wait(FAL_IMAGE_QUEUE_POLL_INTERVAL_MS)
+  }
+
+  throw new ProviderError(
+    'fal.ai',
+    504,
+    `Image generation timed out after ${Math.round(params.timeoutMs / 1000)}s`,
+  )
+}
+
 export const falAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.FAL,
   async generateImage({
     prompt,
     modelId,
     aspectRatio,
-    providerConfig,
     apiKey,
     referenceImage,
     referenceImages,
     advancedParams,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
-    const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.FAL
     const externalModelId = getExecutionModelId(modelId)
-    const endpoint = `${baseUrl}/${externalModelId}`
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
 
     const body: Record<string, unknown> = {
       prompt,
@@ -247,32 +464,13 @@ export const falAdapter: ProviderAdapter = {
       }
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Key ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120_000),
+    const queue = await submitFalImageQueue({ endpoint, apiKey, body })
+    const data = await pollFalImageQueue({
+      statusUrl: queue.status_url,
+      responseUrl: queue.response_url,
+      apiKey,
+      timeoutMs: getFalImageQueueTimeoutMs(modelId),
     })
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => 'Unknown error')
-      logger.error('fal.ai generateImage failed', {
-        status: response.status,
-        modelId,
-        endpoint,
-        errorBody: errorBody.slice(0, 500),
-      })
-      throw new ProviderError(
-        'fal.ai',
-        response.status,
-        formatFalError(response.status, errorBody),
-      )
-    }
-
-    const data = FAL_RESPONSE_SCHEMA.parse(await response.json())
     const imageItem = data.images[0]
 
     if (!imageItem) {

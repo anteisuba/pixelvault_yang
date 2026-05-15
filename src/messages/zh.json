@@ -193,70 +193,70 @@
     "hero": {
       "eyebrow": "22 个图像模型",
       "title": "文生图",
-      "subtitle": "22 个图像模型一站式接入 — Flux、Gemini、OpenAI、NovelAI、Recraft、Ideogram 一应俱全,不用为每家分别开账户。手动挑模型,或在 Arena 盲测让 ELO 替你定夺。"
+      "subtitle": "22 个图像模型一站式接入 — Flux、Gemini、OpenAI、NovelAI、Recraft、Ideogram 一应俱全，不用为每家分别开账户。手动挑模型，或在 Arena 盲测让 ELO 替你定夺。"
     },
     "badges": {
       "soon": "即将上线"
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "27 个模型 24 个支持",
+        "eyebrow": "27 个模型中 24 个支持",
         "title": "参考图编辑",
-        "description": "丢一张参考图,27 个模型里 24 个会用上它 — Gemini 最多吃 14 张参考,Flux Kontext Max 吃 4 张,其他多数吃 1 张。原生 i2i、img2img、director 三种模式,各家走各家的路。",
+        "description": "丢一张参考图，27 个模型里 24 个会用上它 — Gemini 最多吃 14 张参考，Flux Kontext Max 吃 4 张，其他多数吃 1 张。原生 i2i、img2img、director 三种模式，各家走各家的路。",
         "cta": "试试编辑"
       },
       "video": {
         "eyebrow": "14 个视频模型",
         "title": "视频生成",
-        "description": "Kling、LumaRay、Veo 3.1、Runway Gen3、Seedance — 14 个视频模型一站接入,大部分支持图生视频。多段拼接长视频,原生支持到 120 秒。",
+        "description": "Kling、LumaRay、Veo 3.1、Runway Gen3、Seedance — 14 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
         "cta": "生成视频"
       },
       "lora": {
         "eyebrow": "fal.ai + Replicate",
         "title": "LoRA 训练",
-        "description": "上传 ZIP,通过 fal.ai 或 Replicate 提交训练,我们追到落库为止。训完直接挂进 Flux Pro / Dev / Schnell / LoRA — 你的风格、你的角色、你说了算。",
+        "description": "上传 ZIP，通过 fal.ai 或 Replicate 提交训练，我们追到落库为止。训完直接挂进 Flux Pro / Dev / Schnell / LoRA — 你的风格、你的角色、你说了算。",
         "cta": "训练 LoRA"
       },
       "upscale": {
         "eyebrow": "fal.ai 4× 放大",
         "title": "图像增强 / 清理",
-        "description": "fal.ai 4× 放大、一键去背景、轻量图像变换 — 都在同一个工作台里,不用换工具。",
+        "description": "fal.ai 4× 放大、一键去背景、轻量图像变换 — 都在同一个工作台里，不用换工具。",
         "cta": "编辑图像"
       },
       "tts": {
         "eyebrow": "2 个 TTS 模型",
         "title": "文字转语音",
-        "description": "Fish Audio S2 Pro 和 FAL F5 TTS。选音色、调语速、设采样率,一键生成。音频和图像一起进同一个档案。",
+        "description": "Fish Audio S2 Pro 和 FAL F5 TTS。选音色、调语速、设采样率，一键生成。音频和图像一起进同一个档案。",
         "cta": "生成语音"
       },
       "model3d": {
         "eyebrow": "2 个图生 3D 模型",
         "title": "图生 3D 模型",
-        "description": "Hunyuan3D 2.1 和 TripoSR — 一个吃细节做 PBR 纹理,一个秒级出几何预览。从档案里挑一张图,生成可旋转的 GLB 模型,浏览器里直接拖动观看,扫码 AR 放进现实。3D 资产和图像视频音频一起归档。",
+        "description": "Hunyuan3D 2.1 和 TripoSR — 一个吃细节做 PBR 纹理，一个秒级出几何预览。从档案里挑一张图，生成可旋转的 GLB 模型，浏览器里直接拖动观看，扫码 AR 放进现实。3D 资产和图像视频音频一起归档。",
         "cta": "生成 3D"
       },
       "workflow": {
         "eyebrow": "开发中",
-        "title": "可视化工作流,一键部署",
-        "description": "节点编辑器无代码串联模型 — 图像生成接放大,接视频生成,带分支逻辑的批量任务也行。跑通之后一键部署,代码里像调普通 endpoint 一样调它。",
+        "title": "可视化工作流 · 一键部署",
+        "description": "节点编辑器无代码串联模型 — 图像生成接放大，接视频生成，带分支逻辑的批量任务也行。跑通之后一键部署，代码里像调普通 endpoint 一样调它。",
         "cta": "上线后通知我"
       },
       "arena": {
         "eyebrow": "盲测 ELO 排行",
         "title": "Arena 擂台",
-        "description": "四张结果并排盲测,K=32 的 ELO 算分。你只看图,不看模型,选谁是谁。每一票真的会改变排行。",
+        "description": "四张结果并排盲测，K=32 的 ELO 算分。你只看图，不看模型，选谁是谁。每一票真的会改变排行。",
         "cta": "进入 Arena"
       },
       "archive": {
         "eyebrow": "Cloudflare R2",
         "title": "永久归档",
-        "description": "每次生成都落到 Cloudflare R2,提示词、模型、供应商、seed 一起留底。AES-256-GCM 加密,S3 multipart 上传。不过期,不腐烂。",
+        "description": "每次生成都落到 Cloudflare R2，提示词、模型、供应商、seed 一起留底。AES-256-GCM 加密，S3 multipart 上传。不过期，不腐烂。",
         "cta": "浏览档案"
       },
       "social": {
         "eyebrow": "公共画廊",
         "title": "关注、点赞、收藏",
-        "description": "关注其他创作者,给共鸣的作品点赞,把喜欢的攒成合集。公共画廊是公开的,你的私人档案只属于你。",
+        "description": "关注其他创作者，给共鸣的作品点赞，把喜欢的攒成合集。公共画廊是公开的，你的私人档案只属于你。",
         "cta": "浏览画廊"
       }
     },
@@ -271,8 +271,8 @@
       "authSecondary": "返回首页"
     },
     "modelLineup": {
-      "title": "精选 AI 模型,即开即用",
-      "description": "38 个模型,覆盖 OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine。每一家我们都接好、测过、维护着 — 你自带 API key,按需切换,每次生成都进档案。",
+      "title": "精选 AI 模型，即开即用",
+      "description": "38 个模型，覆盖 OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
       "groups": {
         "image": "图像模型",
         "video": "视频模型",
@@ -445,6 +445,8 @@
     "stageGenerating": "生成中",
     "stageUploading": "上传中",
     "elapsed": "已等待 {seconds}",
+    "prep3DLabel": "3D 适配预处理",
+    "prep3DHint": "对小图自动超分，对非正方形自动白底补齐。推荐开启。",
     "texturedMeshLabel": "PBR 纹理（3 倍价格）",
     "texturedMeshHint": "Hunyuan3D 专用 — 生成带 PBR 纹理的 mesh",
     "octreeResolutionLabel": "几何精度",
@@ -458,6 +460,9 @@
     "viewerLoading": "加载 3D 模型中...",
     "viewerError": "无法加载 3D 模型。",
     "downloadGlb": "下载 GLB",
+    "refineLabel": "用 Hunyuan3D 精修",
+    "refineHint": "用同一张源图过一遍 Hunyuan3D，得到更高保真度的几何和 PBR 贴图。",
+    "refineCreditSuffix": "{credits} 积分",
     "openInAR": "查看 AR",
     "uploadButton": "上传图片",
     "uploading": "上传中...",
@@ -466,9 +471,25 @@
     "errorFileTooLarge": "文件太大,最大 {maxMb} MB。",
     "apiKeyMissingTitle": "尚未配置 fal.ai API Key",
     "apiKeyMissingDescription": "Hunyuan3D 2.1 和 TripoSR 都通过 fal.ai 运行,需要先添加一个有效的 fal Key 才能生成 3D。",
+    "apiKeyDropdownLabel": "API 路由",
+    "apiKeyDropdownPlaceholder": "选择 fal Key",
     "openExistingModel": "打开已有 3D",
     "openExistingModelTitle": "选择已有 3D 模型",
-    "openExistingModelDescription": "从素材库里选一个之前生成的 3D 模型来查看。"
+    "openExistingModelDescription": "从素材库里选一个之前生成的 3D 模型来查看。",
+    "multiViewLabel": "多视图",
+    "multiViewButton": "生成 4 个视图",
+    "multiViewLoading": "正在渲染视图...",
+    "multiViewHint": "渲染同一主体的背面/左侧/右侧。消耗 3 次图像 credit。",
+    "multiViewPickHint": "挑选最干净的视图作为 3D 输入。",
+    "viewFront": "正面",
+    "viewBack": "背面",
+    "viewLeft": "左侧",
+    "viewRight": "右侧"
+  },
+  "MultiViewGenerate": {
+    "success": "已生成 4 个视图。",
+    "partialSuccess": "仅成功 {count} 个视图 — 仍可从中挑选。",
+    "failed": "多视图生成失败。"
   },
   "LongVideo": {
     "toggle": "长视频",
@@ -1884,6 +1905,7 @@
     "generate": "生成",
     "generating": "生成中...",
     "generateSuccess": "图片已生成！",
+    "feed3DStudio": "→ 投喂 3D Studio",
     "generateFailed": "生成失败",
     "variantGenerate": "生成变体",
     "variantGenerating": "正在生成 {count} 个变体...",

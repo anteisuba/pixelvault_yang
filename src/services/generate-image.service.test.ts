@@ -144,6 +144,7 @@ function setupHappyPath() {
   // Restore getModelById to real implementation (previous test may have overridden it)
   vi.mocked(getModelById).mockImplementation(modelsMock.realGetModelById!)
   vi.mocked(ensureUser).mockResolvedValue(FAKE_USER as never)
+  vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
   vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
   vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
   vi.mocked(validatePrompt).mockReturnValue({ valid: true } as never)
@@ -452,6 +453,60 @@ describe('generateImageForUser', () => {
     )
 
     // ensureUser is called only once (no recursive fallback call)
+    expect(ensureUser).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fallback for auto-routed user key failures', async () => {
+    vi.mocked(getModelById).mockImplementation(modelsMock.realGetModelById!)
+    vi.mocked(findActiveKeyForAdapter).mockImplementation(
+      async (_userId, adapterType) =>
+        adapterType === AI_ADAPTER_TYPES.GEMINI
+          ? ({
+              id: 'auto-gemini-key',
+              adapterType: AI_ADAPTER_TYPES.GEMINI,
+              providerConfig: {
+                label: 'Gemini',
+                baseUrl: 'https://gemini.api',
+              },
+              keyValue: 'auto-gemini-key-value',
+              modelId: 'gemini-3.1-flash-image-preview',
+            } as never)
+          : null,
+    )
+    vi.mocked(getSystemApiKey).mockReturnValue('platform-openai-key')
+
+    const geminiGenerate = vi
+      .fn()
+      .mockRejectedValue(
+        new ProviderError('Gemini', 504, 'Gemini generateImage timed out'),
+      )
+    const openaiGenerate = vi.fn().mockResolvedValue({
+      imageUrl: 'https://provider.com/fallback.png',
+      width: 1024,
+      height: 1024,
+      requestCount: 1,
+    })
+
+    vi.mocked(getProviderAdapter).mockImplementation((adapterType) => {
+      if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
+        return {
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+          generateImage: geminiGenerate,
+        } as never
+      }
+
+      return {
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        generateImage: openaiGenerate,
+      } as never
+    })
+
+    await expect(generateImageForUser('clerk-1', BASE_INPUT)).rejects.toThrow(
+      GenerateImageServiceError,
+    )
+
+    expect(geminiGenerate).toHaveBeenCalledTimes(1)
+    expect(openaiGenerate).not.toHaveBeenCalled()
     expect(ensureUser).toHaveBeenCalledTimes(1)
   })
 

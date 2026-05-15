@@ -179,6 +179,15 @@ export async function resolveGenerationRoute(
       autoKey.modelId.startsWith('ep-')
         ? autoKey.modelId
         : modelId
+
+    logger.info('[resolveGenerationRoute] Auto route resolution', {
+      apiKeyId: autoKey.id,
+      keyAdapterType: autoKey.adapterType,
+      keyModelId: autoKey.modelId,
+      requestedModelId: modelId,
+      effectiveModelId,
+    })
+
     return {
       modelId: effectiveModelId,
       adapterType: autoKey.adapterType,
@@ -213,6 +222,14 @@ export async function resolveGenerationRoute(
         503,
       )
     }
+
+    logger.info(
+      '[resolveGenerationRoute] Platform free-tier route resolution',
+      {
+        adapterType: builtInModel.adapterType,
+        requestedModelId: modelId,
+      },
+    )
 
     return {
       modelId,
@@ -304,11 +321,12 @@ async function callProviderWithFallback(params: {
           // ("UNAVAILABLE" / "high demand") the upstream provider is
           // explicitly telling us the spike is minutes long — a 1.5s
           // wait won't clear it and just doubles the user's wait
-          // before the eventual failure. Retry 500/502/504 + network
-          // errors as before; let 503 fail fast so the user can swap
-          // models within seconds instead of minutes.
+          // before the eventual failure. Provider-side 504 timeouts also
+          // often mean a job was already accepted upstream, so retrying can
+          // duplicate cost and still exceed the route deadline.
           isRetryable: (error: unknown) => {
             const status = (error as { status?: number })?.status
+            if (error instanceof ProviderError && status === 504) return false
             if (status === 503) return false
             if (typeof status === 'number') {
               return status >= 500 || status === 429
@@ -333,6 +351,7 @@ async function callProviderWithFallback(params: {
     logger.info('Image generated successfully', {
       adapter: route.adapterType,
       modelId: route.modelId,
+      generationJobId,
       durationMs: Date.now() - startedAt,
     })
 
@@ -361,7 +380,9 @@ async function callProviderWithFallback(params: {
       throw error
     }
 
-    // Attempt provider fallback (only for free-tier / platform-key generation)
+    // Attempt provider fallback only for platform-key/free-tier generation.
+    // User-owned keys, including auto-selected keys, must stay on the selected
+    // provider so we do not silently spend a different provider account.
     const isTransient =
       (error instanceof ProviderError && error.status >= 500) ||
       (error instanceof Error &&
@@ -373,6 +394,8 @@ async function callProviderWithFallback(params: {
         logger.warn('Primary provider failed, attempting fallback', {
           failedModel: route.modelId,
           fallbackModel: fallbackModelId,
+          generationJobId,
+          routeKind: 'free-tier',
           error: message,
         })
         try {
@@ -626,6 +649,13 @@ export async function generateImageForUser(
     adapterType: route.adapterType,
     provider,
     modelId: route.modelId,
+  })
+
+  logger.info('Image generation provider call started', {
+    adapter: route.adapterType,
+    modelId: route.modelId,
+    generationJobId: job.id,
+    routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
 
   const result = await callProviderWithFallback({

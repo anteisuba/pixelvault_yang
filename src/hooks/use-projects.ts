@@ -153,7 +153,11 @@ export function useProjects(): UseProjectsReturn {
     if (reqId !== loadHistoryReqIdRef.current) return
     if (response.success && response.data) {
       setHistory(response.data.generations)
-      setHistoryTotal(response.data.total)
+      setHistoryTotal(
+        pid === 'unassigned'
+          ? response.data.generations.length + (response.data.hasMore ? 1 : 0)
+          : response.data.total,
+      )
       setHistoryHasMore(response.data.hasMore)
     }
     setIsLoadingHistory(false)
@@ -174,7 +178,13 @@ export function useProjects(): UseProjectsReturn {
     if (reqId !== loadHistoryReqIdRef.current) return
     if (response.success && response.data) {
       setHistory((prev) => [...prev, ...response.data!.generations])
-      setHistoryTotal(response.data.total)
+      setHistoryTotal(
+        pid === 'unassigned'
+          ? history.length +
+              response.data.generations.length +
+              (response.data.hasMore ? 1 : 0)
+          : response.data.total,
+      )
       setHistoryHasMore(response.data.hasMore)
     }
   }, [

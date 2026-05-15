@@ -4,11 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Box,
+  Check,
   Download,
   FolderOpen,
   ImageIcon,
+  Loader2,
   Sparkles,
   Upload,
+  Wand2,
   X,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -35,6 +38,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useGenerate3D } from '@/hooks/use-generate-3d'
+import { useGenerateMultiView } from '@/hooks/use-generate-multiview'
 import {
   fetchGenerationByIdAPI,
   uploadGenerationPosterAPI,
@@ -55,11 +59,22 @@ const OCTREE_OPTIONS: Array<{ value: 256 | 512 | 1024; label: string }> = [
   { value: 1024, label: '1024 (high)' },
 ]
 
-export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
+export function Studio3DWorkspace({
+  initialGenerations,
+  initialTotal,
+  initialHasMore,
+}: Studio3DWorkspaceProps) {
   const t = useTranslations('Model3DGenerate')
   const tModels = useTranslations('Models')
   const tChip = useTranslations('ImageChip')
   const models = useMemo(() => getAvailableModel3DModels(), [])
+  // P6: surface Hunyuan's credit cost on the Refine button so the user knows
+  // what they're about to spend. Pulled from the registry instead of being
+  // hardcoded so the price stays in sync with `model-3d.ts`.
+  const hunyuanCost = useMemo(
+    () => models.find((m) => m.id === AI_MODELS.HUNYUAN3D_2_1)?.cost,
+    [models],
+  )
 
   const [sourceImage, setSourceImage] = useState<GenerationRecord | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -76,14 +91,34 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
     512,
   )
   const [removeBackground, setRemoveBackground] = useState(true)
+  // 3D-friendly source preprocessing: upscale small images + white-pad
+  // non-square aspects. Defaults on — flip off only for raw-input debugging.
+  const [prep3D, setPrep3D] = useState(true)
   // ?gen=<id> deeplink — when present, fetch the existing MODEL_3D row and
   // render it in the canvas without triggering a new generation. Used by
   // the asset library's "open in 3D Studio" affordance.
+  // ?source=<id> deeplink — Image Studio's "→ 3D Studio" jump after a
+  // 3D-Ready image generation; the row is an IMAGE (not a MODEL_3D), so we
+  // load it as the source image and let the user click Generate.
   const searchParams = useSearchParams()
   const deeplinkGenId = searchParams.get('gen')
+  const deeplinkSourceId = searchParams.get('source')
   const [hydratedGeneration, setHydratedGeneration] =
     useState<GenerationRecord | null>(null)
   const hydratedForRef = useRef<string | null>(null)
+  const sourceHydratedForRef = useRef<string | null>(null)
+
+  // Multi-view picker — once the user has a front-view source image we
+  // generate three alternate angles via reference-edit so the user can pick
+  // the cleanest one for 3D. Hunyuan v2 still takes a single image; this
+  // just gives the user 4 to choose from. When we upgrade to multi-view-
+  // aware 3D, this same payload feeds straight in.
+  const {
+    isGenerating: isGeneratingViews,
+    views: generatedViews,
+    generate: generateMultiViewFn,
+    reset: resetMultiView,
+  } = useGenerateMultiView()
 
   const {
     isGenerating,
@@ -113,6 +148,26 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
     })()
   }, [deeplinkGenId])
 
+  // Source-image deeplink (?source=<imageGenId>) — fetched and dropped into
+  // the picker slot so the user lands here with their freshly-generated
+  // 3D-ready image already selected. Skipped silently when the row isn't
+  // an IMAGE so a bad/stale id doesn't crash the canvas.
+  useEffect(() => {
+    if (!deeplinkSourceId) return
+    if (sourceHydratedForRef.current === deeplinkSourceId) return
+    sourceHydratedForRef.current = deeplinkSourceId
+    void (async () => {
+      const response = await fetchGenerationByIdAPI(deeplinkSourceId)
+      if (
+        response.success &&
+        response.data &&
+        response.data.outputType === 'IMAGE'
+      ) {
+        setSourceImage(response.data)
+      }
+    })()
+  }, [deeplinkSourceId])
+
   // The canvas displays the most recently produced 3D — either the
   // freshly generated one from this session, or the deeplinked one.
   // Live generation always wins so a user can deeplink + then click
@@ -120,41 +175,121 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
   const displayGeneration = generatedGeneration ?? hydratedGeneration
 
   // API key gating — surface fal key state up-front so users without a key
-  // don't get a confusing 400 at generate time. We check for ANY active
-  // fal key (resolveGenerationRoute auto-picks one).
+  // don't get a confusing 400 at generate time. The selector below lets the
+  // user pick *which* fal key powers the run when they have more than one.
   const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
-  const hasFalKey = useMemo(
+  const falActiveKeys = useMemo(
     () =>
-      keys.some((k) => k.adapterType === AI_ADAPTER_TYPES.FAL && k.isActive),
+      keys.filter((k) => k.adapterType === AI_ADAPTER_TYPES.FAL && k.isActive),
     [keys],
   )
+  const hasFalKey = falActiveKeys.length > 0
+  const [selectedApiKeyId, setSelectedApiKeyId] = useState<string>('')
+
+  // Auto-select the first fal key once they load; also recover when the
+  // currently-selected key is deleted/deactivated externally.
+  useEffect(() => {
+    if (falActiveKeys.length === 0) {
+      if (selectedApiKeyId) setSelectedApiKeyId('')
+      return
+    }
+    const stillValid = falActiveKeys.some((k) => k.id === selectedApiKeyId)
+    if (!stillValid) {
+      setSelectedApiKeyId(falActiveKeys[0].id)
+    }
+  }, [falActiveKeys, selectedApiKeyId])
 
   const isHunyuan = selectedModelId === AI_MODELS.HUNYUAN3D_2_1
   const isTriposr = selectedModelId === AI_MODELS.TRIPOSR
 
   const canGenerate = !!sourceImage && !isGenerating && hasFalKey
 
-  const handleGenerate = async () => {
-    if (!sourceImage) return
+  // Core submission — split out so `handleGenerate` and `handleRefineWithHunyuan`
+  // (P6: TripoSR base → Hunyuan3D refine) can share the param-assembly logic.
+  // Each call honours the target model's capabilities: Hunyuan adds texture +
+  // octree, TripoSR adds removeBackground.
+  const submitGenerate = async (override?: {
+    modelId?: string
+    sourceUrl?: string
+    sourceGenerationId?: string | null
+    sourcePrompt?: string
+  }) => {
+    const targetModelId = override?.modelId ?? selectedModelId
+    const targetSourceUrl = override?.sourceUrl ?? sourceImage?.url
+    if (!targetSourceUrl) return
+
+    const targetSourceGenId =
+      override?.sourceGenerationId !== undefined
+        ? (override.sourceGenerationId ?? undefined)
+        : sourceImage?.id
+    const targetPrompt = override?.sourcePrompt ?? sourceImage?.prompt
+    const targetIsHunyuan = targetModelId === AI_MODELS.HUNYUAN3D_2_1
+    const targetIsTriposr = targetModelId === AI_MODELS.TRIPOSR
+
     const params: Generate3DRequest = {
-      imageUrl: sourceImage.url,
-      modelId: selectedModelId,
-      sourceGenerationId: sourceImage.id,
-      prompt: sourceImage.prompt,
-      ...(isHunyuan && {
+      imageUrl: targetSourceUrl,
+      modelId: targetModelId,
+      ...(targetSourceGenId && { sourceGenerationId: targetSourceGenId }),
+      ...(targetPrompt && { prompt: targetPrompt }),
+      prep3D,
+      ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
+      ...(targetIsHunyuan && {
         texturedMesh,
         octreeResolution,
       }),
-      ...(isTriposr && {
+      ...(targetIsTriposr && {
         removeBackground,
       }),
     }
     await generate(params)
   }
 
+  const handleGenerate = () => submitGenerate()
+
+  // P6: TripoSR (cheap base) → Hunyuan3D (premium refine).
+  // Only surfaces when the currently-displayed mesh came from TripoSR, and
+  // we still know which source image produced it (either in this session via
+  // `sourceImage`, or via the hydrated row's `referenceImageUrl`).
+  const refineSourceUrl =
+    sourceImage?.url ?? displayGeneration?.referenceImageUrl ?? null
+  const canRefine =
+    !!displayGeneration &&
+    displayGeneration.model === AI_MODELS.TRIPOSR &&
+    !!refineSourceUrl &&
+    !isGenerating &&
+    hasFalKey
+
+  const handleRefineWithHunyuan = async () => {
+    if (!canRefine || !refineSourceUrl) return
+    await submitGenerate({
+      modelId: AI_MODELS.HUNYUAN3D_2_1,
+      sourceUrl: refineSourceUrl,
+      sourceGenerationId: sourceImage?.id ?? null,
+      sourcePrompt: sourceImage?.prompt ?? displayGeneration?.prompt,
+    })
+  }
+
   const handleClearSource = () => {
     setSourceImage(null)
+    resetMultiView()
     reset()
+  }
+
+  // Fan out 3 reference-edit calls to render back / left / right angles
+  // of the current source. Resulting GenerationRecords get stored in the
+  // user's library (so they're not throwaway). The user clicks one to
+  // swap it in as the new source for 3D.
+  const handleGenerate4Views = async () => {
+    if (!sourceImage || isGeneratingViews) return
+    await generateMultiViewFn({
+      imageUrl: sourceImage.url,
+      sourceGenerationId: sourceImage.id,
+    })
+  }
+
+  const handleSelectView = (view: GenerationRecord) => {
+    setSourceImage(view)
+    // Don't reset generatedViews — let the user toggle between angles.
   }
 
   const handleUploadClick = () => {
@@ -271,6 +406,29 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
                     {t('downloadGlb')}
                   </a>
                 </Button>
+                {/*
+                 * Refine entry — only visible when the current mesh is a
+                 * TripoSR base. Triggers a second pass through Hunyuan3D
+                 * using the same source image, so the user can preview cheap
+                 * first and only pay for high-fidelity when they like the
+                 * result.
+                 */}
+                {canRefine && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleRefineWithHunyuan}
+                    title={t('refineHint')}
+                  >
+                    <Sparkles className="mr-1.5 size-3.5" />
+                    {t('refineLabel')}
+                    {hunyuanCost && (
+                      <span className="ml-1.5 text-xs opacity-70">
+                        · {t('refineCreditSuffix', { credits: hunyuanCost })}
+                      </span>
+                    )}
+                  </Button>
+                )}
               </div>
             </>
           ) : sourceImage ? (
@@ -329,10 +487,11 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
         {/* Right panel — image picker + model + params + generate */}
         <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
           {/*
-           * API key entry — always-visible trigger so users can manage / swap
-           * keys at any time, not only when missing. The warning banner only
-           * renders when no active fal key is present (Hunyuan3D / TripoSR
-           * both run through fal, so generation would 400 without one).
+           * fal key gate. Only visible when no active fal key is present —
+           * Hunyuan3D / TripoSR both run through fal, so generation would
+           * 400 without one. The "Add API key" entry lives inside the
+           * banner so it disappears once the user has set one up; routine
+           * model selection happens through the dropdown below.
            */}
           {!isLoadingKeys && !hasFalKey && (
             <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
@@ -343,16 +502,64 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
               <p className="font-serif text-xs leading-5 text-muted-foreground">
                 {t('apiKeyMissingDescription')}
               </p>
+              <ApiKeyDrawerTrigger className="self-start">
+                <ApiKeyManager />
+              </ApiKeyDrawerTrigger>
             </div>
           )}
+
           {/*
-           * ApiKeyDrawerTrigger is its own button (KeyRound + count badge)
-           * and opens the drawer that hosts ApiKeyManager. Rendering it
-           * unconditionally gives the user a permanent entry point.
+           * fal key selector — visible whenever the user has at least one
+           * active fal key. With multiple keys it's a real picker; with one
+           * it stays as a confirmation badge so the user always sees which
+           * route is about to be charged.
            */}
-          <ApiKeyDrawerTrigger className="self-start">
-            <ApiKeyManager />
-          </ApiKeyDrawerTrigger>
+          {hasFalKey && (
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('apiKeyDropdownLabel')}
+              </Label>
+              <Select
+                value={selectedApiKeyId}
+                onValueChange={setSelectedApiKeyId}
+              >
+                {/*
+                 * Trigger is hand-rendered (no <SelectValue>) so we can
+                 * surface only the label and keep the masked key hidden by
+                 * default — masked digits are technically already redacted
+                 * but visually look like a real key to a shoulder-surfer.
+                 * The dropdown content still shows masked so users with
+                 * multiple keys can disambiguate.
+                 */}
+                <SelectTrigger className="w-full">
+                  {(() => {
+                    const selectedKey = falActiveKeys.find(
+                      (k) => k.id === selectedApiKeyId,
+                    )
+                    return selectedKey ? (
+                      <span className="font-medium">{selectedKey.label}</span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {t('apiKeyDropdownPlaceholder')}
+                      </span>
+                    )
+                  })()}
+                </SelectTrigger>
+                <SelectContent>
+                  {falActiveKeys.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">{k.label}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {k.maskedKey}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Compact image picker — mirrors Image Studio bottom-toolbar chip pattern */}
           <div className="flex flex-col gap-2">
@@ -416,6 +623,103 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
             />
           </div>
 
+          {/*
+           * Method B — once we have a front view, offer to render 3 more
+           * angles via reference-edit so the user can pick the cleanest
+           * one for image-to-3D. Each generated view becomes its own
+           * library row, so picking is just `setSourceImage(view)`.
+           */}
+          {sourceImage && (
+            <div className="flex flex-col gap-2">
+              <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+                <Wand2 className="size-3" />
+                {t('multiViewLabel')}
+              </Label>
+              {generatedViews.length === 0 ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerate4Views}
+                    disabled={isGeneratingViews}
+                    className="w-full rounded-full"
+                  >
+                    {isGeneratingViews ? (
+                      <>
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        {t('multiViewLoading')}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 size-3.5" />
+                        {t('multiViewButton')}
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    {t('multiViewHint')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { gen: sourceImage, label: t('viewFront') },
+                      ...generatedViews.map((g, i) => ({
+                        gen: g,
+                        // Service returns views in stable order: back, left, right.
+                        label:
+                          i === 0
+                            ? t('viewBack')
+                            : i === 1
+                              ? t('viewLeft')
+                              : t('viewRight'),
+                      })),
+                    ].map(({ gen, label }) => {
+                      const selected = gen.id === sourceImage.id
+                      return (
+                        <button
+                          key={gen.id}
+                          type="button"
+                          onClick={() => handleSelectView(gen)}
+                          className={cn(
+                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-all',
+                            selected
+                              ? 'ring-2 ring-primary'
+                              : 'ring-border/40 hover:ring-border',
+                          )}
+                          aria-label={label}
+                          aria-pressed={selected}
+                        >
+                          <Image
+                            src={gen.url}
+                            alt={label}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="80px"
+                          />
+                          {selected && (
+                            <div className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check className="size-2.5" />
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
+                            {label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    {t('multiViewPickHint')}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               {t('modelLabel')}
@@ -441,6 +745,23 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
                 })}
               </SelectContent>
             </Select>
+          </div>
+
+          {/*
+           * Source preprocessing toggle — applies to both Hunyuan and TripoSR
+           * since both benefit from a ≥1024px square source. Default ON;
+           * off is essentially "send raw" for debugging.
+           */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col gap-0.5">
+              <Label htmlFor="prep-3d" className="text-sm font-medium">
+                {t('prep3DLabel')}
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                {t('prep3DHint')}
+              </span>
+            </div>
+            <Switch id="prep-3d" checked={prep3D} onCheckedChange={setPrep3D} />
           </div>
 
           {isHunyuan && (
@@ -525,6 +846,9 @@ export function Studio3DWorkspace(_props: Studio3DWorkspaceProps) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={(gen) => setSourceImage(gen)}
+        initialGenerations={initialGenerations}
+        initialTotal={initialTotal}
+        initialHasMore={initialHasMore}
         title={t('sourceImageLabel')}
         description={t('sourceImagePlaceholder')}
         mediaType="image"

@@ -3,11 +3,17 @@ import { renderHook, act } from '@testing-library/react'
 
 import { AUDIO_GENERATION } from '@/constants/config'
 import { FAKE_GENERATION } from '@/test/api-helpers'
+import type { GenerationRecord } from '@/types'
 
 // ─── Mock dependencies ───────────────────────────────────────────
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
 vi.mock('sonner', () => ({
@@ -107,6 +113,42 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.error).toBeNull()
     expect(mockStudioGenerate).toHaveBeenCalledWith(IMAGE_INPUT)
     expect(toast.success).toHaveBeenCalled()
+  })
+
+  it('dedupes concurrent single image generate calls', async () => {
+    let resolveGeneration!: (value: typeof SUCCESS_RESPONSE) => void
+    mockStudioGenerate.mockReturnValue(
+      new Promise((resolve) => {
+        resolveGeneration = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useUnifiedGenerate())
+
+    let first!: Promise<GenerationRecord | null>
+    let second!: Promise<GenerationRecord | null>
+
+    await act(async () => {
+      first = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      second = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveGeneration(SUCCESS_RESPONSE)
+      await expect(first).resolves.toEqual(
+        expect.objectContaining({ id: FAKE_GENERATION.id }),
+      )
+      await expect(second).resolves.toBeNull()
+    })
   })
 
   it('sets error state when image generation fails', async () => {

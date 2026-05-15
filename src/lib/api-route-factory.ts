@@ -187,6 +187,8 @@ function handleRouteError(
     logger.warn(`${routeName} legacy service error`, {
       code: error.code,
       status: error.status,
+      error: error.message,
+      durationMs: Date.now() - startedAt,
     })
     return NextResponse.json<ErrorResponse>(
       {

@@ -8,6 +8,13 @@ export const API_USAGE = {
   SUMMARY_LOOKBACK_DAYS: 30,
 } as const
 
+/** Database pool defaults for Prisma v7 driver adapters */
+export const DATABASE_POOL = {
+  MAX_CONNECTIONS: 3,
+  CONNECTION_TIMEOUT_MS: 15_000,
+  IDLE_TIMEOUT_MS: 300_000,
+} as const
+
 /** Supported image size configurations */
 export const IMAGE_SIZES = {
   '1:1': { width: 1024, height: 1024, label: '1:1 (Square)' },
@@ -92,6 +99,9 @@ export const API_ENDPOINTS = {
   /** 3D generation (image-to-3D) */
   GENERATE_3D: '/api/generate-3d',
   GENERATE_3D_STATUS: '/api/generate-3d/status',
+
+  /** Multi-view generation (reference-edit chain for 3D inputs) */
+  GENERATE_MULTIVIEW: '/api/generate-multiview',
 
   /** Upload a local image as a Generation row (user-upload provider) */
   UPLOAD_IMAGE: '/api/upload-image',

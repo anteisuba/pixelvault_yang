@@ -1,23 +1,21 @@
-import { neonConfig } from '@neondatabase/serverless'
-import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+import { DATABASE_POOL } from '@/constants/config'
 import { PrismaClient } from '@/lib/generated/prisma/client'
 import { normalizeDatabaseConnectionString } from '@/lib/database-utils'
-
-// Node.js needs a WebSocket polyfill; edge/browser runtimes have it natively
-if (typeof WebSocket === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  neonConfig.webSocketConstructor = require('ws')
-}
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient
 }
 
 function createPrismaClient() {
-  const adapter = new PrismaNeon({
+  const adapter = new PrismaPg({
     connectionString: normalizeDatabaseConnectionString(
       process.env.DATABASE_URL!,
     ),
+    max: DATABASE_POOL.MAX_CONNECTIONS,
+    connectionTimeoutMillis: DATABASE_POOL.CONNECTION_TIMEOUT_MS,
+    idleTimeoutMillis: DATABASE_POOL.IDLE_TIMEOUT_MS,
   })
   return new PrismaClient({ adapter })
 }

@@ -494,6 +494,12 @@ export const Generate3DRequestSchema = z.object({
   projectId: z.string().trim().min(1).optional(),
   /** Prompt note saved with the generation (the source image's prompt is the real driver) */
   prompt: z.string().trim().max(1000).optional(),
+  /**
+   * Auto-prepare the source image before handing it to the 3D model:
+   * upscale small images to ≥1024px, white-pad non-square aspect to 1:1.
+   * Defaults to true. Set false to send the user's raw image straight in.
+   */
+  prep3D: z.boolean().optional(),
 })
 
 export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
@@ -501,6 +507,51 @@ export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
 export const Model3DStatusRequestSchema = AudioStatusRequestSchema
 export type Model3DSubmitResponseData = AsyncJobSubmitResponseData
 export type Model3DStatusResponseData = AudioStatusResponseData
+
+// ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
+
+/**
+ * Generate alternate camera angles of a source image, so the user can pick
+ * the best-looking view to feed into image-to-3D. The downstream 3D model
+ * (currently Hunyuan3D v2 single-view) still receives one image — this
+ * step just gives the user 4 to choose from instead of 1.
+ *
+ * When we upgrade to Hunyuan v3.1 Pro multi-view, the same payload can
+ * feed straight in.
+ */
+export const MultiViewGenerateRequestSchema = z.object({
+  /** Public URL of the front-view source image (reference) */
+  imageUrl: z.string().trim().url('Source image URL is required'),
+  /** Source image generation ID (for lineage tracking) */
+  sourceGenerationId: z.string().trim().min(1).optional(),
+  /** Reference-aware image model. Defaults to gemini-2.5-flash-image. */
+  modelId: z.string().trim().min(1).max(160).optional(),
+  /** Saved API key ID (BYOK) */
+  apiKeyId: z.string().trim().min(1).optional(),
+  /** Project ID for grouping the resulting view rows */
+  projectId: z.string().trim().min(1).optional(),
+})
+
+export type MultiViewGenerateRequest = z.infer<
+  typeof MultiViewGenerateRequestSchema
+>
+
+export interface MultiViewGenerateResponseData {
+  /**
+   * The three newly generated views, in stable order [back, left, right].
+   * Each is a fully persisted Generation row in the user's library.
+   * The original front view is not included — the caller already has it.
+   */
+  views: GenerationRecord[]
+}
+
+export interface MultiViewGenerateResponse {
+  success: boolean
+  data?: MultiViewGenerateResponseData
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}
 
 export interface Model3DSubmitResponse {
   success: boolean

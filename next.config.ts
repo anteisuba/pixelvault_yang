@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
     root: PROJECT_ROOT,
   },
   images: {
+    // AI outputs are already served from R2/CDN/provider media hosts. Routing
+    // them through `/_next/image` makes the Next server re-fetch large remote
+    // files and can turn a slow CDN probe into a 500 during Studio browsing.
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
     deviceSizes: [640, 828, 1080, 1200, 1920],

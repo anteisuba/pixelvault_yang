@@ -21,10 +21,25 @@ const BASE_INPUT = {
 }
 
 describe('falAdapter.generateImage', () => {
-  it('returns an image URL from a successful direct response', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
+  it('returns an image URL from a successful queue response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            request_id: 'req-image-abc',
+            status_url: 'https://queue.fal.run/status/req-image-abc',
+            response_url: 'https://queue.fal.run/result/req-image-abc',
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: 'COMPLETED' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             images: [
@@ -37,12 +52,19 @@ describe('falAdapter.generateImage', () => {
           }),
           { status: 200 },
         ),
-      ),
-    )
+      )
+    vi.stubGlobal('fetch', fetchMock)
 
     const result = await falAdapter.generateImage(BASE_INPUT)
 
     expect(result.imageUrl).toBe('https://fal.run/output/img.png')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toBe(
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/flux-2-pro`,
+    )
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.prompt).toBe(BASE_INPUT.prompt)
   })
 
   it('throws ProviderError with content_policy_violation message on policy error', async () => {
@@ -62,6 +84,24 @@ describe('falAdapter.generateImage', () => {
 
     await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
       '内容审核',
+    )
+  })
+
+  it('surfaces queue phase when a request times out', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockRejectedValue(
+          new DOMException(
+            'The operation was aborted due to timeout',
+            'TimeoutError',
+          ),
+        ),
+    )
+
+    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
+      'queue submit request timed out',
     )
   })
 })

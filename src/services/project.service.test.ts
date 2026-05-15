@@ -12,6 +12,8 @@ const mockProjectUpdate = vi.fn()
 const mockProjectCount = vi.fn()
 const mockTransaction = vi.fn()
 const mockGenUpdateMany = vi.fn()
+const mockGenFindMany = vi.fn()
+const mockGenCount = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -23,6 +25,8 @@ vi.mock('@/lib/db', () => ({
     },
     generation: {
       updateMany: (...a: unknown[]) => mockGenUpdateMany(...a),
+      findMany: (...a: unknown[]) => mockGenFindMany(...a),
+      count: (...a: unknown[]) => mockGenCount(...a),
     },
     $transaction: (...a: unknown[]) => mockTransaction(...a),
   },
@@ -32,6 +36,7 @@ import {
   listProjects,
   createProject,
   deleteProject,
+  getProjectHistory,
 } from '@/services/project.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
@@ -43,6 +48,27 @@ const FAKE_PROJECT_ROW = {
   updatedAt: new Date(),
   _count: { generations: 3 },
   generations: [{ url: 'https://example.com/thumb.png' }],
+}
+const FAKE_GENERATION_ROW = {
+  id: 'gen_1',
+  createdAt: new Date(),
+  outputType: 'IMAGE',
+  status: 'COMPLETED',
+  url: 'https://example.com/gen.png',
+  storageKey: 'generations/u1/image/gen.png',
+  mimeType: 'image/png',
+  width: 1024,
+  height: 1024,
+  duration: null,
+  referenceImageUrl: null,
+  prompt: 'A red circle',
+  negativePrompt: null,
+  model: 'seedream-4.5',
+  provider: 'fal.ai',
+  requestCount: 2,
+  isPublic: false,
+  isPromptPublic: false,
+  userId: FAKE_USER.id,
 }
 
 describe('listProjects', () => {
@@ -93,5 +119,34 @@ describe('deleteProject', () => {
     mockTransaction.mockResolvedValue([{}, {}])
     await deleteProject('clerk_1', 'proj_1')
     expect(mockTransaction).toHaveBeenCalled()
+  })
+})
+
+describe('getProjectHistory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+  })
+
+  it('skips exact count for unassigned history', async () => {
+    mockGenFindMany.mockResolvedValue([FAKE_GENERATION_ROW])
+
+    const result = await getProjectHistory('clerk_1', null, undefined, 20)
+
+    expect(result.total).toBe(1)
+    expect(result.hasMore).toBe(false)
+    expect(mockGenCount).not.toHaveBeenCalled()
+  })
+
+  it('uses exact count for real project history', async () => {
+    mockGenFindMany.mockResolvedValue([FAKE_GENERATION_ROW])
+    mockGenCount.mockResolvedValue(8)
+
+    const result = await getProjectHistory('clerk_1', 'proj_1', undefined, 20)
+
+    expect(result.total).toBe(8)
+    expect(mockGenCount).toHaveBeenCalledWith({
+      where: { userId: FAKE_USER.id, projectId: 'proj_1' },
+    })
   })
 })

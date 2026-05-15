@@ -16,6 +16,9 @@ interface AssetSelectorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (generation: GenerationRecord) => void
+  initialGenerations?: GenerationRecord[]
+  initialTotal?: number
+  initialHasMore?: boolean
   /** Visually-hidden title required by Radix Dialog for screen readers. */
   title: string
   /** Visually-hidden description for screen readers. */
@@ -49,6 +52,9 @@ export function AssetSelectorDialog({
   open,
   onOpenChange,
   onSelect,
+  initialGenerations,
+  initialTotal,
+  initialHasMore,
   title,
   description,
   mediaType,
@@ -73,6 +79,9 @@ export function AssetSelectorDialog({
               onSelect(gen)
               onOpenChange(false)
             }}
+            initialGenerations={initialGenerations}
+            initialTotal={initialTotal}
+            initialHasMore={initialHasMore}
             mediaType={mediaType}
             className="!h-full !bg-transparent"
           />

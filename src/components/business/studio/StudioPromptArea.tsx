@@ -633,9 +633,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     onGenerate: () => {
       void handleGenerate()
     },
-    onGenerateVariants: () => {
-      void handleGenerateVariants()
-    },
   })
 
   const tStudio = useTranslations('StudioPage')
@@ -801,20 +798,29 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         />
         <PromptInputActions className="justify-end px-2 pb-2">
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
-          <div className="flex items-center">
+          <div
+            className={cn(
+              'inline-flex isolate items-stretch overflow-hidden rounded-full bg-primary text-primary-foreground',
+              'shadow-sm shadow-primary/20 ring-1 ring-primary/10 transition-shadow duration-200',
+              !isGenerating && 'hover:shadow-md hover:shadow-primary/25',
+              isGenerating && 'bg-muted text-muted-foreground',
+            )}
+          >
             <button
               type="button"
-              onClick={handleGenerate}
+              onClick={(event) => {
+                event.stopPropagation()
+                void handleGenerate()
+              }}
               disabled={isGenerating}
               aria-busy={isGenerating}
               aria-disabled={!canGenerate}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium',
-                'transition-all duration-200',
-                isAudioMode || isVideoMode ? 'rounded-xl' : 'rounded-l-xl',
+                'flex min-h-11 items-center gap-1.5 px-5 text-sm font-medium',
+                'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 isGenerating
-                  ? 'bg-primary text-primary-foreground studio-generating'
-                  : 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/25 active:scale-[0.97]',
+                  ? 'cursor-not-allowed studio-generating'
+                  : 'active:scale-[0.97]',
               )}
               style={{
                 transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
@@ -842,13 +848,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    onClick={(event) => event.stopPropagation()}
                     disabled={isGenerating}
                     className={cn(
-                      'flex items-center rounded-r-xl border-l border-white/20 px-2 py-2 text-sm',
-                      'transition-all duration-200',
+                      'flex min-h-11 w-12 items-center justify-center border-l border-primary-foreground/15 text-sm',
+                      'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                       isGenerating
-                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                        : 'bg-primary/90 text-primary-foreground hover:bg-primary/80 active:scale-[0.95]',
+                        ? 'cursor-not-allowed'
+                        : 'bg-primary-foreground/10 hover:bg-primary-foreground/15 active:scale-[0.95]',
                     )}
                   >
                     <ChevronDown className="size-3.5" />
@@ -859,7 +866,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     <Sparkles className="size-4" />
                     <span>{t('generate')}</span>
                     <span className="ml-auto text-2xs text-muted-foreground">
-                      1 credit
+                      {t('variantRequests', {
+                        count: selectedModel?.requestCount ?? 1,
+                      })}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

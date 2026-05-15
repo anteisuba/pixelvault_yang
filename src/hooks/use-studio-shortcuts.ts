@@ -10,7 +10,6 @@ import { useRouter } from '@/i18n/navigation'
 interface UseStudioShortcutsOptions {
   enabled?: boolean
   onGenerate?: () => void
-  onGenerateVariants?: () => void
 }
 
 // Cmd/Ctrl + Shift + 1/2/3 jumps between the per-media Studio routes.
@@ -25,7 +24,6 @@ const MODE_SHORTCUT_ROUTES: Record<string, string> = {
 export function useStudioShortcuts({
   enabled = true,
   onGenerate,
-  onGenerateVariants,
 }: UseStudioShortcutsOptions) {
   const { state, dispatch } = useStudioForm()
   const router = useRouter()
@@ -46,12 +44,6 @@ export function useStudioShortcuts({
       }
 
       const hasModifier = event.metaKey || event.ctrlKey
-
-      if (hasModifier && event.shiftKey && key === 'enter') {
-        event.preventDefault()
-        onGenerateVariants?.()
-        return
-      }
 
       if (hasModifier && event.shiftKey && key in MODE_SHORTCUT_ROUTES) {
         event.preventDefault()
@@ -99,13 +91,5 @@ export function useStudioShortcuts({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [
-    dispatch,
-    enabled,
-    onGenerate,
-    onGenerateVariants,
-    router,
-    state.panels,
-    state.prompt,
-  ])
+  }, [dispatch, enabled, onGenerate, router, state.panels, state.prompt])
 }

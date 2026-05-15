@@ -9,6 +9,7 @@ import type {
   Model3DSubmitResponseData,
 } from '@/types'
 import { createGeneration } from '@/services/generation.service'
+import { prepare3DSourceImage } from '@/services/image-3d-prep.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
 import { generateStorageKey, streamUploadToR2 } from '@/services/storage/r2'
@@ -61,6 +62,18 @@ export async function submit3DGenerationForUserId(
 
   const breaker = getCircuitBreaker(executionRoute.adapterType)
 
+  // Source-image prep. Default on; user-disabled (prep3D === false) sends
+  // the raw image straight in. Failures inside `prepare3DSourceImage`
+  // already fall back to the original URL, so this never blocks.
+  const preparedImageUrl =
+    input.prep3D === false
+      ? input.imageUrl
+      : await prepare3DSourceImage({
+          imageUrl: input.imageUrl,
+          userId,
+          falApiKey: executionRoute.apiKey,
+        })
+
   let queueResult: Awaited<
     ReturnType<NonNullable<typeof providerAdapter.submitModel3DToQueue>>
   >
@@ -69,7 +82,7 @@ export async function submit3DGenerationForUserId(
       withRetry(
         () =>
           providerAdapter.submitModel3DToQueue!({
-            imageUrl: input.imageUrl,
+            imageUrl: preparedImageUrl,
             modelId: executionRoute.modelId,
             providerConfig: executionRoute.providerConfig,
             apiKey: executionRoute.apiKey,

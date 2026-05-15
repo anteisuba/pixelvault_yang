@@ -199,6 +199,7 @@ const HistoryItem = memo(function HistoryItem({
             sizes="80px"
             className="object-cover transition-transform group-hover:scale-105"
             loading="lazy"
+            unoptimized
           />
         )
       ) : (

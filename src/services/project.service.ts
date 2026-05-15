@@ -138,7 +138,8 @@ export async function getProjectHistory(
     ...(outputType && { outputType }),
   }
 
-  const [generations, total] = await Promise.all([
+  const shouldFetchExactTotal = projectId !== null
+  const [generations, exactTotal] = await Promise.all([
     db.generation.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -170,11 +171,12 @@ export async function getProjectHistory(
         userId: true,
       },
     }),
-    db.generation.count({ where }),
+    shouldFetchExactTotal ? db.generation.count({ where }) : undefined,
   ])
 
   const hasMore = generations.length > limit
   const items = hasMore ? generations.slice(0, limit) : generations
+  const total = exactTotal ?? items.length + (hasMore ? 1 : 0)
 
   return {
     generations: items as GenerationRecord[],

@@ -342,7 +342,8 @@ describe('check3DGenerationStatusForUserId', () => {
     expect(mockCreateGeneration).not.toHaveBeenCalled()
   })
 
-  it('persists only the final textured model when the final job completes', async () => {
+  it('stores the final result, returns uploading, and finalizes in the background', async () => {
+    vi.useFakeTimers()
     mockFindJob.mockResolvedValue({
       ...RUNNING_JOB,
       externalRequestId: JSON.stringify({
@@ -378,24 +379,64 @@ describe('check3DGenerationStatusForUserId', () => {
       submitModel3DToQueue: vi.fn(),
     } as never)
 
-    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+    try {
+      const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
 
-    expect(result.status).toBe('COMPLETED')
-    expect(result.previewModelUrl).toBe('https://fal.run/mesh.glb')
-    expect(mockUploadBufferedHttpToR2).toHaveBeenCalledTimes(1)
-    expect(mockUploadBufferedHttpToR2).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourceUrl: 'https://fal.run/final.glb',
-      }),
-    )
-    expect(mockCreateGeneration).toHaveBeenCalledTimes(1)
-    expect(mockCreateGeneration).toHaveBeenCalledWith(
-      expect.objectContaining({
-        modelUrl: 'https://cdn.test/final.glb',
-        outputType: 'MODEL_3D',
-      }),
-    )
-    expect(mockAttachUsageEntry).toHaveBeenCalledTimes(1)
-    expect(mockCompleteJob).toHaveBeenCalledTimes(1)
+      expect(result).toEqual({
+        jobId: 'job-1',
+        status: 'IN_PROGRESS',
+        stage: 'uploading',
+        previewModelUrl: 'https://fal.run/mesh.glb',
+      })
+      const updateArg = mockUpdateJob.mock.calls[0][0] as {
+        data: { externalRequestId: string; status: string }
+      }
+      const meta = JSON.parse(updateArg.data.externalRequestId) as {
+        finalResult: { modelUrl: string; fileSize: number }
+      }
+      expect(updateArg.data.status).toBe('QUEUED')
+      expect(meta.finalResult).toMatchObject({
+        modelUrl: 'https://fal.run/final.glb',
+        fileSize: 456,
+      })
+      expect(mockUploadBufferedHttpToR2).not.toHaveBeenCalled()
+      expect(mockCreateGeneration).not.toHaveBeenCalled()
+      expect(mockAttachUsageEntry).not.toHaveBeenCalled()
+      expect(mockCompleteJob).not.toHaveBeenCalled()
+
+      await vi.runOnlyPendingTimersAsync()
+
+      expect(mockUpdateManyJobs).toHaveBeenCalledWith({
+        where: {
+          id: 'job-1',
+          OR: [
+            { status: 'QUEUED' },
+            {
+              status: 'RUNNING',
+              updatedAt: { lt: expect.any(Date) },
+            },
+          ],
+        },
+        data: { status: 'RUNNING' },
+      })
+      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledTimes(1)
+      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceUrl: 'https://fal.run/final.glb',
+        }),
+      )
+      expect(mockCreateGeneration).toHaveBeenCalledTimes(1)
+      expect(mockCreateGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelUrl: 'https://cdn.test/final.glb',
+          outputType: 'MODEL_3D',
+        }),
+      )
+      expect(mockAttachUsageEntry).toHaveBeenCalledTimes(1)
+      expect(mockCompleteJob).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
   })
 })

@@ -63,6 +63,13 @@ const Model3DCompletedQueueHandleSchema = Model3DQueueHandleSchema.extend({
   fileSize: z.number().optional(),
 })
 
+const Model3DProviderResultSchema = z.object({
+  modelUrl: z.string().url(),
+  contentType: z.string().optional(),
+  fileSize: z.number().optional(),
+  requestCount: z.number(),
+})
+
 const Model3DSourceQualityMetaSchema = z.object({
   width: z.number(),
   height: z.number(),
@@ -80,6 +87,7 @@ const Model3DQueueMetaSchema = z
     stage: z.enum(MODEL_3D_JOB_STAGES).optional(),
     mesh: Model3DCompletedQueueHandleSchema.optional(),
     final: Model3DQueueHandleSchema.optional(),
+    finalResult: Model3DProviderResultSchema.optional(),
     sourceImageUrl: z.string().url(),
     preparedImageUrl: z.string().url().optional(),
     sourceGenerationId: z.string().optional(),
@@ -111,6 +119,9 @@ type Model3DQueueStatusChecker = (input: {
 type GenerationExecutionRoute = Awaited<
   ReturnType<typeof resolveGenerationRoute>
 >
+
+const finalizing3DJobs = new Set<string>()
+const MODEL_3D_FINALIZATION_STALE_MS = 15 * 60 * 1000
 
 interface Model3DStatusJob {
   id: string
@@ -359,6 +370,17 @@ export async function check3DGenerationStatusForUserId(
   })
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
 
+  if (queueMeta.finalResult) {
+    scheduleCompleted3DFinalization({
+      userId,
+      job,
+      queueMeta,
+      executionRoute,
+      result: queueMeta.finalResult,
+    })
+    return buildFinalizing3DResponse(job.id, queueMeta)
+  }
+
   if (!providerAdapter?.checkModel3DQueueStatus) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
@@ -421,13 +443,21 @@ export async function check3DGenerationStatusForUserId(
     return { jobId: job.id, status: 'FAILED' }
   }
 
-  return persistCompleted3DGeneration({
-    userId,
+  const finalizingMeta = await storeCompleted3DProviderResult({
     job,
     queueMeta,
+    result: queueStatus.result,
+  })
+
+  scheduleCompleted3DFinalization({
+    userId,
+    job,
+    queueMeta: finalizingMeta,
     executionRoute,
     result: queueStatus.result,
   })
+
+  return buildFinalizing3DResponse(job.id, finalizingMeta)
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -709,15 +739,21 @@ async function checkMeshFirst3DGenerationStatus(params: {
     return { jobId: job.id, status: 'FAILED', previewModelUrl }
   }
 
-  const completed = await persistCompleted3DGeneration({
-    userId: params.userId,
+  const finalizingMeta = await storeCompleted3DProviderResult({
     job,
     queueMeta,
+    result: finalStatus.result,
+  })
+
+  scheduleCompleted3DFinalization({
+    userId: params.userId,
+    job,
+    queueMeta: finalizingMeta,
     executionRoute: params.executionRoute,
     result: finalStatus.result,
   })
 
-  return { ...completed, previewModelUrl }
+  return buildFinalizing3DResponse(job.id, finalizingMeta)
 }
 
 async function submitFinalTextured3DQueue(params: {
@@ -764,10 +800,38 @@ function buildActiveMeshFirstResponse(
   return { jobId, status: 'IN_PROGRESS', stage: 'mesh' }
 }
 
+function buildFinalizing3DResponse(
+  jobId: string,
+  queueMeta: Model3DQueueMeta,
+): Model3DStatusResponseData {
+  return {
+    jobId,
+    status: 'IN_PROGRESS',
+    stage: 'uploading',
+    previewModelUrl: queueMeta.mesh?.modelUrl,
+  }
+}
+
 async function claimRunningJob(jobId: string): Promise<boolean> {
   const claimed = await db.generationJob.updateMany({
     where: { id: jobId, status: 'RUNNING' },
     data: { status: 'QUEUED' },
+  })
+
+  return claimed.count > 0
+}
+
+async function claimFinalizingJob(jobId: string): Promise<boolean> {
+  const staleBefore = new Date(Date.now() - MODEL_3D_FINALIZATION_STALE_MS)
+  const claimed = await db.generationJob.updateMany({
+    where: {
+      id: jobId,
+      OR: [
+        { status: 'QUEUED' },
+        { status: 'RUNNING', updatedAt: { lt: staleBefore } },
+      ],
+    },
+    data: { status: 'RUNNING' },
   })
 
   return claimed.count > 0
@@ -788,6 +852,59 @@ async function getCompletedGenerationIfClaimLost(
   return null
 }
 
+async function storeCompleted3DProviderResult(params: {
+  job: Model3DStatusJob
+  queueMeta: Model3DQueueMeta
+  result: ProviderModel3DResult
+}): Promise<Model3DQueueMeta> {
+  const updatedMeta: Model3DQueueMeta = {
+    ...params.queueMeta,
+    finalResult: params.result,
+  }
+
+  await db.generationJob.update({
+    where: { id: params.job.id },
+    data: {
+      status: 'QUEUED',
+      externalRequestId: serializeQueueMeta(updatedMeta),
+    },
+  })
+
+  logger.info('3D final provider result stored', {
+    jobId: params.job.id,
+    modelId: params.job.modelId,
+    modelUrl: params.result.modelUrl,
+    fileSize: params.result.fileSize,
+  })
+
+  return updatedMeta
+}
+
+function scheduleCompleted3DFinalization(params: {
+  userId: string
+  job: Model3DStatusJob
+  queueMeta: Model3DQueueMeta
+  executionRoute: GenerationExecutionRoute
+  result: ProviderModel3DResult
+}) {
+  if (finalizing3DJobs.has(params.job.id)) return
+  finalizing3DJobs.add(params.job.id)
+
+  setTimeout(() => {
+    void persistCompleted3DGeneration(params)
+      .catch((error) => {
+        logger.error('3D finalization failed', {
+          jobId: params.job.id,
+          modelId: params.job.modelId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+      .finally(() => {
+        finalizing3DJobs.delete(params.job.id)
+      })
+  }, 0)
+}
+
 async function persistCompleted3DGeneration(params: {
   userId: string
   job: Model3DStatusJob
@@ -796,19 +913,28 @@ async function persistCompleted3DGeneration(params: {
   result: ProviderModel3DResult
 }): Promise<Model3DStatusResponseData> {
   const { userId, job, queueMeta, executionRoute, result } = params
-  const claimed = await claimRunningJob(job.id)
 
+  const existingGeneration = await getCompletedGenerationIfClaimLost(job.id)
+  if (existingGeneration) {
+    return {
+      jobId: job.id,
+      status: 'COMPLETED',
+      generation: existingGeneration,
+    }
+  }
+
+  const claimed = await claimFinalizingJob(job.id)
   if (!claimed) {
-    const generation = await getCompletedGenerationIfClaimLost(job.id)
-    if (generation) {
+    const completedGeneration = await getCompletedGenerationIfClaimLost(job.id)
+    if (completedGeneration) {
       return {
         jobId: job.id,
         status: 'COMPLETED',
-        generation,
+        generation: completedGeneration,
       }
     }
 
-    return buildActiveMeshFirstResponse(job.id, queueMeta)
+    return buildFinalizing3DResponse(job.id, queueMeta)
   }
 
   const provider = getProviderLabel(executionRoute.providerConfig)
@@ -816,29 +942,53 @@ async function persistCompleted3DGeneration(params: {
   const requestCount = executionRoute.creditCost ?? result.requestCount
   const inputImageCount = 1 + count3DMultiViewImages(queueMeta.multiViewImages)
 
-  const usageEntry = await createApiUsageEntry({
-    userId,
-    generationJobId: job.id,
-    adapterType: executionRoute.adapterType,
-    provider,
-    modelId: job.modelId,
-    requestCount,
-    inputImageCount,
-    outputImageCount: 0,
-    width: 0,
-    height: 0,
-    durationMs: Date.now() - job.createdAt.getTime(),
-    wasSuccessful: true,
-  })
-
   const modelStorageKey = generateStorageKey('MODEL_3D', userId)
 
   try {
+    logger.info('3D final R2 upload starting', {
+      jobId: job.id,
+      modelId: job.modelId,
+      sourceUrl: result.modelUrl,
+      fileSize: result.fileSize,
+    })
+
     const { publicUrl: glbPublicUrl } = await uploadBufferedHttpToR2({
       sourceUrl: result.modelUrl,
       key: modelStorageKey,
       mimeType: result.contentType ?? 'model/gltf-binary',
       timeoutMs: 300_000,
+    })
+
+    logger.info('3D final R2 upload completed', {
+      jobId: job.id,
+      modelId: job.modelId,
+      modelStorageKey,
+    })
+
+    const generationAfterUpload = await getCompletedGenerationIfClaimLost(
+      job.id,
+    )
+    if (generationAfterUpload) {
+      return {
+        jobId: job.id,
+        status: 'COMPLETED',
+        generation: generationAfterUpload,
+      }
+    }
+
+    const usageEntry = await createApiUsageEntry({
+      userId,
+      generationJobId: job.id,
+      adapterType: executionRoute.adapterType,
+      provider,
+      modelId: job.modelId,
+      requestCount,
+      inputImageCount,
+      outputImageCount: 0,
+      width: 0,
+      height: 0,
+      durationMs: Date.now() - job.createdAt.getTime(),
+      wasSuccessful: true,
     })
 
     const generation = await createGeneration({
@@ -884,9 +1034,12 @@ async function persistCompleted3DGeneration(params: {
     const message =
       error instanceof Error ? error.message : 'Failed to persist 3D model'
 
-    await failGenerationJob(job.id, {
-      requestCount,
-      errorMessage: message,
+    await db.generationJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'QUEUED',
+        errorMessage: message,
+      },
     })
 
     throw error

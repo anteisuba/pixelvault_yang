@@ -50,7 +50,12 @@ export const MODEL_3D_JOB_STAGES = [
 
 export type Model3DJobStage = (typeof MODEL_3D_JOB_STAGES)[number]
 
-export const MODEL_3D_PROGRESS_STAGES = ['queued', 'mesh', 'texture'] as const
+export const MODEL_3D_PROGRESS_STAGES = [
+  'queued',
+  'mesh',
+  'texture',
+  'uploading',
+] as const
 
 export type Model3DProgressStage = (typeof MODEL_3D_PROGRESS_STAGES)[number]
 

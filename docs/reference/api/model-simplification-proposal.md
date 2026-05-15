@@ -144,6 +144,95 @@ Free:     triposr (sub-second preview)
 
 ---
 
+## 版本时效审计（2026-05-15 核查）
+
+精简之前必须先看每个 active 模型有没有被新版本取代或被 sunset。下表只列**有问题**的，没列出的 = 当前最新或仍是同档 SOTA。
+
+### 🔴 高风险：已被 ≥2 代新版本取代，应优先升级或下线
+
+| 项目 enum                   | externalModelId                                | 现状                                                                                                   | 建议                                                       |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `RECRAFT_V4_PRO`            | `fal-ai/recraft/v4/pro/text-to-image`          | **V4.1 于 2026-05-14 发布**（含 Pro / Utility / Vector 多 variant）                                    | 升级到 `fal-ai/recraft/v4.1/pro/text-to-image`（一行改动） |
+| `KLING_VIDEO` (V2.1 Master) | `fal-ai/kling-video/v2.1/master/text-to-video` | **被 Kling 3.0 / Kling 3.0 Omni 取代**（2026-02 发布）；项目已有 `KLING_V3_PRO`，V2.1 现成冗余         | **下线**（`available: false`）—— V3 Pro 已覆盖该价位       |
+| `LUMA_RAY_2`                | `fal-ai/luma-dream-machine/ray-2`              | **Ray 3 于 2025-09 发布**；Luma 状态页显示 Ray 2 资源紧张 / 队列变长                                   | 升级到 Ray 3 endpoint                                      |
+| `RUNWAY_GEN3`               | `fal-ai/runway-gen3/turbo/image-to-video`      | **落后两代**：Runway 已发 Gen-4（2025-03）+ Gen-4 Turbo（2025-04）+ Gen-4.5（2025-12，Video Arena #1） | 升级到 Gen-4 Turbo 或 **下线**                             |
+
+### 🟡 中风险：上一代但仍 active
+
+| 项目 enum         | externalModelId                  | 现状                                                                                                 | 建议                                                          |
+| ----------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `FLUX_2_SCHNELL`  | `fal-ai/flux/schnell`            | 实际是 **FLUX.1 schnell**；BFL 于 2026-01-15 发布 **FLUX.2 [klein]**（< 1s 生图，FLUX.2 系列最快档） | 升级到 `fal-ai/flux-2-klein`                                  |
+| `SEEDANCE_15_PRO` | `doubao-seedance-1-5-pro-251215` | 被 Seedance 2.0 取代（VolcEngine 2025-02 已上线）；项目已有 `SEEDANCE_20_VOLC` 完全覆盖              | 下线 1.5（已重复）                                            |
+| `HUNYUAN_VIDEO`   | `fal-ai/hunyuan-video`           | Tencent 已发布 **HunyuanVideo-1.5**（2025-11），项目用的是 v1                                        | 升级到 1.5 endpoint，或考虑下线（小众，wan-2.6 已覆盖该价位） |
+| `HUNYUAN3D_2_1`   | `fal-ai/hunyuan3d/v2`            | **被 v3 / v3.1 取代**；项目已有 `HUNYUAN3D_V3` 和 `HUNYUAN3D_V31_PRO`，2.1 完全冗余                  | 下线                                                          |
+
+### 🟡 命名问题：实际指向的模型与 enum 名称不符
+
+| 项目 enum          | externalModelId              | 问题                                                                                                                 | 建议                                                         |
+| ------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `ILLUSTRIOUS_XL`   | `delta-lock/noobai-xl`       | NoobAI XL 是基于 Illustrious-xl-early-release-v0 训练的衍生模型，但技术上**不是 Illustrious XL 本体**。enum 名称误导 | 改名为 `NOOBAI_XL` + 同步 i18n（不影响运行，只是命名清晰度） |
+| `SEEDREAM_50_LITE` | `doubao-seedream-5-0-260128` | externalModelId 是 Seedream 5.0 完整版，**不是 Lite**；ByteDance 没有"5.0 Lite"产品                                  | 改名为 `SEEDREAM_50` + 同步 i18n                             |
+
+### 🟢 当前最新或仍是同档 SOTA（保持）
+
+- `OPENAI_GPT_IMAGE_2` — Image Arena #1
+- `GEMINI_PRO_IMAGE` (`gemini-3-pro-image-preview`) — Active Preview，与文本 `gemini-3-pro-preview` 2026-03-09 关停**无关**（独立模型族）
+- `GEMINI_FLASH_IMAGE` (`gemini-3.1-flash-image-preview`) — Active Preview
+- `FLUX_2_PRO` / `FLUX_2_DEV` / `FLUX_2_MAX` — FLUX.2 系列
+- `FLUX_KONTEXT_PRO` / `FLUX_KONTEXT_MAX` — 当前 FLUX 编辑模型
+- `SEEDREAM_45` / `SEEDREAM_40` — 后者仍在 Image Arena Top 5
+- `IDEOGRAM_3` — 当前最新（无 V4）
+- `NOVELAI_V45_FULL` / `NOVELAI_V45_CURATED` — 当前最新（无 V5）
+- `ANIMAGINE_XL_4` — 当前最新（可选升级 4.0 Opt）
+- `SD_35_LARGE` — 当前 SD 旗舰
+- `KLING_V3_PRO` / `VEO_31` / `SEEDANCE_20` / `SEEDANCE_20_FAST` / `SEEDANCE_20_VOLC` / `SEEDANCE_20_FAST_VOLC` — 当前视频主力
+- `MINIMAX_VIDEO` (Hailuo 2.3) — 当前最新（2025-10）
+- `PIKA_V25` — 当前最新（无 V3）
+- `WAN_VIDEO` (Wan 2.6) — Wan 2.7 已发布但 2.6 仍是 multi-shot narrative 推荐
+- `HUNYUAN3D_V31_PRO` / `HUNYUAN3D_V3` / `TRELLIS_2` / `TRIPOSR` — 3D 当前阵容
+- `FISH_AUDIO_S2_PRO` / `FAL_F5_TTS` — 音频当前阵容
+
+### 同时也已经在用户精简清单里 / 用户已标 retired
+
+- `FLUX_LORA` — 用户已建议下线（FLUX.1 LoRA，FLUX.2 已有原生 LoRA 支持）
+- `SDXL` — 用户已建议下线（被 SD 3.5 完全取代）
+- `NOVELAI_V4_FULL` — 用户已建议下线（V4.5 已 premium 档）
+- `FLUX_2_DEV` 中端定位 — 用户建议下线，可保留观察
+- `FLUX_2_MAX` vs `FLUX_2_PRO` — 用户建议二选一
+
+---
+
+## 修正后的精简优先级（替代用户原方案）
+
+第一波 — **必做**（高风险，落后版本）：
+
+1. **升级** `RECRAFT_V4_PRO` → V4.1 Pro（一行改 `externalModelId`）
+2. **升级** `LUMA_RAY_2` → Luma Ray 3（一行改 + 验证 fal 上 endpoint 已就绪）
+3. **下线** `RUNWAY_GEN3` 或升级到 Gen-4 Turbo（落后两代严重）
+4. **下线** `KLING_VIDEO` (V2.1 Master)（与 V3 Pro 冗余）
+5. **下线** `HUNYUAN3D_2_1`（与 v3 冗余）
+
+第二波 — **建议**（中风险，命名清理）：
+
+6. **升级** `FLUX_2_SCHNELL` → FLUX.2 klein
+7. **下线** `SEEDANCE_15_PRO`（与 SEEDANCE_20_VOLC 冗余）
+8. **升级或下线** `HUNYUAN_VIDEO` → HunyuanVideo-1.5
+9. **改名** `ILLUSTRIOUS_XL` → `NOOBAI_XL`（不影响运行）
+10. **改名** `SEEDREAM_50_LITE` → `SEEDREAM_50`（不影响运行）
+
+第三波 — **用户原方案**（重叠 / 中端模糊）：
+
+11. `FLUX_LORA` 下线
+12. `FLUX_2_DEV` 下线（观察）
+13. `SDXL` 下线
+14. `NOVELAI_V4_FULL` 下线
+15. **不要下线** `SEEDREAM_40`（榜单 Top 5）
+16. `FLUX_2_MAX` vs `FLUX_2_PRO` 二选一
+
+执行后规模：50 → 约 32 个，不含命名清理。
+
+---
+
 ## 决策原则（精简时遵循）
 
 1. **能跨 provider 重复的就只留 1 份**（除非是国内/海外区域差异）

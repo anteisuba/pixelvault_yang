@@ -106,6 +106,86 @@ describe('falAdapter.generateImage', () => {
   })
 })
 
+describe('falAdapter F5-TTS queue', () => {
+  it('submits F5-TTS with reference audio and returns queue handles', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          request_id: 'req-audio-abc',
+          status_url: 'https://queue.fal.run/status/req-audio-abc',
+          response_url: 'https://queue.fal.run/result/req-audio-abc',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.submitAudioToQueue!({
+      prompt: 'Say hello',
+      modelId: 'fal-f5-tts',
+      providerConfig: { label: 'fal.ai', baseUrl: AI_PROVIDER_ENDPOINTS.FAL },
+      apiKey: 'fal-test-key',
+      referenceAudioUrl: 'https://cdn.example.com/reference.wav',
+      referenceText: 'Reference voice',
+    })
+
+    expect(result.requestId).toBe('req-audio-abc')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toBe(
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/f5-tts`,
+    )
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body).toMatchObject({
+      gen_text: 'Say hello',
+      ref_audio_url: 'https://cdn.example.com/reference.wav',
+      ref_text: 'Reference voice',
+      model_type: 'F5-TTS',
+      remove_silence: true,
+    })
+  })
+
+  it('maps completed F5-TTS queue results to ProviderAudioResult', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: 'COMPLETED' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            audio_url: {
+              url: 'https://fal.media/audio.wav',
+              content_type: 'audio/wav',
+              file_name: 'audio.wav',
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.checkAudioQueueStatus!({
+      statusUrl: 'https://queue.fal.run/status/req-audio-abc',
+      responseUrl: 'https://queue.fal.run/result/req-audio-abc',
+      apiKey: 'fal-test-key',
+    })
+
+    expect(result).toEqual({
+      status: 'COMPLETED',
+      result: {
+        audioUrl: 'https://fal.media/audio.wav',
+        duration: 0,
+        format: 'wav',
+        sampleRate: 44100,
+        requestCount: 1,
+      },
+    })
+  })
+})
+
 describe('falAdapter image-to-3D queue', () => {
   const MODEL_3D_INPUT = {
     imageUrl: 'https://r2.example.com/source.png',

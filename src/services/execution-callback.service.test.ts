@@ -11,6 +11,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockFindUnique = vi.fn()
 const mockStreamUploadToR2 = vi.fn()
+const mockGenerateStorageKey = vi.fn()
 const mockCreateGeneration = vi.fn()
 const mockCompleteGenerationJob = vi.fn()
 const mockCreateApiUsageEntry = vi.fn()
@@ -35,7 +36,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@/services/storage/r2', () => ({
-  generateStorageKey: () => 'generations/user-1/video/test.mp4',
+  generateStorageKey: (...args: unknown[]) => mockGenerateStorageKey(...args),
   streamUploadToR2: (...args: unknown[]) => mockStreamUploadToR2(...args),
 }))
 
@@ -96,6 +97,7 @@ describe('execution-callback.service', () => {
       publicUrl: 'https://cdn.example.com/video.mp4',
       sizeBytes: 1024,
     })
+    mockGenerateStorageKey.mockReturnValue('generations/user-1/video/test.mp4')
     mockCreateGeneration.mockResolvedValue({
       id: 'generation-1',
       createdAt: new Date('2026-04-24T00:01:00.000Z'),
@@ -210,6 +212,74 @@ describe('execution-callback.service', () => {
         generationId: 'generation-1',
         requestCount: 1,
       },
+      expect.anything(),
+    )
+  })
+
+  it('finalizes worker-managed audio result callbacks as AUDIO generations', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      modelId: 'fal-f5-tts',
+      prompt: 'audio prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'AUDIO',
+        audioFormat: 'wav',
+        providerMetadata: { requestId: 'request-audio-1' },
+      }),
+    })
+    mockGenerateStorageKey.mockReturnValue('generations/user-1/audio/test.wav')
+    mockStreamUploadToR2.mockResolvedValue({
+      publicUrl: 'https://cdn.example.com/audio.wav',
+      sizeBytes: 2048,
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-audio-1',
+      outputType: 'AUDIO',
+    })
+
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/audio.wav',
+        providerMetadata: { requestId: 'request-audio-1' },
+        mimeType: 'audio/wav',
+        requestCount: 1,
+      },
+    })
+
+    expect(result).toEqual({
+      runId: 'job-1',
+      jobStatus: 'COMPLETED',
+      action: 'completed',
+    })
+    expect(mockGenerateStorageKey).toHaveBeenCalledWith(
+      'AUDIO',
+      'user-1',
+      'wav',
+    )
+    expect(mockStreamUploadToR2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceUrl: 'https://provider.example.com/audio.wav',
+        key: 'generations/user-1/audio/test.wav',
+        mimeType: 'audio/wav',
+      }),
+    )
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputType: 'AUDIO',
+        width: 0,
+        height: 0,
+        referenceImageUrl: undefined,
+        characterCardIds: undefined,
+      }),
+      expect.anything(),
+    )
+    expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputImageCount: 0,
+        width: undefined,
+        height: undefined,
+      }),
       expect.anything(),
     )
   })

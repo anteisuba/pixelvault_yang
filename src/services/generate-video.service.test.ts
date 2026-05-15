@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
+import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 import type { GenerateVideoRequest } from '@/types'
 
@@ -119,6 +120,7 @@ describe('generate-video.service worker dispatch', () => {
       providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
       apiKey: 'plain-key',
       resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
       creditCost: 5,
     })
     mockGetProviderAdapter.mockReturnValue({
@@ -166,7 +168,7 @@ describe('generate-video.service worker dispatch', () => {
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
     expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
     expect(fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8787/workflows/cinematic-short-video',
+      'http://127.0.0.1:8787/workflows/fal-queue',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -182,7 +184,8 @@ describe('generate-video.service worker dispatch', () => {
 
     expect(dispatchBody).toMatchObject({
       runId: 'job-1',
-      workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      workflowId: EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
+      outputType: 'VIDEO',
       apiKeyId: 'key-1',
       callbackUrl: 'http://localhost:3000/api/internal/execution/callback',
       resolveKeyUrl: 'http://localhost:3000/api/internal/execution/resolve-key',
@@ -195,7 +198,27 @@ describe('generate-video.service worker dispatch', () => {
     )
   })
 
-  it('keeps non-CINEMATIC_SHORT_VIDEO requests on the existing inline queue path', async () => {
+  it('dispatches ordinary FAL video runs to the execution worker', async () => {
+    const result = await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({ workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO }),
+    )
+
+    expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-job-1' })
+    expect(mockSubmitVideoToQueue).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalled()
+  })
+
+  it('keeps routes without worker-resolvable keys on the existing inline queue path', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.KLING_VIDEO,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: null,
+      isFreeGeneration: false,
+      creditCost: 5,
+    })
     mockSubmitVideoToQueue.mockResolvedValue({
       requestId: 'provider-request-1',
       statusUrl: 'https://queue.fal.run/status',

@@ -69,27 +69,42 @@ function toExecutionCallbackJobStatus(
   return parsedStatus
 }
 
-const WorkerVideoJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
+const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
   providerMetadata: true,
 })
   .partial()
   .extend({
+    outputType: z.enum(['VIDEO', 'AUDIO']).optional(),
     referenceImageUrl: z.string().url().optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
     projectId: z.string().min(1).optional(),
     isFreeGeneration: z.boolean().optional(),
+    audioFormat: z.string().min(1).optional(),
   })
 
-function parseWorkerVideoJobMetadata(value: string | null) {
+function parseWorkerJobMetadata(value: string | null) {
   if (!value) return {}
 
   try {
     const parsed = JSON.parse(value)
-    const result = WorkerVideoJobMetadataSchema.safeParse(parsed)
+    const result = WorkerJobMetadataSchema.safeParse(parsed)
     return result.success ? result.data : {}
   } catch {
     return {}
   }
+}
+
+function getDefaultMimeType(outputType: 'VIDEO' | 'AUDIO'): string {
+  return outputType === 'AUDIO' ? 'audio/wav' : 'video/mp4'
+}
+
+function inferAudioFormat(mimeType: string, configuredFormat?: string): string {
+  if (configuredFormat) return configuredFormat
+
+  const normalized = mimeType.toLowerCase()
+  if (normalized.includes('wav')) return 'wav'
+  if (normalized.includes('opus')) return 'opus'
+  return 'mp3'
 }
 
 function toPrismaJson(value: unknown): Prisma.InputJsonValue | undefined {
@@ -225,12 +240,20 @@ async function finalizeExecutionResult(
   const resultData = parseResultData(payload)
 
   try {
-    const metadata = parseWorkerVideoJobMetadata(job.externalRequestId)
-    const storageKey = generateStorageKey('VIDEO', job.userId)
+    const metadata = parseWorkerJobMetadata(job.externalRequestId)
+    const outputType = metadata.outputType ?? 'VIDEO'
+    const mimeType = resultData.mimeType ?? getDefaultMimeType(outputType)
+    const storageKey = generateStorageKey(
+      outputType,
+      job.userId,
+      outputType === 'AUDIO'
+        ? inferAudioFormat(mimeType, metadata.audioFormat)
+        : undefined,
+    )
     const uploadResult = await streamUploadToR2({
       sourceUrl: resultData.artifactUrl,
       key: storageKey,
-      mimeType: resultData.mimeType ?? 'video/mp4',
+      mimeType,
       fetchHeaders: resultData.fetchHeaders,
     })
 
@@ -239,18 +262,20 @@ async function finalizeExecutionResult(
         {
           url: uploadResult.publicUrl,
           storageKey,
-          mimeType: resultData.mimeType ?? 'video/mp4',
-          width: resultData.width ?? 0,
-          height: resultData.height ?? 0,
+          mimeType,
+          width: outputType === 'VIDEO' ? (resultData.width ?? 0) : 0,
+          height: outputType === 'VIDEO' ? (resultData.height ?? 0) : 0,
           duration: resultData.duration,
-          referenceImageUrl: metadata.referenceImageUrl,
+          referenceImageUrl:
+            outputType === 'VIDEO' ? metadata.referenceImageUrl : undefined,
           prompt: job.prompt ?? '',
           model: job.modelId,
           provider: job.provider,
           requestCount: resultData.requestCount ?? 1,
-          outputType: 'VIDEO',
+          outputType,
           userId: job.userId,
-          characterCardIds: metadata.characterCardIds,
+          characterCardIds:
+            outputType === 'VIDEO' ? metadata.characterCardIds : undefined,
           projectId: metadata.projectId,
           isFreeGeneration: metadata.isFreeGeneration,
           snapshot: toPrismaJson({
@@ -284,10 +309,11 @@ async function finalizeExecutionResult(
           provider: job.provider,
           modelId: job.modelId,
           requestCount: resultData.requestCount ?? 1,
-          inputImageCount: metadata.referenceImageUrl ? 1 : 0,
+          inputImageCount:
+            outputType === 'VIDEO' && metadata.referenceImageUrl ? 1 : 0,
           outputImageCount: 0,
-          width: resultData.width,
-          height: resultData.height,
+          width: outputType === 'VIDEO' ? resultData.width : undefined,
+          height: outputType === 'VIDEO' ? resultData.height : undefined,
           durationMs: Date.now() - job.createdAt.getTime(),
           wasSuccessful: true,
         },

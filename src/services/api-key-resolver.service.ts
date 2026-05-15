@@ -1,9 +1,11 @@
 import 'server-only'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { ResolveKeyRequest, ResolveKeyResponse } from '@/types'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { getSystemApiKey } from '@/lib/platform-keys'
 import { getApiKeyValueById } from '@/services/apiKey.service'
 
 const TERMINAL_GENERATION_JOB_STATUSES = new Set([
@@ -26,13 +28,51 @@ export async function resolveExecutionApiKey(
 ): Promise<ResolveKeyResponse> {
   const job = await db.generationJob.findUnique({
     where: { id: request.runId },
-    select: { id: true, userId: true, status: true },
+    select: { id: true, userId: true, status: true, adapterType: true },
   })
 
   if (!job || TERMINAL_GENERATION_JOB_STATUSES.has(job.status)) {
     logger.warn('Execution API key resolve denied for job', {
       runId: request.runId,
       reason: !job ? 'missing-job' : 'terminal-job',
+    })
+    throwForbidden()
+  }
+
+  if (request.useSystemKey) {
+    const adapterType = Object.values(AI_ADAPTER_TYPES).find(
+      (candidate) => candidate === job.adapterType,
+    )
+
+    if (!adapterType || request.adapterType !== adapterType) {
+      logger.warn('Execution system API key resolve denied for adapter', {
+        runId: request.runId,
+        requestedAdapterType: request.adapterType,
+        jobAdapterType: job.adapterType,
+      })
+      throwForbidden()
+    }
+
+    const systemApiKey = getSystemApiKey(adapterType)
+    if (!systemApiKey) {
+      logger.warn('Execution system API key resolve denied; key missing', {
+        runId: request.runId,
+        adapterType,
+      })
+      throwForbidden()
+    }
+
+    logger.info('Execution system API key resolved for worker', {
+      runId: request.runId,
+      adapterType,
+    })
+
+    return { apiKey: systemApiKey }
+  }
+
+  if (!request.apiKeyId) {
+    logger.warn('Execution API key resolve denied; key id missing', {
+      runId: request.runId,
     })
     throwForbidden()
   }

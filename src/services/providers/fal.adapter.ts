@@ -96,6 +96,19 @@ const FAL_VIDEO_RESPONSE_SCHEMA = z.object({
     .nullable(),
 })
 
+const FAL_AUDIO_FILE_SCHEMA = z
+  .object({
+    url: z.string().url(),
+    content_type: z.string().optional().nullable(),
+    file_name: z.string().optional().nullable(),
+    file_size: z.number().optional().nullable(),
+  })
+  .passthrough()
+
+const FAL_AUDIO_RESPONSE_SCHEMA = z.object({
+  audio_url: FAL_AUDIO_FILE_SCHEMA,
+})
+
 const FAL_QUEUE_SUBMIT_SCHEMA = z.object({
   request_id: z.string(),
   status_url: z.string().url(),
@@ -241,6 +254,18 @@ function isFalQueueFailureStatus(status: string): boolean {
     normalized === 'CANCELED' ||
     normalized === 'CANCELLED'
   )
+}
+
+function inferAudioFormatFromFalFile(file: {
+  content_type?: string | null
+  file_name?: string | null
+}): 'mp3' | 'wav' | 'opus' {
+  const contentType = file.content_type?.toLowerCase() ?? ''
+  const fileName = file.file_name?.toLowerCase() ?? ''
+
+  if (contentType.includes('wav') || fileName.endsWith('.wav')) return 'wav'
+  if (contentType.includes('opus') || fileName.endsWith('.opus')) return 'opus'
+  return 'mp3'
 }
 
 function getFalImageQueueTimeoutMs(modelId: string): number {
@@ -760,6 +785,127 @@ export const falAdapter: ProviderAdapter = {
         width,
         height,
         duration: VIDEO_GENERATION.DEFAULT_DURATION,
+        requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+      },
+    }
+  },
+
+  async submitAudioToQueue({
+    prompt,
+    modelId,
+    apiKey,
+    referenceAudioUrl,
+    referenceText,
+  }) {
+    if (!referenceAudioUrl) {
+      throw new ProviderError(
+        'fal.ai',
+        400,
+        'fal.ai F5-TTS requires a reference audio URL.',
+      )
+    }
+
+    const externalModelId = getExecutionModelId(modelId)
+    const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
+    const body: Record<string, unknown> = {
+      gen_text: prompt,
+      ref_audio_url: referenceAudioUrl,
+      model_type: 'F5-TTS',
+      remove_silence: true,
+    }
+
+    if (referenceText?.trim()) {
+      body.ref_text = referenceText.trim()
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120_000),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unknown error')
+      throw new ProviderError(
+        'fal.ai',
+        response.status,
+        formatFalError(response.status, errorBody),
+      )
+    }
+
+    const data = FAL_QUEUE_SUBMIT_SCHEMA.parse(await response.json())
+    return {
+      requestId: data.request_id,
+      statusUrl: data.status_url,
+      responseUrl: data.response_url,
+    }
+  },
+
+  async checkAudioQueueStatus({
+    statusUrl,
+    responseUrl,
+    apiKey,
+  }: ProviderQueueStatusInput) {
+    const statusResponse = await fetch(statusUrl, {
+      method: 'GET',
+      headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!statusResponse.ok) {
+      const errorBody = await statusResponse.text().catch(() => 'Unknown error')
+      throw new ProviderError(
+        'fal.ai',
+        statusResponse.status,
+        formatFalError(statusResponse.status, errorBody),
+      )
+    }
+
+    const statusData = FAL_QUEUE_STATUS_SCHEMA.parse(
+      await statusResponse.json(),
+    )
+
+    if (isFalQueueFailureStatus(statusData.status)) {
+      return { status: 'FAILED' as const }
+    }
+
+    if (statusData.status !== 'COMPLETED') {
+      return {
+        status:
+          statusData.status === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'IN_QUEUE',
+      }
+    }
+
+    const resultResponse = await fetch(responseUrl, {
+      method: 'GET',
+      headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
+    })
+
+    if (!resultResponse.ok) {
+      const errorBody = await resultResponse.text().catch(() => 'Unknown error')
+      throw new ProviderError(
+        'fal.ai',
+        resultResponse.status,
+        formatFalError(resultResponse.status, errorBody),
+      )
+    }
+
+    const resultData = FAL_AUDIO_RESPONSE_SCHEMA.parse(
+      await resultResponse.json(),
+    )
+
+    return {
+      status: 'COMPLETED' as const,
+      result: {
+        audioUrl: resultData.audio_url.url,
+        duration: 0,
+        format: inferAudioFormatFromFalFile(resultData.audio_url),
+        sampleRate: 44100,
         requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
       },
     }

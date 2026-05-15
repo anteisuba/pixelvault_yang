@@ -301,6 +301,8 @@ export interface ProviderAudioInput {
   providerConfig: ProviderConfig
   apiKey: string
   voiceId?: string
+  referenceAudioUrl?: string
+  referenceText?: string
   speed?: number
   format?: string
   sampleRate?: number

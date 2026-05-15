@@ -36,6 +36,7 @@ import {
   VOICE_CARD_PROVIDERS,
 } from '@/constants/voice-cards'
 import { WORKFLOW_IDS } from '@/constants/workflows'
+import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
 
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
@@ -269,6 +270,8 @@ export const GenerateAudioRequestSchema = z.object({
   speed: z.number().min(0.5).max(2.0).optional(),
   format: z.enum(AUDIO_FORMATS).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
+  referenceAudioUrl: z.string().url().optional(),
+  referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
 })
 
@@ -720,10 +723,29 @@ export type ExecutionCallbackErrorData = z.infer<
   typeof ExecutionCallbackErrorDataSchema
 >
 
-export const ResolveKeyRequestSchema = z.object({
-  runId: z.string().trim().min(1, 'Run ID is required'),
-  apiKeyId: z.string().trim().min(1, 'API key ID is required'),
-})
+export const ResolveKeyRequestSchema = z
+  .object({
+    runId: z.string().trim().min(1, 'Run ID is required'),
+    apiKeyId: z.string().trim().min(1, 'API key ID is required').optional(),
+    adapterType: z
+      .enum(
+        Object.values(AI_ADAPTER_TYPES) as [
+          AI_ADAPTER_TYPES,
+          ...AI_ADAPTER_TYPES[],
+        ],
+      )
+      .optional(),
+    useSystemKey: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.apiKeyId || value.useSystemKey) return
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['apiKeyId'],
+      message: 'Either API key ID or system key flag is required',
+    })
+  })
 
 export const ResolveKeyResponseSchema = z.object({
   apiKey: z.string().min(1),
@@ -732,32 +754,70 @@ export const ResolveKeyResponseSchema = z.object({
 export type ResolveKeyRequest = z.infer<typeof ResolveKeyRequestSchema>
 export type ResolveKeyResponse = z.infer<typeof ResolveKeyResponseSchema>
 
-export const WorkerRunContextSchema = z.object({
+const WorkerRunContextBaseSchema = z.object({
   runId: z.string().trim().min(1),
-  workflowId: z.literal('CINEMATIC_SHORT_VIDEO'),
+  workflowId: z.enum([
+    EXECUTION_WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
+  ]),
   providerId: z.string().trim().min(1),
-  apiKeyId: z.string().trim().min(1),
+  apiKeyId: z.string().trim().min(1).optional(),
+  useSystemKey: z.boolean().optional(),
   callbackUrl: z.string().trim().url(),
   resolveKeyUrl: z.string().trim().url(),
   timeoutMs: z.number().int().positive(),
   maxAttempts: z.number().int().positive(),
   pollIntervalMs: z.number().int().positive(),
-  providerInput: z.object({
-    prompt: z.string().min(1),
-    modelId: z.string().min(1),
-    externalModelId: z.string().min(1),
-    aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
-    duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
-    referenceImage: z.string().optional(),
-    negativePrompt: z.string().optional(),
-    resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
-    i2vModelId: z.string().optional(),
-    videoDefaults: z.unknown().optional(),
-    providerBaseUrl: z.string().trim().url().optional(),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-  }),
 })
+
+const WorkerVideoProviderInputSchema = z.object({
+  prompt: z.string().min(1),
+  modelId: z.string().min(1),
+  externalModelId: z.string().min(1),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
+  duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
+  referenceImage: z.string().optional(),
+  negativePrompt: z.string().optional(),
+  resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
+  i2vModelId: z.string().optional(),
+  videoDefaults: z.unknown().optional(),
+  providerBaseUrl: z.string().trim().url().optional(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+})
+
+const WorkerAudioProviderInputSchema = z.object({
+  prompt: z.string().min(1),
+  modelId: z.string().min(1),
+  externalModelId: z.string().min(1),
+  referenceAudioUrl: z.string().url(),
+  referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
+  voiceId: z.string().min(1).optional(),
+  speed: z.number().min(0.5).max(2.0).optional(),
+  format: z.enum(AUDIO_FORMATS).optional(),
+  sampleRate: z.number().int().min(8000).max(48000).optional(),
+})
+
+export const WorkerRunContextSchema = z
+  .discriminatedUnion('outputType', [
+    WorkerRunContextBaseSchema.extend({
+      outputType: z.literal('VIDEO'),
+      providerInput: WorkerVideoProviderInputSchema,
+    }),
+    WorkerRunContextBaseSchema.extend({
+      outputType: z.literal('AUDIO'),
+      providerInput: WorkerAudioProviderInputSchema,
+    }),
+  ])
+  .superRefine((value, ctx) => {
+    if (value.apiKeyId || value.useSystemKey) return
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['apiKeyId'],
+      message: 'Either API key ID or system key flag is required',
+    })
+  })
 
 export const WorkerDispatchResultSchema = z.object({
   workflowInstanceId: z.string().min(1),

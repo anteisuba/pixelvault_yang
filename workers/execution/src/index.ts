@@ -1,18 +1,21 @@
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import type { Workflow, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 
-import { buildFalWorkerQueueRequest } from './models/fal/video-request-builders'
+import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
 
 const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
 const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
+const FAL_QUEUE_PATH = '/workflows/fal-queue'
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
 const EXECUTION_SIGNATURE_ALGORITHM = 'HMAC'
 const EXECUTION_SIGNATURE_HASH = 'SHA-256'
 const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
+const WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
+type WorkerWorkflowId = (typeof WORKFLOW_IDS)[number]
 
 interface ExecutionEnv {
   INTERNAL_CALLBACK_URL?: string
@@ -27,16 +30,21 @@ interface ExecutionCallbackPayload {
   data?: unknown
 }
 
-interface WorkerRunContext {
+interface WorkerRunContextBase {
   runId: string
-  workflowId: 'CINEMATIC_SHORT_VIDEO'
+  workflowId: WorkerWorkflowId
   providerId: string
-  apiKeyId: string
+  apiKeyId?: string
+  useSystemKey?: boolean
   callbackUrl: string
   resolveKeyUrl: string
   timeoutMs: number
   maxAttempts: number
   pollIntervalMs: number
+}
+
+interface WorkerVideoRunContext extends WorkerRunContextBase {
+  outputType: 'VIDEO'
   providerInput: {
     prompt: string
     modelId: string
@@ -54,6 +62,23 @@ interface WorkerRunContext {
   }
 }
 
+interface WorkerAudioRunContext extends WorkerRunContextBase {
+  outputType: 'AUDIO'
+  providerInput: {
+    prompt: string
+    modelId: string
+    externalModelId: string
+    referenceAudioUrl: string
+    referenceText?: string
+    voiceId?: string
+    speed?: number
+    format?: string
+    sampleRate?: number
+  }
+}
+
+type WorkerRunContext = WorkerVideoRunContext | WorkerAudioRunContext
+
 interface FalQueueSubmitResult {
   requestId: string
   statusUrl: string
@@ -63,6 +88,7 @@ interface FalQueueSubmitResult {
 interface FalQueueStatusResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   artifactUrl?: string
+  mimeType?: string
   providerMetadata?: Record<string, unknown>
 }
 
@@ -96,6 +122,14 @@ function readPositiveNumberField(
   return typeof fieldValue === 'number' && fieldValue > 0 ? fieldValue : null
 }
 
+function readBooleanField(
+  value: Record<string, unknown>,
+  key: string,
+): boolean | null {
+  const fieldValue = value[key]
+  return typeof fieldValue === 'boolean' ? fieldValue : null
+}
+
 function readCallbackKind(value: Record<string, unknown>): CallbackKind {
   const kind = value.kind
   return isCallbackKind(kind) ? kind : 'ping'
@@ -119,6 +153,20 @@ async function readText(request: Request): Promise<string | null> {
 
 function isCallbackKind(value: unknown): value is CallbackKind {
   return CALLBACK_KINDS.some((candidate) => candidate === value)
+}
+
+function isWorkerWorkflowId(value: unknown): value is WorkerWorkflowId {
+  return WORKFLOW_IDS.some((candidate) => candidate === value)
+}
+
+function isFalQueueFailureStatus(status: string): boolean {
+  const normalized = status.toUpperCase()
+  return (
+    normalized === 'FAILED' ||
+    normalized === 'ERROR' ||
+    normalized === 'CANCELED' ||
+    normalized === 'CANCELLED'
+  )
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -284,8 +332,10 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
 
   const runId = readStringField(input, 'runId')
   const workflowId = readStringField(input, 'workflowId')
+  const outputType = readStringField(input, 'outputType')
   const providerId = readStringField(input, 'providerId')
-  const apiKeyId = readStringField(input, 'apiKeyId')
+  const apiKeyId = readStringField(input, 'apiKeyId') ?? undefined
+  const useSystemKey = readBooleanField(input, 'useSystemKey') ?? undefined
   const callbackUrl = readStringField(input, 'callbackUrl')
   const resolveKeyUrl = readStringField(input, 'resolveKeyUrl')
   const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
@@ -294,15 +344,12 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
   const prompt = readStringField(providerInput, 'prompt')
   const modelId = readStringField(providerInput, 'modelId')
   const externalModelId = readStringField(providerInput, 'externalModelId')
-  const aspectRatio = readStringField(providerInput, 'aspectRatio')
-  const width = readPositiveNumberField(providerInput, 'width')
-  const height = readPositiveNumberField(providerInput, 'height')
 
   if (
     !runId ||
-    workflowId !== 'CINEMATIC_SHORT_VIDEO' ||
+    !isWorkerWorkflowId(workflowId) ||
     !providerId ||
-    !apiKeyId ||
+    (!apiKeyId && !useSystemKey) ||
     !callbackUrl ||
     !resolveKeyUrl ||
     !timeoutMs ||
@@ -310,19 +357,65 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
     !pollIntervalMs ||
     !prompt ||
     !modelId ||
-    !externalModelId ||
-    !aspectRatio ||
-    !width ||
-    !height
+    !externalModelId
   ) {
+    return null
+  }
+
+  if (outputType === 'AUDIO') {
+    const referenceAudioUrl = readStringField(
+      providerInput,
+      'referenceAudioUrl',
+    )
+    if (!referenceAudioUrl) return null
+
+    return {
+      runId,
+      workflowId,
+      outputType,
+      providerId,
+      apiKeyId,
+      useSystemKey,
+      callbackUrl,
+      resolveKeyUrl,
+      timeoutMs,
+      maxAttempts,
+      pollIntervalMs,
+      providerInput: {
+        prompt,
+        modelId,
+        externalModelId,
+        referenceAudioUrl,
+        referenceText:
+          readStringField(providerInput, 'referenceText') ?? undefined,
+        voiceId: readStringField(providerInput, 'voiceId') ?? undefined,
+        speed: readPositiveNumberField(providerInput, 'speed') ?? undefined,
+        format: readStringField(providerInput, 'format') ?? undefined,
+        sampleRate:
+          readPositiveNumberField(providerInput, 'sampleRate') ?? undefined,
+      },
+    }
+  }
+
+  if (outputType !== 'VIDEO') {
+    return null
+  }
+
+  const aspectRatio = readStringField(providerInput, 'aspectRatio')
+  const width = readPositiveNumberField(providerInput, 'width')
+  const height = readPositiveNumberField(providerInput, 'height')
+
+  if (!aspectRatio || !width || !height) {
     return null
   }
 
   return {
     runId,
     workflowId,
+    outputType,
     providerId,
     apiKeyId,
+    useSystemKey,
     callbackUrl,
     resolveKeyUrl,
     timeoutMs,
@@ -333,7 +426,7 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       modelId,
       externalModelId,
       aspectRatio:
-        aspectRatio as WorkerRunContext['providerInput']['aspectRatio'],
+        aspectRatio as WorkerVideoRunContext['providerInput']['aspectRatio'],
       duration: readPositiveNumberField(providerInput, 'duration') ?? undefined,
       referenceImage:
         readStringField(providerInput, 'referenceImage') ?? undefined,
@@ -352,7 +445,7 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
   }
 }
 
-async function handleCinematicShortVideoDispatch(
+async function handleFalQueueDispatch(
   request: Request,
   env: ExecutionEnv,
 ): Promise<Response> {
@@ -412,6 +505,8 @@ async function resolveApiKey(
     {
       runId: context.runId,
       apiKeyId: context.apiKeyId,
+      adapterType: context.providerId,
+      useSystemKey: context.useSystemKey,
     },
   )
 
@@ -431,6 +526,41 @@ async function resolveApiKey(
   return payload.data.apiKey
 }
 
+function buildFalWorkerAudioQueueRequest(context: WorkerAudioRunContext): {
+  endpointModelId: string
+  input: Record<string, unknown>
+  isDocumentationVerified: boolean
+} {
+  const body: Record<string, unknown> = {
+    gen_text: context.providerInput.prompt,
+    ref_audio_url: context.providerInput.referenceAudioUrl,
+    model_type: 'F5-TTS',
+    remove_silence: true,
+  }
+
+  if (context.providerInput.referenceText) {
+    body.ref_text = context.providerInput.referenceText
+  }
+
+  return {
+    endpointModelId: context.providerInput.externalModelId,
+    input: body,
+    isDocumentationVerified: true,
+  }
+}
+
+function buildFalWorkerQueueRequest(context: WorkerRunContext): {
+  endpointModelId: string
+  input: Record<string, unknown>
+  isDocumentationVerified: boolean
+} {
+  if (context.outputType === 'AUDIO') {
+    return buildFalWorkerAudioQueueRequest(context)
+  }
+
+  return buildFalWorkerVideoQueueRequest(context)
+}
+
 async function submitFalQueue(
   context: WorkerRunContext,
   apiKey: string,
@@ -442,7 +572,7 @@ async function submitFalQueue(
   if (!queueBody.isDocumentationVerified) {
     // TODO(video-payload-audit): replace this warning after the provider
     // publishes a current schema page for this endpoint.
-    console.warn('fal.ai worker video request body uses unverified schema', {
+    console.warn('fal.ai worker request body uses unverified schema', {
       modelId: context.providerInput.modelId,
       endpoint,
       body: queueBody.input,
@@ -474,9 +604,26 @@ async function submitFalQueue(
   return { requestId, statusUrl, responseUrl }
 }
 
+function readFalAudioArtifact(resultData: Record<string, unknown>): {
+  artifactUrl: string | null
+  mimeType?: string
+} {
+  const audioUrl = isRecord(resultData.audio_url) ? resultData.audio_url : null
+  const audio = isRecord(resultData.audio) ? resultData.audio : null
+  const audioRecord = audioUrl ?? audio
+
+  if (!audioRecord) return { artifactUrl: null }
+
+  return {
+    artifactUrl: readStringField(audioRecord, 'url'),
+    mimeType: readStringField(audioRecord, 'content_type') ?? undefined,
+  }
+}
+
 async function pollFalQueue(
   queue: FalQueueSubmitResult,
   apiKey: string,
+  outputType: WorkerRunContext['outputType'],
 ): Promise<FalQueueStatusResult> {
   const statusResponse = await fetch(queue.statusUrl, {
     headers: { Authorization: `Key ${apiKey}` },
@@ -491,7 +638,7 @@ async function pollFalQueue(
   const statusData = (await statusResponse.json()) as Record<string, unknown>
   const status = readStringField(statusData, 'status')
 
-  if (status === 'FAILED') {
+  if (status && isFalQueueFailureStatus(status)) {
     return {
       status: 'FAILED',
       providerMetadata: { requestId: queue.requestId },
@@ -515,6 +662,24 @@ async function pollFalQueue(
   }
 
   const resultData = (await resultResponse.json()) as Record<string, unknown>
+  if (outputType === 'AUDIO') {
+    const audio = readFalAudioArtifact(resultData)
+    if (!audio.artifactUrl) {
+      throw new Error('fal.ai result response did not include an audio URL.')
+    }
+
+    return {
+      status: 'COMPLETED',
+      artifactUrl: audio.artifactUrl,
+      mimeType: audio.mimeType ?? 'audio/wav',
+      providerMetadata: {
+        requestId: queue.requestId,
+        statusUrl: queue.statusUrl,
+        responseUrl: queue.responseUrl,
+      },
+    }
+  }
+
   const video = isRecord(resultData.video) ? resultData.video : null
   const artifactUrl = video ? readStringField(video, 'url') : null
 
@@ -592,7 +757,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
           },
           async () => {
             const apiKey = await resolveApiKey(this.env, context)
-            return pollFalQueue(queue, apiKey)
+            return pollFalQueue(queue, apiKey, context.outputType)
           },
         )
 
@@ -605,11 +770,22 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
             emitCallback(this.env, context, {
               artifactUrl: pollResult.artifactUrl,
               providerMetadata: pollResult.providerMetadata,
-              width: context.providerInput.width,
-              height: context.providerInput.height,
-              duration: context.providerInput.duration,
+              width:
+                context.outputType === 'VIDEO'
+                  ? context.providerInput.width
+                  : undefined,
+              height:
+                context.outputType === 'VIDEO'
+                  ? context.providerInput.height
+                  : undefined,
+              duration:
+                context.outputType === 'VIDEO'
+                  ? context.providerInput.duration
+                  : undefined,
               requestCount: 1,
-              mimeType: 'video/mp4',
+              mimeType:
+                pollResult.mimeType ??
+                (context.outputType === 'VIDEO' ? 'video/mp4' : 'audio/wav'),
             }),
           )
 
@@ -648,9 +824,10 @@ const executionWorker = {
 
     if (
       request.method === 'POST' &&
-      url.pathname === CINEMATIC_SHORT_VIDEO_PATH
+      (url.pathname === FAL_QUEUE_PATH ||
+        url.pathname === CINEMATIC_SHORT_VIDEO_PATH)
     ) {
-      return handleCinematicShortVideoDispatch(request, env)
+      return handleFalQueueDispatch(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

@@ -50,6 +50,8 @@ export interface AudioGenerateInput {
   apiKeyId?: string
   freePrompt?: string
   voiceId?: string
+  referenceAudioUrl?: string
+  referenceText?: string
   emotion?: string
   pace?: string
   pauseMarkers?: string[]
@@ -697,6 +699,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           modelId: input.modelId,
           apiKeyId: input.apiKeyId,
           voiceId: input.voiceId,
+          referenceAudioUrl: input.referenceAudioUrl,
+          referenceText: input.referenceText,
           emotion: isAudioEmotion(input.emotion) ? input.emotion : undefined,
           pace: isAudioPace(input.pace) ? input.pace : undefined,
           pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),

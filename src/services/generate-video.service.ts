@@ -1,21 +1,20 @@
 import 'server-only'
 
-import { createHmac } from 'node:crypto'
-
-import { EXECUTION_INTERNAL, EXECUTION_WORKER } from '@/constants/execution'
+import {
+  EXECUTION_INTERNAL,
+  EXECUTION_WORKER,
+  EXECUTION_WORKFLOW_IDS,
+} from '@/constants/execution'
 import { IMAGE_SIZES } from '@/constants/config'
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
-import { WORKFLOW_IDS } from '@/constants/workflows'
 import type {
   GenerateVideoRequest,
   GenerationRecord,
-  WorkerDispatchResult,
   WorkerRunContext,
   VideoStatusResponseData,
   VideoSubmitResponseData,
 } from '@/types'
-import { WorkerDispatchResultSchema } from '@/types'
 import { createGeneration } from '@/services/generation.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
@@ -37,6 +36,10 @@ import {
   GenerateImageServiceError,
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
+import {
+  buildInternalUrl,
+  dispatchWorkerRun,
+} from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -44,89 +47,15 @@ import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/lib/prompt-guard'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
-function getInternalCallbackSecret(): string {
-  const secret = process.env.INTERNAL_CALLBACK_SECRET
-
-  if (!secret) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      'Internal callback secret is not configured',
-      500,
-    )
-  }
-
-  return secret
-}
-
-function getAppBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-}
-
-function getWorkerBaseUrl(): string {
-  const workerBaseUrl = process.env.EXECUTION_WORKER_BASE_URL
-
-  if (!workerBaseUrl) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      'Execution worker URL is not configured',
-      500,
-    )
-  }
-
-  return workerBaseUrl.replace(/\/$/, '')
-}
-
-function signBody(body: string): string {
-  return createHmac(
-    EXECUTION_INTERNAL.SIGNATURE_ALGORITHM,
-    getInternalCallbackSecret(),
-  )
-    .update(body, 'utf8')
-    .digest('hex')
-}
-
-async function dispatchWorkerRun(
-  runContext: WorkerRunContext,
-): Promise<WorkerDispatchResult> {
-  const body = JSON.stringify(runContext)
-  const response = await fetch(
-    `${getWorkerBaseUrl()}${EXECUTION_WORKER.CINEMATIC_SHORT_VIDEO_PATH}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
-      },
-      body,
-    },
-  )
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      `Execution worker dispatch failed (${response.status}): ${errorBody.slice(0, 200)}`,
-      502,
-    )
-  }
-
-  const payload: unknown = await response.json()
-  return WorkerDispatchResultSchema.parse(payload)
-}
-
-function isCinematicShortVideoWorkerRequest(
-  input: GenerateVideoRequest,
-  adapterType: string,
-): boolean {
+function canSubmitVideoViaExecutionWorker(route: {
+  adapterType: string
+  resolvedApiKeyId?: string | null
+  isFreeGeneration?: boolean
+}): boolean {
   return (
-    input.workflowId === WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO &&
-    adapterType === AI_ADAPTER_TYPES.FAL &&
-    Boolean(input.apiKeyId)
+    route.adapterType === AI_ADAPTER_TYPES.FAL &&
+    (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
   )
-}
-
-function buildInternalUrl(path: string): string {
-  return new URL(path, getAppBaseUrl()).toString()
 }
 
 // ─── Submit video to fal.ai queue ────────────────────────────────
@@ -176,15 +105,18 @@ export async function submitVideoGenerationForUserId(
 
   const modelConfig = getModelById(executionRoute.modelId)
 
-  if (
-    isCinematicShortVideoWorkerRequest(input, executionRoute.adapterType) &&
-    modelConfig
-  ) {
-    return submitCinematicShortVideoWorkerRun({
+  if (modelConfig && canSubmitVideoViaExecutionWorker(executionRoute)) {
+    return submitFalVideoWorkerRun({
       input,
       userId,
       adapterType: executionRoute.adapterType,
       provider,
+      routeModelId: executionRoute.modelId,
+      apiKeyId: executionRoute.resolvedApiKeyId ?? input.apiKeyId,
+      useSystemKey:
+        executionRoute.isFreeGeneration === true &&
+        !executionRoute.resolvedApiKeyId,
+      isFreeGeneration: executionRoute.isFreeGeneration,
       modelConfig,
     })
   }
@@ -273,19 +205,33 @@ export async function submitVideoGenerationForUserId(
   }
 }
 
-async function submitCinematicShortVideoWorkerRun(params: {
+async function submitFalVideoWorkerRun(params: {
   input: GenerateVideoRequest
   userId: string
   adapterType: string
   provider: string
+  routeModelId: string
+  apiKeyId?: string | null
+  useSystemKey: boolean
+  isFreeGeneration?: boolean
   modelConfig: NonNullable<ReturnType<typeof getModelById>>
 }): Promise<VideoSubmitResponseData> {
-  const { input, userId, adapterType, provider, modelConfig } = params
+  const {
+    input,
+    userId,
+    adapterType,
+    provider,
+    routeModelId,
+    apiKeyId,
+    useSystemKey,
+    isFreeGeneration,
+    modelConfig,
+  } = params
 
-  if (!input.apiKeyId) {
+  if (!apiKeyId && !useSystemKey) {
     throw new GenerateImageServiceError(
       'MISSING_API_KEY',
-      'Cinematic Short Video worker runs require a saved API key',
+      'Execution worker runs require a saved API key or platform key',
       400,
     )
   }
@@ -307,25 +253,30 @@ async function submitCinematicShortVideoWorkerRun(params: {
     IMAGE_SIZES[input.aspectRatio] ?? IMAGE_SIZES['16:9']
   const metadata = {
     workerManaged: true,
-    workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    outputType: 'VIDEO',
+    workflowId: input.workflowId,
+    executionWorkflowId: EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
     referenceImageUrl,
     characterCardIds: input.characterCardIds,
+    isFreeGeneration,
   }
 
   const generationJob = await createGenerationJob({
     userId,
     adapterType,
     provider,
-    modelId: input.modelId,
+    modelId: routeModelId,
     prompt: input.prompt,
     externalRequestId: JSON.stringify(metadata),
   })
 
   const runContext: WorkerRunContext = {
     runId: generationJob.id,
-    workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    workflowId: EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
+    outputType: 'VIDEO',
     providerId: adapterType,
-    apiKeyId: input.apiKeyId,
+    apiKeyId: apiKeyId ?? undefined,
+    useSystemKey: useSystemKey || undefined,
     callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
     resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
     timeoutMs: modelConfig.timeoutMs ?? EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
@@ -333,8 +284,8 @@ async function submitCinematicShortVideoWorkerRun(params: {
     pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
     providerInput: {
       prompt: input.prompt,
-      modelId: input.modelId,
-      externalModelId: getExecutionModelId(input.modelId),
+      modelId: routeModelId,
+      externalModelId: getExecutionModelId(routeModelId),
       aspectRatio: input.aspectRatio,
       duration: input.duration,
       referenceImage: referenceImageUrl,
@@ -361,7 +312,7 @@ async function submitCinematicShortVideoWorkerRun(params: {
       },
     })
 
-    logger.info('Cinematic Short Video dispatched to execution worker', {
+    logger.info('FAL video dispatched to execution worker', {
       jobId: generationJob.id,
       workflowInstanceId: dispatchResult.workflowInstanceId,
     })

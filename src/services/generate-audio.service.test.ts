@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockGenerationJobFindUnique = vi.fn()
 const mockGenerationJobUpdate = vi.fn()
 const mockGenerationJobUpdateMany = vi.fn()
+const mockDispatchWorkerRun = vi.fn()
 const mockTransaction = vi.fn(
   async (callback: (tx: object) => Promise<unknown>) => callback({}),
 )
@@ -36,6 +37,10 @@ vi.mock('@/services/execution-outbox.service', () => ({
   failExecutionOutbox: vi.fn(),
   failExpiredExecutionOutbox: vi.fn(),
   annotateExecutionOutbox: vi.fn(),
+}))
+vi.mock('@/services/execution-worker.service', () => ({
+  buildInternalUrl: (path: string) => `http://localhost:3000${path}`,
+  dispatchWorkerRun: (...args: unknown[]) => mockDispatchWorkerRun(...args),
 }))
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
@@ -218,6 +223,7 @@ const BASE_ASYNC_REQUEST: GenerateAudioRequest = {
   prompt: 'Hello world',
   modelId: 'fal-f5-tts',
   apiKeyId: 'key-1',
+  referenceAudioUrl: 'https://cdn.example.com/reference.wav',
 }
 
 function setupSyncHappyPath(mockGenerateAudio = vi.fn()) {
@@ -442,9 +448,52 @@ describe('submitAudioGeneration', () => {
     vi.mocked(createExecutionOutbox).mockResolvedValue({
       id: 'outbox-audio-1',
     } as never)
+    mockDispatchWorkerRun.mockResolvedValue({
+      workflowInstanceId: 'wf-audio-1',
+    })
+    mockGenerationJobUpdate.mockResolvedValue(undefined)
   })
 
-  it('creates a durable job and execution outbox before any provider submit', async () => {
+  it('dispatches FAL audio to the execution worker without inline provider submit', async () => {
+    const submitAudioToQueue = vi.fn()
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      submitAudioToQueue,
+    } as never)
+
+    const result = await submitAudioGeneration('clerk-1', BASE_ASYNC_REQUEST)
+
+    expect(result).toEqual({
+      jobId: 'job-async-1',
+      requestId: 'wf-audio-1',
+    })
+    expect(createGenerationJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        modelId: 'fal-f5-tts',
+        prompt: 'Hello world',
+      }),
+    )
+    expect(createExecutionOutbox).not.toHaveBeenCalled()
+    expect(submitAudioToQueue).not.toHaveBeenCalled()
+    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'job-async-1',
+        outputType: 'AUDIO',
+        providerId: AI_ADAPTER_TYPES.FAL,
+        apiKeyId: 'key-1',
+        providerInput: expect.objectContaining({
+          referenceAudioUrl: 'https://cdn.example.com/reference.wav',
+        }),
+      }),
+    )
+  })
+
+  it('keeps routes without worker-resolvable keys on the execution outbox path', async () => {
+    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce({
+      ...FAKE_ASYNC_ROUTE,
+      resolvedApiKeyId: null,
+      isFreeGeneration: false,
+    } as never)
     const submitAudioToQueue = vi.fn()
     vi.mocked(getProviderAdapter).mockReturnValue({
       submitAudioToQueue,
@@ -455,14 +504,6 @@ describe('submitAudioGeneration', () => {
     expect(result).toEqual({
       jobId: 'job-async-1',
     })
-    expect(createGenerationJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: 'user-1',
-        modelId: 'fal-f5-tts',
-        prompt: 'Hello world',
-      }),
-      expect.anything(),
-    )
     expect(createExecutionOutbox).toHaveBeenCalledWith(
       expect.objectContaining({
         generationJobId: 'job-async-1',
@@ -482,6 +523,7 @@ describe('submitAudioGeneration', () => {
     expect(
       vi.mocked(createGenerationJob).mock.calls[0]?.[0]?.externalRequestId,
     ).toContain('"providerConfig"')
+    expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
   })
 
   it('fails before creating durable state when the model has no async submit support', async () => {
@@ -564,6 +606,42 @@ describe('checkAudioGenerationStatus', () => {
       jobId: 'job-async-1',
       status: 'COMPLETED',
       generation: FAKE_GENERATION,
+    })
+    expect(checkAudioQueueStatus).not.toHaveBeenCalled()
+    expect(getApiKeyValueById).not.toHaveBeenCalled()
+  })
+
+  it('returns IN_PROGRESS for worker-managed audio jobs without provider polling', async () => {
+    const workerManagedJob = {
+      ...FAKE_ASYNC_JOB,
+      externalRequestId: JSON.stringify({
+        workerManaged: true,
+        outputType: 'AUDIO',
+        workflowInstanceId: 'wf-audio-1',
+        route: {
+          modelId: 'fal-f5-tts',
+          adapterType: AI_ADAPTER_TYPES.FAL,
+          provider: 'FAL',
+          providerConfig: {
+            label: 'FAL',
+            baseUrl: 'https://queue.fal.run',
+          },
+          apiKeyId: 'key-1',
+          isFreeGeneration: false,
+        },
+      }),
+    }
+    const checkAudioQueueStatus = vi.fn()
+    mockGenerationJobFindUnique.mockResolvedValue(workerManagedJob)
+    vi.mocked(getProviderAdapter).mockReturnValue({
+      checkAudioQueueStatus,
+    } as never)
+
+    const result = await checkAudioGenerationStatus('clerk-1', 'job-async-1')
+
+    expect(result).toEqual({
+      jobId: 'job-async-1',
+      status: 'IN_PROGRESS',
     })
     expect(checkAudioQueueStatus).not.toHaveBeenCalled()
     expect(getApiKeyValueById).not.toHaveBeenCalled()

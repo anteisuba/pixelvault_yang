@@ -2,7 +2,13 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
+import {
+  EXECUTION_INTERNAL,
+  EXECUTION_OUTBOX_KINDS,
+  EXECUTION_WORKER,
+  EXECUTION_WORKFLOW_IDS,
+} from '@/constants/execution'
+import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AUDIO_EMOTION, AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import {
   AI_ADAPTER_TYPES,
@@ -14,6 +20,7 @@ import type {
   AudioSubmitResponseData,
   GenerateAudioRequest,
   GenerationRecord,
+  WorkerRunContext,
 } from '@/types'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
@@ -33,6 +40,10 @@ import {
   resolveGenerationRoute,
   GenerateImageServiceError,
 } from '@/services/generate-image.service'
+import {
+  buildInternalUrl,
+  dispatchWorkerRun,
+} from '@/services/execution-worker.service'
 import {
   annotateExecutionOutbox,
   completeExecutionOutbox,
@@ -83,6 +94,10 @@ const AudioQueueMetadataSchema = z.object({
   statusUrl: z.string().url().optional(),
   responseUrl: z.string().url().optional(),
   route: AudioRouteIdentitySchema,
+  workerManaged: z.boolean().optional(),
+  outputType: z.literal('AUDIO').optional(),
+  workflowInstanceId: z.string().min(1).optional(),
+  audioFormat: z.string().min(1).optional(),
 })
 
 type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
@@ -97,6 +112,8 @@ const AudioSubmitOutboxPayloadSchema = z.object({
   speed: z.number().min(0.5).max(2.0).optional(),
   format: z.string().min(1).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
+  referenceAudioUrl: z.string().url().optional(),
+  referenceText: z.string().trim().max(5000).optional(),
 })
 
 type AudioSubmitOutboxPayload = z.infer<typeof AudioSubmitOutboxPayloadSchema>
@@ -262,6 +279,32 @@ function resolveAudioSpeed(request: {
   return undefined
 }
 
+function canSubmitAudioViaExecutionWorker(route: {
+  adapterType: AI_ADAPTER_TYPES
+  resolvedApiKeyId?: string | null
+  isFreeGeneration?: boolean
+}): boolean {
+  return (
+    route.adapterType === AI_ADAPTER_TYPES.FAL &&
+    (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
+  )
+}
+
+function assertReferenceAudioUrl(
+  request: GenerateAudioRequest,
+  modelId: string,
+): string {
+  if (request.referenceAudioUrl) {
+    return request.referenceAudioUrl
+  }
+
+  throw new GenerateImageServiceError(
+    'VALIDATION_ERROR',
+    `${modelId} requires a reference audio URL`,
+    400,
+  )
+}
+
 /**
  * Generate audio synchronously (Fish Audio — returns audio bytes immediately).
  * Flow: validate → resolve route → call adapter.generateAudio() → upload R2 → create record.
@@ -415,6 +458,20 @@ export async function submitAudioGeneration(
   }
 
   const providerLabel = getProviderLabel(route.providerConfig)
+  const modelConfig = getModelById(route.modelId)
+
+  if (modelConfig && canSubmitAudioViaExecutionWorker(route)) {
+    return submitFalAudioWorkerRun({
+      request,
+      userId,
+      route,
+      providerLabel,
+      apiKeyId: route.resolvedApiKeyId ?? request.apiKeyId,
+      useSystemKey: route.isFreeGeneration === true && !route.resolvedApiKeyId,
+      modelConfig,
+    })
+  }
+
   const routeIdentity = buildAudioRouteIdentity(route, providerLabel)
   const outboxPayload = buildAudioSubmitOutboxPayload(request)
 
@@ -452,6 +509,120 @@ export async function submitAudioGeneration(
 
   return {
     jobId: job.id,
+  }
+}
+
+async function submitFalAudioWorkerRun(params: {
+  request: GenerateAudioRequest
+  userId: string
+  route: {
+    modelId: string
+    adapterType: AI_ADAPTER_TYPES
+    providerConfig: ProviderConfig
+    resolvedApiKeyId?: string | null
+    isFreeGeneration?: boolean
+  }
+  providerLabel: string
+  apiKeyId?: string | null
+  useSystemKey: boolean
+  modelConfig: NonNullable<ReturnType<typeof getModelById>>
+}): Promise<AudioSubmitResponseData> {
+  const {
+    request,
+    userId,
+    route,
+    providerLabel,
+    apiKeyId,
+    useSystemKey,
+    modelConfig,
+  } = params
+  const referenceAudioUrl = assertReferenceAudioUrl(request, route.modelId)
+
+  if (!apiKeyId && !useSystemKey) {
+    throw new GenerateImageServiceError(
+      'MISSING_API_KEY',
+      'Execution worker runs require a saved API key or platform key',
+      400,
+    )
+  }
+
+  const routeIdentity = buildAudioRouteIdentity(route, providerLabel)
+  const metadata: AudioQueueMetadata = {
+    route: routeIdentity,
+    workerManaged: true,
+    outputType: 'AUDIO',
+    audioFormat: request.format,
+  }
+
+  const job = await createGenerationJob({
+    userId,
+    adapterType: route.adapterType,
+    provider: providerLabel,
+    modelId: route.modelId,
+    prompt: request.prompt,
+    externalRequestId: serializeAudioQueueMetadata(metadata),
+  })
+
+  const providerPrompt = buildProviderPrompt(request)
+  const runContext: WorkerRunContext = {
+    runId: job.id,
+    workflowId: EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
+    outputType: 'AUDIO',
+    providerId: route.adapterType,
+    apiKeyId: apiKeyId ?? undefined,
+    useSystemKey: useSystemKey || undefined,
+    callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
+    resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
+    timeoutMs: modelConfig.timeoutMs ?? EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
+    maxAttempts: EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
+    pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+    providerInput: {
+      prompt: providerPrompt,
+      modelId: route.modelId,
+      externalModelId: getExecutionModelId(route.modelId),
+      referenceAudioUrl,
+      referenceText: request.referenceText,
+      voiceId: request.voiceId,
+      speed: resolveAudioSpeed(request),
+      format: request.format,
+      sampleRate: request.sampleRate,
+    },
+  }
+
+  try {
+    const dispatchResult = await dispatchWorkerRun(runContext)
+
+    await db.generationJob.update({
+      where: { id: job.id },
+      data: {
+        externalRequestId: serializeAudioQueueMetadata({
+          ...metadata,
+          workflowInstanceId: dispatchResult.workflowInstanceId,
+        }),
+      },
+    })
+
+    logger.info('FAL audio dispatched to execution worker', {
+      jobId: job.id,
+      workflowInstanceId: dispatchResult.workflowInstanceId,
+      model: route.modelId,
+    })
+
+    return {
+      jobId: job.id,
+      requestId: dispatchResult.workflowInstanceId,
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to dispatch execution worker'
+
+    await failGenerationJob(job.id, {
+      errorMessage: message,
+    })
+
+    throw error
   }
 }
 
@@ -499,6 +670,10 @@ export async function checkAudioGenerationStatus(
   }
 
   const baseQueueMeta = parseAudioQueueMetadata(job.externalRequestId)
+  if (baseQueueMeta.workerManaged) {
+    return { jobId: job.id, status: 'IN_PROGRESS' }
+  }
+
   const queueMeta = await getReadyAudioQueueMetadata(
     toAudioJobState(job),
     baseQueueMeta,
@@ -683,6 +858,8 @@ function buildAudioSubmitOutboxPayload(
     speed: request.speed,
     format: request.format,
     sampleRate: request.sampleRate,
+    referenceAudioUrl: request.referenceAudioUrl,
+    referenceText: request.referenceText,
   })
 }
 
@@ -900,6 +1077,8 @@ async function dispatchAudioSubmitOutbox(
             providerConfig,
             apiKey: executionRoute.apiKey,
             voiceId: payload.data.voiceId,
+            referenceAudioUrl: payload.data.referenceAudioUrl,
+            referenceText: payload.data.referenceText,
             speed,
             format: payload.data.format,
             sampleRate: payload.data.sampleRate,

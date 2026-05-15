@@ -451,6 +451,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             apiKeyId: selectedModel.keyId,
             freePrompt: state.prompt || undefined,
             voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+            referenceAudioUrl:
+              selectedVoiceCard?.referenceAudioUrl ?? undefined,
+            referenceText: selectedVoiceCard?.sampleText ?? undefined,
             emotion: state.audioEmotion,
             pace: state.audioPace,
             pauseMarkers: state.audioPauseMarkers,
@@ -522,6 +525,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       state.audioPauseMarkers,
       state.workflowMode,
       selectedVoiceCard?.voiceId,
+      selectedVoiceCard?.referenceAudioUrl,
+      selectedVoiceCard?.sampleText,
       audioPronunciationDictionary,
       audioSpeed,
       buildImageInput,

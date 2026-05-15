@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+
 // ─── Mocks ──────────────────────────────────────────────────────
 
 vi.mock('@/lib/logger', () => ({
@@ -8,6 +10,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockFindUnique = vi.fn()
 const mockGetApiKeyValueById = vi.fn()
+const mockGetSystemApiKey = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -19,6 +22,10 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/services/apiKey.service', () => ({
   getApiKeyValueById: (...args: unknown[]) => mockGetApiKeyValueById(...args),
+}))
+
+vi.mock('@/lib/platform-keys', () => ({
+  getSystemApiKey: (...args: unknown[]) => mockGetSystemApiKey(...args),
 }))
 
 import { resolveExecutionApiKey } from './api-key-resolver.service'
@@ -35,6 +42,7 @@ function buildJob(status = 'RUNNING') {
     id: REQUEST.runId,
     userId: 'user-1',
     status,
+    adapterType: 'fal',
   }
 }
 
@@ -61,7 +69,7 @@ describe('api-key-resolver.service', () => {
     expect(result).toEqual({ apiKey: 'plain-key' })
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { id: REQUEST.runId },
-      select: { id: true, userId: true, status: true },
+      select: { id: true, userId: true, status: true, adapterType: true },
     })
     expect(mockGetApiKeyValueById).toHaveBeenCalledWith(
       REQUEST.apiKeyId,
@@ -102,5 +110,33 @@ describe('api-key-resolver.service', () => {
 
     await expectForbidden(resolveExecutionApiKey(REQUEST))
     expect(mockGetApiKeyValueById).not.toHaveBeenCalled()
+  })
+
+  it('returns the system API key for signed worker system-key requests', async () => {
+    mockFindUnique.mockResolvedValue(buildJob())
+    mockGetSystemApiKey.mockReturnValue('system-fal-key')
+
+    const result = await resolveExecutionApiKey({
+      runId: 'job-1',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      useSystemKey: true,
+    })
+
+    expect(result).toEqual({ apiKey: 'system-fal-key' })
+    expect(mockGetApiKeyValueById).not.toHaveBeenCalled()
+    expect(mockGetSystemApiKey).toHaveBeenCalledWith('fal')
+  })
+
+  it('returns 403 for system-key requests whose adapter does not match the job', async () => {
+    mockFindUnique.mockResolvedValue(buildJob())
+
+    await expectForbidden(
+      resolveExecutionApiKey({
+        runId: 'job-1',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        useSystemKey: true,
+      }),
+    )
+    expect(mockGetSystemApiKey).not.toHaveBeenCalled()
   })
 })

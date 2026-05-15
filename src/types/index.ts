@@ -13,6 +13,17 @@ import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
+  HUNYUAN3D_FACE_COUNT,
+  MODEL_3D_GENERATE_TYPES,
+  MODEL_3D_PREVIEW_MODES,
+  MODEL_3D_POLYGON_TYPES,
+  MODEL_3D_PROGRESS_STAGES,
+  TRELLIS_2_DECIMATION_TARGET,
+  TRELLIS_2_RESOLUTIONS,
+  TRELLIS_2_SAMPLING_STEPS,
+  TRELLIS_2_TEXTURE_SIZES,
+} from '@/constants/model-3d-generation'
+import {
   AUDIO_EMOTIONS,
   AUDIO_PAUSE_MARKERS,
   AUDIO_PACES,
@@ -472,6 +483,18 @@ export interface UploadImageResponse {
 
 // ─── 3D Generate Request + Queue (submit + poll) ─────────────────
 
+export const Model3DMultiViewImagesSchema = z
+  .object({
+    backImageUrl: z.string().trim().url().optional(),
+    leftImageUrl: z.string().trim().url().optional(),
+    rightImageUrl: z.string().trim().url().optional(),
+    topImageUrl: z.string().trim().url().optional(),
+    bottomImageUrl: z.string().trim().url().optional(),
+    leftFrontImageUrl: z.string().trim().url().optional(),
+    rightFrontImageUrl: z.string().trim().url().optional(),
+  })
+  .partial()
+
 export const Generate3DRequestSchema = z.object({
   /** Public URL of the source image (already in user's R2 / asset library) */
   imageUrl: z.string().trim().url('Source image URL is required'),
@@ -481,6 +504,75 @@ export const Generate3DRequestSchema = z.object({
   /** Hunyuan3D octree resolution: 256 / 512 / 1024 */
   octreeResolution: z
     .union([z.literal(256), z.literal(512), z.literal(1024)])
+    .optional(),
+  /** Hunyuan3D v3/v3.1: optional side views for less ambiguous geometry. */
+  multiViewImages: Model3DMultiViewImagesSchema.optional(),
+  /** Hunyuan3D v3/v3.1: PBR material maps. */
+  enablePbr: z.boolean().optional(),
+  /** Hunyuan3D v3/v3.1 polygon budget. */
+  faceCount: z
+    .number()
+    .int()
+    .min(HUNYUAN3D_FACE_COUNT.MIN)
+    .max(HUNYUAN3D_FACE_COUNT.MAX)
+    .optional(),
+  /** Hunyuan3D generation task type. */
+  generateType: z.enum(MODEL_3D_GENERATE_TYPES).optional(),
+  /** Hunyuan3D v3.1 Pro: run geometry preview before final textured result. */
+  previewMode: z.enum(MODEL_3D_PREVIEW_MODES).optional(),
+  /** Hunyuan3D v3 low-poly polygon type. */
+  polygonType: z.enum(MODEL_3D_POLYGON_TYPES).optional(),
+  /** Trellis 2 output resolution. */
+  trellisResolution: z
+    .union(
+      TRELLIS_2_RESOLUTIONS.map((value) => z.literal(value)) as [
+        z.ZodLiteral<512>,
+        z.ZodLiteral<1024>,
+        z.ZodLiteral<1536>,
+      ],
+    )
+    .optional(),
+  /** Trellis 2 baked texture size. */
+  trellisTextureSize: z
+    .union(
+      TRELLIS_2_TEXTURE_SIZES.map((value) => z.literal(value)) as [
+        z.ZodLiteral<1024>,
+        z.ZodLiteral<2048>,
+        z.ZodLiteral<4096>,
+      ],
+    )
+    .optional(),
+  /** Trellis 2 final mesh vertex target. */
+  trellisDecimationTarget: z
+    .number()
+    .int()
+    .min(TRELLIS_2_DECIMATION_TARGET.MIN)
+    .max(TRELLIS_2_DECIMATION_TARGET.MAX)
+    .optional(),
+  /** Trellis 2 topology cleanup. */
+  trellisRemesh: z.boolean().optional(),
+  /** Trellis 2 projection back onto original surface after remesh. */
+  trellisRemeshProject: z.number().min(0).max(1).optional(),
+  /** Trellis 2 structure-stage sampling steps. */
+  trellisStructureSamplingSteps: z
+    .number()
+    .int()
+    .min(TRELLIS_2_SAMPLING_STEPS.MIN)
+    .max(TRELLIS_2_SAMPLING_STEPS.MAX)
+    .optional(),
+  /** Trellis 2 shape-stage sampling steps. */
+  trellisShapeSamplingSteps: z
+    .number()
+    .int()
+    .min(TRELLIS_2_SAMPLING_STEPS.MIN)
+    .max(TRELLIS_2_SAMPLING_STEPS.MAX)
+    .optional(),
+  /** Trellis 2 texture-stage sampling steps. */
+  trellisTextureSamplingSteps: z
+    .number()
+    .int()
+    .min(TRELLIS_2_SAMPLING_STEPS.MIN)
+    .max(TRELLIS_2_SAMPLING_STEPS.MAX)
     .optional(),
   /** TripoSR: remove background before reconstruction */
   removeBackground: z.boolean().optional(),
@@ -506,18 +598,35 @@ export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
 
 export const Model3DStatusRequestSchema = AudioStatusRequestSchema
 export type Model3DSubmitResponseData = AsyncJobSubmitResponseData
-export type Model3DStatusResponseData = AudioStatusResponseData
+export type Model3DStatusResponseData =
+  | {
+      jobId: string
+      status: 'IN_QUEUE' | 'IN_PROGRESS'
+      generation?: never
+      previewModelUrl?: string
+      stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
+    }
+  | {
+      jobId: string
+      status: 'COMPLETED'
+      generation: GenerationRecord
+      previewModelUrl?: string
+      stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
+    }
+  | {
+      jobId: string
+      status: 'FAILED'
+      generation?: never
+      previewModelUrl?: string
+      stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
+    }
 
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
 
 /**
- * Generate alternate camera angles of a source image, so the user can pick
- * the best-looking view to feed into image-to-3D. The downstream 3D model
- * (currently Hunyuan3D v2 single-view) still receives one image — this
- * step just gives the user 4 to choose from instead of 1.
- *
- * When we upgrade to Hunyuan v3.1 Pro multi-view, the same payload can
- * feed straight in.
+ * Generate alternate camera angles of a source image. These are temporary
+ * provider URLs, not Generation rows, so the final 3D run is the only
+ * archived output. Hunyuan v3/v3.1 can consume the returned views directly.
  */
 export const MultiViewGenerateRequestSchema = z.object({
   /** Public URL of the front-view source image (reference) */
@@ -536,13 +645,20 @@ export type MultiViewGenerateRequest = z.infer<
   typeof MultiViewGenerateRequestSchema
 >
 
+export interface MultiViewImageRecord {
+  id: string
+  view: 'back' | 'left' | 'right'
+  url: string
+  width: number
+  height: number
+  prompt: string
+  model: string
+  provider: string
+}
+
 export interface MultiViewGenerateResponseData {
-  /**
-   * The three newly generated views, in stable order [back, left, right].
-   * Each is a fully persisted Generation row in the user's library.
-   * The original front view is not included — the caller already has it.
-   */
-  views: GenerationRecord[]
+  /** Temporary side-view URLs in stable order [back, left, right]. */
+  views: MultiViewImageRecord[]
 }
 
 export interface MultiViewGenerateResponse {

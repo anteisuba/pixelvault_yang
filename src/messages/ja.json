@@ -230,9 +230,9 @@
         "cta": "音声を生成"
       },
       "model3d": {
-        "eyebrow": "2つの画像→3Dモデル",
+        "eyebrow": "5つの画像→3Dモデル",
         "title": "画像→3Dモデル",
-        "description": "Hunyuan3D 2.1 と TripoSR — 片方は PBR テクスチャ重視、もう片方は秒速ジオメトリプレビュー。アーカイブから画像を選んで、回転可能な GLB を生成。ブラウザでドラッグ、QR で AR 配置。3D アセットも画像・動画・音声と同じ書庫へ。",
+        "description": "Hunyuan3D v3.1 Pro、Hunyuan3D v3、Trellis 2、Hunyuan3D 2.1、TripoSR — 高精度マルチビューPBRから高速ジオメトリプレビューまで対応。アーカイブから画像を選んで、回転可能な GLB を生成。ブラウザでドラッグ、QR で AR 配置。3D アセットも画像・動画・音声と同じ書庫へ。",
         "cta": "3Dを生成"
       },
       "workflow": {
@@ -433,7 +433,7 @@
   },
   "Model3DGenerate": {
     "title": "画像から3D",
-    "description": "アーカイブから画像を選んで、回転可能なGLBモデルを生成します。",
+    "description": "きれいなソース画像を選んで、高精細な回転可能GLBモデルを生成します。",
     "modelLabel": "3Dモデル",
     "modelPlaceholder": "3Dモデルを選択",
     "sourceImageLabel": "ソース画像",
@@ -443,12 +443,22 @@
     "generating": "生成中...",
     "stageQueued": "待機中",
     "stageGenerating": "生成中",
+    "stageMesh": "メッシュプレビュー生成中",
+    "stageTexture": "PBRテクスチャ生成中",
     "stageUploading": "アップロード中",
     "elapsed": "経過 {seconds}",
     "prep3DLabel": "3D 向け前処理",
     "prep3DHint": "小さな画像を超解像し、非正方形を白でパディング。推奨。",
-    "texturedMeshLabel": "PBRテクスチャ（3倍コスト）",
-    "texturedMeshHint": "Hunyuan3D専用 — PBRマテリアル付きメッシュを生成",
+    "texturedMeshLabel": "旧PBRテクスチャ",
+    "texturedMeshHint": "Hunyuan3D 2.1専用 — PBRマテリアル付きメッシュを生成",
+    "enablePbrLabel": "PBRマテリアル",
+    "enablePbrHint": "ゲームや商品レンダリング向けに金属度、粗さ、法線マップを生成します。",
+    "faceCountLabel": "面数予算",
+    "trellisResolutionLabel": "構造解像度",
+    "trellisTextureLabel": "テクスチャサイズ",
+    "trellisDecimationLabel": "メッシュ頂点",
+    "trellisRemeshLabel": "トポロジー再構成",
+    "trellisRemeshHint": "アニメーション、3Dプリント、エンジン利用向けに三角面を整理します。",
     "octreeResolutionLabel": "ジオメトリ精度",
     "removeBackgroundLabel": "背景を削除",
     "removeBackgroundHint": "TripoSR専用 — 背景を除去してから再構成",
@@ -459,9 +469,13 @@
     "toastSuccess": "3Dモデルが生成されました！",
     "viewerLoading": "3Dモデルを読み込み中...",
     "viewerError": "3Dモデルを読み込めませんでした。",
+    "wireframePreviewLabel": "3Dワイヤーフレームプレビュー",
+    "wireframePreviewLoading": "メッシュプレビューを読み込み中...",
+    "wireframePreviewError": "メッシュプレビューを読み込めませんでした。",
+    "meshPreviewHint": "v3.1 Pro は先にジオメトリプレビューを生成し、その後 PBR 付きの最終モデルを自動生成します。",
     "downloadGlb": "GLBをダウンロード",
-    "refineLabel": "Hunyuan3Dで精修",
-    "refineHint": "同じソース画像をプレミアムモデルで再生成し、高精度なジオメトリとPBRテクスチャを取得します。",
+    "refineLabel": "Hunyuan3D v3.1で精修",
+    "refineHint": "同じソース画像をHunyuan3D v3.1 Proで再生成し、高精度なジオメトリとPBRテクスチャを取得します。",
     "refineCreditSuffix": "{credits} クレジット",
     "openInAR": "ARで表示",
     "uploadButton": "画像をアップロード",
@@ -470,25 +484,31 @@
     "errorUnsupportedFile": "画像ファイルのみサポートしています。",
     "errorFileTooLarge": "ファイルが大きすぎます（最大 {maxMb} MB）。",
     "apiKeyMissingTitle": "fal.ai API キーが未設定",
-    "apiKeyMissingDescription": "Hunyuan3D 2.1 と TripoSR はどちらも fal.ai 経由で実行されます。3D を生成する前に有効な fal キーを追加してください。",
+    "apiKeyMissingDescription": "Hunyuan3D、Trellis 2、TripoSR は fal.ai 経由で実行されます。3D を生成する前に有効な fal キーを追加してください。",
     "apiKeyDropdownLabel": "API ルート",
     "apiKeyDropdownPlaceholder": "fal キーを選択",
     "openExistingModel": "既存の 3D を開く",
     "openExistingModelTitle": "既存の 3D モデルを選択",
     "openExistingModelDescription": "アセットから過去に生成した 3D モデルを読み込みます。",
     "multiViewLabel": "マルチビュー",
-    "multiViewButton": "4 視点を生成",
+    "sourceQualityReady": "ソース画像は基本チェックを通過しました",
+    "sourceQualityBlocked": "先にソース画像を調整してください",
+    "sourceQualityTooSmall": "現在のサイズは {width}×{height} です。短辺は 512px 以上必要です。",
+    "sourceQualityExtremeAspect": "現在の比率 {width}×{height} は横長または縦長すぎます。中央配置の正方形に近い画像を使ってください。",
+    "sourceQualityChecklist": "続行前に確認: 単一主体、清潔な背景、遮蔽なし、均一な照明、全体シルエットが見えること。",
+    "multiViewButton": "側面ビューを生成",
     "multiViewLoading": "視点を生成中...",
-    "multiViewHint": "同じ被写体の背面 / 左 / 右を描画します。画像クレジット 3 回分。",
-    "multiViewPickHint": "3D に渡す最もきれいな視点を選択してください。",
+    "multiViewHint": "背面 / 左 / 右を一時入力として生成します。素材ライブラリには保存されません。",
+    "multiViewUnsupportedHint": "マルチビュー入力は Hunyuan3D v3 / v3.1 Pro で利用できます。",
+    "multiViewPickHint": "最終実行では正面画像と側面ビューをまとめて3Dモデルへ送信します。",
     "viewFront": "正面",
     "viewBack": "背面",
     "viewLeft": "左",
     "viewRight": "右"
   },
   "MultiViewGenerate": {
-    "success": "4 視点を生成しました。",
-    "partialSuccess": "{count} 視点のみ成功 — そこから選択できます。",
+    "success": "側面ビューの準備ができました。",
+    "partialSuccess": "{count} 個の側面ビューのみ成功 — 最終3D実行ではそのまま利用できます。",
     "failed": "マルチビュー生成に失敗しました。"
   },
   "LongVideo": {
@@ -1542,6 +1562,18 @@
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "テンセントの画像→3D、高忠実度ジオメトリ + PBRテクスチャ"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "マルチビュー画像→3D。PBRマテリアルと高面数出力に対応"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "高精細PBRアセット向けの高品質マルチビュー再構成"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "構造、テクスチャ、リメッシュを調整できる高精細3Dモデル"
     },
     "triposr": {
       "label": "TripoSR",

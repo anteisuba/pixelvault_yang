@@ -13,15 +13,30 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+vi.mock('@/services/llm-text.service', () => ({
+  resolveLlmTextRoute: vi.fn(),
+  llmTextCompletion: vi.fn(),
+}))
+
 import sharp from 'sharp'
 
-import { prepare3DSourceImage } from './image-3d-prep.service'
+import {
+  inspect3DSourceImageQuality,
+  prepare3DSourceImage,
+} from './image-3d-prep.service'
 import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
 import { upscaleImage } from '@/services/image-edit.service'
+import {
+  llmTextCompletion,
+  resolveLlmTextRoute,
+} from '@/services/llm-text.service'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 const mockFetch = vi.mocked(fetchAsBuffer)
 const mockUpload = vi.mocked(uploadToR2)
 const mockUpscale = vi.mocked(upscaleImage)
+const mockResolveLlmRoute = vi.mocked(resolveLlmTextRoute)
+const mockLlmTextCompletion = vi.mocked(llmTextCompletion)
 
 async function makePng(width: number, height: number): Promise<Buffer> {
   return sharp({
@@ -147,5 +162,66 @@ describe('prepare3DSourceImage', () => {
     const finalMeta = await sharp(uploadCall.data).metadata()
     expect(finalMeta.width).toBe(2048)
     expect(finalMeta.height).toBe(2048)
+  })
+})
+
+describe('inspect3DSourceImageQuality', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes a near-square source above the minimum edge', async () => {
+    const buf = await makePng(1024, 1024)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+
+    const result = await inspect3DSourceImageQuality(
+      'https://cdn.test/source.png',
+    )
+
+    expect(result.width).toBe(1024)
+    expect(result.height).toBe(1024)
+    expect(result.blockingIssues).toEqual([])
+  })
+
+  it('blocks sources below the minimum short edge', async () => {
+    const buf = await makePng(511, 768)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+
+    const result = await inspect3DSourceImageQuality(
+      'https://cdn.test/source.png',
+    )
+
+    expect(result.blockingIssues).toContain('too_small')
+  })
+
+  it('blocks extreme aspect ratios', async () => {
+    const buf = await makePng(1800, 600)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+
+    const result = await inspect3DSourceImageQuality(
+      'https://cdn.test/source.png',
+    )
+
+    expect(result.blockingIssues).toContain('extreme_aspect_ratio')
+  })
+
+  it('adds semantic blockers when vision inspection is available', async () => {
+    const buf = await makePng(1024, 1024)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+    mockResolveLlmRoute.mockResolvedValueOnce({
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.test' },
+      apiKey: 'gemini-key',
+    })
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      '{"issues":["multi_subject","strong_shadow"]}',
+    )
+
+    const result = await inspect3DSourceImageQuality(
+      'https://cdn.test/source.png',
+      { userId: 'user_1' },
+    )
+
+    expect(result.blockingIssues).toEqual(['multi_subject', 'strong_shadow'])
   })
 })

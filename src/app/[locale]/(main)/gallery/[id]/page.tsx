@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import { cache } from 'react'
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -15,10 +16,16 @@ import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
-import { getGenerationById } from '@/services/generation.service'
+import { getPublicGenerationById } from '@/services/generation.service'
 
 import { GalleryDetailVideoPlayer } from '@/components/business/GalleryDetailVideoPlayer'
 import { Button } from '@/components/ui/button'
+
+// React.cache dedupes the fetch so generateMetadata + the page body share
+// one DB round trip per request instead of issuing two `findUnique`s. The
+// underlying getter is the slim, public-only variant — skips snapshot /
+// recipeSnapshot / evaluation, which can balloon to ~7 MB on a single row.
+const loadPublicGeneration = cache(getPublicGenerationById)
 
 interface ImageDetailPageProps {
   params: Promise<{ locale: AppLocale; id: string }>
@@ -28,9 +35,9 @@ export async function generateMetadata({
   params,
 }: ImageDetailPageProps): Promise<Metadata> {
   const { id, locale } = await params
-  const generation = await getGenerationById(id)
+  const generation = await loadPublicGeneration(id)
 
-  if (!generation || !generation.isPublic) {
+  if (!generation) {
     return { title: 'Not Found' }
   }
 
@@ -78,9 +85,9 @@ export default async function ImageDetailPage({
   params,
 }: ImageDetailPageProps) {
   const { id, locale } = await params
-  const generation = await getGenerationById(id)
+  const generation = await loadPublicGeneration(id)
 
-  if (!generation || !generation.isPublic) {
+  if (!generation) {
     notFound()
   }
 

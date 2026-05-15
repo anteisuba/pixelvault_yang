@@ -75,6 +75,9 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.PIKA_V25]: 'pikaV25',
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
   [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
+  [AI_MODELS.HUNYUAN3D_V3]: 'hunyuan3dV3',
+  [AI_MODELS.HUNYUAN3D_V31_PRO]: 'hunyuan3dV31Pro',
+  [AI_MODELS.TRELLIS_2]: 'trellis2',
   [AI_MODELS.TRIPOSR]: 'triposr',
 } as const
 
@@ -168,6 +171,9 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.FAL_F5_TTS]: 'F5-TTS',
   // 3D families
   [AI_MODELS.HUNYUAN3D_2_1]: 'Hunyuan3D',
+  [AI_MODELS.HUNYUAN3D_V3]: 'Hunyuan3D',
+  [AI_MODELS.HUNYUAN3D_V31_PRO]: 'Hunyuan3D',
+  [AI_MODELS.TRELLIS_2]: 'TRELLIS',
   [AI_MODELS.TRIPOSR]: 'TripoSR',
 }
 

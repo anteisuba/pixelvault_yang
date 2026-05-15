@@ -240,3 +240,24 @@ Content-Type: `application/json`
 - 输出分辨率 2K 级别
 - `watermark: false` 默认关闭水印
 - `return_last_frame: true` 用于视频续接场景
+
+## Connection Strategy
+
+> 详细决策矩阵见 [`connection-strategy.md`](connection-strategy.md)。
+
+| 维度                 | 设置                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| 区域可达性           | 国内直连 ✅（北京节点最稳）；海外直连 ⚠️（默认走 `cn-beijing` 跨境延迟高）                              |
+| 默认 base URL        | `https://ark.cn-beijing.volces.com/api/v3`（`AI_PROVIDER_ENDPOINTS.VOLCENGINE`）                        |
+| Per-route 覆盖       | `providerConfig.baseUrl` —— 海外用户可改为 `https://ark.ap-southeast-1.volces.com/api/v3`（新加坡节点） |
+| 国内中转             | 不需要 —— 国内访问已经直连                                                                              |
+| 图像生成超时         | model `timeoutMs` 或 adapter 默认                                                                       |
+| 视频 queue 超时      | **300s**（统一 5 分钟）                                                                                 |
+| 重试                 | 5xx + 429 + 网络错误重试；503/504 不重试                                                                |
+| 跨 provider fallback | 视频不配置（VolcEngine 视频特性专属：lipsync / first-last frame，跨 provider 没有等价品）               |
+
+**为什么 VolcEngine 在视频路径上对国内用户优于 fal.ai**：同样的 Seedance 1.5 Pro，VolcEngine 直接发到北京数据中心，国内 RTT < 50ms；走 fal 要绕到 fal 的 GPU 集群再回国，RTT 通常 200ms+。视频生成本身耗时 60–180s，握手延迟差异不大，但**首帧上传**和**结果下载**对网络敏感 —— 国内 Vercel ISR 节点访问 VolcEngine 比访问 fal 快。
+
+**Endpoint ID 模式**：火山方舟要求把模型部署成"推理接入点"（endpoint），endpoint ID 形如 `ep-20240101-xxx`。`externalModelId` 字段填这个 endpoint ID 而不是模型名。这一步在 BYOK 用户首次配置时容易踩坑，文档应在 Studio API 管理 UI 明确提示。
+
+**跨境部署提示**：如果项目部署到海外（Vercel US 节点）但服务的是国内用户，VolcEngine 反而成为"绕远"选项 —— 海外节点 → VolcEngine 北京 → 用户国内，比 fal.ai 直接回国还慢。这种情况下应优先 fal.ai 的 Seedance 而不是 VolcEngine 的。

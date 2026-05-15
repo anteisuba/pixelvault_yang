@@ -8,13 +8,20 @@ import { VIDEO_GENERATION } from '@/constants/config'
 import type { Generate3DRequest, GenerationRecord } from '@/types'
 import { submit3DAPI, check3DStatusAPI } from '@/lib/api-client'
 
-type Model3DStage = 'idle' | 'queued' | 'generating' | 'uploading'
+type Model3DStage =
+  | 'idle'
+  | 'queued'
+  | 'generating'
+  | 'mesh'
+  | 'texture'
+  | 'uploading'
 
 interface UseGenerate3DReturn {
   isGenerating: boolean
   stage: Model3DStage
   elapsedSeconds: number
   error: string | null
+  previewModelUrl: string | null
   generatedGeneration: GenerationRecord | null
   generate: (params: Generate3DRequest) => Promise<void>
   reset: () => void
@@ -32,11 +39,13 @@ export function useGenerate3D(): UseGenerate3DReturn {
   const [stage, setStage] = useState<Model3DStage>('idle')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [previewModelUrl, setPreviewModelUrl] = useState<string | null>(null)
   const [generatedGeneration, setGeneratedGeneration] =
     useState<GenerationRecord | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCountRef = useRef(0)
+  const submitInFlightRef = useRef(false)
   // Skip a tick if the previous status request is still in-flight. fal's
   // 3D queue checks routinely take 5–15s on dev — without this guard, polls
   // stack up and saturate the connection pool.
@@ -73,6 +82,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
 
   const finish = useCallback(
     (err?: string) => {
+      submitInFlightRef.current = false
       stopPolling()
       stopTimer()
       setIsGenerating(false)
@@ -87,8 +97,11 @@ export function useGenerate3D(): UseGenerate3DReturn {
 
   const generate = useCallback(
     async (params: Generate3DRequest) => {
+      if (submitInFlightRef.current) return
+      submitInFlightRef.current = true
       setIsGenerating(true)
       setError(null)
+      setPreviewModelUrl(null)
       setGeneratedGeneration(null)
       setStage('queued')
       startTimer()
@@ -127,7 +140,18 @@ export function useGenerate3D(): UseGenerate3DReturn {
               return
             }
 
-            const { status, generation } = statusResponse.data
+            const { status, generation, previewModelUrl, stage } =
+              statusResponse.data
+
+            if (previewModelUrl) {
+              setPreviewModelUrl(previewModelUrl)
+            }
+            if (stage === 'mesh') {
+              setStage('mesh')
+            }
+            if (stage === 'texture') {
+              setStage('texture')
+            }
 
             if (status === 'COMPLETED' && generation) {
               setGeneratedGeneration(generation)
@@ -142,7 +166,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
             }
 
             if (status === 'IN_PROGRESS') {
-              setStage('generating')
+              setStage(stage ?? 'generating')
             }
           } catch {
             finish(t('errorUnexpected'))
@@ -160,7 +184,9 @@ export function useGenerate3D(): UseGenerate3DReturn {
   )
 
   const reset = useCallback(() => {
+    submitInFlightRef.current = false
     setError(null)
+    setPreviewModelUrl(null)
     setGeneratedGeneration(null)
     setStage('idle')
     setElapsedSeconds(0)
@@ -180,6 +206,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
     stage,
     elapsedSeconds,
     error,
+    previewModelUrl,
     generatedGeneration,
     generate,
     reset,

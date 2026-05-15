@@ -230,9 +230,9 @@
         "cta": "生成语音"
       },
       "model3d": {
-        "eyebrow": "2 个图生 3D 模型",
+        "eyebrow": "5 个图生 3D 模型",
         "title": "图生 3D 模型",
-        "description": "Hunyuan3D 2.1 和 TripoSR — 一个吃细节做 PBR 纹理，一个秒级出几何预览。从档案里挑一张图，生成可旋转的 GLB 模型，浏览器里直接拖动观看，扫码 AR 放进现实。3D 资产和图像视频音频一起归档。",
+        "description": "Hunyuan3D v3.1 Pro、Hunyuan3D v3、Trellis 2、Hunyuan3D 2.1 和 TripoSR — 从高精度多视角 PBR 到秒级几何预览。从档案里挑一张图，生成可旋转的 GLB 模型，浏览器里直接拖动观看，扫码 AR 放进现实。3D 资产和图像视频音频一起归档。",
         "cta": "生成 3D"
       },
       "workflow": {
@@ -433,7 +433,7 @@
   },
   "Model3DGenerate": {
     "title": "图生 3D 模型",
-    "description": "从图像档案选一张图,生成可旋转的 GLB 模型。",
+    "description": "从图像档案选一张干净源图，生成可旋转的高细节 GLB 模型。",
     "modelLabel": "3D 模型",
     "modelPlaceholder": "选择 3D 模型",
     "sourceImageLabel": "源图",
@@ -443,12 +443,22 @@
     "generating": "生成中...",
     "stageQueued": "排队中",
     "stageGenerating": "生成中",
+    "stageMesh": "生成网格预览",
+    "stageTexture": "生成 PBR 贴图",
     "stageUploading": "上传中",
     "elapsed": "已等待 {seconds}",
     "prep3DLabel": "3D 适配预处理",
     "prep3DHint": "对小图自动超分，对非正方形自动白底补齐。推荐开启。",
-    "texturedMeshLabel": "PBR 纹理（3 倍价格）",
-    "texturedMeshHint": "Hunyuan3D 专用 — 生成带 PBR 纹理的 mesh",
+    "texturedMeshLabel": "旧版 PBR 纹理",
+    "texturedMeshHint": "Hunyuan3D 2.1 专用 — 生成带 PBR 纹理的 mesh",
+    "enablePbrLabel": "PBR 材质",
+    "enablePbrHint": "生成金属度、粗糙度和法线贴图，适合游戏和商品展示。",
+    "faceCountLabel": "面数预算",
+    "trellisResolutionLabel": "结构分辨率",
+    "trellisTextureLabel": "贴图尺寸",
+    "trellisDecimationLabel": "网格顶点",
+    "trellisRemeshLabel": "重建拓扑",
+    "trellisRemeshHint": "清理三角面，适合后续动画、打印或引擎使用。",
     "octreeResolutionLabel": "几何精度",
     "removeBackgroundLabel": "去除背景",
     "removeBackgroundHint": "TripoSR 专用 — 自动抠图后再重建",
@@ -459,9 +469,13 @@
     "toastSuccess": "3D 模型生成成功!",
     "viewerLoading": "加载 3D 模型中...",
     "viewerError": "无法加载 3D 模型。",
+    "wireframePreviewLabel": "3D 网格预览",
+    "wireframePreviewLoading": "加载网格预览中...",
+    "wireframePreviewError": "无法加载网格预览。",
+    "meshPreviewHint": "v3.1 Pro 会先生成几何网格预览，再自动生成带 PBR 的最终模型。",
     "downloadGlb": "下载 GLB",
-    "refineLabel": "用 Hunyuan3D 精修",
-    "refineHint": "用同一张源图过一遍 Hunyuan3D，得到更高保真度的几何和 PBR 贴图。",
+    "refineLabel": "用 Hunyuan3D v3.1 精修",
+    "refineHint": "用同一张源图过一遍 Hunyuan3D v3.1 Pro，得到更高保真度的几何和 PBR 贴图。",
     "refineCreditSuffix": "{credits} 积分",
     "openInAR": "查看 AR",
     "uploadButton": "上传图片",
@@ -470,25 +484,31 @@
     "errorUnsupportedFile": "仅支持图像文件。",
     "errorFileTooLarge": "文件太大,最大 {maxMb} MB。",
     "apiKeyMissingTitle": "尚未配置 fal.ai API Key",
-    "apiKeyMissingDescription": "Hunyuan3D 2.1 和 TripoSR 都通过 fal.ai 运行,需要先添加一个有效的 fal Key 才能生成 3D。",
+    "apiKeyMissingDescription": "Hunyuan3D、Trellis 2 和 TripoSR 都通过 fal.ai 运行,需要先添加一个有效的 fal Key 才能生成 3D。",
     "apiKeyDropdownLabel": "API 路由",
     "apiKeyDropdownPlaceholder": "选择 fal Key",
     "openExistingModel": "打开已有 3D",
     "openExistingModelTitle": "选择已有 3D 模型",
     "openExistingModelDescription": "从素材库里选一个之前生成的 3D 模型来查看。",
     "multiViewLabel": "多视图",
-    "multiViewButton": "生成 4 个视图",
+    "sourceQualityReady": "源图通过基础检查",
+    "sourceQualityBlocked": "源图需要先调整",
+    "sourceQualityTooSmall": "当前尺寸 {width}×{height}，短边至少需要 512px。",
+    "sourceQualityExtremeAspect": "当前比例 {width}×{height} 过窄或过宽，请使用居中接近正方形的源图。",
+    "sourceQualityChecklist": "继续前请确认：单一主体、背景干净、没有遮挡、光照均匀、完整轮廓可见。",
+    "multiViewButton": "生成侧视图",
     "multiViewLoading": "正在渲染视图...",
-    "multiViewHint": "渲染同一主体的背面/左侧/右侧。消耗 3 次图像 credit。",
-    "multiViewPickHint": "挑选最干净的视图作为 3D 输入。",
+    "multiViewHint": "渲染同一主体的背面/左侧/右侧，仅作为临时输入，不写入素材库。",
+    "multiViewUnsupportedHint": "多视角输入仅用于 Hunyuan3D v3 / v3.1 Pro。",
+    "multiViewPickHint": "最终会把正面和这些侧视图一起提交给 3D 模型。",
     "viewFront": "正面",
     "viewBack": "背面",
     "viewLeft": "左侧",
     "viewRight": "右侧"
   },
   "MultiViewGenerate": {
-    "success": "已生成 4 个视图。",
-    "partialSuccess": "仅成功 {count} 个视图 — 仍可从中挑选。",
+    "success": "侧视图已准备好。",
+    "partialSuccess": "仅成功 {count} 个侧视图 — 最终 3D 仍可使用这些视图。",
     "failed": "多视图生成失败。"
   },
   "LongVideo": {
@@ -1542,6 +1562,18 @@
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "腾讯图生 3D，高保真几何 + PBR 纹理"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "多视角图生 3D，支持 PBR 材质和高面数输出"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "高质量多视角重建，适合精细模型和 PBR 资产"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "可调结构分辨率、贴图尺寸和重拓扑的高细节 3D 模型"
     },
     "triposr": {
       "label": "TripoSR",

@@ -265,6 +265,69 @@ export async function uploadFromHttpToR2(params: {
   )
 }
 
+// ─── Buffered HTTP Upload (for provider files that stall under streaming) ──
+
+/**
+ * Fetch a remote HTTP file into a Buffer, then upload it to R2.
+ *
+ * This is intentionally used for medium-sized 3D model files. Some provider
+ * CDNs terminate long-lived streamed downloads while R2 multipart upload is
+ * applying backpressure; buffering decouples provider download from R2 upload.
+ */
+export async function uploadBufferedHttpToR2(params: {
+  sourceUrl: string
+  key: string
+  mimeType?: string
+  fetchHeaders?: Record<string, string>
+  timeoutMs?: number
+}): Promise<{ publicUrl: string; mimeType: string; sizeBytes: number }> {
+  assertSafeUrl(params.sourceUrl)
+
+  return withRetry(
+    async () => {
+      const response = await fetch(params.sourceUrl, {
+        headers: params.fetchHeaders,
+        signal: AbortSignal.timeout(params.timeoutMs ?? 180_000),
+      })
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch file for buffered upload (${response.status}): ${params.sourceUrl}`,
+        )
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const mimeType =
+        params.mimeType ??
+        response.headers.get('content-type') ??
+        'application/octet-stream'
+
+      await r2.send(
+        new PutObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME!,
+          Key: params.key,
+          Body: buffer,
+          ContentType: mimeType,
+          CacheControl: 'public, max-age=31536000, immutable',
+        }),
+      )
+
+      logger.info('Buffered HTTP source uploaded to R2', {
+        key: params.key,
+        sizeBytes: buffer.byteLength,
+        mimeType,
+      })
+
+      return {
+        publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
+        mimeType,
+        sizeBytes: buffer.byteLength,
+      }
+    },
+    { maxAttempts: 3, baseDelayMs: 2000, label: 'r2.uploadBufferedHttp' },
+  )
+}
+
 // ─── Delete from R2 ──────────────────────────────────────────────
 
 /**

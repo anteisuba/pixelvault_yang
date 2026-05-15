@@ -170,6 +170,114 @@ describe('falAdapter image-to-3D queue', () => {
     expect(body.do_remove_background).toBe(false)
   })
 
+  it('submits Hunyuan3D v3 with side views, PBR, and face count', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          request_id: 'req-hy3-v3',
+          status_url: 'https://queue.fal.run/status/req-hy3-v3',
+          response_url: 'https://queue.fal.run/result/req-hy3-v3',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.submitModel3DToQueue!({
+      ...MODEL_3D_INPUT,
+      modelId: 'hunyuan3d-v3',
+      multiViewImages: {
+        backImageUrl: 'https://r2.example.com/back.png',
+        leftImageUrl: 'https://r2.example.com/left.png',
+        rightImageUrl: 'https://r2.example.com/right.png',
+      },
+      enablePbr: true,
+      faceCount: 1_000_000,
+      generateType: 'Normal',
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toContain('fal-ai/hunyuan3d-v3/image-to-3d')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.input_image_url).toBe(MODEL_3D_INPUT.imageUrl)
+    expect(body.back_image_url).toBe('https://r2.example.com/back.png')
+    expect(body.left_image_url).toBe('https://r2.example.com/left.png')
+    expect(body.right_image_url).toBe('https://r2.example.com/right.png')
+    expect(body.enable_pbr).toBe(true)
+    expect(body.face_count).toBe(1_000_000)
+    expect(body.generate_type).toBe('Normal')
+  })
+
+  it('submits Hunyuan3D v3.1 Pro geometry preview requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          request_id: 'req-hy31-geo',
+          status_url: 'https://queue.fal.run/status/req-hy31-geo',
+          response_url: 'https://queue.fal.run/result/req-hy31-geo',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.submitModel3DToQueue!({
+      ...MODEL_3D_INPUT,
+      modelId: 'hunyuan3d-v3.1-pro',
+      enablePbr: false,
+      faceCount: 1_000_000,
+      generateType: 'Geometry',
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toContain('fal-ai/hunyuan-3d/v3.1/pro/image-to-3d')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.input_image_url).toBe(MODEL_3D_INPUT.imageUrl)
+    expect(body.enable_pbr).toBe(false)
+    expect(body.face_count).toBe(1_000_000)
+    expect(body.generate_type).toBe('Geometry')
+  })
+
+  it('submits Trellis 2 detail controls', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          request_id: 'req-trellis-2',
+          status_url: 'https://queue.fal.run/status/req-trellis-2',
+          response_url: 'https://queue.fal.run/result/req-trellis-2',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.submitModel3DToQueue!({
+      ...MODEL_3D_INPUT,
+      modelId: 'trellis-2',
+      trellisResolution: 1536,
+      trellisTextureSize: 4096,
+      trellisDecimationTarget: 1_000_000,
+      trellisRemesh: true,
+      trellisRemeshProject: 1,
+      trellisStructureSamplingSteps: 24,
+      trellisShapeSamplingSteps: 24,
+      trellisTextureSamplingSteps: 24,
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toContain('fal-ai/trellis-2')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.image_url).toBe(MODEL_3D_INPUT.imageUrl)
+    expect(body.resolution).toBe(1536)
+    expect(body.texture_size).toBe(4096)
+    expect(body.decimation_target).toBe(1_000_000)
+    expect(body.remesh).toBe(true)
+    expect(body.remesh_project).toBe(1)
+    expect(body.ss_sampling_steps).toBe(24)
+    expect(body.shape_slat_sampling_steps).toBe(24)
+    expect(body.tex_slat_sampling_steps).toBe(24)
+  })
+
   it('returns COMPLETED with model_mesh.url after queue finishes', async () => {
     const fetchMock = vi
       .fn()
@@ -200,5 +308,77 @@ describe('falAdapter image-to-3D queue', () => {
     expect(result.status).toBe('COMPLETED')
     expect(result.result?.modelUrl).toBe('https://fal.run/output/mesh.glb')
     expect(result.result?.fileSize).toBe(1234567)
+  })
+
+  it('returns FAILED when fal marks the 3D queue as failed', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: 'FAILED',
+          error: { message: 'provider failed' },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.checkModel3DQueueStatus!({
+      statusUrl: 'https://queue.fal.run/status/req-3d-failed',
+      responseUrl: 'https://queue.fal.run/result/req-3d-failed',
+      apiKey: 'fal-test-key',
+    })
+
+    expect(result.status).toBe('FAILED')
+  })
+
+  it('throws a retryable provider error when 3D status fetch fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      falAdapter.checkModel3DQueueStatus!({
+        statusUrl: 'https://queue.fal.run/status/req-3d-network',
+        responseUrl: 'https://queue.fal.run/result/req-3d-network',
+        apiKey: 'fal-test-key',
+      }),
+    ).rejects.toMatchObject({
+      status: 502,
+      detail: expect.stringContaining('[3D-status-fetch-error]'),
+    })
+  })
+
+  it('returns COMPLETED with model_glb.url for Hunyuan3D v3 results', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: 'COMPLETED' }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            model_glb: {
+              url: 'https://fal.run/output/model.glb',
+              content_type: 'model/gltf-binary',
+              file_name: 'model.glb',
+              file_size: 7654321,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await falAdapter.checkModel3DQueueStatus!({
+      statusUrl: 'https://queue.fal.run/status/req-3d-abc',
+      responseUrl: 'https://queue.fal.run/result/req-3d-abc',
+      apiKey: 'fal-test-key',
+    })
+
+    expect(result.status).toBe('COMPLETED')
+    expect(result.result?.modelUrl).toBe('https://fal.run/output/model.glb')
+    expect(result.result?.contentType).toBe('model/gltf-binary')
+    expect(result.result?.fileSize).toBe(7654321)
   })
 })

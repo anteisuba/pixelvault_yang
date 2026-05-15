@@ -485,42 +485,37 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       })
 
       try {
-        const results = await Promise.allSettled(
-          items.map((item) =>
-            studioGenerateAPI({
+        // Each item resolves to its own UI update as soon as the API
+        // returns, instead of blocking on the slowest seed before any
+        // result lands. `firstSuccess` is whichever variant finishes
+        // first — the natural "show me the fastest preview" behaviour.
+        let firstSuccess: GenerationRecord | null = null
+
+        const tasks = items.map(async (item) => {
+          try {
+            const result = await studioGenerateAPI({
               ...input,
               seed: item.seed,
               runGroupId,
               runGroupType: 'variant',
               runGroupIndex: item.index,
-            }),
-          ),
-        )
-
-        let firstSuccess: GenerationRecord | null = null
-
-        results.forEach((result, idx) => {
-          const itemId = items[idx].id
-          if (
-            result.status === 'fulfilled' &&
-            result.value.success &&
-            hasGeneration(result.value.data)
-          ) {
-            const gen = result.value.data.generation
-            if (!firstSuccess) firstSuccess = gen
-            markActiveRunItemCompleted(itemId, gen)
-          } else {
-            const msg =
-              result.status === 'fulfilled'
-                ? getApiErrorMessage(
-                    tErrors,
-                    result.value,
-                    tStudio('generateFailed'),
-                  )
-                : tStudio('generateFailed')
-            markActiveRunItemFailed(itemId, msg)
+            })
+            if (result.success && hasGeneration(result.data)) {
+              const gen = result.data.generation
+              if (!firstSuccess) firstSuccess = gen
+              markActiveRunItemCompleted(item.id, gen)
+            } else {
+              markActiveRunItemFailed(
+                item.id,
+                getApiErrorMessage(tErrors, result, tStudio('generateFailed')),
+              )
+            }
+          } catch {
+            markActiveRunItemFailed(item.id, tStudio('generateFailed'))
           }
         })
+
+        await Promise.allSettled(tasks)
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
@@ -613,43 +608,37 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       })
 
       try {
-        const results = await Promise.allSettled(
-          items.map((item) =>
-            studioGenerateAPI({
+        // Each model in the compare set updates its own tile as soon as
+        // its API call returns — fast providers no longer wait for the
+        // slowest one before becoming visible.
+        let firstSuccess: GenerationRecord | null = null
+
+        const tasks = items.map(async (item) => {
+          try {
+            const result = await studioGenerateAPI({
               ...input,
               modelId: item.modelId,
               apiKeyId: item.apiKeyId,
               runGroupId,
               runGroupType: 'compare',
               runGroupIndex: item.index,
-            }),
-          ),
-        )
-
-        let firstSuccess: GenerationRecord | null = null
-
-        results.forEach((result, idx) => {
-          const itemId = items[idx].id
-          if (
-            result.status === 'fulfilled' &&
-            result.value.success &&
-            hasGeneration(result.value.data)
-          ) {
-            const gen = result.value.data.generation
-            if (!firstSuccess) firstSuccess = gen
-            markActiveRunItemCompleted(itemId, gen)
-          } else {
-            const msg =
-              result.status === 'fulfilled'
-                ? getApiErrorMessage(
-                    tErrors,
-                    result.value,
-                    tStudio('generateFailed'),
-                  )
-                : tStudio('generateFailed')
-            markActiveRunItemFailed(itemId, msg)
+            })
+            if (result.success && hasGeneration(result.data)) {
+              const gen = result.data.generation
+              if (!firstSuccess) firstSuccess = gen
+              markActiveRunItemCompleted(item.id, gen)
+            } else {
+              markActiveRunItemFailed(
+                item.id,
+                getApiErrorMessage(tErrors, result, tStudio('generateFailed')),
+              )
+            }
+          } catch {
+            markActiveRunItemFailed(item.id, tStudio('generateFailed'))
           }
         })
+
+        await Promise.allSettled(tasks)
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)

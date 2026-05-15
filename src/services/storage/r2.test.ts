@@ -57,6 +57,7 @@ import {
   fetchAsBuffer,
   uploadToR2,
   streamUploadToR2,
+  uploadBufferedHttpToR2,
   deleteFromR2,
   isOwnedStorageUrl,
   uploadFromHttpToR2,
@@ -208,6 +209,59 @@ describe('streamUploadToR2', () => {
         mimeType: 'video/mp4',
       }),
     ).rejects.toThrow('Failed to fetch video for upload (403)')
+  })
+})
+
+describe('uploadBufferedHttpToR2', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend.mockResolvedValue({})
+  })
+
+  it('buffers a remote file before uploading it to R2', async () => {
+    const body = new Uint8Array([1, 2, 3, 4])
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(body.buffer),
+      headers: new Headers({ 'content-type': 'model/gltf-binary' }),
+    })
+
+    const result = await uploadBufferedHttpToR2({
+      sourceUrl: 'https://example.com/model.glb',
+      key: 'test/model.glb',
+    })
+
+    expect(result.publicUrl).toBe('https://cdn.test.com/test/model.glb')
+    expect(result.mimeType).toBe('model/gltf-binary')
+    expect(result.sizeBytes).toBe(4)
+    expect(mockSend).toHaveBeenCalledOnce()
+  })
+
+  it('prefers explicit mimeType when provided', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new Uint8Array([1]).buffer),
+      headers: new Headers({ 'content-type': 'application/octet-stream' }),
+    })
+
+    const result = await uploadBufferedHttpToR2({
+      sourceUrl: 'https://example.com/model.glb',
+      key: 'test/model.glb',
+      mimeType: 'model/gltf-binary',
+    })
+
+    expect(result.mimeType).toBe('model/gltf-binary')
+  })
+
+  it('throws when source fetch fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 })
+
+    await expect(
+      uploadBufferedHttpToR2({
+        sourceUrl: 'https://example.com/nope.glb',
+        key: 'test/nope.glb',
+      }),
+    ).rejects.toThrow('Failed to fetch file for buffered upload (403)')
   })
 })
 

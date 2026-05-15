@@ -254,3 +254,22 @@ Adapter 行为：
 - Subscription tier 检测
 - Image URL → base64 转换
 - Multi-reference image 映射逻辑
+
+## Connection Strategy
+
+> 详细决策矩阵见 [`connection-strategy.md`](connection-strategy.md)。
+
+| 维度                 | 设置                                                                              |
+| -------------------- | --------------------------------------------------------------------------------- |
+| 区域可达性           | 海外直连 ✅；国内直连 ⚠️（`image.novelai.net` 偶发中间网络丢包）                  |
+| 默认 base URL        | `https://image.novelai.net`（`AI_PROVIDER_ENDPOINTS.NOVELAI`）                    |
+| Per-route 覆盖       | `providerConfig.baseUrl`                                                          |
+| 国内中转候选         | **无** —— NovelAI 强绑定订阅账户体系，没有第三方兼容 endpoint                     |
+| 超时                 | model `timeoutMs` 或 adapter 默认                                                 |
+| 重试                 | 5xx + 429 + 网络错误重试；429 在 Arena 并发场景额外做指数退避                     |
+| 跨 provider fallback | 不配置 —— NovelAI 是 anime 风格特例，跨 provider fallback 风格不一致              |
+| 订阅 tier 检测       | 调用 `/user/subscription` 缓存 tier；网络错误 graceful fallback 为 1 张 reference |
+
+**国内用户访问问题**：`image.novelai.net` 走的是 NovelAI 自己的 CDN，国内某些运营商到这个 CDN 的链路质量不稳。如果用户反映"NovelAI 经常 timeout 但其他 provider 正常"，是网络层问题，**不是代码 bug**。建议这类用户切到日本/香港的 VPN 或在 Studio 加自定义 baseUrl 走代理。
+
+**Multi-reference 错误码**：当用户订阅 tier < 3 但请求多张 reference 时，adapter 抛 `NOVELAI_TIER_LIMIT` 错误码（已在 i18n 配置友好提示），**不要重试**。

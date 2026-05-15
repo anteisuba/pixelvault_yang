@@ -523,6 +523,41 @@ export async function getGenerationById(
   return generation ? normalizeGenerationReferenceImages(generation) : null
 }
 
+/**
+ * Slim, public-facing detail fetch for the gallery detail page.
+ *
+ * Skips the heavy JSON columns (`snapshot`, `recipeSnapshot`, `evaluation`) —
+ * a single Generation row can be 7 MB when the original snapshot included
+ * base64 reference images, which dominates server response time on the
+ * `/gallery/[id]` route. The detail page only needs the columns covered by
+ * `LIST_GENERATION_SELECT` plus `referenceImageUrl` (already in the list
+ * select) — it does not read `referenceImages` from the snapshot.
+ *
+ * Returns null when the row doesn't exist OR it isn't public, so callers
+ * can short-circuit straight to `notFound()` without re-checking visibility.
+ */
+export async function getPublicGenerationById(
+  id: string,
+): Promise<GenerationRecord | null> {
+  const generation = await db.generation.findFirst({
+    where: { id, isPublic: true },
+    select: LIST_GENERATION_SELECT,
+  })
+
+  if (!generation) return null
+
+  // No snapshot column was loaded — `normalizeGenerationReferenceImages`
+  // would just fall back to `referenceImageUrl`. Apply the prompt-redaction
+  // path that the public list query uses so private prompts stay hidden in
+  // detail view too.
+  const normalized = normalizeGenerationReferenceImages(
+    generation as unknown as GenerationRecord,
+  )
+  return normalized.isPromptPublic
+    ? normalized
+    : { ...normalized, prompt: '', negativePrompt: null }
+}
+
 /** Fields that can be toggled on a generation */
 export type ToggleableField = 'isPublic' | 'isPromptPublic' | 'isFeatured'
 

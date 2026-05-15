@@ -230,9 +230,9 @@
         "cta": "Generate audio"
       },
       "model3d": {
-        "eyebrow": "2 image-to-3D models",
+        "eyebrow": "5 image-to-3D models",
         "title": "Image-to-3D Models",
-        "description": "Hunyuan3D 2.1 and TripoSR — one for PBR-textured detail, one for second-grade geometry previews. Pick an image from your archive, get a rotatable GLB, drag it in the browser, scan a code to drop it into AR. 3D assets archive alongside images, video, and audio.",
+        "description": "Hunyuan3D v3.1 Pro, Hunyuan3D v3, Trellis 2, Hunyuan3D 2.1, and TripoSR — from high-fidelity multi-view PBR to fast geometry previews. Pick an image from your archive, get a rotatable GLB, drag it in the browser, scan a code to drop it into AR. 3D assets archive alongside images, video, and audio.",
         "cta": "Generate 3D"
       },
       "workflow": {
@@ -433,7 +433,7 @@
   },
   "Model3DGenerate": {
     "title": "Image-to-3D",
-    "description": "Pick an image from your archive and generate a rotatable GLB model.",
+    "description": "Pick a clean source image and generate a high-detail rotatable GLB model.",
     "modelLabel": "3D Model",
     "modelPlaceholder": "Select 3D model",
     "sourceImageLabel": "Source image",
@@ -443,12 +443,22 @@
     "generating": "Generating...",
     "stageQueued": "Queued",
     "stageGenerating": "Generating",
+    "stageMesh": "Building mesh preview",
+    "stageTexture": "Generating PBR textures",
     "stageUploading": "Uploading",
     "elapsed": "Elapsed {seconds}",
     "prep3DLabel": "3D-friendly preprocessing",
     "prep3DHint": "Upscales small images and white-pads to square before 3D. Recommended.",
-    "texturedMeshLabel": "PBR textures (3x cost)",
-    "texturedMeshHint": "Hunyuan3D only — generate mesh with PBR materials",
+    "texturedMeshLabel": "Legacy PBR textures",
+    "texturedMeshHint": "Hunyuan3D 2.1 only — generate mesh with PBR materials",
+    "enablePbrLabel": "PBR materials",
+    "enablePbrHint": "Generate metalness, roughness, and normal maps for game and product rendering.",
+    "faceCountLabel": "Face budget",
+    "trellisResolutionLabel": "Structure resolution",
+    "trellisTextureLabel": "Texture size",
+    "trellisDecimationLabel": "Mesh vertices",
+    "trellisRemeshLabel": "Remesh topology",
+    "trellisRemeshHint": "Clean up triangles for animation, printing, or engine workflows.",
     "octreeResolutionLabel": "Geometry resolution",
     "removeBackgroundLabel": "Remove background",
     "removeBackgroundHint": "TripoSR only — strip background before reconstruction",
@@ -459,9 +469,13 @@
     "toastSuccess": "3D model generated!",
     "viewerLoading": "Loading 3D model...",
     "viewerError": "Failed to load 3D model.",
+    "wireframePreviewLabel": "3D wireframe preview",
+    "wireframePreviewLoading": "Loading mesh preview...",
+    "wireframePreviewError": "Failed to load mesh preview.",
+    "meshPreviewHint": "v3.1 Pro builds a geometry preview first, then automatically runs the final PBR model.",
     "downloadGlb": "Download GLB",
-    "refineLabel": "Refine with Hunyuan3D",
-    "refineHint": "Re-run with the same source on the premium model for higher-fidelity geometry and PBR textures.",
+    "refineLabel": "Refine with Hunyuan3D v3.1",
+    "refineHint": "Re-run with the same source on Hunyuan3D v3.1 Pro for higher-fidelity geometry and PBR textures.",
     "refineCreditSuffix": "{credits} credits",
     "openInAR": "View in AR",
     "uploadButton": "Upload image",
@@ -470,25 +484,31 @@
     "errorUnsupportedFile": "Only image files are supported.",
     "errorFileTooLarge": "File too large (max {maxMb} MB).",
     "apiKeyMissingTitle": "fal.ai API key not configured",
-    "apiKeyMissingDescription": "Hunyuan3D 2.1 and TripoSR both run on fal.ai. Add an active fal key before generating.",
+    "apiKeyMissingDescription": "Hunyuan3D, Trellis 2, and TripoSR run on fal.ai. Add an active fal key before generating.",
     "apiKeyDropdownLabel": "API route",
     "apiKeyDropdownPlaceholder": "Pick a fal key",
     "openExistingModel": "Open existing 3D",
     "openExistingModelTitle": "Pick an existing 3D model",
     "openExistingModelDescription": "Load a previously generated 3D model from your assets.",
     "multiViewLabel": "Multi-view",
-    "multiViewButton": "Generate 4 views",
+    "sourceQualityReady": "Source passed basic checks",
+    "sourceQualityBlocked": "Adjust the source image first",
+    "sourceQualityTooSmall": "Current size is {width}×{height}; the short edge must be at least 512px.",
+    "sourceQualityExtremeAspect": "Current ratio {width}×{height} is too wide or tall; use a centered near-square source.",
+    "sourceQualityChecklist": "Before continuing, confirm: one isolated subject, clean background, no occlusion, even lighting, full silhouette visible.",
+    "multiViewButton": "Generate side views",
     "multiViewLoading": "Rendering views...",
-    "multiViewHint": "Renders back / left / right angles of the same subject. Costs 3 image credits.",
-    "multiViewPickHint": "Pick the cleanest view to feed into 3D.",
+    "multiViewHint": "Renders back / left / right as temporary inputs only. They are not saved to the asset library.",
+    "multiViewUnsupportedHint": "Multi-view input is available for Hunyuan3D v3 / v3.1 Pro.",
+    "multiViewPickHint": "The final run submits the front image and these side views together.",
     "viewFront": "Front",
     "viewBack": "Back",
     "viewLeft": "Left",
     "viewRight": "Right"
   },
   "MultiViewGenerate": {
-    "success": "4 views ready.",
-    "partialSuccess": "Only {count} view(s) succeeded — you can still pick from these.",
+    "success": "Side views ready.",
+    "partialSuccess": "Only {count} side view(s) succeeded — the final 3D run can still use them.",
     "failed": "Multi-view generation failed."
   },
   "LongVideo": {
@@ -1542,6 +1562,18 @@
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
       "description": "Tencent image-to-3D, high-fidelity geometry + PBR textures"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "Multi-view image-to-3D with PBR materials and high face counts"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "High-quality multi-view reconstruction for detailed PBR assets"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "High-detail 3D with adjustable structure, texture, and remesh controls"
     },
     "triposr": {
       "label": "TripoSR",

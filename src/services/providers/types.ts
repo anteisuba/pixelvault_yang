@@ -3,6 +3,12 @@ import 'server-only'
 import type { AspectRatio } from '@/constants/config'
 import type { VideoDefaults } from '@/constants/models'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
+import type {
+  Model3DGenerateType,
+  Model3DPolygonType,
+  Trellis2Resolution,
+  Trellis2TextureSize,
+} from '@/constants/model-3d-generation'
 import type { VideoResolution } from '@/constants/video-options'
 import type { AdvancedParams, ModelHealthStatus } from '@/types'
 
@@ -90,6 +96,40 @@ export interface ProviderModel3DInput {
   texturedMesh?: boolean
   /** Hunyuan3D octree resolution (256/512/1024) */
   octreeResolution?: number
+  /** Hunyuan3D v3/v3.1 side views for multi-view reconstruction */
+  multiViewImages?: {
+    backImageUrl?: string
+    leftImageUrl?: string
+    rightImageUrl?: string
+    topImageUrl?: string
+    bottomImageUrl?: string
+    leftFrontImageUrl?: string
+    rightFrontImageUrl?: string
+  }
+  /** Hunyuan3D v3/v3.1 PBR material generation */
+  enablePbr?: boolean
+  /** Hunyuan3D v3/v3.1 target face count */
+  faceCount?: number
+  /** Hunyuan3D v3/v3.1 task type */
+  generateType?: Model3DGenerateType
+  /** Hunyuan3D v3 low-poly polygon type */
+  polygonType?: Model3DPolygonType
+  /** Trellis 2 output resolution */
+  trellisResolution?: Trellis2Resolution
+  /** Trellis 2 texture atlas size */
+  trellisTextureSize?: Trellis2TextureSize
+  /** Trellis 2 final mesh vertex target */
+  trellisDecimationTarget?: number
+  /** Trellis 2 topology cleanup */
+  trellisRemesh?: boolean
+  /** Trellis 2 remesh detail projection */
+  trellisRemeshProject?: number
+  /** Trellis 2 structure-stage sampling steps */
+  trellisStructureSamplingSteps?: number
+  /** Trellis 2 shape-stage sampling steps */
+  trellisShapeSamplingSteps?: number
+  /** Trellis 2 texture-stage sampling steps */
+  trellisTextureSamplingSteps?: number
   /** TripoSR: remove background before reconstruction */
   removeBackground?: boolean
   /** Reproducibility seed */
@@ -127,11 +167,13 @@ export interface HealthCheckResult {
 /** Structured error thrown by provider adapters so callers can preserve status codes */
 export class ProviderError extends Error {
   readonly status: number
+  readonly detail: string
 
   constructor(provider: string, status: number, detail: string) {
     super(humanizeProviderError(provider, status, detail))
     this.name = 'ProviderError'
     this.status = status
+    this.detail = detail
   }
 }
 

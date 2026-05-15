@@ -32,7 +32,7 @@ export function ProjectChipFilter({
   className,
 }: ProjectChipFilterProps) {
   const t = useTranslations('LibraryPage')
-  const { projects, refresh } = useProjects()
+  const { projects, refresh } = useProjects({ loadHistoryOnMount: false })
   const hasProjects = projects.length > 0
 
   return (

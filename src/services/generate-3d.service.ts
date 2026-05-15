@@ -1,18 +1,39 @@
 import 'server-only'
 
-import { getModelById } from '@/constants/models'
+import { z } from 'zod'
+
+import { AI_MODELS, getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
+import {
+  MODEL_3D_GENERATE_TYPE,
+  MODEL_3D_JOB_STAGE,
+  MODEL_3D_JOB_STAGES,
+  MODEL_3D_PREVIEW_MODE,
+} from '@/constants/model-3d-generation'
 import type {
   Generate3DRequest,
   GenerationRecord,
   Model3DStatusResponseData,
   Model3DSubmitResponseData,
 } from '@/types'
+import { Model3DMultiViewImagesSchema } from '@/types'
 import { createGeneration } from '@/services/generation.service'
-import { prepare3DSourceImage } from '@/services/image-3d-prep.service'
+import {
+  inspect3DSourceImageQuality,
+  prepare3DSourceImage,
+} from '@/services/image-3d-prep.service'
 import { getProviderAdapter } from '@/services/providers/registry'
-import { ProviderError } from '@/services/providers/types'
-import { generateStorageKey, streamUploadToR2 } from '@/services/storage/r2'
+import {
+  ProviderError,
+  type ProviderModel3DInput,
+  type ProviderModel3DQueueStatusResult,
+  type ProviderModel3DResult,
+  type ProviderQueueSubmitResult,
+} from '@/services/providers/types'
+import {
+  generateStorageKey,
+  uploadBufferedHttpToR2,
+} from '@/services/storage/r2'
 import {
   attachUsageEntryToGeneration,
   completeGenerationJob,
@@ -29,6 +50,97 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
+
+const Model3DQueueHandleSchema = z.object({
+  requestId: z.string().min(1),
+  statusUrl: z.string().url(),
+  responseUrl: z.string().url(),
+})
+
+const Model3DCompletedQueueHandleSchema = Model3DQueueHandleSchema.extend({
+  modelUrl: z.string().url().optional(),
+  contentType: z.string().optional(),
+  fileSize: z.number().optional(),
+})
+
+const Model3DSourceQualityMetaSchema = z.object({
+  width: z.number(),
+  height: z.number(),
+  blockingIssues: z.array(z.string()),
+})
+
+const Model3DQueueMetaSchema = z
+  .object({
+    requestId: z.string().min(1).optional(),
+    statusUrl: z.string().url().optional(),
+    responseUrl: z.string().url().optional(),
+    mode: z
+      .enum([MODEL_3D_PREVIEW_MODE.NONE, MODEL_3D_PREVIEW_MODE.MESH_FIRST])
+      .optional(),
+    stage: z.enum(MODEL_3D_JOB_STAGES).optional(),
+    mesh: Model3DCompletedQueueHandleSchema.optional(),
+    final: Model3DQueueHandleSchema.optional(),
+    sourceImageUrl: z.string().url(),
+    preparedImageUrl: z.string().url().optional(),
+    sourceGenerationId: z.string().optional(),
+    projectId: z.string().optional(),
+    prompt: z.string().optional(),
+    apiKeyId: z.string().nullable().optional(),
+    multiViewImages: Model3DMultiViewImagesSchema.optional(),
+    sourceQuality: Model3DSourceQualityMetaSchema.optional(),
+    options: z
+      .object({
+        enablePbr: z.boolean().optional(),
+        faceCount: z.number().int().optional(),
+        seed: z.number().int().optional(),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+type Model3DQueueHandle = z.infer<typeof Model3DQueueHandleSchema>
+type Model3DQueueMeta = z.infer<typeof Model3DQueueMetaSchema>
+type Model3DQueueSubmitter = (
+  input: ProviderModel3DInput,
+) => Promise<ProviderQueueSubmitResult>
+type Model3DQueueStatusChecker = (input: {
+  statusUrl: string
+  responseUrl: string
+  apiKey: string
+}) => Promise<ProviderModel3DQueueStatusResult>
+type GenerationExecutionRoute = Awaited<
+  ReturnType<typeof resolveGenerationRoute>
+>
+
+interface Model3DStatusJob {
+  id: string
+  userId: string
+  status: string
+  modelId: string
+  createdAt: Date
+  generation?: {
+    id: string
+    createdAt: Date
+    outputType: string
+    status: string
+    url: string
+    storageKey: string
+    mimeType: string
+    width: number
+    height: number
+    modelUrl?: string | null
+    modelStorageKey?: string | null
+    referenceImageUrl?: string | null
+    prompt: string
+    negativePrompt?: string | null
+    model: string
+    provider: string
+    requestCount: number
+    isPublic: boolean
+    isPromptPublic: boolean
+    userId?: string | null
+  } | null
+}
 
 // ─── Submit 3D generation to fal.ai queue ────────────────────────
 
@@ -60,7 +172,32 @@ export async function submit3DGenerationForUserId(
     )
   }
 
-  const breaker = getCircuitBreaker(executionRoute.adapterType)
+  let sourceQualityReport: Awaited<
+    ReturnType<typeof inspect3DSourceImageQuality>
+  >
+  try {
+    sourceQualityReport = await inspect3DSourceImageQuality(input.imageUrl, {
+      userId,
+    })
+  } catch (error) {
+    logger.warn('3D source quality inspection failed', {
+      imageUrl: input.imageUrl,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Source image is not accessible or is not a valid raster image.',
+      422,
+    )
+  }
+
+  if (sourceQualityReport.blockingIssues.length > 0) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      build3DSourceQualityMessage(sourceQualityReport),
+      422,
+    )
+  }
 
   // Source-image prep. Default on; user-disabled (prep3D === false) sends
   // the raw image straight in. Failures inside `prepare3DSourceImage`
@@ -74,35 +211,39 @@ export async function submit3DGenerationForUserId(
           falApiKey: executionRoute.apiKey,
         })
 
-  let queueResult: Awaited<
-    ReturnType<NonNullable<typeof providerAdapter.submitModel3DToQueue>>
-  >
+  const useMeshFirstPreview = shouldUseMeshFirstPreview(
+    input,
+    executionRoute.modelId,
+  )
+  const queueInput = buildProvider3DInput({
+    input,
+    imageUrl: preparedImageUrl,
+    modelId: executionRoute.modelId,
+    providerConfig: executionRoute.providerConfig,
+    apiKey: executionRoute.apiKey,
+    overrides: useMeshFirstPreview
+      ? {
+          enablePbr: false,
+          generateType: MODEL_3D_GENERATE_TYPE.GEOMETRY,
+        }
+      : undefined,
+  })
+
+  let queueResult: ProviderQueueSubmitResult
   try {
-    queueResult = await breaker.call(() =>
-      withRetry(
-        () =>
-          providerAdapter.submitModel3DToQueue!({
-            imageUrl: preparedImageUrl,
-            modelId: executionRoute.modelId,
-            providerConfig: executionRoute.providerConfig,
-            apiKey: executionRoute.apiKey,
-            texturedMesh: input.texturedMesh,
-            octreeResolution: input.octreeResolution,
-            removeBackground: input.removeBackground,
-            seed: input.seed,
-          }),
-        {
-          maxAttempts: 2,
-          baseDelayMs: 2000,
-          label: `${executionRoute.adapterType}.submitModel3D`,
-        },
-      ),
-    )
+    queueResult = await submit3DQueueWithRetry({
+      adapterType: executionRoute.adapterType,
+      submit: providerAdapter.submitModel3DToQueue,
+      input: queueInput,
+    })
 
     logger.info('3D submitted to queue', {
       adapter: executionRoute.adapterType,
       modelId: executionRoute.modelId,
       requestId: queueResult.requestId,
+      stage: useMeshFirstPreview
+        ? MODEL_3D_JOB_STAGE.MESH_RUNNING
+        : MODEL_3D_JOB_STAGE.SINGLE_RUNNING,
     })
   } catch (error) {
     if (error instanceof GenerateImageServiceError) throw error
@@ -119,14 +260,33 @@ export async function submit3DGenerationForUserId(
     modelId: executionRoute.modelId,
   })
 
-  const queueMeta = JSON.stringify({
-    requestId: queueResult.requestId,
-    statusUrl: queueResult.statusUrl,
-    responseUrl: queueResult.responseUrl,
+  const queueMeta = serializeQueueMeta({
+    ...(useMeshFirstPreview
+      ? {
+          mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+          stage: MODEL_3D_JOB_STAGE.MESH_RUNNING,
+          mesh: queueResult,
+          preparedImageUrl,
+          options: {
+            enablePbr: input.enablePbr,
+            faceCount: input.faceCount,
+            seed: input.seed,
+          },
+        }
+      : {
+          mode: MODEL_3D_PREVIEW_MODE.NONE,
+          stage: MODEL_3D_JOB_STAGE.SINGLE_RUNNING,
+          requestId: queueResult.requestId,
+          statusUrl: queueResult.statusUrl,
+          responseUrl: queueResult.responseUrl,
+        }),
     sourceImageUrl: input.imageUrl,
     sourceGenerationId: input.sourceGenerationId,
     projectId: input.projectId,
     prompt: input.prompt ?? '',
+    apiKeyId: executionRoute.resolvedApiKeyId,
+    multiViewImages: input.multiViewImages,
+    sourceQuality: sourceQualityReport,
   })
 
   await db.generationJob.update({
@@ -191,27 +351,11 @@ export async function check3DGenerationStatusForUserId(
     )
   }
 
-  let queueMeta: {
-    requestId: string
-    statusUrl: string
-    responseUrl: string
-    sourceImageUrl: string
-    sourceGenerationId?: string
-    projectId?: string
-    prompt: string
-  }
-  try {
-    queueMeta = JSON.parse(job.externalRequestId)
-  } catch {
-    throw new GenerateImageServiceError(
-      'INVALID_JOB',
-      'Job has invalid queue metadata',
-      400,
-    )
-  }
+  const queueMeta = parseQueueMeta(job.externalRequestId)
 
   const executionRoute = await resolveGenerationRoute(userId, {
     modelId: job.modelId,
+    apiKeyId: queueMeta.apiKeyId ?? undefined,
   })
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
 
@@ -223,21 +367,37 @@ export async function check3DGenerationStatusForUserId(
     )
   }
 
-  let queueStatus: Awaited<
-    ReturnType<NonNullable<typeof providerAdapter.checkModel3DQueueStatus>>
-  >
-  try {
-    queueStatus = await providerAdapter.checkModel3DQueueStatus({
-      statusUrl: queueMeta.statusUrl,
-      responseUrl: queueMeta.responseUrl,
+  if (queueMeta.mode === MODEL_3D_PREVIEW_MODE.MESH_FIRST) {
+    if (!providerAdapter.submitModel3DToQueue) {
+      throw new GenerateImageServiceError(
+        'UNSUPPORTED_MODEL',
+        '3D generation is not supported for this provider',
+        400,
+      )
+    }
+
+    return checkMeshFirst3DGenerationStatus({
+      userId,
+      job,
+      queueMeta,
       apiKey: executionRoute.apiKey,
+      executionRoute,
+      checkModel3DQueueStatus: providerAdapter.checkModel3DQueueStatus,
+      submitModel3DToQueue: providerAdapter.submitModel3DToQueue,
     })
-  } catch (error) {
-    if (error instanceof GenerateImageServiceError) throw error
-    const message =
-      error instanceof Error ? error.message : '3D status check failed'
-    const status = error instanceof ProviderError ? error.status : 502
-    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
+  }
+
+  const queueHandle = getSingleQueueHandle(queueMeta)
+  const queueStatus = await check3DQueueStatusOrThrow({
+    jobId: job.id,
+    modelId: job.modelId,
+    apiKey: executionRoute.apiKey,
+    handle: queueHandle,
+    checkModel3DQueueStatus: providerAdapter.checkModel3DQueueStatus,
+  })
+
+  if (queueStatus === 'TRANSIENT') {
+    return { jobId: job.id, status: 'IN_PROGRESS' }
   }
 
   if (
@@ -261,32 +421,400 @@ export async function check3DGenerationStatusForUserId(
     return { jobId: job.id, status: 'FAILED' }
   }
 
-  // Optimistic-lock: claim this job for finalization (mirrors video flow)
+  return persistCompleted3DGeneration({
+    userId,
+    job,
+    queueMeta,
+    executionRoute,
+    result: queueStatus.result,
+  })
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function shouldUseMeshFirstPreview(
+  input: Generate3DRequest,
+  modelId: string,
+): boolean {
+  return (
+    input.previewMode === MODEL_3D_PREVIEW_MODE.MESH_FIRST &&
+    modelId === AI_MODELS.HUNYUAN3D_V31_PRO
+  )
+}
+
+function buildProvider3DInput(params: {
+  input: Generate3DRequest
+  imageUrl: string
+  modelId: string
+  providerConfig: ProviderModel3DInput['providerConfig']
+  apiKey: string
+  overrides?: Partial<ProviderModel3DInput>
+}): ProviderModel3DInput {
+  const { input, overrides } = params
+
+  return {
+    imageUrl: params.imageUrl,
+    modelId: params.modelId,
+    providerConfig: params.providerConfig,
+    apiKey: params.apiKey,
+    texturedMesh: input.texturedMesh,
+    octreeResolution: input.octreeResolution,
+    multiViewImages: input.multiViewImages,
+    enablePbr: input.enablePbr,
+    faceCount: input.faceCount,
+    generateType: input.generateType,
+    polygonType: input.polygonType,
+    trellisResolution: input.trellisResolution,
+    trellisTextureSize: input.trellisTextureSize,
+    trellisDecimationTarget: input.trellisDecimationTarget,
+    trellisRemesh: input.trellisRemesh,
+    trellisRemeshProject: input.trellisRemeshProject,
+    trellisStructureSamplingSteps: input.trellisStructureSamplingSteps,
+    trellisShapeSamplingSteps: input.trellisShapeSamplingSteps,
+    trellisTextureSamplingSteps: input.trellisTextureSamplingSteps,
+    removeBackground: input.removeBackground,
+    seed: input.seed,
+    ...overrides,
+  }
+}
+
+async function submit3DQueueWithRetry(params: {
+  adapterType: string
+  submit: Model3DQueueSubmitter
+  input: ProviderModel3DInput
+}): Promise<ProviderQueueSubmitResult> {
+  const breaker = getCircuitBreaker(params.adapterType)
+
+  return breaker.call(() =>
+    withRetry(() => params.submit(params.input), {
+      maxAttempts: 2,
+      baseDelayMs: 2000,
+      label: `${params.adapterType}.submitModel3D`,
+    }),
+  )
+}
+
+function serializeQueueMeta(meta: Model3DQueueMeta): string {
+  return JSON.stringify(meta)
+}
+
+function parseQueueMeta(value: string): Model3DQueueMeta {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid queue metadata',
+      400,
+    )
+  }
+
+  const result = Model3DQueueMetaSchema.safeParse(parsed)
+  if (!result.success) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid queue metadata',
+      400,
+    )
+  }
+
+  return result.data
+}
+
+function getSingleQueueHandle(queueMeta: Model3DQueueMeta): Model3DQueueHandle {
+  if (queueMeta.requestId && queueMeta.statusUrl && queueMeta.responseUrl) {
+    return {
+      requestId: queueMeta.requestId,
+      statusUrl: queueMeta.statusUrl,
+      responseUrl: queueMeta.responseUrl,
+    }
+  }
+
+  throw new GenerateImageServiceError(
+    'INVALID_JOB',
+    'Job has invalid queue metadata',
+    400,
+  )
+}
+
+async function check3DQueueStatusOrThrow(params: {
+  jobId: string
+  modelId: string
+  apiKey: string
+  handle: Model3DQueueHandle
+  checkModel3DQueueStatus: Model3DQueueStatusChecker
+}): Promise<ProviderModel3DQueueStatusResult | 'TRANSIENT'> {
+  try {
+    return await params.checkModel3DQueueStatus({
+      statusUrl: params.handle.statusUrl,
+      responseUrl: params.handle.responseUrl,
+      apiKey: params.apiKey,
+    })
+  } catch (error) {
+    if (error instanceof GenerateImageServiceError) throw error
+    if (isTransient3DQueueStatusError(error)) {
+      logger.warn('3D status check transient failure; keeping job active', {
+        jobId: params.jobId,
+        modelId: params.modelId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return 'TRANSIENT'
+    }
+    const message =
+      error instanceof Error ? error.message : '3D status check failed'
+    const status = error instanceof ProviderError ? error.status : 502
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
+  }
+}
+
+async function checkMeshFirst3DGenerationStatus(params: {
+  userId: string
+  job: Model3DStatusJob
+  queueMeta: Model3DQueueMeta
+  apiKey: string
+  executionRoute: GenerationExecutionRoute
+  checkModel3DQueueStatus: Model3DQueueStatusChecker
+  submitModel3DToQueue: Model3DQueueSubmitter
+}): Promise<Model3DStatusResponseData> {
+  const { job, queueMeta } = params
+
+  if (queueMeta.stage === MODEL_3D_JOB_STAGE.MESH_RUNNING) {
+    if (!queueMeta.mesh) {
+      throw new GenerateImageServiceError(
+        'INVALID_JOB',
+        'Job has invalid mesh queue metadata',
+        400,
+      )
+    }
+
+    const meshStatus = await check3DQueueStatusOrThrow({
+      jobId: job.id,
+      modelId: job.modelId,
+      apiKey: params.apiKey,
+      handle: queueMeta.mesh,
+      checkModel3DQueueStatus: params.checkModel3DQueueStatus,
+    })
+
+    if (meshStatus === 'TRANSIENT') {
+      return { jobId: job.id, status: 'IN_PROGRESS', stage: 'mesh' }
+    }
+    if (
+      meshStatus.status === 'IN_QUEUE' ||
+      meshStatus.status === 'IN_PROGRESS'
+    ) {
+      return { jobId: job.id, status: meshStatus.status, stage: 'mesh' }
+    }
+    if (meshStatus.status === 'FAILED' || !meshStatus.result) {
+      await failGenerationJob(job.id, {
+        errorMessage: '3D geometry preview failed on provider side',
+      })
+      return { jobId: job.id, status: 'FAILED' }
+    }
+
+    const claimed = await claimRunningJob(job.id)
+    if (!claimed) {
+      return buildActiveMeshFirstResponse(job.id, queueMeta)
+    }
+
+    let finalQueue: ProviderQueueSubmitResult
+    try {
+      finalQueue = await submitFinalTextured3DQueue({
+        queueMeta,
+        executionRoute: params.executionRoute,
+        submitModel3DToQueue: params.submitModel3DToQueue,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit textured 3D generation'
+      await failGenerationJob(job.id, {
+        errorMessage: message,
+      })
+      const status = error instanceof ProviderError ? error.status : 502
+      throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
+    }
+    const updatedMeta: Model3DQueueMeta = {
+      ...queueMeta,
+      stage: MODEL_3D_JOB_STAGE.TEXTURE_RUNNING,
+      mesh: {
+        ...queueMeta.mesh,
+        modelUrl: meshStatus.result.modelUrl,
+        contentType: meshStatus.result.contentType,
+        fileSize: meshStatus.result.fileSize,
+      },
+      final: finalQueue,
+    }
+
+    await db.generationJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'RUNNING',
+        externalRequestId: serializeQueueMeta(updatedMeta),
+      },
+    })
+
+    return {
+      jobId: job.id,
+      status: 'IN_PROGRESS',
+      stage: 'texture',
+      previewModelUrl: meshStatus.result.modelUrl,
+    }
+  }
+
+  if (
+    queueMeta.stage !== MODEL_3D_JOB_STAGE.TEXTURE_RUNNING ||
+    !queueMeta.final
+  ) {
+    throw new GenerateImageServiceError(
+      'INVALID_JOB',
+      'Job has invalid texture queue metadata',
+      400,
+    )
+  }
+
+  const finalStatus = await check3DQueueStatusOrThrow({
+    jobId: job.id,
+    modelId: job.modelId,
+    apiKey: params.apiKey,
+    handle: queueMeta.final,
+    checkModel3DQueueStatus: params.checkModel3DQueueStatus,
+  })
+  const previewModelUrl = queueMeta.mesh?.modelUrl
+
+  if (finalStatus === 'TRANSIENT') {
+    return {
+      jobId: job.id,
+      status: 'IN_PROGRESS',
+      stage: 'texture',
+      previewModelUrl,
+    }
+  }
+  if (
+    finalStatus.status === 'IN_QUEUE' ||
+    finalStatus.status === 'IN_PROGRESS'
+  ) {
+    return {
+      jobId: job.id,
+      status: finalStatus.status,
+      stage: 'texture',
+      previewModelUrl,
+    }
+  }
+  if (finalStatus.status === 'FAILED' || !finalStatus.result) {
+    await failGenerationJob(job.id, {
+      errorMessage: '3D texture generation failed on provider side',
+    })
+    return { jobId: job.id, status: 'FAILED', previewModelUrl }
+  }
+
+  const completed = await persistCompleted3DGeneration({
+    userId: params.userId,
+    job,
+    queueMeta,
+    executionRoute: params.executionRoute,
+    result: finalStatus.result,
+  })
+
+  return { ...completed, previewModelUrl }
+}
+
+async function submitFinalTextured3DQueue(params: {
+  queueMeta: Model3DQueueMeta
+  executionRoute: GenerationExecutionRoute
+  submitModel3DToQueue: Model3DQueueSubmitter
+}): Promise<ProviderQueueSubmitResult> {
+  const { queueMeta, executionRoute } = params
+
+  return submit3DQueueWithRetry({
+    adapterType: executionRoute.adapterType,
+    submit: params.submitModel3DToQueue,
+    input: {
+      imageUrl: queueMeta.preparedImageUrl ?? queueMeta.sourceImageUrl,
+      modelId: executionRoute.modelId,
+      providerConfig: executionRoute.providerConfig,
+      apiKey: executionRoute.apiKey,
+      multiViewImages: queueMeta.multiViewImages,
+      enablePbr: queueMeta.options?.enablePbr ?? true,
+      faceCount: queueMeta.options?.faceCount,
+      generateType: MODEL_3D_GENERATE_TYPE.NORMAL,
+      seed: queueMeta.options?.seed,
+    },
+  })
+}
+
+function buildActiveMeshFirstResponse(
+  jobId: string,
+  queueMeta: Model3DQueueMeta,
+): Model3DStatusResponseData {
+  if (queueMeta.mode !== MODEL_3D_PREVIEW_MODE.MESH_FIRST) {
+    return { jobId, status: 'IN_PROGRESS' }
+  }
+
+  if (queueMeta.stage === MODEL_3D_JOB_STAGE.TEXTURE_RUNNING) {
+    return {
+      jobId,
+      status: 'IN_PROGRESS',
+      stage: 'texture',
+      previewModelUrl: queueMeta.mesh?.modelUrl,
+    }
+  }
+
+  return { jobId, status: 'IN_PROGRESS', stage: 'mesh' }
+}
+
+async function claimRunningJob(jobId: string): Promise<boolean> {
   const claimed = await db.generationJob.updateMany({
     where: { id: jobId, status: 'RUNNING' },
     data: { status: 'QUEUED' },
   })
 
-  if (claimed.count === 0) {
-    const freshJob = await db.generationJob.findUnique({
-      where: { id: jobId },
-      include: { generation: true },
-    })
+  return claimed.count > 0
+}
 
-    if (freshJob?.status === 'COMPLETED' && freshJob.generation) {
+async function getCompletedGenerationIfClaimLost(
+  jobId: string,
+): Promise<GenerationRecord | null> {
+  const freshJob = await db.generationJob.findUnique({
+    where: { id: jobId },
+    include: { generation: true },
+  })
+
+  if (freshJob?.status === 'COMPLETED' && freshJob.generation) {
+    return mapGenerationToRecord(freshJob.generation)
+  }
+
+  return null
+}
+
+async function persistCompleted3DGeneration(params: {
+  userId: string
+  job: Model3DStatusJob
+  queueMeta: Model3DQueueMeta
+  executionRoute: GenerationExecutionRoute
+  result: ProviderModel3DResult
+}): Promise<Model3DStatusResponseData> {
+  const { userId, job, queueMeta, executionRoute, result } = params
+  const claimed = await claimRunningJob(job.id)
+
+  if (!claimed) {
+    const generation = await getCompletedGenerationIfClaimLost(job.id)
+    if (generation) {
       return {
         jobId: job.id,
         status: 'COMPLETED',
-        generation: mapGenerationToRecord(freshJob.generation),
+        generation,
       }
     }
 
-    return { jobId: job.id, status: 'IN_PROGRESS' }
+    return buildActiveMeshFirstResponse(job.id, queueMeta)
   }
 
   const provider = getProviderLabel(executionRoute.providerConfig)
-  const result = queueStatus.result
   const modelConfig = getModelById(job.modelId)
+  const requestCount = executionRoute.creditCost ?? result.requestCount
+  const inputImageCount = 1 + count3DMultiViewImages(queueMeta.multiViewImages)
 
   const usageEntry = await createApiUsageEntry({
     userId,
@@ -294,8 +822,8 @@ export async function check3DGenerationStatusForUserId(
     adapterType: executionRoute.adapterType,
     provider,
     modelId: job.modelId,
-    requestCount: result.requestCount,
-    inputImageCount: 1,
+    requestCount,
+    inputImageCount,
     outputImageCount: 0,
     width: 0,
     height: 0,
@@ -306,15 +834,13 @@ export async function check3DGenerationStatusForUserId(
   const modelStorageKey = generateStorageKey('MODEL_3D', userId)
 
   try {
-    const { publicUrl: glbPublicUrl } = await streamUploadToR2({
+    const { publicUrl: glbPublicUrl } = await uploadBufferedHttpToR2({
       sourceUrl: result.modelUrl,
       key: modelStorageKey,
       mimeType: result.contentType ?? 'model/gltf-binary',
+      timeoutMs: 300_000,
     })
 
-    // url / storageKey are required on the Generation row; for 3D we leave
-    // them pointing at the GLB until a poster is uploaded by the client
-    // <ModelViewer> via PATCH /api/generations/:id/poster (M3 work).
     const generation = await createGeneration({
       url: glbPublicUrl,
       storageKey: modelStorageKey,
@@ -324,21 +850,28 @@ export async function check3DGenerationStatusForUserId(
       modelUrl: glbPublicUrl,
       modelStorageKey,
       referenceImageUrl: queueMeta.sourceImageUrl,
-      prompt: queueMeta.prompt,
+      prompt: queueMeta.prompt ?? '',
       model: job.modelId,
       provider,
-      requestCount: result.requestCount,
+      requestCount,
       outputType: 'MODEL_3D',
       userId,
       projectId: queueMeta.projectId,
       isFreeGeneration: modelConfig?.freeTier === true,
+      snapshot: {
+        sourceImageUrl: queueMeta.sourceImageUrl,
+        multiViewImages: queueMeta.multiViewImages ?? null,
+        sourceQuality: queueMeta.sourceQuality ?? null,
+        previewMode: queueMeta.mode ?? 'none',
+        meshPreviewUrl: queueMeta.mesh?.modelUrl ?? null,
+      },
     })
 
     await Promise.all([
       attachUsageEntryToGeneration(usageEntry.id, generation.id),
       completeGenerationJob(job.id, {
         generationId: generation.id,
-        requestCount: result.requestCount,
+        requestCount,
       }),
     ])
 
@@ -352,7 +885,7 @@ export async function check3DGenerationStatusForUserId(
       error instanceof Error ? error.message : 'Failed to persist 3D model'
 
     await failGenerationJob(job.id, {
-      requestCount: result.requestCount,
+      requestCount,
       errorMessage: message,
     })
 
@@ -360,7 +893,83 @@ export async function check3DGenerationStatusForUserId(
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────
+function count3DMultiViewImages(
+  images: Generate3DRequest['multiViewImages'] | undefined,
+): number {
+  if (!images) return 0
+  return [
+    images.backImageUrl,
+    images.leftImageUrl,
+    images.rightImageUrl,
+    images.topImageUrl,
+    images.bottomImageUrl,
+    images.leftFrontImageUrl,
+    images.rightFrontImageUrl,
+  ].filter(Boolean).length
+}
+
+function build3DSourceQualityMessage(report: {
+  width: number
+  height: number
+  blockingIssues: string[]
+}): string {
+  const issueMessages = report.blockingIssues.map((issue) => {
+    if (issue === 'too_small') {
+      return `source image is too small (${report.width}x${report.height}); use at least 512px on the short edge`
+    }
+    if (issue === 'extreme_aspect_ratio') {
+      return `source image aspect ratio is too extreme (${report.width}x${report.height}); use a centered square or near-square image`
+    }
+    if (issue === 'multi_subject') {
+      return 'source image appears to contain multiple main subjects; use one isolated subject'
+    }
+    if (issue === 'occluded_subject') {
+      return 'source image subject appears occluded; use a clear full subject'
+    }
+    if (issue === 'cropped_subject') {
+      return 'source image silhouette appears cropped; keep the full subject visible'
+    }
+    if (issue === 'strong_shadow') {
+      return 'source image has strong shadows; use even lighting'
+    }
+    if (issue === 'busy_background') {
+      return 'source image background appears cluttered; use a simple background'
+    }
+    return 'source image dimensions could not be read'
+  })
+
+  return `Source image is not suitable for 3D generation: ${issueMessages.join('; ')}.`
+}
+
+function isTransient3DQueueStatusError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  const detail = error instanceof ProviderError ? error.detail : ''
+  const lower = `${message} ${detail}`.toLowerCase()
+
+  if (error instanceof ProviderError) {
+    const isRetryableStatus = [408, 429, 500, 502, 503, 504].includes(
+      error.status,
+    )
+    if (!isRetryableStatus) return false
+    return (
+      lower.includes('[3d-status-fetch-error]') ||
+      lower.includes('[3d-status-http-') ||
+      lower.includes('[3d-result-fetch-error]') ||
+      lower.includes('[3d-result-read-error]') ||
+      lower.includes('fetch failed') ||
+      lower.includes('timeout') ||
+      lower.includes('aborted') ||
+      lower.includes('terminated')
+    )
+  }
+
+  return (
+    lower.includes('fetch failed') ||
+    lower.includes('timeout') ||
+    lower.includes('aborted') ||
+    lower.includes('terminated')
+  )
+}
 
 function mapGenerationToRecord(gen: {
   id: string

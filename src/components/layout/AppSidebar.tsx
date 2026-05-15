@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import {
   BookOpen,
   ChevronDown,
@@ -31,8 +32,16 @@ import { useTranslations } from 'next-intl'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { CardDrawer } from '@/components/business/CardDrawer'
+
+// Lazy-load ApiKeyManager so its bundle (forms + tables) stays out of the
+// main-layout chunk that loads on every page in the (main) route group.
+// The Sheet only mounts content when opened from the user menu.
+const ApiKeyManager = dynamic(
+  () =>
+    import('@/components/business/ApiKeyManager').then((m) => m.ApiKeyManager),
+  { ssr: false },
+)
 import { Button } from '@/components/ui/button'
 import { HyperText } from '@/components/ui/hyper-text'
 import { NumberTicker } from '@/components/ui/number-ticker'

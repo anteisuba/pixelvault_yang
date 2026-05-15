@@ -25,6 +25,7 @@ interface ModelViewerInnerProps {
    * the asset browser can render a real preview.
    */
   onPosterCaptured?: (blob: Blob) => void
+  onModelVisible?: () => void
   /**
    * Children are rendered inside the `<model-viewer>` element, so you can
    * pass `<button slot="ar-button">…</button>` to override the default
@@ -80,6 +81,7 @@ export default function ModelViewerInner({
   iosSrc,
   className,
   onPosterCaptured,
+  onModelVisible,
   children,
 }: ModelViewerInnerProps) {
   const ref = useRef<HTMLElement | null>(null)
@@ -106,7 +108,7 @@ export default function ModelViewerInner({
 
   useEffect(() => {
     const el = ref.current
-    if (!el || !onPosterCaptured) return
+    if (!el || (!onPosterCaptured && !onModelVisible)) return
 
     // model-viewer fires 'load' once the GLB is parsed and 'model-visibility'
     // when it's actually painted to the canvas. Wait for the latter so the
@@ -114,6 +116,7 @@ export default function ModelViewerInner({
     const handleVisibility = (event: Event) => {
       const detail = (event as CustomEvent<{ visible?: boolean }>).detail
       if (detail?.visible) {
+        onModelVisible?.()
         // Tiny delay lets auto-rotate land a stable frame instead of frame 0.
         setTimeout(() => {
           void capturePoster()
@@ -125,7 +128,7 @@ export default function ModelViewerInner({
     return () => {
       el.removeEventListener('model-visibility', handleVisibility)
     }
-  }, [capturePoster, onPosterCaptured])
+  }, [capturePoster, onModelVisible, onPosterCaptured])
 
   return (
     <model-viewer

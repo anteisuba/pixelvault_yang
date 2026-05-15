@@ -19,13 +19,27 @@ import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AI_MODELS, getAvailableModel3DModels } from '@/constants/models'
+import {
+  AI_MODELS,
+  getAvailableModel3DModels,
+  getModelMessageKey,
+} from '@/constants/models'
+import {
+  HUNYUAN3D_FACE_COUNT,
+  MODEL_3D_GENERATE_TYPE,
+  MODEL_3D_PREVIEW_MODE,
+  MODEL_3D_SOURCE_QUALITY,
+  TRELLIS_2_DECIMATION_TARGET,
+  TRELLIS_2_RESOLUTIONS,
+  TRELLIS_2_TEXTURE_SIZES,
+} from '@/constants/model-3d-generation'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { USER_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ModelViewer } from '@/components/business/ModelViewer'
+import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -45,7 +59,12 @@ import {
   uploadImageAPI,
 } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import type { Generate3DRequest, GenerationRecord } from '@/types'
+import type {
+  Generate3DRequest,
+  GenerationRecord,
+  MultiViewGenerateRequest,
+  MultiViewImageRecord,
+} from '@/types'
 
 interface Studio3DWorkspaceProps {
   initialGenerations: GenerationRecord[]
@@ -58,6 +77,37 @@ const OCTREE_OPTIONS: Array<{ value: 256 | 512 | 1024; label: string }> = [
   { value: 512, label: '512 (balanced)' },
   { value: 1024, label: '1024 (high)' },
 ]
+
+const HUNYUAN3D_V3_MODEL_IDS = new Set<string>([
+  AI_MODELS.HUNYUAN3D_V3,
+  AI_MODELS.HUNYUAN3D_V31_PRO,
+])
+
+const FACE_COUNT_OPTIONS = [
+  { value: HUNYUAN3D_FACE_COUNT.DEFAULT, label: '500k' },
+  { value: HUNYUAN3D_FACE_COUNT.HIGH, label: '1M' },
+  { value: HUNYUAN3D_FACE_COUNT.MAX, label: '1.5M' },
+]
+
+const TRELLIS_DECIMATION_OPTIONS = [
+  { value: TRELLIS_2_DECIMATION_TARGET.WEB, label: '50k' },
+  { value: TRELLIS_2_DECIMATION_TARGET.DEFAULT, label: '500k' },
+  { value: TRELLIS_2_DECIMATION_TARGET.HIGH, label: '1M' },
+  { value: TRELLIS_2_DECIMATION_TARGET.MAX, label: '2M' },
+]
+
+function getMultiViewImages(
+  views: MultiViewImageRecord[],
+): Generate3DRequest['multiViewImages'] | undefined {
+  const images: Generate3DRequest['multiViewImages'] = {}
+  for (const view of views) {
+    if (view.view === 'back') images.backImageUrl = view.url
+    if (view.view === 'left') images.leftImageUrl = view.url
+    if (view.view === 'right') images.rightImageUrl = view.url
+  }
+
+  return Object.keys(images).length > 0 ? images : undefined
+}
 
 export function Studio3DWorkspace({
   initialGenerations,
@@ -72,7 +122,7 @@ export function Studio3DWorkspace({
   // what they're about to spend. Pulled from the registry instead of being
   // hardcoded so the price stays in sync with `model-3d.ts`.
   const hunyuanCost = useMemo(
-    () => models.find((m) => m.id === AI_MODELS.HUNYUAN3D_2_1)?.cost,
+    () => models.find((m) => m.id === AI_MODELS.HUNYUAN3D_V31_PRO)?.cost,
     [models],
   )
 
@@ -84,12 +134,21 @@ export function Studio3DWorkspace({
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    models[0]?.id ?? AI_MODELS.HUNYUAN3D_2_1,
+    models[0]?.id ?? AI_MODELS.HUNYUAN3D_V31_PRO,
   )
   const [texturedMesh, setTexturedMesh] = useState(false)
+  const [enablePbr, setEnablePbr] = useState(true)
+  const [faceCount, setFaceCount] = useState<number>(HUNYUAN3D_FACE_COUNT.HIGH)
   const [octreeResolution, setOctreeResolution] = useState<256 | 512 | 1024>(
     512,
   )
+  const [trellisResolution, setTrellisResolution] =
+    useState<(typeof TRELLIS_2_RESOLUTIONS)[number]>(1536)
+  const [trellisTextureSize, setTrellisTextureSize] =
+    useState<(typeof TRELLIS_2_TEXTURE_SIZES)[number]>(4096)
+  const [trellisDecimationTarget, setTrellisDecimationTarget] =
+    useState<number>(TRELLIS_2_DECIMATION_TARGET.HIGH)
+  const [trellisRemesh, setTrellisRemesh] = useState(true)
   const [removeBackground, setRemoveBackground] = useState(true)
   // 3D-friendly source preprocessing: upscale small images + white-pad
   // non-square aspects. Defaults on — flip off only for raw-input debugging.
@@ -107,23 +166,26 @@ export function Studio3DWorkspace({
     useState<GenerationRecord | null>(null)
   const hydratedForRef = useRef<string | null>(null)
   const sourceHydratedForRef = useRef<string | null>(null)
+  const [finalModelVisible, setFinalModelVisible] = useState(false)
 
-  // Multi-view picker — once the user has a front-view source image we
-  // generate three alternate angles via reference-edit so the user can pick
-  // the cleanest one for 3D. Hunyuan v2 still takes a single image; this
-  // just gives the user 4 to choose from. When we upgrade to multi-view-
-  // aware 3D, this same payload feeds straight in.
+  // Multi-view input — once the user has a front-view source image we
+  // generate temporary back / left / right views via reference-edit. These
+  // are not Generation rows; Hunyuan v3/v3.1 receives them alongside the
+  // front view during the final 3D submission.
   const {
     isGenerating: isGeneratingViews,
     views: generatedViews,
     generate: generateMultiViewFn,
+    restore: restoreMultiView,
     reset: resetMultiView,
   } = useGenerateMultiView()
+  const multiViewSourceRef = useRef<string | null>(null)
 
   const {
     isGenerating,
     stage,
     elapsedSeconds,
+    previewModelUrl,
     generatedGeneration,
     generate,
     reset,
@@ -173,6 +235,22 @@ export function Studio3DWorkspace({
   // Live generation always wins so a user can deeplink + then click
   // generate to overwrite.
   const displayGeneration = generatedGeneration ?? hydratedGeneration
+  const displayGenerationId = displayGeneration?.id ?? null
+
+  useEffect(() => {
+    setFinalModelVisible(false)
+  }, [displayGenerationId])
+
+  const generationStageLabel =
+    stage === 'queued'
+      ? t('stageQueued')
+      : stage === 'mesh'
+        ? t('stageMesh')
+        : stage === 'texture'
+          ? t('stageTexture')
+          : stage === 'uploading'
+            ? t('stageUploading')
+            : t('stageGenerating')
 
   // API key gating — surface fal key state up-front so users without a key
   // don't get a confusing 400 at generate time. The selector below lets the
@@ -199,10 +277,67 @@ export function Studio3DWorkspace({
     }
   }, [falActiveKeys, selectedApiKeyId])
 
-  const isHunyuan = selectedModelId === AI_MODELS.HUNYUAN3D_2_1
+  const isHunyuanLegacy = selectedModelId === AI_MODELS.HUNYUAN3D_2_1
+  const isHunyuanV3 = HUNYUAN3D_V3_MODEL_IDS.has(selectedModelId)
+  const isTrellis2 = selectedModelId === AI_MODELS.TRELLIS_2
   const isTriposr = selectedModelId === AI_MODELS.TRIPOSR
+  const supportsMultiViewInput = isHunyuanV3
+  const supportsMeshFirstPreview =
+    selectedModelId === AI_MODELS.HUNYUAN3D_V31_PRO
 
-  const canGenerate = !!sourceImage && !isGenerating && hasFalKey
+  useEffect(() => {
+    const sourceKey =
+      sourceImage && supportsMultiViewInput
+        ? (sourceImage.id ?? sourceImage.url)
+        : null
+    if (multiViewSourceRef.current === sourceKey) return
+    multiViewSourceRef.current = sourceKey
+
+    if (!sourceImage || !supportsMultiViewInput) {
+      resetMultiView()
+      return
+    }
+
+    const restored = restoreMultiView({
+      imageUrl: sourceImage.url,
+      sourceGenerationId: sourceImage.id,
+      modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    })
+    if (!restored) resetMultiView()
+  }, [sourceImage, supportsMultiViewInput, resetMultiView, restoreMultiView])
+
+  const sourceQualityIssues = useMemo(() => {
+    if (!sourceImage) return []
+    if (sourceImage.width <= 0 || sourceImage.height <= 0) return []
+
+    const issues: string[] = []
+    const minEdge = Math.min(sourceImage.width, sourceImage.height)
+    const aspectRatio =
+      Math.max(sourceImage.width, sourceImage.height) / minEdge
+    if (minEdge < MODEL_3D_SOURCE_QUALITY.MIN_EDGE_PX) {
+      issues.push(
+        t('sourceQualityTooSmall', {
+          width: sourceImage.width,
+          height: sourceImage.height,
+        }),
+      )
+    }
+    if (aspectRatio > MODEL_3D_SOURCE_QUALITY.MAX_ASPECT_RATIO) {
+      issues.push(
+        t('sourceQualityExtremeAspect', {
+          width: sourceImage.width,
+          height: sourceImage.height,
+        }),
+      )
+    }
+    return issues
+  }, [sourceImage, t])
+
+  const canGenerate =
+    !!sourceImage &&
+    !isGenerating &&
+    hasFalKey &&
+    sourceQualityIssues.length === 0
 
   // Core submission — split out so `handleGenerate` and `handleRefineWithHunyuan`
   // (P6: TripoSR base → Hunyuan3D refine) can share the param-assembly logic.
@@ -223,8 +358,13 @@ export function Studio3DWorkspace({
         ? (override.sourceGenerationId ?? undefined)
         : sourceImage?.id
     const targetPrompt = override?.sourcePrompt ?? sourceImage?.prompt
-    const targetIsHunyuan = targetModelId === AI_MODELS.HUNYUAN3D_2_1
+    const targetIsHunyuanLegacy = targetModelId === AI_MODELS.HUNYUAN3D_2_1
+    const targetIsHunyuanV3 = HUNYUAN3D_V3_MODEL_IDS.has(targetModelId)
+    const targetIsTrellis2 = targetModelId === AI_MODELS.TRELLIS_2
     const targetIsTriposr = targetModelId === AI_MODELS.TRIPOSR
+    const multiViewImages = targetIsHunyuanV3
+      ? getMultiViewImages(generatedViews)
+      : undefined
 
     const params: Generate3DRequest = {
       imageUrl: targetSourceUrl,
@@ -233,9 +373,28 @@ export function Studio3DWorkspace({
       ...(targetPrompt && { prompt: targetPrompt }),
       prep3D,
       ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
-      ...(targetIsHunyuan && {
+      ...(targetIsHunyuanLegacy && {
         texturedMesh,
         octreeResolution,
+      }),
+      ...(targetIsHunyuanV3 && {
+        enablePbr,
+        faceCount,
+        generateType: MODEL_3D_GENERATE_TYPE.NORMAL,
+        ...(targetModelId === AI_MODELS.HUNYUAN3D_V31_PRO && {
+          previewMode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        }),
+        ...(multiViewImages && { multiViewImages }),
+      }),
+      ...(targetIsTrellis2 && {
+        trellisResolution,
+        trellisTextureSize,
+        trellisDecimationTarget,
+        trellisRemesh,
+        trellisRemeshProject: 1,
+        trellisStructureSamplingSteps: 24,
+        trellisShapeSamplingSteps: 24,
+        trellisTextureSamplingSteps: 24,
       }),
       ...(targetIsTriposr && {
         removeBackground,
@@ -262,7 +421,7 @@ export function Studio3DWorkspace({
   const handleRefineWithHunyuan = async () => {
     if (!canRefine || !refineSourceUrl) return
     await submitGenerate({
-      modelId: AI_MODELS.HUNYUAN3D_2_1,
+      modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
       sourceUrl: refineSourceUrl,
       sourceGenerationId: sourceImage?.id ?? null,
       sourcePrompt: sourceImage?.prompt ?? displayGeneration?.prompt,
@@ -276,20 +435,25 @@ export function Studio3DWorkspace({
   }
 
   // Fan out 3 reference-edit calls to render back / left / right angles
-  // of the current source. Resulting GenerationRecords get stored in the
-  // user's library (so they're not throwaway). The user clicks one to
-  // swap it in as the new source for 3D.
+  // of the current source. Results stay as temporary provider URLs and are
+  // submitted with the final Hunyuan v3/v3.1 job instead of being archived.
   const handleGenerate4Views = async () => {
-    if (!sourceImage || isGeneratingViews) return
-    await generateMultiViewFn({
+    if (
+      !sourceImage ||
+      isGeneratingViews ||
+      !supportsMultiViewInput ||
+      !hasFalKey
+    ) {
+      return
+    }
+    const request: MultiViewGenerateRequest = {
       imageUrl: sourceImage.url,
       sourceGenerationId: sourceImage.id,
-    })
-  }
-
-  const handleSelectView = (view: GenerationRecord) => {
-    setSourceImage(view)
-    // Don't reset generatedViews — let the user toggle between angles.
+      modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+      ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
+    }
+    if (restoreMultiView(request)) return
+    await generateMultiViewFn(request)
   }
 
   const handleUploadClick = () => {
@@ -355,7 +519,16 @@ export function Studio3DWorkspace({
         {/* Main canvas — ModelViewer when generated; placeholder otherwise */}
         <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/20 p-6">
           {displayGeneration ? (
-            <>
+            <div className="relative size-full">
+              {previewModelUrl && !finalModelVisible && (
+                <WireframeModelPreview
+                  src={previewModelUrl}
+                  label={t('wireframePreviewLabel')}
+                  loadingLabel={t('wireframePreviewLoading')}
+                  errorLabel={t('wireframePreviewError')}
+                  className="absolute inset-0 h-full w-full"
+                />
+              )}
               <ModelViewer
                 src={displayGeneration.modelUrl ?? displayGeneration.url}
                 poster={
@@ -369,7 +542,13 @@ export function Studio3DWorkspace({
                     : undefined)
                 }
                 alt={displayGeneration.prompt || '3D model'}
-                className="h-full w-full"
+                className={cn(
+                  'h-full w-full transition-opacity duration-500',
+                  previewModelUrl && !finalModelVisible
+                    ? 'pointer-events-none opacity-0'
+                    : 'opacity-100',
+                )}
+                onModelVisible={() => setFinalModelVisible(true)}
                 onPosterCaptured={(blob) => {
                   // Fire-and-forget: failure is non-fatal (asset just won't
                   // get a thumbnail until next view-and-capture). Only
@@ -430,7 +609,23 @@ export function Studio3DWorkspace({
                   </Button>
                 )}
               </div>
-            </>
+            </div>
+          ) : isGenerating ? (
+            <WireframeModelPreview
+              src={previewModelUrl}
+              label={t('wireframePreviewLabel')}
+              loadingLabel={t('wireframePreviewLoading')}
+              errorLabel={t('wireframePreviewError')}
+              className="h-full w-full"
+            />
+          ) : previewModelUrl ? (
+            <WireframeModelPreview
+              src={previewModelUrl}
+              label={t('wireframePreviewLabel')}
+              loadingLabel={t('wireframePreviewLoading')}
+              errorLabel={t('wireframePreviewError')}
+              className="h-full w-full"
+            />
           ) : sourceImage ? (
             <div className="relative h-full max-h-[70vh] w-full max-w-2xl">
               <Image
@@ -468,24 +663,35 @@ export function Studio3DWorkspace({
           )}
 
           {isGenerating && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-              <div className="flex flex-col items-center gap-3">
-                <div className="size-10 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-                <p className="text-sm font-medium">
-                  {stage === 'queued' && t('stageQueued')}
-                  {stage === 'generating' && t('stageGenerating')}
-                  {stage === 'uploading' && t('stageUploading')}
-                </p>
-                <p className="text-xs text-muted-foreground">
+            <div className="pointer-events-none absolute bottom-6 left-6 right-6 mx-auto max-w-md rounded-full border border-white/10 bg-neutral-950/85 px-4 py-2 text-neutral-100 shadow-lg backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span className="font-medium">{generationStageLabel}</span>
+                <span className="text-neutral-400">
                   {t('elapsed', { seconds: `${elapsedSeconds}s` })}
-                </p>
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                <span
+                  className={cn(
+                    'h-1 rounded-full',
+                    previewModelUrl || stage === 'mesh' || stage === 'texture'
+                      ? 'bg-emerald-400'
+                      : 'animate-pulse bg-emerald-400/60',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'h-1 rounded-full',
+                    stage === 'texture' ? 'bg-emerald-400' : 'bg-white/20',
+                  )}
+                />
               </div>
             </div>
           )}
         </main>
 
         {/* Right panel — image picker + model + params + generate */}
-        <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
+        <aside className="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
           {/*
            * fal key gate. Only visible when no active fal key is present —
            * Hunyuan3D / TripoSR both run through fal, so generation would
@@ -623,11 +829,44 @@ export function Studio3DWorkspace({
             />
           </div>
 
+          {sourceImage && (
+            <div
+              className={cn(
+                'rounded-lg border p-3 text-xs leading-5',
+                sourceQualityIssues.length > 0
+                  ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                  : 'border-emerald-500/30 bg-emerald-500/10 text-muted-foreground',
+              )}
+            >
+              <div className="mb-1 flex items-center gap-1.5 font-medium">
+                {sourceQualityIssues.length > 0 ? (
+                  <AlertTriangle className="size-3.5" />
+                ) : (
+                  <Check className="size-3.5 text-emerald-600" />
+                )}
+                <span>
+                  {sourceQualityIssues.length > 0
+                    ? t('sourceQualityBlocked')
+                    : t('sourceQualityReady')}
+                </span>
+              </div>
+              {sourceQualityIssues.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-4">
+                  {sourceQualityIssues.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{t('sourceQualityChecklist')}</p>
+              )}
+            </div>
+          )}
+
           {/*
-           * Method B — once we have a front view, offer to render 3 more
-           * angles via reference-edit so the user can pick the cleanest
-           * one for image-to-3D. Each generated view becomes its own
-           * library row, so picking is just `setSourceImage(view)`.
+           * Method B — once we have a front view and a multi-view-capable
+           * Hunyuan model, render 3 temporary side views. The final 3D job
+           * receives all views together; no side-view Generation rows are
+           * created.
            */}
           {sourceImage && (
             <div className="flex flex-col gap-2">
@@ -642,7 +881,9 @@ export function Studio3DWorkspace({
                     variant="outline"
                     size="sm"
                     onClick={handleGenerate4Views}
-                    disabled={isGeneratingViews}
+                    disabled={
+                      isGeneratingViews || !supportsMultiViewInput || !hasFalKey
+                    }
                     className="w-full rounded-full"
                   >
                     {isGeneratingViews ? (
@@ -658,7 +899,9 @@ export function Studio3DWorkspace({
                     )}
                   </Button>
                   <p className="text-[10px] leading-4 text-muted-foreground">
-                    {t('multiViewHint')}
+                    {supportsMultiViewInput
+                      ? t('multiViewHint')
+                      : t('multiViewUnsupportedHint')}
                   </p>
                 </>
               ) : (
@@ -666,31 +909,24 @@ export function Studio3DWorkspace({
                   <div className="grid grid-cols-4 gap-1.5">
                     {[
                       { gen: sourceImage, label: t('viewFront') },
-                      ...generatedViews.map((g, i) => ({
-                        gen: g,
-                        // Service returns views in stable order: back, left, right.
+                      ...generatedViews.map((view) => ({
+                        gen: view,
                         label:
-                          i === 0
+                          view.view === 'back'
                             ? t('viewBack')
-                            : i === 1
+                            : view.view === 'left'
                               ? t('viewLeft')
                               : t('viewRight'),
                       })),
                     ].map(({ gen, label }) => {
-                      const selected = gen.id === sourceImage.id
+                      const isFront = gen.id === sourceImage.id
                       return (
-                        <button
+                        <div
                           key={gen.id}
-                          type="button"
-                          onClick={() => handleSelectView(gen)}
                           className={cn(
-                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-all',
-                            selected
-                              ? 'ring-2 ring-primary'
-                              : 'ring-border/40 hover:ring-border',
+                            'relative aspect-square overflow-hidden rounded-md ring-1',
+                            isFront ? 'ring-2 ring-primary' : 'ring-border/40',
                           )}
-                          aria-label={label}
-                          aria-pressed={selected}
                         >
                           <Image
                             src={gen.url}
@@ -700,7 +936,7 @@ export function Studio3DWorkspace({
                             className="object-cover"
                             sizes="80px"
                           />
-                          {selected && (
+                          {isFront && (
                             <div className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                               <Check className="size-2.5" />
                             </div>
@@ -708,7 +944,7 @@ export function Studio3DWorkspace({
                           <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
                             {label}
                           </span>
-                        </button>
+                        </div>
                       )
                     })}
                   </div>
@@ -733,10 +969,7 @@ export function Studio3DWorkspace({
               </SelectTrigger>
               <SelectContent>
                 {models.map((model) => {
-                  const messageKey =
-                    model.id === AI_MODELS.HUNYUAN3D_2_1
-                      ? 'hunyuan3d21'
-                      : 'triposr'
+                  const messageKey = getModelMessageKey(model.id)
                   return (
                     <SelectItem key={model.id} value={model.id}>
                       {tModels(`${messageKey}.label`)}
@@ -764,7 +997,7 @@ export function Studio3DWorkspace({
             <Switch id="prep-3d" checked={prep3D} onCheckedChange={setPrep3D} />
           </div>
 
-          {isHunyuan && (
+          {isHunyuanLegacy && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-col gap-0.5">
@@ -805,6 +1038,144 @@ export function Studio3DWorkspace({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          )}
+
+          {isHunyuanV3 && (
+            <div className="flex flex-col gap-3">
+              {supportsMeshFirstPreview && (
+                <div className="rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                  {t('meshPreviewHint')}
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="enable-pbr" className="text-sm font-medium">
+                    {t('enablePbrLabel')}
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {t('enablePbrHint')}
+                  </span>
+                </div>
+                <Switch
+                  id="enable-pbr"
+                  checked={enablePbr}
+                  onCheckedChange={setEnablePbr}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('faceCountLabel')}
+                </Label>
+                <Select
+                  value={String(faceCount)}
+                  onValueChange={(v) => setFaceCount(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FACE_COUNT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {isTrellis2 && (
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('trellisResolutionLabel')}
+                  </Label>
+                  <Select
+                    value={String(trellisResolution)}
+                    onValueChange={(v) =>
+                      setTrellisResolution(
+                        Number(v) as (typeof TRELLIS_2_RESOLUTIONS)[number],
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRELLIS_2_RESOLUTIONS.map((value) => (
+                        <SelectItem key={value} value={String(value)}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('trellisTextureLabel')}
+                  </Label>
+                  <Select
+                    value={String(trellisTextureSize)}
+                    onValueChange={(v) =>
+                      setTrellisTextureSize(
+                        Number(v) as (typeof TRELLIS_2_TEXTURE_SIZES)[number],
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRELLIS_2_TEXTURE_SIZES.map((value) => (
+                        <SelectItem key={value} value={String(value)}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('trellisDecimationLabel')}
+                </Label>
+                <Select
+                  value={String(trellisDecimationTarget)}
+                  onValueChange={(v) => setTrellisDecimationTarget(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRELLIS_DECIMATION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label
+                    htmlFor="trellis-remesh"
+                    className="text-sm font-medium"
+                  >
+                    {t('trellisRemeshLabel')}
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {t('trellisRemeshHint')}
+                  </span>
+                </div>
+                <Switch
+                  id="trellis-remesh"
+                  checked={trellisRemesh}
+                  onCheckedChange={setTrellisRemesh}
+                />
               </div>
             </div>
           )}

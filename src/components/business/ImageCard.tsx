@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useCallback, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 
 import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
@@ -16,7 +17,16 @@ import { Link } from '@/i18n/navigation'
 import { creatorProfilePath } from '@/constants/routes'
 
 import type { GenerationRecord } from '@/types'
-import { ImageDetailModal } from '@/components/business/ImageDetailModal'
+// Modal weighs 500+ lines and pulls VideoPlayer, ImageCompare, image-editing
+// hook etc. Each gallery page renders dozens of ImageCards — eagerly bundling
+// the modal multiplies the cost. We only need it on first detail open.
+const ImageDetailModal = dynamic(
+  () =>
+    import('@/components/business/ImageDetailModal').then(
+      (m) => m.ImageDetailModal,
+    ),
+  { ssr: false },
+)
 import { MetadataList } from '@/components/ui/metadata-list'
 import { useGenerationVisibility } from '@/hooks/use-generation-visibility'
 import { useLike } from '@/hooks/use-like'
@@ -48,6 +58,14 @@ export const ImageCard = memo(function ImageCard({
       initialIsFeatured: generation.isFeatured,
     })
   const [detailOpen, setDetailOpen] = useState(false)
+  // Modal mounts on first open and stays mounted thereafter — pairs with the
+  // dynamic import above so neither the chunk nor the modal's hook tree
+  // (useImageEditing etc.) runs for cards the user never opens.
+  const [hasOpenedDetail, setHasOpenedDetail] = useState(false)
+  const openDetail = useCallback(() => {
+    setHasOpenedDetail(true)
+    setDetailOpen(true)
+  }, [])
   const [isDownloading, setIsDownloading] = useState(false)
   const [liked, setLiked] = useState(generation.isLiked ?? false)
   const [likeCount, setLikeCount] = useState(generation.likeCount ?? 0)
@@ -151,7 +169,7 @@ export const ImageCard = memo(function ImageCard({
             isAudio={isAudio}
             isVideo={isVideo}
             aspectRatio={aspectRatio}
-            onOpenDetail={() => setDetailOpen(true)}
+            onOpenDetail={openDetail}
             openImageLabel={t('openImage')}
             openVideoLabel={t('openVideo')}
             referenceImageLabel={t('referenceImageLabel')}
@@ -188,7 +206,7 @@ export const ImageCard = memo(function ImageCard({
 
             <button
               type="button"
-              onClick={() => setDetailOpen(true)}
+              onClick={openDetail}
               className={cn(
                 'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
                 isDenseLocale
@@ -276,14 +294,16 @@ export const ImageCard = memo(function ImageCard({
         </div>
       </article>
 
-      <ImageDetailModal
-        generation={detailGeneration}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        showVisibility={showVisibility}
-        showDelete={showDelete}
-        onDelete={onDelete}
-      />
+      {hasOpenedDetail && (
+        <ImageDetailModal
+          generation={detailGeneration}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          showVisibility={showVisibility}
+          showDelete={showDelete}
+          onDelete={onDelete}
+        />
+      )}
     </>
   )
 })

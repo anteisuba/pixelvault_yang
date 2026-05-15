@@ -208,3 +208,25 @@ fal.ai 是本项目模型最多的 provider，托管了 FLUX、Seedream、Ideogr
 ## Adapter Implementation
 
 `src/services/providers/fal.adapter.ts`
+
+## Connection Strategy
+
+> 详细决策矩阵见 [`connection-strategy.md`](connection-strategy.md)。
+
+| 维度                    | 设置                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 区域可达性              | 海外直连 ✅；国内直连 ✅（部分省份偶发 RTT 较高，但 TLS 握手稳定）                                                                               |
+| 默认 base URL           | `https://fal.run` (sync) + `https://queue.fal.run` (async queue)                                                                                 |
+| Per-route 覆盖          | `providerConfig.baseUrl` 仅作用于同步 endpoint；queue URL 在 `AI_PROVIDER_ENDPOINTS.FAL_QUEUE` 单独定义                                          |
+| 海外节点中转            | Cloudflare AI Gateway 支持 fal.ai：`https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_name}/fal` —— 仅在需要 observability / 限流时启用 |
+| 同步生成超时            | model `timeoutMs` (default 见 `models/image.ts`)                                                                                                 |
+| Queue submit 超时       | **120s**                                                                                                                                         |
+| Queue status poll 超时  | **30s**（每次 poll）                                                                                                                             |
+| Queue result fetch 超时 | **30s**                                                                                                                                          |
+| 视频整体 timeout        | 模型级 300s（`kling-v3-pro` / `veo-3.1` / `seedance-2.0` 等）                                                                                    |
+| 重试                    | 5xx + 429 + 网络错误重试；503/504 不重试                                                                                                         |
+| Health check 容忍       | 405 / 422 视为成功（部分模型不支持 HEAD）                                                                                                        |
+
+**轮询策略**：fal queue 已经用 30s 间隔，**不要更频繁** —— 短间隔会触发 fal 自身的 rate limit。如果出现"queue 长期 IN_PROGRESS"，是 fal GPU 自身排队，无法在客户端优化。
+
+**国内部署提示**：如果国内边缘节点访问 `fal.run` 的延迟 > 500ms，考虑 Cloudflare AI Gateway —— Cloudflare 在国内的回源能力比 fal.run 直连更稳。但要注意 Gateway 转发会消耗 Cloudflare workers 配额。

@@ -41,7 +41,20 @@ export interface UseProjectsReturn {
   setHistoryTypeFilter: (type: string) => void
 }
 
-export function useProjects(): UseProjectsReturn {
+export interface UseProjectsOptions {
+  /**
+   * Auto-load project history when `activeProjectId` changes. Defaults to
+   * true (Studio behaviour). Pass `false` from surfaces that show projects
+   * but don't render history (e.g. the Assets browser sidebar) so the
+   * unassigned-history fetch doesn't fire on every page load.
+   */
+  loadHistoryOnMount?: boolean
+}
+
+export function useProjects(
+  options: UseProjectsOptions = {},
+): UseProjectsReturn {
+  const { loadHistoryOnMount = true } = options
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -195,12 +208,15 @@ export function useProjects(): UseProjectsReturn {
     historyTypeFilter,
   ])
 
-  // Reload history when active project changes
+  // Reload history when active project changes (skipped when the consumer
+  // opted out of mount-time history fetching — they can still call
+  // `loadHistory()` explicitly when they need it).
   useEffect(() => {
+    if (!loadHistoryOnMount) return
     return deferEffectTask(() => {
       void loadHistory()
     })
-  }, [loadHistory])
+  }, [loadHistory, loadHistoryOnMount])
 
   return {
     projects,

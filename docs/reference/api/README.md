@@ -1,16 +1,42 @@
 # AI Provider API Reference
 
-本目录记录 PixelVault 集成的所有 AI 图像/视频生成 API 的接口规范。
+本目录记录 PixelVault 集成的所有 AI 图像/视频/音频/3D 生成 API 的接口规范、连接策略和模型清单。
 当官方 API 文档更新时，请同步更新对应文件。
 
-> **Last full audit**: 2026-05-02
+> **Last full audit**: 2026-05-15
 
 ---
 
-## New In This Directory
+## 阅读路径
 
-- [model-capability-catalog.md](model-capability-catalog.md) — 按图片 / 视频 / 声音与二级能力分类的完整模型能力目录，仅记录官方文档明确说明的能力与特点
-- [model-doc-monitor.snapshot.json](model-doc-monitor.snapshot.json) — 模型官方文档 / 官方 API 基线快照，供每周自动检查对比
+| 任务                                        | 看哪份                                                                                 |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 第一次理解项目用了哪些 provider / 模型      | 本文件「Provider Overview」+「Image / Video / Audio Models」表                         |
+| 调用慢 / 不稳定，要做诊断                   | [`connection-strategy.md`](connection-strategy.md)                                     |
+| 国内开发本地起服务 OpenAI / Gemini 不通     | [`connection-strategy.md`](connection-strategy.md) → "国内开发 / 部署的具体做法"       |
+| 加一条 user route 走中转 endpoint           | [`connection-strategy.md`](connection-strategy.md) → "ProviderConfig.baseUrl 覆盖机制" |
+| 想精简模型数量                              | [`model-simplification-proposal.md`](model-simplification-proposal.md)                 |
+| 看某个 provider 的 request / response 细节  | 对应 `<provider>.md`                                                                   |
+| 模型能力对照（哪个支持 negative prompt 等） | [`model-capability-catalog.md`](model-capability-catalog.md)                           |
+
+---
+
+## Navigation
+
+| 文档                                                                    | 内容                                                                   |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [connection-strategy.md](connection-strategy.md) ⭐                     | 跨 provider 连接决策矩阵、直连 vs 中转、超时与重试策略、诊断 checklist |
+| [model-simplification-proposal.md](model-simplification-proposal.md) ⭐ | 模型精简提案 —— 23 image + 14 video → 14 + 8 的产品判断与落地步骤      |
+| [openai.md](openai.md)                                                  | OpenAI GPT Image 2                                                     |
+| [gemini.md](gemini.md)                                                  | Google Gemini 3 Pro / Flash Image                                      |
+| [fal.md](fal.md)                                                        | fal.ai (统一 image / video / audio)                                    |
+| [replicate.md](replicate.md)                                            | Replicate predictions                                                  |
+| [huggingface.md](huggingface.md)                                        | HuggingFace Inference (router)                                         |
+| [novelai.md](novelai.md)                                                | NovelAI V3 / V4 / V4.5                                                 |
+| [volcengine.md](volcengine.md)                                          | 火山方舟 Seedream / Seedance                                           |
+| [fish-audio.md](fish-audio.md)                                          | Fish Audio TTS                                                         |
+| [model-capability-catalog.md](model-capability-catalog.md)              | 完整模型能力目录（仅官方文档明示）                                     |
+| [model-doc-monitor.snapshot.json](model-doc-monitor.snapshot.json)      | 周检基线快照                                                           |
 
 GitHub Actions 每周会运行 `npm run models:check-docs`，对 `src/constants/models.ts` 中的模型清单、官方文档页面、以及可选的官方模型列表 API 做比对。
 
@@ -18,16 +44,16 @@ GitHub Actions 每周会运行 `npm run models:check-docs`，对 `src/constants/
 
 ## Provider Overview
 
-| Provider                      | Adapter       | Auth Header             | Key Prefix | Image | Video | Audio | Max Refs |
-| ----------------------------- | ------------- | ----------------------- | ---------- | :---: | :---: | :---: | :------: |
-| [OpenAI](openai.md)           | `openai`      | `Authorization: Bearer` | `sk-proj-` |  ✅   |   —   |   —   |    1     |
-| [Google Gemini](gemini.md)    | `gemini`      | `x-goog-api-key`        | `AIza`     |  ✅   |   —   |   —   |    14    |
-| [fal.ai](fal.md)              | `fal`         | `Authorization: Key`    | `fal_`     |  ✅   |  ✅   |  ✅   |    1     |
-| [Replicate](replicate.md)     | `replicate`   | `Authorization: Bearer` | `r8_`      |  ✅   |   —   |   —   |    1     |
-| [HuggingFace](huggingface.md) | `huggingface` | `Authorization: Bearer` | `hf_`      |  ✅   |   —   |   —   |    1     |
-| [NovelAI](novelai.md)         | `novelai`     | `Authorization: Bearer` | `pst-`     |  ✅   |   —   |   —   | Multi\*  |
-| [VolcEngine](volcengine.md)   | `volcengine`  | `Authorization: Bearer` | `ark-`     |  ✅   |  ✅   |   —   |    10    |
-| Fish Audio                    | `fish_audio`  | `Authorization: Bearer` | —          |   —   |   —   |  ✅   |    —     |
+| Provider                      | Adapter       | Auth Header             | Key Prefix | Image | Video | Audio | Max Refs |      国内可达       |
+| ----------------------------- | ------------- | ----------------------- | ---------- | :---: | :---: | :---: | :------: | :-----------------: |
+| [OpenAI](openai.md)           | `openai`      | `Authorization: Bearer` | `sk-proj-` |  ✅   |   —   |   —   |    1     |    ❌（需中转）     |
+| [Google Gemini](gemini.md)    | `gemini`      | `x-goog-api-key`        | `AIza`     |  ✅   |   —   |   —   |    14    |    ❌（需中转）     |
+| [fal.ai](fal.md)              | `fal`         | `Authorization: Key`    | `fal_`     |  ✅   |  ✅   |  ✅   |    1     |         ✅          |
+| [Replicate](replicate.md)     | `replicate`   | `Authorization: Bearer` | `r8_`      |  ✅   |   —   |   —   |    1     |     ⚠️（不稳）      |
+| [HuggingFace](huggingface.md) | `huggingface` | `Authorization: Bearer` | `hf_`      |  ✅   |   —   |   —   |    1     | ⚠️（cold start 久） |
+| [NovelAI](novelai.md)         | `novelai`     | `Authorization: Bearer` | `pst-`     |  ✅   |   —   |   —   | Multi\*  | ⚠️（CDN 偶发丢包）  |
+| [VolcEngine](volcengine.md)   | `volcengine`  | `Authorization: Bearer` | `ark-`     |  ✅   |  ✅   |   —   |    10    |   ✅（北京直连）    |
+| [Fish Audio](fish-audio.md)   | `fish_audio`  | `Authorization: Bearer` | —          |   —   |   —   |  ✅   |    —     |         ✅          |
 
 *NovelAI multi-reference 依赖订阅等级 (Tier ≥ 3 才支持多张)
 *OpenAI 官方 edits API 支持多图输入，但当前 PixelVault adapter 只发送第一张参考图。

@@ -222,7 +222,7 @@ export function KreaAssetBrowser({
     refresh: refreshProjects,
     update: updateProject,
     remove: removeProject,
-  } = useProjects()
+  } = useProjects({ loadHistoryOnMount: false })
   const section = useMemo(
     () => sectionFromFilters(filters, mediaType),
     [filters, mediaType],
@@ -627,13 +627,25 @@ export function KreaAssetBrowser({
                     )
                     const tileChildren =
                       gen.outputType === 'VIDEO' ? (
-                        <video
-                          src={`${gen.url}#t=0.1`}
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="absolute inset-0 size-full object-cover"
-                        />
+                        // `preload="none"` instead of `metadata` — a dense
+                        // grid would otherwise open a metadata fetch per
+                        // tile, throttling the browser's connection budget
+                        // and slowing the surrounding image loads. Tradeoff:
+                        // no first-frame thumbnail until we ship a real
+                        // poster pipeline, so we surface a Video badge so
+                        // the asset type is still legible.
+                        <>
+                          <video
+                            src={gen.url}
+                            muted
+                            playsInline
+                            preload="none"
+                            className="absolute inset-0 size-full bg-muted/40 object-cover"
+                          />
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground/80">
+                            <Video className="size-8" />
+                          </div>
+                        </>
                       ) : gen.outputType === 'AUDIO' ? (
                         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                           <Mic className="size-8" />

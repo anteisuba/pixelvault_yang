@@ -112,3 +112,22 @@ Adapter 将 binary 转为 base64 字符串返回。
 ## Adapter Implementation
 
 `src/services/providers/huggingface.adapter.ts`
+
+## Connection Strategy
+
+> 详细决策矩阵见 [`connection-strategy.md`](connection-strategy.md)。
+
+| 维度              | 设置                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 区域可达性        | 海外直连 ✅；国内直连 ⚠️（hf.co 可访问，但 inference router 偶发慢）                                                   |
+| 默认 base URL     | `https://router.huggingface.co/hf-inference/models`（`AI_PROVIDER_ENDPOINTS.HUGGINGFACE`）                             |
+| Per-route 覆盖    | `providerConfig.baseUrl`                                                                                               |
+| 国内中转候选      | 暂无成熟的 HF Inference 中转方案；如果国内用户大量遇到 cold start，建议把 SDXL / Animagine 迁到 fal.ai 同模型 endpoint |
+| Cold start        | 部分非热门模型首次调用 30–60s 冷启动是正常的                                                                           |
+| 超时              | model `timeoutMs` 或 adapter 默认                                                                                      |
+| 重试              | 5xx + 429 + 网络错误重试；503/504 不重试                                                                               |
+| Health check 容忍 | 405 视为成功                                                                                                           |
+
+**Cold start 现状**：`cagliostrolab/animagine-xl-4.0` 在低峰时段可能要等 40s+ 才返回首张图。这是 HF Inference Provider 的特性，不是 bug。如果用户体验持续不佳，应考虑把这两个模型挪到 fal.ai 托管（fal 的 GPU 池始终暖）。
+
+**`router.huggingface.co` vs 旧 `api-inference.huggingface.co`**：当前用 router endpoint，会自动路由到最佳 inference provider。若调用持续失败，临时降级到 `https://api-inference.huggingface.co/models/{modelId}` 看是否 router 自身故障。

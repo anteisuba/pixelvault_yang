@@ -11,6 +11,7 @@ import {
 } from '@/constants/config'
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { HUNYUAN3D_FACE_COUNT } from '@/constants/model-3d-generation'
 
 import { invertReferenceStrength } from '@/lib/utils'
 import { logger } from '@/lib/logger'
@@ -127,16 +128,25 @@ const FAL_QUEUE_STATUS_SCHEMA = z
   })
   .passthrough()
 
+const FAL_MODEL_3D_FILE_SCHEMA = z
+  .object({
+    url: z.string().url(),
+    content_type: z.string().nullable().optional(),
+    file_name: z.string().nullable().optional(),
+    file_size: z.number().nullable().optional(),
+  })
+  .passthrough()
+
 const FAL_MODEL_3D_RESPONSE_SCHEMA = z
   .object({
-    model_mesh: z
+    model_mesh: FAL_MODEL_3D_FILE_SCHEMA.optional(),
+    model_glb: FAL_MODEL_3D_FILE_SCHEMA.optional(),
+    model_urls: z
       .object({
-        url: z.string().url(),
-        content_type: z.string().nullable().optional(),
-        file_name: z.string().nullable().optional(),
-        file_size: z.number().nullable().optional(),
+        glb: FAL_MODEL_3D_FILE_SCHEMA.optional(),
       })
-      .passthrough(),
+      .passthrough()
+      .optional(),
   })
   .passthrough()
 
@@ -148,7 +158,31 @@ const FAL_MODEL_3D_IMAGE_FIELD: Record<
   'input_image_url' | 'image_url'
 > = {
   'fal-ai/hunyuan3d/v2': 'input_image_url',
+  'fal-ai/hunyuan3d-v3/image-to-3d': 'input_image_url',
+  'fal-ai/hunyuan-3d/v3.1/pro/image-to-3d': 'input_image_url',
+  'fal-ai/trellis-2': 'image_url',
   'fal-ai/triposr': 'image_url',
+}
+
+const FAL_HUNYUAN3D_V3_MODEL_IDS = new Set([
+  'fal-ai/hunyuan3d-v3/image-to-3d',
+  'fal-ai/hunyuan-3d/v3.1/pro/image-to-3d',
+])
+
+const FAL_TRELLIS_2_MODEL_ID = 'fal-ai/trellis-2'
+
+function isFalHunyuan3DV3Model(externalModelId: string): boolean {
+  return FAL_HUNYUAN3D_V3_MODEL_IDS.has(externalModelId)
+}
+
+function isFalTrellis2Model(externalModelId: string): boolean {
+  return externalModelId === FAL_TRELLIS_2_MODEL_ID
+}
+
+function pickFalModel3DFile(
+  data: z.infer<typeof FAL_MODEL_3D_RESPONSE_SCHEMA>,
+): z.infer<typeof FAL_MODEL_3D_FILE_SCHEMA> | null {
+  return data.model_glb ?? data.model_urls?.glb ?? data.model_mesh ?? null
 }
 
 const FAL_IMAGE_SIZES: Record<string, string> = {
@@ -737,6 +771,19 @@ export const falAdapter: ProviderAdapter = {
     apiKey,
     texturedMesh,
     octreeResolution,
+    multiViewImages,
+    enablePbr,
+    faceCount,
+    generateType,
+    polygonType,
+    trellisResolution,
+    trellisTextureSize,
+    trellisDecimationTarget,
+    trellisRemesh,
+    trellisRemeshProject,
+    trellisStructureSamplingSteps,
+    trellisShapeSamplingSteps,
+    trellisTextureSamplingSteps,
     removeBackground,
     seed,
   }: ProviderModel3DInput) {
@@ -749,6 +796,53 @@ export const falAdapter: ProviderAdapter = {
     }
     if (texturedMesh != null) body.textured_mesh = texturedMesh
     if (octreeResolution != null) body.octree_resolution = octreeResolution
+    if (isFalHunyuan3DV3Model(externalModelId)) {
+      if (multiViewImages?.backImageUrl) {
+        body.back_image_url = multiViewImages.backImageUrl
+      }
+      if (multiViewImages?.leftImageUrl) {
+        body.left_image_url = multiViewImages.leftImageUrl
+      }
+      if (multiViewImages?.rightImageUrl) {
+        body.right_image_url = multiViewImages.rightImageUrl
+      }
+      if (multiViewImages?.topImageUrl) {
+        body.top_image_url = multiViewImages.topImageUrl
+      }
+      if (multiViewImages?.bottomImageUrl) {
+        body.bottom_image_url = multiViewImages.bottomImageUrl
+      }
+      if (multiViewImages?.leftFrontImageUrl) {
+        body.left_front_image_url = multiViewImages.leftFrontImageUrl
+      }
+      if (multiViewImages?.rightFrontImageUrl) {
+        body.right_front_image_url = multiViewImages.rightFrontImageUrl
+      }
+      if (enablePbr != null) body.enable_pbr = enablePbr
+      body.face_count = faceCount ?? HUNYUAN3D_FACE_COUNT.DEFAULT
+      if (generateType) body.generate_type = generateType
+      if (polygonType) body.polygon_type = polygonType
+    }
+    if (isFalTrellis2Model(externalModelId)) {
+      if (trellisResolution != null) body.resolution = trellisResolution
+      if (trellisTextureSize != null) body.texture_size = trellisTextureSize
+      if (trellisDecimationTarget != null) {
+        body.decimation_target = trellisDecimationTarget
+      }
+      if (trellisRemesh != null) body.remesh = trellisRemesh
+      if (trellisRemeshProject != null) {
+        body.remesh_project = trellisRemeshProject
+      }
+      if (trellisStructureSamplingSteps != null) {
+        body.ss_sampling_steps = trellisStructureSamplingSteps
+      }
+      if (trellisShapeSamplingSteps != null) {
+        body.shape_slat_sampling_steps = trellisShapeSamplingSteps
+      }
+      if (trellisTextureSamplingSteps != null) {
+        body.tex_slat_sampling_steps = trellisTextureSamplingSteps
+      }
+    }
     if (removeBackground != null) body.do_remove_background = removeBackground
     if (seed != null && seed >= 0) body.seed = seed
 
@@ -790,15 +884,23 @@ export const falAdapter: ProviderAdapter = {
     responseUrl,
     apiKey,
   }: ProviderQueueStatusInput) {
-    const statusResponse = await fetch(statusUrl, {
-      method: 'GET',
-      headers: { Authorization: `Key ${apiKey}` },
-      signal: AbortSignal.timeout(30_000),
-    })
+    let statusResponse: Response
+    try {
+      statusResponse = await fetch(statusUrl, {
+        method: 'GET',
+        headers: { Authorization: `Key ${apiKey}` },
+        signal: AbortSignal.timeout(30_000),
+      })
+    } catch (fetchErr) {
+      const msg =
+        fetchErr instanceof Error ? fetchErr.message : String(fetchErr)
+      logger.warn('fal.ai 3D status fetch failed', { statusUrl, msg })
+      throw new ProviderError('fal.ai', 502, `[3D-status-fetch-error] ${msg}`)
+    }
 
     if (!statusResponse.ok) {
       const errorBody = await statusResponse.text().catch(() => 'Unknown error')
-      logger.error('[3D-DEBUG] fal status non-OK HTTP', {
+      logger.error('fal.ai 3D status request failed', {
         status: statusResponse.status,
         statusUrl,
         errorBody: errorBody.slice(0, 2000),
@@ -811,9 +913,7 @@ export const falAdapter: ProviderAdapter = {
     }
 
     const statusJson = await statusResponse.json()
-    // ALWAYS log raw fal status response — temporary diagnostic so we can
-    // see exactly what shape fal returns for failed/unknown jobs.
-    logger.info('[3D-DEBUG] fal status raw body', {
+    logger.debug('fal.ai 3D status response', {
       statusUrl,
       body: JSON.stringify(statusJson).slice(0, 1500),
     })
@@ -834,15 +934,26 @@ export const falAdapter: ProviderAdapter = {
       return { status: statusData.status }
     }
 
-    if (statusData.status !== 'COMPLETED') {
-      throw new ProviderError(
-        'fal.ai',
-        502,
-        `[3D-status-${statusData.status}] full=${JSON.stringify(statusJson).slice(0, 500)}`,
-      )
+    if (statusData.status === 'FAILED') {
+      logger.warn('fal.ai 3D queue failed', {
+        statusUrl,
+        error: JSON.stringify(
+          statusData.error ?? statusData.detail ?? null,
+        ).slice(0, 1000),
+      })
+      return { status: 'FAILED' as const }
     }
 
-    logger.info('[3D-DEBUG] about to fetch result endpoint', { responseUrl })
+    if (statusData.status !== 'COMPLETED') {
+      logger.warn('fal.ai 3D queue returned terminal unknown status', {
+        status: statusData.status,
+        statusUrl,
+        body: JSON.stringify(statusJson).slice(0, 1000),
+      })
+      return { status: 'FAILED' as const }
+    }
+
+    logger.debug('fal.ai 3D result fetch starting', { responseUrl })
 
     let resultResponse: Response
     try {
@@ -854,7 +965,7 @@ export const falAdapter: ProviderAdapter = {
     } catch (fetchErr) {
       const msg =
         fetchErr instanceof Error ? fetchErr.message : String(fetchErr)
-      logger.error('[3D-DEBUG] result fetch threw', { responseUrl, msg })
+      logger.error('fal.ai 3D result fetch failed', { responseUrl, msg })
       throw new ProviderError('fal.ai', 502, `[3D-result-fetch-error] ${msg}`)
     }
 
@@ -863,11 +974,11 @@ export const falAdapter: ProviderAdapter = {
       resultRawText = await resultResponse.text()
     } catch (readErr) {
       const msg = readErr instanceof Error ? readErr.message : String(readErr)
-      logger.error('[3D-DEBUG] result body read threw', { responseUrl, msg })
+      logger.error('fal.ai 3D result body read failed', { responseUrl, msg })
       throw new ProviderError('fal.ai', 502, `[3D-result-read-error] ${msg}`)
     }
 
-    logger.info('[3D-DEBUG] fal result raw response', {
+    logger.debug('fal.ai 3D result response', {
       httpStatus: resultResponse.status,
       responseUrl,
       bodyLength: resultRawText.length,
@@ -902,12 +1013,21 @@ export const falAdapter: ProviderAdapter = {
       )
     }
 
+    const modelFile = pickFalModel3DFile(resultParse.data)
+    if (!modelFile) {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `[3D-result-missing-model-file] body=${JSON.stringify(resultJson).slice(0, 500)}`,
+      )
+    }
+
     return {
       status: 'COMPLETED' as const,
       result: {
-        modelUrl: resultParse.data.model_mesh.url,
-        contentType: resultParse.data.model_mesh.content_type ?? undefined,
-        fileSize: resultParse.data.model_mesh.file_size ?? undefined,
+        modelUrl: modelFile.url,
+        contentType: modelFile.content_type ?? undefined,
+        fileSize: modelFile.file_size ?? undefined,
         requestCount: API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
       },
     }

@@ -177,6 +177,21 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: 1,
     referenceImageMode: 'native' as const,
   },
+  [AI_MODELS.HUNYUAN3D_V3]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 4,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.HUNYUAN3D_V31_PRO]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 8,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.TRELLIS_2]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 1,
+    referenceImageMode: 'native' as const,
+  },
   [AI_MODELS.TRIPOSR]: {
     capabilities: ['seed'] as const,
     maxReferenceImages: 1,

@@ -7,7 +7,6 @@ import {
   mockRateLimitExceeded,
   createPOST,
   parseJSON,
-  FAKE_GENERATION,
 } from '@/test/api-helpers'
 
 vi.mock('@/services/multiview-generate.service', () => ({
@@ -24,13 +23,28 @@ const VALID_BODY = {
   sourceGenerationId: 'gen_1',
 }
 
+const FAKE_SIDE_VIEW = {
+  id: 'tmp-back',
+  view: 'back',
+  url: 'https://provider.test/back.png',
+  width: 1024,
+  height: 1024,
+  prompt: 'back view',
+  model: 'flux-kontext-pro',
+  provider: 'fal.ai',
+}
+
 describe('POST /api/generate-multiview', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
     mockGenerate.mockResolvedValue({
-      views: [FAKE_GENERATION, FAKE_GENERATION, FAKE_GENERATION],
+      views: [
+        FAKE_SIDE_VIEW,
+        { ...FAKE_SIDE_VIEW, id: 'tmp-left', view: 'left' },
+        { ...FAKE_SIDE_VIEW, id: 'tmp-right', view: 'right' },
+      ],
     } as never)
   })
 

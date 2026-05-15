@@ -28,6 +28,8 @@ interface ModelViewerProps {
    * Used by Studio3DWorkspace to upload a poster thumbnail.
    */
   onPosterCaptured?: (blob: Blob) => void
+  /** Called when the GLB has been painted in the viewer. */
+  onModelVisible?: () => void
   /**
    * Forwarded into the underlying `<model-viewer>` so callers can drop a
    * `<button slot="ar-button">…</button>` to replace model-viewer's

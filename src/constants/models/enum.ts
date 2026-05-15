@@ -56,5 +56,8 @@ export enum AI_MODELS {
   RUNWAY_GEN3 = 'runway-gen3',
   // 3D models (image-to-3D)
   HUNYUAN3D_2_1 = 'hunyuan3d-2.1',
+  HUNYUAN3D_V3 = 'hunyuan3d-v3',
+  HUNYUAN3D_V31_PRO = 'hunyuan3d-v3.1-pro',
+  TRELLIS_2 = 'trellis-2',
   TRIPOSR = 'triposr',
 }

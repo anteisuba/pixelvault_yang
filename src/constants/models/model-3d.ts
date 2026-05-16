@@ -58,7 +58,7 @@ export const MODEL_3D_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/hunyuan3d/v2',
     outputType: 'MODEL_3D',
-    available: true,
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/hunyuan3d/v2',
     timeoutMs: 300_000,
     qualityTier: 'premium',

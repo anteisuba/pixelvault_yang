@@ -78,6 +78,16 @@ describe('models', () => {
     expect(getModelFamily(AI_MODELS.RECRAFT_V3)).toBe('Recraft')
   })
 
+  it('keeps every unavailable catalog model in the retired ID list', () => {
+    const retiredModelIds = new Set<string>(RETIRED_MODEL_IDS)
+
+    for (const model of MODEL_OPTIONS) {
+      if (!model.available) {
+        expect(retiredModelIds.has(model.id)).toBe(true)
+      }
+    }
+  })
+
   it('does not treat retired free-tier models as active free-tier options', () => {
     expect(isFreeTierModel(AI_MODELS.GEMINI_25_FLASH_IMAGE)).toBe(false)
   })

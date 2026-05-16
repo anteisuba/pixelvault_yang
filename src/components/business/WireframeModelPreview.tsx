@@ -61,7 +61,7 @@ export function WireframeModelPreview({
         scene.background = new THREE.Color(0x101010)
 
         const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 100)
-        camera.position.set(0, 0.08, 4.6)
+        camera.position.set(0, 0.15, 4)
 
         renderer = new THREE.WebGLRenderer({
           antialias: true,
@@ -69,6 +69,7 @@ export function WireframeModelPreview({
           powerPreference: 'high-performance',
         })
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        renderer.domElement.style.display = 'block'
         container.appendChild(renderer.domElement)
 
         controls = new OrbitControlsClass(camera, renderer.domElement)
@@ -84,7 +85,6 @@ export function WireframeModelPreview({
 
         const modelRoot = new THREE.Group()
         const wireGroup = new THREE.Group()
-        const sampledPoints: Array<[number, number, number]> = []
         const lineMaterial = new THREE.LineBasicMaterial({
           color: 0xf4f4f4,
           transparent: true,
@@ -101,19 +101,6 @@ export function WireframeModelPreview({
           const wire = new THREE.LineSegments(wireGeometry, lineMaterial)
           geometries.push(wireGeometry)
           wireGroup.add(wire)
-        }
-
-        const sampleGeometry = (geometry: BufferGeometry, matrix?: Matrix4) => {
-          const position = geometry.getAttribute('position')
-          if (!position) return
-
-          const point = new THREE.Vector3()
-          const sampleStep = Math.max(1, Math.floor(position.count / 2500))
-          for (let i = 0; i < position.count; i += sampleStep) {
-            point.fromBufferAttribute(position, i)
-            if (matrix) point.applyMatrix4(matrix)
-            sampledPoints.push([point.x, point.y, point.z])
-          }
         }
 
         const addPlaceholderGeometry = (geometry: BufferGeometry) => {
@@ -144,9 +131,7 @@ export function WireframeModelPreview({
           gltf.scene.updateMatrixWorld(true)
           gltf.scene.traverse((object: Object3D) => {
             if (!(object instanceof THREE.Mesh)) return
-            const worldMatrix = object.matrixWorld.clone()
-            sampleGeometry(object.geometry, worldMatrix)
-            addWireGeometry(object.geometry, worldMatrix)
+            addWireGeometry(object.geometry, object.matrixWorld)
           })
         } else {
           addPlaceholderGeometry(new THREE.SphereGeometry(0.42, 16, 10))
@@ -165,50 +150,13 @@ export function WireframeModelPreview({
           return
         }
 
-        const sortedQuantile = (values: number[], q: number) => {
-          if (values.length === 0) return 0
-          values.sort((a, b) => a - b)
-          const index = Math.min(
-            values.length - 1,
-            Math.max(0, Math.round((values.length - 1) * q)),
-          )
-          return values[index]
-        }
-
-        let center: InstanceType<typeof THREE.Vector3>
-        let size: InstanceType<typeof THREE.Vector3>
-
-        if (sampledPoints.length >= 20) {
-          const xs = sampledPoints.map(([x]) => x)
-          const ys = sampledPoints.map(([, y]) => y)
-          const zs = sampledPoints.map(([, , z]) => z)
-          const left = sortedQuantile([...xs], 0.05)
-          const right = sortedQuantile([...xs], 0.95)
-          const bottom = sortedQuantile([...ys], 0.02)
-          const top = sortedQuantile([...ys], 0.98)
-          const back = sortedQuantile([...zs], 0.05)
-          const front = sortedQuantile([...zs], 0.95)
-
-          center = new THREE.Vector3(
-            sortedQuantile([...xs], 0.5),
-            (bottom + top) / 2,
-            sortedQuantile([...zs], 0.5),
-          )
-          size = new THREE.Vector3(
-            Math.max(right - left, 0.01),
-            Math.max(top - bottom, 0.01),
-            Math.max(front - back, 0.01),
-          )
-        } else {
-          const box = new THREE.Box3().setFromObject(wireGroup)
-          center = box.getCenter(new THREE.Vector3())
-          size = box.getSize(new THREE.Vector3())
-        }
-
+        const box = new THREE.Box3().setFromObject(wireGroup)
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
         const maxDimension = Math.max(size.x, size.y, size.z)
         if (maxDimension > 0) {
           wireGroup.position.set(-center.x, -center.y, -center.z)
-          modelRoot.scale.setScalar(1.85 / maxDimension)
+          modelRoot.scale.setScalar(2.35 / maxDimension)
         }
         modelRoot.add(wireGroup)
         scene.add(modelRoot)
@@ -224,7 +172,7 @@ export function WireframeModelPreview({
           if (width <= 0 || height <= 0) return
           camera.aspect = width / height
           camera.updateProjectionMatrix()
-          renderer.setSize(width, height, false)
+          renderer.setSize(width, height)
         }
 
         resizeObserver = new ResizeObserver(resize)

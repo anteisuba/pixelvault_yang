@@ -3,7 +3,11 @@ import 'server-only'
 import { createHmac } from 'node:crypto'
 
 import { EXECUTION_INTERNAL, EXECUTION_WORKER } from '@/constants/execution'
-import type { WorkerDispatchResult, WorkerRunContext } from '@/types'
+import type {
+  LongVideoPipelineWorkerRunContext,
+  WorkerDispatchResult,
+  WorkerRunContext,
+} from '@/types'
 import { WorkerDispatchResultSchema } from '@/types'
 import { GenerateImageServiceError } from '@/services/generate-image.service'
 
@@ -55,18 +59,31 @@ export function buildInternalUrl(path: string): string {
 export async function dispatchWorkerRun(
   runContext: WorkerRunContext,
 ): Promise<WorkerDispatchResult> {
-  const body = JSON.stringify(runContext)
-  const response = await fetch(
-    `${getWorkerBaseUrl()}${EXECUTION_WORKER.FAL_QUEUE_PATH}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
-      },
-      body,
-    },
+  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.FAL_QUEUE_PATH)
+}
+
+export async function dispatchLongVideoPipelineWorkerRun(
+  runContext: LongVideoPipelineWorkerRunContext,
+): Promise<WorkerDispatchResult> {
+  return dispatchSignedWorkerRun(
+    runContext,
+    EXECUTION_WORKER.LONG_VIDEO_PIPELINE_PATH,
   )
+}
+
+async function dispatchSignedWorkerRun(
+  runContext: WorkerRunContext | LongVideoPipelineWorkerRunContext,
+  path: string,
+): Promise<WorkerDispatchResult> {
+  const body = JSON.stringify(runContext)
+  const response = await fetch(`${getWorkerBaseUrl()}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      [EXECUTION_INTERNAL.SIGNATURE_HEADER]: signBody(body),
+    },
+    body,
+  })
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')

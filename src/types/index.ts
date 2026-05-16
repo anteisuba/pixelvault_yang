@@ -838,6 +838,20 @@ export const WorkerDispatchResultSchema = z.object({
 export type WorkerRunContext = z.infer<typeof WorkerRunContextSchema>
 export type WorkerDispatchResult = z.infer<typeof WorkerDispatchResultSchema>
 
+export const LongVideoPipelineWorkerRunContextSchema = z.object({
+  runId: z.string().trim().min(1),
+  workflowId: z.literal(EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE),
+  pipelineId: z.string().trim().min(1),
+  advanceUrl: z.string().trim().url(),
+  timeoutMs: z.number().int().positive(),
+  maxAttempts: z.number().int().positive(),
+  pollIntervalMs: z.number().int().positive(),
+})
+
+export type LongVideoPipelineWorkerRunContext = z.infer<
+  typeof LongVideoPipelineWorkerRunContextSchema
+>
+
 // ─── Long Video Pipeline ──────────────────────────────────────────
 
 export const LongVideoRequestSchema = z.object({
@@ -866,6 +880,14 @@ export type LongVideoRequest = z.infer<typeof LongVideoRequestSchema>
 
 export const LongVideoStatusRequestSchema = z.object({
   pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
+})
+
+export const LongVideoPipelineAdvanceRequestSchema = z.object({
+  runId: z.string().trim().min(1, 'Run ID is required'),
+  pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
+  action: z.enum(['advance', 'fail']).default('advance'),
+  attempt: z.number().int().positive().optional(),
+  error: z.string().trim().max(2000).optional(),
 })
 
 export type PipelineClipStatus =

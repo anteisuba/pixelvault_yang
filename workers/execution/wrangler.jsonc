@@ -15,5 +15,10 @@
       "binding": "CINEMATIC_SHORT_VIDEO_WORKFLOW",
       "class_name": "CinematicShortVideoWorkflow",
     },
+    {
+      "name": "pixelvault-long-video-pipeline",
+      "binding": "LONG_VIDEO_PIPELINE_WORKFLOW",
+      "class_name": "LongVideoPipelineWorkflow",
+    },
   ],
 }

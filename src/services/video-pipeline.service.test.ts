@@ -23,6 +23,7 @@ const mockVideoPipelineClipUpdateMany = vi.hoisted(() => vi.fn())
 const mockSubmitVideoToQueue = vi.hoisted(() => vi.fn())
 const mockSubmitExtendVideoToQueue = vi.hoisted(() => vi.fn())
 const mockCheckVideoQueueStatus = vi.hoisted(() => vi.fn())
+const mockDispatchLongVideoPipelineWorkerRun = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -64,6 +65,12 @@ vi.mock('@/services/generation.service', () => ({
   createGeneration: (...args: unknown[]) => mockCreateGeneration(...args),
 }))
 
+vi.mock('@/services/execution-worker.service', () => ({
+  buildInternalUrl: (path: string) => `https://app.example.com${path}`,
+  dispatchLongVideoPipelineWorkerRun: (...args: unknown[]) =>
+    mockDispatchLongVideoPipelineWorkerRun(...args),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     videoPipeline: {
@@ -83,6 +90,7 @@ vi.mock('@/lib/db', () => ({
 
 import {
   cancelPipeline,
+  advanceLongVideoPipelineFromWorker,
   checkPipelineStatus,
   createLongVideoPipeline,
   retryPipelineClip,
@@ -210,6 +218,9 @@ describe('video-pipeline.service', () => {
     mockCreateGeneration.mockResolvedValue(BASE_GENERATION)
     mockVideoPipelineCreate.mockResolvedValue({ id: 'pipeline-1' })
     mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(pipeline())
+    mockDispatchLongVideoPipelineWorkerRun.mockResolvedValue({
+      workflowInstanceId: 'pipeline-1',
+    })
   })
 
   describe('createLongVideoPipeline', () => {
@@ -249,6 +260,16 @@ describe('video-pipeline.service', () => {
               ]),
             }),
           }),
+        }),
+      )
+      expect(mockDispatchLongVideoPipelineWorkerRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: 'pipeline-1',
+          workflowId: 'LONG_VIDEO_PIPELINE',
+          pipelineId: 'pipeline-1',
+          advanceUrl:
+            'https://app.example.com/api/internal/execution/long-video/advance',
+          maxAttempts: 600,
         }),
       )
     })
@@ -300,7 +321,7 @@ describe('video-pipeline.service', () => {
         }),
       )
 
-      const result = await checkPipelineStatus('clerk-1', 'pipeline-1')
+      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
 
       expect(result.clips[0].status).toBe('RUNNING')
       expect(mockVideoPipelineClipUpdate).toHaveBeenCalledWith({
@@ -326,7 +347,7 @@ describe('video-pipeline.service', () => {
         }),
       )
 
-      const result = await checkPipelineStatus('clerk-1', 'pipeline-1')
+      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
 
       expect(result.status).toBe('FAILED')
       expect(mockVideoPipelineUpdate).toHaveBeenCalledWith({
@@ -367,7 +388,7 @@ describe('video-pipeline.service', () => {
         }),
       )
 
-      const result = await checkPipelineStatus('clerk-1', 'pipeline-1')
+      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
 
       expect(result.completedClips).toBe(1)
       expect(mockStreamUploadToR2).toHaveBeenCalledWith(
@@ -428,7 +449,7 @@ describe('video-pipeline.service', () => {
         }),
       )
 
-      const result = await checkPipelineStatus('clerk-1', 'pipeline-1')
+      const result = await advanceLongVideoPipelineFromWorker('pipeline-1')
 
       expect(result).toMatchObject({
         status: 'COMPLETED',

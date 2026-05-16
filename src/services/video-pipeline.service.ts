@@ -1,5 +1,12 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
+import {
+  EXECUTION_INTERNAL,
+  EXECUTION_WORKER,
+  EXECUTION_WORKFLOW_IDS,
+} from '@/constants/execution'
 import { VIDEO_GENERATION } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
@@ -25,7 +32,12 @@ import {
   GenerateImageServiceError,
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
+import {
+  buildInternalUrl,
+  dispatchLongVideoPipelineWorkerRun,
+} from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { isVideoResolution } from '@/constants/video-options'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
@@ -164,6 +176,11 @@ export async function createLongVideoPipeline(
     },
   })
 
+  await dispatchLongVideoPipelineWorkflow({
+    pipelineId: pipeline.id,
+    totalClips,
+  })
+
   return {
     pipelineId: pipeline.id,
     totalClips,
@@ -171,7 +188,7 @@ export async function createLongVideoPipeline(
   }
 }
 
-// ─── Check Pipeline Status (poll-driven advancement) ────────────
+// ─── Check Pipeline Status ──────────────────────────────────────
 
 export async function checkPipelineStatus(
   clerkId: string,
@@ -195,6 +212,30 @@ export async function checkPipelineStatus(
     )
   }
 
+  return mapPipelineToRecord(pipeline)
+}
+
+// ─── Worker-Driven Pipeline Advancement ────────────────────────
+
+export async function advanceLongVideoPipelineFromWorker(
+  pipelineId: string,
+): Promise<PipelineStatusRecord> {
+  const pipeline = await db.videoPipeline.findUnique({
+    where: { id: pipelineId },
+    include: {
+      clips: { orderBy: { clipIndex: 'asc' } },
+      generation: true,
+    },
+  })
+
+  if (!pipeline) {
+    throw new GenerateImageServiceError(
+      'JOB_NOT_FOUND',
+      'Video pipeline not found',
+      404,
+    )
+  }
+
   // Terminal states — return cached result
   if (
     pipeline.status === 'COMPLETED' ||
@@ -208,7 +249,7 @@ export async function checkPipelineStatus(
   const activeClip = pipeline.clips.find((c) => c.status !== 'COMPLETED')
   if (!activeClip) {
     // All clips completed but pipeline not marked complete — finalize
-    return await finalizePipeline(pipeline, dbUser.id)
+    return await finalizePipeline(pipeline, pipeline.userId)
   }
 
   // If the active clip hasn't been submitted yet (PENDING), it means
@@ -246,7 +287,7 @@ export async function checkPipelineStatus(
     )
   }
 
-  const executionRoute = await resolveGenerationRoute(dbUser.id, {
+  const executionRoute = await resolveGenerationRoute(pipeline.userId, {
     modelId: pipeline.modelId,
     apiKeyId: pipeline.apiKeyId ?? undefined,
   })
@@ -346,7 +387,7 @@ export async function checkPipelineStatus(
   const provider = getProviderLabel(executionRoute.providerConfig)
 
   // Upload completed clip to R2
-  const clipStorageKey = generateStorageKey('VIDEO', dbUser.id)
+  const clipStorageKey = generateStorageKey('VIDEO', pipeline.userId)
   const { publicUrl: clipVideoUrl } = await streamUploadToR2({
     sourceUrl: videoResult.videoUrl,
     key: clipStorageKey,
@@ -356,7 +397,7 @@ export async function checkPipelineStatus(
 
   // Create usage entry for this clip
   await createApiUsageEntry({
-    userId: dbUser.id,
+    userId: pipeline.userId,
     adapterType: executionRoute.adapterType,
     provider,
     modelId: pipeline.modelId,
@@ -402,7 +443,7 @@ export async function checkPipelineStatus(
         generation: true,
       },
     })
-    return await finalizePipeline(updatedPipeline, dbUser.id)
+    return await finalizePipeline(updatedPipeline, pipeline.userId)
   }
 
   // Submit next clip
@@ -417,7 +458,7 @@ export async function checkPipelineStatus(
         generation: true,
       },
     })
-    return await finalizePipeline(updatedPipeline, dbUser.id)
+    return await finalizePipeline(updatedPipeline, pipeline.userId)
   }
 
   await submitNextClip({
@@ -553,6 +594,12 @@ export async function retryPipelineClip(
     data: { status: 'RUNNING', errorMessage: null },
   })
 
+  await dispatchLongVideoPipelineWorkflow({
+    pipelineId,
+    totalClips: pipeline.totalClips,
+    runId: `${pipelineId}-retry-${randomUUID()}`,
+  })
+
   return mapPipelineToRecord(
     await db.videoPipeline.findUniqueOrThrow({
       where: { id: pipelineId },
@@ -611,7 +658,104 @@ export async function cancelPipeline(
   )
 }
 
+export async function failLongVideoPipelineFromWorker(
+  pipelineId: string,
+  errorMessage: string,
+): Promise<PipelineStatusRecord> {
+  const pipeline = await db.videoPipeline.findUnique({
+    where: { id: pipelineId },
+    include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
+  })
+
+  if (!pipeline) {
+    throw new GenerateImageServiceError(
+      'JOB_NOT_FOUND',
+      'Video pipeline not found',
+      404,
+    )
+  }
+
+  if (
+    pipeline.status === 'COMPLETED' ||
+    pipeline.status === 'FAILED' ||
+    pipeline.status === 'CANCELLED'
+  ) {
+    return mapPipelineToRecord(pipeline)
+  }
+
+  await db.videoPipeline.update({
+    where: { id: pipelineId },
+    data: { status: 'FAILED', errorMessage },
+  })
+
+  await db.videoPipelineClip.updateMany({
+    where: {
+      pipelineId,
+      status: { in: ['PENDING', 'QUEUED', 'RUNNING'] },
+    },
+    data: { status: 'FAILED', errorMessage },
+  })
+
+  return mapPipelineToRecord(
+    await db.videoPipeline.findUniqueOrThrow({
+      where: { id: pipelineId },
+      include: { clips: { orderBy: { clipIndex: 'asc' } }, generation: true },
+    }),
+  )
+}
+
 // ─── Private Helpers ────────────────────────────────────────────
+
+async function dispatchLongVideoPipelineWorkflow(input: {
+  pipelineId: string
+  totalClips: number
+  runId?: string
+}) {
+  try {
+    const result = await dispatchLongVideoPipelineWorkerRun({
+      runId: input.runId ?? input.pipelineId,
+      workflowId: EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE,
+      pipelineId: input.pipelineId,
+      advanceUrl: buildInternalUrl(EXECUTION_INTERNAL.LONG_VIDEO_ADVANCE_PATH),
+      timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
+      maxAttempts: Math.max(
+        EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
+        input.totalClips * EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
+      ),
+      pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+    })
+
+    logger.info('Long-video pipeline dispatched to execution worker', {
+      pipelineId: input.pipelineId,
+      workflowInstanceId: result.workflowInstanceId,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to dispatch long-video execution worker'
+
+    await db.videoPipeline.update({
+      where: { id: input.pipelineId },
+      data: { status: 'FAILED', errorMessage: message },
+    })
+
+    await db.videoPipelineClip.updateMany({
+      where: {
+        pipelineId: input.pipelineId,
+        status: { in: ['PENDING', 'QUEUED', 'RUNNING'] },
+      },
+      data: { status: 'FAILED', errorMessage: message },
+    })
+
+    logger.error('Long-video execution worker dispatch failed', {
+      pipelineId: input.pipelineId,
+      error: message,
+    })
+
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+  }
+}
 
 interface SubmitNextClipParams {
   pipeline: {

@@ -7,20 +7,23 @@ const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
 const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
 const FAL_QUEUE_PATH = '/workflows/fal-queue'
+const LONG_VIDEO_PIPELINE_PATH = '/workflows/long-video-pipeline'
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
 const EXECUTION_SIGNATURE_ALGORITHM = 'HMAC'
 const EXECUTION_SIGNATURE_HASH = 'SHA-256'
 const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
-const WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
+const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
+const LONG_VIDEO_PIPELINE_WORKFLOW_ID = 'LONG_VIDEO_PIPELINE'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
-type WorkerWorkflowId = (typeof WORKFLOW_IDS)[number]
+type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
 
 interface ExecutionEnv {
   INTERNAL_CALLBACK_URL?: string
   INTERNAL_CALLBACK_SECRET?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
+  LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
 }
 
 interface ExecutionCallbackPayload {
@@ -78,6 +81,22 @@ interface WorkerAudioRunContext extends WorkerRunContextBase {
 }
 
 type WorkerRunContext = WorkerVideoRunContext | WorkerAudioRunContext
+
+interface LongVideoPipelineRunContext {
+  runId: string
+  workflowId: typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID
+  pipelineId: string
+  advanceUrl: string
+  timeoutMs: number
+  maxAttempts: number
+  pollIntervalMs: number
+}
+
+interface LongVideoPipelineStatus {
+  pipelineId: string
+  status: 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  errorMessage?: string | null
+}
 
 interface FalQueueSubmitResult {
   requestId: string
@@ -157,7 +176,17 @@ function isCallbackKind(value: unknown): value is CallbackKind {
 }
 
 function isWorkerWorkflowId(value: unknown): value is WorkerWorkflowId {
-  return WORKFLOW_IDS.some((candidate) => candidate === value)
+  return QUEUE_WORKFLOW_IDS.some((candidate) => candidate === value)
+}
+
+function isLongVideoPipelineWorkflowId(
+  value: unknown,
+): value is typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID {
+  return value === LONG_VIDEO_PIPELINE_WORKFLOW_ID
+}
+
+function isLongVideoPipelineTerminalStatus(status: string): boolean {
+  return status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED'
 }
 
 function isFalQueueFailureStatus(status: string): boolean {
@@ -444,6 +473,88 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       height,
     },
   }
+}
+
+function parseLongVideoPipelineRunContext(
+  input: unknown,
+): LongVideoPipelineRunContext | null {
+  if (!isRecord(input)) return null
+
+  const runId = readStringField(input, 'runId')
+  const workflowId = readStringField(input, 'workflowId')
+  const pipelineId = readStringField(input, 'pipelineId')
+  const advanceUrl = readStringField(input, 'advanceUrl')
+  const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
+  const maxAttempts = readPositiveNumberField(input, 'maxAttempts')
+  const pollIntervalMs = readPositiveNumberField(input, 'pollIntervalMs')
+
+  if (
+    !runId ||
+    !isLongVideoPipelineWorkflowId(workflowId) ||
+    !pipelineId ||
+    !advanceUrl ||
+    !timeoutMs ||
+    !maxAttempts ||
+    !pollIntervalMs
+  ) {
+    return null
+  }
+
+  return {
+    runId,
+    workflowId,
+    pipelineId,
+    advanceUrl,
+    timeoutMs,
+    maxAttempts,
+    pollIntervalMs,
+  }
+}
+
+async function handleLongVideoPipelineDispatch(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Invalid JSON body.' },
+      { status: 400 },
+    )
+  }
+
+  const runContext = parseLongVideoPipelineRunContext(parsed)
+  if (!runContext) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid long-video pipeline context.' },
+      { status: 400 },
+    )
+  }
+
+  const instance = await env.LONG_VIDEO_PIPELINE_WORKFLOW.create({
+    id: runContext.runId,
+    params: runContext,
+  })
+
+  return jsonResponse({ workflowInstanceId: instance.id })
 }
 
 async function handleFalQueueDispatch(
@@ -815,6 +926,114 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
   }
 }
 
+async function postLongVideoPipelineAdvance(
+  env: ExecutionEnv,
+  context: LongVideoPipelineRunContext,
+  action: 'advance' | 'fail',
+  data?: { attempt?: number; error?: string },
+): Promise<LongVideoPipelineStatus> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const response = await postSignedJson(
+    context.advanceUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      pipelineId: context.pipelineId,
+      action,
+      attempt: data?.attempt,
+      error: data?.error,
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(
+      `Long-video pipeline advance failed with status ${response.status}`,
+    )
+  }
+
+  const payload = (await response.json()) as {
+    success?: boolean
+    data?: unknown
+    error?: string
+  }
+
+  if (payload.success !== true || !isRecord(payload.data)) {
+    throw new Error(payload.error ?? 'Invalid long-video advance response.')
+  }
+
+  const pipelineId = readStringField(payload.data, 'pipelineId')
+  const status = readStringField(payload.data, 'status')
+  if (!pipelineId || !status) {
+    throw new Error('Long-video advance response is missing pipeline status.')
+  }
+
+  return {
+    pipelineId,
+    status: status as LongVideoPipelineStatus['status'],
+    errorMessage: readStringField(payload.data, 'errorMessage'),
+  }
+}
+
+export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
+  ExecutionEnv,
+  LongVideoPipelineRunContext
+> {
+  async run(
+    event: WorkflowEvent<LongVideoPipelineRunContext>,
+    step: WorkflowStep,
+  ): Promise<unknown> {
+    const context = event.payload
+
+    try {
+      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
+        const status = await step.do(
+          `advance-pipeline-${attempt}`,
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: Math.min(context.timeoutMs, 1_800_000),
+          },
+          () =>
+            postLongVideoPipelineAdvance(this.env, context, 'advance', {
+              attempt,
+            }),
+        )
+
+        if (isLongVideoPipelineTerminalStatus(status.status)) {
+          return {
+            status: status.status,
+            runId: context.runId,
+            pipelineId: context.pipelineId,
+          }
+        }
+
+        await step.sleep(`wait-pipeline-${attempt}`, context.pollIntervalMs)
+      }
+
+      throw new Error('Long-video pipeline polling timed out.')
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Long-video workflow execution failed.'
+
+      await step.do('mark-pipeline-failed', async () =>
+        postLongVideoPipelineAdvance(this.env, context, 'fail', {
+          error: message,
+        }),
+      )
+
+      return {
+        status: 'FAILED',
+        runId: context.runId,
+        pipelineId: context.pipelineId,
+      }
+    }
+  }
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -833,6 +1052,13 @@ const executionWorker = {
         url.pathname === CINEMATIC_SHORT_VIDEO_PATH)
     ) {
       return handleFalQueueDispatch(request, env)
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === LONG_VIDEO_PIPELINE_PATH
+    ) {
+      return handleLongVideoPipelineDispatch(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

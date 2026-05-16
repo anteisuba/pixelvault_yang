@@ -8,11 +8,13 @@ export const EXECUTION_INTERNAL = {
   SIGNATURE_HEX_LENGTH: 64,
   CALLBACK_PATH: '/api/internal/execution/callback',
   RESOLVE_KEY_PATH: '/api/internal/execution/resolve-key',
+  LONG_VIDEO_ADVANCE_PATH: '/api/internal/execution/long-video/advance',
 } as const
 
 export const EXECUTION_WORKER = {
   CINEMATIC_SHORT_VIDEO_PATH: '/workflows/cinematic-short-video',
   FAL_QUEUE_PATH: '/workflows/fal-queue',
+  LONG_VIDEO_PIPELINE_PATH: '/workflows/long-video-pipeline',
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,
@@ -21,6 +23,7 @@ export const EXECUTION_WORKER = {
 export const EXECUTION_WORKFLOW_IDS = {
   CINEMATIC_SHORT_VIDEO: 'CINEMATIC_SHORT_VIDEO',
   FAL_QUEUE: 'FAL_QUEUE',
+  LONG_VIDEO_PIPELINE: 'LONG_VIDEO_PIPELINE',
 } as const
 
 export const EXECUTION_OUTBOX_KINDS = {

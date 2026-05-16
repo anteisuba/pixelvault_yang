@@ -4,6 +4,7 @@ import type {
   FishAudioVoiceListResult,
 } from '@/services/fish-audio-voice.service'
 import type { VoiceLibrarySortBy } from '@/constants/voice-cards'
+import type { VoiceCardRecord } from '@/types'
 
 interface VoiceListResponse {
   success: boolean
@@ -15,6 +16,7 @@ interface VoiceListResponse {
 interface VoiceResponse {
   success: boolean
   data?: FishAudioVoice
+  voiceCard?: VoiceCardRecord
   error?: string
   errorCode?: string
 }

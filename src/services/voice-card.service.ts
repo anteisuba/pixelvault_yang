@@ -3,8 +3,12 @@ import 'server-only'
 import type { Prisma, VoiceCard } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { VOICE_CARD_PROVIDER } from '@/constants/voice-cards'
+import {
+  VOICE_CARD_DEFAULT_PACE,
+  VOICE_CARD_PROVIDER,
+} from '@/constants/voice-cards'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { getVoice } from '@/services/fish-audio-voice.service'
 import { ensureUser } from '@/services/user.service'
@@ -13,6 +17,13 @@ import type { CreateVoiceCardRequest, UpdateVoiceCardRequest } from '@/types'
 export interface ListVoiceCardsResult {
   items: VoiceCard[]
   total: number
+}
+
+export interface CreateClonedVoiceCardInput {
+  name: string
+  voiceId: string
+  referenceAudioUrl?: string | null
+  sampleText?: string | null
 }
 
 function toPrismaJson(value: unknown): Prisma.InputJsonValue {
@@ -100,6 +111,31 @@ export async function createVoiceCard(
       pace: data.pace,
       pitch: data.pitch ?? null,
       pronunciationDictionary: toPrismaJson(data.pronunciationDictionary),
+      sampleText: data.sampleText ?? null,
+    },
+  })
+}
+
+export async function createClonedVoiceCard(
+  userId: string,
+  data: CreateClonedVoiceCardInput,
+): Promise<VoiceCard> {
+  const user = await ensureUser(userId)
+
+  return db.voiceCard.create({
+    data: {
+      userId: user.id,
+      name: data.name,
+      provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
+      modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
+      voiceId: data.voiceId,
+      referenceAudioUrl: data.referenceAudioUrl ?? null,
+      gender: null,
+      age: null,
+      tone: toPrismaJson([]),
+      pace: VOICE_CARD_DEFAULT_PACE,
+      pitch: null,
+      pronunciationDictionary: toPrismaJson({}),
       sampleText: data.sampleText ?? null,
     },
   })

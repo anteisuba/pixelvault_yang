@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import type { CreateVoiceCardRequest } from '@/types'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VOICE_CARD_DEFAULT_PACE,
@@ -44,6 +45,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  createClonedVoiceCard,
   createVoiceCard,
   deleteVoiceCard,
   getVoiceCard,
@@ -156,6 +158,32 @@ describe('createVoiceCard', () => {
 
     expect(mockGetVoice).not.toHaveBeenCalled()
     expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+describe('createClonedVoiceCard', () => {
+  it('creates a local Fish Audio S2 Pro card without remote validation', async () => {
+    const result = await createClonedVoiceCard('clerk_test_user', {
+      name: 'Cloned Narrator',
+      voiceId: 'voice_cloned_123',
+      referenceAudioUrl: 'https://cdn.example.com/sample.mp3',
+      sampleText: 'sample transcript',
+    })
+
+    expect(result.id).toBe('voice_card_123')
+    expect(mockFindActiveKeyForAdapter).not.toHaveBeenCalled()
+    expect(mockGetVoice).not.toHaveBeenCalled()
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'db_user_123',
+        name: 'Cloned Narrator',
+        provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
+        modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
+        voiceId: 'voice_cloned_123',
+        referenceAudioUrl: 'https://cdn.example.com/sample.mp3',
+        sampleText: 'sample transcript',
+      }),
+    })
   })
 })
 

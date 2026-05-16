@@ -77,8 +77,12 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
 
     if (result.success && result.data) {
       toast.success(t('voiceTrainSuccess'))
-      // Auto-select the newly created voice
-      dispatch({ type: 'SET_VOICE_ID', payload: result.data.id })
+      const selectedVoiceId = result.voiceCard?.voiceId ?? result.data.id
+      dispatch({
+        type: 'SET_VOICE_CARD_ID',
+        payload: result.voiceCard?.id ?? null,
+      })
+      dispatch({ type: 'SET_VOICE_ID', payload: selectedVoiceId })
       // Reset form
       setTitle('')
       setFiles([])

@@ -20,6 +20,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   ...publicLocaleRoutes,
   '/api/images',
+  '/api/voices',
+  '/api/voices/(.*)',
   '/api/webhooks/clerk',
   '/api/health',
   '/api/health/providers',

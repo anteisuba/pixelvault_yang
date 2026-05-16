@@ -10,14 +10,24 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
+import { createClonedVoiceCard } from '@/services/voice-card.service'
+import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 
 export const maxDuration = 60
+const PUBLIC_VOICE_LIBRARY_CACHE_CONTROL =
+  'public, s-maxage=300, stale-while-revalidate=900'
 
 const FISH_AUDIO_KEY_REQUIRED_ERROR = {
   success: false,
   errorCode: VOICE_API_ERROR_CODES.MISSING_API_KEY,
   error: 'Fish Audio API key is required.',
+} as const
+
+const PUBLIC_VOICE_LIBRARY_UNAVAILABLE_ERROR = {
+  success: false,
+  errorCode: VOICE_API_ERROR_CODES.PUBLIC_LIBRARY_UNAVAILABLE,
+  error: 'Fish Audio public voice library is unavailable.',
 } as const
 
 // ─── GET /api/voices — list voices (public + my voices) ──────────
@@ -36,14 +46,6 @@ const ListQuerySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId: clerkId } = await auth()
-    if (!clerkId) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const parsed = ListQuerySchema.safeParse({
       self: searchParams.get('self') ?? undefined,
@@ -62,6 +64,35 @@ export async function GET(request: NextRequest) {
     }
 
     const { self, page, pageSize, search, language, sortBy } = parsed.data
+    if (!self) {
+      const publicLibraryApiKey = getFishAudioVoiceLibraryApiKey()
+      if (!publicLibraryApiKey) {
+        return NextResponse.json(PUBLIC_VOICE_LIBRARY_UNAVAILABLE_ERROR, {
+          status: 503,
+        })
+      }
+
+      const result = await listVoices(publicLibraryApiKey, {
+        pageSize,
+        pageNumber: page,
+        title: search,
+        language,
+        sortBy,
+      })
+
+      const response = NextResponse.json({ success: true, data: result })
+      response.headers.set('Cache-Control', PUBLIC_VOICE_LIBRARY_CACHE_CONTROL)
+      return response
+    }
+
+    const { userId: clerkId } = await auth()
+    if (!clerkId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 },
+      )
+    }
+
     const dbUser = await ensureUser(clerkId)
     const apiKey = await findActiveKeyForAdapter(
       dbUser.id,
@@ -73,7 +104,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await listVoices(apiKey.keyValue, {
-      self,
+      self: true,
       pageSize,
       pageNumber: page,
       title: search,
@@ -158,7 +189,18 @@ export async function POST(request: NextRequest) {
       enhanceAudioQuality: enhance,
     })
 
-    return NextResponse.json({ success: true, data: voice }, { status: 201 })
+    const sample = voice.samples.find((item) => item.audio || item.text)
+    const voiceCard = await createClonedVoiceCard(clerkId, {
+      name: voice.title || title.trim(),
+      voiceId: voice.id,
+      referenceAudioUrl: sample?.audio || null,
+      sampleText: texts?.[0] ?? sample?.text ?? null,
+    })
+
+    return NextResponse.json(
+      { success: true, data: voice, voiceCard },
+      { status: 201 },
+    )
   } catch (error) {
     logger.error('POST /api/voices error', {
       error: error instanceof Error ? error.message : String(error),

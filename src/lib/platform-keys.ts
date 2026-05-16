@@ -26,3 +26,7 @@ export function getSystemApiKey(adapterType: string): string | null {
       return null
   }
 }
+
+export function getFishAudioVoiceLibraryApiKey(): string | null {
+  return process.env.FISH_AUDIO_VOICE_LIBRARY_API_KEY ?? null
+}

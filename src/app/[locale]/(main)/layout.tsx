@@ -23,8 +23,8 @@ export default function MainLayout({
           <SidebarInset id="main-content" className="pb-14 md:pb-0">
             {children}
           </SidebarInset>
+          <MobileTabBar />
         </SidebarProvider>
-        <MobileTabBar />
       </MainProviders>
       <Toaster />
     </div>

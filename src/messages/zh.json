@@ -150,6 +150,8 @@
     "viewProfile": "查看主页",
     "apiKeys": "API 密钥",
     "signOut": "退出登录",
+    "menu": "菜单",
+    "openMenu": "打开菜单",
     "mobileNavigation": "移动端导航",
     "links": {
       "gallery": "画廊",

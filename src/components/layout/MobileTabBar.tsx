@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  BookOpen,
-  FolderOpen,
-  LayoutGrid,
-  LogIn,
-  Sparkles,
-  Swords,
-} from 'lucide-react'
+import { LayoutGrid, LogIn, PanelLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
@@ -15,6 +8,10 @@ import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { useSidebar } from '@/components/ui/sidebar'
+
+const MOBILE_TAB_ITEM_CLASS_NAME =
+  'flex flex-1 flex-col items-center justify-center gap-[0.35rem] text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm'
 
 interface TabItem {
   href: string
@@ -39,13 +36,13 @@ function isTabActive(pathname: string, prefix: string): boolean {
 
 function TabList({ tabs, pathname }: TabListProps) {
   return (
-    <div className="flex h-full items-stretch">
+    <div className="flex h-full flex-1 items-stretch">
       {tabs.map(({ href, label, icon: Icon, activePrefix }) => (
         <Link
           key={href}
           href={href}
           className={cn(
-            'flex flex-1 flex-col items-center justify-center gap-[0.35rem] text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
+            MOBILE_TAB_ITEM_CLASS_NAME,
             isTabActive(pathname, activePrefix ?? href) && 'text-primary',
           )}
         >
@@ -59,6 +56,26 @@ function TabList({ tabs, pathname }: TabListProps) {
   )
 }
 
+function MobileMenuButton() {
+  const t = useTranslations('Navbar')
+  const { openMobile, toggleSidebar } = useSidebar()
+
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      aria-label={t('openMenu')}
+      aria-expanded={openMobile}
+      className={MOBILE_TAB_ITEM_CLASS_NAME}
+    >
+      <PanelLeft className="size-5" />
+      <span className="text-tab font-semibold tracking-[0.04em] uppercase leading-none truncate max-w-[4.5rem]">
+        {t('menu')}
+      </span>
+    </button>
+  )
+}
+
 export function MobileTabBar() {
   const pathname = usePathname()
   const t = useTranslations('Navbar')
@@ -68,19 +85,6 @@ export function MobileTabBar() {
 
   const signedInTabs: TabItem[] = [
     { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
-    // Direct to /studio/image (the canonical workspace) so the tap doesn't
-    // bounce through the /studio → /studio/image redirect — saves one
-    // navigation hop on mobile. Active state still tracks the parent /studio
-    // prefix so /studio/video, /studio/audio etc. keep the tab highlighted.
-    {
-      href: ROUTES.STUDIO_IMAGE,
-      label: t('links.studio'),
-      icon: Sparkles,
-      activePrefix: ROUTES.STUDIO,
-    },
-    { href: ROUTES.ARENA, label: t('links.arena'), icon: Swords },
-    { href: ROUTES.STORYBOARD, label: t('links.storyboard'), icon: BookOpen },
-    { href: ROUTES.ASSETS, label: t('links.assets'), icon: FolderOpen },
   ]
 
   const signedOutTabs: TabItem[] = [
@@ -98,10 +102,16 @@ export function MobileTabBar() {
         {isLoaded && (
           <>
             <SignedIn>
-              <TabList tabs={signedInTabs} pathname={pathname} />
+              <div className="flex h-full items-stretch">
+                <MobileMenuButton />
+                <TabList tabs={signedInTabs} pathname={pathname} />
+              </div>
             </SignedIn>
             <SignedOut>
-              <TabList tabs={signedOutTabs} pathname={pathname} />
+              <div className="flex h-full items-stretch">
+                <MobileMenuButton />
+                <TabList tabs={signedOutTabs} pathname={pathname} />
+              </div>
             </SignedOut>
           </>
         )}

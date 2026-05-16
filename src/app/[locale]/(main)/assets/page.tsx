@@ -10,10 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { GallerySearchSchema } from '@/types'
-import {
-  countPublicGenerations,
-  getPublicGenerations,
-} from '@/services/generation.service'
+import { getPublicGenerationPage } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 
 interface AssetsPageProps {
@@ -101,33 +98,24 @@ export default async function AssetsPage({
 
   const user = await ensureUser(clerkId)
 
-  const [generations, filteredTotal] = await Promise.all([
-    getPublicGenerations({
-      page: PAGINATION.DEFAULT_PAGE,
-      limit: PAGINATION.DEFAULT_LIMIT,
-      search: initialFilters.search || undefined,
-      model: initialFilters.model || undefined,
-      sort: initialFilters.sort,
-      type: initialFilters.type,
-      userId: user.id,
-      projectId: initialFilters.projectId || undefined,
-    }),
-    countPublicGenerations({
-      search: initialFilters.search || undefined,
-      model: initialFilters.model || undefined,
-      type: initialFilters.type,
-      userId: user.id,
-      projectId: initialFilters.projectId || undefined,
-    }),
-  ])
+  const initialPage = await getPublicGenerationPage({
+    page: PAGINATION.DEFAULT_PAGE,
+    limit: PAGINATION.DEFAULT_LIMIT,
+    search: initialFilters.search || undefined,
+    model: initialFilters.model || undefined,
+    sort: initialFilters.sort,
+    type: initialFilters.type,
+    userId: user.id,
+    projectId: initialFilters.projectId || undefined,
+  })
+  const filteredTotal = initialPage.total ?? initialPage.generations.length
 
   return (
     <KreaAssetBrowser
-      initialGenerations={generations}
+      initialGenerations={initialPage.generations}
       initialPage={PAGINATION.DEFAULT_PAGE}
-      initialHasMore={
-        PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < filteredTotal
-      }
+      initialHasMore={initialPage.hasMore}
+      initialNextCursor={initialPage.nextCursor}
       initialTotal={filteredTotal}
       initialFilters={initialFilters}
     />

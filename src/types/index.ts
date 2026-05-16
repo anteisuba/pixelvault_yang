@@ -1092,6 +1092,7 @@ export const GallerySearchSchema = z.object({
    * "Local assets" sidebar entry to scope to user-uploaded rows.
    */
   provider: z.string().trim().max(64).optional(),
+  cursor: z.string().trim().max(256).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })
@@ -1104,8 +1105,9 @@ export interface GalleryResponseData {
   generations: GenerationRecord[]
   page: number
   limit: number
-  total: number
+  total: number | null
   hasMore: boolean
+  nextCursor: string | null
 }
 
 /**

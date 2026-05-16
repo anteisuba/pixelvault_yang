@@ -47,6 +47,7 @@ interface UseGalleryOptions {
   initialGenerations?: GenerationRecord[]
   initialPage?: number
   initialHasMore?: boolean
+  initialNextCursor?: string | null
   initialTotal?: number
   initialFilters?: Partial<GalleryFilters>
   limit?: number
@@ -104,6 +105,7 @@ export function useGallery({
   initialGenerations = [],
   initialPage = PAGINATION.DEFAULT_PAGE,
   initialHasMore = false,
+  initialNextCursor = null,
   initialTotal = 0,
   initialFilters,
   limit = PAGINATION.DEFAULT_LIMIT,
@@ -116,6 +118,7 @@ export function useGallery({
   const [total, setTotal] = useState(initialTotal)
   const [page, setPage] = useState(initialPage)
   const [hasMore, setHasMore] = useState(initialHasMore)
+  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor)
   const [error, setError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -125,7 +128,9 @@ export function useGallery({
   })
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(initialPage)
+  const totalRef = useRef(initialTotal)
   const hasMoreRef = useRef(initialHasMore)
+  const nextCursorRef = useRef(initialNextCursor)
   const isFetchingRef = useRef(false)
   const filtersRef = useRef(filters)
   // Seed the module-level gallery cache once with the SSR snapshot so
@@ -151,6 +156,7 @@ export function useGallery({
         generations: initialGenerations,
         total: initialTotal,
         hasMore: initialHasMore,
+        nextCursor: initialNextCursor,
       })
     }
   }
@@ -160,8 +166,16 @@ export function useGallery({
   }, [page])
 
   useEffect(() => {
+    totalRef.current = total
+  }, [total])
+
+  useEffect(() => {
     hasMoreRef.current = hasMore
   }, [hasMore])
+
+  useEffect(() => {
+    nextCursorRef.current = nextCursor
+  }, [nextCursor])
 
   useEffect(() => {
     filtersRef.current = filters
@@ -202,12 +216,14 @@ export function useGallery({
           targetPage,
           limit,
           filterParams,
+          append ? nextCursorRef.current : null,
         )
 
         if (response.success && response.data) {
           const fresh = response.data.generations ?? []
-          const freshTotal = response.data.total ?? 0
+          const freshTotal = response.data.total ?? totalRef.current
           const freshHasMore = response.data.hasMore ?? false
+          const freshNextCursor = response.data.nextCursor ?? null
 
           // Only the first-page response represents the full cacheable
           // snapshot. Pagination (`append`) extends the visible list but
@@ -219,6 +235,7 @@ export function useGallery({
                 generations: fresh,
                 total: freshTotal,
                 hasMore: freshHasMore,
+                nextCursor: freshNextCursor,
               },
             )
           }
@@ -229,6 +246,10 @@ export function useGallery({
             // source of truth for the next visit.
             setError(null)
           } else {
+            pageRef.current = response.data?.page ?? targetPage
+            totalRef.current = freshTotal
+            hasMoreRef.current = freshHasMore
+            nextCursorRef.current = freshNextCursor
             startTransition(() => {
               if (append) {
                 setGenerations((current) => mergeGenerations(current, fresh))
@@ -238,6 +259,7 @@ export function useGallery({
               setPage(response.data?.page ?? targetPage)
               setTotal(freshTotal)
               setHasMore(freshHasMore)
+              setNextCursor(freshNextCursor)
               setError(null)
             })
           }
@@ -269,6 +291,7 @@ export function useGallery({
       setPage,
       setTotal,
       setHasMore,
+      setNextCursor,
     ],
   )
 
@@ -290,10 +313,14 @@ export function useGallery({
         // Cache hit → render the cached snapshot instantly (Krea-style
         // 0ms switch) and revalidate silently in the background so the
         // next visit picks up any server-side changes.
+        totalRef.current = cached.total
+        hasMoreRef.current = cached.hasMore
+        nextCursorRef.current = cached.nextCursor
         startTransition(() => {
           setGenerations(cached.generations)
           setTotal(cached.total)
           setHasMore(cached.hasMore)
+          setNextCursor(cached.nextCursor)
           setError(null)
         })
         void fetchPage(1, false, { silent: true })
@@ -309,6 +336,10 @@ export function useGallery({
         setGenerations([])
         setTotal(0)
         setHasMore(false)
+        setNextCursor(null)
+        totalRef.current = 0
+        hasMoreRef.current = false
+        nextCursorRef.current = null
       }
       void fetchPage(1, false)
     },
@@ -325,6 +356,7 @@ export function useGallery({
       setGenerations,
       setTotal,
       setHasMore,
+      setNextCursor,
       setError,
     ],
   )

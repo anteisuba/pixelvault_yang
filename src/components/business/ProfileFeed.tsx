@@ -34,6 +34,7 @@ interface ProfileFeedProps {
   initialGenerations: GenerationRecord[]
   initialPage: number
   initialHasMore: boolean
+  initialNextCursor: string | null
   total: number
   initialFilters: GalleryFilters
 }
@@ -42,6 +43,7 @@ export function ProfileFeed({
   initialGenerations,
   initialPage,
   initialHasMore,
+  initialNextCursor,
   total,
   initialFilters,
 }: ProfileFeedProps) {
@@ -67,6 +69,7 @@ export function ProfileFeed({
     initialGenerations,
     initialPage,
     initialHasMore,
+    initialNextCursor,
     initialTotal: total,
     initialFilters,
     mine: true,

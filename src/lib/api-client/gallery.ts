@@ -26,12 +26,14 @@ export async function fetchGalleryImages(
     /** Filter by Generation.provider (e.g. 'user-upload' for local assets). */
     provider?: string
   },
+  cursor?: string | null,
 ): Promise<GalleryResponse> {
   try {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
     })
+    if (cursor) params.set('cursor', cursor)
     if (filters?.search) params.set('search', filters.search)
     if (filters?.model) params.set('model', filters.model)
     if (filters?.sort) params.set('sort', filters.sort)

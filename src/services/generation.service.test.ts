@@ -51,6 +51,7 @@ import {
   getAssetSectionCounts,
   getGenerationById,
   getGenerationsByCharacterCombination,
+  getPublicGenerationPage,
   getPublicGenerations,
   getUserGenerations,
   selectVariantWinner,
@@ -322,6 +323,86 @@ describe('generation.service', () => {
           },
         }),
       )
+    })
+
+    it('returns cursor page metadata without counting on cursor requests', async () => {
+      const cursor = Buffer.from(
+        JSON.stringify({
+          id: 'gen-1',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      ).toString('base64url')
+      mockGenerationFindMany.mockResolvedValue([
+        { ...BASE_GENERATION, id: 'gen-2', createdAt: new Date('2026-01-02') },
+        { ...BASE_GENERATION, id: 'gen-3', createdAt: new Date('2026-01-03') },
+        { ...BASE_GENERATION, id: 'gen-4', createdAt: new Date('2026-01-04') },
+      ])
+
+      const result = await getPublicGenerationPage({
+        userId: 'user-1',
+        cursor,
+        limit: 2,
+      })
+      const decodedNextCursor = JSON.parse(
+        Buffer.from(result.nextCursor ?? '', 'base64url').toString('utf8'),
+      ) as { id: string; createdAt: string }
+
+      expect(result.generations.map((generation) => generation.id)).toEqual([
+        'gen-2',
+        'gen-3',
+      ])
+      expect(result.total).toBeNull()
+      expect(result.hasMore).toBe(true)
+      expect(decodedNextCursor.id).toBe('gen-3')
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { userId: 'user-1' },
+              {
+                OR: [
+                  { createdAt: { lt: new Date('2026-01-01T00:00:00.000Z') } },
+                  {
+                    AND: [
+                      { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+                      { id: { lt: 'gen-1' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          take: 3,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        }),
+      )
+      expect(mockGenerationCount).not.toHaveBeenCalled()
+    })
+
+    it('returns total on first page for header counts', async () => {
+      mockGenerationFindMany.mockResolvedValue([BASE_GENERATION])
+      mockGenerationCount.mockResolvedValue(7)
+
+      const result = await getPublicGenerationPage({
+        limit: 2,
+        sort: 'oldest',
+      })
+
+      expect(result).toMatchObject({
+        total: 7,
+        hasMore: false,
+        nextCursor: null,
+      })
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 3,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        }),
+      )
+      expect(mockGenerationCount).toHaveBeenCalledWith({
+        where: { isPublic: true },
+      })
     })
   })
 

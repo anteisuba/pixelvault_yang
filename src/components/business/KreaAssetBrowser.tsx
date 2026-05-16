@@ -65,6 +65,7 @@ interface KreaAssetBrowserProps {
   initialGenerations?: GenerationRecord[]
   initialPage?: number
   initialHasMore?: boolean
+  initialNextCursor?: string | null
   initialTotal?: number
   initialFilters?: GalleryFilters
   /**
@@ -159,6 +160,7 @@ export function KreaAssetBrowser({
   initialGenerations = [],
   initialPage = 1,
   initialHasMore = false,
+  initialNextCursor = null,
   initialTotal = 0,
   initialFilters = DEFAULT_FILTERS,
   onSelect,
@@ -187,6 +189,7 @@ export function KreaAssetBrowser({
     initialGenerations,
     initialPage,
     initialHasMore,
+    initialNextCursor,
     initialTotal,
     initialFilters: effectiveInitialFilters,
     mine: true,
@@ -468,6 +471,7 @@ export function KreaAssetBrowser({
         generations: [],
         total: 0,
         hasMore: false,
+        nextCursor: null,
       })
       const filterParams = {
         search: targetFilters.search || undefined,
@@ -486,6 +490,7 @@ export function KreaAssetBrowser({
             generations: response.data.generations ?? [],
             total: response.data.total ?? 0,
             hasMore: response.data.hasMore ?? false,
+            nextCursor: response.data.nextCursor ?? null,
           })
         }
       })

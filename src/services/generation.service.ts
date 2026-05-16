@@ -77,6 +77,7 @@ export interface ListGenerationsOptions {
 export interface GalleryQueryOptions {
   page?: number
   limit?: number
+  cursor?: string
   search?: string
   model?: string
   sort?: GallerySortOption
@@ -100,6 +101,13 @@ export interface GalleryQueryOptions {
    * assets" sidebar entry to scope to `USER_UPLOAD_PROVIDER` rows.
    */
   provider?: string
+}
+
+export interface GalleryGenerationPage {
+  generations: GenerationRecord[]
+  total: number | null
+  hasMore: boolean
+  nextCursor: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -232,6 +240,69 @@ function buildGalleryWhere(options: {
   }
 
   return where
+}
+
+function getGalleryOrderBy(
+  sort: GallerySortOption = 'newest',
+): Prisma.GenerationOrderByWithRelationInput[] {
+  const direction = sort === 'newest' ? 'desc' : 'asc'
+  return [{ createdAt: direction }, { id: direction }]
+}
+
+interface DecodedGalleryCursor {
+  id: string
+  createdAt: Date
+}
+
+function encodeGalleryCursor(row: Pick<GenerationRecord, 'id' | 'createdAt'>) {
+  const createdAt =
+    row.createdAt instanceof Date
+      ? row.createdAt.toISOString()
+      : new Date(row.createdAt).toISOString()
+  return Buffer.from(JSON.stringify({ id: row.id, createdAt })).toString(
+    'base64url',
+  )
+}
+
+function decodeGalleryCursor(cursor?: string): DecodedGalleryCursor | null {
+  if (!cursor) return null
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as unknown
+    if (!isRecord(parsed)) return null
+    if (typeof parsed.id !== 'string') return null
+    if (typeof parsed.createdAt !== 'string') return null
+
+    const createdAt = new Date(parsed.createdAt)
+    if (Number.isNaN(createdAt.getTime())) return null
+
+    return { id: parsed.id, createdAt }
+  } catch {
+    return null
+  }
+}
+
+function buildGalleryCursorWhere(
+  cursor: DecodedGalleryCursor | null,
+  sort: GallerySortOption,
+): Record<string, unknown> | null {
+  if (!cursor) return null
+
+  const direction = sort === 'newest' ? 'lt' : 'gt'
+
+  return {
+    OR: [
+      { createdAt: { [direction]: cursor.createdAt } },
+      {
+        AND: [
+          { createdAt: cursor.createdAt },
+          { id: { [direction]: cursor.id } },
+        ],
+      },
+    ],
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -428,13 +499,10 @@ export async function countUserPublicGenerations(
   })
 }
 
-/**
- * Get public generations for the gallery with optional search/filter.
- * When userId is provided, returns that user's own generations (including private).
- */
-export async function getPublicGenerations({
+async function getPublicGenerationSlice({
   page = PAGINATION.DEFAULT_PAGE,
   limit = PAGINATION.DEFAULT_LIMIT,
+  cursor,
   search,
   model,
   sort = 'newest',
@@ -445,7 +513,9 @@ export async function getPublicGenerations({
   viewerUserId,
   projectId,
   provider,
-}: GalleryQueryOptions = {}): Promise<GenerationRecord[]> {
+}: GalleryQueryOptions = {}): Promise<
+  Pick<GalleryGenerationPage, 'generations' | 'hasMore' | 'nextCursor'>
+> {
   // Owner-scoped queries (mine=1, /assets) don't render like badges, so
   // we skip the join + aggregate. Public/community queries still need
   // _count.likes for the heart counter and the optional viewer.likes
@@ -472,25 +542,36 @@ export async function getPublicGenerations({
           : {}),
       }
 
+  const baseWhere = buildGalleryWhere({
+    search,
+    model,
+    type,
+    timeRange,
+    userId,
+    likedByUserId,
+    projectId,
+    provider,
+  })
+  const decodedCursor = decodeGalleryCursor(cursor)
+  const cursorWhere = buildGalleryCursorWhere(decodedCursor, sort)
+  const where = cursorWhere ? { AND: [baseWhere, cursorWhere] } : baseWhere
+
   const results = await db.generation.findMany({
-    where: buildGalleryWhere({
-      search,
-      model,
-      type,
-      timeRange,
-      userId,
-      likedByUserId,
-      projectId,
-      provider,
-    }),
-    orderBy: { createdAt: sort === 'newest' ? 'desc' : 'asc' },
-    skip: (page - 1) * limit,
-    take: limit,
+    where,
+    orderBy: getGalleryOrderBy(sort),
+    ...(decodedCursor ? {} : { skip: (page - 1) * limit }),
+    take: limit + 1,
     select,
   })
 
+  const hasMore = results.length > limit
+  const pageResults = hasMore ? results.slice(0, limit) : results
+  const lastPageResult = pageResults[pageResults.length - 1]
+  const nextCursor =
+    hasMore && lastPageResult ? encodeGalleryCursor(lastPageResult) : null
+
   // Map creator info + like data onto records
-  const mapped: GenerationRecord[] = results.map((r) => {
+  const mapped: GenerationRecord[] = pageResults.map((r) => {
     const { user, _count, likes, ...rest } = r as typeof r & {
       _count?: { likes: number }
       likes?: { id: string }[]
@@ -513,7 +594,50 @@ export async function getPublicGenerations({
   // No referenceImage normalization in list paths — that's derived from
   // the (intentionally excluded) snapshot column. Detail views still go
   // through getGenerationById which keeps the full row.
-  return userId ? mapped : redactPrompts(mapped)
+  const generations = userId ? mapped : redactPrompts(mapped)
+
+  return {
+    generations,
+    hasMore,
+    nextCursor,
+  }
+}
+
+/**
+ * Get public generations for the gallery with optional search/filter.
+ * When userId is provided, returns that user's own generations (including private).
+ */
+export async function getPublicGenerations(
+  options: GalleryQueryOptions = {},
+): Promise<GenerationRecord[]> {
+  const page = await getPublicGenerationSlice(options)
+  return page.generations
+}
+
+export async function getPublicGenerationPage(
+  options: GalleryQueryOptions = {},
+): Promise<GalleryGenerationPage> {
+  const shouldFetchTotal = !decodeGalleryCursor(options.cursor)
+  const [page, total] = await Promise.all([
+    getPublicGenerationSlice(options),
+    shouldFetchTotal
+      ? countPublicGenerations({
+          search: options.search,
+          model: options.model,
+          type: options.type,
+          timeRange: options.timeRange,
+          userId: options.userId,
+          likedByUserId: options.likedByUserId,
+          projectId: options.projectId,
+          provider: options.provider,
+        })
+      : Promise.resolve(null),
+  ])
+
+  return {
+    ...page,
+    total,
+  }
 }
 
 /**
@@ -656,7 +780,7 @@ export async function countPublicGenerations(
  * Cached variant for the **anonymous public gallery only**. Routes must call
  * this only when there is no viewer/owner/liked-by filter (i.e. the response
  * is identical for every anonymous visitor). On any user-scoped path, call
- * the un-cached `getPublicGenerations` / `countPublicGenerations` directly.
+ * the un-cached `getPublicGenerationPage` directly.
  *
  * Tagged with CACHE_TAGS.galleryPublic so it invalidates when a new public
  * generation is created or visibility is toggled.
@@ -664,6 +788,7 @@ export async function countPublicGenerations(
 type PublicGalleryCacheKey = {
   page: number
   limit: number
+  cursor?: string
   search?: string
   model?: string
   sort: GallerySortOption
@@ -674,18 +799,8 @@ type PublicGalleryCacheKey = {
 
 const fetchAnonymousPublicGalleryUncached = async (
   key: PublicGalleryCacheKey,
-): Promise<{ generations: GenerationRecord[]; total: number }> => {
-  const [generations, total] = await Promise.all([
-    getPublicGenerations(key),
-    countPublicGenerations({
-      search: key.search,
-      model: key.model,
-      type: key.type,
-      timeRange: key.timeRange,
-      projectId: key.projectId,
-    }),
-  ])
-  return { generations, total }
+): Promise<GalleryGenerationPage> => {
+  return getPublicGenerationPage(key)
 }
 
 const cachedAnonymousPublicGallery = cacheableFn(
@@ -696,7 +811,7 @@ const cachedAnonymousPublicGallery = cacheableFn(
 
 export async function getAnonymousPublicGalleryPage(
   key: PublicGalleryCacheKey,
-): Promise<{ generations: GenerationRecord[]; total: number }> {
+): Promise<GalleryGenerationPage> {
   return cachedAnonymousPublicGallery(key)
 }
 

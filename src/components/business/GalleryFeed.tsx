@@ -18,6 +18,7 @@ interface GalleryFeedProps {
   initialGenerations: GenerationRecord[]
   initialPage: number
   initialHasMore: boolean
+  initialNextCursor: string | null
   total: number
   initialFilters: GalleryFilters
 }
@@ -26,6 +27,7 @@ export function GalleryFeed({
   initialGenerations,
   initialPage,
   initialHasMore,
+  initialNextCursor,
   total,
   initialFilters,
 }: GalleryFeedProps) {
@@ -44,6 +46,7 @@ export function GalleryFeed({
     initialGenerations,
     initialPage,
     initialHasMore,
+    initialNextCursor,
     initialTotal: total,
     initialFilters,
   })

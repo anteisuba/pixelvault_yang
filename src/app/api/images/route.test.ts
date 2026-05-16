@@ -12,8 +12,7 @@ import {
 // ─── Mocks ────────────────────────────────────────────────────────
 
 vi.mock('@/services/generation.service', () => ({
-  getPublicGenerations: vi.fn(),
-  countPublicGenerations: vi.fn(),
+  getPublicGenerationPage: vi.fn(),
   getAnonymousPublicGalleryPage: vi.fn(),
 }))
 
@@ -23,14 +22,12 @@ vi.mock('@/services/user.service', () => ({
 
 import { GET } from '@/app/api/images/route'
 import {
-  getPublicGenerations,
-  countPublicGenerations,
+  getPublicGenerationPage,
   getAnonymousPublicGalleryPage,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 
-const mockGetPublic = vi.mocked(getPublicGenerations)
-const mockCountPublic = vi.mocked(countPublicGenerations)
+const mockGetPublicPage = vi.mocked(getPublicGenerationPage)
 const mockGetAnonPage = vi.mocked(getAnonymousPublicGalleryPage)
 const mockEnsureUser = vi.mocked(ensureUser)
 
@@ -39,11 +36,17 @@ const mockEnsureUser = vi.mocked(ensureUser)
 describe('GET /api/images', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetPublic.mockResolvedValue([FAKE_GENERATION as never])
-    mockCountPublic.mockResolvedValue(1)
+    mockGetPublicPage.mockResolvedValue({
+      generations: [FAKE_GENERATION as never],
+      total: 1,
+      hasMore: false,
+      nextCursor: null,
+    })
     mockGetAnonPage.mockResolvedValue({
       generations: [FAKE_GENERATION as never],
       total: 1,
+      hasMore: false,
+      nextCursor: null,
     })
   })
 
@@ -58,6 +61,7 @@ describe('GET /api/images', () => {
         limit: number
         total: number
         hasMore: boolean
+        nextCursor: string | null
       }
     }>(res)
 
@@ -68,11 +72,12 @@ describe('GET /api/images', () => {
     expect(json.data.limit).toBe(20)
     expect(json.data.total).toBe(1)
     expect(json.data.hasMore).toBe(false)
+    expect(json.data.nextCursor).toBeNull()
     // Anonymous public path goes through the cached helper, not the raw service.
     expect(mockGetAnonPage).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, limit: 20 }),
     )
-    expect(mockGetPublic).not.toHaveBeenCalled()
+    expect(mockGetPublicPage).not.toHaveBeenCalled()
   })
 
   it('supports search/model/type/sort filters', async () => {
@@ -98,6 +103,37 @@ describe('GET /api/images', () => {
         page: 2,
         limit: 10,
       }),
+    )
+  })
+
+  it('passes cursor pagination through to the service', async () => {
+    mockGetAnonPage.mockResolvedValueOnce({
+      generations: [FAKE_GENERATION as never],
+      total: null,
+      hasMore: true,
+      nextCursor: 'gen-next',
+    })
+    const req = createGET('/api/images', {
+      cursor: 'gen-cursor',
+      limit: '10',
+    })
+    const res = await GET(req)
+    const json = await parseJSON<{
+      success: boolean
+      data: {
+        total: number | null
+        hasMore: boolean
+        nextCursor: string | null
+      }
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.total).toBeNull()
+    expect(json.data.hasMore).toBe(true)
+    expect(json.data.nextCursor).toBe('gen-next')
+    expect(mockGetAnonPage).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: 'gen-cursor', limit: 10 }),
     )
   })
 
@@ -134,7 +170,7 @@ describe('GET /api/images', () => {
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(mockGetPublic).toHaveBeenCalledWith(
+    expect(mockGetPublicPage).toHaveBeenCalledWith(
       expect.objectContaining({ userId: FAKE_DB_USER.id }),
     )
   })

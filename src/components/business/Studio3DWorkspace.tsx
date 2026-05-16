@@ -70,6 +70,7 @@ interface Studio3DWorkspaceProps {
   initialGenerations: GenerationRecord[]
   initialTotal: number
   initialHasMore: boolean
+  initialNextCursor?: string | null
 }
 
 const OCTREE_OPTIONS: Array<{ value: 256 | 512 | 1024; label: string }> = [
@@ -113,6 +114,7 @@ export function Studio3DWorkspace({
   initialGenerations,
   initialTotal,
   initialHasMore,
+  initialNextCursor,
 }: Studio3DWorkspaceProps) {
   const t = useTranslations('Model3DGenerate')
   const tModels = useTranslations('Models')
@@ -1220,6 +1222,7 @@ export function Studio3DWorkspace({
         initialGenerations={initialGenerations}
         initialTotal={initialTotal}
         initialHasMore={initialHasMore}
+        initialNextCursor={initialNextCursor}
         title={t('sourceImageLabel')}
         description={t('sourceImagePlaceholder')}
         mediaType="image"

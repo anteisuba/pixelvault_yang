@@ -26,12 +26,14 @@ export interface GalleryFilterShape {
   timeRange: GalleryTimeRange
   liked: boolean
   projectId: string
+  provider?: string
 }
 
 export interface GalleryCacheEntry {
   generations: GenerationRecord[]
   total: number
   hasMore: boolean
+  nextCursor: string | null
 }
 
 const CACHE_MAX = 8
@@ -51,6 +53,7 @@ export function makeGalleryCacheKey(
     r: filters.timeRange,
     l: filters.liked,
     p: filters.projectId,
+    provider: filters.provider,
     mine,
     limit,
   })

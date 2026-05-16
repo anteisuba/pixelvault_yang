@@ -4,10 +4,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
 import { Studio3DWorkspace } from '@/components/business/Studio3DWorkspace'
-import {
-  countPublicGenerations,
-  getPublicGenerations,
-} from '@/services/generation.service'
+import { getPublicGenerationPage } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import type { AppLocale } from '@/i18n/routing'
 
@@ -43,27 +40,21 @@ export default async function Studio3DPage() {
 
   // Pre-fetch the user's images so the inline asset picker is populated on first
   // paint. Lock to type='image' so 3D source can only ever be an image.
-  const [generations, total] = await Promise.all([
-    getPublicGenerations({
-      page: PAGINATION.DEFAULT_PAGE,
-      limit: PAGINATION.DEFAULT_LIMIT,
-      type: 'image',
-      sort: 'newest',
-      userId: user.id,
-    }),
-    countPublicGenerations({
-      type: 'image',
-      userId: user.id,
-    }),
-  ])
+  const initialPage = await getPublicGenerationPage({
+    page: PAGINATION.DEFAULT_PAGE,
+    limit: PAGINATION.DEFAULT_LIMIT,
+    type: 'image',
+    sort: 'newest',
+    userId: user.id,
+  })
+  const total = initialPage.total ?? initialPage.generations.length
 
   return (
     <Studio3DWorkspace
-      initialGenerations={generations}
+      initialGenerations={initialPage.generations}
       initialTotal={total}
-      initialHasMore={
-        PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
-      }
+      initialHasMore={initialPage.hasMore}
+      initialNextCursor={initialPage.nextCursor}
     />
   )
 }

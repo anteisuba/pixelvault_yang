@@ -14,8 +14,7 @@ import { GallerySearchSchema } from '@/types'
 import {
   countUserGenerations,
   countUserPublicGenerations,
-  countPublicGenerations,
-  getPublicGenerations,
+  getPublicGenerationPage,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import { getUserUsageSummary } from '@/services/usage.service'
@@ -98,30 +97,23 @@ export default async function ProfilePage({
 
   const user = await ensureUser(clerkId)
 
-  const [usageSummary, generations, total, publicTotal, filteredTotal] =
-    await Promise.all([
-      getUserUsageSummary(user.id),
-      getPublicGenerations({
-        page: PAGINATION.DEFAULT_PAGE,
-        limit: PAGINATION.DEFAULT_LIMIT,
-        search: initialFilters.search || undefined,
-        model: initialFilters.model || undefined,
-        sort: initialFilters.sort,
-        type: initialFilters.type,
-        userId: user.id,
-        projectId: initialFilters.projectId || undefined,
-      }),
-      countUserGenerations(user.id),
-      countUserPublicGenerations(user.id),
-      countPublicGenerations({
-        search: initialFilters.search || undefined,
-        model: initialFilters.model || undefined,
-        type: initialFilters.type,
-        userId: user.id,
-        projectId: initialFilters.projectId || undefined,
-      }),
-    ])
+  const [usageSummary, initialPage, total, publicTotal] = await Promise.all([
+    getUserUsageSummary(user.id),
+    getPublicGenerationPage({
+      page: PAGINATION.DEFAULT_PAGE,
+      limit: PAGINATION.DEFAULT_LIMIT,
+      search: initialFilters.search || undefined,
+      model: initialFilters.model || undefined,
+      sort: initialFilters.sort,
+      type: initialFilters.type,
+      userId: user.id,
+      projectId: initialFilters.projectId || undefined,
+    }),
+    countUserGenerations(user.id),
+    countUserPublicGenerations(user.id),
+  ])
   const privateTotal = Math.max(total - publicTotal, 0)
+  const filteredTotal = initialPage.total ?? initialPage.generations.length
 
   return (
     <div className="editorial-page">
@@ -186,12 +178,10 @@ export default async function ProfilePage({
 
             <div className="pt-6">
               <ProfileFeed
-                initialGenerations={generations}
+                initialGenerations={initialPage.generations}
                 initialPage={PAGINATION.DEFAULT_PAGE}
-                initialHasMore={
-                  PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT <
-                  filteredTotal
-                }
+                initialHasMore={initialPage.hasMore}
+                initialNextCursor={initialPage.nextCursor}
                 total={filteredTotal}
                 initialFilters={initialFilters}
               />

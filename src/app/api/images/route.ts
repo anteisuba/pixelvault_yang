@@ -5,8 +5,7 @@ import { AuthError, ApiRequestError } from '@/lib/errors'
 import { GallerySearchSchema, type GalleryResponseData } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
-  getPublicGenerations,
-  countPublicGenerations,
+  getPublicGenerationPage,
   getAnonymousPublicGalleryPage,
 } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
@@ -64,10 +63,11 @@ export const GET = createApiGetRoute<
 
       const canUseAnonymousCache = !userId && !likedByUserId && !viewerUserId
 
-      const { generations, total } = canUseAnonymousCache
+      const page = canUseAnonymousCache
         ? await getAnonymousPublicGalleryPage({
             page: data.page,
             limit: data.limit,
+            cursor: data.cursor,
             search: data.search,
             model: data.model,
             sort: data.sort,
@@ -75,42 +75,29 @@ export const GET = createApiGetRoute<
             timeRange: data.timeRange,
             projectId: data.projectId,
           })
-        : await (async () => {
-            const [gens, tot] = await Promise.all([
-              getPublicGenerations({
-                page: data.page,
-                limit: data.limit,
-                search: data.search,
-                model: data.model,
-                sort: data.sort,
-                type: data.type,
-                timeRange: data.timeRange,
-                userId,
-                likedByUserId,
-                viewerUserId,
-                projectId: data.projectId,
-                provider: data.provider,
-              }),
-              countPublicGenerations({
-                search: data.search,
-                model: data.model,
-                type: data.type,
-                timeRange: data.timeRange,
-                userId,
-                likedByUserId,
-                projectId: data.projectId,
-                provider: data.provider,
-              }),
-            ])
-            return { generations: gens, total: tot }
-          })()
+        : await getPublicGenerationPage({
+            page: data.page,
+            limit: data.limit,
+            cursor: data.cursor,
+            search: data.search,
+            model: data.model,
+            sort: data.sort,
+            type: data.type,
+            timeRange: data.timeRange,
+            userId,
+            likedByUserId,
+            viewerUserId,
+            projectId: data.projectId,
+            provider: data.provider,
+          })
 
       return {
-        generations,
+        generations: page.generations,
         page: data.page,
         limit: data.limit,
-        total,
-        hasMore: data.page * data.limit < total,
+        total: page.total,
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
       }
     } catch (error) {
       if (error instanceof AuthError) {

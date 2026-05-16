@@ -3,10 +3,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
 import { GallerySearchSchema } from '@/types'
-import {
-  countPublicGenerations,
-  getPublicGenerations,
-} from '@/services/generation.service'
+import { getPublicGenerationPage } from '@/services/generation.service'
 
 import { GalleryFeed } from '@/components/business/GalleryFeed'
 import { Particles } from '@/components/ui/particles'
@@ -58,23 +55,16 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         liked: false,
         projectId: '',
       }
-  const [generations, total] = await Promise.all([
-    getPublicGenerations({
-      page: PAGINATION.DEFAULT_PAGE,
-      limit: PAGINATION.DEFAULT_LIMIT,
-      search: initialFilters.search || undefined,
-      model: initialFilters.model || undefined,
-      sort: initialFilters.sort,
-      type: initialFilters.type,
-      timeRange: initialFilters.timeRange,
-    }),
-    countPublicGenerations({
-      search: initialFilters.search || undefined,
-      model: initialFilters.model || undefined,
-      type: initialFilters.type,
-      timeRange: initialFilters.timeRange,
-    }),
-  ])
+  const initialPage = await getPublicGenerationPage({
+    page: PAGINATION.DEFAULT_PAGE,
+    limit: PAGINATION.DEFAULT_LIMIT,
+    search: initialFilters.search || undefined,
+    model: initialFilters.model || undefined,
+    sort: initialFilters.sort,
+    type: initialFilters.type,
+    timeRange: initialFilters.timeRange,
+  })
+  const total = initialPage.total ?? initialPage.generations.length
 
   return (
     <div className="relative min-h-screen">
@@ -88,11 +78,10 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
       />
       <div className="relative z-[1] mx-auto max-w-content px-4 sm:px-6 lg:px-8 pt-6 pb-12">
         <GalleryFeed
-          initialGenerations={generations}
+          initialGenerations={initialPage.generations}
           initialPage={PAGINATION.DEFAULT_PAGE}
-          initialHasMore={
-            PAGINATION.DEFAULT_PAGE * PAGINATION.DEFAULT_LIMIT < total
-          }
+          initialHasMore={initialPage.hasMore}
+          initialNextCursor={initialPage.nextCursor}
           total={total}
           initialFilters={initialFilters}
         />

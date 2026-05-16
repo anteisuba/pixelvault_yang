@@ -19,6 +19,7 @@ interface AssetSelectorDialogProps {
   initialGenerations?: GenerationRecord[]
   initialTotal?: number
   initialHasMore?: boolean
+  initialNextCursor?: string | null
   /** Visually-hidden title required by Radix Dialog for screen readers. */
   title: string
   /** Visually-hidden description for screen readers. */
@@ -55,6 +56,7 @@ export function AssetSelectorDialog({
   initialGenerations,
   initialTotal,
   initialHasMore,
+  initialNextCursor,
   title,
   description,
   mediaType,
@@ -82,6 +84,7 @@ export function AssetSelectorDialog({
             initialGenerations={initialGenerations}
             initialTotal={initialTotal}
             initialHasMore={initialHasMore}
+            initialNextCursor={initialNextCursor}
             mediaType={mediaType}
             className="!h-full !bg-transparent"
           />

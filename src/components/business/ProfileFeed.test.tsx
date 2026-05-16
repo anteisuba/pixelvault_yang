@@ -126,6 +126,7 @@ const DEFAULT_PROPS = {
   initialGenerations: [],
   initialPage: 1,
   initialHasMore: false,
+  initialNextCursor: null,
   total: 2,
   initialFilters: {
     search: '',

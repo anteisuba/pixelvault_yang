@@ -16,15 +16,22 @@ vi.mock('@/services/generate-image.service', () => ({
   generateImageForUser: vi.fn(),
   isGenerateImageServiceError: vi.fn(),
 }))
+vi.mock('@/services/image-preview-derivative.service', () => ({
+  processPendingImagePreviewDerivativeOutboxes: vi.fn(),
+}))
 
 import { POST } from '@/app/api/generate/route'
 import {
   generateImageForUser,
   isGenerateImageServiceError,
 } from '@/services/generate-image.service'
+import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image-preview-derivative.service'
 
 const mockGenerate = vi.mocked(generateImageForUser)
 const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
+const mockProcessImagePreviewDerivatives = vi.mocked(
+  processPendingImagePreviewDerivativeOutboxes,
+)
 
 // ─── Tests ────────────────────────────────────────────────────────
 
@@ -109,6 +116,11 @@ describe('POST /api/generate', () => {
       'clerk_test_user',
       expect.objectContaining({ prompt: VALID_BODY.prompt }),
     )
+    await vi.waitFor(() => {
+      expect(mockProcessImagePreviewDerivatives).toHaveBeenCalledWith({
+        limit: 2,
+      })
+    })
   })
 
   it('returns sanitized error on service failure', async () => {

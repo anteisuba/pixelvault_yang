@@ -12,11 +12,13 @@ vi.mock('@/services/apiKey.service', () => ({
 vi.mock('@/services/generation.service', () => ({
   createGeneration: vi.fn(),
 }))
+vi.mock('@/services/image-preview-derivative.service', () => ({
+  enqueueImagePreviewDerivatives: vi.fn(),
+}))
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
 }))
 vi.mock('@/services/storage/r2', () => ({
-  createImagePreviewAssets: vi.fn(),
   fetchAsBuffer: vi.fn(),
   generateStorageKey: vi.fn(),
   uploadToR2: vi.fn(),
@@ -81,9 +83,9 @@ import {
   getApiKeyValueById,
 } from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
+import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
-  createImagePreviewAssets,
   fetchAsBuffer,
   generateStorageKey,
   isOwnedStorageUrl,
@@ -167,12 +169,9 @@ function setupHappyPath() {
   })
   vi.mocked(generateStorageKey).mockReturnValue('storage/key.png')
   vi.mocked(uploadToR2).mockResolvedValue('https://cdn.example.com/image.png')
-  vi.mocked(createImagePreviewAssets).mockResolvedValue({
-    thumbnailUrl: 'https://cdn.example.com/image.thumbnail.webp',
-    thumbnailStorageKey: 'storage/key.thumbnail.webp',
-    previewUrl: 'https://cdn.example.com/image.preview.webp',
-    previewStorageKey: 'storage/key.preview.webp',
-  })
+  vi.mocked(enqueueImagePreviewDerivatives).mockResolvedValue({
+    id: 'outbox-1',
+  } as never)
   vi.mocked(uploadFromHttpToR2).mockResolvedValue({
     publicUrl: 'https://cdn.example.com/image.png',
     mimeType: 'image/png',
@@ -339,17 +338,19 @@ describe('generateImageForUser', () => {
       key: 'storage/key.png',
       mimeType: 'image/png',
     })
-    expect(createImagePreviewAssets).toHaveBeenCalledWith({
-      sourceBuffer: Buffer.from('fake'),
-      sourceStorageKey: 'storage/key.png',
-    })
     expect(createGeneration).toHaveBeenCalled()
     expect(createGeneration).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        thumbnailUrl: expect.anything(),
+        previewUrl: expect.anything(),
+      }),
+    )
+    expect(enqueueImagePreviewDerivatives).toHaveBeenCalledWith(
       expect.objectContaining({
-        thumbnailUrl: 'https://cdn.example.com/image.thumbnail.webp',
-        thumbnailStorageKey: 'storage/key.thumbnail.webp',
-        previewUrl: 'https://cdn.example.com/image.preview.webp',
-        previewStorageKey: 'storage/key.preview.webp',
+        generationJobId: 'job-1',
+        generationId: 'gen-1',
+        sourceUrl: 'https://cdn.example.com/image.png',
+        sourceStorageKey: 'storage/key.png',
       }),
     )
     expect(completeGenerationJob).toHaveBeenCalled()

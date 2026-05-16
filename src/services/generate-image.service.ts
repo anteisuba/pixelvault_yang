@@ -14,19 +14,18 @@ import {
   getApiKeyValueById,
 } from '@/services/apiKey.service'
 import { createGeneration } from '@/services/generation.service'
+import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   ProviderError,
   type ProviderGenerationResult,
 } from '@/services/providers/types'
 import {
-  createImagePreviewAssets,
   fetchAsBuffer,
   generateStorageKey,
   isOwnedStorageUrl,
   uploadFromHttpToR2,
   uploadToR2,
-  type ImagePreviewAssets,
 } from '@/services/storage/r2'
 import {
   attachUsageEntryToGeneration,
@@ -459,24 +458,6 @@ async function persistGeneratedImage(params: {
   const effectiveRefImage =
     input.referenceImage || input.referenceImages?.[0] || undefined
 
-  async function tryCreatePreviewAssets(
-    sourceBuffer: Buffer,
-  ): Promise<ImagePreviewAssets | undefined> {
-    try {
-      return await createImagePreviewAssets({
-        sourceBuffer,
-        sourceStorageKey: storageKey,
-      })
-    } catch (error) {
-      logger.warn('Image preview derivative creation failed', {
-        generationJobId,
-        storageKey,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return undefined
-    }
-  }
-
   try {
     // Reference image persistence:
     //   - Already a URL inside our R2 bucket → reuse it verbatim. The DB never
@@ -523,25 +504,19 @@ async function persistGeneratedImage(params: {
     const genImagePromise: Promise<{
       url: string
       mimeType: string
-      previewAssets?: ImagePreviewAssets
     }> = (async () => {
       const genData = await timer.measure(
         GENERATION_STAGE.RESULT_DOWNLOAD,
         () => fetchAsBuffer(asset.imageUrl),
       )
-      const [url, previewAssets] = await Promise.all([
-        timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
-          uploadToR2({
-            data: genData.buffer,
-            key: storageKey,
-            mimeType: genData.mimeType,
-          }),
-        ),
-        timer.measure(GENERATION_STAGE.THUMBNAIL_GENERATION, () =>
-          tryCreatePreviewAssets(genData.buffer),
-        ),
-      ])
-      return { url, mimeType: genData.mimeType, previewAssets }
+      const url = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+        uploadToR2({
+          data: genData.buffer,
+          key: storageKey,
+          mimeType: genData.mimeType,
+        }),
+      )
+      return { url, mimeType: genData.mimeType }
     })()
 
     const [referenceImageUrl, gen] = await Promise.all([
@@ -550,7 +525,6 @@ async function persistGeneratedImage(params: {
     ])
     const permanentUrl = gen.url
     const mimeType = gen.mimeType
-    const previewAssets = gen.previewAssets
 
     const generation = await timer.measure(
       GENERATION_STAGE.DB_FINALIZE,
@@ -572,14 +546,12 @@ async function persistGeneratedImage(params: {
           wasSuccessful: true,
         })
 
+        timer.addNote('thumbnail_generation_deferred')
+
         const createdGeneration = await createGeneration({
           url: permanentUrl,
           storageKey,
           mimeType,
-          thumbnailUrl: previewAssets?.thumbnailUrl,
-          thumbnailStorageKey: previewAssets?.thumbnailStorageKey,
-          previewUrl: previewAssets?.previewUrl,
-          previewStorageKey: previewAssets?.previewStorageKey,
           width: asset.width,
           height: asset.height,
           referenceImageUrl,
@@ -611,6 +583,24 @@ async function persistGeneratedImage(params: {
               ? BigInt(input.advancedParams.seed)
               : undefined,
         })
+
+        try {
+          await enqueueImagePreviewDerivatives({
+            generationJobId,
+            generationId: createdGeneration.id,
+            sourceUrl: permanentUrl,
+            sourceStorageKey: storageKey,
+          })
+          timer.addNote('thumbnail_generation_enqueued')
+        } catch (error) {
+          logger.warn('Image preview derivative enqueue failed', {
+            generationJobId,
+            generationId: createdGeneration.id,
+            storageKey,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          timer.addNote('thumbnail_generation_enqueue_failed')
+        }
 
         await Promise.all([
           attachUsageEntryToGeneration(usageEntry.id, createdGeneration.id),

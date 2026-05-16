@@ -25,6 +25,7 @@ export const EXECUTION_WORKFLOW_IDS = {
 
 export const EXECUTION_OUTBOX_KINDS = {
   AUDIO_QUEUE_SUBMIT: 'AUDIO_QUEUE_SUBMIT',
+  IMAGE_PREVIEW_DERIVATIVES: 'IMAGE_PREVIEW_DERIVATIVES',
 } as const
 
 export type ExecutionOutboxKind =

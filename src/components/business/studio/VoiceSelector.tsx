@@ -13,11 +13,8 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioForm } from '@/contexts/studio-context'
-import { useVoiceCards } from '@/hooks/use-voice-cards'
-import { listVoicesAPI, deleteVoiceAPI } from '@/lib/api-client'
-import { cn } from '@/lib/utils'
 import {
+  VOICE_API_ERROR_CODES,
   VOICE_CARD_PROVIDER,
   VOICE_LIBRARY_LANGUAGE_FILTERS,
   VOICE_LIBRARY_LANGUAGES,
@@ -29,6 +26,10 @@ import {
 } from '@/constants/voice-cards'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
+import { useStudioForm } from '@/contexts/studio-context'
+import { useVoiceCards } from '@/hooks/use-voice-cards'
+import { listVoicesAPI, deleteVoiceAPI } from '@/lib/api-client'
+import { cn } from '@/lib/utils'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -99,7 +100,11 @@ export const VoiceSelector = memo(function VoiceSelector() {
     } else {
       setVoices([])
       setTotal(0)
-      setError(result.error ?? t('voiceLoadFailed'))
+      setError(
+        result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
+          ? t('voiceApiKeyRequired')
+          : (result.error ?? t('voiceLoadFailed')),
+      )
     }
     setIsLoading(false)
   }, [tab, page, debouncedSearch, language, sortBy, t])

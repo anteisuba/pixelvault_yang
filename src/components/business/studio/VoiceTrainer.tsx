@@ -5,6 +5,7 @@ import { Loader2, Mic, Plus, Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
 import { useStudioForm } from '@/contexts/studio-context'
 import { createVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
@@ -82,7 +83,11 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
       setFiles([])
       setTranscript('')
     } else {
-      toast.error(result.error ?? t('voiceTrainFailed'))
+      toast.error(
+        result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
+          ? t('voiceApiKeyRequired')
+          : (result.error ?? t('voiceTrainFailed')),
+      )
     }
   }
 

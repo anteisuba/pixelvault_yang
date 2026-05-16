@@ -3,7 +3,7 @@ import type {
   GalleryResponse,
   GenerationRecord,
 } from '@/types'
-import { API_ENDPOINTS, PAGINATION } from '@/constants/config'
+import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
 
@@ -116,6 +116,7 @@ export async function assignGenerationProjectAPI(
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (!response.ok) {
       return {
@@ -142,6 +143,7 @@ export async function deleteGenerationAPI(
   try {
     const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}`, {
       method: 'DELETE',
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (response.status === 204) return { success: true }
     if (!response.ok) {
@@ -173,7 +175,17 @@ export async function batchDeleteGenerationsAPI(ids: string[]): Promise<{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', ids }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
     return await response.json()
   } catch (error) {
     return {
@@ -227,7 +239,17 @@ export async function batchUpdateVisibilityAPI(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'visibility', ids, field, value }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
     return await response.json()
   } catch (error) {
     return {
@@ -251,7 +273,51 @@ export async function batchSetLikeAPI(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'like', ids, value }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function batchAssignProjectAPI(
+  ids: string[],
+  projectId: string | null,
+): Promise<{
+  success: boolean
+  data?: { updatedCount: number }
+  error?: string
+}> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'project', ids, projectId }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
     return await response.json()
   } catch (error) {
     return {

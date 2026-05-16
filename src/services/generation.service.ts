@@ -27,6 +27,28 @@ type GenerationMutationClient = Pick<
   'generation' | 'generationCharacterCard'
 >
 
+interface GenerationStorageKeyFields {
+  storageKey: string | null
+  thumbnailStorageKey?: string | null
+  previewStorageKey?: string | null
+  modelStorageKey?: string | null
+}
+
+function getGenerationStorageKeys(
+  generation: GenerationStorageKeyFields,
+): string[] {
+  return Array.from(
+    new Set(
+      [
+        generation.storageKey,
+        generation.thumbnailStorageKey,
+        generation.previewStorageKey,
+        generation.modelStorageKey,
+      ].filter((key): key is string => typeof key === 'string' && key !== ''),
+    ),
+  )
+}
+
 export interface CreateGenerationInput {
   url: string
   storageKey: string
@@ -690,6 +712,7 @@ export async function getPublicGenerationById(
 
 /** Fields that can be toggled on a generation */
 export type ToggleableField = 'isPublic' | 'isPromptPublic' | 'isFeatured'
+export type VisibilityFieldValues = Partial<Record<ToggleableField, boolean>>
 
 /** Maximum number of featured generations per user */
 const MAX_FEATURED_PER_USER = 9
@@ -704,6 +727,7 @@ export async function toggleGenerationVisibility(
   id: string,
   userId: string,
   field: ToggleableField = 'isPublic',
+  value?: boolean,
 ): Promise<
   | (Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'> & {
       isFeatured?: boolean
@@ -726,8 +750,10 @@ export async function toggleGenerationVisibility(
     return null
   }
 
+  const nextValue = value ?? !generation[field]
+
   // Enforce featured limit when turning ON
-  if (field === 'isFeatured' && !generation.isFeatured) {
+  if (field === 'isFeatured' && nextValue && !generation.isFeatured) {
     const featuredCount = await db.generation.count({
       where: { userId, isFeatured: true },
     })
@@ -738,7 +764,7 @@ export async function toggleGenerationVisibility(
 
   const updated = await db.generation.update({
     where: { id },
-    data: { [field]: !generation[field] },
+    data: { [field]: nextValue },
     select: {
       id: true,
       isPublic: true,
@@ -747,7 +773,66 @@ export async function toggleGenerationVisibility(
     },
   })
 
-  if (field === 'isPublic') {
+  if (field === 'isPublic' || field === 'isPromptPublic') {
+    invalidatePublicGalleryCache()
+  }
+
+  return updated
+}
+
+export async function setGenerationVisibility(
+  id: string,
+  userId: string,
+  values: VisibilityFieldValues,
+): Promise<
+  | (Pick<GenerationRecord, 'id' | 'isPublic' | 'isPromptPublic'> & {
+      isFeatured?: boolean
+    })
+  | { error: string }
+  | null
+> {
+  const generation = await db.generation.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      userId: true,
+      isFeatured: true,
+    },
+  })
+
+  if (!generation || generation.userId !== userId) {
+    return null
+  }
+
+  if (values.isFeatured === true && !generation.isFeatured) {
+    const featuredCount = await db.generation.count({
+      where: { userId, isFeatured: true },
+    })
+    if (featuredCount >= MAX_FEATURED_PER_USER) {
+      return { error: `MAX_FEATURED_EXCEEDED` }
+    }
+  }
+
+  const data = Object.fromEntries(
+    Object.entries(values).filter(([, value]) => typeof value === 'boolean'),
+  ) as VisibilityFieldValues
+
+  if (Object.keys(data).length === 0) {
+    return null
+  }
+
+  const updated = await db.generation.update({
+    where: { id },
+    data,
+    select: {
+      id: true,
+      isPublic: true,
+      isPromptPublic: true,
+      isFeatured: true,
+    },
+  })
+
+  if ('isPublic' in data || 'isPromptPublic' in data) {
     invalidatePublicGalleryCache()
   }
 
@@ -885,13 +970,13 @@ export async function getAssetSectionCounts(
 }
 
 /**
- * Hard-delete a generation: remove from DB and return storageKey for R2 cleanup.
+ * Hard-delete a generation: remove from DB and return storage keys for R2 cleanup.
  * Returns null if not found or not owned by the user.
  */
 export async function deleteGeneration(
   id: string,
   userId: string,
-): Promise<{ storageKey: string } | null> {
+): Promise<{ storageKeys: string[] } | null> {
   const generation = await db.generation.findUnique({
     where: { id },
   })
@@ -900,15 +985,13 @@ export async function deleteGeneration(
     return null
   }
 
-  try {
-    await updatePreferenceOnDeleted(userId, generation)
-  } catch (error) {
+  updatePreferenceOnDeleted(userId, generation).catch((error) => {
     logger.warn('Generation deletion preference update failed', {
       generationId: generation.id,
       userId,
       error: error instanceof Error ? error.message : String(error),
     })
-  }
+  })
 
   await db.generation.delete({ where: { id } })
 
@@ -916,7 +999,7 @@ export async function deleteGeneration(
     invalidatePublicGalleryCache()
   }
 
-  return { storageKey: generation.storageKey }
+  return { storageKeys: getGenerationStorageKeys(generation) }
 }
 
 /**
@@ -929,7 +1012,13 @@ export async function batchDeleteGenerations(
 ): Promise<{ deletedCount: number; storageKeys: string[] }> {
   const generations = await db.generation.findMany({
     where: { id: { in: ids }, userId },
-    select: { id: true, storageKey: true },
+    select: {
+      id: true,
+      storageKey: true,
+      thumbnailStorageKey: true,
+      previewStorageKey: true,
+      modelStorageKey: true,
+    },
   })
 
   if (generations.length === 0) return { deletedCount: 0, storageKeys: [] }
@@ -941,7 +1030,7 @@ export async function batchDeleteGenerations(
 
   return {
     deletedCount: generations.length,
-    storageKeys: generations.map((g) => g.storageKey),
+    storageKeys: generations.flatMap(getGenerationStorageKeys),
   }
 }
 
@@ -961,6 +1050,26 @@ export async function batchUpdateVisibility(
   if (field === 'isPublic' && result.count > 0) {
     invalidatePublicGalleryCache()
   }
+  return result.count
+}
+
+export async function batchAssignProject(
+  ids: string[],
+  userId: string,
+  projectId: string | null,
+): Promise<number | null> {
+  if (projectId !== null) {
+    const project = await db.project.findFirst({
+      where: { id: projectId, userId, isDeleted: false },
+      select: { id: true },
+    })
+    if (!project) return null
+  }
+
+  const result = await db.generation.updateMany({
+    where: { id: { in: ids }, userId },
+    data: { projectId },
+  })
   return result.count
 }
 

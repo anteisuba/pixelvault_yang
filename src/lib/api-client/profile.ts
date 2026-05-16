@@ -6,7 +6,7 @@ import type {
   UpdateProfileResponse,
   UploadProfileImageResponse,
 } from '@/types'
-import { API_ENDPOINTS } from '@/constants/config'
+import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
 
@@ -176,6 +176,7 @@ export async function toggleLikeAPI(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ generationId }),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (!response.ok) {
       return {

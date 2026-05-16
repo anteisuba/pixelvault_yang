@@ -3,13 +3,22 @@ import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { VOICE_LIBRARY_SORT_BY_VALUES } from '@/constants/voice-cards'
+import {
+  VOICE_API_ERROR_CODES,
+  VOICE_LIBRARY_SORT_BY_VALUES,
+} from '@/constants/voice-cards'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
 import { logger } from '@/lib/logger'
 
 export const maxDuration = 60
+
+const FISH_AUDIO_KEY_REQUIRED_ERROR = {
+  success: false,
+  errorCode: VOICE_API_ERROR_CODES.MISSING_API_KEY,
+  error: 'Fish Audio API key is required.',
+} as const
 
 // ─── GET /api/voices — list voices (public + my voices) ──────────
 
@@ -35,23 +44,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const dbUser = await ensureUser(clerkId)
-    const apiKey = await findActiveKeyForAdapter(
-      dbUser.id,
-      AI_ADAPTER_TYPES.FISH_AUDIO,
-    )
-
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'No active Fish Audio API key. Please add one in API Keys settings.',
-        },
-        { status: 400 },
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const parsed = ListQuerySchema.safeParse({
       self: searchParams.get('self') ?? undefined,
@@ -70,6 +62,16 @@ export async function GET(request: NextRequest) {
     }
 
     const { self, page, pageSize, search, language, sortBy } = parsed.data
+    const dbUser = await ensureUser(clerkId)
+    const apiKey = await findActiveKeyForAdapter(
+      dbUser.id,
+      AI_ADAPTER_TYPES.FISH_AUDIO,
+    )
+
+    if (!apiKey) {
+      return NextResponse.json(FISH_AUDIO_KEY_REQUIRED_ERROR, { status: 400 })
+    }
+
     const result = await listVoices(apiKey.keyValue, {
       self,
       pageSize,
@@ -110,14 +112,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!apiKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'No active Fish Audio API key. Please add one in API Keys settings.',
-        },
-        { status: 400 },
-      )
+      return NextResponse.json(FISH_AUDIO_KEY_REQUIRED_ERROR, { status: 400 })
     }
 
     const formData = await request.formData()

@@ -5,7 +5,7 @@ import type {
   ProjectsResponse,
   UpdateProjectRequest,
 } from '@/types'
-import { API_ENDPOINTS } from '@/constants/config'
+import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
 
@@ -37,6 +37,7 @@ export async function createProjectAPI(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (!response.ok) {
       return {
@@ -64,6 +65,7 @@ export async function updateProjectAPI(
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (!response.ok) {
       return {
@@ -88,6 +90,7 @@ export async function deleteProjectAPI(
   try {
     const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${id}`, {
       method: 'DELETE',
+      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
     if (response.status === 204) return { success: true }
     if (!response.ok) {

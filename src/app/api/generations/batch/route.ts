@@ -3,12 +3,14 @@ import 'server-only'
 import { z } from 'zod'
 
 import {
+  batchAssignProject,
   batchDeleteGenerations,
   batchUpdateVisibility,
 } from '@/services/generation.service'
 import { batchSetLike } from '@/services/like.service'
-import { deleteFromR2 } from '@/services/storage/r2'
+import { deleteManyFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
+import { ApiRequestError } from '@/lib/errors'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
@@ -30,10 +32,17 @@ const BatchLikeSchema = z.object({
   value: z.boolean(),
 })
 
+const BatchProjectSchema = z.object({
+  action: z.literal('project'),
+  ids: z.array(z.string().uuid()).min(1).max(100),
+  projectId: z.string().uuid().nullable(),
+})
+
 const BatchRequestSchema = z.discriminatedUnion('action', [
   BatchDeleteSchema,
   BatchVisibilitySchema,
   BatchLikeSchema,
+  BatchProjectSchema,
 ])
 
 export const POST = createApiRoute({
@@ -48,14 +57,29 @@ export const POST = createApiRoute({
         data.ids,
         user.id,
       )
-      for (const key of storageKeys) {
-        deleteFromR2(key).catch(() => {})
-      }
+      deleteManyFromR2(storageKeys).catch(() => {})
       return { deletedCount }
     }
 
     if (data.action === 'like') {
       const { updatedCount } = await batchSetLike(user.id, data.ids, data.value)
+      return { updatedCount }
+    }
+
+    if (data.action === 'project') {
+      const updatedCount = await batchAssignProject(
+        data.ids,
+        user.id,
+        data.projectId,
+      )
+      if (updatedCount === null) {
+        throw new ApiRequestError(
+          'PROJECT_NOT_FOUND',
+          404,
+          'errors.notFound',
+          'Folder not found or access denied',
+        )
+      }
       return { updatedCount }
     }
 

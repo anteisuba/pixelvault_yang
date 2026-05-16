@@ -8,12 +8,14 @@ interface VoiceListResponse {
   success: boolean
   data?: FishAudioVoiceListResult
   error?: string
+  errorCode?: string
 }
 
 interface VoiceResponse {
   success: boolean
   data?: FishAudioVoice
   error?: string
+  errorCode?: string
 }
 
 export async function listVoicesAPI(params: {
@@ -38,6 +40,7 @@ export async function listVoicesAPI(params: {
       const payload = await response.json().catch(() => ({}))
       return {
         success: false,
+        errorCode: (payload as { errorCode?: string }).errorCode,
         error:
           (payload as { error?: string }).error ??
           `Failed with status ${response.status}`,
@@ -65,6 +68,7 @@ export async function createVoiceAPI(
       const payload = await response.json().catch(() => ({}))
       return {
         success: false,
+        errorCode: (payload as { errorCode?: string }).errorCode,
         error:
           (payload as { error?: string }).error ??
           `Failed with status ${response.status}`,

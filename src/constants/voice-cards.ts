@@ -18,6 +18,10 @@ export const VOICE_CARD_PITCHES = ['low', 'medium', 'high'] as const
 
 export const VOICE_CARD_DEFAULT_PROVIDER = VOICE_CARD_PROVIDER.FISH_AUDIO
 
+export const VOICE_API_ERROR_CODES = {
+  MISSING_API_KEY: 'MISSING_API_KEY',
+} as const
+
 export const VOICE_CARD_DEFAULT_PACE = 'normal'
 
 export const AUDIO_EMOTION = {

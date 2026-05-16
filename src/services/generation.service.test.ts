@@ -10,6 +10,7 @@ const mockGenerationUpdate = vi.hoisted(() => vi.fn())
 const mockGenerationUpdateMany = vi.hoisted(() => vi.fn())
 const mockGenerationDelete = vi.hoisted(() => vi.fn())
 const mockGenerationDeleteMany = vi.hoisted(() => vi.fn())
+const mockProjectFindFirst = vi.hoisted(() => vi.fn())
 const mockGenerationCharacterCardCreateMany = vi.hoisted(() => vi.fn())
 const mockDbTransaction = vi.hoisted(() => vi.fn())
 const mockUpdatePreferenceOnDeleted = vi.hoisted(() => vi.fn())
@@ -37,11 +38,15 @@ vi.mock('@/lib/db', () => ({
       createMany: (...args: unknown[]) =>
         mockGenerationCharacterCardCreateMany(...args),
     },
+    project: {
+      findFirst: (...args: unknown[]) => mockProjectFindFirst(...args),
+    },
     $transaction: (...args: unknown[]) => mockDbTransaction(...args),
   },
 }))
 
 import {
+  batchAssignProject,
   batchDeleteGenerations,
   batchUpdateVisibility,
   countPublicGenerations,
@@ -56,6 +61,7 @@ import {
   getPublicGenerations,
   getUserGenerations,
   selectVariantWinner,
+  setGenerationVisibility,
   toggleGenerationVisibility,
 } from './generation.service'
 
@@ -533,6 +539,41 @@ describe('generation.service', () => {
       })
     })
 
+    it('uses an explicit value instead of inverting the current field', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        isPublic: true,
+        isPromptPublic: true,
+        isFeatured: false,
+      })
+      mockGenerationUpdate.mockResolvedValue({
+        id: 'gen-1',
+        isPublic: false,
+        isPromptPublic: true,
+        isFeatured: false,
+      })
+
+      const result = await toggleGenerationVisibility(
+        'gen-1',
+        'user-1',
+        'isPublic',
+        false,
+      )
+
+      expect(result).toMatchObject({ id: 'gen-1', isPublic: false })
+      expect(mockGenerationUpdate).toHaveBeenCalledWith({
+        where: { id: 'gen-1' },
+        data: { isPublic: false },
+        select: {
+          id: true,
+          isPublic: true,
+          isPromptPublic: true,
+          isFeatured: true,
+        },
+      })
+    })
+
     it('enforces the featured generation limit', async () => {
       mockGenerationFindUnique.mockResolvedValue({
         id: 'gen-1',
@@ -548,6 +589,75 @@ describe('generation.service', () => {
         'user-1',
         'isFeatured',
       )
+
+      expect(result).toEqual({ error: 'MAX_FEATURED_EXCEEDED' })
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setGenerationVisibility', () => {
+    it('returns null when the generation is not owned by the user', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'other-user',
+        isFeatured: false,
+      })
+
+      await expect(
+        setGenerationVisibility('gen-1', 'user-1', {
+          isPublic: true,
+          isPromptPublic: false,
+        }),
+      ).resolves.toBeNull()
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+
+    it('updates multiple visibility fields for the owner', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        isFeatured: false,
+      })
+      mockGenerationUpdate.mockResolvedValue({
+        id: 'gen-1',
+        isPublic: true,
+        isPromptPublic: false,
+        isFeatured: false,
+      })
+
+      const result = await setGenerationVisibility('gen-1', 'user-1', {
+        isPublic: true,
+        isPromptPublic: false,
+      })
+
+      expect(result).toMatchObject({
+        id: 'gen-1',
+        isPublic: true,
+        isPromptPublic: false,
+      })
+      expect(mockGenerationUpdate).toHaveBeenCalledWith({
+        where: { id: 'gen-1' },
+        data: { isPublic: true, isPromptPublic: false },
+        select: {
+          id: true,
+          isPublic: true,
+          isPromptPublic: true,
+          isFeatured: true,
+        },
+      })
+    })
+
+    it('enforces the featured generation limit when setting featured true', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        isFeatured: false,
+      })
+      mockGenerationCount.mockResolvedValue(9)
+
+      const result = await setGenerationVisibility('gen-1', 'user-1', {
+        isFeatured: true,
+      })
 
       expect(result).toEqual({ error: 'MAX_FEATURED_EXCEEDED' })
       expect(mockGenerationUpdate).not.toHaveBeenCalled()
@@ -668,7 +778,7 @@ describe('generation.service', () => {
       mockGenerationDelete.mockResolvedValue({ id: 'gen-1' })
 
       await expect(deleteGeneration('gen-1', 'user-1')).resolves.toEqual({
-        storageKey: 'owned.png',
+        storageKeys: ['owned.png'],
       })
       expect(mockUpdatePreferenceOnDeleted).toHaveBeenCalledWith(
         'user-1',
@@ -691,7 +801,7 @@ describe('generation.service', () => {
       mockGenerationDelete.mockResolvedValue({ id: 'gen-1' })
 
       await expect(deleteGeneration('gen-1', 'user-1')).resolves.toEqual({
-        storageKey: 'owned.png',
+        storageKeys: ['owned.png'],
       })
       expect(mockGenerationDelete).toHaveBeenCalledWith({
         where: { id: 'gen-1' },
@@ -702,8 +812,20 @@ describe('generation.service', () => {
   describe('batch operations', () => {
     it('batch deletes only owned generations and returns storage keys', async () => {
       mockGenerationFindMany.mockResolvedValue([
-        { id: 'gen-1', storageKey: 'one.png' },
-        { id: 'gen-2', storageKey: 'two.png' },
+        {
+          id: 'gen-1',
+          storageKey: 'one.png',
+          thumbnailStorageKey: 'one-thumb.webp',
+          previewStorageKey: 'one-preview.webp',
+          modelStorageKey: null,
+        },
+        {
+          id: 'gen-2',
+          storageKey: 'two.png',
+          thumbnailStorageKey: null,
+          previewStorageKey: null,
+          modelStorageKey: 'two.glb',
+        },
       ])
       mockGenerationDeleteMany.mockResolvedValue({ count: 2 })
 
@@ -714,7 +836,13 @@ describe('generation.service', () => {
 
       expect(result).toEqual({
         deletedCount: 2,
-        storageKeys: ['one.png', 'two.png'],
+        storageKeys: [
+          'one.png',
+          'one-thumb.webp',
+          'one-preview.webp',
+          'two.png',
+          'two.glb',
+        ],
       })
       expect(mockGenerationDeleteMany).toHaveBeenCalledWith({
         where: { id: { in: ['gen-1', 'gen-2'] } },
@@ -730,6 +858,45 @@ describe('generation.service', () => {
       expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
         where: { id: { in: ['gen-1', 'gen-2'] }, userId: 'user-1' },
         data: { isPublic: true },
+      })
+    })
+
+    it('batch assigns owned generations to an owned project', async () => {
+      mockProjectFindFirst.mockResolvedValue({ id: 'proj-1' })
+      mockGenerationUpdateMany.mockResolvedValue({ count: 2 })
+
+      await expect(
+        batchAssignProject(['gen-1', 'gen-2'], 'user-1', 'proj-1'),
+      ).resolves.toBe(2)
+      expect(mockProjectFindFirst).toHaveBeenCalledWith({
+        where: { id: 'proj-1', userId: 'user-1', isDeleted: false },
+        select: { id: true },
+      })
+      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['gen-1', 'gen-2'] }, userId: 'user-1' },
+        data: { projectId: 'proj-1' },
+      })
+    })
+
+    it('returns null when the target project is not owned by the user', async () => {
+      mockProjectFindFirst.mockResolvedValue(null)
+
+      await expect(
+        batchAssignProject(['gen-1'], 'user-1', 'proj-1'),
+      ).resolves.toBeNull()
+      expect(mockGenerationUpdateMany).not.toHaveBeenCalled()
+    })
+
+    it('batch moves owned generations back to unassigned', async () => {
+      mockGenerationUpdateMany.mockResolvedValue({ count: 1 })
+
+      await expect(batchAssignProject(['gen-1'], 'user-1', null)).resolves.toBe(
+        1,
+      )
+      expect(mockProjectFindFirst).not.toHaveBeenCalled()
+      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['gen-1'] }, userId: 'user-1' },
+        data: { projectId: null },
       })
     })
   })

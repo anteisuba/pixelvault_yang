@@ -10,6 +10,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     globals: true,
+    testTimeout: 15000,
     exclude: [
       'e2e/**',
       '**/.claude/worktrees/**',

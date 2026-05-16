@@ -35,7 +35,7 @@ import type {
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
-import { API_ENDPOINTS } from '@/constants/config'
+import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
 import {
   downloadRemoteAsset,
@@ -299,6 +299,7 @@ export async function checkAudioStatusAPI(
 export async function toggleGenerationVisibility(
   id: string,
   field: 'isPublic' | 'isPromptPublic' | 'isFeatured' = 'isPublic',
+  value?: boolean,
 ): Promise<ToggleVisibilityResponse> {
   try {
     const response = await fetch(
@@ -306,7 +307,46 @@ export async function toggleGenerationVisibility(
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field }),
+        body: JSON.stringify({ field, ...(value != null && { value }) }),
+        signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+      },
+    )
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function setGenerationVisibility(
+  id: string,
+  values: Partial<
+    Record<'isPublic' | 'isPromptPublic' | 'isFeatured', boolean>
+  >,
+): Promise<ToggleVisibilityResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.GENERATIONS}/${id}/visibility`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+        signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
       },
     )
     if (!response.ok) {

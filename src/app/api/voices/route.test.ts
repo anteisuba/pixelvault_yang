@@ -28,6 +28,7 @@ import { GET, POST } from './route'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
+import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
 
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockFindActiveKeyForAdapter = vi.mocked(findActiveKeyForAdapter)
@@ -93,10 +94,15 @@ describe('GET /api/voices', () => {
     mockFindActiveKeyForAdapter.mockResolvedValue(null)
 
     const res = await GET(createGET('/api/voices'))
-    const body = await parseJSON<{ success: boolean; error: string }>(res)
+    const body = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode: string
+    }>(res)
 
     expect(res.status).toBe(400)
     expect(body.success).toBe(false)
+    expect(body.errorCode).toBe(VOICE_API_ERROR_CODES.MISSING_API_KEY)
     expect(mockListVoices).not.toHaveBeenCalled()
   })
 
@@ -148,6 +154,24 @@ describe('POST /api/voices', () => {
 
     expect(res.status).toBe(401)
     expect(body.success).toBe(false)
+    expect(mockCreateVoice).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the user has no active Fish Audio API key', async () => {
+    mockFindActiveKeyForAdapter.mockResolvedValue(null)
+    const formData = new FormData()
+    formData.append('title', 'Narrator')
+
+    const res = await POST(createFormPOST(formData))
+    const body = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode: string
+    }>(res)
+
+    expect(res.status).toBe(400)
+    expect(body.success).toBe(false)
+    expect(body.errorCode).toBe(VOICE_API_ERROR_CODES.MISSING_API_KEY)
     expect(mockCreateVoice).not.toHaveBeenCalled()
   })
 

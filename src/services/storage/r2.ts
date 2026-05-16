@@ -534,3 +534,26 @@ export async function deleteFromR2(key: string): Promise<void> {
     }),
   )
 }
+
+export async function deleteManyFromR2(keys: string[]): Promise<void> {
+  const uniqueKeys = Array.from(
+    new Set(keys.map((key) => key.trim()).filter(Boolean)),
+  )
+  if (uniqueKeys.length === 0) return
+
+  const results = await Promise.allSettled(
+    uniqueKeys.map((key) => deleteFromR2(key)),
+  )
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.error('R2 cleanup failed', {
+        key: uniqueKeys[index],
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+      })
+    }
+  })
+}

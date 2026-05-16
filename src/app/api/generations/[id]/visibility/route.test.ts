@@ -12,6 +12,7 @@ import {
 // ─── Mocks ────────────────────────────────────────────────────────
 
 vi.mock('@/services/generation.service', () => ({
+  setGenerationVisibility: vi.fn(),
   toggleGenerationVisibility: vi.fn(),
 }))
 
@@ -20,10 +21,14 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 import { PATCH } from '@/app/api/generations/[id]/visibility/route'
-import { toggleGenerationVisibility } from '@/services/generation.service'
+import {
+  setGenerationVisibility,
+  toggleGenerationVisibility,
+} from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 
 const mockToggle = vi.mocked(toggleGenerationVisibility)
+const mockSetVisibility = vi.mocked(setGenerationVisibility)
 const mockEnsureUser = vi.mocked(ensureUser)
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -42,6 +47,11 @@ describe('PATCH /api/generations/[id]/visibility', () => {
     mockToggle.mockResolvedValue({
       id: 'gen_123',
       isPublic: false,
+      isPromptPublic: false,
+    })
+    mockSetVisibility.mockResolvedValue({
+      id: 'gen_123',
+      isPublic: true,
       isPromptPublic: false,
     })
   })
@@ -106,6 +116,7 @@ describe('PATCH /api/generations/[id]/visibility', () => {
       'gen_123',
       FAKE_DB_USER.id,
       'isPublic',
+      undefined,
     )
   })
 
@@ -135,7 +146,51 @@ describe('PATCH /api/generations/[id]/visibility', () => {
       'gen_123',
       FAKE_DB_USER.id,
       'isPromptPublic',
+      undefined,
     )
+  })
+
+  it('passes explicit field value when specified in body', async () => {
+    const req = new NextRequest(
+      new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'isPublic', value: true }),
+      },
+    )
+
+    const res = await PATCH(req, routeParams('gen_123'))
+
+    expect(res.status).toBe(200)
+    expect(mockToggle).toHaveBeenCalledWith(
+      'gen_123',
+      FAKE_DB_USER.id,
+      'isPublic',
+      true,
+    )
+  })
+
+  it('sets multiple visibility fields when values are specified', async () => {
+    const req = new NextRequest(
+      new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          values: { isPublic: true, isPromptPublic: false },
+        }),
+      },
+    )
+
+    const res = await PATCH(req, routeParams('gen_123'))
+
+    expect(res.status).toBe(200)
+    expect(mockSetVisibility).toHaveBeenCalledWith('gen_123', FAKE_DB_USER.id, {
+      isPublic: true,
+      isPromptPublic: false,
+    })
+    expect(mockToggle).not.toHaveBeenCalled()
   })
 
   it('returns 400 for invalid field value', async () => {

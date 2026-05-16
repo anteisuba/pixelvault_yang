@@ -4,9 +4,8 @@ import {
   deleteGeneration,
   getGenerationById,
 } from '@/services/generation.service'
-import { deleteFromR2 } from '@/services/storage/r2'
+import { deleteManyFromR2 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
-import { logger } from '@/lib/logger'
 import {
   createApiDeleteRoute,
   createApiGetByIdRoute,
@@ -40,12 +39,7 @@ export const DELETE = createApiDeleteRoute({
     const result = await deleteGeneration(id, user.id)
     if (!result) return false
 
-    // R2 cleanup in background (best-effort)
-    deleteFromR2(result.storageKey).catch((error) => {
-      logger.error('DELETE /api/generations/[id] R2 cleanup failed', {
-        error: error instanceof Error ? error.message : String(error),
-      })
-    })
+    deleteManyFromR2(result.storageKeys).catch(() => {})
 
     return true
   },

@@ -2,7 +2,10 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { toggleGenerationVisibility } from '@/services/generation.service'
+import {
+  setGenerationVisibility,
+  toggleGenerationVisibility,
+} from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import { ApiRequestError } from '@/lib/errors'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
@@ -12,6 +15,14 @@ const VisibilitySchema = z.object({
   field: z
     .enum(['isPublic', 'isPromptPublic', 'isFeatured'])
     .default('isPublic'),
+  value: z.boolean().optional(),
+  values: z
+    .object({
+      isPublic: z.boolean().optional(),
+      isPromptPublic: z.boolean().optional(),
+      isFeatured: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 export const PATCH = createApiPatchByIdRoute({
@@ -21,7 +32,9 @@ export const PATCH = createApiPatchByIdRoute({
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) => {
     const user = await ensureUser(clerkId)
-    const result = await toggleGenerationVisibility(id, user.id, data.field)
+    const result = data.values
+      ? await setGenerationVisibility(id, user.id, data.values)
+      : await toggleGenerationVisibility(id, user.id, data.field, data.value)
     if (!result) return null
     if ('error' in result) {
       throw new ApiRequestError(

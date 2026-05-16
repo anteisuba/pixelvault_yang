@@ -182,6 +182,11 @@ export const API_ENDPOINTS = {
   LORA_TRAINING: '/api/lora-training',
 } as const
 
+/** Client-side API request guardrails */
+export const CLIENT_API = {
+  ACTION_TIMEOUT_MS: 15_000,
+} as const
+
 /** LoRA Training configuration */
 export const LORA_TRAINING = {
   MIN_IMAGES: 5,

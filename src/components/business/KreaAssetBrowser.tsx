@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Circle,
   Folder,
+  FolderInput,
   FolderOpen,
   FolderX,
   Globe,
@@ -36,6 +37,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
@@ -44,12 +52,13 @@ import { ROUTES } from '@/constants/routes'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
 import {
+  batchAssignProjectAPI,
   batchDeleteGenerationsAPI,
   batchSetLikeAPI,
   batchUpdateVisibilityAPI,
   fetchAssetSectionCounts,
   fetchGalleryImages,
-} from '@/lib/api-client'
+} from '@/lib/api-client/gallery'
 import {
   makeGalleryCacheKey,
   readGalleryCache,
@@ -145,6 +154,22 @@ function sectionFromFilters(
     return { kind: 'type', type: filters.type }
   }
   return { kind: 'all' }
+}
+
+function shouldKeepAssetAfterProjectMove(
+  section: Section,
+  projectId: string | null,
+): boolean {
+  if (
+    section.kind === 'all' ||
+    section.kind === 'favorites' ||
+    section.kind === 'uploads' ||
+    section.kind === 'type'
+  ) {
+    return true
+  }
+  if (section.kind === 'unassigned') return projectId === null
+  return section.id === projectId
 }
 
 /**
@@ -257,6 +282,7 @@ export function KreaAssetBrowser({
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
   const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
+  const [isBulkMoving, setIsBulkMoving] = useState(false)
 
   // ── Confirm action state ──────────────────────────────────────
   // One AlertDialog handles every destructive flow (bulk delete, publish,
@@ -268,6 +294,11 @@ export function KreaAssetBrowser({
     | { kind: 'favorite-bulk'; count: number }
     | { kind: 'delete-folder'; id: string; name: string }
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editingProjectName, setEditingProjectName] = useState('')
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(
+    null,
+  )
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -313,6 +344,9 @@ export function KreaAssetBrowser({
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
     setIsBulkDeleting(true)
+    ids.forEach((id) => removeGeneration(id))
+    exitSelectionMode()
+    void refreshCounts()
     try {
       const result = await batchDeleteGenerationsAPI(ids)
       if (!result.success) {
@@ -320,10 +354,8 @@ export function KreaAssetBrowser({
         return
       }
       const deletedCount = result.data?.deletedCount ?? ids.length
-      ids.forEach((id) => removeGeneration(id))
       void refreshCounts()
       toast.success(t('bulkDeleteSuccess', { count: deletedCount }))
-      exitSelectionMode()
     } finally {
       setIsBulkDeleting(false)
     }
@@ -383,6 +415,41 @@ export function KreaAssetBrowser({
       setIsBulkFavoriting(false)
     }
   }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
+
+  const performBulkMove = useCallback(
+    async (projectId: string | null) => {
+      const ids = Array.from(selectedIds)
+      if (ids.length === 0) return
+      setIsBulkMoving(true)
+      try {
+        const result = await batchAssignProjectAPI(ids, projectId)
+        if (!result.success) {
+          toast.error(result.error ?? t('bulkMoveFailed'))
+          return
+        }
+        const updatedCount = result.data?.updatedCount ?? ids.length
+        const shouldKeep = shouldKeepAssetAfterProjectMove(section, projectId)
+        ids.forEach((id) => {
+          if (shouldKeep) updateGeneration(id, { projectId })
+          else removeGeneration(id)
+        })
+        void refreshCounts()
+        toast.success(t('bulkMoveSuccess', { count: updatedCount }))
+        exitSelectionMode()
+      } finally {
+        setIsBulkMoving(false)
+      }
+    },
+    [
+      selectedIds,
+      section,
+      t,
+      updateGeneration,
+      removeGeneration,
+      refreshCounts,
+      exitSelectionMode,
+    ],
+  )
 
   // Folder reassignment may push the asset out of the current section
   // (e.g. user is viewing "Unassigned" and moves into a folder). Drop
@@ -455,24 +522,21 @@ export function KreaAssetBrowser({
     setFilters(filtersForSection(next))
   }
 
+  const prefetchingCacheKeysRef = useRef<Set<string>>(new Set())
+
   // Warm the module-level gallery cache for a section the cursor is
   // about to click. By the time setFilters runs there's a cache hit,
-  // turning the click → render into a 0ms transition. Skips when the
-  // target filter is already cached so we don't double-fetch.
+  // turning the click → render into a 0ms transition. In-flight keys
+  // are tracked outside the cache so a hover cannot poison the real
+  // cache with an empty placeholder.
   const prefetchSection = useCallback(
     (next: Section) => {
       const targetFilters = filtersForSection(next)
       const key = makeGalleryCacheKey(targetFilters, true, 24)
-      if (readGalleryCache(key)) return
-      // Reserve the slot synchronously with an empty entry so a quick
-      // double-hover doesn't fire two parallel requests. The real data
-      // overwrites it when the fetch resolves.
-      writeGalleryCache(key, {
-        generations: [],
-        total: 0,
-        hasMore: false,
-        nextCursor: null,
-      })
+      if (readGalleryCache(key) || prefetchingCacheKeysRef.current.has(key)) {
+        return
+      }
+      prefetchingCacheKeysRef.current.add(key)
       const filterParams = {
         search: targetFilters.search || undefined,
         model: targetFilters.model || undefined,
@@ -484,16 +548,20 @@ export function KreaAssetBrowser({
         projectId: targetFilters.projectId || undefined,
         provider: targetFilters.provider || undefined,
       }
-      void fetchGalleryImages(1, 24, filterParams).then((response) => {
-        if (response.success && response.data) {
-          writeGalleryCache(key, {
-            generations: response.data.generations ?? [],
-            total: response.data.total ?? 0,
-            hasMore: response.data.hasMore ?? false,
-            nextCursor: response.data.nextCursor ?? null,
-          })
-        }
-      })
+      void fetchGalleryImages(1, 24, filterParams)
+        .then((response) => {
+          if (response.success && response.data) {
+            writeGalleryCache(key, {
+              generations: response.data.generations ?? [],
+              total: response.data.total ?? 0,
+              hasMore: response.data.hasMore ?? false,
+              nextCursor: response.data.nextCursor ?? null,
+            })
+          }
+        })
+        .finally(() => {
+          prefetchingCacheKeysRef.current.delete(key)
+        })
     },
     [filtersForSection],
   )
@@ -503,12 +571,34 @@ export function KreaAssetBrowser({
     setFilters({ ...filters, search: searchInput.trim() })
   }
 
-  const handleRenameProject = async (id: string, currentName: string) => {
-    const next = window.prompt(t('folderRenamePrompt'), currentName)
-    const trimmed = next?.trim()
-    if (!trimmed || trimmed === currentName) return
-    const ok = await updateProject(id, { name: trimmed })
-    if (ok) void refreshCounts()
+  const startRenameProject = (id: string, currentName: string) => {
+    setEditingProjectId(id)
+    setEditingProjectName(currentName)
+  }
+
+  const cancelRenameProject = () => {
+    setEditingProjectId(null)
+    setEditingProjectName('')
+  }
+
+  const submitRenameProject = async (id: string, currentName: string) => {
+    if (renamingProjectId) return
+    const trimmed = editingProjectName.trim()
+    if (!trimmed) return
+    if (trimmed === currentName) {
+      cancelRenameProject()
+      return
+    }
+    setRenamingProjectId(id)
+    try {
+      const ok = await updateProject(id, { name: trimmed })
+      if (ok) {
+        cancelRenameProject()
+        void refreshCounts()
+      }
+    } finally {
+      setRenamingProjectId(null)
+    }
   }
 
   const requestDeleteProject = (id: string, name: string) => {
@@ -526,6 +616,8 @@ export function KreaAssetBrowser({
   }
 
   const isEmpty = !isLoading && generations.length === 0
+  const isBulkActionPending =
+    isBulkDeleting || isBulkPublishing || isBulkFavoriting || isBulkMoving
 
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete
@@ -848,47 +940,64 @@ export function KreaAssetBrowser({
             onClick={() => setSection({ kind: 'unassigned' })}
             onPrefetch={() => prefetchSection({ kind: 'unassigned' })}
           />
-          {projects.map((project) => (
-            <SidebarItem
-              key={project.id}
-              active={section.kind === 'project' && section.id === project.id}
-              icon={<Folder className="size-4" />}
-              label={project.name}
-              count={projectCount(project.id)}
-              onClick={() => setSection({ kind: 'project', id: project.id })}
-              onPrefetch={() =>
-                prefetchSection({ kind: 'project', id: project.id })
-              }
-              actions={
-                <>
-                  <button
-                    type="button"
-                    aria-label={t('folderRename')}
-                    title={t('folderRename')}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void handleRenameProject(project.id, project.name)
-                    }}
-                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                  >
-                    <Pencil className="size-3" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('folderDelete')}
-                    title={t('folderDelete')}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      requestDeleteProject(project.id, project.name)
-                    }}
-                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
-                </>
-              }
-            />
-          ))}
+          {projects.map((project) =>
+            editingProjectId === project.id ? (
+              <ProjectRenameSidebarItem
+                key={project.id}
+                active={section.kind === 'project' && section.id === project.id}
+                value={editingProjectName}
+                disabled={renamingProjectId === project.id}
+                inputLabel={t('folderRenameInput')}
+                saveLabel={t('folderRenameSave')}
+                cancelLabel={t('folderRenameCancel')}
+                onChange={setEditingProjectName}
+                onSubmit={() =>
+                  void submitRenameProject(project.id, project.name)
+                }
+                onCancel={cancelRenameProject}
+              />
+            ) : (
+              <SidebarItem
+                key={project.id}
+                active={section.kind === 'project' && section.id === project.id}
+                icon={<Folder className="size-4" />}
+                label={project.name}
+                count={projectCount(project.id)}
+                onClick={() => setSection({ kind: 'project', id: project.id })}
+                onPrefetch={() =>
+                  prefetchSection({ kind: 'project', id: project.id })
+                }
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      aria-label={t('folderRename')}
+                      title={t('folderRename')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        startRenameProject(project.id, project.name)
+                      }}
+                      className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('folderDelete')}
+                      title={t('folderDelete')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        requestDeleteProject(project.id, project.name)
+                      }}
+                      className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </>
+                }
+              />
+            ),
+          )}
         </aside>
       </div>
       {!isPickerMode && (
@@ -918,7 +1027,7 @@ export function KreaAssetBrowser({
       {/* ─── Bulk selection action bar ─────────────────────────── */}
       {!isPickerMode && selectionMode && selectedIds.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-4 md:pb-6">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
+          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
             <span className="px-2 text-xs font-medium tabular-nums">
               {t('selectedCount', { count: selectedIds.size })}
             </span>
@@ -938,10 +1047,46 @@ export function KreaAssetBrowser({
               {t('selectClear')}
             </button>
             <span className="h-4 w-px bg-border/60" />
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isBulkActionPending}
+                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-50"
+                >
+                  {isBulkMoving ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <FolderInput className="size-3.5" />
+                  )}
+                  {t('bulkMove')}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="center"
+                className="max-h-72 w-56 overflow-y-auto"
+              >
+                <DropdownMenuItem onClick={() => void performBulkMove(null)}>
+                  <FolderX className="size-4" />
+                  {t('bulkMoveUnassigned')}
+                </DropdownMenuItem>
+                {projects.length > 0 && <DropdownMenuSeparator />}
+                {projects.map((project) => (
+                  <DropdownMenuItem
+                    key={project.id}
+                    onClick={() => void performBulkMove(project.id)}
+                  >
+                    <Folder className="size-4" />
+                    <span className="truncate">{project.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               type="button"
               onClick={requestBulkFavorite}
-              disabled={isBulkFavoriting || isBulkPublishing || isBulkDeleting}
+              disabled={isBulkActionPending}
               className="flex items-center gap-1.5 rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
             >
               {isBulkFavoriting ? (
@@ -954,7 +1099,7 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={requestBulkPublish}
-              disabled={isBulkPublishing || isBulkDeleting || isBulkFavoriting}
+              disabled={isBulkActionPending}
               className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isBulkPublishing ? (
@@ -967,7 +1112,7 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={requestBulkDelete}
-              disabled={isBulkDeleting || isBulkPublishing || isBulkFavoriting}
+              disabled={isBulkActionPending}
               className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               {isBulkDeleting ? (
@@ -1112,6 +1257,90 @@ interface SidebarItemProps {
    * trigger the row's own onClick.
    */
   actions?: React.ReactNode
+}
+
+interface ProjectRenameSidebarItemProps {
+  active: boolean
+  value: string
+  disabled: boolean
+  inputLabel: string
+  saveLabel: string
+  cancelLabel: string
+  onChange: (value: string) => void
+  onSubmit: () => void
+  onCancel: () => void
+}
+
+function ProjectRenameSidebarItem({
+  active,
+  value,
+  disabled,
+  inputLabel,
+  saveLabel,
+  cancelLabel,
+  onChange,
+  onSubmit,
+  onCancel,
+}: ProjectRenameSidebarItemProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSubmit()
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          onCancel()
+        }
+      }}
+      className={cn(
+        'flex w-full items-center gap-1 rounded-md py-1 pl-2 pr-1 text-sm transition-colors',
+        active ? 'bg-primary/10 text-primary' : 'text-foreground/80',
+      )}
+    >
+      <Folder className="size-4 shrink-0 text-muted-foreground/70" />
+      <Input
+        ref={inputRef}
+        value={value}
+        disabled={disabled}
+        maxLength={60}
+        aria-label={inputLabel}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-7 min-w-0 flex-1 rounded-md bg-background px-2 text-sm"
+      />
+      <button
+        type="submit"
+        aria-label={saveLabel}
+        title={saveLabel}
+        disabled={disabled || value.trim().length === 0}
+        className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {disabled ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <CheckCircle2 className="size-3.5" />
+        )}
+      </button>
+      <button
+        type="button"
+        aria-label={cancelLabel}
+        title={cancelLabel}
+        disabled={disabled}
+        onClick={onCancel}
+        className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <X className="size-3.5" />
+      </button>
+    </form>
+  )
 }
 
 function SidebarItem({

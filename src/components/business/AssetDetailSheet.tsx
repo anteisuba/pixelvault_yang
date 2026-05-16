@@ -32,6 +32,7 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -39,7 +40,7 @@ import { useRouter } from '@/i18n/navigation'
 import {
   assignGenerationProjectAPI,
   deleteGenerationAPI,
-  toggleGenerationVisibility,
+  setGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
@@ -57,6 +58,16 @@ interface AssetDetailSheetProps {
   onMoved?: (id: string, projectId: string | null) => void
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
+}
+
+type PublishScope = 'private' | 'asset' | 'assetAndPrompt'
+
+interface PublishScopeOptionProps {
+  title: string
+  description: string
+  selected: boolean
+  disabled: boolean
+  onClick: () => void
 }
 
 /**
@@ -79,8 +90,14 @@ export function AssetDetailSheet({
   const [isMoving, setIsMoving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [isFavoriting, setIsFavoriting] = useState(false)
+  const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
 
   const open = generation !== null
+  const currentPublishScope: PublishScope = !generation?.isPublic
+    ? 'private'
+    : generation.isPromptPublic
+      ? 'assetAndPrompt'
+      : 'asset'
 
   const studioModeFor = (
     gen: GenerationRecord,
@@ -110,71 +127,114 @@ export function AssetDetailSheet({
       return
     }
     setIsMoving(true)
-    const response = await assignGenerationProjectAPI(generation.id, projectId)
-    setIsMoving(false)
-    if (response.success) {
-      toast.success(t('detailMoved'))
-      onMoved?.(generation.id, projectId)
-      onOpenChange(false)
-    } else {
-      toast.error(response.error ?? t('detailMoveFailed'))
+    try {
+      const response = await assignGenerationProjectAPI(
+        generation.id,
+        projectId,
+      )
+      if (response.success) {
+        toast.success(t('detailMoved'))
+        onMoved?.(generation.id, projectId)
+        onOpenChange(false)
+      } else {
+        toast.error(response.error ?? t('detailMoveFailed'))
+      }
+    } catch {
+      toast.error(t('detailMoveFailed'))
+    } finally {
+      setIsMoving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!generation) return
+    if (!generation || isDeleting) return
+    const generationId = generation.id
     setIsDeleting(true)
-    const response = await deleteGenerationAPI(generation.id)
-    setIsDeleting(false)
-    if (response.success) {
-      toast.success(t('detailDeleted'))
-      onDeleted?.(generation.id)
-      onOpenChange(false)
-    } else {
-      toast.error(response.error ?? t('detailDeleteFailed'))
+    onOpenChange(false)
+    try {
+      const response = await deleteGenerationAPI(generationId)
+      if (response.success) {
+        toast.success(t('detailDeleted'))
+        onDeleted?.(generationId)
+      } else {
+        toast.error(response.error ?? t('detailDeleteFailed'))
+      }
+    } catch {
+      toast.error(t('detailDeleteFailed'))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
-  const handleTogglePublish = async () => {
+  const handleApplyPublishScope = async (scope: PublishScope) => {
     if (!generation || isPublishing) return
-    const willPublish = !generation.isPublic
+    if (scope === currentPublishScope) {
+      setIsPublishScopeOpen(false)
+      return
+    }
+
+    const values =
+      scope === 'private'
+        ? { isPublic: false, isPromptPublic: false }
+        : scope === 'asset'
+          ? { isPublic: true, isPromptPublic: false }
+          : { isPublic: true, isPromptPublic: true }
+
     setIsPublishing(true)
-    const response = await toggleGenerationVisibility(generation.id, 'isPublic')
-    setIsPublishing(false)
-    if (response.success && response.data) {
-      onUpdated?.(generation.id, { isPublic: response.data.isPublic })
-      toast.success(
-        response.data.isPublic ? t('detailPublished') : t('detailUnpublished'),
-      )
-    } else {
-      // The optimistic message must match what the user just tried to do, not
-      // the (failed) inverse — flipping back to "unpublish failed" when the
-      // user clicked Publish would be confusing.
+    try {
+      const response = await setGenerationVisibility(generation.id, values)
+      if (response.success && response.data) {
+        onUpdated?.(generation.id, {
+          isPublic: response.data.isPublic,
+          isPromptPublic: response.data.isPromptPublic,
+        })
+        setIsPublishScopeOpen(false)
+        toast.success(
+          response.data.isPublic
+            ? t('detailPublished')
+            : t('detailUnpublished'),
+        )
+      } else {
+        toast.error(response.error ?? t('detailPublishFailed'))
+      }
+    } catch {
       toast.error(t('detailPublishFailed'))
-      void willPublish
+    } finally {
+      setIsPublishing(false)
     }
   }
 
   const handleToggleFavorite = async () => {
     if (!generation || isFavoriting) return
     setIsFavoriting(true)
-    const response = await toggleLikeAPI(generation.id)
-    setIsFavoriting(false)
-    if (response.success && response.data) {
-      onUpdated?.(generation.id, {
-        isLiked: response.data.liked,
-        likeCount: response.data.likeCount,
-      })
-      toast.success(
-        response.data.liked ? t('detailFavorited') : t('detailUnfavorited'),
-      )
-    } else {
+    try {
+      const response = await toggleLikeAPI(generation.id)
+      if (response.success && response.data) {
+        onUpdated?.(generation.id, {
+          isLiked: response.data.liked,
+          likeCount: response.data.likeCount,
+        })
+        toast.success(
+          response.data.liked ? t('detailFavorited') : t('detailUnfavorited'),
+        )
+      } else {
+        toast.error(t('detailFavoriteFailed'))
+      }
+    } catch {
       toast.error(t('detailFavoriteFailed'))
+    } finally {
+      setIsFavoriting(false)
     }
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setIsPublishScopeOpen(false)
+        onOpenChange(nextOpen)
+      }}
+    >
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 p-0 sm:w-[480px] sm:max-w-[520px]"
@@ -296,7 +356,7 @@ export function AssetDetailSheet({
                   variant="ghost"
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => void handleTogglePublish()}
+                  onClick={() => setIsPublishScopeOpen(true)}
                   disabled={isPublishing}
                   aria-pressed={generation.isPublic}
                 >
@@ -308,7 +368,7 @@ export function AssetDetailSheet({
                     <Globe className="size-4" />
                   )}
                   {generation.isPublic
-                    ? t('detailUnpublish')
+                    ? t('detailPublishScope')
                     : t('detailPublish')}
                 </Button>
                 <Button
@@ -361,10 +421,109 @@ export function AssetDetailSheet({
                 />
               </div>
             </div>
+            <Sheet
+              open={isPublishScopeOpen}
+              onOpenChange={(nextOpen) => {
+                if (!isPublishing) setIsPublishScopeOpen(nextOpen)
+              }}
+            >
+              <SheetContent
+                side="bottom"
+                showCloseButton={false}
+                className="mx-auto max-w-lg gap-0 rounded-t-2xl border-border/70 p-0"
+              >
+                <SheetHeader className="px-5 pt-5 pb-3 text-left">
+                  <SheetTitle className="font-display text-base">
+                    {t('detailPublishScopeTitle')}
+                  </SheetTitle>
+                  <SheetDescription>
+                    {t('detailPublishScopeDescription')}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="space-y-2 px-5 pb-2">
+                  <PublishScopeOption
+                    title={t('detailPublishScopeAsset')}
+                    description={t('detailPublishScopeAssetDescription')}
+                    selected={currentPublishScope === 'asset'}
+                    disabled={isPublishing}
+                    onClick={() => void handleApplyPublishScope('asset')}
+                  />
+                  <PublishScopeOption
+                    title={t('detailPublishScopeAssetAndPrompt')}
+                    description={t(
+                      'detailPublishScopeAssetAndPromptDescription',
+                    )}
+                    selected={currentPublishScope === 'assetAndPrompt'}
+                    disabled={isPublishing}
+                    onClick={() =>
+                      void handleApplyPublishScope('assetAndPrompt')
+                    }
+                  />
+                  <PublishScopeOption
+                    title={t('detailPublishScopePrivate')}
+                    description={t('detailPublishScopePrivateDescription')}
+                    selected={currentPublishScope === 'private'}
+                    disabled={isPublishing}
+                    onClick={() => void handleApplyPublishScope('private')}
+                  />
+                </div>
+                <SheetFooter className="px-5 pt-2 pb-5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsPublishScopeOpen(false)}
+                    disabled={isPublishing}
+                  >
+                    {t('detailPublishScopeCancel')}
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
           </>
         )}
       </SheetContent>
     </Sheet>
+  )
+}
+
+function PublishScopeOption({
+  title,
+  description,
+  selected,
+  disabled,
+  onClick,
+}: PublishScopeOptionProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors disabled:cursor-wait disabled:opacity-70',
+        selected
+          ? 'border-primary/40 bg-primary/10'
+          : 'border-border/70 bg-card hover:bg-muted/40',
+      )}
+    >
+      <span
+        className={cn(
+          'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+          selected
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border text-transparent',
+        )}
+      >
+        <Check className="size-3.5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+          {description}
+        </span>
+      </span>
+    </button>
   )
 }
 

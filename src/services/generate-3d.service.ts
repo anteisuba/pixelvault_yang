@@ -2,12 +2,13 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { AI_MODELS, getModelById } from '@/constants/models'
+import { getModelById } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
 import {
   MODEL_3D_GENERATE_TYPE,
   MODEL_3D_JOB_STAGE,
   MODEL_3D_JOB_STAGES,
+  MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
   MODEL_3D_PREVIEW_MODE,
 } from '@/constants/model-3d-generation'
 import type {
@@ -127,6 +128,9 @@ type GenerationExecutionRoute = Awaited<
 
 const finalizing3DJobs = new Set<string>()
 const MODEL_3D_FINALIZATION_STALE_MS = 15 * 60 * 1000
+const MESH_FIRST_PREVIEW_MODEL_IDS = new Set<string>(
+  MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
+)
 
 interface Model3DStatusJob {
   id: string
@@ -473,7 +477,7 @@ function shouldUseMeshFirstPreview(
 ): boolean {
   return (
     input.previewMode === MODEL_3D_PREVIEW_MODE.MESH_FIRST &&
-    modelId === AI_MODELS.HUNYUAN3D_V31_PRO
+    MESH_FIRST_PREVIEW_MODEL_IDS.has(modelId)
   )
 }
 

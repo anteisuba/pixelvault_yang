@@ -27,6 +27,7 @@ import {
 import {
   HUNYUAN3D_FACE_COUNT,
   MODEL_3D_GENERATE_TYPE,
+  MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
   MODEL_3D_PREVIEW_MODE,
   MODEL_3D_SOURCE_QUALITY,
   TRELLIS_2_DECIMATION_TARGET,
@@ -83,6 +84,9 @@ const HUNYUAN3D_V3_MODEL_IDS = new Set<string>([
   AI_MODELS.HUNYUAN3D_V3,
   AI_MODELS.HUNYUAN3D_V31_PRO,
 ])
+const MESH_FIRST_PREVIEW_MODEL_IDS = new Set<string>(
+  MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
+)
 
 const FACE_COUNT_OPTIONS = [
   { value: HUNYUAN3D_FACE_COUNT.DEFAULT, label: '500k' },
@@ -285,7 +289,7 @@ export function Studio3DWorkspace({
   const isTriposr = selectedModelId === AI_MODELS.TRIPOSR
   const supportsMultiViewInput = isHunyuanV3
   const supportsMeshFirstPreview =
-    selectedModelId === AI_MODELS.HUNYUAN3D_V31_PRO
+    MESH_FIRST_PREVIEW_MODEL_IDS.has(selectedModelId)
 
   useEffect(() => {
     const sourceKey =
@@ -383,7 +387,7 @@ export function Studio3DWorkspace({
         enablePbr,
         faceCount,
         generateType: MODEL_3D_GENERATE_TYPE.NORMAL,
-        ...(targetModelId === AI_MODELS.HUNYUAN3D_V31_PRO && {
+        ...(MESH_FIRST_PREVIEW_MODEL_IDS.has(targetModelId) && {
           previewMode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
         }),
         ...(multiViewImages && { multiViewImages }),

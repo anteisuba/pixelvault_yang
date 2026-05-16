@@ -472,7 +472,7 @@
     "wireframePreviewLabel": "3D wireframe preview",
     "wireframePreviewLoading": "Loading mesh preview...",
     "wireframePreviewError": "Failed to load mesh preview.",
-    "meshPreviewHint": "v3.1 Pro builds a geometry preview first, then automatically runs the final PBR model.",
+    "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro builds a geometry preview first, then automatically runs the final PBR model.",
     "downloadGlb": "Download GLB",
     "refineLabel": "Refine with Hunyuan3D v3.1",
     "refineHint": "Re-run with the same source on Hunyuan3D v3.1 Pro for higher-fidelity geometry and PBR textures.",

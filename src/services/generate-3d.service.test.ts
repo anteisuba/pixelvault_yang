@@ -215,53 +215,64 @@ describe('check3DGenerationStatusForUserId', () => {
     expect(mockFailJob).not.toHaveBeenCalled()
   })
 
-  it('submits v3.1 Pro mesh-first mode as a Geometry queue job', async () => {
-    const submitModel3DToQueue = vi.fn().mockResolvedValue({
-      requestId: 'mesh-req',
-      statusUrl: 'https://queue.fal.run/status/mesh-req',
-      responseUrl: 'https://queue.fal.run/result/mesh-req',
-    })
-    mockGetProviderAdapter.mockReturnValue({ submitModel3DToQueue } as never)
+  it.each([AI_MODELS.HUNYUAN3D_V3, AI_MODELS.HUNYUAN3D_V31_PRO])(
+    'submits %s mesh-first mode as a Geometry queue job',
+    async (modelId) => {
+      const submitModel3DToQueue = vi.fn().mockResolvedValue({
+        requestId: 'mesh-req',
+        statusUrl: 'https://queue.fal.run/status/mesh-req',
+        responseUrl: 'https://queue.fal.run/result/mesh-req',
+      })
+      mockResolveRoute.mockResolvedValue({
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        apiKey: 'fal-key',
+        resolvedApiKeyId: 'fal-key-id',
+        creditCost: 5,
+      })
+      mockGetProviderAdapter.mockReturnValue({ submitModel3DToQueue } as never)
 
-    const result = await submit3DGenerationForUserId('user-1', {
-      imageUrl: 'https://cdn.test/source.png',
-      modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
-      apiKeyId: 'fal-key-id',
-      previewMode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
-      enablePbr: true,
-      faceCount: 1_000_000,
-      prompt: 'source prompt',
-    })
-
-    expect(result).toEqual({ jobId: 'job-submit', requestId: 'mesh-req' })
-    expect(submitModel3DToQueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        imageUrl: 'https://cdn.test/prepared.png',
-        modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
-        enablePbr: false,
-        generateType: MODEL_3D_GENERATE_TYPE.GEOMETRY,
+      const result = await submit3DGenerationForUserId('user-1', {
+        imageUrl: 'https://cdn.test/source.png',
+        modelId,
+        apiKeyId: 'fal-key-id',
+        previewMode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        enablePbr: true,
         faceCount: 1_000_000,
-      }),
-    )
-    const updateArg = mockUpdateJob.mock.calls[0][0] as {
-      data: { externalRequestId: string }
-    }
-    const meta = JSON.parse(updateArg.data.externalRequestId) as {
-      mode: string
-      stage: string
-      mesh: { requestId: string }
-      preparedImageUrl: string
-      options: { enablePbr: boolean; faceCount: number }
-    }
-    expect(meta.mode).toBe(MODEL_3D_PREVIEW_MODE.MESH_FIRST)
-    expect(meta.stage).toBe(MODEL_3D_JOB_STAGE.MESH_RUNNING)
-    expect(meta.mesh.requestId).toBe('mesh-req')
-    expect(meta.preparedImageUrl).toBe('https://cdn.test/prepared.png')
-    expect(meta.options).toMatchObject({
-      enablePbr: true,
-      faceCount: 1_000_000,
-    })
-  })
+        prompt: 'source prompt',
+      })
+
+      expect(result).toEqual({ jobId: 'job-submit', requestId: 'mesh-req' })
+      expect(submitModel3DToQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageUrl: 'https://cdn.test/prepared.png',
+          modelId,
+          enablePbr: false,
+          generateType: MODEL_3D_GENERATE_TYPE.GEOMETRY,
+          faceCount: 1_000_000,
+        }),
+      )
+      const updateArg = mockUpdateJob.mock.calls[0][0] as {
+        data: { externalRequestId: string }
+      }
+      const meta = JSON.parse(updateArg.data.externalRequestId) as {
+        mode: string
+        stage: string
+        mesh: { requestId: string }
+        preparedImageUrl: string
+        options: { enablePbr: boolean; faceCount: number }
+      }
+      expect(meta.mode).toBe(MODEL_3D_PREVIEW_MODE.MESH_FIRST)
+      expect(meta.stage).toBe(MODEL_3D_JOB_STAGE.MESH_RUNNING)
+      expect(meta.mesh.requestId).toBe('mesh-req')
+      expect(meta.preparedImageUrl).toBe('https://cdn.test/prepared.png')
+      expect(meta.options).toMatchObject({
+        enablePbr: true,
+        faceCount: 1_000_000,
+      })
+    },
+  )
 
   it('starts the final textured job after mesh preview completes', async () => {
     mockFindJob.mockResolvedValue({

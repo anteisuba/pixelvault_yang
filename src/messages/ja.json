@@ -472,7 +472,7 @@
     "wireframePreviewLabel": "3Dワイヤーフレームプレビュー",
     "wireframePreviewLoading": "メッシュプレビューを読み込み中...",
     "wireframePreviewError": "メッシュプレビューを読み込めませんでした。",
-    "meshPreviewHint": "v3.1 Pro は先にジオメトリプレビューを生成し、その後 PBR 付きの最終モデルを自動生成します。",
+    "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro は先にジオメトリプレビューを生成し、その後 PBR 付きの最終モデルを自動生成します。",
     "downloadGlb": "GLBをダウンロード",
     "refineLabel": "Hunyuan3D v3.1で精修",
     "refineHint": "同じソース画像をHunyuan3D v3.1 Proで再生成し、高精度なジオメトリとPBRテクスチャを取得します。",

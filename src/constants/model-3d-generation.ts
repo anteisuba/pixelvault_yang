@@ -1,3 +1,5 @@
+import { AI_MODELS } from '@/constants/models/enum'
+
 export const MODEL_3D_VIEW_KEYS = [
   'back',
   'left',
@@ -35,6 +37,11 @@ export const MODEL_3D_PREVIEW_MODES = [
 ] as const
 
 export type Model3DPreviewMode = (typeof MODEL_3D_PREVIEW_MODES)[number]
+
+export const MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS = [
+  AI_MODELS.HUNYUAN3D_V3,
+  AI_MODELS.HUNYUAN3D_V31_PRO,
+] as const
 
 export const MODEL_3D_JOB_STAGE = {
   SINGLE_RUNNING: 'SINGLE_RUNNING',

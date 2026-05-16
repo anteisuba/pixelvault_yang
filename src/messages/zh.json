@@ -472,7 +472,7 @@
     "wireframePreviewLabel": "3D 网格预览",
     "wireframePreviewLoading": "加载网格预览中...",
     "wireframePreviewError": "无法加载网格预览。",
-    "meshPreviewHint": "v3.1 Pro 会先生成几何网格预览，再自动生成带 PBR 的最终模型。",
+    "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro 会先生成几何网格预览，再自动生成带 PBR 的最终模型。",
     "downloadGlb": "下载 GLB",
     "refineLabel": "用 Hunyuan3D v3.1 精修",
     "refineHint": "用同一张源图过一遍 Hunyuan3D v3.1 Pro，得到更高保真度的几何和 PBR 贴图。",

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   AI_MODELS,
+  getAvailableAudioModels,
   getAvailableImageModels,
   getAvailableModels,
   getAvailableVideoModels,
@@ -106,5 +107,12 @@ describe('models', () => {
 
   it('does not treat retired free-tier models as active free-tier options', () => {
     expect(isFreeTierModel(AI_MODELS.GEMINI_25_FLASH_IMAGE)).toBe(false)
+    expect(isFreeTierModel(AI_MODELS.FAL_F5_TTS)).toBe(false)
+  })
+
+  it('keeps Fish Audio as the only active audio generation model', () => {
+    expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
+      AI_MODELS.FISH_AUDIO_S2_PRO,
+    ])
   })
 })

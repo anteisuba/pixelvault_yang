@@ -24,27 +24,38 @@ export const VOICE_API_ERROR_CODES = {
 
 export const VOICE_CARD_DEFAULT_PACE = 'normal'
 
-export const AUDIO_EMOTION = {
-  NEUTRAL: 'neutral',
-  HAPPY: 'happy',
-  SAD: 'sad',
-  ANGRY: 'angry',
-  EXCITED: 'excited',
+export const AUDIO_STYLE = {
+  NONE: 'none',
   CALM: 'calm',
-  FEARFUL: 'fearful',
+  EXCITED: 'excited',
+  WHISPER: 'whisper',
+  NARRATION: 'narration',
+  DIALOGUE: 'dialogue',
 } as const
 
-export const AUDIO_EMOTIONS = [
-  AUDIO_EMOTION.NEUTRAL,
-  AUDIO_EMOTION.HAPPY,
-  AUDIO_EMOTION.SAD,
-  AUDIO_EMOTION.ANGRY,
-  AUDIO_EMOTION.EXCITED,
-  AUDIO_EMOTION.CALM,
-  AUDIO_EMOTION.FEARFUL,
+export const AUDIO_STYLES = [
+  AUDIO_STYLE.NONE,
+  AUDIO_STYLE.CALM,
+  AUDIO_STYLE.EXCITED,
+  AUDIO_STYLE.WHISPER,
+  AUDIO_STYLE.NARRATION,
+  AUDIO_STYLE.DIALOGUE,
 ] as const
 
-export type AudioEmotion = (typeof AUDIO_EMOTIONS)[number]
+export type AudioStyle = (typeof AUDIO_STYLES)[number]
+
+export const AUDIO_STYLE_PROMPTS = {
+  [AUDIO_STYLE.NONE]: null,
+  [AUDIO_STYLE.CALM]: 'calm and steady',
+  [AUDIO_STYLE.EXCITED]: 'excited and energetic',
+  [AUDIO_STYLE.WHISPER]: 'whisper softly',
+  [AUDIO_STYLE.NARRATION]: 'clear cinematic narrator voice',
+  [AUDIO_STYLE.DIALOGUE]: 'natural character dialogue',
+} as const satisfies Record<AudioStyle, string | null>
+
+export const AUDIO_EMOTION = AUDIO_STYLE
+export const AUDIO_EMOTIONS = AUDIO_STYLES
+export type AudioEmotion = AudioStyle
 
 export const AUDIO_PACE = {
   SLOW: 'slow',
@@ -66,14 +77,14 @@ export const AUDIO_PAUSE_MARKERS = [
   'after_sentence_3',
 ] as const
 
-export const AUDIO_DEFAULT_EMOTION = AUDIO_EMOTION.NEUTRAL
+export const AUDIO_DEFAULT_EMOTION = AUDIO_STYLE.NONE
 
 export const AUDIO_DEFAULT_PACE = AUDIO_PACE.NORMAL
 
 export const AUDIO_PACE_SPEED = {
-  [AUDIO_PACE.SLOW]: 0.85,
+  [AUDIO_PACE.SLOW]: 0.75,
   [AUDIO_PACE.NORMAL]: 1,
-  [AUDIO_PACE.FAST]: 1.2,
+  [AUDIO_PACE.FAST]: 1.35,
 } as const
 
 export const VOICE_LIBRARY_PAGE_SIZE = 20

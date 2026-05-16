@@ -285,6 +285,13 @@ describe('generateAudioForUser', () => {
       requestCount: 1,
     })
     setupSyncHappyPath(mockGenerateAudio)
+    mockGenerateAudio.mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'opus',
+      duration: 2,
+      requestCount: 1,
+      timestamps: [{ text: 'Hello', start: 0, end: 0.4 }],
+    })
 
     await generateAudioForUser('clerk-1', {
       ...BASE_SYNC_REQUEST,
@@ -316,7 +323,7 @@ describe('generateAudioForUser', () => {
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: 'Say koh-decks clearly.\n\nContinue now.',
-        speed: 1.2,
+        speed: 1.35,
       }),
     )
     expect(createGeneration).toHaveBeenCalledWith(
@@ -324,7 +331,7 @@ describe('generateAudioForUser', () => {
     )
   })
 
-  it('applies non-neutral emotion to the provider prompt', async () => {
+  it('applies Fish S2-Pro bracket reading style to the provider prompt', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({
       audioUrl: 'https://provider.example.com/audio.mp3',
       format: 'mp3',
@@ -336,12 +343,67 @@ describe('generateAudioForUser', () => {
     await generateAudioForUser('clerk-1', {
       ...BASE_SYNC_REQUEST,
       prompt: 'Speak kindly.',
-      emotion: 'happy',
+      emotion: 'narration',
     })
 
     expect(mockGenerateAudio).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: '[Speaking with happy emotion] Speak kindly.',
+        prompt: '[clear cinematic narrator voice] Speak kindly.',
+      }),
+    )
+  })
+
+  it('forwards Fish Audio advanced controls to the adapter', async () => {
+    const mockGenerateAudio = vi.fn()
+    setupSyncHappyPath(mockGenerateAudio)
+    mockGenerateAudio.mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'opus',
+      duration: 2,
+      requestCount: 1,
+      timestamps: [{ text: 'Hello', start: 0, end: 0.4 }],
+    })
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      speakerVoiceIds: ['voice-a', 'voice-b'],
+      volume: 2,
+      normalizeLoudness: true,
+      normalizeText: true,
+      withTimestamps: true,
+      format: 'opus',
+      sampleRate: 48000,
+      opusBitrate: 32000,
+      latency: 'balanced',
+      temperature: 0.8,
+      topP: 0.75,
+      chunkLength: 120,
+      repetitionPenalty: 1.25,
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speakerVoiceIds: ['voice-a', 'voice-b'],
+        volume: 2,
+        normalizeLoudness: true,
+        normalizeText: true,
+        withTimestamps: true,
+        format: 'opus',
+        sampleRate: 48000,
+        opusBitrate: 32000,
+        latency: 'balanced',
+        temperature: 0.8,
+        topP: 0.75,
+        chunkLength: 120,
+        repetitionPenalty: 1.25,
+      }),
+    )
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          audioFormat: 'opus',
+          timestamps: [{ text: 'Hello', start: 0, end: 0.4 }],
+        }),
       }),
     )
   })

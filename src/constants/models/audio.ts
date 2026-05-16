@@ -31,7 +31,7 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/f5-tts',
     outputType: 'AUDIO',
-    available: true,
+    available: false,
     freeTier: true,
     officialUrl: 'https://fal.ai/models/fal-ai/f5-tts',
     timeoutMs: 120_000,

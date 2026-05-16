@@ -1,4 +1,5 @@
 import type {
+  FishAudioTranscription,
   FishAudioVoice,
   FishAudioVoiceListResult,
 } from '@/services/fish-audio-voice.service'
@@ -14,6 +15,13 @@ interface VoiceListResponse {
 interface VoiceResponse {
   success: boolean
   data?: FishAudioVoice
+  error?: string
+  errorCode?: string
+}
+
+interface VoiceTranscriptionResponse {
+  success: boolean
+  data?: FishAudioTranscription
   error?: string
   errorCode?: string
 }
@@ -61,6 +69,34 @@ export async function createVoiceAPI(
 ): Promise<VoiceResponse> {
   try {
     const response = await fetch('/api/voices', {
+      method: 'POST',
+      body: formData,
+    })
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        errorCode: (payload as { errorCode?: string }).errorCode,
+        error:
+          (payload as { error?: string }).error ??
+          `Failed with status ${response.status}`,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function transcribeVoiceAPI(
+  formData: FormData,
+): Promise<VoiceTranscriptionResponse> {
+  try {
+    const response = await fetch('/api/voices/transcribe', {
       method: 'POST',
       body: formData,
     })

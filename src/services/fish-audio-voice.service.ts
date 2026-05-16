@@ -51,6 +51,25 @@ export interface CreateVoiceParams {
   enhanceAudioQuality?: boolean
 }
 
+export interface FishAudioAsrSegment {
+  text: string
+  start: number
+  end: number
+}
+
+export interface FishAudioTranscription {
+  text: string
+  duration: number
+  segments: FishAudioAsrSegment[]
+}
+
+export interface TranscribeAudioParams {
+  audio: Buffer
+  fileName: string
+  language?: string
+  ignoreTimestamps?: boolean
+}
+
 // ─── API Response → Domain Mapping ──────────────────────────────
 
 function normalizeFishAudioAssetUrl(value: unknown): string | null {
@@ -246,5 +265,51 @@ export async function deleteVoice(
   if (!response.ok) {
     const detail = await response.text().catch(() => 'Unknown error')
     throw new Error(`Fish Audio API error (${response.status}): ${detail}`)
+  }
+}
+
+export async function transcribeAudio(
+  apiKey: string,
+  params: TranscribeAudioParams,
+): Promise<FishAudioTranscription> {
+  const formData = new FormData()
+  const uint8 = new Uint8Array(params.audio)
+  formData.append(
+    'audio',
+    new Blob([uint8], { type: 'audio/mpeg' }),
+    params.fileName,
+  )
+  if (params.language) {
+    formData.append('language', params.language)
+  }
+  formData.append(
+    'ignore_timestamps',
+    params.ignoreTimestamps === false ? 'false' : 'true',
+  )
+
+  const response = await withRetry(
+    () =>
+      fetch(`${FISH_AUDIO_API}/v1/asr`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: formData,
+      }),
+    { maxAttempts: 2, label: 'fish-audio/asr' },
+  )
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => 'Unknown error')
+    logger.error('Fish Audio ASR failed', {
+      status: response.status,
+      detail: detail.slice(0, 500),
+    })
+    throw new Error(`Fish Audio API error (${response.status}): ${detail}`)
+  }
+
+  const data = (await response.json()) as FishAudioTranscription
+  return {
+    text: data.text,
+    duration: data.duration,
+    segments: data.segments ?? [],
   }
 }

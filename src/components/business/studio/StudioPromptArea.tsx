@@ -3,12 +3,14 @@
 import { memo, useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  Check,
   ChevronDown,
   Dices,
   GitCompareArrows,
   Key,
-  Sparkles,
   Loader2,
+  Search,
+  Sparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -54,7 +56,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { DropdownMenuLabel } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { ModelSelector } from '@/components/business/ModelSelector'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import { StudioGenerationPlan } from './StudioGenerationPlan'
@@ -151,6 +157,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     optionId: '',
   })
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const [modelSearchQuery, setModelSearchQuery] = useState('')
 
   const tSetup = useTranslations('QuickSetup')
 
@@ -168,6 +176,70 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     }
     return { availableModels: available, lockedModels: locked }
   }, [modelOptions])
+
+  const modelSearchResults = useMemo(() => {
+    const query = modelSearchQuery.trim().toLowerCase()
+    if (!query) {
+      return {
+        available: availableModels,
+        locked: lockedModels,
+      }
+    }
+
+    const matchesQuery = (option: (typeof modelOptions)[number]) => {
+      const label = getTranslatedModelLabel(tModels, option.modelId)
+      const provider = getProviderLabel(option.providerConfig)
+      const searchable = [label, provider, option.keyLabel, option.maskedKey]
+        .filter((value): value is string => Boolean(value))
+        .join(' ')
+        .toLowerCase()
+
+      return searchable.includes(query)
+    }
+
+    return {
+      available: availableModels.filter(matchesQuery),
+      locked: lockedModels.filter(matchesQuery),
+    }
+  }, [availableModels, lockedModels, modelSearchQuery, tModels])
+
+  const closeModelPicker = useCallback(() => {
+    setModelPickerOpen(false)
+    setModelSearchQuery('')
+  }, [])
+
+  const handleModelPickerOpenChange = useCallback((open: boolean) => {
+    setModelPickerOpen(open)
+    if (!open) {
+      setModelSearchQuery('')
+    }
+  }, [])
+
+  const handleSelectModel = useCallback(
+    (optionId: string) => {
+      dispatch({ type: 'SET_OPTION_ID', payload: optionId })
+      closeModelPicker()
+    },
+    [closeModelPicker, dispatch],
+  )
+
+  const handleOpenQuickSetup = useCallback(
+    (option: (typeof modelOptions)[number]) => {
+      setQuickSetup({
+        open: true,
+        modelId: option.modelId,
+        modelLabel: getTranslatedModelLabel(tModels, option.modelId),
+        adapterType: option.adapterType,
+        optionId: option.optionId,
+      })
+      closeModelPicker()
+    },
+    [closeModelPicker, tModels],
+  )
+
+  const hasModelSearchResults =
+    modelSearchResults.available.length > 0 ||
+    modelSearchResults.locked.length > 0
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -459,6 +531,23 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             pauseMarkers: state.audioPauseMarkers,
             pronunciationDictionary: audioPronunciationDictionary,
             speed: audioSpeed,
+            volume: state.audioVolume,
+            normalizeLoudness: state.audioNormalizeLoudness,
+            normalizeText: state.audioNormalizeText,
+            withTimestamps: state.audioWithTimestamps,
+            format: state.audioFormat,
+            sampleRate: state.audioSampleRate,
+            mp3Bitrate: state.audioMp3Bitrate,
+            opusBitrate: state.audioOpusBitrate,
+            latency: state.audioLatency,
+            temperature: state.audioTemperature,
+            topP: state.audioTopP,
+            chunkLength: state.audioChunkLength,
+            repetitionPenalty: state.audioRepetitionPenalty,
+            speakerVoiceIds:
+              state.audioSpeakerVoiceIds.length > 0
+                ? state.audioSpeakerVoiceIds
+                : undefined,
           },
         })
         return
@@ -523,6 +612,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       state.audioEmotion,
       state.audioPace,
       state.audioPauseMarkers,
+      state.audioVolume,
+      state.audioNormalizeLoudness,
+      state.audioNormalizeText,
+      state.audioWithTimestamps,
+      state.audioFormat,
+      state.audioSampleRate,
+      state.audioMp3Bitrate,
+      state.audioOpusBitrate,
+      state.audioLatency,
+      state.audioTemperature,
+      state.audioTopP,
+      state.audioChunkLength,
+      state.audioRepetitionPenalty,
+      state.audioSpeakerVoiceIds,
       state.workflowMode,
       selectedVoiceCard?.voiceId,
       selectedVoiceCard?.referenceAudioUrl,
@@ -669,107 +772,171 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
        */}
       {state.workflowMode === 'quick' && (
         <div className="mb-2 flex">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Popover
+            open={modelPickerOpen}
+            onOpenChange={handleModelPickerOpenChange}
+          >
+            <PopoverTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full bg-background/60 border border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/40"
+                aria-label={t('selectModel')}
+                aria-expanded={modelPickerOpen}
+                className="flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
               >
                 {selectedModel?.keyId && (
                   <ApiKeyHealthDot status={healthMap[selectedModel.keyId]} />
                 )}
-                <span className="font-medium max-w-40 truncate">
+                {!selectedModel?.keyId && selectedModel?.freeTier && (
+                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                )}
+                <span className="max-w-52 truncate font-medium text-foreground">
                   {selectedModel
                     ? (selectedModel.keyLabel ??
                       getTranslatedModelLabel(tModels, selectedModel.modelId))
                     : t('noModelHint')}
                 </span>
                 {selectedModel && (
-                  <span className="text-muted-foreground/50">
+                  <span className="max-w-24 truncate text-muted-foreground/55">
                     {getProviderLabel(selectedModel.providerConfig)}
                   </span>
                 )}
                 <ChevronDown className="size-3" />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
+            </PopoverTrigger>
+            <PopoverContent
               align="start"
               side="top"
-              sideOffset={6}
-              className="min-w-72 max-h-[60vh] overflow-y-auto"
+              sideOffset={8}
+              className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border-border/70 bg-popover/96 p-2 shadow-2xl backdrop-blur-xl sm:w-96"
             >
-              {availableModels.length > 0 && (
-                <>
-                  <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
-                    {tSetup('available')}
-                  </DropdownMenuLabel>
-                  {availableModels.map((option) => (
-                    <DropdownMenuItem
-                      key={option.optionId}
-                      onClick={() =>
-                        dispatch({
-                          type: 'SET_OPTION_ID',
-                          payload: option.optionId,
-                        })
-                      }
-                      className={cn(
-                        option.optionId === state.selectedOptionId &&
-                          'bg-accent/60',
-                      )}
-                    >
-                      {option.keyId && (
-                        <ApiKeyHealthDot status={healthMap[option.keyId]} />
-                      )}
-                      {option.freeTier && !option.keyId && (
-                        <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
-                      )}
-                      <span className="font-medium">
-                        {option.keyLabel ??
-                          getTranslatedModelLabel(tModels, option.modelId)}
-                      </span>
-                      <span className="ml-auto text-2xs text-muted-foreground">
-                        {getProviderLabel(option.providerConfig)}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-              {lockedModels.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-2xs text-muted-foreground/70">
-                    {tSetup('needsKey')}
-                  </DropdownMenuLabel>
-                  {lockedModels.map((option) => (
-                    <DropdownMenuItem
-                      key={option.optionId}
-                      onClick={() =>
-                        setQuickSetup({
-                          open: true,
-                          modelId: option.modelId,
-                          modelLabel: getTranslatedModelLabel(
-                            tModels,
-                            option.modelId,
-                          ),
-                          adapterType: option.adapterType,
-                          optionId: option.optionId,
-                        })
-                      }
-                      className="text-muted-foreground/70"
-                    >
-                      <Key className="size-3 shrink-0" />
-                      <span>
-                        {getTranslatedModelLabel(tModels, option.modelId)}
-                      </span>
-                      <span className="ml-auto text-2xs">
-                        {getProviderLabel(option.providerConfig)}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <div className="px-3 pb-2 pt-2">
+                <div className="relative">
+                  <Search className="absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/55" />
+                  <input
+                    type="text"
+                    value={modelSearchQuery}
+                    onChange={(event) =>
+                      setModelSearchQuery(event.currentTarget.value)
+                    }
+                    placeholder={tForm('modelSelector.searchPlaceholder')}
+                    aria-label={tForm('modelSelector.searchPlaceholder')}
+                    className="h-10 w-full border-0 bg-transparent pl-6 pr-1 font-display text-base text-foreground outline-none placeholder:text-muted-foreground/65"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto overscroll-contain px-1 pb-1">
+                {modelSearchResults.available.length > 0 && (
+                  <section className="pb-1">
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
+                      {tSetup('available')}
+                    </div>
+                    <div className="grid gap-1">
+                      {modelSearchResults.available.map((option) => {
+                        const isSelected =
+                          option.optionId === state.selectedOptionId
+                        const optionLabel =
+                          option.keyLabel ??
+                          getTranslatedModelLabel(tModels, option.modelId)
+                        const optionModelLabel = getTranslatedModelLabel(
+                          tModels,
+                          option.modelId,
+                        )
+                        const providerLabel = getProviderLabel(
+                          option.providerConfig,
+                        )
+                        const optionMeta = option.keyLabel
+                          ? `${optionModelLabel} · ${providerLabel}`
+                          : providerLabel
+
+                        return (
+                          <button
+                            key={option.optionId}
+                            type="button"
+                            onClick={() => handleSelectModel(option.optionId)}
+                            aria-pressed={isSelected}
+                            className={cn(
+                              'group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors',
+                              isSelected
+                                ? 'bg-muted text-foreground'
+                                : 'text-muted-foreground hover:bg-muted/55 hover:text-foreground',
+                            )}
+                          >
+                            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground">
+                              <Sparkles className="size-3.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex min-w-0 items-center gap-2">
+                                {option.keyId ? (
+                                  <ApiKeyHealthDot
+                                    status={healthMap[option.keyId]}
+                                  />
+                                ) : option.freeTier ? (
+                                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                ) : null}
+                                <span className="truncate text-sm font-semibold">
+                                  {optionLabel}
+                                </span>
+                              </span>
+                              <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+                                {optionMeta}
+                              </span>
+                            </span>
+                            {isSelected ? (
+                              <Check className="size-4 shrink-0 text-foreground" />
+                            ) : null}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {modelSearchResults.locked.length > 0 && (
+                  <section
+                    className={cn(
+                      'pt-1',
+                      modelSearchResults.available.length > 0 &&
+                        'mt-1 border-t border-border/55',
+                    )}
+                  >
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
+                      {tSetup('needsKey')}
+                    </div>
+                    <div className="grid gap-1">
+                      {modelSearchResults.locked.map((option) => (
+                        <button
+                          key={option.optionId}
+                          type="button"
+                          onClick={() => handleOpenQuickSetup(option)}
+                          className="group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-muted-foreground/65 transition-colors hover:bg-muted/45 hover:text-foreground"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground">
+                            <Key className="size-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold">
+                              {getTranslatedModelLabel(tModels, option.modelId)}
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
+                              {getProviderLabel(option.providerConfig)}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {!hasModelSearchResults ? (
+                  <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    {tForm('modelSelector.emptySearch')}
+                  </div>
+                ) : null}
+              </div>
+            </PopoverContent>
+          </Popover>
           <QuickSetupDialog
             open={quickSetup.open}
             onOpenChange={(v) =>

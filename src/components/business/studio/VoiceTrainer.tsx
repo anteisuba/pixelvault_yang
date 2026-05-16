@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 
 import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
 import { useStudioForm } from '@/contexts/studio-context'
-import { createVoiceAPI } from '@/lib/api-client'
+import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
   const [transcript, setTranscript] = useState('')
   const [enhance, setEnhance] = useState(false)
   const [isTraining, setIsTraining] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files
@@ -91,7 +92,32 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
     }
   }
 
+  const handleTranscribe = async () => {
+    const firstFile = files[0]?.file
+    if (!firstFile || isTranscribing) return
+
+    setIsTranscribing(true)
+    const formData = new FormData()
+    formData.append('audio', firstFile)
+    formData.append('ignore_timestamps', 'true')
+
+    const result = await transcribeVoiceAPI(formData)
+    setIsTranscribing(false)
+
+    if (result.success && result.data) {
+      setTranscript(result.data.text)
+      toast.success(t('voiceTranscribeSuccess'))
+    } else {
+      toast.error(
+        result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
+          ? t('voiceApiKeyRequired')
+          : (result.error ?? t('voiceTranscribeFailed')),
+      )
+    }
+  }
+
   const canTrain = title.trim().length > 0 && files.length > 0 && !isTraining
+  const canTranscribe = files.length > 0 && !isTranscribing
 
   return (
     <div className="flex flex-col gap-4">
@@ -185,6 +211,17 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
         <p className="text-2xs text-muted-foreground">
           {t('voiceTrainTranscriptHint')}
         </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleTranscribe}
+          disabled={!canTranscribe}
+          className="h-8 w-fit gap-2 text-xs"
+        >
+          {isTranscribing && <Loader2 className="size-3.5 animate-spin" />}
+          {t('voiceTranscribe')}
+        </Button>
       </div>
 
       {/* Enhance toggle */}

@@ -9,12 +9,14 @@ import {
   Pause,
   Play,
   Search,
+  Star,
   Trash2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   VOICE_API_ERROR_CODES,
+  VOICE_CARD_DEFAULT_PACE,
   VOICE_CARD_PROVIDER,
   VOICE_LIBRARY_LANGUAGE_FILTERS,
   VOICE_LIBRARY_LANGUAGES,
@@ -28,7 +30,12 @@ import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useVoiceCards } from '@/hooks/use-voice-cards'
-import { listVoicesAPI, deleteVoiceAPI } from '@/lib/api-client'
+import {
+  createVoiceCardAPI,
+  deleteVoiceAPI,
+  deleteVoiceCardAPI,
+  listVoicesAPI,
+} from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
 import { Input } from '@/components/ui/input'
@@ -41,10 +48,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-/**
- * VoiceSelector — Browse and select Fish Audio voices for TTS.
- * Two tabs: Public voice library / My voices.
- */
+type VoiceTab = 'public' | 'favorites' | 'cloned'
+
 function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
   return VOICE_LIBRARY_LANGUAGES.some((language) => language === value)
 }
@@ -57,16 +62,41 @@ function getVoiceInitial(title: string): string {
   return title.trim().charAt(0).toUpperCase() || 'V'
 }
 
+function matchesVoiceCardSearch(
+  card: VoiceCardRecord,
+  normalizedSearch: string,
+): boolean {
+  if (!normalizedSearch) return true
+
+  const searchableText = [
+    card.name,
+    card.voiceId,
+    card.provider,
+    card.gender,
+    card.age,
+    card.pitch,
+    ...card.tone,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+    .toLowerCase()
+
+  return searchableText.includes(normalizedSearch)
+}
+
 export const VoiceSelector = memo(function VoiceSelector() {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioPage')
   const voiceCards = useVoiceCards()
 
-  const [tab, setTab] = useState<'public' | 'my'>('public')
+  const [tab, setTab] = useState<VoiceTab>('public')
   const [voices, setVoices] = useState<FishAudioVoice[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [favoritePendingVoiceId, setFavoritePendingVoiceId] = useState<
+    string | null
+  >(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -82,10 +112,19 @@ export const VoiceSelector = memo(function VoiceSelector() {
   const fetchVoices = useCallback(async () => {
     const requestId = voiceRequestIdRef.current + 1
     voiceRequestIdRef.current = requestId
+
+    if (tab === 'favorites') {
+      setVoices([])
+      setTotal(0)
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     const result = await listVoicesAPI({
-      self: tab === 'my',
+      self: tab === 'cloned',
       page,
       pageSize: VOICE_LIBRARY_PAGE_SIZE,
       search: debouncedSearch || undefined,
@@ -103,7 +142,9 @@ export const VoiceSelector = memo(function VoiceSelector() {
       setError(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
           ? t('voiceApiKeyRequired')
-          : (result.error ?? t('voiceLoadFailed')),
+          : tab === 'cloned'
+            ? t('voiceClonedLoadFailed')
+            : t('voiceLoadFailed'),
       )
     }
     setIsLoading(false)
@@ -123,7 +164,7 @@ export const VoiceSelector = memo(function VoiceSelector() {
     return () => clearTimeout(id)
   }, [search])
 
-  const handleTabChange = (nextTab: 'public' | 'my') => {
+  const handleTabChange = (nextTab: VoiceTab) => {
     if (nextTab === tab) return
     setTab(nextTab)
     setPage(1)
@@ -142,6 +183,37 @@ export const VoiceSelector = memo(function VoiceSelector() {
     if (!isVoiceLibrarySortBy(value)) return
     setSortBy(value)
     setPage(1)
+  }
+
+  const handleToggleFavorite = async (voice: FishAudioVoice) => {
+    const existingCard = voiceCards.cards.find(
+      (card) => card.voiceId === voice.id,
+    )
+
+    setFavoritePendingVoiceId(voice.id)
+    setError(null)
+
+    const result = existingCard
+      ? await deleteVoiceCardAPI(existingCard.id)
+      : await createVoiceCardAPI({
+          name: voice.title,
+          provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
+          voiceId: voice.id,
+          tone: [],
+          pace: VOICE_CARD_DEFAULT_PACE,
+          pronunciationDictionary: {},
+        })
+
+    if (result.success) {
+      if (existingCard && state.voiceCardId === existingCard.id) {
+        dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
+      }
+      await voiceCards.refresh()
+    } else {
+      setError(t('voiceFavoriteFailed'))
+    }
+
+    setFavoritePendingVoiceId(null)
   }
 
   const handleSelectVoiceCard = (card: VoiceCardRecord) => {
@@ -211,6 +283,14 @@ export const VoiceSelector = memo(function VoiceSelector() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / VOICE_LIBRARY_PAGE_SIZE))
+  const isFavoritesTab = tab === 'favorites'
+  const normalizedFavoriteSearch = debouncedSearch.toLowerCase()
+  const favoriteVoiceCards = voiceCards.cards.filter((card) =>
+    matchesVoiceCardSearch(card, normalizedFavoriteSearch),
+  )
+  const listIsLoading = isFavoritesTab ? voiceCards.isLoading : isLoading
+  const listError =
+    isFavoritesTab && voiceCards.error ? t('voiceFavoritesLoadFailed') : error
   const selectedVoiceLabel =
     voiceCards.cards.find((card) => card.id === state.voiceCardId)?.name ??
     voices.find((voice) => voice.id === state.voiceId)?.title ??
@@ -218,72 +298,6 @@ export const VoiceSelector = memo(function VoiceSelector() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {(voiceCards.cards.length > 0 || voiceCards.isLoading) && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-2xs font-medium text-muted-foreground/70">
-              {t('voiceCards')}
-            </span>
-            {voiceCards.isLoading && (
-              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          {voiceCards.cards.length > 0 && (
-            <div className="space-y-1">
-              {voiceCards.cards.map((card) => {
-                const isSelected = state.voiceCardId === card.id
-                const providerLabel =
-                  card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO
-                    ? t('voiceCardFishAudio')
-                    : t('voiceCardFalF5Tts')
-
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => handleSelectVoiceCard(card)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
-                      isSelected
-                        ? 'border border-primary/30 bg-primary/10'
-                        : 'border border-transparent hover:bg-muted/30',
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'flex size-9 shrink-0 items-center justify-center rounded-full',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/60 text-muted-foreground',
-                      )}
-                    >
-                      {isSelected ? (
-                        <Check className="size-4" />
-                      ) : (
-                        <Mic className="size-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">
-                          {card.name}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
-                          {providerLabel}
-                        </span>
-                      </div>
-                      <span className="text-2xs text-muted-foreground">
-                        {t('voiceCardSelected')}
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg border border-border/60 p-0.5">
         <button
@@ -300,19 +314,38 @@ export const VoiceSelector = memo(function VoiceSelector() {
         </button>
         <button
           type="button"
-          onClick={() => handleTabChange('my')}
+          onClick={() => handleTabChange('favorites')}
           className={cn(
             'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
-            tab === 'my'
+            tab === 'favorites'
               ? 'bg-foreground text-background'
               : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
-          {t('voiceMy')}
+          {t('voiceFavorites')}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('cloned')}
+          className={cn(
+            'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+            tab === 'cloned'
+              ? 'bg-foreground text-background'
+              : 'text-muted-foreground hover:bg-muted/30',
+          )}
+        >
+          {t('voiceCloned')}
         </button>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <div
+        className={cn(
+          'grid gap-2',
+          isFavoritesTab
+            ? 'grid-cols-1'
+            : 'sm:grid-cols-[minmax(0,1fr)_auto_auto]',
+        )}
+      >
         <div className="relative min-w-0">
           <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -322,65 +355,131 @@ export const VoiceSelector = memo(function VoiceSelector() {
             className="h-9 pl-9 text-xs"
           />
         </div>
-        <Select value={language} onValueChange={handleLanguageChange}>
-          <SelectTrigger
-            size="sm"
-            className="w-full border-border/60 text-xs sm:w-32"
-            aria-label={t('voiceLanguageFilter')}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VOICE_LIBRARY_LANGUAGE_FILTERS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={handleSortChange}>
-          <SelectTrigger
-            size="sm"
-            className="w-full border-border/60 text-xs sm:w-32"
-            aria-label={t('voiceSortFilter')}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VOICE_LIBRARY_SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!isFavoritesTab && (
+          <>
+            <Select value={language} onValueChange={handleLanguageChange}>
+              <SelectTrigger
+                size="sm"
+                className="w-full border-border/60 text-xs sm:w-32"
+                aria-label={t('voiceLanguageFilter')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VOICE_LIBRARY_LANGUAGE_FILTERS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={handleSortChange}>
+              <SelectTrigger
+                size="sm"
+                className="w-full border-border/60 text-xs sm:w-32"
+                aria-label={t('voiceSortFilter')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VOICE_LIBRARY_SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </div>
 
       {/* Voice list */}
       <div
         className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1"
-        aria-busy={isLoading}
+        aria-busy={listIsLoading}
       >
-        {isLoading ? (
+        {listIsLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
-        ) : error ? (
+        ) : listError ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-            <span>{error}</span>
+            <span>{listError}</span>
           </div>
+        ) : isFavoritesTab ? (
+          favoriteVoiceCards.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              {debouncedSearch ? t('voiceNoResults') : t('voiceFavoritesEmpty')}
+            </div>
+          ) : (
+            favoriteVoiceCards.map((card) => {
+              const isSelected = state.voiceCardId === card.id
+              const providerLabel =
+                card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO
+                  ? t('voiceCardFishAudio')
+                  : t('voiceCardFalF5Tts')
+
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => handleSelectVoiceCard(card)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
+                    isSelected
+                      ? 'border border-primary/30 bg-primary/10'
+                      : 'border border-transparent hover:bg-muted/30',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex size-9 shrink-0 items-center justify-center rounded-full',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/60 text-muted-foreground',
+                    )}
+                  >
+                    {isSelected ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Mic className="size-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {card.name}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
+                        {providerLabel}
+                      </span>
+                    </div>
+                    <span className="text-2xs text-muted-foreground">
+                      {isSelected
+                        ? t('voiceCardSelected')
+                        : t('voiceFavoriteSaved')}
+                    </span>
+                  </div>
+                </button>
+              )
+            })
+          )
         ) : voices.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
-            {tab === 'my' ? t('voiceMyEmpty') : t('voiceNoResults')}
+            {tab === 'cloned' ? t('voiceClonedEmpty') : t('voiceNoResults')}
           </div>
         ) : (
           voices.map((voice) => {
             const isSelected = state.voiceId === voice.id
+            const savedVoiceCard = voiceCards.cards.find(
+              (card) => card.voiceId === voice.id,
+            )
             const sampleUrl = voice.samples[0]?.audio
             const hasCoverImage =
               Boolean(voice.coverImage) && !failedCoverIds.has(voice.id)
             const isPlaying = playingVoiceId === voice.id
+            const isFavoritePending = favoritePendingVoiceId === voice.id
 
             return (
               <div
@@ -484,8 +583,34 @@ export const VoiceSelector = memo(function VoiceSelector() {
                   </>
                 )}
 
-                {/* Delete (my voices only) */}
-                {tab === 'my' && (
+                <button
+                  type="button"
+                  disabled={isFavoritePending}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleToggleFavorite(voice)
+                  }}
+                  className={cn(
+                    'shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
+                    savedVoiceCard && 'text-primary hover:text-primary',
+                  )}
+                >
+                  {isFavoritePending ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Star
+                      className={cn(
+                        'size-3.5',
+                        savedVoiceCard && 'fill-current',
+                      )}
+                    />
+                  )}
+                  <span className="sr-only">
+                    {savedVoiceCard ? t('voiceUnfavorite') : t('voiceFavorite')}
+                  </span>
+                </button>
+
+                {tab === 'cloned' && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -505,7 +630,7 @@ export const VoiceSelector = memo(function VoiceSelector() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!isFavoritesTab && totalPages > 1 && (
         <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-2 text-xs text-muted-foreground">
           <Button
             variant="outline"

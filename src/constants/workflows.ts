@@ -204,7 +204,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   },
   [WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE]: {
     openPanel: 'voiceSelector',
-    recommendedModelIds: [AI_MODELS.FISH_AUDIO_S2_PRO, AI_MODELS.FAL_F5_TTS],
+    recommendedModelIds: [AI_MODELS.FISH_AUDIO_S2_PRO],
   },
 }
 

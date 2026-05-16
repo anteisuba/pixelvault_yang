@@ -301,11 +301,29 @@ export interface ProviderAudioInput {
   providerConfig: ProviderConfig
   apiKey: string
   voiceId?: string
+  speakerVoiceIds?: string[]
   referenceAudioUrl?: string
   referenceText?: string
   speed?: number
+  volume?: number
+  normalizeLoudness?: boolean
+  normalizeText?: boolean
+  withTimestamps?: boolean
   format?: string
   sampleRate?: number
+  mp3Bitrate?: number
+  opusBitrate?: number
+  latency?: string
+  temperature?: number
+  topP?: number
+  chunkLength?: number
+  repetitionPenalty?: number
+}
+
+export interface ProviderAudioTimestampSegment {
+  text: string
+  start: number
+  end: number
 }
 
 export interface ProviderAudioResult {
@@ -314,6 +332,7 @@ export interface ProviderAudioResult {
   format: string
   sampleRate: number
   requestCount: number
+  timestamps?: ProviderAudioTimestampSegment[]
 }
 
 export interface ProviderAudioQueueStatusResult {

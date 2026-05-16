@@ -28,10 +28,24 @@ function makeInitialState(
     tokenInput: '',
     voiceId: null,
     voiceCardId: null,
-    audioEmotion: 'neutral',
+    audioEmotion: 'none',
     audioPace: 'normal',
     audioPauseMarkers: [],
     pronunciationDictionary: {},
+    audioVolume: 0,
+    audioNormalizeLoudness: true,
+    audioNormalizeText: true,
+    audioWithTimestamps: false,
+    audioFormat: 'mp3',
+    audioSampleRate: 44100,
+    audioMp3Bitrate: 128,
+    audioOpusBitrate: 32000,
+    audioLatency: 'normal',
+    audioTemperature: 0.7,
+    audioTopP: 0.7,
+    audioChunkLength: 300,
+    audioRepetitionPenalty: 1.2,
+    audioSpeakerVoiceIds: [],
     stylePresetId: '',
     videoDuration: 5,
     videoResolution: null,
@@ -238,7 +252,7 @@ describe('studioFormReducer', () => {
     const state = makeInitialState()
     const withEmotion = studioFormReducer(state, {
       type: 'SET_AUDIO_EMOTION',
-      payload: 'happy',
+      payload: 'narration',
     })
     const withPace = studioFormReducer(withEmotion, {
       type: 'SET_AUDIO_PACE',
@@ -256,13 +270,53 @@ describe('studioFormReducer', () => {
       type: 'SET_PRONUNCIATION_DICTIONARY',
       payload: { Codex: 'koh-decks' },
     })
+    const audioActions = [
+      { type: 'SET_AUDIO_VOLUME' as const, payload: 2 },
+      { type: 'SET_AUDIO_NORMALIZE_LOUDNESS' as const, payload: false },
+      { type: 'SET_AUDIO_NORMALIZE_TEXT' as const, payload: false },
+      { type: 'SET_AUDIO_WITH_TIMESTAMPS' as const, payload: true },
+      { type: 'SET_AUDIO_FORMAT' as const, payload: 'opus' },
+      { type: 'SET_AUDIO_SAMPLE_RATE' as const, payload: 48000 },
+      { type: 'SET_AUDIO_MP3_BITRATE' as const, payload: 192 },
+      { type: 'SET_AUDIO_OPUS_BITRATE' as const, payload: 64000 },
+      { type: 'SET_AUDIO_LATENCY' as const, payload: 'balanced' },
+      { type: 'SET_AUDIO_TEMPERATURE' as const, payload: 0.8 },
+      { type: 'SET_AUDIO_TOP_P' as const, payload: 0.75 },
+      { type: 'SET_AUDIO_CHUNK_LENGTH' as const, payload: 120 },
+      { type: 'SET_AUDIO_REPETITION_PENALTY' as const, payload: 1.25 },
+      {
+        type: 'SET_AUDIO_SPEAKER_VOICE_IDS' as const,
+        payload: ['voice-a', 'voice-b'],
+      },
+    ] satisfies StudioAction[]
 
-    expect(withDictionary.audioEmotion).toBe('happy')
-    expect(withDictionary.audioPace).toBe('fast')
-    expect(withDictionary.voiceCardId).toBe('voice-card-1')
-    expect(withDictionary.audioPauseMarkers).toEqual(['after_sentence_1'])
-    expect(withDictionary.pronunciationDictionary).toEqual({
+    const withAdvancedAudio = audioActions.reduce(
+      (currentState, action) => studioFormReducer(currentState, action),
+      withDictionary,
+    )
+
+    expect(withAdvancedAudio.audioEmotion).toBe('narration')
+    expect(withAdvancedAudio.audioPace).toBe('fast')
+    expect(withAdvancedAudio.voiceCardId).toBe('voice-card-1')
+    expect(withAdvancedAudio.audioPauseMarkers).toEqual(['after_sentence_1'])
+    expect(withAdvancedAudio.pronunciationDictionary).toEqual({
       Codex: 'koh-decks',
+    })
+    expect(withAdvancedAudio).toMatchObject({
+      audioVolume: 2,
+      audioNormalizeLoudness: false,
+      audioNormalizeText: false,
+      audioWithTimestamps: true,
+      audioFormat: 'opus',
+      audioSampleRate: 48000,
+      audioMp3Bitrate: 192,
+      audioOpusBitrate: 64000,
+      audioLatency: 'balanced',
+      audioTemperature: 0.8,
+      audioTopP: 0.75,
+      audioChunkLength: 120,
+      audioRepetitionPenalty: 1.25,
+      audioSpeakerVoiceIds: ['voice-a', 'voice-b'],
     })
   })
 

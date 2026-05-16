@@ -20,10 +20,9 @@ import { buildStudioCardUsageMap } from '@/lib/studio-history'
  * still goes through the card drawer.
  */
 export const StudioCardSlots = memo(function StudioCardSlots() {
-  const { state, dispatch } = useStudioForm()
+  const { dispatch } = useStudioForm()
   const { characters, backgrounds, styles, projects } = useStudioData()
   const t = useTranslations('StudioV2')
-  const tBg = useTranslations('BackgroundCard')
   const tV3 = useTranslations('StudioV3')
 
   const projectHistory = projects.history

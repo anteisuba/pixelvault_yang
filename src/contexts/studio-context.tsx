@@ -39,6 +39,20 @@ import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
+  DEFAULT_AUDIO_FORMAT,
+  DEFAULT_AUDIO_LATENCY,
+  DEFAULT_AUDIO_MP3_BITRATE,
+  DEFAULT_AUDIO_OPUS_BITRATE,
+  DEFAULT_AUDIO_SAMPLE_RATE,
+  TTS_CHUNK_LENGTH_RANGE,
+  TTS_REPETITION_PENALTY_RANGE,
+  TTS_TEMPERATURE_RANGE,
+  TTS_TOP_P_RANGE,
+  TTS_VOLUME_RANGE,
+  type AudioFormat,
+  type AudioLatency,
+} from '@/constants/audio-options'
+import {
   AUDIO_DEFAULT_EMOTION,
   AUDIO_DEFAULT_PACE,
 } from '@/constants/voice-cards'
@@ -104,6 +118,34 @@ export interface StudioFormState {
   audioPauseMarkers: string[]
   /** Audio-specific — word pronunciation overrides */
   pronunciationDictionary: Record<string, string>
+  /** Audio-specific — prosody volume adjustment */
+  audioVolume: number
+  /** Audio-specific — Fish Audio loudness normalization */
+  audioNormalizeLoudness: boolean
+  /** Audio-specific — provider text normalization */
+  audioNormalizeText: boolean
+  /** Audio-specific — request timestamp alignment from Fish Audio */
+  audioWithTimestamps: boolean
+  /** Audio-specific — output format */
+  audioFormat: AudioFormat
+  /** Audio-specific — sample rate in Hz */
+  audioSampleRate: number
+  /** Audio-specific — MP3 bitrate in kbps */
+  audioMp3Bitrate: number
+  /** Audio-specific — Opus bitrate in bps */
+  audioOpusBitrate: number
+  /** Audio-specific — latency profile */
+  audioLatency: AudioLatency
+  /** Audio-specific — expressiveness */
+  audioTemperature: number
+  /** Audio-specific — nucleus sampling */
+  audioTopP: number
+  /** Audio-specific — provider chunk length */
+  audioChunkLength: number
+  /** Audio-specific — repetition penalty */
+  audioRepetitionPenalty: number
+  /** Audio-specific — ordered voice IDs for <|speaker:n|> dialogue tags */
+  audioSpeakerVoiceIds: string[]
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
   /** Video-specific — duration in seconds per clip */
@@ -137,6 +179,20 @@ export type StudioAction =
   | { type: 'SET_AUDIO_EMOTION'; payload: string }
   | { type: 'SET_AUDIO_PACE'; payload: string }
   | { type: 'SET_AUDIO_PAUSE_MARKERS'; payload: string[] }
+  | { type: 'SET_AUDIO_VOLUME'; payload: number }
+  | { type: 'SET_AUDIO_NORMALIZE_LOUDNESS'; payload: boolean }
+  | { type: 'SET_AUDIO_NORMALIZE_TEXT'; payload: boolean }
+  | { type: 'SET_AUDIO_WITH_TIMESTAMPS'; payload: boolean }
+  | { type: 'SET_AUDIO_FORMAT'; payload: AudioFormat }
+  | { type: 'SET_AUDIO_SAMPLE_RATE'; payload: number }
+  | { type: 'SET_AUDIO_MP3_BITRATE'; payload: number }
+  | { type: 'SET_AUDIO_OPUS_BITRATE'; payload: number }
+  | { type: 'SET_AUDIO_LATENCY'; payload: AudioLatency }
+  | { type: 'SET_AUDIO_TEMPERATURE'; payload: number }
+  | { type: 'SET_AUDIO_TOP_P'; payload: number }
+  | { type: 'SET_AUDIO_CHUNK_LENGTH'; payload: number }
+  | { type: 'SET_AUDIO_REPETITION_PENALTY'; payload: number }
+  | { type: 'SET_AUDIO_SPEAKER_VOICE_IDS'; payload: string[] }
   | {
       type: 'SET_PRONUNCIATION_DICTIONARY'
       payload: Record<string, string>
@@ -190,6 +246,20 @@ const initialFormState: StudioFormState = {
   audioPace: AUDIO_DEFAULT_PACE,
   audioPauseMarkers: [],
   pronunciationDictionary: {},
+  audioVolume: TTS_VOLUME_RANGE.default,
+  audioNormalizeLoudness: true,
+  audioNormalizeText: true,
+  audioWithTimestamps: false,
+  audioFormat: DEFAULT_AUDIO_FORMAT,
+  audioSampleRate: DEFAULT_AUDIO_SAMPLE_RATE,
+  audioMp3Bitrate: DEFAULT_AUDIO_MP3_BITRATE,
+  audioOpusBitrate: DEFAULT_AUDIO_OPUS_BITRATE,
+  audioLatency: DEFAULT_AUDIO_LATENCY,
+  audioTemperature: TTS_TEMPERATURE_RANGE.default,
+  audioTopP: TTS_TOP_P_RANGE.default,
+  audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
+  audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
+  audioSpeakerVoiceIds: [],
   stylePresetId: NO_STYLE_PRESET_ID,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
@@ -233,6 +303,34 @@ export function studioFormReducer(
       return { ...state, audioPace: action.payload }
     case 'SET_AUDIO_PAUSE_MARKERS':
       return { ...state, audioPauseMarkers: action.payload }
+    case 'SET_AUDIO_VOLUME':
+      return { ...state, audioVolume: action.payload }
+    case 'SET_AUDIO_NORMALIZE_LOUDNESS':
+      return { ...state, audioNormalizeLoudness: action.payload }
+    case 'SET_AUDIO_NORMALIZE_TEXT':
+      return { ...state, audioNormalizeText: action.payload }
+    case 'SET_AUDIO_WITH_TIMESTAMPS':
+      return { ...state, audioWithTimestamps: action.payload }
+    case 'SET_AUDIO_FORMAT':
+      return { ...state, audioFormat: action.payload }
+    case 'SET_AUDIO_SAMPLE_RATE':
+      return { ...state, audioSampleRate: action.payload }
+    case 'SET_AUDIO_MP3_BITRATE':
+      return { ...state, audioMp3Bitrate: action.payload }
+    case 'SET_AUDIO_OPUS_BITRATE':
+      return { ...state, audioOpusBitrate: action.payload }
+    case 'SET_AUDIO_LATENCY':
+      return { ...state, audioLatency: action.payload }
+    case 'SET_AUDIO_TEMPERATURE':
+      return { ...state, audioTemperature: action.payload }
+    case 'SET_AUDIO_TOP_P':
+      return { ...state, audioTopP: action.payload }
+    case 'SET_AUDIO_CHUNK_LENGTH':
+      return { ...state, audioChunkLength: action.payload }
+    case 'SET_AUDIO_REPETITION_PENALTY':
+      return { ...state, audioRepetitionPenalty: action.payload }
+    case 'SET_AUDIO_SPEAKER_VOICE_IDS':
+      return { ...state, audioSpeakerVoiceIds: action.payload }
     case 'SET_PRONUNCIATION_DICTIONARY':
       return { ...state, pronunciationDictionary: action.payload }
     case 'SET_STYLE_PRESET':
@@ -314,6 +412,20 @@ export function studioFormReducer(
         audioPace: AUDIO_DEFAULT_PACE,
         audioPauseMarkers: [],
         pronunciationDictionary: {},
+        audioVolume: TTS_VOLUME_RANGE.default,
+        audioNormalizeLoudness: true,
+        audioNormalizeText: true,
+        audioWithTimestamps: false,
+        audioFormat: DEFAULT_AUDIO_FORMAT,
+        audioSampleRate: DEFAULT_AUDIO_SAMPLE_RATE,
+        audioMp3Bitrate: DEFAULT_AUDIO_MP3_BITRATE,
+        audioOpusBitrate: DEFAULT_AUDIO_OPUS_BITRATE,
+        audioLatency: DEFAULT_AUDIO_LATENCY,
+        audioTemperature: TTS_TEMPERATURE_RANGE.default,
+        audioTopP: TTS_TOP_P_RANGE.default,
+        audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
+        audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
+        audioSpeakerVoiceIds: [],
         stylePresetId: NO_STYLE_PRESET_ID,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,

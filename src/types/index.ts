@@ -1,7 +1,18 @@
 import { z } from 'zod'
 
 import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
-import { AUDIO_FORMATS, TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
+import {
+  AUDIO_FORMATS,
+  AUDIO_LATENCIES,
+  AUDIO_MP3_BITRATES,
+  AUDIO_OPUS_BITRATES,
+  TTS_CHUNK_LENGTH_RANGE,
+  TTS_MAX_TEXT_LENGTH,
+  TTS_REPETITION_PENALTY_RANGE,
+  TTS_TEMPERATURE_RANGE,
+  TTS_TOP_P_RANGE,
+  TTS_VOLUME_RANGE,
+} from '@/constants/audio-options'
 import { CHARACTER_CARD } from '@/constants/character-card'
 import {
   BACKGROUND_CARD,
@@ -279,8 +290,49 @@ export const GenerateAudioRequestSchema = z.object({
   pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
   pronunciationDictionary: z.record(z.string(), z.string()).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
+  volume: z
+    .number()
+    .min(TTS_VOLUME_RANGE.min)
+    .max(TTS_VOLUME_RANGE.max)
+    .optional(),
+  normalizeLoudness: z.boolean().optional(),
+  normalizeText: z.boolean().optional(),
+  withTimestamps: z.boolean().optional(),
   format: z.enum(AUDIO_FORMATS).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
+  mp3Bitrate: z
+    .number()
+    .refine((value) =>
+      AUDIO_MP3_BITRATES.includes(value as (typeof AUDIO_MP3_BITRATES)[number]),
+    )
+    .optional(),
+  opusBitrate: z
+    .number()
+    .refine((value) =>
+      AUDIO_OPUS_BITRATES.includes(
+        value as (typeof AUDIO_OPUS_BITRATES)[number],
+      ),
+    )
+    .optional(),
+  latency: z.enum(AUDIO_LATENCIES).optional(),
+  temperature: z
+    .number()
+    .min(TTS_TEMPERATURE_RANGE.min)
+    .max(TTS_TEMPERATURE_RANGE.max)
+    .optional(),
+  topP: z.number().min(TTS_TOP_P_RANGE.min).max(TTS_TOP_P_RANGE.max).optional(),
+  chunkLength: z
+    .number()
+    .int()
+    .min(TTS_CHUNK_LENGTH_RANGE.min)
+    .max(TTS_CHUNK_LENGTH_RANGE.max)
+    .optional(),
+  repetitionPenalty: z
+    .number()
+    .min(TTS_REPETITION_PENALTY_RANGE.min)
+    .max(TTS_REPETITION_PENALTY_RANGE.max)
+    .optional(),
+  speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
   referenceAudioUrl: z.string().url().optional(),
   referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -806,8 +858,49 @@ const WorkerAudioProviderInputSchema = z.object({
   referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
   voiceId: z.string().min(1).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
+  volume: z
+    .number()
+    .min(TTS_VOLUME_RANGE.min)
+    .max(TTS_VOLUME_RANGE.max)
+    .optional(),
+  normalizeLoudness: z.boolean().optional(),
+  normalizeText: z.boolean().optional(),
+  withTimestamps: z.boolean().optional(),
   format: z.enum(AUDIO_FORMATS).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
+  mp3Bitrate: z
+    .number()
+    .refine((value) =>
+      AUDIO_MP3_BITRATES.includes(value as (typeof AUDIO_MP3_BITRATES)[number]),
+    )
+    .optional(),
+  opusBitrate: z
+    .number()
+    .refine((value) =>
+      AUDIO_OPUS_BITRATES.includes(
+        value as (typeof AUDIO_OPUS_BITRATES)[number],
+      ),
+    )
+    .optional(),
+  latency: z.enum(AUDIO_LATENCIES).optional(),
+  temperature: z
+    .number()
+    .min(TTS_TEMPERATURE_RANGE.min)
+    .max(TTS_TEMPERATURE_RANGE.max)
+    .optional(),
+  topP: z.number().min(TTS_TOP_P_RANGE.min).max(TTS_TOP_P_RANGE.max).optional(),
+  chunkLength: z
+    .number()
+    .int()
+    .min(TTS_CHUNK_LENGTH_RANGE.min)
+    .max(TTS_CHUNK_LENGTH_RANGE.max)
+    .optional(),
+  repetitionPenalty: z
+    .number()
+    .min(TTS_REPETITION_PENALTY_RANGE.min)
+    .max(TTS_REPETITION_PENALTY_RANGE.max)
+    .optional(),
+  speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
 })
 
 export const WorkerRunContextSchema = z

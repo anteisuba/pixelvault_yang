@@ -39,6 +39,58 @@ describe('fishAudioAdapter.generateAudio', () => {
     expect(result.audioUrl).toMatch(/^data:audio/)
   })
 
+  it('sends prosody, quality, and multi-speaker fields in Fish request body', async () => {
+    const generateAudio = fishAudioAdapter.generateAudio
+    if (!generateAudio) throw new Error('Fish Audio generateAudio missing')
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from(Buffer.from('fake-mp3-bytes')), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      }),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    await generateAudio({
+      ...BASE_AUDIO_INPUT,
+      prompt: '<|speaker:0|>Hello<|speaker:1|>Hi',
+      speakerVoiceIds: ['alice-id', 'bob-id'],
+      speed: 1.35,
+      volume: 3,
+      normalizeLoudness: true,
+      normalizeText: true,
+      format: 'opus',
+      sampleRate: 48000,
+      opusBitrate: 32000,
+      latency: 'balanced',
+      temperature: 0.8,
+      topP: 0.75,
+      chunkLength: 120,
+      repetitionPenalty: 1.25,
+    })
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(init.body))
+    expect(body).toMatchObject({
+      text: '<|speaker:0|>Hello<|speaker:1|>Hi',
+      reference_id: ['alice-id', 'bob-id'],
+      prosody: {
+        speed: 1.35,
+        volume: 3,
+        normalize_loudness: true,
+      },
+      normalize: true,
+      format: 'opus',
+      sample_rate: 48000,
+      opus_bitrate: 32000,
+      latency: 'balanced',
+      temperature: 0.8,
+      top_p: 0.75,
+      chunk_length: 120,
+      repetition_penalty: 1.25,
+    })
+  })
+
   it('throws on error response', async () => {
     const generateAudio = fishAudioAdapter.generateAudio
     if (!generateAudio) throw new Error('Fish Audio generateAudio missing')

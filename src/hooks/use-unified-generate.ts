@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { AUDIO_GENERATION, VIDEO_GENERATION } from '@/constants/config'
+import type { AudioFormat, AudioLatency } from '@/constants/audio-options'
 import {
   AUDIO_EMOTIONS,
   AUDIO_PAUSE_MARKERS,
@@ -57,6 +58,20 @@ export interface AudioGenerateInput {
   pauseMarkers?: string[]
   pronunciationDictionary?: Record<string, string>
   speed?: number
+  volume?: number
+  normalizeLoudness?: boolean
+  normalizeText?: boolean
+  withTimestamps?: boolean
+  format?: AudioFormat
+  sampleRate?: number
+  mp3Bitrate?: number
+  opusBitrate?: number
+  latency?: AudioLatency
+  temperature?: number
+  topP?: number
+  chunkLength?: number
+  repetitionPenalty?: number
+  speakerVoiceIds?: string[]
 }
 
 export interface CompareModelSelection {
@@ -706,6 +721,20 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           pauseMarkers: input.pauseMarkers?.filter(isAudioPauseMarker),
           pronunciationDictionary: input.pronunciationDictionary,
           speed: input.speed,
+          volume: input.volume,
+          normalizeLoudness: input.normalizeLoudness,
+          normalizeText: input.normalizeText,
+          withTimestamps: input.withTimestamps,
+          format: input.format,
+          sampleRate: input.sampleRate,
+          mp3Bitrate: input.mp3Bitrate,
+          opusBitrate: input.opusBitrate,
+          latency: input.latency,
+          temperature: input.temperature,
+          topP: input.topP,
+          chunkLength: input.chunkLength,
+          repetitionPenalty: input.repetitionPenalty,
+          speakerVoiceIds: input.speakerVoiceIds,
         })
 
         if (result.success && hasGeneration(result.data)) {

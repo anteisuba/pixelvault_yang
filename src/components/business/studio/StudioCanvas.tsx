@@ -29,7 +29,6 @@ import type { GenerationRecord } from '@/types'
 
 import { CompareGrid } from './CompareGrid'
 import { GenerationPreview } from './GenerationPreview'
-import { StudioAudioFeedback } from './StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from './StudioGenerationErrorDialog'
 import { StudioResultFeedback } from './StudioResultFeedback'
 import { VariantGrid } from './VariantGrid'
@@ -108,13 +107,6 @@ export const StudioCanvas = memo(function StudioCanvas() {
       }
     },
     [dispatch, lastEvaluation, lastGeneration, setLastEvaluation],
-  )
-
-  const handleAudioFeedback = useCallback(
-    (tags: string[]) => {
-      if (!lastGeneration || tags.length === 0) return
-    },
-    [lastGeneration],
   )
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
@@ -274,12 +266,6 @@ export const StudioCanvas = memo(function StudioCanvas() {
                 generationId={lastGeneration.id}
                 evaluation={lastEvaluation}
                 onFeedback={handleFeedback}
-              />
-            )}
-            {lastGeneration?.outputType === 'AUDIO' && (
-              <StudioAudioFeedback
-                generationId={lastGeneration.id}
-                onFeedback={handleAudioFeedback}
               />
             )}
           </>

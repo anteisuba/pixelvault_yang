@@ -9,7 +9,7 @@ import {
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
 import { getExecutionModelId, getModelById } from '@/constants/models'
-import { AUDIO_EMOTION, AUDIO_PACE_SPEED } from '@/constants/voice-cards'
+import { AUDIO_PACE_SPEED, AUDIO_STYLE_PROMPTS } from '@/constants/voice-cards'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -115,8 +115,20 @@ const AudioSubmitOutboxPayloadSchema = z.object({
   pauseMarkers: z.array(z.string().min(1)).optional(),
   pronunciationDictionary: z.record(z.string(), z.string()).optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
+  volume: z.number().min(-20).max(20).optional(),
+  normalizeLoudness: z.boolean().optional(),
+  normalizeText: z.boolean().optional(),
+  withTimestamps: z.boolean().optional(),
   format: z.string().min(1).optional(),
   sampleRate: z.number().int().min(8000).max(48000).optional(),
+  mp3Bitrate: z.number().optional(),
+  opusBitrate: z.number().optional(),
+  latency: z.string().min(1).optional(),
+  temperature: z.number().min(0).max(1).optional(),
+  topP: z.number().min(0).max(1).optional(),
+  chunkLength: z.number().int().min(100).max(300).optional(),
+  repetitionPenalty: z.number().min(1).max(2).optional(),
+  speakerVoiceIds: z.array(z.string().min(1).max(200)).optional(),
   referenceAudioUrl: z.string().url().optional(),
   referenceText: z.string().trim().max(5000).optional(),
 })
@@ -206,15 +218,6 @@ function applyPronunciationDictionary(
   }, prompt)
 }
 
-function applyEmotionPrompt(prompt: string, emotion?: string): string {
-  const normalizedEmotion = emotion?.trim()
-  if (!normalizedEmotion || normalizedEmotion === AUDIO_EMOTION.NEUTRAL) {
-    return prompt
-  }
-
-  return `[Speaking with ${normalizedEmotion} emotion] ${prompt}`
-}
-
 function getPauseSentenceIndex(marker: string): number | null {
   const match = /^after_sentence_(\d+)$/.exec(marker)
   if (!match) {
@@ -253,20 +256,36 @@ function applyPauseMarkers(prompt: string, markers?: string[]): string {
     .replace(/\n\n\s+/g, '\n\n')
 }
 
+function applyAudioStylePrompt(prompt: string, emotion?: string): string {
+  if (!emotion) {
+    return prompt
+  }
+
+  const stylePrompt =
+    AUDIO_STYLE_PROMPTS[emotion as keyof typeof AUDIO_STYLE_PROMPTS]
+  if (!stylePrompt) {
+    return prompt
+  }
+
+  return `[${stylePrompt}] ${prompt}`
+}
+
 function buildProviderPrompt(request: {
   prompt: string
   emotion?: string
   pronunciationDictionary?: Record<string, string>
   pauseMarkers?: string[]
 }): string {
-  const prompted = applyPauseMarkers(
-    applyPronunciationDictionary(
-      request.prompt,
-      request.pronunciationDictionary,
+  return applyAudioStylePrompt(
+    applyPauseMarkers(
+      applyPronunciationDictionary(
+        request.prompt,
+        request.pronunciationDictionary,
+      ),
+      request.pauseMarkers,
     ),
-    request.pauseMarkers,
+    request.emotion,
   )
-  return applyEmotionPrompt(prompted, request.emotion)
 }
 
 function resolveAudioSpeed(request: {
@@ -384,9 +403,21 @@ export async function generateAudioForUser(
               providerConfig: route.providerConfig,
               apiKey: route.apiKey,
               voiceId: request.voiceId,
+              speakerVoiceIds: request.speakerVoiceIds,
               speed,
+              volume: request.volume,
+              normalizeLoudness: request.normalizeLoudness,
+              normalizeText: request.normalizeText,
+              withTimestamps: request.withTimestamps,
               format: request.format,
               sampleRate: request.sampleRate,
+              mp3Bitrate: request.mp3Bitrate,
+              opusBitrate: request.opusBitrate,
+              latency: request.latency,
+              temperature: request.temperature,
+              topP: request.topP,
+              chunkLength: request.chunkLength,
+              repetitionPenalty: request.repetitionPenalty,
             }),
           { maxAttempts: 3, label: `${providerLabel}/audio` },
         ),
@@ -428,6 +459,7 @@ export async function generateAudioForUser(
             {
               audioFormat: result.format,
               providerPrompt,
+              timestamps: result.timestamps,
             },
             timer,
           ),
@@ -660,8 +692,18 @@ async function submitFalAudioWorkerRun(params: {
       referenceText: request.referenceText,
       voiceId: request.voiceId,
       speed: resolveAudioSpeed(request),
+      volume: request.volume,
+      normalizeLoudness: request.normalizeLoudness,
+      normalizeText: request.normalizeText,
       format: request.format,
       sampleRate: request.sampleRate,
+      mp3Bitrate: request.mp3Bitrate,
+      opusBitrate: request.opusBitrate,
+      latency: request.latency,
+      temperature: request.temperature,
+      topP: request.topP,
+      chunkLength: request.chunkLength,
+      repetitionPenalty: request.repetitionPenalty,
     },
   }
 
@@ -968,8 +1010,20 @@ function buildAudioSubmitOutboxPayload(
     pauseMarkers: request.pauseMarkers,
     pronunciationDictionary: request.pronunciationDictionary,
     speed: request.speed,
+    volume: request.volume,
+    normalizeLoudness: request.normalizeLoudness,
+    normalizeText: request.normalizeText,
+    withTimestamps: request.withTimestamps,
     format: request.format,
     sampleRate: request.sampleRate,
+    mp3Bitrate: request.mp3Bitrate,
+    opusBitrate: request.opusBitrate,
+    latency: request.latency,
+    temperature: request.temperature,
+    topP: request.topP,
+    chunkLength: request.chunkLength,
+    repetitionPenalty: request.repetitionPenalty,
+    speakerVoiceIds: request.speakerVoiceIds,
     referenceAudioUrl: request.referenceAudioUrl,
     referenceText: request.referenceText,
   })
@@ -1189,11 +1243,23 @@ async function dispatchAudioSubmitOutbox(
             providerConfig,
             apiKey: executionRoute.apiKey,
             voiceId: payload.data.voiceId,
+            speakerVoiceIds: payload.data.speakerVoiceIds,
             referenceAudioUrl: payload.data.referenceAudioUrl,
             referenceText: payload.data.referenceText,
             speed,
+            volume: payload.data.volume,
+            normalizeLoudness: payload.data.normalizeLoudness,
+            normalizeText: payload.data.normalizeText,
+            withTimestamps: payload.data.withTimestamps,
             format: payload.data.format,
             sampleRate: payload.data.sampleRate,
+            mp3Bitrate: payload.data.mp3Bitrate,
+            opusBitrate: payload.data.opusBitrate,
+            latency: payload.data.latency,
+            temperature: payload.data.temperature,
+            topP: payload.data.topP,
+            chunkLength: payload.data.chunkLength,
+            repetitionPenalty: payload.data.repetitionPenalty,
           }),
         {
           maxAttempts: 3,

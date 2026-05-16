@@ -1,25 +1,53 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { StudioAudioParams } from './StudioAudioParams'
+import {
+  StudioAudioParams,
+  type StudioAudioAdvancedSettings,
+} from './StudioAudioParams'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+vi.stubGlobal('ResizeObserver', MockResizeObserver)
+
 function renderAudioParams(overrides?: {
-  onChangeEmotion?: (emotion: string) => void
   onChangePace?: (pace: string) => void
   onChangePauseMarkers?: (markers: string[]) => void
+  onChangeAdvanced?: (settings: Partial<StudioAudioAdvancedSettings>) => void
 }) {
+  const advanced: StudioAudioAdvancedSettings = {
+    style: 'none',
+    volume: 0,
+    normalizeLoudness: true,
+    normalizeText: true,
+    withTimestamps: false,
+    format: 'mp3',
+    sampleRate: 44100,
+    mp3Bitrate: 128,
+    opusBitrate: 32000,
+    latency: 'normal',
+    temperature: 0.7,
+    topP: 0.7,
+    chunkLength: 300,
+    repetitionPenalty: 1.2,
+    speakerVoiceIds: [],
+  }
   const props = {
     voiceCardId: 'voice-card-1',
-    emotion: 'neutral',
     pace: 'normal',
     pauseMarkers: [],
-    onChangeEmotion: overrides?.onChangeEmotion ?? vi.fn(),
+    advanced,
     onChangePace: overrides?.onChangePace ?? vi.fn(),
     onChangePauseMarkers: overrides?.onChangePauseMarkers ?? vi.fn(),
+    onChangeAdvanced: overrides?.onChangeAdvanced ?? vi.fn(),
   }
 
   render(<StudioAudioParams {...props} />)
@@ -27,23 +55,16 @@ function renderAudioParams(overrides?: {
 }
 
 describe('StudioAudioParams', () => {
-  it('renders emotion and pace controls', () => {
+  it('renders pace and pause controls with hints', () => {
     renderAudioParams()
 
-    expect(screen.getByText('emotionNeutral')).toBeInTheDocument()
-    expect(screen.getByText('emotionHappy')).toBeInTheDocument()
     expect(screen.getByText('paceSlow')).toBeInTheDocument()
     expect(screen.getByText('paceNormal')).toBeInTheDocument()
     expect(screen.getByText('paceFast')).toBeInTheDocument()
-  })
-
-  it('calls onChangeEmotion when selecting an emotion', () => {
-    const onChangeEmotion = vi.fn()
-    renderAudioParams({ onChangeEmotion })
-
-    fireEvent.click(screen.getByText('emotionHappy'))
-
-    expect(onChangeEmotion).toHaveBeenCalledWith('happy')
+    expect(screen.getByText('styleNarration')).toBeInTheDocument()
+    expect(screen.getByText('advancedHint')).toBeInTheDocument()
+    expect(screen.getByText('paceHint')).toBeInTheDocument()
+    expect(screen.getByText('pauseMarkersHint')).toBeInTheDocument()
   })
 
   it('calls onChangePace when selecting pace', () => {
@@ -53,5 +74,14 @@ describe('StudioAudioParams', () => {
     fireEvent.click(screen.getByText('paceFast'))
 
     expect(onChangePace).toHaveBeenCalledWith('fast')
+  })
+
+  it('calls onChangeAdvanced when selecting a reading style', () => {
+    const onChangeAdvanced = vi.fn()
+    renderAudioParams({ onChangeAdvanced })
+
+    fireEvent.click(screen.getByText('styleNarration'))
+
+    expect(onChangeAdvanced).toHaveBeenCalledWith({ style: 'narration' })
   })
 })

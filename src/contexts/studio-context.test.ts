@@ -110,6 +110,19 @@ describe('studioFormReducer', () => {
     expect(next.panels.advanced).toBe(true)
   })
 
+  it('SET_SELECTED_WORKFLOW_ID can suppress the default panel for route sync', () => {
+    const state = makeInitialState()
+
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      openDefaultPanel: false,
+    })
+
+    expect(next.outputType).toBe('video')
+    expect(next.panels.videoParams).toBe(false)
+  })
+
   it('SET_SELECTED_WORKFLOW_ID keeps prompt when staying in the same media group', () => {
     const state = makeInitialState({ prompt: 'keep this image prompt' })
 

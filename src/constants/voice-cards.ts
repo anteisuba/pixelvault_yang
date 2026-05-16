@@ -71,3 +71,37 @@ export const AUDIO_PACE_SPEED = {
   [AUDIO_PACE.NORMAL]: 1,
   [AUDIO_PACE.FAST]: 1.2,
 } as const
+
+export const VOICE_LIBRARY_PAGE_SIZE = 20
+
+export const VOICE_LIBRARY_LANGUAGES = ['all', 'zh', 'en', 'ja', 'es'] as const
+
+export type VoiceLibraryLanguage = (typeof VOICE_LIBRARY_LANGUAGES)[number]
+
+export const VOICE_LIBRARY_LANGUAGE_FILTERS = [
+  { value: 'all', labelKey: 'voiceLanguageAll' },
+  { value: 'zh', labelKey: 'voiceLanguageChinese' },
+  { value: 'en', labelKey: 'voiceLanguageEnglish' },
+  { value: 'ja', labelKey: 'voiceLanguageJapanese' },
+  { value: 'es', labelKey: 'voiceLanguageSpanish' },
+] as const satisfies readonly {
+  value: VoiceLibraryLanguage
+  labelKey: string
+}[]
+
+export const VOICE_LIBRARY_SORT_BY_VALUES = [
+  'score',
+  'task_count',
+  'created_at',
+] as const
+
+export type VoiceLibrarySortBy = (typeof VOICE_LIBRARY_SORT_BY_VALUES)[number]
+
+export const VOICE_LIBRARY_SORT_OPTIONS = [
+  { value: 'score', labelKey: 'voiceSortRecommended' },
+  { value: 'task_count', labelKey: 'voiceSortPopular' },
+  { value: 'created_at', labelKey: 'voiceSortNewest' },
+] as const satisfies readonly {
+  value: VoiceLibrarySortBy
+  labelKey: string
+}[]

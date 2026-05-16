@@ -53,7 +53,10 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   const t = useTranslations('audioParams')
 
   return (
-    <div className="space-y-4" data-voice-card-id={voiceCardId ?? undefined}>
+    <div
+      className="shrink-0 space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3"
+      data-voice-card-id={voiceCardId ?? undefined}
+    >
       <div>
         <label className="mb-2 block text-2xs font-medium text-muted-foreground/70">
           {t('emotion')}
@@ -65,7 +68,7 @@ export const StudioAudioParams = memo(function StudioAudioParams({
             if (value) onChangeEmotion(value)
           }}
           aria-label={t('emotion')}
-          className="w-full justify-start"
+          className="w-full flex-wrap justify-start"
         >
           {EMOTION_OPTIONS.map((option) => (
             <ToggleGroupItem key={option.value} value={option.value}>
@@ -86,7 +89,7 @@ export const StudioAudioParams = memo(function StudioAudioParams({
             if (value) onChangePace(value)
           }}
           aria-label={t('pace')}
-          className="w-full justify-start"
+          className="w-full flex-wrap justify-start"
         >
           {PACE_OPTIONS.map((option) => (
             <ToggleGroupItem key={option.value} value={option.value}>
@@ -105,7 +108,7 @@ export const StudioAudioParams = memo(function StudioAudioParams({
           value={pauseMarkers}
           onValueChange={onChangePauseMarkers}
           aria-label={t('pauseMarkers')}
-          className="w-full justify-start"
+          className="w-full flex-wrap justify-start"
         >
           {PAUSE_OPTIONS.map((option) => (
             <ToggleGroupItem key={option.value} value={option.value}>

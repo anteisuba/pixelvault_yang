@@ -74,12 +74,6 @@ interface Studio3DWorkspaceProps {
   initialNextCursor?: string | null
 }
 
-const OCTREE_OPTIONS: Array<{ value: 256 | 512 | 1024; label: string }> = [
-  { value: 256, label: '256 (fast)' },
-  { value: 512, label: '512 (balanced)' },
-  { value: 1024, label: '1024 (high)' },
-]
-
 const HUNYUAN3D_V3_MODEL_IDS = new Set<string>([
   AI_MODELS.HUNYUAN3D_V3,
   AI_MODELS.HUNYUAN3D_V31_PRO,
@@ -142,12 +136,8 @@ export function Studio3DWorkspace({
   const [selectedModelId, setSelectedModelId] = useState<string>(
     models[0]?.id ?? AI_MODELS.HUNYUAN3D_V31_PRO,
   )
-  const [texturedMesh, setTexturedMesh] = useState(false)
   const [enablePbr, setEnablePbr] = useState(true)
   const [faceCount, setFaceCount] = useState<number>(HUNYUAN3D_FACE_COUNT.HIGH)
-  const [octreeResolution, setOctreeResolution] = useState<256 | 512 | 1024>(
-    512,
-  )
   const [trellisResolution, setTrellisResolution] =
     useState<(typeof TRELLIS_2_RESOLUTIONS)[number]>(1536)
   const [trellisTextureSize, setTrellisTextureSize] =
@@ -283,7 +273,6 @@ export function Studio3DWorkspace({
     }
   }, [falActiveKeys, selectedApiKeyId])
 
-  const isHunyuanLegacy = selectedModelId === AI_MODELS.HUNYUAN3D_2_1
   const isHunyuanV3 = HUNYUAN3D_V3_MODEL_IDS.has(selectedModelId)
   const isTrellis2 = selectedModelId === AI_MODELS.TRELLIS_2
   const isTriposr = selectedModelId === AI_MODELS.TRIPOSR
@@ -364,7 +353,6 @@ export function Studio3DWorkspace({
         ? (override.sourceGenerationId ?? undefined)
         : sourceImage?.id
     const targetPrompt = override?.sourcePrompt ?? sourceImage?.prompt
-    const targetIsHunyuanLegacy = targetModelId === AI_MODELS.HUNYUAN3D_2_1
     const targetIsHunyuanV3 = HUNYUAN3D_V3_MODEL_IDS.has(targetModelId)
     const targetIsTrellis2 = targetModelId === AI_MODELS.TRELLIS_2
     const targetIsTriposr = targetModelId === AI_MODELS.TRIPOSR
@@ -379,10 +367,6 @@ export function Studio3DWorkspace({
       ...(targetPrompt && { prompt: targetPrompt }),
       prep3D,
       ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
-      ...(targetIsHunyuanLegacy && {
-        texturedMesh,
-        octreeResolution,
-      }),
       ...(targetIsHunyuanV3 && {
         enablePbr,
         faceCount,
@@ -1002,51 +986,6 @@ export function Studio3DWorkspace({
             </div>
             <Switch id="prep-3d" checked={prep3D} onCheckedChange={setPrep3D} />
           </div>
-
-          {isHunyuanLegacy && (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label
-                    htmlFor="textured-mesh"
-                    className="text-sm font-medium"
-                  >
-                    {t('texturedMeshLabel')}
-                  </Label>
-                  <span className="text-xs text-muted-foreground">
-                    {t('texturedMeshHint')}
-                  </span>
-                </div>
-                <Switch
-                  id="textured-mesh"
-                  checked={texturedMesh}
-                  onCheckedChange={setTexturedMesh}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('octreeResolutionLabel')}
-                </Label>
-                <Select
-                  value={String(octreeResolution)}
-                  onValueChange={(v) =>
-                    setOctreeResolution(Number(v) as 256 | 512 | 1024)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {OCTREE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={String(opt.value)}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
 
           {isHunyuanV3 && (
             <div className="flex flex-col gap-3">

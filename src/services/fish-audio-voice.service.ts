@@ -1,9 +1,12 @@
 import 'server-only'
 
+import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import type { VoiceLibrarySortBy } from '@/constants/voice-cards'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 
-const FISH_AUDIO_API = 'https://api.fish.audio'
+const FISH_AUDIO_API = AI_PROVIDER_ENDPOINTS.FISH_AUDIO
+const FISH_AUDIO_ASSET_BASE_URL = `${AI_PROVIDER_ENDPOINTS.FISH_AUDIO_ASSETS}/`
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -50,6 +53,28 @@ export interface CreateVoiceParams {
 
 // ─── API Response → Domain Mapping ──────────────────────────────
 
+function normalizeFishAudioAssetUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  try {
+    const absoluteUrl = new URL(trimmed)
+    if (absoluteUrl.protocol === 'https:' || absoluteUrl.protocol === 'http:') {
+      return absoluteUrl.toString()
+    }
+  } catch {
+    // Relative Fish Audio asset paths are normalized below.
+  }
+
+  try {
+    return new URL(trimmed, FISH_AUDIO_ASSET_BASE_URL).toString()
+  } catch {
+    return null
+  }
+}
+
 function mapVoice(raw: Record<string, unknown>): FishAudioVoice {
   const author = raw.author as Record<string, unknown> | null
   const samples = (raw.samples as Record<string, unknown>[] | null) ?? []
@@ -58,14 +83,14 @@ function mapVoice(raw: Record<string, unknown>): FishAudioVoice {
     id: raw._id as string,
     title: (raw.title as string) ?? '',
     description: (raw.description as string) ?? null,
-    coverImage: (raw.cover_image as string) ?? null,
+    coverImage: normalizeFishAudioAssetUrl(raw.cover_image),
     state: (raw.state as FishAudioVoice['state']) ?? 'created',
     languages: (raw.languages as string[]) ?? [],
     tags: (raw.tags as string[]) ?? [],
     samples: samples.map((s) => ({
       title: (s.title as string) ?? null,
       text: (s.text as string) ?? null,
-      audio: (s.audio as string) ?? '',
+      audio: normalizeFishAudioAssetUrl(s.audio) ?? '',
     })),
     likeCount: (raw.like_count as number) ?? 0,
     taskCount: (raw.task_count as number) ?? 0,
@@ -91,7 +116,7 @@ export async function listVoices(
     pageNumber?: number
     title?: string
     language?: string
-    sortBy?: 'score' | 'task_count' | 'created_at'
+    sortBy?: VoiceLibrarySortBy
   } = {},
 ): Promise<FishAudioVoiceListResult> {
   const params = new URLSearchParams()

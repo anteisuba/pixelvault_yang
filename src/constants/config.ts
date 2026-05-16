@@ -281,6 +281,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   NOVELAI: 'https://image.novelai.net',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
+  FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
 } as const
 
 /** Video generation configuration */

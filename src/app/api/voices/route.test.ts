@@ -117,6 +117,7 @@ describe('GET /api/voices', () => {
         pageSize: '10',
         search: 'narrator',
         language: 'en',
+        sortBy: 'task_count',
       }),
     )
     const body = await parseJSON<{ success: boolean; data: unknown }>(res)
@@ -131,6 +132,7 @@ describe('GET /api/voices', () => {
       pageNumber: 2,
       title: 'narrator',
       language: 'en',
+      sortBy: 'task_count',
     })
   })
 })

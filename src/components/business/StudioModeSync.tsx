@@ -28,14 +28,14 @@ export function StudioModeSync({ mode }: StudioModeSyncProps) {
     if (state.outputType === mode) return
     const target = WORKFLOWS.find((w) => w.mediaGroup === mode)
     if (target) {
-      // Close anything left open from the previous mode before switching
-      // — keeping panels open across image/video/audio swaps surfaces
-      // mode-specific dialogs (videoParams, voiceSelector, …) at the
-      // wrong time. The provider is shared across the workspace layout,
-      // so this dispatch is the only place that knows the user changed
-      // canvases.
+      // Route-level mode changes should land on the workspace itself, not
+      // auto-open the mode's first configuration panel.
       dispatch({ type: 'CLOSE_ALL_PANELS' })
-      dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: target.id })
+      dispatch({
+        type: 'SET_SELECTED_WORKFLOW_ID',
+        payload: target.id,
+        openDefaultPanel: false,
+      })
     }
   }, [mode, state.outputType, dispatch])
 

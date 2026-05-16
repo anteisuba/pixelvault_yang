@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 
-import { SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useStyleCards } from '@/hooks/use-style-cards'
@@ -20,10 +19,6 @@ export function CardDrawerContent() {
 
   return (
     <>
-      <SheetHeader className="px-6 pt-6 pb-2">
-        <SheetTitle className="font-display">{t('cardManagement')}</SheetTitle>
-      </SheetHeader>
-
       <Tabs defaultValue="characters" className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-6 mb-2" variant="line">
           <TabsTrigger value="characters">{t('character')}</TabsTrigger>

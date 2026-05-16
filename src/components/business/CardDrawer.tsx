@@ -3,10 +3,16 @@
 import { memo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
 import { Layers } from 'lucide-react'
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
 
 // Heavy content (3 card managers + their hooks) is split into its own chunk
 // and only fetched when the drawer opens — keeps the always-mounted sidebar
@@ -47,6 +53,11 @@ export const CardDrawer = memo(function CardDrawer({
         side="right"
         className="dark w-full sm:w-[420px] sm:max-w-[480px] flex flex-col p-0 border-l border-white/10 bg-sidebar text-sidebar-foreground"
       >
+        <SheetHeader className="px-6 pt-6 pb-2">
+          <SheetTitle className="font-display">
+            {t('cardManagement')}
+          </SheetTitle>
+        </SheetHeader>
         {open && <CardDrawerContent />}
       </SheetContent>
     </Sheet>

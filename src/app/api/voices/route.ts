@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { VOICE_LIBRARY_SORT_BY_VALUES } from '@/constants/voice-cards'
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
@@ -21,6 +22,7 @@ const ListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
   search: z.string().optional(),
   language: z.string().optional(),
+  sortBy: z.enum(VOICE_LIBRARY_SORT_BY_VALUES).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get('pageSize') ?? undefined,
       search: searchParams.get('search') ?? undefined,
       language: searchParams.get('language') ?? undefined,
+      sortBy: searchParams.get('sortBy') ?? undefined,
     })
 
     if (!parsed.success) {
@@ -66,13 +69,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { self, page, pageSize, search, language } = parsed.data
+    const { self, page, pageSize, search, language, sortBy } = parsed.data
     const result = await listVoices(apiKey.keyValue, {
       self,
       pageSize,
       pageNumber: page,
       title: search,
       language,
+      sortBy,
     })
 
     return NextResponse.json({ success: true, data: result })

@@ -2,6 +2,7 @@ import type {
   FishAudioVoice,
   FishAudioVoiceListResult,
 } from '@/services/fish-audio-voice.service'
+import type { VoiceLibrarySortBy } from '@/constants/voice-cards'
 
 interface VoiceListResponse {
   success: boolean
@@ -21,6 +22,7 @@ export async function listVoicesAPI(params: {
   pageSize?: number
   search?: string
   language?: string
+  sortBy?: VoiceLibrarySortBy
 }): Promise<VoiceListResponse> {
   try {
     const query = new URLSearchParams()
@@ -29,6 +31,7 @@ export async function listVoicesAPI(params: {
     if (params.pageSize) query.set('pageSize', String(params.pageSize))
     if (params.search) query.set('search', params.search)
     if (params.language) query.set('language', params.language)
+    if (params.sortBy) query.set('sortBy', params.sortBy)
 
     const response = await fetch(`/api/voices?${query.toString()}`)
     if (!response.ok) {

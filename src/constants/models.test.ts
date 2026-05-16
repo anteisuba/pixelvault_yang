@@ -16,6 +16,7 @@ import {
   normalizeModelId,
   RETIRED_MODEL_IDS,
 } from '@/constants/models'
+import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
 
 describe('models', () => {
   it('keeps renamed video model IDs canonical in the active catalog', () => {
@@ -84,6 +85,21 @@ describe('models', () => {
     for (const model of MODEL_OPTIONS) {
       if (!model.available) {
         expect(retiredModelIds.has(model.id)).toBe(true)
+      }
+    }
+  })
+
+  it('keeps workflow recommended models active', () => {
+    const availableModelIds = new Set<string>(
+      getAvailableModels().map((model) => model.id),
+    )
+
+    for (const workflow of WORKFLOWS) {
+      const defaults = getWorkflowStudioDefaults(workflow.id)
+
+      for (const modelId of defaults.recommendedModelIds ?? []) {
+        expect(availableModelIds.has(modelId)).toBe(true)
+        expect(isRetiredModelId(modelId)).toBe(false)
       }
     }
   })

@@ -119,7 +119,11 @@ export interface StudioFormState {
 }
 
 export type StudioAction =
-  | { type: 'SET_SELECTED_WORKFLOW_ID'; payload: WorkflowId }
+  | {
+      type: 'SET_SELECTED_WORKFLOW_ID'
+      payload: WorkflowId
+      openDefaultPanel?: boolean
+    }
   | { type: 'SET_OUTPUT_TYPE'; payload: OutputType }
   | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
   | { type: 'SET_OPTION_ID'; payload: string | null }
@@ -203,9 +207,10 @@ export function studioFormReducer(
     case 'SET_SELECTED_WORKFLOW_ID': {
       const defaults = getWorkflowStudioDefaults(action.payload)
       const isChangingMediaGroup = state.outputType !== defaults.outputType
-      const panels = defaults.openPanel
-        ? { ...state.panels, [defaults.openPanel]: true }
-        : state.panels
+      const panels =
+        action.openDefaultPanel !== false && defaults.openPanel
+          ? { ...state.panels, [defaults.openPanel]: true }
+          : state.panels
 
       return {
         ...state,

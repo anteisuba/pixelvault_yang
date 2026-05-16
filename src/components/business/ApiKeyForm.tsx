@@ -13,11 +13,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
-import {
-  AI_MODELS,
-  getAvailableModels,
-  getModelMessageKey,
-} from '@/constants/models'
+import { getAvailableModels, getModelMessageKey } from '@/constants/models'
 import {
   ADAPTER_KEY_HINTS,
   AI_ADAPTER_TYPES,
@@ -59,10 +55,10 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
   const modelsForAdapter = availableModels.filter(
     (model) => model.adapterType === adapterType,
   )
-  const firstAdapterModelId = modelsForAdapter[0]?.id ?? AI_MODELS.SDXL
+  const firstAdapterModelId = modelsForAdapter[0]?.id ?? ''
   const defaultProviderConfig = getDefaultProviderConfig(adapterType)
   const [presetModelId, setPresetModelId] =
-    useState<AI_MODELS>(firstAdapterModelId)
+    useState<string>(firstAdapterModelId)
   const [customModelId, setCustomModelId] = useState('')
   const [providerLabel, setProviderLabel] = useState(
     defaultProviderConfig.label,
@@ -106,7 +102,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
 
     setProviderLabel(nextProviderConfig.label)
     setProviderBaseUrl(nextProviderConfig.baseUrl)
-    setPresetModelId(nextModels[0]?.id ?? AI_MODELS.SDXL)
+    setPresetModelId(nextModels[0]?.id ?? '')
     setKeyValue('')
   }
 
@@ -275,7 +271,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
           <Select
             name="presetModelId"
             value={resolvedPresetModelId}
-            onValueChange={(value) => setPresetModelId(value as AI_MODELS)}
+            onValueChange={setPresetModelId}
           >
             <SelectTrigger
               id="preset-model-select"

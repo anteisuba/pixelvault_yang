@@ -3,8 +3,8 @@ import { useTranslations } from 'next-intl'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   AI_MODELS,
+  getAvailableModels,
   MODEL_MESSAGE_KEYS,
-  MODEL_OPTIONS,
   type ModelOption,
 } from '@/constants/models'
 
@@ -40,7 +40,6 @@ const MODEL_PRICING: Partial<Record<AI_MODELS, ModelPrice>> = {
   [AI_MODELS.FLUX_2_DEV]: { amount: 0.025, unit: 'image' },
   [AI_MODELS.FLUX_2_SCHNELL]: { amount: 0.003, unit: 'image' },
   [AI_MODELS.FLUX_2_MAX]: { amount: 0.06, unit: 'image' },
-  [AI_MODELS.FLUX_LORA]: { amount: 0.025, unit: 'image' },
   [AI_MODELS.FLUX_KONTEXT_PRO]: { amount: 0.04, unit: 'image' },
   [AI_MODELS.FLUX_KONTEXT_MAX]: { amount: 0.08, unit: 'image' },
   [AI_MODELS.IDEOGRAM_3]: { amount: 0.06, unit: 'image' },
@@ -50,24 +49,19 @@ const MODEL_PRICING: Partial<Record<AI_MODELS, ModelPrice>> = {
   [AI_MODELS.SEEDREAM_40]: { amount: 0.011, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
-  [AI_MODELS.NOVELAI_V4_FULL]: { amount: 0.012, unit: 'image' },
   [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
   [AI_MODELS.SD_35_LARGE]: { amount: 0.025, unit: 'image' },
   [AI_MODELS.ANIMAGINE_XL_4]: { amount: 0.003, unit: 'image' },
-  [AI_MODELS.SDXL]: { amount: 0.003, unit: 'image' },
 
   // Video — per second of generated video
   [AI_MODELS.KLING_V3_PRO]: { amount: 0.3, unit: 'second' },
-  [AI_MODELS.KLING_VIDEO]: { amount: 0.28, unit: 'second' },
   [AI_MODELS.VEO_31]: { amount: 0.2, unit: 'second' },
   [AI_MODELS.SEEDANCE_20]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_FAST]: { amount: 0.06, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_VOLC]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.SEEDANCE_20_FAST_VOLC]: { amount: 0.06, unit: 'second' },
-  [AI_MODELS.SEEDANCE_15_PRO]: { amount: 0.1, unit: 'second' },
   [AI_MODELS.MINIMAX_VIDEO]: { amount: 0.3, unit: 'second' },
   [AI_MODELS.LUMA_RAY_2]: { amount: 0.2, unit: 'second' },
-  [AI_MODELS.PIKA_V25]: { amount: 0.2, unit: 'second' },
   [AI_MODELS.RUNWAY_GEN3]: { amount: 0.05, unit: 'second' },
   [AI_MODELS.WAN_VIDEO]: { amount: 0.05, unit: 'second' },
   [AI_MODELS.HUNYUAN_VIDEO]: { amount: 0.06, unit: 'second' },
@@ -157,7 +151,7 @@ export function HomepageModelLineup() {
   const t = useTranslations('Homepage.modelLineup')
   const tModels = useTranslations('Models')
 
-  const available = MODEL_OPTIONS.filter((m) => m.available)
+  const available = getAvailableModels()
   const imageModels = available.filter((m) => m.outputType === 'IMAGE')
   const videoModels = available.filter((m) => m.outputType === 'VIDEO')
   const audioModels = available.filter((m) => m.outputType === 'AUDIO')

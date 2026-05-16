@@ -197,7 +197,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.CHARACTER_TO_VIDEO]: {
     openPanel: 'refImage',
     recommendedModelIds: [
-      AI_MODELS.KLING_VIDEO,
+      AI_MODELS.KLING_V3_PRO,
       AI_MODELS.SEEDANCE_20,
       AI_MODELS.MINIMAX_VIDEO,
     ],

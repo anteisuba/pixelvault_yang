@@ -315,12 +315,14 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           if (!open) closePanel('voiceSelector')
         }}
       >
-        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
+        <DialogContent
+          className={`${DIALOG_BASE} flex h-[85vh] min-h-0 flex-col !max-w-3xl`}
+        >
           <DialogTitle className={DIALOG_HEADER}>{tBar('voice')}</DialogTitle>
           <DialogDescription className="sr-only">
             {tBar('voice')}
           </DialogDescription>
-          <div className={`${DIALOG_BODY} space-y-4`}>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-5 pb-5 pt-1">
             <VoiceSelector />
             <StudioAudioParams
               voiceCardId={state.voiceCardId}

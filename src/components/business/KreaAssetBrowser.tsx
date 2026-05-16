@@ -49,7 +49,11 @@ import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
-import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
+import {
+  USER_UPLOAD_ACCEPTED_MIME_PREFIXES,
+  USER_UPLOAD_MAX_BYTES,
+  USER_UPLOAD_PROVIDER,
+} from '@/constants/uploads'
 import { Link } from '@/i18n/navigation'
 import {
   batchAssignProjectAPI,
@@ -59,6 +63,7 @@ import {
   fetchAssetSectionCounts,
   fetchGalleryImages,
 } from '@/lib/api-client/gallery'
+import { uploadImageAPI } from '@/lib/api-client/generation'
 import {
   makeGalleryCacheKey,
   readGalleryCache,
@@ -126,6 +131,9 @@ const DENSITY_IMAGE_SIZES: Record<Density, string> = {
   normal: '(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw',
   compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
 }
+const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_PREFIXES.map(
+  (prefix) => `${prefix}*`,
+).join(',')
 const DENSITY_XL_COLS: Record<Density, number> = {
   comfortable: 4,
   normal: 6,
@@ -209,6 +217,7 @@ export function KreaAssetBrowser({
     filters,
     setFilters,
     removeGeneration,
+    prependGeneration,
     updateGeneration,
   } = useGallery({
     initialGenerations,
@@ -279,6 +288,8 @@ export function KreaAssetBrowser({
   // bulk selection — its click target must always resolve onSelect.
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
   const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
@@ -571,6 +582,60 @@ export function KreaAssetBrowser({
     setFilters({ ...filters, search: searchInput.trim() })
   }
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    const isAcceptedType = USER_UPLOAD_ACCEPTED_MIME_PREFIXES.some((prefix) =>
+      file.type.startsWith(prefix),
+    )
+    if (!isAcceptedType) {
+      toast.error(t('uploadUnsupportedFile'))
+      return
+    }
+    if (file.size > USER_UPLOAD_MAX_BYTES) {
+      toast.error(
+        t('uploadFileTooLarge', {
+          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
+        }),
+      )
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const imageDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (typeof reader.result === 'string') resolve(reader.result)
+          else reject(new Error(t('uploadFailed')))
+        }
+        reader.onerror = () =>
+          reject(reader.error ?? new Error(t('uploadFailed')))
+        reader.readAsDataURL(file)
+      })
+      const response = await uploadImageAPI({ imageDataUrl })
+      if (!response.success || !response.data) {
+        toast.error(response.error ?? t('uploadFailed'))
+        return
+      }
+      prependGeneration(response.data.generation)
+      void refreshCounts()
+      toast.success(t('uploadSuccess'))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('uploadFailed'))
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const startRenameProject = (id: string, currentName: string) => {
     setEditingProjectId(id)
     setEditingProjectName(currentName)
@@ -669,6 +734,35 @@ export function KreaAssetBrowser({
             </form>
             {!isPickerMode && (
               <>
+                {section.kind === 'uploads' && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={USER_UPLOAD_ACCEPT}
+                      className="sr-only"
+                      aria-label={t('uploadInputLabel')}
+                      onChange={(event) => {
+                        void handleFileChange(event)
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUploadClick}
+                      disabled={isUploading}
+                      className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <UploadCloud className="size-3.5" />
+                      )}
+                      <span>
+                        {isUploading ? t('uploading') : t('uploadButton')}
+                      </span>
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => {

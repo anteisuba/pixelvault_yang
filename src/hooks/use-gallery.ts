@@ -76,6 +76,8 @@ export interface UseGalleryReturn {
   removeGeneration: (id: string) => void
   /** Remove multiple generations from the local list (after batch deletion) */
   removeGenerations: (ids: Set<string>) => void
+  /** Insert a generation into the local list (after successful upload/create) */
+  prependGeneration: (generation: GenerationRecord) => void
   /** Patch a generation in place (after publish/like/etc) so the grid mirrors the new state without refetching. */
   updateGeneration: (id: string, patch: Partial<GenerationRecord>) => void
 }
@@ -133,6 +135,7 @@ export function useGallery({
   const nextCursorRef = useRef(initialNextCursor)
   const isFetchingRef = useRef(false)
   const filtersRef = useRef(filters)
+  const generationsRef = useRef(initialGenerations)
   // Seed the module-level gallery cache once with the SSR snapshot so
   // flipping away from the initial filter and back lands on a cache hit
   // instead of refetching the data the page already shipped with. Lazy
@@ -180,6 +183,10 @@ export function useGallery({
   useEffect(() => {
     filtersRef.current = filters
   }, [filters])
+
+  useEffect(() => {
+    generationsRef.current = generations
+  }, [generations])
 
   const fetchPage = useCallback(
     /**
@@ -250,12 +257,12 @@ export function useGallery({
             totalRef.current = freshTotal
             hasMoreRef.current = freshHasMore
             nextCursorRef.current = freshNextCursor
+            const nextGenerations = append
+              ? mergeGenerations(generationsRef.current, fresh)
+              : fresh
+            generationsRef.current = nextGenerations
             startTransition(() => {
-              if (append) {
-                setGenerations((current) => mergeGenerations(current, fresh))
-              } else {
-                setGenerations(fresh)
-              }
+              setGenerations(nextGenerations)
               setPage(response.data?.page ?? targetPage)
               setTotal(freshTotal)
               setHasMore(freshHasMore)
@@ -316,6 +323,7 @@ export function useGallery({
         totalRef.current = cached.total
         hasMoreRef.current = cached.hasMore
         nextCursorRef.current = cached.nextCursor
+        generationsRef.current = cached.generations
         startTransition(() => {
           setGenerations(cached.generations)
           setTotal(cached.total)
@@ -337,6 +345,7 @@ export function useGallery({
         setTotal(0)
         setHasMore(false)
         setNextCursor(null)
+        generationsRef.current = []
         totalRef.current = 0
         hasMoreRef.current = false
         nextCursorRef.current = null
@@ -388,25 +397,65 @@ export function useGallery({
 
   const removeGeneration = useCallback(
     (id: string) => {
-      setGenerations((current) => current.filter((g) => g.id !== id))
-      setTotal((prev) => Math.max(prev - 1, 0))
+      const current = generationsRef.current
+      const existed = current.some((g) => g.id === id)
+      const next = current.filter((g) => g.id !== id)
+      const nextTotal = Math.max(totalRef.current - (existed ? 1 : 0), 0)
+
+      generationsRef.current = next
+      totalRef.current = nextTotal
+      setGenerations(next)
+      setTotal(nextTotal)
     },
     [setGenerations, setTotal],
   )
 
   const removeGenerations = useCallback(
     (ids: Set<string>) => {
-      setGenerations((current) => current.filter((g) => !ids.has(g.id)))
-      setTotal((prev) => Math.max(prev - ids.size, 0))
+      const current = generationsRef.current
+      const removedCount = current.filter((g) => ids.has(g.id)).length
+      const next = current.filter((g) => !ids.has(g.id))
+      const nextTotal = Math.max(totalRef.current - removedCount, 0)
+
+      generationsRef.current = next
+      totalRef.current = nextTotal
+      setGenerations(next)
+      setTotal(nextTotal)
     },
     [setGenerations, setTotal],
   )
 
+  const prependGeneration = useCallback(
+    (generation: GenerationRecord) => {
+      const current = generationsRef.current
+      const existed = current.some((g) => g.id === generation.id)
+      const next = [
+        generation,
+        ...current.filter((g) => g.id !== generation.id),
+      ]
+      const nextTotal = totalRef.current + (existed ? 0 : 1)
+
+      generationsRef.current = next
+      totalRef.current = nextTotal
+      setGenerations(next)
+      setTotal(nextTotal)
+      writeGalleryCache(makeGalleryCacheKey(filtersRef.current, mine, limit), {
+        generations: next.slice(0, limit),
+        total: nextTotal,
+        hasMore: hasMoreRef.current,
+        nextCursor: nextCursorRef.current,
+      })
+    },
+    [limit, mine, setGenerations, setTotal],
+  )
+
   const updateGeneration = useCallback(
     (id: string, patch: Partial<GenerationRecord>) => {
-      setGenerations((current) =>
-        current.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+      const next = generationsRef.current.map((g) =>
+        g.id === id ? { ...g, ...patch } : g,
       )
+      generationsRef.current = next
+      setGenerations(next)
     },
     [setGenerations],
   )
@@ -423,6 +472,7 @@ export function useGallery({
     sentinelRef,
     removeGeneration,
     removeGenerations,
+    prependGeneration,
     updateGeneration,
   }
 }

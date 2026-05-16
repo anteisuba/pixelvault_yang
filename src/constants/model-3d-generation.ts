@@ -43,6 +43,15 @@ export const MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS = [
   AI_MODELS.HUNYUAN3D_V31_PRO,
 ] as const
 
+export const MODEL_3D_MULTIVIEW_MODEL_IDS = [
+  AI_MODELS.FLUX_KONTEXT_PRO,
+  AI_MODELS.OPENAI_GPT_IMAGE_2,
+  AI_MODELS.GEMINI_FLASH_IMAGE,
+] as const
+
+export type Model3DMultiViewModelId =
+  (typeof MODEL_3D_MULTIVIEW_MODEL_IDS)[number]
+
 export const MODEL_3D_JOB_STAGE = {
   SINGLE_RUNNING: 'SINGLE_RUNNING',
   MESH_RUNNING: 'MESH_RUNNING',
@@ -113,7 +122,7 @@ export const MODEL_3D_SOURCE_QUALITY = {
 } as const
 
 export const MODEL_3D_MULTIVIEW_CACHE = {
-  STORAGE_KEY_PREFIX: 'pixelvault:studio3d:multiview:v1',
+  STORAGE_KEY_PREFIX: 'pixelvault:studio3d:multiview:v2',
   DEFAULT_MODEL_KEY: 'default',
   TTL_MS: 1000 * 60 * 60 * 12,
 } as const

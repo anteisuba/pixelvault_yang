@@ -78,6 +78,7 @@ const FAL_RESPONSE_SCHEMA = z.object({
       content_type: z.string().optional(),
     }),
   ),
+  has_nsfw_concepts: z.array(z.boolean()).optional(),
 })
 
 const FAL_VIDEO_RESPONSE_SCHEMA = z.object({
@@ -530,6 +531,15 @@ export const falAdapter: ProviderAdapter = {
       apiKey,
       timeoutMs: getFalImageQueueTimeoutMs(modelId),
     })
+
+    if (data.has_nsfw_concepts?.some(Boolean)) {
+      throw new ProviderError(
+        'fal.ai',
+        422,
+        'fal.ai 内容审核拒绝：生成结果被判定为敏感内容。请调整 prompt 或参考图（常见触发：暴力、裸露、真人脸特征、特定角色等）后重试。',
+      )
+    }
+
     const imageItem = data.images[0]
 
     if (!imageItem) {

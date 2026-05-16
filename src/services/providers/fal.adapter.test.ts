@@ -104,6 +104,46 @@ describe('falAdapter.generateImage', () => {
       'queue submit request timed out',
     )
   })
+
+  it('rejects safety-flagged image results instead of returning black placeholders', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            request_id: 'req-image-nsfw',
+            status_url: 'https://queue.fal.run/status/req-image-nsfw',
+            response_url: 'https://queue.fal.run/result/req-image-nsfw',
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: 'COMPLETED' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [
+              {
+                url: 'https://fal.run/output/black.png',
+                width: 1024,
+                height: 1024,
+              },
+            ],
+            has_nsfw_concepts: [true],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(falAdapter.generateImage(BASE_INPUT)).rejects.toThrow(
+      '内容审核',
+    )
+  })
 })
 
 describe('falAdapter F5-TTS queue', () => {

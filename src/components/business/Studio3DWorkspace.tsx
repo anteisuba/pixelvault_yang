@@ -22,12 +22,14 @@ import { toast } from 'sonner'
 import {
   AI_MODELS,
   getAvailableModel3DModels,
+  getModelById,
   getModelMessageKey,
 } from '@/constants/models'
 import {
   HUNYUAN3D_FACE_COUNT,
   MODEL_3D_GENERATE_TYPE,
   MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
+  MODEL_3D_MULTIVIEW_MODEL_IDS,
   MODEL_3D_PREVIEW_MODE,
   MODEL_3D_SOURCE_QUALITY,
   TRELLIS_2_DECIMATION_TARGET,
@@ -35,6 +37,7 @@ import {
   TRELLIS_2_TEXTURE_SIZES,
 } from '@/constants/model-3d-generation'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
 import { USER_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'
@@ -95,6 +98,20 @@ const TRELLIS_DECIMATION_OPTIONS = [
   { value: TRELLIS_2_DECIMATION_TARGET.MAX, label: '2M' },
 ]
 
+type GeneratedSideView = (typeof GENERATED_VIEW_ANGLES)[number]
+type ManualMultiViewImages = Partial<
+  Record<GeneratedSideView, MultiViewImageRecord>
+>
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
 function getMultiViewImages(
   views: MultiViewImageRecord[],
 ): Generate3DRequest['multiViewImages'] | undefined {
@@ -106,6 +123,25 @@ function getMultiViewImages(
   }
 
   return Object.keys(images).length > 0 ? images : undefined
+}
+
+function mergeMultiViewImages(
+  generatedViews: MultiViewImageRecord[],
+  manualViews: ManualMultiViewImages,
+): MultiViewImageRecord[] {
+  const byView = new Map<GeneratedSideView, MultiViewImageRecord>()
+  for (const view of generatedViews) {
+    byView.set(view.view, view)
+  }
+  for (const view of GENERATED_VIEW_ANGLES) {
+    const manualView = manualViews[view]
+    if (manualView) byView.set(view, manualView)
+  }
+
+  return GENERATED_VIEW_ANGLES.flatMap((view) => {
+    const image = byView.get(view)
+    return image ? [image] : []
+  })
 }
 
 export function Studio3DWorkspace({
@@ -176,6 +212,18 @@ export function Studio3DWorkspace({
     reset: resetMultiView,
   } = useGenerateMultiView()
   const multiViewSourceRef = useRef<string | null>(null)
+  const manualViewInputRefs = useRef<
+    Partial<Record<GeneratedSideView, HTMLInputElement | null>>
+  >({})
+  const [selectedMultiViewModelId, setSelectedMultiViewModelId] =
+    useState<string>(MODEL_3D_MULTIVIEW_MODEL_IDS[0])
+  const [selectedMultiViewApiKeyId, setSelectedMultiViewApiKeyId] =
+    useState<string>('')
+  const [manualMultiViewImages, setManualMultiViewImages] =
+    useState<ManualMultiViewImages>({})
+  const [manualMultiViewOpen, setManualMultiViewOpen] = useState(false)
+  const [uploadingManualView, setUploadingManualView] =
+    useState<GeneratedSideView | null>(null)
 
   const {
     isGenerating,
@@ -273,22 +321,55 @@ export function Studio3DWorkspace({
     }
   }, [falActiveKeys, selectedApiKeyId])
 
+  const selectedMultiViewModel = useMemo(
+    () => getModelById(selectedMultiViewModelId),
+    [selectedMultiViewModelId],
+  )
+  const multiViewActiveKeys = useMemo(() => {
+    const adapterType = selectedMultiViewModel?.adapterType
+    if (!adapterType) return []
+    return keys.filter((k) => k.adapterType === adapterType && k.isActive)
+  }, [keys, selectedMultiViewModel])
+  const canUseSelectedMultiViewModel =
+    !!selectedMultiViewModel &&
+    (selectedMultiViewModel.freeTier === true || multiViewActiveKeys.length > 0)
+
+  useEffect(() => {
+    if (multiViewActiveKeys.length === 0) {
+      if (selectedMultiViewApiKeyId) setSelectedMultiViewApiKeyId('')
+      return
+    }
+    const stillValid = multiViewActiveKeys.some(
+      (k) => k.id === selectedMultiViewApiKeyId,
+    )
+    if (!stillValid) {
+      setSelectedMultiViewApiKeyId(multiViewActiveKeys[0].id)
+    }
+  }, [multiViewActiveKeys, selectedMultiViewApiKeyId])
+
   const isHunyuanV3 = HUNYUAN3D_V3_MODEL_IDS.has(selectedModelId)
   const isTrellis2 = selectedModelId === AI_MODELS.TRELLIS_2
   const isTriposr = selectedModelId === AI_MODELS.TRIPOSR
   const supportsMultiViewInput = isHunyuanV3
   const supportsMeshFirstPreview =
     MESH_FIRST_PREVIEW_MODEL_IDS.has(selectedModelId)
+  const sourceIdentity = sourceImage?.id ?? sourceImage?.url ?? null
 
   useEffect(() => {
+    setManualMultiViewImages({})
+    setManualMultiViewOpen(false)
+  }, [sourceIdentity])
+
+  useEffect(() => {
+    const multiViewModelId = selectedMultiViewModel?.id
     const sourceKey =
-      sourceImage && supportsMultiViewInput
-        ? (sourceImage.id ?? sourceImage.url)
+      sourceImage && supportsMultiViewInput && multiViewModelId
+        ? `${sourceImage.id ?? sourceImage.url}:${multiViewModelId}`
         : null
     if (multiViewSourceRef.current === sourceKey) return
     multiViewSourceRef.current = sourceKey
 
-    if (!sourceImage || !supportsMultiViewInput) {
+    if (!sourceImage || !supportsMultiViewInput || !multiViewModelId) {
       resetMultiView()
       return
     }
@@ -296,10 +377,16 @@ export function Studio3DWorkspace({
     const restored = restoreMultiView({
       imageUrl: sourceImage.url,
       sourceGenerationId: sourceImage.id,
-      modelId: AI_MODELS.FLUX_KONTEXT_PRO,
+      modelId: multiViewModelId,
     })
     if (!restored) resetMultiView()
-  }, [sourceImage, supportsMultiViewInput, resetMultiView, restoreMultiView])
+  }, [
+    sourceImage,
+    supportsMultiViewInput,
+    selectedMultiViewModel,
+    resetMultiView,
+    restoreMultiView,
+  ])
 
   const sourceQualityIssues = useMemo(() => {
     if (!sourceImage) return []
@@ -327,6 +414,11 @@ export function Studio3DWorkspace({
     }
     return issues
   }, [sourceImage, t])
+
+  const effectiveMultiViewViews = useMemo(
+    () => mergeMultiViewImages(generatedViews, manualMultiViewImages),
+    [generatedViews, manualMultiViewImages],
+  )
 
   const canGenerate =
     !!sourceImage &&
@@ -357,7 +449,7 @@ export function Studio3DWorkspace({
     const targetIsTrellis2 = targetModelId === AI_MODELS.TRELLIS_2
     const targetIsTriposr = targetModelId === AI_MODELS.TRIPOSR
     const multiViewImages = targetIsHunyuanV3
-      ? getMultiViewImages(generatedViews)
+      ? getMultiViewImages(effectiveMultiViewViews)
       : undefined
 
     const params: Generate3DRequest = {
@@ -421,6 +513,8 @@ export function Studio3DWorkspace({
   const handleClearSource = () => {
     setSourceImage(null)
     resetMultiView()
+    setManualMultiViewImages({})
+    setManualMultiViewOpen(false)
     reset()
   }
 
@@ -432,18 +526,97 @@ export function Studio3DWorkspace({
       !sourceImage ||
       isGeneratingViews ||
       !supportsMultiViewInput ||
-      !hasFalKey
+      !canUseSelectedMultiViewModel ||
+      !selectedMultiViewModel
     ) {
       return
     }
     const request: MultiViewGenerateRequest = {
       imageUrl: sourceImage.url,
       sourceGenerationId: sourceImage.id,
-      modelId: AI_MODELS.FLUX_KONTEXT_PRO,
-      ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
+      modelId: selectedMultiViewModel.id,
+      ...(selectedMultiViewApiKeyId && {
+        apiKeyId: selectedMultiViewApiKeyId,
+      }),
     }
     if (restoreMultiView(request)) return
-    await generateMultiViewFn(request)
+    const views = await generateMultiViewFn(request)
+    if (views.length < GENERATED_VIEW_ANGLES.length) {
+      setManualMultiViewOpen(true)
+    }
+  }
+
+  const handleManualViewUploadClick = (view: GeneratedSideView) => {
+    manualViewInputRefs.current[view]?.click()
+  }
+
+  const handleRemoveManualView = (view: GeneratedSideView) => {
+    setManualMultiViewImages((prev) => {
+      const next = { ...prev }
+      delete next[view]
+      return next
+    })
+  }
+
+  const getViewLabel = (view: GeneratedSideView) =>
+    view === 'back'
+      ? t('viewBack')
+      : view === 'left'
+        ? t('viewLeft')
+        : t('viewRight')
+
+  const handleManualViewFileChange = async (
+    view: GeneratedSideView,
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error(t('errorUnsupportedFile'))
+      return
+    }
+    if (file.size > USER_UPLOAD_MAX_BYTES) {
+      toast.error(
+        t('errorFileTooLarge', {
+          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
+        }),
+      )
+      return
+    }
+
+    setUploadingManualView(view)
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const response = await uploadImageAPI({
+        imageDataUrl: dataUrl,
+        note: t('manualViewUploadNote', { view: getViewLabel(view) }),
+      })
+      if (!response.success || !response.data) {
+        toast.error(response.error ?? t('errorFallback'))
+        return
+      }
+
+      const generation = response.data.generation
+      setManualMultiViewImages((prev) => ({
+        ...prev,
+        [view]: {
+          id: generation.id,
+          view,
+          url: generation.url,
+          width: generation.width,
+          height: generation.height,
+          prompt: generation.prompt,
+          model: generation.model,
+          provider: generation.provider,
+        },
+      }))
+      toast.success(t('manualViewUploadSuccess', { view: getViewLabel(view) }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('errorUnexpected'))
+    } finally {
+      setUploadingManualView(null)
+    }
   }
 
   const handleUploadClick = () => {
@@ -471,12 +644,7 @@ export function Studio3DWorkspace({
 
     setUploading(true)
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(file)
-      })
+      const dataUrl = await readFileAsDataUrl(file)
       const response = await uploadImageAPI({ imageDataUrl: dataUrl })
       if (!response.success || !response.data) {
         toast.error(response.error ?? t('errorFallback'))
@@ -854,9 +1022,8 @@ export function Studio3DWorkspace({
 
           {/*
            * Method B — once we have a front view and a multi-view-capable
-           * Hunyuan model, render 3 temporary side views. The final 3D job
-           * receives all views together; no side-view Generation rows are
-           * created.
+           * Hunyuan model, render or upload side views. The final 3D job
+           * receives every available view together.
            */}
           {sourceImage && (
             <div className="flex flex-col gap-2">
@@ -864,7 +1031,66 @@ export function Studio3DWorkspace({
                 <Wand2 className="size-3" />
                 {t('multiViewLabel')}
               </Label>
-              {generatedViews.length === 0 ? (
+              {supportsMultiViewInput && (
+                <div className="flex flex-col gap-2">
+                  <Select
+                    value={selectedMultiViewModelId}
+                    onValueChange={(v) => setSelectedMultiViewModelId(v)}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue placeholder={t('multiViewModelLabel')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MODEL_3D_MULTIVIEW_MODEL_IDS.map((modelId) => {
+                        const messageKey = getModelMessageKey(modelId)
+                        return (
+                          <SelectItem key={modelId} value={modelId}>
+                            {tModels(`${messageKey}.label`)}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+
+                  {multiViewActiveKeys.length > 0 && (
+                    <Select
+                      value={selectedMultiViewApiKeyId}
+                      onValueChange={setSelectedMultiViewApiKeyId}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        {(() => {
+                          const selectedKey = multiViewActiveKeys.find(
+                            (k) => k.id === selectedMultiViewApiKeyId,
+                          )
+                          return selectedKey ? (
+                            <span className="font-medium">
+                              {selectedKey.label}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t('apiKeyDropdownPlaceholder')}
+                            </span>
+                          )
+                        })()}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {multiViewActiveKeys.map((k) => (
+                          <SelectItem key={k.id} value={k.id}>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{k.label}</span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {k.maskedKey}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )}
+
+              {effectiveMultiViewViews.length === 0 ? (
                 <>
                   <Button
                     type="button"
@@ -872,7 +1098,9 @@ export function Studio3DWorkspace({
                     size="sm"
                     onClick={handleGenerate4Views}
                     disabled={
-                      isGeneratingViews || !supportsMultiViewInput || !hasFalKey
+                      isGeneratingViews ||
+                      !supportsMultiViewInput ||
+                      !canUseSelectedMultiViewModel
                     }
                     className="w-full rounded-full"
                   >
@@ -889,9 +1117,11 @@ export function Studio3DWorkspace({
                     )}
                   </Button>
                   <p className="text-[10px] leading-4 text-muted-foreground">
-                    {supportsMultiViewInput
-                      ? t('multiViewHint')
-                      : t('multiViewUnsupportedHint')}
+                    {!supportsMultiViewInput
+                      ? t('multiViewUnsupportedHint')
+                      : canUseSelectedMultiViewModel
+                        ? t('multiViewHint')
+                        : t('multiViewApiKeyMissing')}
                   </p>
                 </>
               ) : (
@@ -899,14 +1129,9 @@ export function Studio3DWorkspace({
                   <div className="grid grid-cols-4 gap-1.5">
                     {[
                       { gen: sourceImage, label: t('viewFront') },
-                      ...generatedViews.map((view) => ({
+                      ...effectiveMultiViewViews.map((view) => ({
                         gen: view,
-                        label:
-                          view.view === 'back'
-                            ? t('viewBack')
-                            : view.view === 'left'
-                              ? t('viewLeft')
-                              : t('viewRight'),
+                        label: getViewLabel(view.view),
                       })),
                     ].map(({ gen, label }) => {
                       const isFront = gen.id === sourceImage.id
@@ -941,6 +1166,99 @@ export function Studio3DWorkspace({
                   <p className="text-[10px] leading-4 text-muted-foreground">
                     {t('multiViewPickHint')}
                   </p>
+                </>
+              )}
+
+              {supportsMultiViewInput && (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setManualMultiViewOpen((open) => !open)}
+                    className="h-8 justify-start rounded-full px-2 text-xs"
+                  >
+                    <Upload className="mr-1.5 size-3" />
+                    {manualMultiViewOpen
+                      ? t('manualViewHide')
+                      : t('manualViewShow')}
+                  </Button>
+
+                  {manualMultiViewOpen && (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {GENERATED_VIEW_ANGLES.map((view) => {
+                        const manualImage = manualMultiViewImages[view]
+                        const isUploading = uploadingManualView === view
+                        const label = getViewLabel(view)
+                        return (
+                          <div
+                            key={view}
+                            className="relative flex min-w-0 flex-col gap-1"
+                          >
+                            <div className="relative aspect-square overflow-hidden rounded-md border border-dashed border-border/60 bg-muted/30">
+                              {manualImage ? (
+                                <Image
+                                  src={manualImage.url}
+                                  alt={label}
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                  sizes="80px"
+                                />
+                              ) : (
+                                <div className="flex size-full items-center justify-center text-muted-foreground">
+                                  <ImageIcon className="size-4" />
+                                </div>
+                              )}
+                              <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
+                                {label}
+                              </span>
+                              {manualImage && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveManualView(view)}
+                                  className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+                                  aria-label={t('manualViewRemoveLabel', {
+                                    view: label,
+                                  })}
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleManualViewUploadClick(view)}
+                              disabled={uploadingManualView !== null}
+                              className="h-7 rounded-full px-2 text-[10px]"
+                            >
+                              {isUploading ? (
+                                <Loader2 className="mr-1 size-3 animate-spin" />
+                              ) : (
+                                <Upload className="mr-1 size-3" />
+                              )}
+                              {manualImage
+                                ? t('manualViewReplace')
+                                : t('manualViewUpload')}
+                            </Button>
+                            <input
+                              ref={(node) => {
+                                manualViewInputRefs.current[view] = node
+                              }}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(event) =>
+                                handleManualViewFileChange(view, event)
+                              }
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </div>

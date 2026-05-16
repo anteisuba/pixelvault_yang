@@ -59,6 +59,11 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { getSystemApiKey } from '@/lib/platform-keys'
+import {
+  GENERATION_STAGE,
+  GenerationStageTimer,
+  withGenerationObservability,
+} from '@/lib/generation-observability'
 
 const AI_ADAPTER_TYPE_VALUES = Object.values(AI_ADAPTER_TYPES) as [
   AI_ADAPTER_TYPES,
@@ -313,108 +318,149 @@ export async function generateAudioForUser(
   clerkId: string,
   request: GenerateAudioRequest,
 ): Promise<GenerationRecord> {
-  const dbUser = await ensureUser(clerkId)
-  const userId = dbUser.id
-
-  const route = await resolveGenerationRoute(userId, {
+  const timer = new GenerationStageTimer({
+    outputType: 'AUDIO',
     modelId: request.modelId,
-    apiKeyId: request.apiKeyId,
   })
 
-  const adapter = getProviderAdapter(route.adapterType)
-  if (!adapter.generateAudio) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      'This model does not support audio generation',
-      400,
-    )
-  }
+  const { userId, route, adapter, providerLabel } = await timer.measure(
+    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
+    async () => {
+      const ensuredUser = await ensureUser(clerkId)
+      const ensuredUserId = ensuredUser.id
 
-  const providerLabel = getProviderLabel(route.providerConfig)
+      const resolvedRoute = await resolveGenerationRoute(ensuredUserId, {
+        modelId: request.modelId,
+        apiKeyId: request.apiKeyId,
+      })
 
-  const job = await createGenerationJob({
-    userId,
+      const providerAdapter = getProviderAdapter(resolvedRoute.adapterType)
+      if (!providerAdapter?.generateAudio) {
+        throw new GenerateImageServiceError(
+          'UNSUPPORTED_MODEL',
+          'This model does not support audio generation',
+          400,
+        )
+      }
+
+      return {
+        dbUser: ensuredUser,
+        userId: ensuredUserId,
+        route: resolvedRoute,
+        adapter: providerAdapter,
+        providerLabel: getProviderLabel(resolvedRoute.providerConfig),
+      }
+    },
+  )
+
+  timer.setContext({
+    modelId: route.modelId,
     adapterType: route.adapterType,
     provider: providerLabel,
-    modelId: route.modelId,
+    routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
+
+  const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
+    createGenerationJob({
+      userId,
+      adapterType: route.adapterType,
+      provider: providerLabel,
+      modelId: route.modelId,
+    }),
+  )
+  timer.setContext({ jobId: job.id })
 
   try {
     const providerPrompt = buildProviderPrompt(request)
     const speed = resolveAudioSpeed(request)
     const breaker = getCircuitBreaker(route.adapterType)
-    const result = await breaker.call(() =>
-      withRetry(
-        () =>
-          adapter.generateAudio!({
-            prompt: providerPrompt,
-            modelId: route.modelId,
-            providerConfig: route.providerConfig,
-            apiKey: route.apiKey,
-            voiceId: request.voiceId,
-            speed,
-            format: request.format,
-            sampleRate: request.sampleRate,
-          }),
-        { maxAttempts: 3, label: `${providerLabel}/audio` },
+    const result = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
+      breaker.call(() =>
+        withRetry(
+          () =>
+            adapter.generateAudio!({
+              prompt: providerPrompt,
+              modelId: route.modelId,
+              providerConfig: route.providerConfig,
+              apiKey: route.apiKey,
+              voiceId: request.voiceId,
+              speed,
+              format: request.format,
+              sampleRate: request.sampleRate,
+            }),
+          { maxAttempts: 3, label: `${providerLabel}/audio` },
+        ),
       ),
     )
 
     // Upload audio to R2
-    const { buffer, mimeType } = await fetchAsBuffer(result.audioUrl)
+    const { buffer, mimeType } = await timer.measure(
+      GENERATION_STAGE.RESULT_DOWNLOAD,
+      () => fetchAsBuffer(result.audioUrl),
+    )
     const storageKey = generateStorageKey('AUDIO', userId, result.format)
-    const permanentUrl = await uploadToR2({
-      data: buffer,
-      key: storageKey,
-      mimeType,
-    })
+    const permanentUrl = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+      uploadToR2({
+        data: buffer,
+        key: storageKey,
+        mimeType,
+      }),
+    )
 
-    // Create generation record
-    const generation = await createGeneration({
-      userId,
-      outputType: 'AUDIO',
-      url: permanentUrl,
-      storageKey,
-      mimeType,
-      width: 0,
-      height: 0,
-      duration: result.duration,
-      prompt: request.prompt,
-      model: route.modelId,
-      provider: providerLabel,
-      requestCount: result.requestCount,
-      isFreeGeneration: route.isFreeGeneration,
-    })
+    const generation = await timer.measure(
+      GENERATION_STAGE.DB_FINALIZE,
+      async () => {
+        const createdGeneration = await createGeneration({
+          userId,
+          outputType: 'AUDIO',
+          url: permanentUrl,
+          storageKey,
+          mimeType,
+          width: 0,
+          height: 0,
+          duration: result.duration,
+          prompt: request.prompt,
+          model: route.modelId,
+          provider: providerLabel,
+          requestCount: result.requestCount,
+          isFreeGeneration: route.isFreeGeneration,
+          snapshot: withGenerationObservability(
+            {
+              audioFormat: result.format,
+              providerPrompt,
+            },
+            timer,
+          ),
+        })
 
-    // Track usage
-    await completeGenerationJob(job.id, {
-      generationId: generation.id,
-      requestCount: result.requestCount,
-    })
-    try {
-      await createApiUsageEntry({
-        userId,
-        generationId: generation.id,
-        generationJobId: job.id,
-        adapterType: route.adapterType,
-        provider: providerLabel,
-        modelId: route.modelId,
-        requestCount: result.requestCount,
-        wasSuccessful: true,
-      })
-    } catch (error) {
-      logger.error('Audio usage ledger write failed after sync completion', {
-        generationId: generation.id,
-        jobId: job.id,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
+        await completeGenerationJob(job.id, {
+          generationId: createdGeneration.id,
+          requestCount: result.requestCount,
+        })
+
+        await createApiUsageEntry({
+          userId,
+          generationId: createdGeneration.id,
+          generationJobId: job.id,
+          adapterType: route.adapterType,
+          provider: providerLabel,
+          modelId: route.modelId,
+          requestCount: result.requestCount,
+          durationMs: timer.elapsedMs(),
+          wasSuccessful: true,
+        })
+
+        return createdGeneration
+      },
+    )
 
     logger.info('Audio generation completed', {
       generationId: generation.id,
       model: route.modelId,
       duration: result.duration,
     })
+    timer.setContext({ generationId: generation.id })
+    timer.log()
 
     return generation
   } catch (error) {
@@ -441,24 +487,44 @@ export async function submitAudioGeneration(
   clerkId: string,
   request: GenerateAudioRequest,
 ): Promise<AudioSubmitResponseData> {
-  const dbUser = await ensureUser(clerkId)
-  const userId = dbUser.id
-  const route = await resolveGenerationRoute(userId, {
+  const timer = new GenerationStageTimer({
+    outputType: 'AUDIO',
     modelId: request.modelId,
-    apiKeyId: request.apiKeyId,
   })
 
-  const adapter = getProviderAdapter(route.adapterType)
-  if (!adapter.submitAudioToQueue) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      'This model does not support async audio generation',
-      400,
-    )
-  }
+  const { userId, route, providerLabel, modelConfig } = await timer.measure(
+    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
+    async () => {
+      const dbUser = await ensureUser(clerkId)
+      const resolvedRoute = await resolveGenerationRoute(dbUser.id, {
+        modelId: request.modelId,
+        apiKeyId: request.apiKeyId,
+      })
 
-  const providerLabel = getProviderLabel(route.providerConfig)
-  const modelConfig = getModelById(route.modelId)
+      const adapter = getProviderAdapter(resolvedRoute.adapterType)
+      if (!adapter?.submitAudioToQueue) {
+        throw new GenerateImageServiceError(
+          'UNSUPPORTED_MODEL',
+          'This model does not support async audio generation',
+          400,
+        )
+      }
+
+      return {
+        userId: dbUser.id,
+        route: resolvedRoute,
+        providerLabel: getProviderLabel(resolvedRoute.providerConfig),
+        modelConfig: getModelById(resolvedRoute.modelId),
+      }
+    },
+  )
+
+  timer.setContext({
+    modelId: route.modelId,
+    adapterType: route.adapterType,
+    provider: providerLabel,
+    routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
+  })
 
   if (modelConfig && canSubmitAudioViaExecutionWorker(route)) {
     return submitFalAudioWorkerRun({
@@ -469,43 +535,48 @@ export async function submitAudioGeneration(
       apiKeyId: route.resolvedApiKeyId ?? request.apiKeyId,
       useSystemKey: route.isFreeGeneration === true && !route.resolvedApiKeyId,
       modelConfig,
+      timer,
     })
   }
 
   const routeIdentity = buildAudioRouteIdentity(route, providerLabel)
   const outboxPayload = buildAudioSubmitOutboxPayload(request)
 
-  const job = await db.$transaction(async (tx) => {
-    const createdJob = await createGenerationJob(
-      {
-        userId,
-        adapterType: route.adapterType,
-        provider: providerLabel,
-        modelId: route.modelId,
-        prompt: request.prompt,
-        externalRequestId: serializeAudioQueueMetadata({
-          route: routeIdentity,
-        }),
-      },
-      tx,
-    )
+  const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
+    db.$transaction(async (tx) => {
+      const createdJob = await createGenerationJob(
+        {
+          userId,
+          adapterType: route.adapterType,
+          provider: providerLabel,
+          modelId: route.modelId,
+          prompt: request.prompt,
+          externalRequestId: serializeAudioQueueMetadata({
+            route: routeIdentity,
+          }),
+        },
+        tx,
+      )
 
-    await createExecutionOutbox(
-      {
-        generationJobId: createdJob.id,
-        kind: EXECUTION_OUTBOX_KINDS.AUDIO_QUEUE_SUBMIT,
-        payload: outboxPayload,
-      },
-      tx,
-    )
+      await createExecutionOutbox(
+        {
+          generationJobId: createdJob.id,
+          kind: EXECUTION_OUTBOX_KINDS.AUDIO_QUEUE_SUBMIT,
+          payload: outboxPayload,
+        },
+        tx,
+      )
 
-    return createdJob
-  })
+      return createdJob
+    }),
+  )
+  timer.setContext({ jobId: job.id })
 
   logger.info('Audio generation enqueued in execution outbox', {
     jobId: job.id,
     model: route.modelId,
   })
+  timer.log()
 
   return {
     jobId: job.id,
@@ -526,6 +597,7 @@ async function submitFalAudioWorkerRun(params: {
   apiKeyId?: string | null
   useSystemKey: boolean
   modelConfig: NonNullable<ReturnType<typeof getModelById>>
+  timer: GenerationStageTimer
 }): Promise<AudioSubmitResponseData> {
   const {
     request,
@@ -535,6 +607,7 @@ async function submitFalAudioWorkerRun(params: {
     apiKeyId,
     useSystemKey,
     modelConfig,
+    timer,
   } = params
   const referenceAudioUrl = assertReferenceAudioUrl(request, route.modelId)
 
@@ -554,14 +627,17 @@ async function submitFalAudioWorkerRun(params: {
     audioFormat: request.format,
   }
 
-  const job = await createGenerationJob({
-    userId,
-    adapterType: route.adapterType,
-    provider: providerLabel,
-    modelId: route.modelId,
-    prompt: request.prompt,
-    externalRequestId: serializeAudioQueueMetadata(metadata),
-  })
+  const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
+    createGenerationJob({
+      userId,
+      adapterType: route.adapterType,
+      provider: providerLabel,
+      modelId: route.modelId,
+      prompt: request.prompt,
+      externalRequestId: serializeAudioQueueMetadata(metadata),
+    }),
+  )
+  timer.setContext({ jobId: job.id })
 
   const providerPrompt = buildProviderPrompt(request)
   const runContext: WorkerRunContext = {
@@ -590,23 +666,29 @@ async function submitFalAudioWorkerRun(params: {
   }
 
   try {
-    const dispatchResult = await dispatchWorkerRun(runContext)
+    const dispatchResult = await timer.measure(
+      GENERATION_STAGE.WORKER_DISPATCH,
+      () => dispatchWorkerRun(runContext),
+    )
 
-    await db.generationJob.update({
-      where: { id: job.id },
-      data: {
-        externalRequestId: serializeAudioQueueMetadata({
-          ...metadata,
-          workflowInstanceId: dispatchResult.workflowInstanceId,
-        }),
-      },
-    })
+    await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+      db.generationJob.update({
+        where: { id: job.id },
+        data: {
+          externalRequestId: serializeAudioQueueMetadata({
+            ...metadata,
+            workflowInstanceId: dispatchResult.workflowInstanceId,
+          }),
+        },
+      }),
+    )
 
     logger.info('FAL audio dispatched to execution worker', {
       jobId: job.id,
       workflowInstanceId: dispatchResult.workflowInstanceId,
       model: route.modelId,
     })
+    timer.log({ workflowInstanceId: dispatchResult.workflowInstanceId })
 
     return {
       jobId: job.id,
@@ -669,6 +751,14 @@ export async function checkAudioGenerationStatus(
     )
   }
 
+  const timer = new GenerationStageTimer({
+    outputType: 'AUDIO',
+    jobId: job.id,
+    modelId: job.modelId,
+    adapterType: job.adapterType,
+    provider: job.provider,
+  })
+
   const baseQueueMeta = parseAudioQueueMetadata(job.externalRequestId)
   if (baseQueueMeta.workerManaged) {
     return { jobId: job.id, status: 'IN_PROGRESS' }
@@ -697,7 +787,8 @@ export async function checkAudioGenerationStatus(
     queueMeta.route,
   )
   const adapter = getProviderAdapter(executionRoute.adapterType)
-  if (!adapter.checkAudioQueueStatus) {
+  const checkAudioQueueStatus = adapter?.checkAudioQueueStatus
+  if (!checkAudioQueueStatus) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
       'This adapter does not support audio queue status checks',
@@ -705,15 +796,15 @@ export async function checkAudioGenerationStatus(
     )
   }
 
-  let pollResult: Awaited<
-    ReturnType<NonNullable<typeof adapter.checkAudioQueueStatus>>
-  >
+  let pollResult: Awaited<ReturnType<typeof checkAudioQueueStatus>>
   try {
-    pollResult = await adapter.checkAudioQueueStatus({
-      statusUrl: queueMeta.statusUrl,
-      responseUrl: queueMeta.responseUrl,
-      apiKey: executionRoute.apiKey,
-    })
+    pollResult = await timer.measure(GENERATION_STAGE.PROVIDER_WAIT_POLL, () =>
+      checkAudioQueueStatus({
+        statusUrl: queueMeta.statusUrl,
+        responseUrl: queueMeta.responseUrl,
+        apiKey: executionRoute.apiKey,
+      }),
+    )
   } catch (error) {
     if (error instanceof GenerateImageServiceError) throw error
     const message =
@@ -768,64 +859,85 @@ export async function checkAudioGenerationStatus(
 
   const result = pollResult.result
   const providerLabel = executionRoute.provider
+  timer.setDuration(
+    GENERATION_STAGE.PROVIDER_WAIT_POLL,
+    Date.now() - job.createdAt.getTime(),
+  )
 
   try {
-    const { buffer, mimeType } = await fetchAsBuffer(result.audioUrl)
+    const { buffer, mimeType } = await timer.measure(
+      GENERATION_STAGE.RESULT_DOWNLOAD,
+      () => fetchAsBuffer(result.audioUrl),
+    )
     const storageKey = generateStorageKey('AUDIO', dbUser.id, result.format)
-    const permanentUrl = await uploadToR2({
-      data: buffer,
-      key: storageKey,
-      mimeType,
-    })
+    const permanentUrl = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+      uploadToR2({
+        data: buffer,
+        key: storageKey,
+        mimeType,
+      }),
+    )
 
-    const generation = await db.$transaction(async (tx) => {
-      const persistedGeneration = await createGeneration(
-        {
-          userId: dbUser.id,
-          outputType: 'AUDIO',
-          url: permanentUrl,
-          storageKey,
-          mimeType,
-          width: 0,
-          height: 0,
-          duration: result.duration,
-          prompt: job.prompt ?? '',
-          model: job.modelId,
-          provider: providerLabel,
-          requestCount: result.requestCount,
-          isFreeGeneration: executionRoute.isFreeGeneration,
-        },
-        tx,
-      )
+    const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+      db.$transaction(async (tx) => {
+        const persistedGeneration = await createGeneration(
+          {
+            userId: dbUser.id,
+            outputType: 'AUDIO',
+            url: permanentUrl,
+            storageKey,
+            mimeType,
+            width: 0,
+            height: 0,
+            duration: result.duration,
+            prompt: job.prompt ?? '',
+            model: job.modelId,
+            provider: providerLabel,
+            requestCount: result.requestCount,
+            isFreeGeneration: executionRoute.isFreeGeneration,
+            snapshot: withGenerationObservability(
+              {
+                requestId: queueMeta.requestId,
+                audioFormat: result.format,
+              },
+              timer,
+            ),
+          },
+          tx,
+        )
 
-      await completeGenerationJob(
-        job.id,
-        {
-          generationId: persistedGeneration.id,
-          requestCount: result.requestCount,
-        },
-        tx,
-      )
+        await completeGenerationJob(
+          job.id,
+          {
+            generationId: persistedGeneration.id,
+            requestCount: result.requestCount,
+          },
+          tx,
+        )
 
-      await createApiUsageEntry(
-        {
-          userId: dbUser.id,
-          generationId: persistedGeneration.id,
-          generationJobId: job.id,
-          adapterType: executionRoute.adapterType,
-          provider: providerLabel,
-          modelId: job.modelId,
-          requestCount: result.requestCount,
-          inputImageCount: 0,
-          outputImageCount: 0,
-          durationMs: Date.now() - job.createdAt.getTime(),
-          wasSuccessful: true,
-        },
-        tx,
-      )
+        await createApiUsageEntry(
+          {
+            userId: dbUser.id,
+            generationId: persistedGeneration.id,
+            generationJobId: job.id,
+            adapterType: executionRoute.adapterType,
+            provider: providerLabel,
+            modelId: job.modelId,
+            requestCount: result.requestCount,
+            inputImageCount: 0,
+            outputImageCount: 0,
+            durationMs: Date.now() - job.createdAt.getTime(),
+            wasSuccessful: true,
+          },
+          tx,
+        )
 
-      return persistedGeneration
-    })
+        return persistedGeneration
+      }),
+    )
+
+    timer.setContext({ generationId: generation.id })
+    timer.log({ requestId: queueMeta.requestId })
 
     return {
       jobId: job.id,

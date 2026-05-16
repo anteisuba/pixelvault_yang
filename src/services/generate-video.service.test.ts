@@ -18,6 +18,7 @@ const mockCreateGenerationJob = vi.fn()
 const mockFailGenerationJob = vi.fn()
 const mockFetchAsBuffer = vi.fn()
 const mockUploadToR2 = vi.fn()
+const mockCreateVideoPosterAsset = vi.fn()
 const mockGenerationJobUpdate = vi.fn()
 const mockSubmitVideoToQueue = vi.fn()
 
@@ -50,6 +51,8 @@ vi.mock('@/services/usage.service', () => ({
 }))
 
 vi.mock('@/services/storage/r2', () => ({
+  createVideoPosterAsset: (...args: unknown[]) =>
+    mockCreateVideoPosterAsset(...args),
   fetchAsBuffer: (...args: unknown[]) => mockFetchAsBuffer(...args),
   generateStorageKey: () => 'generations/user-1/image/ref.png',
   uploadToR2: (...args: unknown[]) => mockUploadToR2(...args),

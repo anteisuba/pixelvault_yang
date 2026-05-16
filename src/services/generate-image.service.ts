@@ -42,6 +42,11 @@ import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import { validatePrompt } from '@/lib/prompt-guard'
+import {
+  GENERATION_STAGE,
+  GenerationStageTimer,
+  withGenerationObservability,
+} from '@/lib/generation-observability'
 
 export interface ResolvedGenerationRoute {
   modelId: string
@@ -437,26 +442,18 @@ async function persistGeneratedImage(params: {
   generationJobId: string
   asset: ProviderGenerationResult
   durationMs: number
+  timer: GenerationStageTimer
 }): Promise<GenerationRecord> {
-  const { userId, input, route, provider, generationJobId, asset, durationMs } =
-    params
-
-  const usageEntry = await createApiUsageEntry({
+  const {
     userId,
-    generationJobId,
-    adapterType: route.adapterType,
+    input,
+    route,
     provider,
-    modelId: route.modelId,
-    requestCount: route.creditCost,
-    inputImageCount: input.referenceImage
-      ? 1
-      : (input.referenceImages?.length ?? 0),
-    outputImageCount: 1,
-    width: asset.width,
-    height: asset.height,
+    generationJobId,
+    asset,
     durationMs,
-    wasSuccessful: true,
-  })
+    timer,
+  } = params
 
   const storageKey = generateStorageKey('IMAGE', userId)
   const effectiveRefImage =
@@ -496,17 +493,24 @@ async function persistGeneratedImage(params: {
 
       const refKey = generateStorageKey('IMAGE', userId)
       if (effectiveRefImage.startsWith('data:')) {
-        const refData = await fetchAsBuffer(effectiveRefImage)
-        return uploadToR2({
-          data: refData.buffer,
-          key: refKey,
-          mimeType: refData.mimeType,
+        return timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
+          const refData = await fetchAsBuffer(effectiveRefImage)
+          return uploadToR2({
+            data: refData.buffer,
+            key: refKey,
+            mimeType: refData.mimeType,
+          })
         })
       }
-      const { publicUrl } = await uploadFromHttpToR2({
-        sourceUrl: effectiveRefImage,
-        key: refKey,
-      })
+      const { publicUrl } = await timer.measure(
+        GENERATION_STAGE.REFERENCE_UPLOAD,
+        () =>
+          uploadFromHttpToR2({
+            sourceUrl: effectiveRefImage,
+            key: refKey,
+          }),
+      )
+      timer.addNote('reference_upload_streams_download_and_r2_upload')
       return publicUrl
     })()
 
@@ -521,14 +525,21 @@ async function persistGeneratedImage(params: {
       mimeType: string
       previewAssets?: ImagePreviewAssets
     }> = (async () => {
-      const genData = await fetchAsBuffer(asset.imageUrl)
+      const genData = await timer.measure(
+        GENERATION_STAGE.RESULT_DOWNLOAD,
+        () => fetchAsBuffer(asset.imageUrl),
+      )
       const [url, previewAssets] = await Promise.all([
-        uploadToR2({
-          data: genData.buffer,
-          key: storageKey,
-          mimeType: genData.mimeType,
-        }),
-        tryCreatePreviewAssets(genData.buffer),
+        timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+          uploadToR2({
+            data: genData.buffer,
+            key: storageKey,
+            mimeType: genData.mimeType,
+          }),
+        ),
+        timer.measure(GENERATION_STAGE.THUMBNAIL_GENERATION, () =>
+          tryCreatePreviewAssets(genData.buffer),
+        ),
       ])
       return { url, mimeType: genData.mimeType, previewAssets }
     })()
@@ -541,52 +552,80 @@ async function persistGeneratedImage(params: {
     const mimeType = gen.mimeType
     const previewAssets = gen.previewAssets
 
-    const generation = await createGeneration({
-      url: permanentUrl,
-      storageKey,
-      mimeType,
-      thumbnailUrl: previewAssets?.thumbnailUrl,
-      thumbnailStorageKey: previewAssets?.thumbnailStorageKey,
-      previewUrl: previewAssets?.previewUrl,
-      previewStorageKey: previewAssets?.previewStorageKey,
-      width: asset.width,
-      height: asset.height,
-      referenceImageUrl,
-      prompt: input.prompt,
-      model: route.modelId,
-      provider,
-      requestCount: route.creditCost,
-      isFreeGeneration: route.isFreeGeneration,
-      userId,
-      characterCardIds: input.characterCardIds,
-      projectId: input.projectId,
-      snapshot: JSON.parse(
-        JSON.stringify({
-          compiledPrompt: input.prompt,
+    const generation = await timer.measure(
+      GENERATION_STAGE.DB_FINALIZE,
+      async () => {
+        const usageEntry = await createApiUsageEntry({
+          userId,
+          generationJobId,
+          adapterType: route.adapterType,
+          provider,
           modelId: route.modelId,
-          aspectRatio: input.aspectRatio,
-          advancedParams: input.advancedParams,
-          referenceImages: input.referenceImages,
-          apiKeyId: input.apiKeyId,
-          projectId: input.projectId,
-          isFreeGeneration: route.isFreeGeneration,
-          creditCost: route.creditCost,
-          seed: input.advancedParams?.seed,
-        }),
-      ),
-      seed:
-        input.advancedParams?.seed != null
-          ? BigInt(input.advancedParams.seed)
-          : undefined,
-    })
+          requestCount: route.creditCost,
+          inputImageCount: input.referenceImage
+            ? 1
+            : (input.referenceImages?.length ?? 0),
+          outputImageCount: 1,
+          width: asset.width,
+          height: asset.height,
+          durationMs: timer.elapsedMs(),
+          wasSuccessful: true,
+        })
 
-    await Promise.all([
-      attachUsageEntryToGeneration(usageEntry.id, generation.id),
-      completeGenerationJob(generationJobId, {
-        generationId: generation.id,
-        requestCount: route.creditCost,
-      }),
-    ])
+        const createdGeneration = await createGeneration({
+          url: permanentUrl,
+          storageKey,
+          mimeType,
+          thumbnailUrl: previewAssets?.thumbnailUrl,
+          thumbnailStorageKey: previewAssets?.thumbnailStorageKey,
+          previewUrl: previewAssets?.previewUrl,
+          previewStorageKey: previewAssets?.previewStorageKey,
+          width: asset.width,
+          height: asset.height,
+          referenceImageUrl,
+          prompt: input.prompt,
+          model: route.modelId,
+          provider,
+          requestCount: route.creditCost,
+          isFreeGeneration: route.isFreeGeneration,
+          userId,
+          characterCardIds: input.characterCardIds,
+          projectId: input.projectId,
+          snapshot: withGenerationObservability(
+            {
+              compiledPrompt: input.prompt,
+              modelId: route.modelId,
+              aspectRatio: input.aspectRatio,
+              advancedParams: input.advancedParams,
+              referenceImages: input.referenceImages,
+              apiKeyId: input.apiKeyId,
+              projectId: input.projectId,
+              isFreeGeneration: route.isFreeGeneration,
+              creditCost: route.creditCost,
+              seed: input.advancedParams?.seed,
+            },
+            timer,
+          ),
+          seed:
+            input.advancedParams?.seed != null
+              ? BigInt(input.advancedParams.seed)
+              : undefined,
+        })
+
+        await Promise.all([
+          attachUsageEntryToGeneration(usageEntry.id, createdGeneration.id),
+          completeGenerationJob(generationJobId, {
+            generationId: createdGeneration.id,
+            requestCount: route.creditCost,
+          }),
+        ])
+
+        return createdGeneration
+      },
+    )
+
+    timer.setContext({ generationId: generation.id })
+    timer.log({ providerDurationMs: durationMs })
 
     return generation
   } catch (error) {
@@ -632,48 +671,74 @@ export async function generateImageForUser(
   const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
   const getProviderAdapterFn = deps.getProviderAdapter ?? getProviderAdapter
 
-  const dbUser = await ensureUserFn(clerkId)
+  const timer = new GenerationStageTimer({
+    outputType: 'IMAGE',
+    modelId: input.modelId,
+  })
 
-  const promptCheck = validatePromptFn(input.prompt)
-  if (!promptCheck.valid) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      promptCheck.reason ?? 'Invalid prompt',
-      400,
-    )
-  }
+  const { dbUser, route, provider } = await timer.measure(
+    GENERATION_STAGE.AUTH_ROUTE_RESOLVE,
+    async () => {
+      const ensuredUser = await ensureUserFn(clerkId)
 
-  const route = await resolveRouteFn(dbUser.id, input)
+      const promptCheck = validatePromptFn(input.prompt)
+      if (!promptCheck.valid) {
+        throw new GenerateImageServiceError(
+          'PROVIDER_ERROR',
+          promptCheck.reason ?? 'Invalid prompt',
+          400,
+        )
+      }
 
-  const builtInModel = getModelByIdFn(input.modelId)
-  if (builtInModel?.requiresReferenceImage) {
-    const hasRef =
-      input.referenceImage || (input.referenceImages?.length ?? 0) > 0
-    if (!hasRef) {
-      throw new GenerateImageServiceError(
-        'VALIDATION_ERROR',
-        'This model requires at least one reference image',
-        400,
-      )
-    }
-  }
+      const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
 
-  const provider = getProviderLabel(route.providerConfig)
-  const providerAdapter = getProviderAdapterFn(route.adapterType)
-  if (!providerAdapter) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      `Unsupported model: ${route.modelId}`,
-      400,
-    )
-  }
+      const builtInModel = getModelByIdFn(input.modelId)
+      if (builtInModel?.requiresReferenceImage) {
+        const hasRef =
+          input.referenceImage || (input.referenceImages?.length ?? 0) > 0
+        if (!hasRef) {
+          throw new GenerateImageServiceError(
+            'VALIDATION_ERROR',
+            'This model requires at least one reference image',
+            400,
+          )
+        }
+      }
 
-  const job = await createGenerationJobFn({
-    userId: dbUser.id,
+      const resolvedProvider = getProviderLabel(resolvedRoute.providerConfig)
+      const providerAdapter = getProviderAdapterFn(resolvedRoute.adapterType)
+      if (!providerAdapter) {
+        throw new GenerateImageServiceError(
+          'UNSUPPORTED_MODEL',
+          `Unsupported model: ${resolvedRoute.modelId}`,
+          400,
+        )
+      }
+
+      return {
+        dbUser: ensuredUser,
+        route: resolvedRoute,
+        provider: resolvedProvider,
+      }
+    },
+  )
+
+  timer.setContext({
+    modelId: route.modelId,
     adapterType: route.adapterType,
     provider,
-    modelId: route.modelId,
+    routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
+
+  const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
+    createGenerationJobFn({
+      userId: dbUser.id,
+      adapterType: route.adapterType,
+      provider,
+      modelId: route.modelId,
+    }),
+  )
+  timer.setContext({ jobId: job.id })
 
   logger.info('Image generation provider call started', {
     adapter: route.adapterType,
@@ -682,14 +747,16 @@ export async function generateImageForUser(
     routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
 
-  const result = await callProviderWithFallback({
-    clerkId,
-    input,
-    route,
-    userId: dbUser.id,
-    provider,
-    generationJobId: job.id,
-  })
+  const result = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
+    callProviderWithFallback({
+      clerkId,
+      input,
+      route,
+      userId: dbUser.id,
+      provider,
+      generationJobId: job.id,
+    }),
+  )
 
   // Fallback already ran the full pipeline via recursive generateImageForUser
   if (result.fallbackUsed) return result.generation
@@ -702,5 +769,6 @@ export async function generateImageForUser(
     generationJobId: job.id,
     asset: result.asset,
     durationMs: result.durationMs,
+    timer,
   })
 }

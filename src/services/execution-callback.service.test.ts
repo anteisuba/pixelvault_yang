@@ -11,6 +11,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockFindUnique = vi.fn()
 const mockStreamUploadToR2 = vi.fn()
+const mockCreateVideoPosterAsset = vi.fn()
 const mockGenerateStorageKey = vi.fn()
 const mockCreateGeneration = vi.fn()
 const mockCompleteGenerationJob = vi.fn()
@@ -36,6 +37,8 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@/services/storage/r2', () => ({
+  createVideoPosterAsset: (...args: unknown[]) =>
+    mockCreateVideoPosterAsset(...args),
   generateStorageKey: (...args: unknown[]) => mockGenerateStorageKey(...args),
   streamUploadToR2: (...args: unknown[]) => mockStreamUploadToR2(...args),
 }))
@@ -96,6 +99,10 @@ describe('execution-callback.service', () => {
     mockStreamUploadToR2.mockResolvedValue({
       publicUrl: 'https://cdn.example.com/video.mp4',
       sizeBytes: 1024,
+    })
+    mockCreateVideoPosterAsset.mockResolvedValue({
+      thumbnailUrl: 'https://cdn.example.com/video.thumbnail.webp',
+      thumbnailStorageKey: 'generations/user-1/video/test.thumbnail.webp',
     })
     mockGenerateStorageKey.mockReturnValue('generations/user-1/video/test.mp4')
     mockCreateGeneration.mockResolvedValue({
@@ -212,6 +219,35 @@ describe('execution-callback.service', () => {
         generationId: 'generation-1',
         requestCount: 1,
       },
+      expect.anything(),
+    )
+  })
+
+  it('persists worker video thumbnails as generation poster assets', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://provider.example.com/video.mp4',
+        thumbnailUrl: 'https://provider.example.com/thumbnail.jpg',
+        width: 1280,
+        height: 720,
+        duration: 5,
+        requestCount: 1,
+      },
+    })
+
+    expect(mockCreateVideoPosterAsset).toHaveBeenCalledWith({
+      sourceUrl: 'https://provider.example.com/thumbnail.jpg',
+      sourceStorageKey: 'generations/user-1/video/test.mp4',
+      fetchHeaders: undefined,
+    })
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thumbnailUrl: 'https://cdn.example.com/video.thumbnail.webp',
+        thumbnailStorageKey: 'generations/user-1/video/test.thumbnail.webp',
+      }),
       expect.anything(),
     )
   })

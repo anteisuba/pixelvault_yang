@@ -50,6 +50,11 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
+import {
+  GENERATION_STAGE,
+  GenerationStageTimer,
+  withGenerationObservability,
+} from '@/lib/generation-observability'
 
 const Model3DQueueHandleSchema = z.object({
   requestId: z.string().min(1),
@@ -941,6 +946,18 @@ async function persistCompleted3DGeneration(params: {
   const modelConfig = getModelById(job.modelId)
   const requestCount = executionRoute.creditCost ?? result.requestCount
   const inputImageCount = 1 + count3DMultiViewImages(queueMeta.multiViewImages)
+  const timer = new GenerationStageTimer({
+    outputType: 'MODEL_3D',
+    jobId: job.id,
+    modelId: job.modelId,
+    adapterType: executionRoute.adapterType,
+    provider,
+    routeKind: modelConfig?.freeTier === true ? 'free-tier' : 'user-key',
+  })
+  timer.setDuration(
+    GENERATION_STAGE.PROVIDER_WAIT_POLL,
+    Date.now() - job.createdAt.getTime(),
+  )
 
   const modelStorageKey = generateStorageKey('MODEL_3D', userId)
 
@@ -952,12 +969,17 @@ async function persistCompleted3DGeneration(params: {
       fileSize: result.fileSize,
     })
 
-    const { publicUrl: glbPublicUrl } = await uploadBufferedHttpToR2({
-      sourceUrl: result.modelUrl,
-      key: modelStorageKey,
-      mimeType: result.contentType ?? 'model/gltf-binary',
-      timeoutMs: 300_000,
-    })
+    const { publicUrl: glbPublicUrl } = await timer.measure(
+      GENERATION_STAGE.R2_UPLOAD,
+      () =>
+        uploadBufferedHttpToR2({
+          sourceUrl: result.modelUrl,
+          key: modelStorageKey,
+          mimeType: result.contentType ?? 'model/gltf-binary',
+          timeoutMs: 300_000,
+        }),
+    )
+    timer.addNote('result_download_buffered_with_r2_upload')
 
     logger.info('3D final R2 upload completed', {
       jobId: job.id,
@@ -976,54 +998,67 @@ async function persistCompleted3DGeneration(params: {
       }
     }
 
-    const usageEntry = await createApiUsageEntry({
-      userId,
-      generationJobId: job.id,
-      adapterType: executionRoute.adapterType,
-      provider,
-      modelId: job.modelId,
-      requestCount,
-      inputImageCount,
-      outputImageCount: 0,
-      width: 0,
-      height: 0,
-      durationMs: Date.now() - job.createdAt.getTime(),
-      wasSuccessful: true,
-    })
+    const generation = await timer.measure(
+      GENERATION_STAGE.DB_FINALIZE,
+      async () => {
+        const usageEntry = await createApiUsageEntry({
+          userId,
+          generationJobId: job.id,
+          adapterType: executionRoute.adapterType,
+          provider,
+          modelId: job.modelId,
+          requestCount,
+          inputImageCount,
+          outputImageCount: 0,
+          width: 0,
+          height: 0,
+          durationMs: Date.now() - job.createdAt.getTime(),
+          wasSuccessful: true,
+        })
 
-    const generation = await createGeneration({
-      url: glbPublicUrl,
-      storageKey: modelStorageKey,
-      mimeType: result.contentType ?? 'model/gltf-binary',
-      width: 0,
-      height: 0,
-      modelUrl: glbPublicUrl,
-      modelStorageKey,
-      referenceImageUrl: queueMeta.sourceImageUrl,
-      prompt: queueMeta.prompt ?? '',
-      model: job.modelId,
-      provider,
-      requestCount,
-      outputType: 'MODEL_3D',
-      userId,
-      projectId: queueMeta.projectId,
-      isFreeGeneration: modelConfig?.freeTier === true,
-      snapshot: {
-        sourceImageUrl: queueMeta.sourceImageUrl,
-        multiViewImages: queueMeta.multiViewImages ?? null,
-        sourceQuality: queueMeta.sourceQuality ?? null,
-        previewMode: queueMeta.mode ?? 'none',
-        meshPreviewUrl: queueMeta.mesh?.modelUrl ?? null,
+        const createdGeneration = await createGeneration({
+          url: glbPublicUrl,
+          storageKey: modelStorageKey,
+          mimeType: result.contentType ?? 'model/gltf-binary',
+          width: 0,
+          height: 0,
+          modelUrl: glbPublicUrl,
+          modelStorageKey,
+          referenceImageUrl: queueMeta.sourceImageUrl,
+          prompt: queueMeta.prompt ?? '',
+          model: job.modelId,
+          provider,
+          requestCount,
+          outputType: 'MODEL_3D',
+          userId,
+          projectId: queueMeta.projectId,
+          isFreeGeneration: modelConfig?.freeTier === true,
+          snapshot: withGenerationObservability(
+            {
+              sourceImageUrl: queueMeta.sourceImageUrl,
+              multiViewImages: queueMeta.multiViewImages ?? null,
+              sourceQuality: queueMeta.sourceQuality ?? null,
+              previewMode: queueMeta.mode ?? 'none',
+              meshPreviewUrl: queueMeta.mesh?.modelUrl ?? null,
+            },
+            timer,
+          ),
+        })
+
+        await Promise.all([
+          attachUsageEntryToGeneration(usageEntry.id, createdGeneration.id),
+          completeGenerationJob(job.id, {
+            generationId: createdGeneration.id,
+            requestCount,
+          }),
+        ])
+
+        return createdGeneration
       },
-    })
+    )
 
-    await Promise.all([
-      attachUsageEntryToGeneration(usageEntry.id, generation.id),
-      completeGenerationJob(job.id, {
-        generationId: generation.id,
-        requestCount,
-      }),
-    ])
+    timer.setContext({ generationId: generation.id })
+    timer.log()
 
     return {
       jobId: job.id,

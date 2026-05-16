@@ -28,6 +28,8 @@ export function ImageCardMedia({
   priority,
 }: ImageCardMediaProps) {
   const imageSrc = getGenerationThumbnailUrl(generation)
+  const videoPoster =
+    generation.thumbnailUrl ?? generation.previewUrl ?? undefined
 
   return (
     <>
@@ -53,10 +55,11 @@ export function ImageCardMedia({
           </div>
         ) : isVideo ? (
           <video
-            src={`${generation.url}#t=0.1`}
+            src={generation.url}
+            poster={videoPoster}
             muted
             playsInline
-            preload="metadata"
+            preload="none"
             className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
             style={{ aspectRatio }}
           />

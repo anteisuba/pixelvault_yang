@@ -189,11 +189,15 @@ function buildImageDerivativeStorageKey(
   sourceKey: string,
   variant: ImagePreviewVariant,
 ): string {
+  return buildDerivativeStorageKey(sourceKey, variant)
+}
+
+function buildDerivativeStorageKey(sourceKey: string, suffix: string): string {
   const slashIndex = sourceKey.lastIndexOf('/')
   const directory = slashIndex >= 0 ? sourceKey.slice(0, slashIndex + 1) : ''
   const filename = slashIndex >= 0 ? sourceKey.slice(slashIndex + 1) : sourceKey
   const basename = filename.replace(/\.[^.]+$/, '') || filename
-  return `${directory}${basename}.${variant}.webp`
+  return `${directory}${basename}.${suffix}.webp`
 }
 
 async function createImageDerivativeBuffer(
@@ -249,6 +253,52 @@ export async function createImagePreviewAssets(params: {
     thumbnailStorageKey,
     previewUrl,
     previewStorageKey,
+  }
+}
+
+// ─── Video Poster Derivative ────────────────────────────────────
+
+const VIDEO_POSTER_MAX_SOURCE_BYTES = 12 * 1024 * 1024
+const VIDEO_POSTER_MAX_SIZE = 768
+const VIDEO_POSTER_QUALITY = 80
+
+export interface VideoPosterAsset {
+  thumbnailUrl: string
+  thumbnailStorageKey: string
+}
+
+export async function createVideoPosterAsset(params: {
+  sourceUrl: string
+  sourceStorageKey: string
+  fetchHeaders?: Record<string, string>
+}): Promise<VideoPosterAsset> {
+  const posterStorageKey = buildDerivativeStorageKey(
+    params.sourceStorageKey,
+    'thumbnail',
+  )
+  const source = await fetchAsBuffer(params.sourceUrl, {
+    headers: params.fetchHeaders,
+    maxBytes: VIDEO_POSTER_MAX_SOURCE_BYTES,
+  })
+  const posterBuffer = await sharp(source.buffer, { animated: false })
+    .rotate()
+    .resize({
+      width: VIDEO_POSTER_MAX_SIZE,
+      height: VIDEO_POSTER_MAX_SIZE,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: VIDEO_POSTER_QUALITY, effort: 4 })
+    .toBuffer()
+  const thumbnailUrl = await uploadToR2({
+    data: posterBuffer,
+    key: posterStorageKey,
+    mimeType: 'image/webp',
+  })
+
+  return {
+    thumbnailUrl,
+    thumbnailStorageKey: posterStorageKey,
   }
 }
 

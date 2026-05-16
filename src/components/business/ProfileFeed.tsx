@@ -258,6 +258,7 @@ export function ProfileFeed({
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {generations.map((gen) => {
             const isSelected = selectedIds.has(gen.id)
+            const videoPoster = gen.thumbnailUrl ?? gen.previewUrl ?? undefined
             return (
               <button
                 key={gen.id}
@@ -267,10 +268,11 @@ export function ProfileFeed({
               >
                 {gen.outputType === 'VIDEO' ? (
                   <video
-                    src={`${gen.url}#t=0.1`}
+                    src={gen.url}
+                    poster={videoPoster}
                     muted
                     playsInline
-                    preload="metadata"
+                    preload="none"
                     className="h-auto w-full object-cover"
                     style={{ aspectRatio: `${gen.width}/${gen.height}` }}
                   />

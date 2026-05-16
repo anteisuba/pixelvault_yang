@@ -2,7 +2,6 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import type { Prisma } from '@/lib/generated/prisma/client'
 import type { ExecutionCallbackPayload } from '@/types'
 import {
   ExecutionCallbackErrorDataSchema,
@@ -11,8 +10,17 @@ import {
 import { db } from '@/lib/db'
 import { ApiRequestError, GenerationValidationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import {
+  GENERATION_STAGE,
+  GenerationStageTimer,
+  withGenerationObservability,
+} from '@/lib/generation-observability'
 import { createGeneration } from '@/services/generation.service'
-import { generateStorageKey, streamUploadToR2 } from '@/services/storage/r2'
+import {
+  createVideoPosterAsset,
+  generateStorageKey,
+  streamUploadToR2,
+} from '@/services/storage/r2'
 import {
   completeGenerationJob,
   createApiUsageEntry,
@@ -105,12 +113,6 @@ function inferAudioFormat(mimeType: string, configuredFormat?: string): string {
   if (normalized.includes('wav')) return 'wav'
   if (normalized.includes('opus')) return 'opus'
   return 'mp3'
-}
-
-function toPrismaJson(value: unknown): Prisma.InputJsonValue | undefined {
-  const serialized = JSON.stringify(value)
-  if (!serialized) return undefined
-  return JSON.parse(serialized) as Prisma.InputJsonValue
 }
 
 function parseResultData(payload: ExecutionCallbackPayload) {
@@ -242,6 +244,17 @@ async function finalizeExecutionResult(
   try {
     const metadata = parseWorkerJobMetadata(job.externalRequestId)
     const outputType = metadata.outputType ?? 'VIDEO'
+    const timer = new GenerationStageTimer({
+      outputType,
+      jobId: job.id,
+      modelId: job.modelId,
+      adapterType: job.adapterType,
+      provider: job.provider,
+    })
+    timer.setDuration(
+      GENERATION_STAGE.PROVIDER_WAIT_POLL,
+      Date.now() - job.createdAt.getTime(),
+    )
     const mimeType = resultData.mimeType ?? getDefaultMimeType(outputType)
     const storageKey = generateStorageKey(
       outputType,
@@ -250,83 +263,129 @@ async function finalizeExecutionResult(
         ? inferAudioFormat(mimeType, metadata.audioFormat)
         : undefined,
     )
-    const uploadResult = await streamUploadToR2({
-      sourceUrl: resultData.artifactUrl,
-      key: storageKey,
-      mimeType,
-      fetchHeaders: resultData.fetchHeaders,
-    })
 
-    const generation = await db.$transaction(async (tx) => {
-      const createdGeneration = await createGeneration(
-        {
-          url: uploadResult.publicUrl,
+    async function tryCreateVideoPosterAsset() {
+      if (outputType !== 'VIDEO') return undefined
+      if (!resultData.thumbnailUrl) {
+        timer.addNote('video_poster_unavailable')
+        return undefined
+      }
+
+      try {
+        return await createVideoPosterAsset({
+          sourceUrl: resultData.thumbnailUrl,
+          sourceStorageKey: storageKey,
+          fetchHeaders: resultData.fetchHeaders,
+        })
+      } catch (error) {
+        logger.warn('Execution video poster derivative creation failed', {
+          runId: job.id,
           storageKey,
-          mimeType,
-          width: outputType === 'VIDEO' ? (resultData.width ?? 0) : 0,
-          height: outputType === 'VIDEO' ? (resultData.height ?? 0) : 0,
-          duration: resultData.duration,
-          referenceImageUrl:
-            outputType === 'VIDEO' ? metadata.referenceImageUrl : undefined,
-          prompt: job.prompt ?? '',
-          model: job.modelId,
-          provider: job.provider,
-          requestCount: resultData.requestCount ?? 1,
-          outputType,
-          userId: job.userId,
-          characterCardIds:
-            outputType === 'VIDEO' ? metadata.characterCardIds : undefined,
-          projectId: metadata.projectId,
-          isFreeGeneration: metadata.isFreeGeneration,
-          snapshot: toPrismaJson({
-            executionCallback: {
-              runId: payload.runId,
-              ts: payload.ts,
-              artifactUrl: resultData.artifactUrl,
-              providerMetadata: resultData.providerMetadata,
-              cost: resultData.cost,
-            },
-          }),
-        },
-        tx,
-      )
+          thumbnailUrl: resultData.thumbnailUrl,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        timer.addNote('video_poster_generation_failed')
+        return undefined
+      }
+    }
 
-      await completeGenerationJob(
-        job.id,
-        {
-          generationId: createdGeneration.id,
-          requestCount: resultData.requestCount ?? 1,
-        },
-        tx,
-      )
+    const uploadResult = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+      streamUploadToR2({
+        sourceUrl: resultData.artifactUrl,
+        key: storageKey,
+        mimeType,
+        fetchHeaders: resultData.fetchHeaders,
+      }),
+    )
+    timer.addNote('result_download_streamed_with_r2_upload')
+    const posterAsset =
+      outputType === 'VIDEO'
+        ? await timer.measure(
+            GENERATION_STAGE.THUMBNAIL_GENERATION,
+            tryCreateVideoPosterAsset,
+          )
+        : undefined
 
-      await createApiUsageEntry(
-        {
-          userId: job.userId,
-          generationId: createdGeneration.id,
-          generationJobId: job.id,
-          adapterType: job.adapterType,
-          provider: job.provider,
-          modelId: job.modelId,
-          requestCount: resultData.requestCount ?? 1,
-          inputImageCount:
-            outputType === 'VIDEO' && metadata.referenceImageUrl ? 1 : 0,
-          outputImageCount: 0,
-          width: outputType === 'VIDEO' ? resultData.width : undefined,
-          height: outputType === 'VIDEO' ? resultData.height : undefined,
-          durationMs: Date.now() - job.createdAt.getTime(),
-          wasSuccessful: true,
-        },
-        tx,
-      )
+    const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+      db.$transaction(async (tx) => {
+        const createdGeneration = await createGeneration(
+          {
+            url: uploadResult.publicUrl,
+            storageKey,
+            mimeType,
+            thumbnailUrl: posterAsset?.thumbnailUrl,
+            thumbnailStorageKey: posterAsset?.thumbnailStorageKey,
+            width: outputType === 'VIDEO' ? (resultData.width ?? 0) : 0,
+            height: outputType === 'VIDEO' ? (resultData.height ?? 0) : 0,
+            duration: resultData.duration,
+            referenceImageUrl:
+              outputType === 'VIDEO' ? metadata.referenceImageUrl : undefined,
+            prompt: job.prompt ?? '',
+            model: job.modelId,
+            provider: job.provider,
+            requestCount: resultData.requestCount ?? 1,
+            outputType,
+            userId: job.userId,
+            characterCardIds:
+              outputType === 'VIDEO' ? metadata.characterCardIds : undefined,
+            projectId: metadata.projectId,
+            isFreeGeneration: metadata.isFreeGeneration,
+            snapshot: withGenerationObservability(
+              {
+                executionCallback: {
+                  runId: payload.runId,
+                  ts: payload.ts,
+                  artifactUrl: resultData.artifactUrl,
+                  thumbnailUrl: resultData.thumbnailUrl,
+                  providerMetadata: resultData.providerMetadata,
+                  cost: resultData.cost,
+                },
+              },
+              timer,
+            ),
+          },
+          tx,
+        )
 
-      return createdGeneration
-    })
+        await completeGenerationJob(
+          job.id,
+          {
+            generationId: createdGeneration.id,
+            requestCount: resultData.requestCount ?? 1,
+          },
+          tx,
+        )
+
+        await createApiUsageEntry(
+          {
+            userId: job.userId,
+            generationId: createdGeneration.id,
+            generationJobId: job.id,
+            adapterType: job.adapterType,
+            provider: job.provider,
+            modelId: job.modelId,
+            requestCount: resultData.requestCount ?? 1,
+            inputImageCount:
+              outputType === 'VIDEO' && metadata.referenceImageUrl ? 1 : 0,
+            outputImageCount: 0,
+            width: outputType === 'VIDEO' ? resultData.width : undefined,
+            height: outputType === 'VIDEO' ? resultData.height : undefined,
+            durationMs: Date.now() - job.createdAt.getTime(),
+            wasSuccessful: true,
+          },
+          tx,
+        )
+
+        return createdGeneration
+      }),
+    )
 
     logger.info('Execution callback result finalized', {
       runId: job.id,
       generationId: generation.id,
     })
+    timer.setContext({ generationId: generation.id })
+    timer.log({ runId: job.id })
 
     return {
       runId: job.id,

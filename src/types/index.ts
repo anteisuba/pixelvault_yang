@@ -69,6 +69,15 @@ export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 
 // ─── Generation Snapshot (B0) ────────────────────────────────────
 
+export const GenerationObservabilitySnapshotSchema = z.object({
+  version: z.literal(1),
+  startedAt: z.string(),
+  completedAt: z.string(),
+  totalMs: z.number().nonnegative(),
+  stageDurationsMs: z.record(z.string(), z.number().nonnegative()),
+  notes: z.array(z.string()).optional(),
+})
+
 /** Point-in-time capture of all input parameters for a generation */
 export const GenerationSnapshotSchema = z.object({
   /** Original user prompt (before recipe compilation) */
@@ -97,6 +106,8 @@ export const GenerationSnapshotSchema = z.object({
   creditCost: z.number().optional(),
   /** Seed (duplicated for quick access without parsing snapshot) */
   seed: z.number().optional(),
+  /** Server-side generation stage timings */
+  observability: GenerationObservabilitySnapshotSchema.optional(),
 })
 
 export type GenerationSnapshot = z.infer<typeof GenerationSnapshotSchema>
@@ -699,6 +710,7 @@ export type ExecutionCallbackPayload = z.infer<
 
 export const ExecutionCallbackResultDataSchema = z.object({
   artifactUrl: z.string().trim().url(),
+  thumbnailUrl: z.string().trim().url().optional(),
   providerMetadata: z.record(z.string(), z.unknown()).optional(),
   cost: z.number().nonnegative().optional(),
   width: z.number().int().positive().optional(),

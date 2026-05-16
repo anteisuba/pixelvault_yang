@@ -620,6 +620,8 @@ export function KreaAssetBrowser({
                   ))
                 : generations.map((gen) => {
                     const isSelected = selectedIds.has(gen.id)
+                    const videoPoster =
+                      gen.thumbnailUrl ?? gen.previewUrl ?? undefined
                     const tileClass = cn(
                       'group relative aspect-square overflow-hidden rounded-md border bg-muted/40 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
                       isSelected
@@ -638,14 +640,17 @@ export function KreaAssetBrowser({
                         <>
                           <video
                             src={gen.url}
+                            poster={videoPoster}
                             muted
                             playsInline
                             preload="none"
                             className="absolute inset-0 size-full bg-muted/40 object-cover"
                           />
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground/80">
-                            <Video className="size-8" />
-                          </div>
+                          {!videoPoster && (
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground/80">
+                              <Video className="size-8" />
+                            </div>
+                          )}
                         </>
                       ) : gen.outputType === 'AUDIO' ? (
                         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">

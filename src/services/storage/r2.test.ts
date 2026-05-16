@@ -56,6 +56,7 @@ vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test.com')
 import {
   generateStorageKey,
   createImagePreviewAssets,
+  createVideoPosterAsset,
   fetchAsBuffer,
   uploadToR2,
   streamUploadToR2,
@@ -261,6 +262,66 @@ describe('createImagePreviewAssets', () => {
       expect.objectContaining({
         params: expect.objectContaining({
           Key: 'generations/user-1/image/source.preview.webp',
+          ContentType: 'image/webp',
+        }),
+      }),
+    )
+  })
+})
+
+describe('createVideoPosterAsset', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend.mockResolvedValue({})
+  })
+
+  it('uploads a WebP video poster next to the source video key', async () => {
+    const sourceBuffer = await sharp({
+      create: {
+        width: 64,
+        height: 36,
+        channels: 3,
+        background: '#3366ff',
+      },
+    })
+      .jpeg()
+      .toBuffer()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () =>
+        Promise.resolve(
+          sourceBuffer.buffer.slice(
+            sourceBuffer.byteOffset,
+            sourceBuffer.byteOffset + sourceBuffer.byteLength,
+          ),
+        ),
+      headers: new Headers({
+        'content-type': 'image/jpeg',
+        'content-length': String(sourceBuffer.byteLength),
+      }),
+    })
+
+    const result = await createVideoPosterAsset({
+      sourceUrl: 'https://provider.example.com/thumb.jpg',
+      sourceStorageKey: 'generations/user-1/video/source.mp4',
+      fetchHeaders: { Authorization: 'Bearer token' },
+    })
+
+    expect(result).toEqual({
+      thumbnailUrl:
+        'https://cdn.test.com/generations/user-1/video/source.thumbnail.webp',
+      thumbnailStorageKey: 'generations/user-1/video/source.thumbnail.webp',
+    })
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://provider.example.com/thumb.jpg',
+      {
+        headers: { Authorization: 'Bearer token' },
+      },
+    )
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          Key: 'generations/user-1/video/source.thumbnail.webp',
           ContentType: 'image/webp',
         }),
       }),

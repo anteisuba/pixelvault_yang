@@ -88,6 +88,7 @@ interface FalQueueSubmitResult {
 interface FalQueueStatusResult {
   status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
   artifactUrl?: string
+  thumbnailUrl?: string
   mimeType?: string
   providerMetadata?: Record<string, unknown>
 }
@@ -682,6 +683,8 @@ async function pollFalQueue(
 
   const video = isRecord(resultData.video) ? resultData.video : null
   const artifactUrl = video ? readStringField(video, 'url') : null
+  const thumbnail = isRecord(resultData.thumbnail) ? resultData.thumbnail : null
+  const thumbnailUrl = thumbnail ? readStringField(thumbnail, 'url') : null
 
   if (!artifactUrl) {
     throw new Error('fal.ai result response did not include a video URL.')
@@ -690,6 +693,7 @@ async function pollFalQueue(
   return {
     status: 'COMPLETED',
     artifactUrl,
+    thumbnailUrl: thumbnailUrl ?? undefined,
     providerMetadata: {
       requestId: queue.requestId,
       statusUrl: queue.statusUrl,
@@ -769,6 +773,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
           await step.do('callback-result', async () =>
             emitCallback(this.env, context, {
               artifactUrl: pollResult.artifactUrl,
+              thumbnailUrl: pollResult.thumbnailUrl,
               providerMetadata: pollResult.providerMetadata,
               width:
                 context.outputType === 'VIDEO'

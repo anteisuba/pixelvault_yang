@@ -119,42 +119,48 @@ export function AssetBrowser({
                   className="aspect-square animate-pulse rounded-md bg-muted/40"
                 />
               ))
-            : generations.map((gen) => (
-                <button
-                  key={gen.id}
-                  type="button"
-                  onClick={() => onSelect(gen)}
-                  className={cn(
-                    'group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200',
-                    'hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                  )}
-                  aria-label={gen.prompt || gen.id}
-                  title={gen.prompt || undefined}
-                >
-                  {gen.outputType === 'VIDEO' ? (
-                    <video
-                      src={`${gen.url}#t=0.1`}
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ) : (
-                    // next/image with fill + a tight sizes hint asks the
-                    // optimizer for the 200px AVIF/WebP variant configured in
-                    // next.config.ts — much smaller payload than the original
-                    // R2 asset, and lazy-loaded below the fold by default.
-                    <NextImage
-                      src={gen.url}
-                      alt={gen.prompt || ''}
-                      fill
-                      sizes="200px"
-                      className="object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                </button>
-              ))}
+            : generations.map((gen) => {
+                const videoPoster =
+                  gen.thumbnailUrl ?? gen.previewUrl ?? undefined
+
+                return (
+                  <button
+                    key={gen.id}
+                    type="button"
+                    onClick={() => onSelect(gen)}
+                    className={cn(
+                      'group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/40 transition-all duration-200',
+                      'hover:border-primary/40 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+                    )}
+                    aria-label={gen.prompt || gen.id}
+                    title={gen.prompt || undefined}
+                  >
+                    {gen.outputType === 'VIDEO' ? (
+                      <video
+                        src={gen.url}
+                        poster={videoPoster}
+                        muted
+                        playsInline
+                        preload="none"
+                        className="absolute inset-0 size-full object-cover"
+                      />
+                    ) : (
+                      // next/image with fill + a tight sizes hint asks the
+                      // optimizer for the 200px AVIF/WebP variant configured in
+                      // next.config.ts — much smaller payload than the original
+                      // R2 asset, and lazy-loaded below the fold by default.
+                      <NextImage
+                        src={gen.url}
+                        alt={gen.prompt || ''}
+                        fill
+                        sizes="200px"
+                        className="object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                  </button>
+                )
+              })}
           {hasMore && <div ref={sentinelRef} className="col-span-4 h-2" />}
         </div>
       )}

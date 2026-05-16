@@ -365,6 +365,7 @@ const GalleryItem = memo(function GalleryItem({
   preserveAspectRatio,
   priority,
 }: GalleryItemProps) {
+  const videoPoster = gen.thumbnailUrl ?? gen.previewUrl ?? undefined
   const dragRef = useStudioDraggable({
     url: gen.url ?? undefined,
     generationId: gen.id,
@@ -389,9 +390,10 @@ const GalleryItem = memo(function GalleryItem({
       ) : gen.outputType === 'VIDEO' && gen.url ? (
         <video
           src={gen.url}
+          poster={videoPoster}
           muted
           playsInline
-          preload="metadata"
+          preload="none"
           className={cn(
             preserveAspectRatio
               ? 'w-full h-auto'

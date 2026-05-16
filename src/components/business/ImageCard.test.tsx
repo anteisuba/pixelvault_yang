@@ -209,4 +209,29 @@ describe('ImageCard', () => {
     expect(screen.getByText('5')).toBeInTheDocument()
     expect(screen.getByLabelText('Like')).toBeInTheDocument()
   })
+
+  it('uses stored poster assets for video cards without preloading metadata', () => {
+    const { container } = renderCard({
+      generation: {
+        ...BASE_GEN,
+        outputType: 'VIDEO',
+        url: 'https://r2.example.com/video.mp4',
+        storageKey: 'generations/video/video.mp4',
+        mimeType: 'video/mp4',
+        thumbnailUrl: 'https://r2.example.com/video.thumbnail.webp',
+        thumbnailStorageKey: 'generations/video/video.thumbnail.webp',
+        width: 1280,
+        height: 720,
+        duration: 5,
+      },
+    })
+
+    const video = container.querySelector('video')
+    expect(video).toHaveAttribute(
+      'poster',
+      'https://r2.example.com/video.thumbnail.webp',
+    )
+    expect(video).toHaveAttribute('preload', 'none')
+    expect(video).toHaveAttribute('src', 'https://r2.example.com/video.mp4')
+  })
 })

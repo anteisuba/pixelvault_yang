@@ -21,6 +21,7 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   const fetchProfile = useCallback(async () => {
@@ -30,17 +31,24 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
     if (response.success && response.data) {
       setProfile(response.data)
       setPage(1)
+      setNextCursor(response.data.nextCursor)
     } else {
+      setNextCursor(null)
       setError(response.error ?? 'Failed to load profile')
     }
     setIsLoading(false)
   }, [username])
 
   const loadMore = useCallback(async () => {
-    if (!profile || !profile.hasMore || isLoadingMore) return
+    if (!profile || !profile.hasMore || !nextCursor || isLoadingMore) return
     setIsLoadingMore(true)
     const nextPage = page + 1
-    const response = await getCreatorProfileAPI(username, nextPage)
+    const response = await getCreatorProfileAPI(
+      username,
+      nextPage,
+      undefined,
+      nextCursor,
+    )
     if (response.success && response.data) {
       setProfile((prev) => {
         if (!prev) return response.data!
@@ -50,9 +58,10 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
         }
       })
       setPage(nextPage)
+      setNextCursor(response.data.nextCursor)
     }
     setIsLoadingMore(false)
-  }, [profile, page, username, isLoadingMore])
+  }, [profile, nextCursor, page, username, isLoadingMore])
 
   useEffect(() => {
     return deferEffectTask(() => {

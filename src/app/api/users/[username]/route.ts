@@ -14,6 +14,7 @@ export async function GET(
     const { username } = await params
     const searchParams = _request.nextUrl.searchParams
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+    const cursor = searchParams.get('cursor') ?? undefined
     const limit = Math.min(
       50,
       Math.max(
@@ -33,7 +34,13 @@ export async function GET(
       viewerUserId = viewer?.id ?? null
     }
 
-    const profile = await getCreatorProfile(username, viewerUserId, page, limit)
+    const profile = await getCreatorProfile(
+      username,
+      viewerUserId,
+      page,
+      limit,
+      cursor,
+    )
 
     if (!profile) {
       return NextResponse.json<CreatorProfilePageResponse>(

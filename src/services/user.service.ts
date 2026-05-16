@@ -17,6 +17,12 @@ import type {
 
 export type { User }
 
+interface DecodedCreatorProfileCursor {
+  id: string
+  createdAt: Date
+  isFeatured: boolean
+}
+
 // ─── Username Helpers ────────────────────────────────────────────
 
 function isReservedUsername(username: string): boolean {
@@ -29,6 +35,77 @@ function isValidUsernameFormat(username: string): boolean {
     username.length <= PROFILE.USERNAME_MAX_LENGTH &&
     PROFILE.USERNAME_PATTERN.test(username)
   )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function encodeCreatorProfileCursor(row: {
+  id: string
+  createdAt: Date
+  isFeatured: boolean
+}): string {
+  return Buffer.from(
+    JSON.stringify({
+      id: row.id,
+      createdAt: row.createdAt.toISOString(),
+      isFeatured: row.isFeatured,
+    }),
+  ).toString('base64url')
+}
+
+function decodeCreatorProfileCursor(
+  cursor?: string,
+): DecodedCreatorProfileCursor | null {
+  if (!cursor) return null
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as unknown
+    if (!isRecord(parsed)) return null
+    if (typeof parsed.id !== 'string') return null
+    if (typeof parsed.createdAt !== 'string') return null
+    if (typeof parsed.isFeatured !== 'boolean') return null
+
+    const createdAt = new Date(parsed.createdAt)
+    if (Number.isNaN(createdAt.getTime())) return null
+
+    return {
+      id: parsed.id,
+      createdAt,
+      isFeatured: parsed.isFeatured,
+    }
+  } catch {
+    return null
+  }
+}
+
+function buildCreatorProfileCursorWhere(
+  cursor: DecodedCreatorProfileCursor | null,
+): Record<string, unknown> | null {
+  if (!cursor) return null
+
+  const sameFeaturedOlder = {
+    AND: [
+      { isFeatured: cursor.isFeatured },
+      { createdAt: { lt: cursor.createdAt } },
+    ],
+  }
+  const sameFeaturedSameTimeLowerId = {
+    AND: [
+      { isFeatured: cursor.isFeatured },
+      { createdAt: cursor.createdAt },
+      { id: { lt: cursor.id } },
+    ],
+  }
+
+  return {
+    OR: cursor.isFeatured
+      ? [{ isFeatured: false }, sameFeaturedOlder, sameFeaturedSameTimeLowerId]
+      : [sameFeaturedOlder, sameFeaturedSameTimeLowerId],
+  }
 }
 
 /**
@@ -317,6 +394,7 @@ export async function getCreatorProfile(
   viewerUserId: string | null,
   page: number = 1,
   limit: number = PROFILE.POLAROID_PAGE_SIZE,
+  cursor?: string,
 ): Promise<
   | (CreatorProfileWithImages & {
       viewerRelation: ViewerRelation
@@ -372,13 +450,19 @@ export async function getCreatorProfile(
       db.userFollow.count({ where: { followerId: user.id } }),
     ])
 
-  // Fetch public generations with like info
-  const offset = (page - 1) * limit
+  // Fetch public generations with like info. Keep `page` for first-load
+  // compatibility, but use cursor predicates for load-more calls.
+  const decodedCursor = decodeCreatorProfileCursor(cursor)
+  const baseWhere = { userId: user.id, isPublic: true }
+  const cursorWhere = buildCreatorProfileCursorWhere(decodedCursor)
+  const generationWhere = cursorWhere
+    ? { AND: [baseWhere, cursorWhere] }
+    : baseWhere
   const generations = await db.generation.findMany({
-    where: { userId: user.id, isPublic: true },
-    orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-    skip: offset,
-    take: limit,
+    where: generationWhere,
+    orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    ...(decodedCursor ? {} : { skip: (page - 1) * limit }),
+    take: limit + 1,
     include: {
       _count: { select: { likes: true } },
       ...(viewerUserId
@@ -391,6 +475,13 @@ export async function getCreatorProfile(
         : {}),
     },
   })
+  const hasMore = generations.length > limit
+  const pageGenerations = hasMore ? generations.slice(0, limit) : generations
+  const lastGeneration = pageGenerations[pageGenerations.length - 1]
+  const nextCursor =
+    hasMore && lastGeneration
+      ? encodeCreatorProfileCursor(lastGeneration)
+      : null
 
   // Viewer relation
   let isFollowing = false
@@ -406,7 +497,7 @@ export async function getCreatorProfile(
     isFollowing = !!follow
   }
 
-  const mappedGenerations = generations.map((g) => ({
+  const mappedGenerations = pageGenerations.map((g) => ({
     id: g.id,
     createdAt: g.createdAt,
     outputType: g.outputType,
@@ -414,6 +505,10 @@ export async function getCreatorProfile(
     url: g.url,
     storageKey: g.storageKey,
     mimeType: g.mimeType,
+    thumbnailUrl: g.thumbnailUrl,
+    thumbnailStorageKey: g.thumbnailStorageKey,
+    previewUrl: g.previewUrl,
+    previewStorageKey: g.previewStorageKey,
     width: g.width,
     height: g.height,
     duration: g.duration,
@@ -451,7 +546,8 @@ export async function getCreatorProfile(
     followingCount,
     generations: mappedGenerations,
     total: publicImageCount,
-    hasMore: offset + limit < publicImageCount,
+    hasMore,
+    nextCursor,
     viewerRelation: {
       isFollowing,
       isOwnProfile,

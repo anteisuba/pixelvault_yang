@@ -9,6 +9,7 @@ import { getGenerationsByCharacterCard } from '@/services/generation.service'
 const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().optional(),
 })
 
 // ─── GET /api/character-cards/[id]/generations ────────────────────
@@ -37,7 +38,7 @@ export async function GET(
     }
 
     const dbUser = await ensureUser(clerkId)
-    const { generations, total } = await getGenerationsByCharacterCard(
+    const page = await getGenerationsByCharacterCard(
       cardId,
       dbUser.id,
       query.data,
@@ -46,9 +47,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        generations,
-        total,
-        hasMore: query.data.page * query.data.limit < total,
+        generations: page.generations,
+        total: page.total,
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
       },
     })
   } catch (error) {

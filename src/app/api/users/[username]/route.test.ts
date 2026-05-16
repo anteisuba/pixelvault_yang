@@ -37,6 +37,7 @@ const PUBLIC_PROFILE = {
   generations: [],
   total: 10,
   hasMore: false,
+  nextCursor: null,
   userId: 'db_alice',
   viewerRelation: { isFollowing: false, isOwnProfile: false },
 }
@@ -123,6 +124,24 @@ describe('GET /api/users/[username]', () => {
       'db_viewer',
       1,
       expect.any(Number),
+      undefined,
+    )
+  })
+
+  it('passes cursor through for load-more requests', async () => {
+    mockGetCreatorProfile.mockResolvedValue(PUBLIC_PROFILE)
+
+    await GET(
+      createRequest('alice', { cursor: 'cursor-1', page: '2' }),
+      makeParams('alice'),
+    )
+
+    expect(mockGetCreatorProfile).toHaveBeenCalledWith(
+      'alice',
+      null,
+      2,
+      expect.any(Number),
+      'cursor-1',
     )
   })
 

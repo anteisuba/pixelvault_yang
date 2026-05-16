@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 
 import { useCharacterCardGallery } from '@/hooks/use-character-card-gallery'
 import { Button } from '@/components/ui/button'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 
 interface CharacterCardGalleryProps {
   /** One or more card IDs — single shows that card's generations, multiple shows intersection */
@@ -63,7 +64,7 @@ export function CharacterCardGallery({
             className="group relative aspect-square overflow-hidden rounded-lg border border-border/40"
           >
             <Image
-              src={gen.url}
+              src={getGenerationThumbnailUrl(gen)}
               alt={gen.prompt}
               fill
               className="object-cover transition-transform group-hover:scale-105"

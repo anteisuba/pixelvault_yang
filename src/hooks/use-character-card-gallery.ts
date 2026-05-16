@@ -28,6 +28,7 @@ export function useCharacterCardGallery(
   const [generations, setGenerations] = useState<GenerationRecord[]>([])
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,11 +36,12 @@ export function useCharacterCardGallery(
   const cardKey = cardIds.slice().sort().join(',')
 
   const fetchPage = useCallback(
-    async (pageNum: number, append: boolean) => {
+    async (pageNum: number, append: boolean, cursor?: string | null) => {
       if (cardIds.length === 0) {
         setGenerations([])
         setTotal(0)
         setHasMore(false)
+        setNextCursor(null)
         return
       }
 
@@ -48,8 +50,18 @@ export function useCharacterCardGallery(
 
       const response =
         cardIds.length === 1
-          ? await getCharacterCardGenerationsAPI(cardIds[0], pageNum)
-          : await getCharacterCombinationGenerationsAPI(cardIds, pageNum)
+          ? await getCharacterCardGenerationsAPI(
+              cardIds[0],
+              pageNum,
+              20,
+              cursor,
+            )
+          : await getCharacterCombinationGenerationsAPI(
+              cardIds,
+              pageNum,
+              20,
+              cursor,
+            )
 
       if (response.success && response.data) {
         setGenerations((prev) =>
@@ -57,8 +69,11 @@ export function useCharacterCardGallery(
             ? [...prev, ...response.data!.generations]
             : response.data!.generations,
         )
-        setTotal(response.data.total)
+        if (response.data.total != null) {
+          setTotal(response.data.total)
+        }
         setHasMore(response.data.hasMore)
+        setNextCursor(response.data.nextCursor)
       } else {
         setError(response.error ?? 'Failed to load generations')
       }
@@ -72,18 +87,20 @@ export function useCharacterCardGallery(
   useEffect(() => {
     setPage(1)
     setGenerations([])
+    setNextCursor(null)
     void fetchPage(1, false)
   }, [fetchPage])
 
   const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return
+    if (isLoading || !hasMore || !nextCursor) return
     const nextPage = page + 1
     setPage(nextPage)
-    await fetchPage(nextPage, true)
-  }, [isLoading, hasMore, page, fetchPage])
+    await fetchPage(nextPage, true, nextCursor)
+  }, [isLoading, hasMore, nextCursor, page, fetchPage])
 
   const refresh = useCallback(async () => {
     setPage(1)
+    setNextCursor(null)
     await fetchPage(1, false)
   }, [fetchPage])
 

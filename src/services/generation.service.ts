@@ -969,6 +969,14 @@ export async function batchUpdateVisibility(
 export interface CharacterCardGalleryOptions {
   page?: number
   limit?: number
+  cursor?: string
+}
+
+export interface CharacterCardGenerationPage {
+  generations: GenerationRecord[]
+  total: number | null
+  hasMore: boolean
+  nextCursor: string | null
 }
 
 /**
@@ -977,27 +985,37 @@ export interface CharacterCardGalleryOptions {
 export async function getGenerationsByCharacterCard(
   characterCardId: string,
   userId: string,
-  { page = 1, limit = 20 }: CharacterCardGalleryOptions = {},
-): Promise<{ generations: GenerationRecord[]; total: number }> {
-  const where = {
+  { page = 1, limit = 20, cursor }: CharacterCardGalleryOptions = {},
+): Promise<CharacterCardGenerationPage> {
+  const baseWhere = {
     characterCards: { some: { characterCardId } },
     userId,
   }
+  const decodedCursor = decodeGalleryCursor(cursor)
+  const cursorWhere = buildGalleryCursorWhere(decodedCursor, 'newest')
+  const where = cursorWhere ? { AND: [baseWhere, cursorWhere] } : baseWhere
 
-  const [generations, total] = await Promise.all([
+  const [results, total] = await Promise.all([
     db.generation.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      orderBy: getGalleryOrderBy('newest'),
+      ...(decodedCursor ? {} : { skip: (page - 1) * limit }),
+      take: limit + 1,
       select: LIST_GENERATION_SELECT,
     }),
-    db.generation.count({ where }),
+    decodedCursor ? Promise.resolve(null) : db.generation.count({ where }),
   ])
+  const hasMore = results.length > limit
+  const generations = hasMore ? results.slice(0, limit) : results
+  const lastGeneration = generations[generations.length - 1]
+  const nextCursor =
+    hasMore && lastGeneration ? encodeGalleryCursor(lastGeneration) : null
 
   return {
     generations: generations as GenerationRecord[],
     total,
+    hasMore,
+    nextCursor,
   }
 }
 
@@ -1008,42 +1026,53 @@ export async function getGenerationsByCharacterCard(
 export async function getGenerationsByCharacterCombination(
   characterCardIds: string[],
   userId: string,
-  { page = 1, limit = 20 }: CharacterCardGalleryOptions = {},
-): Promise<{ generations: GenerationRecord[]; total: number }> {
+  { page = 1, limit = 20, cursor }: CharacterCardGalleryOptions = {},
+): Promise<CharacterCardGenerationPage> {
   if (characterCardIds.length === 0) {
-    return { generations: [], total: 0 }
+    return { generations: [], total: 0, hasMore: false, nextCursor: null }
   }
 
   if (characterCardIds.length === 1) {
     return getGenerationsByCharacterCard(characterCardIds[0], userId, {
       page,
       limit,
+      cursor,
     })
   }
 
   // Find generations that have ALL specified character cards
   // by intersecting: each card must appear in the join table for that generation
-  const where = {
+  const baseWhere = {
     userId,
     AND: characterCardIds.map((cardId) => ({
       characterCards: { some: { characterCardId: cardId } },
     })),
   }
+  const decodedCursor = decodeGalleryCursor(cursor)
+  const cursorWhere = buildGalleryCursorWhere(decodedCursor, 'newest')
+  const where = cursorWhere ? { AND: [baseWhere, cursorWhere] } : baseWhere
 
-  const [generations, total] = await Promise.all([
+  const [results, total] = await Promise.all([
     db.generation.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      orderBy: getGalleryOrderBy('newest'),
+      ...(decodedCursor ? {} : { skip: (page - 1) * limit }),
+      take: limit + 1,
       select: LIST_GENERATION_SELECT,
     }),
-    db.generation.count({ where }),
+    decodedCursor ? Promise.resolve(null) : db.generation.count({ where }),
   ])
+  const hasMore = results.length > limit
+  const generations = hasMore ? results.slice(0, limit) : results
+  const lastGeneration = generations[generations.length - 1]
+  const nextCursor =
+    hasMore && lastGeneration ? encodeGalleryCursor(lastGeneration) : null
 
   return {
     generations: generations as GenerationRecord[],
     total,
+    hasMore,
+    nextCursor,
   }
 }
 

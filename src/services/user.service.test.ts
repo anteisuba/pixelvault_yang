@@ -340,6 +340,7 @@ describe('user.service', () => {
         followerCount: 4,
         followingCount: 2,
         hasMore: false,
+        nextCursor: null,
         viewerRelation: {
           isFollowing: true,
           isOwnProfile: false,
@@ -355,6 +356,110 @@ describe('user.service', () => {
           username: 'artist',
           displayName: 'Artist',
         },
+      })
+    })
+
+    it('uses cursor predicates for creator profile load-more queries', async () => {
+      const cursor = Buffer.from(
+        JSON.stringify({
+          id: 'gen-cursor',
+          createdAt: '2026-02-02T00:00:00.000Z',
+          isFeatured: true,
+        }),
+      ).toString('base64url')
+      mockUserFindUnique.mockResolvedValue(BASE_USER)
+      mockGenerationCount.mockResolvedValue(2)
+      mockUserLikeCount.mockResolvedValue(3)
+      mockUserFollowCount.mockResolvedValueOnce(4).mockResolvedValueOnce(2)
+      mockUserFollowFindUnique.mockResolvedValue(null)
+      mockGenerationFindMany.mockResolvedValue([
+        {
+          id: 'gen-2',
+          createdAt: new Date('2026-02-01T00:00:00.000Z'),
+          outputType: 'IMAGE',
+          status: 'COMPLETED',
+          url: 'https://cdn.example.com/gen-2.png',
+          storageKey: 'generations/gen-2.png',
+          mimeType: 'image/png',
+          thumbnailUrl: 'https://cdn.example.com/gen-2.thumbnail.webp',
+          thumbnailStorageKey: 'generations/gen-2.thumbnail.webp',
+          previewUrl: 'https://cdn.example.com/gen-2.preview.webp',
+          previewStorageKey: 'generations/gen-2.preview.webp',
+          width: 1024,
+          height: 1024,
+          duration: null,
+          referenceImageUrl: null,
+          prompt: 'prompt',
+          negativePrompt: null,
+          model: 'sdxl',
+          provider: 'huggingface',
+          requestCount: 1,
+          isPublic: true,
+          isPromptPublic: true,
+          userId: 'user-1',
+          isFeatured: false,
+          _count: { likes: 0 },
+          likes: [],
+        },
+        {
+          id: 'gen-3',
+          createdAt: new Date('2026-01-31T00:00:00.000Z'),
+          outputType: 'IMAGE',
+          status: 'COMPLETED',
+          url: 'https://cdn.example.com/gen-3.png',
+          storageKey: 'generations/gen-3.png',
+          mimeType: 'image/png',
+          width: 1024,
+          height: 1024,
+          duration: null,
+          referenceImageUrl: null,
+          prompt: 'prompt 3',
+          negativePrompt: null,
+          model: 'sdxl',
+          provider: 'huggingface',
+          requestCount: 1,
+          isPublic: true,
+          isPromptPublic: true,
+          userId: 'user-1',
+          isFeatured: false,
+          _count: { likes: 0 },
+          likes: [],
+        },
+      ])
+
+      const result = await getCreatorProfile('Artist', 'viewer-1', 3, 1, cursor)
+
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ skip: expect.any(Number) }),
+      )
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [
+            { isFeatured: 'desc' },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          take: 2,
+        }),
+      )
+      expect(
+        result && 'generations' in result && result.generations,
+      ).toHaveLength(1)
+      const nextCursor =
+        result && 'nextCursor' in result ? result.nextCursor : null
+      const decodedNextCursor = JSON.parse(
+        Buffer.from(nextCursor ?? '', 'base64url').toString('utf8'),
+      ) as unknown
+      expect(decodedNextCursor).toEqual({
+        id: 'gen-2',
+        createdAt: '2026-02-01T00:00:00.000Z',
+        isFeatured: false,
+      })
+      expect(
+        result && 'generations' in result && result.generations[0],
+      ).toMatchObject({
+        thumbnailUrl: 'https://cdn.example.com/gen-2.thumbnail.webp',
+        previewUrl: 'https://cdn.example.com/gen-2.preview.webp',
       })
     })
   })

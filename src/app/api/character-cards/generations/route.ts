@@ -13,6 +13,7 @@ const QuerySchema = z.object({
     .transform((s) => s.split(',')),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().optional(),
 })
 
 // ─── GET /api/character-cards/generations?cardIds=a,b ────────────
@@ -37,18 +38,23 @@ export async function GET(request: NextRequest) {
     }
 
     const dbUser = await ensureUser(clerkId)
-    const { generations, total } = await getGenerationsByCharacterCombination(
+    const page = await getGenerationsByCharacterCombination(
       query.data.cardIds,
       dbUser.id,
-      { page: query.data.page, limit: query.data.limit },
+      {
+        page: query.data.page,
+        limit: query.data.limit,
+        cursor: query.data.cursor,
+      },
     )
 
     return NextResponse.json({
       success: true,
       data: {
-        generations,
-        total,
-        hasMore: query.data.page * query.data.limit < total,
+        generations: page.generations,
+        total: page.total,
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
       },
     })
   } catch (error) {

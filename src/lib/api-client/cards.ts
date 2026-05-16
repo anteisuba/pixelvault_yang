@@ -209,12 +209,14 @@ export async function getCharacterCardGenerationsAPI(
   cardId: string,
   page: number = 1,
   limit: number = 20,
+  cursor?: string | null,
 ): Promise<CharacterCardGalleryResponse> {
   try {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
     })
+    if (cursor) params.set('cursor', cursor)
     const response = await fetch(
       `/api/character-cards/${cardId}/generations?${params}`,
     )
@@ -230,6 +232,7 @@ export async function getCharacterCombinationGenerationsAPI(
   cardIds: string[],
   page: number = 1,
   limit: number = 20,
+  cursor?: string | null,
 ): Promise<CharacterCardGalleryResponse> {
   try {
     const params = new URLSearchParams({
@@ -237,6 +240,7 @@ export async function getCharacterCombinationGenerationsAPI(
       page: String(page),
       limit: String(limit),
     })
+    if (cursor) params.set('cursor', cursor)
     const response = await fetch(`/api/character-cards/generations?${params}`)
     return await response.json()
   } catch (error) {

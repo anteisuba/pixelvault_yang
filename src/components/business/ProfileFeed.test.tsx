@@ -115,6 +115,9 @@ const MESSAGES = {
     loadMore: 'Load More',
     loadingMore: 'Loading...',
     endOfArchive: 'End',
+    feedLabel: 'My archive feed',
+    itemFallbackLabel: 'Archive item',
+    projectFilterLabel: 'Project',
   },
   Toasts: {
     deleteSuccess: 'Deleted',
@@ -141,7 +144,7 @@ const DEFAULT_PROPS = {
 
 function renderFeed() {
   return render(
-    <NextIntlClientProvider locale="en" messages={MESSAGES}>
+    <NextIntlClientProvider locale="en" messages={MESSAGES} timeZone="UTC">
       <ProfileFeed {...DEFAULT_PROPS} />
     </NextIntlClientProvider>,
   )

@@ -1837,8 +1837,9 @@ export interface CharacterCardGalleryResponse {
   success: boolean
   data?: {
     generations: GenerationRecord[]
-    total: number
+    total: number | null
     hasMore: boolean
+    nextCursor: string | null
   }
   error?: string
 }
@@ -2043,6 +2044,7 @@ export interface CreatorProfileWithImages extends CreatorProfileRecord {
   })[]
   total: number
   hasMore: boolean
+  nextCursor: string | null
 }
 
 export interface CreatorProfileResponse {

@@ -143,7 +143,7 @@ function renderModal(
     ...props,
   }
   return render(
-    <NextIntlClientProvider locale="en" messages={MESSAGES}>
+    <NextIntlClientProvider locale="en" messages={MESSAGES} timeZone="UTC">
       <ImageDetailModal {...defaults} />
     </NextIntlClientProvider>,
   )

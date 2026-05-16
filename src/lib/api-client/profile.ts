@@ -14,10 +14,12 @@ export async function getCreatorProfileAPI(
   username: string,
   page: number = 1,
   limit?: number,
+  cursor?: string | null,
 ): Promise<CreatorProfilePageResponse> {
   try {
     const params = new URLSearchParams({ page: String(page) })
     if (limit) params.set('limit', String(limit))
+    if (cursor) params.set('cursor', cursor)
     const response = await fetch(
       `${API_ENDPOINTS.USERS}/${encodeURIComponent(username)}?${params.toString()}`,
     )

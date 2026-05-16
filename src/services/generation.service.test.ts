@@ -50,6 +50,7 @@ import {
   deleteGeneration,
   getAssetSectionCounts,
   getGenerationById,
+  getGenerationsByCharacterCard,
   getGenerationsByCharacterCombination,
   getPublicGenerationPage,
   getPublicGenerations,
@@ -740,8 +741,41 @@ describe('generation.service', () => {
       ).resolves.toEqual({
         generations: [],
         total: 0,
+        hasMore: false,
+        nextCursor: null,
       })
       expect(mockGenerationFindMany).not.toHaveBeenCalled()
+    })
+
+    it('returns a cursor page for a single character card without counting follow-up pages', async () => {
+      const cursor = Buffer.from(
+        JSON.stringify({
+          id: 'gen-cursor',
+          createdAt: '2026-01-02T00:00:00.000Z',
+        }),
+      ).toString('base64url')
+      mockGenerationFindMany.mockResolvedValue([
+        { ...BASE_GENERATION, id: 'gen-2' },
+      ])
+
+      const result = await getGenerationsByCharacterCard('card-1', 'user-1', {
+        cursor,
+        limit: 20,
+      })
+
+      expect(result).toEqual({
+        generations: [{ ...BASE_GENERATION, id: 'gen-2' }],
+        total: null,
+        hasMore: false,
+        nextCursor: null,
+      })
+      expect(mockGenerationCount).not.toHaveBeenCalled()
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 21,
+        }),
+      )
     })
   })
 

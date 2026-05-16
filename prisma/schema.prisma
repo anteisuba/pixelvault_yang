@@ -262,6 +262,7 @@ model Generation {
   @@index([userId, projectId, createdAt(sort: Desc)])
   @@index([characterCardId, createdAt(sort: Desc)])
   @@index([runGroupId])
+  @@index([prompt(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_generation_prompt_trgm")
 }
 
 model GenerationJob {

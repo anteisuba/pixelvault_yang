@@ -32,7 +32,7 @@ function ToggleGroupItem({
         'rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors',
         'hover:bg-muted/40 hover:text-foreground',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-        'aria-pressed:bg-foreground aria-pressed:text-background',
+        'data-[state=on]:bg-foreground data-[state=on]:text-background',
         'disabled:pointer-events-none disabled:opacity-50',
         className,
       )}

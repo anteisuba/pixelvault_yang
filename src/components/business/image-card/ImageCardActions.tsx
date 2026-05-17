@@ -26,7 +26,7 @@ export function ImageCardActions({
   downloadLabel,
 }: ImageCardActionsProps) {
   return (
-    <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+    <div className="card-actions absolute right-2.5 top-2.5 flex gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
       <button
         type="button"
         onClick={onLike}

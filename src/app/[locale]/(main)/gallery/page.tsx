@@ -6,7 +6,6 @@ import { GallerySearchSchema } from '@/types'
 import { getPublicGenerationPage } from '@/services/generation.service'
 
 import { GalleryFeed } from '@/components/business/GalleryFeed'
-import { Particles } from '@/components/ui/particles'
 import type { AppLocale } from '@/i18n/routing'
 
 export const revalidate = 60
@@ -71,15 +70,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
 
   return (
     <div className="relative min-h-screen">
-      <Particles
-        className="fixed inset-0 z-0"
-        quantity={120}
-        staticity={30}
-        ease={40}
-        size={1.5}
-        color="#c4653f"
-      />
-      <div className="relative z-[1] mx-auto max-w-content px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+      <div className="mx-auto max-w-content px-4 pt-6 pb-12 sm:px-6 lg:px-8">
         <GalleryFeed
           initialGenerations={initialPage.generations}
           initialPage={PAGINATION.DEFAULT_PAGE}

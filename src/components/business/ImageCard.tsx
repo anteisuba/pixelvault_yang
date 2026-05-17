@@ -35,12 +35,21 @@ import { getApiErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn, getLabelClassName } from '@/lib/utils'
 
+export const IMAGE_CARD_PRESENTATIONS = {
+  DEFAULT: 'default',
+  GALLERY: 'gallery',
+} as const
+
+type ImageCardPresentation =
+  (typeof IMAGE_CARD_PRESENTATIONS)[keyof typeof IMAGE_CARD_PRESENTATIONS]
+
 interface ImageCardProps {
   generation: GenerationRecord
   showVisibility?: boolean
   showDelete?: boolean
   onDelete?: (id: string) => void
   priority?: boolean
+  presentation?: ImageCardPresentation
 }
 
 export const ImageCard = memo(function ImageCard({
@@ -49,6 +58,7 @@ export const ImageCard = memo(function ImageCard({
   showDelete = false,
   onDelete,
   priority,
+  presentation = IMAGE_CARD_PRESENTATIONS.DEFAULT,
 }: ImageCardProps) {
   const { isPublic, isPromptPublic, isFeatured, togglingField, handleToggle } =
     useGenerationVisibility({
@@ -151,6 +161,8 @@ export const ImageCard = memo(function ImageCard({
   ]
 
   const labelClass = getLabelClassName(isDenseLocale)
+  const isGalleryPresentation =
+    presentation === IMAGE_CARD_PRESENTATIONS.GALLERY && !showVisibility
 
   const detailGeneration = {
     ...generation,
@@ -161,8 +173,22 @@ export const ImageCard = memo(function ImageCard({
 
   return (
     <>
-      <article className="group overflow-hidden rounded-3xl border border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5 hover:-translate-y-1">
-        <div className="relative overflow-hidden bg-secondary/18">
+      <article
+        className={cn(
+          'group overflow-hidden border',
+          isGalleryPresentation
+            ? 'rounded-xl border-border/25 bg-transparent transition-colors duration-200 hover:border-border/70'
+            : 'rounded-3xl border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5',
+        )}
+      >
+        <div
+          className={cn(
+            'relative overflow-hidden',
+            isGalleryPresentation
+              ? 'rounded-xl bg-secondary/12'
+              : 'bg-secondary/18',
+          )}
+        >
           <ImageCardMedia
             priority={priority}
             generation={generation}
@@ -187,111 +213,114 @@ export const ImageCard = memo(function ImageCard({
           />
         </div>
 
-        <div className="space-y-4 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-4">
-            <p
-              className={cn(
-                'text-nav font-semibold text-muted-foreground',
-                isDenseLocale
-                  ? 'tracking-normal normal-case'
-                  : 'uppercase tracking-nav',
-              )}
-            >
-              {format.dateTime(createdAt, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </p>
+        {isGalleryPresentation ? null : (
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <p
+                className={cn(
+                  'text-nav font-semibold text-muted-foreground',
+                  isDenseLocale
+                    ? 'tracking-normal normal-case'
+                    : 'uppercase tracking-nav',
+                )}
+              >
+                {format.dateTime(createdAt, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
 
-            <button
-              type="button"
-              onClick={openDetail}
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
-                isDenseLocale
-                  ? 'tracking-normal normal-case'
-                  : 'uppercase tracking-nav-dense',
-              )}
-              aria-label={t('openImage')}
-            >
-              {t('openLabel')}
-              <ArrowUpRight className="size-3.5" />
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={openDetail}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
+                  isDenseLocale
+                    ? 'tracking-normal normal-case'
+                    : 'uppercase tracking-nav-dense',
+                )}
+                aria-label={t('openImage')}
+              >
+                {t('openLabel')}
+                <ArrowUpRight className="size-3.5" />
+              </button>
+            </div>
 
-          {/* Creator attribution */}
-          {generation.creator?.username && !showVisibility && (
-            <Link
-              href={creatorProfilePath(generation.creator.username)}
-              className="flex items-center gap-2 group/creator"
-            >
-              {generation.creator.avatarUrl ? (
-                <Image
-                  src={generation.creator.avatarUrl}
-                  alt={
-                    generation.creator.displayName ??
-                    generation.creator.username
-                  }
-                  width={20}
-                  height={20}
-                  unoptimized
-                  className="size-5 rounded-full object-cover"
-                />
-              ) : (
-                <span className="size-5 rounded-full bg-muted flex items-center justify-center text-3xs font-medium text-muted-foreground">
-                  {(
-                    generation.creator.displayName ??
-                    generation.creator.username
-                  )
-                    .charAt(0)
-                    .toUpperCase()}
+            {/* Creator attribution */}
+            {generation.creator?.username && !showVisibility && (
+              <Link
+                href={creatorProfilePath(generation.creator.username)}
+                className="flex items-center gap-2 group/creator"
+              >
+                {generation.creator.avatarUrl ? (
+                  <Image
+                    src={generation.creator.avatarUrl}
+                    alt={
+                      generation.creator.displayName ??
+                      generation.creator.username
+                    }
+                    width={20}
+                    height={20}
+                    unoptimized
+                    className="size-5 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="size-5 rounded-full bg-muted flex items-center justify-center text-3xs font-medium text-muted-foreground">
+                    {(
+                      generation.creator.displayName ??
+                      generation.creator.username
+                    )
+                      .charAt(0)
+                      .toUpperCase()}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground group-hover/creator:text-foreground transition-colors truncate">
+                  {generation.creator.displayName ??
+                    generation.creator.username}
                 </span>
-              )}
-              <span className="text-xs text-muted-foreground group-hover/creator:text-foreground transition-colors truncate">
-                {generation.creator.displayName ?? generation.creator.username}
-              </span>
-            </Link>
-          )}
+              </Link>
+            )}
 
-          {showVisibility || generation.isPromptPublic ? (
-            <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
-              {generation.prompt}
-            </p>
-          ) : !showVisibility && generation.isPublic ? (
-            <p className="flex items-center gap-1.5 font-serif text-sm italic text-muted-foreground">
-              <LockKeyhole className="size-3" />
-              {t('promptPrivateHint')}
-            </p>
-          ) : null}
+            {showVisibility || generation.isPromptPublic ? (
+              <p className="line-clamp-3 font-serif text-base leading-6 text-foreground">
+                {generation.prompt}
+              </p>
+            ) : !showVisibility && generation.isPublic ? (
+              <p className="flex items-center gap-1.5 font-serif text-sm italic text-muted-foreground">
+                <LockKeyhole className="size-3" />
+                {t('promptPrivateHint')}
+              </p>
+            ) : null}
 
-          <MetadataList items={metadata} labelClassName={labelClass} />
+            <MetadataList items={metadata} labelClassName={labelClass} />
 
-          {showVisibility ? (
-            <ImageCardVisibility
-              isPublic={isPublic}
-              isPromptPublic={isPromptPublic}
-              isFeatured={isFeatured}
-              togglingField={togglingField}
-              onToggle={handleToggle}
-              labelClass={labelClass}
-              isDenseLocale={isDenseLocale}
-              labels={{
-                imageVisibilityLabel: t('imageVisibilityLabel'),
-                promptVisibilityLabel: t('promptVisibilityLabel'),
-                featuredLabel: t('featuredLabel'),
-                publicLabel: t('publicLabel'),
-                privateLabel: t('privateLabel'),
-                makePublicAction: t('makePublicAction'),
-                makePrivateAction: t('makePrivateAction'),
-                featuredOn: t('featuredOn'),
-                featuredOff: t('featuredOff'),
-                pinAction: t('pinAction'),
-                unpinAction: t('unpinAction'),
-              }}
-            />
-          ) : null}
-        </div>
+            {showVisibility ? (
+              <ImageCardVisibility
+                isPublic={isPublic}
+                isPromptPublic={isPromptPublic}
+                isFeatured={isFeatured}
+                togglingField={togglingField}
+                onToggle={handleToggle}
+                labelClass={labelClass}
+                isDenseLocale={isDenseLocale}
+                labels={{
+                  imageVisibilityLabel: t('imageVisibilityLabel'),
+                  promptVisibilityLabel: t('promptVisibilityLabel'),
+                  featuredLabel: t('featuredLabel'),
+                  publicLabel: t('publicLabel'),
+                  privateLabel: t('privateLabel'),
+                  makePublicAction: t('makePublicAction'),
+                  makePrivateAction: t('makePrivateAction'),
+                  featuredOn: t('featuredOn'),
+                  featuredOff: t('featuredOff'),
+                  pinAction: t('pinAction'),
+                  unpinAction: t('unpinAction'),
+                }}
+              />
+            ) : null}
+          </div>
+        )}
       </article>
 
       {hasOpenedDetail && (

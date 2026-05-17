@@ -70,7 +70,10 @@ vi.mock('@/components/business/ImageDetailModal', () => ({
   }) => (open ? <div data-testid="detail-modal">Modal Open</div> : null),
 }))
 
-import { ImageCard } from '@/components/business/ImageCard'
+import {
+  ImageCard,
+  IMAGE_CARD_PRESENTATIONS,
+} from '@/components/business/ImageCard'
 import { useLike } from '@/hooks/use-like'
 import type { GenerationRecord } from '@/types'
 
@@ -162,6 +165,18 @@ describe('ImageCard', () => {
   it('shows prompt text when isPromptPublic', () => {
     renderCard()
     expect(screen.getByText('sunset over the ocean')).toBeInTheDocument()
+  })
+
+  it('keeps the gallery presentation image-first', () => {
+    renderCard({
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+
+    expect(screen.queryByText('sunset over the ocean')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stable Diffusion XL')).not.toBeInTheDocument()
+    expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
+    expect(screen.queryByText('Open')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Open Image')).toBeInTheDocument()
   })
 
   it('shows lock hint when prompt is private but image is public', () => {

@@ -6,7 +6,10 @@ import { Sparkles } from 'lucide-react'
 import type { Route } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 
-import { ImageCard } from '@/components/business/ImageCard'
+import {
+  ImageCard,
+  IMAGE_CARD_PRESENTATIONS,
+} from '@/components/business/ImageCard'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { Button } from '@/components/ui/button'
 import type { GenerationRecord } from '@/types'
@@ -40,8 +43,6 @@ export function GalleryGrid({
   showDelete = false,
   onDelete,
 }: GalleryGridProps) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
-
   // Progressive rendering: render in batches via IntersectionObserver
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -67,7 +68,6 @@ export function GalleryGrid({
     () => generations.slice(0, visibleCount),
     [generations, visibleCount],
   )
-  const handleMouseLeave = useCallback(() => setHoveredId(null), [])
 
   // Keyboard navigation: arrow keys move focus between gallery items
   const handleGalleryKeyDown = useCallback(
@@ -122,7 +122,6 @@ export function GalleryGrid({
       role="feed"
       aria-label={feedLabel}
       className="columns-1 gap-5 sm:columns-2 xl:columns-3"
-      onMouseLeave={handleMouseLeave}
       onKeyDown={handleGalleryKeyDown}
     >
       {visibleGenerations.map((generation, index) => {
@@ -133,12 +132,9 @@ export function GalleryGrid({
             index={index}
             total={generations.length}
             itemFallbackLabel={itemFallbackLabel}
-            isHovered={hoveredId === generation.id}
-            isDimmed={hoveredId !== null && hoveredId !== generation.id}
             showVisibility={showVisibility}
             showDelete={showDelete}
             onDelete={onDelete}
-            onHover={setHoveredId}
             priority={index < PRIORITY_IMAGE_COUNT}
           />
         )
@@ -156,12 +152,9 @@ interface GalleryGridItemProps {
   index: number
   total: number
   itemFallbackLabel: string
-  isHovered: boolean
-  isDimmed: boolean
   showVisibility: boolean
   showDelete: boolean
   onDelete?: (id: string) => void
-  onHover: (id: string) => void
   priority: boolean
 }
 
@@ -170,18 +163,11 @@ const GalleryGridItem = memo(function GalleryGridItem({
   index,
   total,
   itemFallbackLabel,
-  isHovered,
-  isDimmed,
   showVisibility,
   showDelete,
   onDelete,
-  onHover,
   priority,
 }: GalleryGridItemProps) {
-  const handleHover = useCallback(() => {
-    onHover(generation.id)
-  }, [generation.id, onHover])
-
   return (
     <BlurFade
       delay={Math.min(index * 0.05, 0.5)}
@@ -195,14 +181,6 @@ const GalleryGridItem = memo(function GalleryGridItem({
         aria-setsize={total}
         aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
         className="rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none"
-        style={{
-          perspective: '1000px',
-          transform: isHovered ? 'scale(1.02)' : 'scale(1)',
-          opacity: isDimmed ? 0.5 : 1,
-          filter: isDimmed ? 'blur(1px)' : 'none',
-        }}
-        onMouseEnter={handleHover}
-        onFocus={handleHover}
       >
         <ImageCard
           generation={generation}
@@ -210,6 +188,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
           showDelete={showDelete}
           onDelete={onDelete}
           priority={priority}
+          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
         />
       </div>
     </BlurFade>

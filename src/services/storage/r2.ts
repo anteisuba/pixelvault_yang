@@ -10,7 +10,7 @@ import { Upload } from '@aws-sdk/lib-storage'
 import sharp from 'sharp'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
-import { assertSafeUrl } from '@/lib/url-guard'
+import { assertSafeUrl, safeFetch } from '@/lib/url-guard'
 
 // ─── R2 Client ────────────────────────────────────────────────────
 
@@ -111,8 +111,10 @@ export async function fetchAsBuffer(
     return { buffer, mimeType }
   }
 
-  assertSafeUrl(url, { allowedProtocols: ['http:', 'https:'] })
-  const response = await fetch(url, headers ? { headers } : undefined)
+  const response = await safeFetch(url, {
+    allowedProtocols: ['http:', 'https:'],
+    ...(headers && { headers }),
+  })
   if (!response.ok) {
     throw new Error(`Failed to fetch image (${response.status}): ${url}`)
   }
@@ -348,11 +350,14 @@ export async function streamUploadToR2(params: {
   mimeType: string
   fetchHeaders?: Record<string, string>
 }): Promise<{ publicUrl: string; sizeBytes: number }> {
+  assertSafeUrl(params.sourceUrl, { allowedProtocols: ['http:', 'https:'] })
+
   // Wrap entire fetch+upload in retry — stream can't be partially retried,
   // so we retry the full operation on transient failures
   return withRetry(
     async () => {
-      const response = await fetch(params.sourceUrl, {
+      const response = await safeFetch(params.sourceUrl, {
+        allowedProtocols: ['http:', 'https:'],
         headers: params.fetchHeaders,
       })
       if (!response.ok || !response.body) {
@@ -418,7 +423,8 @@ export async function uploadFromHttpToR2(params: {
 
   return withRetry(
     async () => {
-      const response = await fetch(params.sourceUrl, {
+      const response = await safeFetch(params.sourceUrl, {
+        allowedProtocols: ['http:', 'https:'],
         headers: params.fetchHeaders,
       })
       if (!response.ok || !response.body) {
@@ -478,7 +484,7 @@ export async function uploadBufferedHttpToR2(params: {
 
   return withRetry(
     async () => {
-      const response = await fetch(params.sourceUrl, {
+      const response = await safeFetch(params.sourceUrl, {
         headers: params.fetchHeaders,
         signal: AbortSignal.timeout(params.timeoutMs ?? 180_000),
       })

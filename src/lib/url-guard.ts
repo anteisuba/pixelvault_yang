@@ -48,6 +48,11 @@ export interface UrlGuardOptions {
   allowedProtocols?: ReadonlyArray<'http:' | 'https:'>
 }
 
+export interface SafeFetchOptions extends Omit<RequestInit, 'redirect'> {
+  allowedProtocols?: ReadonlyArray<'http:' | 'https:'>
+  maxRedirects?: number
+}
+
 export function assertSafeUrl(
   rawUrl: string,
   options: UrlGuardOptions = {},
@@ -84,4 +89,51 @@ export function isSafeUrl(rawUrl: string, options?: UrlGuardOptions): boolean {
   } catch {
     return false
   }
+}
+
+function isRedirectStatus(status: number): boolean {
+  return status >= 300 && status < 400
+}
+
+function resolveRedirectUrl(location: string, currentUrl: string): string {
+  return new URL(location, currentUrl).toString()
+}
+
+export async function safeFetch(
+  rawUrl: string,
+  options: SafeFetchOptions = {},
+): Promise<Response> {
+  const {
+    allowedProtocols = ['https:'],
+    maxRedirects = 3,
+    ...fetchOptions
+  } = options
+
+  let currentUrl = assertSafeUrl(rawUrl, { allowedProtocols }).toString()
+
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+    const response = await fetch(currentUrl, {
+      ...fetchOptions,
+      redirect: 'manual',
+    })
+
+    if (!isRedirectStatus(response.status)) {
+      return response
+    }
+
+    const location = response.headers.get('location')
+    if (!location) {
+      return response
+    }
+
+    if (redirectCount === maxRedirects) {
+      throw new Error('Too many redirects')
+    }
+
+    currentUrl = assertSafeUrl(resolveRedirectUrl(location, currentUrl), {
+      allowedProtocols,
+    }).toString()
+  }
+
+  throw new Error('Too many redirects')
 }

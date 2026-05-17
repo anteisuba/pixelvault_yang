@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
-import { assertSafeUrl } from '@/lib/url-guard'
+import { assertSafeUrl, safeFetch } from '@/lib/url-guard'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 
@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
 
   // 4b. Fetch and proxy
   try {
-    const res = await fetch(parsed.data.url)
+    const res = await safeFetch(parsed.data.url, {
+      signal: AbortSignal.timeout(10_000),
+    })
     if (!res.ok) {
       return NextResponse.json(
         { success: false, error: `Upstream returned ${res.status}` },

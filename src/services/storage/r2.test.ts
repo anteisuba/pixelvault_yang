@@ -316,6 +316,7 @@ describe('createVideoPosterAsset', () => {
       'https://provider.example.com/thumb.jpg',
       {
         headers: { Authorization: 'Bearer token' },
+        redirect: 'manual',
       },
     )
     expect(mockSend).toHaveBeenCalledWith(

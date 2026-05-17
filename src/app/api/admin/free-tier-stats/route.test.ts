@@ -6,13 +6,19 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
+vi.mock('@/lib/admin', () => ({
+  isAdmin: vi.fn(),
+}))
+
 vi.mock('@/services/generation.service', () => ({
   getFreeTierStats: vi.fn(),
 }))
 
 import { GET } from './route'
+import { isAdmin } from '@/lib/admin'
 import { getFreeTierStats } from '@/services/generation.service'
 
+const mockIsAdmin = vi.mocked(isAdmin)
 const mockGetFreeTierStats = vi.mocked(getFreeTierStats)
 
 const FAKE_FREE_TIER_STATS = {
@@ -24,6 +30,7 @@ const FAKE_FREE_TIER_STATS = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockIsAdmin.mockReturnValue(true)
   mockGetFreeTierStats.mockResolvedValue(FAKE_FREE_TIER_STATS)
 })
 
@@ -34,7 +41,7 @@ describe('GET /api/admin/free-tier-stats', () => {
     const res = await GET()
     const body = await parseJSON<{ error: string }>(res)
 
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(403)
     expect(body).toEqual({ error: 'Unauthorized' })
   })
 
@@ -43,6 +50,18 @@ describe('GET /api/admin/free-tier-stats', () => {
 
     await GET()
 
+    expect(mockGetFreeTierStats).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 when authenticated user is not an admin', async () => {
+    mockAuthenticated()
+    mockIsAdmin.mockReturnValue(false)
+
+    const res = await GET()
+    const body = await parseJSON<{ error: string }>(res)
+
+    expect(res.status).toBe(403)
+    expect(body).toEqual({ error: 'Unauthorized' })
     expect(mockGetFreeTierStats).not.toHaveBeenCalled()
   })
 

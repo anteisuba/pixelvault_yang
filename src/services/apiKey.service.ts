@@ -194,13 +194,28 @@ export async function createApiKey(
 ): Promise<UserApiKeyRecord> {
   const encryptedKey = encryptApiKey(keyValue)
   const maskedKeyValue = maskKey(keyValue)
+  const providerConfigJson = toProviderConfigJson(providerConfig)
 
-  const record = await db.userApiKey.create({
-    data: {
+  const record = await db.userApiKey.upsert({
+    where: {
+      userId_adapterType_modelId: {
+        userId,
+        adapterType,
+        modelId,
+      },
+    },
+    create: {
       userId,
       modelId,
       adapterType,
-      providerConfig: toProviderConfigJson(providerConfig),
+      providerConfig: providerConfigJson,
+      label,
+      encryptedKey,
+      maskedKey: maskedKeyValue,
+      isActive: true,
+    },
+    update: {
+      providerConfig: providerConfigJson,
       label,
       encryptedKey,
       maskedKey: maskedKeyValue,

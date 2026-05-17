@@ -6,6 +6,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "runway": "Runway",
       "volcengine": "火山エンジン",
       "opensource": "オープンソース",
       "replicate": "Replicate"
@@ -213,9 +214,9 @@
         "cta": "編集してみる"
       },
       "video": {
-        "eyebrow": "14 の動画モデル",
+        "eyebrow": "15 の動画モデル",
         "title": "動画生成",
-        "description": "Kling、LumaRay、Veo 3.1、Runway Gen3、Seedance — 14 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
+        "description": "Kling、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 15 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
         "cta": "動画を生成"
       },
       "lora": {
@@ -774,6 +775,7 @@
     "uploadFileTooLarge": "ファイルが大きすぎます。最大 {maxMb} MB です。",
     "sidebarAll": "すべて",
     "sidebarFavorites": "お気に入り",
+    "sidebarPublished": "ギャラリー公開済み",
     "sidebarUploads": "ローカル素材",
     "sidebarModel3D": "3D",
     "sidebarTools": "ツール",
@@ -879,6 +881,7 @@
     "outputType3d": "3D",
     "sourceWork": "元の作品",
     "provider": "プロバイダー",
+    "providerRequired": "プロバイダーを入力してください。",
     "createdAt": "作成日",
     "generatedAssets": "生成素材",
     "generatedAssetsDescription": "ここには、このプロンプトテンプレートから生成された素材が表示されます。元の作品と後続の実行結果を含みます。",
@@ -887,13 +890,39 @@
     "saveAsTemplate": "プロンプトテンプレートとして保存",
     "saveTemplateSuccess": "プロンプト設計に保存しました",
     "saveTemplateFailed": "プロンプトの保存に失敗しました",
+    "createAction": "新規テンプレート",
+    "createCollapse": "閉じる",
+    "createDescription": "よく使う、または検証済みの Prompt をテンプレート化し、Studio から直接呼び出せます。",
+    "createEyebrow": "新規作成",
+    "createModelLabel": "推奨モデル",
+    "createNameLabel": "テンプレート名",
+    "createNamePlaceholder": "例：Endfield風キャラクター変換",
+    "createNegativePromptLabel": "ネガティブプロンプト",
+    "createNegativePromptPlaceholder": "任意。除外したい要素を入力します。",
+    "createOutputTypeLabel": "タイプ",
+    "createPromptLabel": "プロンプト",
+    "createPromptPlaceholder": "再利用したい完全なプロンプトを貼り付け...",
+    "createPromptRequired": "先にプロンプトを入力してください。",
+    "createReset": "クリア",
+    "createSaving": "保存中...",
+    "createSubmit": "テンプレートを保存",
+    "createTitle": "プロンプトテンプレートを作成",
+    "editAction": "テンプレートを編集",
+    "editCancel": "キャンセル",
+    "editDescription": "このテンプレートの名前、Prompt、モデル、ネガティブプロンプトを調整します。保存すると新しい版になります。",
+    "editEyebrow": "編集",
+    "editReset": "元に戻す",
+    "editSubmit": "変更を保存",
+    "editTitle": "プロンプトテンプレートを編集",
     "templatePicker": "テンプレート",
     "templatePickerTitle": "プロンプトテンプレートを呼び出す",
     "replacePrompt": "Prompt を置き換え",
     "insertPrompt": "Prompt に挿入",
     "applyRecipe": "レシピ全体を適用",
     "recentTemplates": "最近のテンプレート",
-    "templateCount": "{count} 件のテンプレート"
+    "templateCount": "{count} 件のテンプレート",
+    "updateTemplateSuccess": "プロンプトテンプレートを更新しました",
+    "updateTemplateFailed": "プロンプトテンプレートの更新に失敗しました"
   },
   "Collections": {
     "title": "コレクション",
@@ -1049,6 +1078,10 @@
         "label": "fal.ai",
         "description": "fal.ai プラットフォームで Flux 2 などのモデルを使用。"
       },
+      "runway": {
+        "label": "Runway",
+        "description": "Runway 公式の動画生成 API で Gen-4.5 と Gen-4 Turbo を使用。"
+      },
       "replicate": {
         "label": "Replicate",
         "description": "Replicate プラットフォームで Ideogram などのモデルを使用。"
@@ -1174,6 +1207,7 @@
     "shareLink": "共有",
     "linkCopied": "リンクをコピーしました！",
     "generateWithPrompt": "このプロンプトで生成",
+    "savePromptTemplate": "プロンプトテンプレートとして保存",
     "upscale": "高解像度化",
     "upscaling": "処理中...",
     "removeBackground": "背景除去",
@@ -1696,6 +1730,14 @@
       "label": "Hunyuan Video",
       "description": "テンセントオープンソース、8.3Bパラメータ、I2V対応"
     },
+    "runwayGen45": {
+      "label": "Runway Gen-4.5",
+      "description": "Runway の現行フラッグシップ動画モデル。text-to-video と image-to-video に対応"
+    },
+    "runwayGen4Turbo": {
+      "label": "Runway Gen-4 Turbo",
+      "description": "高速でコスト効率の高い Runway image-to-video モデル"
+    },
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "業界標準のシネマティック動画、fal.aiでI2V対応"
@@ -2071,8 +2113,13 @@
     "sortCardsCreated": "作成日時",
     "sortCardsName": "名前",
     "cardSearchEmpty": "一致するカードがありません。",
+    "selected": "選択中",
     "new": "新規",
     "manage": "管理",
+    "cards": "カード",
+    "characterCards": "キャラクターカード",
+    "backgroundCards": "背景カード",
+    "styleCards": "画風カード",
     "edit": "編集",
     "save": "保存",
     "cancel": "キャンセル",
@@ -2146,6 +2193,8 @@
     "script": "動画脚本",
     "advanced": "詳細設定",
     "enhance": "プロンプト強化",
+    "cards": "カード",
+    "characterCard": "キャラクターカード",
     "civitai": "Civitai トークン",
     "videoSettings": "ビデオ設定",
     "keepChange": "保留と変更",

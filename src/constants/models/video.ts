@@ -261,7 +261,34 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       cfgScale: 0.5,
     },
   },
-  // #9 — Runway Gen-3, industry-standard cinematic video (I2V only on fal)
+  // #9 — Runway Gen-4.5, current flagship video model
+  {
+    id: AI_MODELS.RUNWAY_GEN45,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.RUNWAY,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNWAY),
+    externalModelId: 'gen4.5',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.dev.runwayml.com/guides/models/',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+  },
+  // #9.1 — Runway Gen-4 Turbo, faster/cost-efficient I2V
+  {
+    id: AI_MODELS.RUNWAY_GEN4_TURBO,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.RUNWAY,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNWAY),
+    externalModelId: 'gen4_turbo',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://docs.dev.runwayml.com/guides/models/',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    requiresReferenceImage: true,
+  },
+  // #9.2 — Runway Gen-3, legacy fal-hosted I2V kept for historical records
   {
     id: AI_MODELS.RUNWAY_GEN3,
     cost: 5,
@@ -269,7 +296,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/runway-gen3/turbo/image-to-video',
     outputType: 'VIDEO',
-    available: true,
+    available: false,
     officialUrl: 'https://runwayml.com/research/introducing-gen-3-alpha/',
     timeoutMs: 180_000,
     qualityTier: 'standard',

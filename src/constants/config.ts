@@ -282,11 +282,19 @@ export const AI_PROVIDER_ENDPOINTS = {
   OPENAI_CHAT: 'https://api.openai.com/v1',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
+  RUNWAY: 'https://api.dev.runwayml.com/v1',
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
+} as const
+
+export const RUNWAY_API = {
+  VERSION: '2024-11-06',
+  IMAGE_TO_VIDEO_PATH: '/image_to_video',
+  TASKS_PATH: '/tasks',
+  PROBE_TASK_ID: '00000000-0000-4000-8000-000000000000',
 } as const
 
 /** Video generation configuration */

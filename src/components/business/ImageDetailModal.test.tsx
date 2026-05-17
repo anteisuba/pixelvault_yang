@@ -62,6 +62,7 @@ const MESSAGES = {
     shareLink: 'Share Link',
     linkCopied: 'Link Copied!',
     generateWithPrompt: 'Generate',
+    savePromptTemplate: 'Save Prompt',
     upscale: 'Upscale',
     upscaling: 'Upscaling...',
     removeBackground: 'Remove BG',
@@ -176,6 +177,21 @@ describe('ImageDetailModal', () => {
       generation: { ...BASE_GEN, isPromptPublic: true },
     })
     expect(screen.getByText('Copy Prompt')).toBeInTheDocument()
+  })
+
+  it('links visible prompts to the prompt template creation page', () => {
+    renderModal({
+      generation: { ...BASE_GEN, isPromptPublic: true },
+    })
+
+    const link = screen.getByRole('link', { name: /save prompt/i })
+    expect(link).toHaveAttribute('href', expect.stringContaining('/prompts?'))
+    expect(link).toHaveAttribute('href', expect.stringContaining('create=1'))
+    expect(link).toHaveAttribute('href', expect.stringContaining('model=sdxl'))
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('generationId=gen_modal_001'),
+    )
   })
 
   it('shows private hint and hides copy when prompt not visible', () => {

@@ -140,7 +140,8 @@ export const GalleryHeader = memo(function GalleryHeader({
     filters.model ||
     filters.type !== 'all' ||
     filters.timeRange !== 'all' ||
-    filters.liked
+    filters.liked ||
+    filters.published
 
   const clearAll = useCallback(() => {
     setSearchInput('')
@@ -154,6 +155,7 @@ export const GalleryHeader = memo(function GalleryHeader({
       timeRange: 'all',
       projectId: filters.projectId,
       liked: false,
+      published: false,
     })
   }, [filters.sort, filters.projectId, onFiltersChange])
 

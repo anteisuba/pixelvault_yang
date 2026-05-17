@@ -125,7 +125,8 @@ export function GalleryFilterBar({
     filters.model ||
     filters.type !== 'all' ||
     filters.timeRange !== 'all' ||
-    filters.liked
+    filters.liked ||
+    filters.published
 
   const modelsForType =
     filters.type === 'video'
@@ -263,6 +264,7 @@ export function GalleryFilterBar({
                 type: 'all',
                 timeRange: 'all',
                 liked: false,
+                published: false,
                 projectId: filters.projectId,
               })
             }

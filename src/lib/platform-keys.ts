@@ -16,6 +16,10 @@ export function getSystemApiKey(adapterType: string): string | null {
       return process.env.OPENAI_API_KEY ?? null
     case AI_ADAPTER_TYPES.FAL:
       return process.env.FAL_API_KEY ?? null
+    case AI_ADAPTER_TYPES.RUNWAY:
+      return (
+        process.env.RUNWAYML_API_SECRET ?? process.env.RUNWAY_API_KEY ?? null
+      )
     case AI_ADAPTER_TYPES.REPLICATE:
       return process.env.REPLICATE_API_TOKEN ?? null
     case AI_ADAPTER_TYPES.NOVELAI:

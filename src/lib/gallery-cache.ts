@@ -25,6 +25,7 @@ export interface GalleryFilterShape {
   type: OutputTypeFilter
   timeRange: GalleryTimeRange
   liked: boolean
+  published: boolean
   projectId: string
   provider?: string
 }
@@ -52,6 +53,7 @@ export function makeGalleryCacheKey(
     t: filters.type,
     r: filters.timeRange,
     l: filters.liked,
+    published: filters.published,
     p: filters.projectId,
     provider: filters.provider,
     mine,

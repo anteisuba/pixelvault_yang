@@ -25,6 +25,13 @@ export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
 export const VIDEO_MODEL_CAPABILITIES: Partial<
   Record<AI_MODELS, VideoModelCapabilities>
 > = {
+  [AI_MODELS.RUNWAY_GEN45]: {
+    supportedAspectRatios: ['16:9', '9:16'],
+  },
+  [AI_MODELS.RUNWAY_GEN4_TURBO]: {
+    supportedAspectRatios: ['16:9', '9:16'],
+    requiresReferenceImage: true,
+  },
   [AI_MODELS.RUNWAY_GEN3]: {
     requiresReferenceImage: true,
   },

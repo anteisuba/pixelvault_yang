@@ -29,6 +29,7 @@ interface AssetsPageProps {
     sort?: string
     type?: string
     projectId?: string
+    published?: string
     generationId?: string
   }>
 }
@@ -68,6 +69,7 @@ export default async function AssetsPage({
         type: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: false,
+        published: filterResult.data.published === '1',
         projectId: filterResult.data.projectId ?? '',
       }
     : {
@@ -77,6 +79,7 @@ export default async function AssetsPage({
         type: 'all' as const,
         timeRange: 'all' as const,
         liked: false,
+        published: false,
         projectId: '',
       }
 
@@ -118,6 +121,7 @@ export default async function AssetsPage({
     model: initialFilters.model || undefined,
     sort: initialFilters.sort,
     type: initialFilters.type,
+    published: initialFilters.published,
     userId: user.id,
     projectId: initialFilters.projectId || undefined,
   })

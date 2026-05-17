@@ -4,6 +4,7 @@ import {
   mockAuthenticated,
   mockUnauthenticated,
   createGET,
+  createPATCH,
   createDELETE,
   parseJSON,
 } from '@/test/api-helpers'
@@ -13,14 +14,16 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockGet = vi.fn()
+const mockUpdate = vi.fn()
 const mockDelete = vi.fn()
 
 vi.mock('@/services/recipe.service', () => ({
   getRecipe: (...args: unknown[]) => mockGet(...args),
+  updateRecipe: (...args: unknown[]) => mockUpdate(...args),
   deleteRecipe: (...args: unknown[]) => mockDelete(...args),
 }))
 
-import { GET, DELETE } from '@/app/api/recipes/[id]/route'
+import { GET, PATCH, DELETE } from '@/app/api/recipes/[id]/route'
 
 const FAKE_RECIPE = {
   id: 'recipe_abc',
@@ -39,6 +42,14 @@ const FAKE_RECIPE = {
 
 const FAKE_CONTEXT = {
   params: Promise.resolve({ id: 'recipe_abc' }),
+}
+
+const UPDATE_INPUT = {
+  name: 'Updated Recipe',
+  outputType: 'IMAGE' as const,
+  compiledPrompt: 'an updated sunset prompt',
+  modelId: 'flux-2-pro',
+  provider: 'fal',
 }
 
 describe('GET /api/recipes/[id]', () => {
@@ -74,6 +85,65 @@ describe('GET /api/recipes/[id]', () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data.id).toBe('recipe_abc')
+  })
+})
+
+describe('PATCH /api/recipes/[id]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthenticated()
+    mockUpdate.mockResolvedValue({
+      ...FAKE_RECIPE,
+      ...UPDATE_INPUT,
+      version: 2,
+    })
+  })
+
+  it('returns 401 for unauthenticated requests', async () => {
+    mockUnauthenticated()
+    const req = createPATCH('/api/recipes/recipe_abc', UPDATE_INPUT)
+    const res = await PATCH(req, FAKE_CONTEXT)
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 400 for invalid payloads', async () => {
+    const req = createPATCH('/api/recipes/recipe_abc', {
+      ...UPDATE_INPUT,
+      compiledPrompt: '',
+    })
+    const res = await PATCH(req, FAKE_CONTEXT)
+    expect(res.status).toBe(400)
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when recipe is not found', async () => {
+    mockUpdate.mockResolvedValue(null)
+    const req = createPATCH('/api/recipes/recipe_missing', UPDATE_INPUT)
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: 'recipe_missing' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('updates the recipe on success', async () => {
+    const req = createPATCH('/api/recipes/recipe_abc', UPDATE_INPUT)
+    const res = await PATCH(req, FAKE_CONTEXT)
+    const body = await parseJSON<{
+      success: boolean
+      data: typeof FAKE_RECIPE
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.data.version).toBe(2)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      'clerk_test_user',
+      'recipe_abc',
+      expect.objectContaining({
+        compiledPrompt: 'an updated sunset prompt',
+        modelId: 'flux-2-pro',
+      }),
+    )
   })
 })
 

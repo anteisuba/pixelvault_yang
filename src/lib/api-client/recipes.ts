@@ -1,9 +1,9 @@
+import { API_ENDPOINTS } from '@/constants/config'
 import type {
   CreateRecipeFromGenerationRequest,
   CreateRecipeRequest,
   RecipeRecord,
 } from '@/types'
-import { API_ENDPOINTS } from '@/constants/config'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
 
@@ -117,6 +117,33 @@ export async function getRecipeAPI(
 ): Promise<RecipeApiResponse<RecipeRecord>> {
   try {
     const response = await fetch(getRecipeUrl(id))
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}
+
+export async function updateRecipeAPI(
+  id: string,
+  data: CreateRecipeRequest,
+): Promise<RecipeApiResponse<RecipeRecord>> {
+  try {
+    const response = await fetch(getRecipeUrl(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: stringifyRecipeRequest(data),
+    })
 
     if (!response.ok) {
       return {

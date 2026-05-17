@@ -881,7 +881,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
        * here would just be visual noise.
        */}
       {state.workflowMode === 'quick' && (
-        <div className="mb-2 flex">
+        <div className="mb-2.5 flex">
           <Popover
             open={modelPickerOpen}
             onOpenChange={handleModelPickerOpenChange}
@@ -891,7 +891,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 type="button"
                 aria-label={t('selectModel')}
                 aria-expanded={modelPickerOpen}
-                className="flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
+                className="flex h-9 max-w-full items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3.5 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
               >
                 {selectedModel?.keyId && (
                   <ApiKeyHealthDot status={healthMap[selectedModel.keyId]} />
@@ -910,7 +910,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     {getProviderLabel(selectedModel.providerConfig)}
                   </span>
                 )}
-                <ChevronDown className="size-3" />
+                <ChevronDown className="size-3.5" />
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -1070,15 +1070,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         }
         onSubmit={handleGenerate}
         disabled={isGenerating}
-        className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+        className="rounded-2xl border-border/60 bg-background/60 p-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20"
       >
         <PromptInputTextarea
           id={STUDIO_PROMPT_TEXTAREA_ID}
           aria-label={tForm('promptLabel')}
           placeholder={placeholder}
-          className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
+          className="min-h-12 px-2 py-1.5 font-serif text-sm leading-6 text-foreground placeholder:text-muted-foreground/60"
         />
-        <PromptInputActions className="justify-between gap-2 px-2 pb-2">
+        <PromptInputActions className="items-center justify-between gap-3 px-1.5 pb-1 pt-1">
           <PromptTemplatePicker
             onReplace={handleReplaceRecipePrompt}
             onInsert={handleInsertRecipePrompt}
@@ -1087,7 +1087,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
           <div
             className={cn(
-              'inline-flex isolate items-stretch overflow-hidden rounded-full bg-primary text-primary-foreground',
+              'inline-flex isolate shrink-0 items-stretch overflow-hidden rounded-full bg-primary text-primary-foreground',
               'shadow-sm shadow-primary/20 ring-1 ring-primary/10 transition-shadow duration-200',
               !isGenerating && 'hover:shadow-md hover:shadow-primary/25',
               isGenerating && 'bg-muted text-muted-foreground',
@@ -1103,7 +1103,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               aria-busy={isGenerating}
               aria-disabled={!canGenerate}
               className={cn(
-                'flex min-h-11 items-center gap-1.5 px-5 text-sm font-medium',
+                'flex h-10 items-center gap-1.5 px-4 text-sm font-semibold',
                 'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 isGenerating
                   ? 'cursor-not-allowed studio-generating'
@@ -1138,7 +1138,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     onClick={(event) => event.stopPropagation()}
                     disabled={isGenerating}
                     className={cn(
-                      'flex min-h-11 w-12 items-center justify-center border-l border-primary-foreground/15 text-sm',
+                      'flex h-10 w-10 items-center justify-center border-l border-primary-foreground/15 text-sm',
                       'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                       isGenerating
                         ? 'cursor-not-allowed'

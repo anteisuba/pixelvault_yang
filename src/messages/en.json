@@ -6,6 +6,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "runway": "Runway",
       "volcengine": "VolcEngine",
       "opensource": "Open Source",
       "replicate": "Replicate"
@@ -213,9 +214,9 @@
         "cta": "Try editing"
       },
       "video": {
-        "eyebrow": "14 video models",
+        "eyebrow": "15 video models",
         "title": "Video Generation",
-        "description": "Kling, LumaRay, Veo 3.1, Runway Gen3, Seedance — 14 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
+        "description": "Kling, LumaRay, Veo 3.1, Runway Gen-4.5, Seedance — 15 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
         "cta": "Generate video"
       },
       "lora": {
@@ -774,6 +775,7 @@
     "uploadFileTooLarge": "File is too large. Max {maxMb} MB.",
     "sidebarAll": "All",
     "sidebarFavorites": "Favorites",
+    "sidebarPublished": "Published to gallery",
     "sidebarUploads": "Local assets",
     "sidebarModel3D": "3D",
     "sidebarTools": "Tools",
@@ -879,6 +881,7 @@
     "outputType3d": "3D",
     "sourceWork": "Source work",
     "provider": "Provider",
+    "providerRequired": "Add a provider first.",
     "createdAt": "Created",
     "generatedAssets": "Generated assets",
     "generatedAssetsDescription": "These assets come from this prompt template, including the original source and later template runs.",
@@ -887,13 +890,39 @@
     "saveAsTemplate": "Save as prompt template",
     "saveTemplateSuccess": "Saved to Prompt Engineering",
     "saveTemplateFailed": "Failed to save prompt",
+    "createAction": "New template",
+    "createCollapse": "Collapse",
+    "createDescription": "Save proven prompts as reusable templates, then call them directly from Studio.",
+    "createEyebrow": "Create",
+    "createModelLabel": "Recommended model",
+    "createNameLabel": "Template name",
+    "createNamePlaceholder": "Example: Endfield character conversion",
+    "createNegativePromptLabel": "Negative prompt",
+    "createNegativePromptPlaceholder": "Optional elements to exclude.",
+    "createOutputTypeLabel": "Type",
+    "createPromptLabel": "Prompt",
+    "createPromptPlaceholder": "Paste the full prompt you want to reuse...",
+    "createPromptRequired": "Add a prompt first.",
+    "createReset": "Clear",
+    "createSaving": "Saving...",
+    "createSubmit": "Save template",
+    "createTitle": "Create prompt template",
+    "editAction": "Edit template",
+    "editCancel": "Cancel",
+    "editDescription": "Adjust this template's name, prompt, model, and negative prompt. Saving creates a new template version.",
+    "editEyebrow": "Edit",
+    "editReset": "Restore values",
+    "editSubmit": "Save changes",
+    "editTitle": "Edit prompt template",
     "templatePicker": "Templates",
     "templatePickerTitle": "Use a prompt template",
     "replacePrompt": "Replace prompt",
     "insertPrompt": "Insert prompt",
     "applyRecipe": "Apply full recipe",
     "recentTemplates": "Recent templates",
-    "templateCount": "{count} templates"
+    "templateCount": "{count} templates",
+    "updateTemplateSuccess": "Prompt template updated",
+    "updateTemplateFailed": "Failed to update prompt template"
   },
   "Collections": {
     "title": "Collections",
@@ -1049,6 +1078,10 @@
         "label": "fal.ai",
         "description": "Use fal.ai platform for Flux 2 and other models."
       },
+      "runway": {
+        "label": "Runway",
+        "description": "Use the official Runway video generation API for Gen-4.5 and Gen-4 Turbo."
+      },
       "replicate": {
         "label": "Replicate",
         "description": "Use Replicate platform for Ideogram and other models."
@@ -1174,6 +1207,7 @@
     "shareLink": "Share",
     "linkCopied": "Link copied!",
     "generateWithPrompt": "Generate with this",
+    "savePromptTemplate": "Save as prompt template",
     "upscale": "Upscale",
     "upscaling": "Upscaling...",
     "removeBackground": "Remove BG",
@@ -1696,6 +1730,14 @@
       "label": "Hunyuan Video",
       "description": "Tencent open-source, 8.3B params, 720p, I2V support"
     },
+    "runwayGen45": {
+      "label": "Runway Gen-4.5",
+      "description": "Current flagship Runway video model with text-to-video and image-to-video"
+    },
+    "runwayGen4Turbo": {
+      "label": "Runway Gen-4 Turbo",
+      "description": "Fast, cost-efficient Runway image-to-video model"
+    },
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "Industry-standard cinematic video, image-to-video on fal.ai"
@@ -2071,8 +2113,13 @@
     "sortCardsCreated": "Created time",
     "sortCardsName": "Name",
     "cardSearchEmpty": "No matching cards found.",
+    "selected": "Selected",
     "new": "New",
     "manage": "Manage",
+    "cards": "Cards",
+    "characterCards": "Character Cards",
+    "backgroundCards": "Background Cards",
+    "styleCards": "Style Cards",
     "character": "Character",
     "background": "Background",
     "style": "Style",
@@ -2146,6 +2193,8 @@
     "script": "Video Script",
     "advanced": "Advanced Settings",
     "enhance": "Prompt Enhancement",
+    "cards": "Cards",
+    "characterCard": "Character Card",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
     "keepChange": "Keep & Change",

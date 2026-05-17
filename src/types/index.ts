@@ -1217,6 +1217,7 @@ export const GallerySearchSchema = z.object({
    * "Local assets" sidebar entry to scope to user-uploaded rows.
    */
   provider: z.string().trim().max(64).optional(),
+  published: z.enum(['1']).optional(),
   cursor: z.string().trim().max(256).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -1243,6 +1244,7 @@ export interface GalleryResponseData {
 export interface AssetSectionCounts {
   all: number
   favorites: number
+  published: number
   image: number
   video: number
   audio: number
@@ -2908,7 +2910,7 @@ export const CreateRecipeRequestSchema = z.object({
   /** AI model ID (AI_MODELS enum value) */
   modelId: z.string().min(1),
   /** Provider adapter identifier */
-  provider: z.string().min(1),
+  provider: z.string().trim().min(1).max(100),
   /** Advanced generation parameters (guidance, steps, loras, etc.) */
   params: z.record(z.string(), z.unknown()).optional(),
   /** Reference images with roles */

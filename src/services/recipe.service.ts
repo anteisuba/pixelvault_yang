@@ -188,6 +188,53 @@ export async function createRecipe(
   return recipe
 }
 
+export async function updateRecipe(
+  clerkId: string,
+  id: string,
+  data: CreateRecipeRequest,
+): Promise<Recipe | null> {
+  const user = await ensureUser(clerkId)
+  const existingRecipe = await db.recipe.findFirst({
+    where: {
+      id,
+      userId: user.id,
+      isDeleted: false,
+    },
+  })
+
+  if (!existingRecipe) return null
+
+  const recipe = await db.recipe.update({
+    where: { id },
+    data: {
+      outputType: data.outputType,
+      name: data.name,
+      userIntent: toPrismaJson(data.userIntent),
+      compiledPrompt: data.compiledPrompt,
+      negativePrompt: data.negativePrompt ?? null,
+      modelId: data.modelId,
+      provider: data.provider,
+      params: toPrismaJson(data.params),
+      referenceAssets: toPrismaJson(data.referenceAssets),
+      seed: data.seed,
+      parentGenerationId: data.parentGenerationId,
+      version: { increment: 1 },
+    },
+  })
+
+  try {
+    await updatePreferenceOnRecipeSaved(user.id, recipe)
+  } catch (error) {
+    logger.warn('Recipe preference update failed', {
+      recipeId: recipe.id,
+      userId: user.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  return recipe
+}
+
 export async function listRecipes(
   clerkId: string,
   page: number,

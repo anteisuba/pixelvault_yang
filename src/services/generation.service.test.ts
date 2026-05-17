@@ -730,6 +730,7 @@ describe('generation.service', () => {
         model: 'sdxl',
         type: 'image',
         likedByUserId: 'viewer-1',
+        published: true,
       })
 
       expect(result).toBe(4)
@@ -767,12 +768,14 @@ describe('generation.service', () => {
           { projectId: 'proj-b', _count: { _all: 3 } },
         ])
       mockGenerationCount.mockResolvedValueOnce(6)
+      mockGenerationCount.mockResolvedValueOnce(8)
 
       const counts = await getAssetSectionCounts('user-1')
 
       expect(counts).toEqual({
         all: 12,
         favorites: 6,
+        published: 8,
         image: 7,
         video: 3,
         audio: 2,
@@ -796,15 +799,20 @@ describe('generation.service', () => {
       expect(mockGenerationCount).toHaveBeenCalledWith({
         where: { userId: 'user-1', likes: { some: { userId: 'user-1' } } },
       })
+      expect(mockGenerationCount).toHaveBeenCalledWith({
+        where: { userId: 'user-1', isPublic: true },
+      })
     })
 
     it('returns zeroed buckets when the user has no generations', async () => {
       mockGenerationGroupBy.mockResolvedValueOnce([]).mockResolvedValueOnce([])
       mockGenerationCount.mockResolvedValueOnce(0)
+      mockGenerationCount.mockResolvedValueOnce(0)
 
       await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
         all: 0,
         favorites: 0,
+        published: 0,
         image: 0,
         video: 0,
         audio: 0,

@@ -55,5 +55,31 @@ export function assetGenerationPath(id: string): string {
   return `${ROUTES.ASSETS}?generationId=${encodeURIComponent(id)}`
 }
 
+export interface PromptCreatePathOptions {
+  name?: string
+  prompt?: string
+  negativePrompt?: string | null
+  modelId?: string
+  provider?: string
+  outputType?: string
+  generationId?: string
+}
+
+/** Build a prompt library URL with the create panel prefilled */
+export function promptCreatePath(
+  options: PromptCreatePathOptions = {},
+): string {
+  const params = new URLSearchParams({ create: '1' })
+  if (options.name) params.set('name', options.name)
+  if (options.prompt) params.set('prompt', options.prompt)
+  if (options.negativePrompt)
+    params.set('negativePrompt', options.negativePrompt)
+  if (options.modelId) params.set('model', options.modelId)
+  if (options.provider) params.set('provider', options.provider)
+  if (options.outputType) params.set('outputType', options.outputType)
+  if (options.generationId) params.set('generationId', options.generationId)
+  return `${ROUTES.PROMPTS}?${params.toString()}`
+}
+
 /** Type for all route values */
 export type Route = (typeof ROUTES)[keyof typeof ROUTES]

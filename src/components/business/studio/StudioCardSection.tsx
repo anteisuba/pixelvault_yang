@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -36,42 +36,15 @@ export const StudioCardSection = memo(function StudioCardSection() {
   const tBg = useTranslations('BackgroundCard')
   const projectHistory = projects.history
 
-  const selectedCharId =
-    characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
   const cardUsage = useMemo(
     () => buildStudioCardUsageMap(projectHistory),
     [projectHistory],
-  )
-
-  const handleCharSelect = useCallback(
-    (id: string | null) => {
-      if (selectedCharId) characters.toggleCardSelection(selectedCharId)
-      if (id) characters.toggleCardSelection(id)
-    },
-    [selectedCharId, characters],
   )
 
   return (
     <>
       {/* ── Card dropdowns + API Keys ──────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
-        <CardDropdown
-          label={t('character')}
-          cards={characters.cards.map((c) => ({
-            id: c.id,
-            name: c.name,
-            sourceImageUrl: c.sourceImageUrl,
-            tags: c.tags,
-            createdAt: c.createdAt,
-            lastUsedAt: cardUsage.character[c.id] ?? null,
-          }))}
-          selectedId={selectedCharId}
-          onSelect={handleCharSelect}
-          onManage={() =>
-            dispatch({ type: 'TOGGLE_PANEL', payload: 'cardManagement' })
-          }
-          isLoading={characters.isLoading}
-        />
         <CardDropdown
           label={t('background')}
           cards={backgrounds.cards.map((c) => ({

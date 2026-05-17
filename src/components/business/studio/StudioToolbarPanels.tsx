@@ -27,7 +27,8 @@ import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
  */
 export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
-  const { promptEnhance, civitai } = useStudioData()
+  const { promptEnhance, civitai, characters, backgrounds, styles } =
+    useStudioData()
   const { isGenerating, setCurrentPlan } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
@@ -123,7 +124,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   // Video mode: show video-specific toolbar (enhance, refImage, aspectRatio, videoParams)
   if (state.outputType === 'video') {
     const pillBase =
-      'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors'
+      'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors'
     const pillInactive =
       'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
@@ -143,7 +144,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             promptEnhance.isEnhancing && 'opacity-70',
           )}
         >
-          <Sparkles className="size-3.5" />
+          <Sparkles className="size-4" />
           {tBar('enhance')}
         </button>
         {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
@@ -161,7 +162,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             state.panels.videoParams ? pillActive : pillInactive,
           )}
         >
-          <SlidersHorizontal className="size-3.5" />
+          <SlidersHorizontal className="size-4" />
           {tBar('video')}
         </button>
         <button
@@ -173,7 +174,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             state.panels.script ? pillActive : pillInactive,
           )}
         >
-          <FileText className="size-3.5" />
+          <FileText className="size-4" />
           {tScript('panelTitle')}
         </button>
       </Toolbar.Root>
@@ -183,7 +184,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   // Audio mode: show audio-specific toolbar
   if (state.outputType === 'audio') {
     const pillBase =
-      'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors'
+      'flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors'
     const pillInactive =
       'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
@@ -199,7 +200,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             promptEnhance.isEnhancing && 'opacity-70',
           )}
         >
-          <Sparkles className="size-3.5" />
+          <Sparkles className="size-4" />
           {tBar('enhance')}
         </button>
         <button
@@ -216,7 +217,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             state.panels.voiceSelector ? pillActive : pillInactive,
           )}
         >
-          <Mic className="size-3.5" />
+          <Mic className="size-4" />
           {state.voiceId ? tBar('voiceSelected') : tBar('voice')}
         </button>
         <button
@@ -233,7 +234,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
             state.panels.voiceTrainer ? pillActive : pillInactive,
           )}
         >
-          <Plus className="size-3.5" />
+          <Plus className="size-4" />
           {tBar('clone')}
         </button>
       </div>
@@ -245,8 +246,6 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       onEnhance={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
       isEnhancing={promptEnhance.isEnhancing}
       onReverse={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'reverse' })}
-      onAdvanced={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'advanced' })}
-      advancedOpen={state.panels.advanced}
       onTransform={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'transform' })
       }
@@ -254,6 +253,15 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       onPlan={handleOpenPlan}
       planLoading={isPlanning}
       planActive={state.panels.planPreview}
+      onCards={() =>
+        dispatch({ type: 'TOGGLE_PANEL', payload: 'cardSelector' })
+      }
+      cardsOpen={state.panels.cardSelector}
+      selectedCardCount={
+        characters.activeCardIds.length +
+        (backgrounds.activeCardId ? 1 : 0) +
+        (styles.activeCardId ? 1 : 0)
+      }
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }

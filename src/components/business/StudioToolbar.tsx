@@ -4,12 +4,12 @@ import {
   Box,
   Sparkles,
   ScanText,
-  Settings2,
   Key,
   Layers,
   Wand2,
   Cpu,
   Compass,
+  PanelsTopLeft,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -30,14 +30,15 @@ interface StudioToolbarProps {
   onEnhance?: () => void
   isEnhancing?: boolean
   onReverse?: () => void
-  onAdvanced?: () => void
-  advancedOpen?: boolean
   onLayerDecompose?: () => void
   onTransform?: () => void
   transformOpen?: boolean
   onPlan?: () => void
   planLoading?: boolean
   planActive?: boolean
+  onCards?: () => void
+  cardsOpen?: boolean
+  selectedCardCount?: number
   onCivitaiToken?: () => void
   hasToken?: boolean
   /**
@@ -76,7 +77,7 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           className={cn(
-            'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
+            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
             'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
             'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
             active && 'bg-muted/30 text-primary',
@@ -85,7 +86,7 @@ function ToolButton({
           {icon}
           <span className="hidden sm:inline">{label}</span>
           {badge !== undefined && badge !== 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
               {badge}
             </span>
           )}
@@ -105,14 +106,15 @@ export function StudioToolbar({
   onEnhance,
   isEnhancing,
   onReverse,
-  onAdvanced,
-  advancedOpen,
   onLayerDecompose,
   onTransform,
   transformOpen,
   onPlan,
   planLoading,
   planActive,
+  onCards,
+  cardsOpen,
+  selectedCardCount,
   onCivitaiToken,
   hasToken,
   onMake3DReady,
@@ -124,13 +126,13 @@ export function StudioToolbar({
   return (
     <TooltipProvider delayDuration={300}>
       <Toolbar.Root
-        className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2"
+        className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5"
         aria-label={t('toolbarLabel')}
       >
         <ToolButton
           icon={
             <Sparkles
-              className={cn('h-3.5 w-3.5', isEnhancing && 'animate-pulse')}
+              className={cn('size-4', isEnhancing && 'animate-pulse')}
             />
           }
           label={t('enhance')}
@@ -138,21 +140,12 @@ export function StudioToolbar({
           disabled={disabled || isEnhancing}
         />
         <ToolButton
-          icon={<ScanText className="h-3.5 w-3.5" />}
+          icon={<ScanText className="size-4" />}
           label={t('reverse')}
           onClick={onReverse}
           disabled={disabled}
         />
         <StylePresetButton disabled={disabled} />
-        {!quickMode && (
-          <ToolButton
-            icon={<Settings2 className="h-3.5 w-3.5" />}
-            label={t('advanced')}
-            onClick={onAdvanced}
-            active={advancedOpen}
-            disabled={disabled}
-          />
-        )}
         {/*
          * Reference image entry is the Krea-style chip (Phase 5.5b) — it
          * owns its own popover (Upload + Select asset), so the toolbar
@@ -160,7 +153,7 @@ export function StudioToolbar({
          */}
         <ReferenceImageChip disabled={disabled} />
         <ToolButton
-          icon={<Wand2 className="h-3.5 w-3.5" />}
+          icon={<Wand2 className="size-4" />}
           label={t('transform')}
           onClick={onTransform}
           active={transformOpen}
@@ -168,7 +161,7 @@ export function StudioToolbar({
         />
         {onMake3DReady && (
           <ToolButton
-            icon={<Box className="h-3.5 w-3.5" />}
+            icon={<Box className="size-4" />}
             label={t('make3DReady')}
             onClick={onMake3DReady}
             disabled={disabled}
@@ -178,7 +171,7 @@ export function StudioToolbar({
           <ToolButton
             icon={
               <Compass
-                className={cn('h-3.5 w-3.5', planLoading && 'animate-spin')}
+                className={cn('size-4', planLoading && 'animate-spin')}
               />
             }
             label={planLoading ? t('planLoading') : t('plan')}
@@ -187,9 +180,19 @@ export function StudioToolbar({
             disabled={disabled || planLoading}
           />
         )}
+        {onCards && (
+          <ToolButton
+            icon={<PanelsTopLeft className="size-4" />}
+            label={t('cards')}
+            onClick={onCards}
+            active={cardsOpen}
+            badge={selectedCardCount}
+            disabled={disabled}
+          />
+        )}
         {!quickMode && (
           <ToolButton
-            icon={<Layers className="h-3.5 w-3.5" />}
+            icon={<Layers className="size-4" />}
             label={t('layerDecompose')}
             onClick={onLayerDecompose}
             disabled={disabled}
@@ -206,7 +209,7 @@ export function StudioToolbar({
           <>
             <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
             <ToolButton
-              icon={<Key className="h-3.5 w-3.5" />}
+              icon={<Key className="size-4" />}
               label={t('civitaiToken')}
               onClick={onCivitaiToken}
               active={hasToken}
@@ -219,12 +222,12 @@ export function StudioToolbar({
                   type="button"
                   disabled={disabled}
                   className={cn(
-                    'relative inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground transition-all duration-200',
+                    'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
                     'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
                     'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
                   )}
                 >
-                  <Cpu className="h-3.5 w-3.5" />
+                  <Cpu className="size-4" />
                   <span className="hidden sm:inline">{t('trainLora')}</span>
                 </Toolbar.Button>
               }

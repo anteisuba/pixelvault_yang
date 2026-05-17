@@ -81,6 +81,7 @@ export type PanelName =
   | 'projectHistory'
   | 'modelSelector'
   | 'civitai'
+  | 'cardSelector'
   | 'enhance'
   | 'reverse'
   | 'advanced'
@@ -217,6 +218,7 @@ const initialPanels: Record<PanelName, boolean> = {
   projectHistory: false,
   modelSelector: false,
   civitai: false,
+  cardSelector: false,
   enhance: false,
   reverse: false,
   advanced: false,
@@ -373,6 +375,7 @@ export function studioFormReducer(
       const toolbarPanels: PanelName[] = [
         'enhance',
         'reverse',
+        'cardSelector',
         'advanced',
         'refImage',
         'layerDecompose',

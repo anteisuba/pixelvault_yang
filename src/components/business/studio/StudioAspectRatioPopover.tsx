@@ -77,13 +77,13 @@ export function StudioAspectRatioPopover({
           disabled={disabled}
           aria-label={t('aspectRatioLabel')}
           className={cn(
-            'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
+            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
             'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
             'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
             'data-[state=open]:bg-muted/30 data-[state=open]:text-primary',
           )}
         >
-          <RatioIcon className="h-3.5 w-3.5 shrink-0" />
+          <RatioIcon className="size-4 shrink-0" />
           <span className="hidden sm:inline">{state.aspectRatio}</span>
         </Toolbar.Button>
       </PopoverTrigger>

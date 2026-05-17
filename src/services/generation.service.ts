@@ -111,6 +111,7 @@ export interface GalleryQueryOptions {
   userId?: string
   /** When set, only return generations liked by this user */
   likedByUserId?: string
+  published?: boolean
   /** When set, include isLiked for this viewer */
   viewerUserId?: string
   /**
@@ -204,6 +205,7 @@ function buildGalleryWhere(options: {
   timeRange?: GalleryTimeRange
   userId?: string
   likedByUserId?: string
+  published?: boolean
   projectId?: string
   provider?: string
 }) {
@@ -212,6 +214,10 @@ function buildGalleryWhere(options: {
   if (options.userId) {
     where.userId = options.userId
   } else {
+    where.isPublic = true
+  }
+
+  if (options.published) {
     where.isPublic = true
   }
 
@@ -535,6 +541,7 @@ async function getPublicGenerationSlice({
   timeRange,
   userId,
   likedByUserId,
+  published,
   viewerUserId,
   projectId,
   provider,
@@ -574,6 +581,7 @@ async function getPublicGenerationSlice({
     timeRange,
     userId,
     likedByUserId,
+    published,
     projectId,
     provider,
   })
@@ -653,6 +661,7 @@ export async function getPublicGenerationPage(
           timeRange: options.timeRange,
           userId: options.userId,
           likedByUserId: options.likedByUserId,
+          published: options.published,
           projectId: options.projectId,
           provider: options.provider,
         })
@@ -892,6 +901,7 @@ export async function countPublicGenerations(
     | 'timeRange'
     | 'userId'
     | 'likedByUserId'
+    | 'published'
     | 'projectId'
     | 'provider'
   > = {},
@@ -919,6 +929,7 @@ type PublicGalleryCacheKey = {
   sort: GallerySortOption
   type?: OutputTypeFilter
   timeRange?: GalleryTimeRange
+  published?: boolean
   projectId?: string
 }
 
@@ -964,7 +975,7 @@ export async function countUserGenerationsByType(
 export async function getAssetSectionCounts(
   userId: string,
 ): Promise<AssetSectionCounts> {
-  const [byType, byProject, favorites] = await Promise.all([
+  const [byType, byProject, favorites, published] = await Promise.all([
     db.generation.groupBy({
       by: ['outputType'],
       where: { userId },
@@ -978,11 +989,15 @@ export async function getAssetSectionCounts(
     db.generation.count({
       where: { userId, likes: { some: { userId } } },
     }),
+    db.generation.count({
+      where: { userId, isPublic: true },
+    }),
   ])
 
   const counts: AssetSectionCounts = {
     all: 0,
     favorites,
+    published,
     image: 0,
     video: 0,
     audio: 0,

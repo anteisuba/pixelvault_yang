@@ -27,9 +27,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       'lucide-react',
       'radix-ui',
-      '@radix-ui/react-icons',
-      '@radix-ui/react-accordion',
-      '@radix-ui/react-slider',
       '@radix-ui/react-toolbar',
       'motion',
       'cmdk',

@@ -1,34 +1,61 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpen, Loader2, Plus } from 'lucide-react'
+import NextImage from 'next/image'
+import { BookOpen, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { StoryCard } from '@/components/business/StoryCard'
 import { useStoryList } from '@/hooks/use-storyboard'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import type { GenerationRecord } from '@/types'
 
 export default function StoryboardPage() {
   const t = useTranslations('StoryBoard')
   const { stories, loading, createStory, removeStory } = useStoryList()
   const [showCreate, setShowCreate] = useState(false)
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false)
   const [title, setTitle] = useState('')
-  const [generationIds, setGenerationIds] = useState('')
+  const [selectedGenerations, setSelectedGenerations] = useState<
+    GenerationRecord[]
+  >([])
   const [isCreating, setIsCreating] = useState(false)
 
+  const handleSelectGeneration = (generation: GenerationRecord) => {
+    setSelectedGenerations((prev) =>
+      prev.some((item) => item.id === generation.id)
+        ? prev
+        : [...prev, generation],
+    )
+  }
+
+  const handleRemoveGeneration = (generationId: string) => {
+    setSelectedGenerations((prev) =>
+      prev.filter((generation) => generation.id !== generationId),
+    )
+  }
+
   const handleCreate = async () => {
-    if (!title.trim() || !generationIds.trim()) return
+    const storyTitle = title.trim()
+    if (!storyTitle || selectedGenerations.length === 0) return
+
     setIsCreating(true)
-    const ids = generationIds
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean)
-    await createStory(title, ids)
-    setTitle('')
-    setGenerationIds('')
-    setShowCreate(false)
-    setIsCreating(false)
+    try {
+      const result = await createStory(
+        storyTitle,
+        selectedGenerations.map((generation) => generation.id),
+      )
+      if (result.success) {
+        setTitle('')
+        setSelectedGenerations([])
+        setShowCreate(false)
+      }
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -51,25 +78,101 @@ export default function StoryboardPage() {
         </section>
 
         <section className="editorial-panel">
-          {/* Create form */}
           {showCreate && (
-            <div className="mb-6 space-y-3 rounded-2xl border border-primary/20 bg-primary/3 p-4">
+            <div className="mb-6 space-y-4 rounded-2xl border border-border/75 bg-card/70 p-4 shadow-sm sm:p-5">
               <Input
                 placeholder={t('titlePlaceholder')}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="rounded-xl"
               />
-              <Input
-                placeholder={t('idsPlaceholder')}
-                value={generationIds}
-                onChange={(e) => setGenerationIds(e.target.value)}
-                className="rounded-xl"
-              />
-              <p className="text-xs text-muted-foreground">{t('idsHint')}</p>
+
+              <div className="space-y-3 rounded-xl border border-dashed border-border/80 bg-background/50 p-3 sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {t('panelPickerLabel')}
+                    </p>
+                    <p className="max-w-xl text-sm text-muted-foreground">
+                      {t('panelPickerHint')}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAssetPickerOpen(true)}
+                    className="w-fit gap-2 rounded-full"
+                  >
+                    <ImagePlus className="size-4" />
+                    {selectedGenerations.length > 0
+                      ? t('addMoreAssets')
+                      : t('selectAssetsAction')}
+                  </Button>
+                </div>
+
+                {selectedGenerations.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {selectedGenerations.map((generation, index) => (
+                      <div
+                        key={generation.id}
+                        className="group relative overflow-hidden rounded-xl border border-border/75 bg-background"
+                      >
+                        <div className="relative aspect-square bg-muted/40">
+                          <NextImage
+                            src={getGenerationThumbnailUrl(generation)}
+                            alt={t('selectedAssetAlt', {
+                              index: index + 1,
+                            })}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 160px"
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="space-y-1 p-2">
+                          <p className="line-clamp-2 text-xs leading-5 text-foreground">
+                            {generation.prompt || t('untitledAsset')}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t('selectedAssetPosition', {
+                              index: index + 1,
+                            })}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleRemoveGeneration(generation.id)}
+                          aria-label={t('removeSelectedAsset', {
+                            index: index + 1,
+                          })}
+                          className="absolute right-1 top-1 rounded-full bg-background/85 text-muted-foreground opacity-100 shadow-sm hover:text-foreground sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-8 text-center">
+                    <ImagePlus className="size-7 text-muted-foreground/60" />
+                    <p className="text-sm font-medium">
+                      {t('noAssetsSelected')}
+                    </p>
+                    <p className="max-w-sm text-sm text-muted-foreground">
+                      {t('noAssetsSelectedHint')}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <Button
                 onClick={handleCreate}
-                disabled={!title.trim() || !generationIds.trim() || isCreating}
+                disabled={
+                  !title.trim() ||
+                  selectedGenerations.length === 0 ||
+                  isCreating
+                }
                 className="gap-2 rounded-full"
               >
                 {isCreating ? (
@@ -81,6 +184,15 @@ export default function StoryboardPage() {
               </Button>
             </div>
           )}
+
+          <AssetSelectorDialog
+            open={assetPickerOpen}
+            onOpenChange={setAssetPickerOpen}
+            onSelect={handleSelectGeneration}
+            title={t('assetPickerTitle')}
+            description={t('assetPickerDescription')}
+            mediaType="image"
+          />
 
           {/* Loading */}
           {loading && (

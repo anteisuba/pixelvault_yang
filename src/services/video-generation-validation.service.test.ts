@@ -37,6 +37,26 @@ describe('video-generation-validation.service', () => {
     ).toThrowError(GenerateImageServiceError)
   })
 
+  it('requires a reference image for Runway Gen-4 Turbo', () => {
+    expect(() =>
+      validateVideoGenerationInput({
+        modelId: AI_MODELS.RUNWAY_GEN4_TURBO,
+        aspectRatio: '16:9',
+        duration: 5,
+      }),
+    ).toThrowError(GenerateImageServiceError)
+  })
+
+  it('limits Runway Gen-4.5 text-to-video to landscape or portrait', () => {
+    expect(() =>
+      validateVideoGenerationInput({
+        modelId: AI_MODELS.RUNWAY_GEN45,
+        aspectRatio: '1:1',
+        duration: 5,
+      }),
+    ).toThrowError(GenerateImageServiceError)
+  })
+
   it('rejects image models in the video pipeline', () => {
     expect(() =>
       validateVideoGenerationInput({

@@ -8,7 +8,6 @@ import dynamic from 'next/dynamic'
 import {
   useStudioForm,
   useStudioData,
-  useStudioGen,
   type PanelName,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
@@ -37,13 +36,6 @@ function PanelLoadingFallback() {
   )
 }
 
-const AdvancedSettings = dynamic(
-  () =>
-    import('@/components/business/AdvancedSettings').then(
-      (mod) => mod.AdvancedSettings,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
 const ReferenceImageSection = dynamic(
   () =>
     import('@/components/ui/reference-image-section').then(
@@ -119,7 +111,6 @@ const DIALOG_HEADER =
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, civitai, styles } = useStudioData()
-  const { isGenerating } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const tBar = useTranslations('StudioToolbar')
@@ -158,41 +149,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
 
   return (
     <>
-      {/* ── Advanced Settings ────────────────────────────────── */}
-      <Dialog
-        open={state.panels.advanced}
-        onOpenChange={(open) => {
-          if (!open) closePanel('advanced')
-        }}
-      >
-        <DialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
-            {tPanels('advanced')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {tPanels('advanced')}
-          </DialogDescription>
-          <div className={DIALOG_BODY}>
-            {selectedModel?.adapterType || selectedStyleCard?.adapterType ? (
-              <AdvancedSettings
-                adapterType={adapterType}
-                modelId={modelId}
-                params={state.advancedParams}
-                onChange={(params) =>
-                  dispatch({ type: 'SET_ADVANCED_PARAMS', payload: params })
-                }
-                hasReferenceImage={imageUpload.referenceImages.length > 0}
-                disabled={isGenerating}
-              />
-            ) : (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                {t('selectModelFirst')}
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* ── Civitai Token ────────────────────────────────────── */}
       <Dialog
         open={state.panels.civitai}

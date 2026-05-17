@@ -61,6 +61,22 @@ const FISH_KEY_RECORD = {
   createdAt: new Date('2026-01-02T00:00:00.000Z'),
 }
 
+const RUNWAY_KEY_RECORD = {
+  id: 'key-3',
+  userId: 'user-1',
+  modelId: 'runway-gen4.5',
+  adapterType: AI_ADAPTER_TYPES.RUNWAY,
+  providerConfig: {
+    label: 'Runway',
+    baseUrl: 'https://api.dev.runwayml.com/v1',
+  },
+  label: 'Runway',
+  encryptedKey: 'encrypted:runway-key',
+  maskedKey: 'key_****test',
+  isActive: true,
+  createdAt: new Date('2026-01-03T00:00:00.000Z'),
+}
+
 describe('apiKey.service createApiKey', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -186,6 +202,36 @@ describe('apiKey.service verifyApiKey', () => {
         causeMessage: 'self signed certificate',
         causeCode: 'SELF_SIGNED_CERT_IN_CHAIN',
         latencyMs: expect.any(Number),
+      }),
+    )
+  })
+
+  it('verifies Runway keys against the task endpoint with the current API version', async () => {
+    mockFindUnique.mockResolvedValue(RUNWAY_KEY_RECORD)
+    mockDecryptApiKey.mockReturnValue('plain-runway-key')
+    const mockFetch = vi.fn()
+    vi.stubGlobal('fetch', mockFetch)
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'The task does not exist' }), {
+        status: 404,
+      }),
+    )
+
+    const result = await verifyApiKey('key-3', 'user-1')
+
+    expect(result).toMatchObject({
+      id: 'key-3',
+      status: 'available',
+    })
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.dev.runwayml.com/v1/tasks/00000000-0000-4000-8000-000000000000',
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer plain-runway-key',
+          'X-Runway-Version': '2024-11-06',
+        },
+        signal: expect.any(AbortSignal),
       }),
     )
   })

@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
+import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import {
   StudioTopBar,
   StudioCanvas,
@@ -39,6 +40,20 @@ export function StudioWorkspaceUI() {
     const saved = localStorage.getItem(STUDIO_MODE_KEY)
     if (saved === 'card' || saved === 'quick') {
       dispatch({ type: 'SET_WORKFLOW_MODE', payload: saved })
+    }
+
+    const prefillPrompt = sessionStorage.getItem(
+      STUDIO_PREFILL_PROMPT_STORAGE_KEY,
+    )
+    if (prefillPrompt) {
+      dispatch({ type: 'SET_PROMPT', payload: prefillPrompt })
+      sessionStorage.removeItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY)
+      window.requestAnimationFrame(() => {
+        document.getElementById('studio-prompt')?.scrollIntoView({
+          block: 'center',
+          behavior: 'smooth',
+        })
+      })
     }
   }, [dispatch])
 

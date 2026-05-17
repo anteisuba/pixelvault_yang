@@ -2,16 +2,39 @@ import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { FileText, Sparkles } from 'lucide-react'
+import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
+import { PromptTemplateCreatePanel } from '@/components/business/PromptTemplateCreatePanel'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { listRecipes } from '@/services/recipe.service'
 
+const PromptCreateQuerySchema = z.object({
+  create: z.enum(['1']).optional(),
+  name: z.string().trim().max(200).optional(),
+  prompt: z.string().trim().max(5000).optional(),
+  negativePrompt: z.string().trim().max(1000).optional(),
+  model: z.string().trim().max(100).optional(),
+  provider: z.string().trim().max(100).optional(),
+  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']).optional(),
+  generationId: z.string().trim().max(64).optional(),
+})
+
 interface PromptsPageProps {
   params: Promise<{ locale: AppLocale }>
+  searchParams: Promise<{
+    create?: string
+    name?: string
+    prompt?: string
+    negativePrompt?: string
+    model?: string
+    provider?: string
+    outputType?: string
+    generationId?: string
+  }>
 }
 
 export async function generateMetadata({
@@ -26,8 +49,17 @@ export async function generateMetadata({
   }
 }
 
-export default async function PromptsPage({ params }: PromptsPageProps) {
+export default async function PromptsPage({
+  params,
+  searchParams,
+}: PromptsPageProps) {
   const { locale } = await params
+  const createQueryResult = PromptCreateQuerySchema.safeParse(
+    await searchParams,
+  )
+  const createQuery = createQueryResult.success
+    ? createQueryResult.data
+    : undefined
   const t = await getTranslations({ locale, namespace: 'PromptLibrary' })
   const { userId: clerkId } = await auth()
   const getOutputTypeLabel = (outputType: string) => {
@@ -83,6 +115,19 @@ export default async function PromptsPage({ params }: PromptsPageProps) {
             </Button>
           </div>
         </header>
+
+        <PromptTemplateCreatePanel
+          initialOpen={createQuery?.create === '1'}
+          initialValues={{
+            name: createQuery?.name,
+            compiledPrompt: createQuery?.prompt,
+            negativePrompt: createQuery?.negativePrompt,
+            modelId: createQuery?.model,
+            provider: createQuery?.provider,
+            outputType: createQuery?.outputType,
+            parentGenerationId: createQuery?.generationId,
+          }}
+        />
 
         {recipes.length === 0 ? (
           <section className="editorial-panel">

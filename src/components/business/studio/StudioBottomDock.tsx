@@ -5,7 +5,6 @@ import { memo, useCallback } from 'react'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 
 import { StudioCardSection } from './StudioCardSection'
-import { StudioCardSlots } from './StudioCardSlots'
 import { StudioKeepChangePanel } from './StudioKeepChangePanel'
 import { StudioPanelDialogs } from './StudioPanelDialogs'
 import { StudioPromptArea } from './StudioPromptArea'
@@ -64,9 +63,6 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
         <div className="space-y-2">
           {state.workflowMode === 'card' && state.outputType !== 'audio' && (
             <StudioCardSection />
-          )}
-          {state.workflowMode === 'quick' && state.outputType === 'image' && (
-            <StudioCardSlots />
           )}
           <StudioPromptArea />
           <StudioToolbarPanels />

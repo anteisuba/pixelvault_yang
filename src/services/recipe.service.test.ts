@@ -43,6 +43,7 @@ import {
   buildRecipeSnapshotForUser,
   createRecipeFromGeneration,
   createRecipe,
+  updateRecipe,
   listRecipeGenerations,
   listRecipes,
   getRecipe,
@@ -122,6 +123,16 @@ const VALID_INPUT = {
   outputType: 'IMAGE' as const,
 }
 
+const UPDATE_INPUT = {
+  compiledPrompt: 'an updated sunset prompt',
+  negativePrompt: 'blurry',
+  modelId: 'flux-2-pro',
+  provider: 'fal',
+  name: 'Updated Recipe',
+  outputType: 'IMAGE' as const,
+  parentGenerationId: 'gen_source',
+}
+
 describe('createRecipe', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -165,6 +176,75 @@ describe('createRecipe', () => {
     await expect(createRecipe('clerk_test_user', VALID_INPUT)).resolves.toEqual(
       FAKE_RECIPE,
     )
+  })
+})
+
+describe('updateRecipe', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockFindFirst.mockResolvedValue(FAKE_RECIPE)
+    mockUpdate.mockResolvedValue({
+      ...FAKE_RECIPE,
+      ...UPDATE_INPUT,
+      version: 2,
+    })
+    mockUpdatePreferenceOnRecipeSaved.mockResolvedValue(undefined)
+  })
+
+  it('updates an owned non-deleted recipe and increments the version', async () => {
+    const result = await updateRecipe(
+      'clerk_test_user',
+      'recipe_abc',
+      UPDATE_INPUT,
+    )
+
+    expect(result?.version).toBe(2)
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'recipe_abc',
+        userId: 'db_user_123',
+        isDeleted: false,
+      },
+    })
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'recipe_abc' },
+      data: expect.objectContaining({
+        name: 'Updated Recipe',
+        compiledPrompt: 'an updated sunset prompt',
+        negativePrompt: 'blurry',
+        modelId: 'flux-2-pro',
+        provider: 'fal',
+        parentGenerationId: 'gen_source',
+        version: { increment: 1 },
+      }),
+    })
+  })
+
+  it('updates creative preference after editing a recipe', async () => {
+    const result = await updateRecipe(
+      'clerk_test_user',
+      'recipe_abc',
+      UPDATE_INPUT,
+    )
+
+    expect(mockUpdatePreferenceOnRecipeSaved).toHaveBeenCalledWith(
+      'db_user_123',
+      result,
+    )
+  })
+
+  it('returns null when the recipe is not owned by the user', async () => {
+    mockFindFirst.mockResolvedValueOnce(null)
+
+    const result = await updateRecipe(
+      'clerk_test_user',
+      'recipe_missing',
+      UPDATE_INPUT,
+    )
+
+    expect(result).toBeNull()
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })
 

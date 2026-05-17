@@ -85,13 +85,13 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             disabled={disabled}
             aria-label={t('label')}
             className={cn(
-              'relative inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg px-3 sm:px-2.5 text-xs text-muted-foreground transition-all duration-200',
+              'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
               'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
               'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
               isActive && 'bg-muted/30 text-primary',
             )}
           >
-            <ImageIcon className="size-3.5 shrink-0" />
+            <ImageIcon className="size-4 shrink-0" />
             <span className="hidden sm:inline">{t('label')}</span>
             {referenceCount > 0 && (
               <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">

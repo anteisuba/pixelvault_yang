@@ -107,6 +107,7 @@ const DEFAULT_FILTERS: GalleryFilters = {
   type: 'all',
   timeRange: 'all',
   liked: false,
+  published: false,
   projectId: '',
   provider: '',
 }
@@ -114,6 +115,7 @@ const DEFAULT_FILTERS: GalleryFilters = {
 type Section =
   | { kind: 'all' }
   | { kind: 'favorites' }
+  | { kind: 'published' }
   | { kind: 'uploads' }
   | { kind: 'type'; type: 'image' | 'video' | 'audio' | 'model_3d' }
   | { kind: 'unassigned' }
@@ -150,6 +152,7 @@ function sectionFromFilters(
   lockedMediaType?: LockedMediaType,
 ): Section {
   if (filters.liked) return { kind: 'favorites' }
+  if (filters.published) return { kind: 'published' }
   if (filters.provider === USER_UPLOAD_PROVIDER) return { kind: 'uploads' }
   if (filters.projectId === 'none') return { kind: 'unassigned' }
   if (filters.projectId) return { kind: 'project', id: filters.projectId }
@@ -172,6 +175,7 @@ function shouldKeepAssetAfterProjectMove(
   if (
     section.kind === 'all' ||
     section.kind === 'favorites' ||
+    section.kind === 'published' ||
     section.kind === 'uploads' ||
     section.kind === 'type'
   ) {
@@ -184,11 +188,10 @@ function shouldKeepAssetAfterProjectMove(
 /**
  * KreaAssetBrowser — full-page asset browser with a Krea-style right sidebar.
  *
- * Right sidebar has four sections (All / Favorites / Tools / Folders) that
- * collapse into existing useGallery filters: type for Tools, liked for
- * Favorites, projectId for Folders. Selecting a section resets the other
- * filter dimensions so the user can't end up in an "ANDed" filter state
- * they didn't ask for.
+ * Right sidebar sections collapse into existing useGallery filters: type for
+ * Tools, liked for Favorites, published for public gallery assets, projectId
+ * for Folders. Selecting a section resets the other filter dimensions so the
+ * user can't end up in an "ANDed" filter state they didn't ask for.
  */
 export function KreaAssetBrowser({
   initialGenerations = [],
@@ -396,12 +399,14 @@ export function KreaAssetBrowser({
         return
       }
       const updatedCount = result.data?.updatedCount ?? ids.length
+      ids.forEach((id) => updateGeneration(id, { isPublic: true }))
+      void refreshCounts()
       toast.success(t('bulkPublishSuccess', { count: updatedCount }))
       exitSelectionMode()
     } finally {
       setIsBulkPublishing(false)
     }
-  }, [selectedIds, t, exitSelectionMode])
+  }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
 
   const requestBulkFavorite = useCallback(() => {
     const count = selectedIds.size
@@ -510,6 +515,7 @@ export function KreaAssetBrowser({
         // the mental model simple — sections are mutually exclusive in
         // Krea.
         liked: false,
+        published: false,
         projectId: '',
         provider: '',
         // When mediaType is locked the browser is acting as a
@@ -523,6 +529,8 @@ export function KreaAssetBrowser({
           return base
         case 'favorites':
           return { ...base, liked: true }
+        case 'published':
+          return { ...base, published: true }
         case 'uploads':
           return { ...base, provider: USER_UPLOAD_PROVIDER }
         case 'type':
@@ -562,6 +570,7 @@ export function KreaAssetBrowser({
         type: targetFilters.type || undefined,
         timeRange: targetFilters.timeRange || undefined,
         liked: targetFilters.liked || undefined,
+        published: targetFilters.published || undefined,
         mine: true,
         projectId: targetFilters.projectId || undefined,
         provider: targetFilters.provider || undefined,
@@ -697,6 +706,8 @@ export function KreaAssetBrowser({
   const allCount = counts?.all ?? (section.kind === 'all' ? total : undefined)
   const favoritesCount =
     counts?.favorites ?? (section.kind === 'favorites' ? total : undefined)
+  const publishedCount =
+    counts?.published ?? (section.kind === 'published' ? total : undefined)
   const imageCount =
     counts?.image ??
     (section.kind === 'type' && section.type === 'image' ? total : undefined)
@@ -954,6 +965,14 @@ export function KreaAssetBrowser({
             onPrefetch={() => prefetchSection({ kind: 'favorites' })}
           />
           <SidebarItem
+            active={section.kind === 'published'}
+            icon={<Globe className="size-4" />}
+            label={t('sidebarPublished')}
+            count={publishedCount}
+            onClick={() => setSection({ kind: 'published' })}
+            onPrefetch={() => prefetchSection({ kind: 'published' })}
+          />
+          <SidebarItem
             active={section.kind === 'uploads'}
             icon={<UploadCloud className="size-4" />}
             label={t('sidebarUploads')}
@@ -1117,9 +1136,7 @@ export function KreaAssetBrowser({
             setSelectedGeneration((prev) =>
               prev && prev.id === id ? { ...prev, ...patch } : prev,
             )
-            // Liking/unliking moves the asset in/out of the Favorites
-            // section, so its sidebar count needs to refresh too.
-            if ('isLiked' in patch) {
+            if ('isLiked' in patch || 'isPublic' in patch) {
               void refreshCounts()
             }
           }}

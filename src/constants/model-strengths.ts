@@ -53,6 +53,8 @@ export const USER_PREFERENCE_WEIGHT = 0.15
 export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.FAL]:
     'Target model: FLUX. Prefer photographic terminology, specific lens/camera details, precise lighting descriptions, and full natural language sentences.',
+  [AI_ADAPTER_TYPES.RUNWAY]:
+    'Target model: Runway video. Prefer concise cinematic descriptions with subject motion, camera movement, lighting, and scene continuity.',
   [AI_ADAPTER_TYPES.NOVELAI]:
     'Target model: NovelAI (anime diffusion). Output as comma-separated danbooru-style tags. Include quality tags (masterpiece, best quality) at the start. Character tags before style and background tags.',
   [AI_ADAPTER_TYPES.GEMINI]:

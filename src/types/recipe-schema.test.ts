@@ -37,6 +37,13 @@ describe('CreateRecipeRequestSchema', () => {
     ).toBe(false)
   })
 
+  it('rejects when provider is empty', () => {
+    expect(
+      CreateRecipeRequestSchema.safeParse({ ...MINIMAL, provider: '   ' })
+        .success,
+    ).toBe(false)
+  })
+
   it('rejects an invalid outputType', () => {
     expect(
       CreateRecipeRequestSchema.safeParse({ ...MINIMAL, outputType: 'TEXT' })

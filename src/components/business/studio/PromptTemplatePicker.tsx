@@ -39,7 +39,12 @@ export function PromptTemplatePicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 rounded-full px-3 text-sm text-muted-foreground hover:bg-muted/35 hover:text-foreground"
+        >
           <FileText className="size-4" />
           {t('templatePicker')}
         </Button>

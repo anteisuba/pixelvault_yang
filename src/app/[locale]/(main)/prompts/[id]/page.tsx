@@ -3,10 +3,10 @@ import type { Metadata } from 'next'
 import NextImage from 'next/image'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 
 import { assetGenerationPath, ROUTES } from '@/constants/routes'
-import { CopyPromptButton } from '@/components/business/CopyPromptButton'
+import { PromptTemplateDetailEditor } from '@/components/business/PromptTemplateDetailEditor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
@@ -61,69 +61,21 @@ export default async function PromptDetailPage({
           </Button>
         </div>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(18rem,0.55fr)]">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <p className="editorial-eyebrow">{t('templatePicker')}</p>
-              <h1 className="break-words font-display text-3xl font-medium leading-tight tracking-tight text-foreground sm:text-4xl">
-                {recipe.name || recipe.modelId}
-              </h1>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="rounded-full">
-                  {getOutputTypeLabel(recipe.outputType)}
-                </Badge>
-                <Badge variant="outline" className="rounded-full">
-                  {t('templateMeta', {
-                    model: recipe.modelId,
-                    version: recipe.version,
-                  })}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border/60 bg-card/82 p-5">
-              <p className="whitespace-pre-wrap font-serif text-base leading-8 text-foreground">
-                {recipe.compiledPrompt}
-              </p>
-            </div>
-
-            {recipe.negativePrompt ? (
-              <div className="rounded-2xl border border-border/60 bg-background/50 p-5">
-                <p className="whitespace-pre-wrap font-serif text-sm leading-7 text-muted-foreground">
-                  {recipe.negativePrompt}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          <aside className="rounded-2xl border border-border/60 bg-card/78 p-5">
-            <div className="space-y-4">
-              <Button asChild className="w-full rounded-full">
-                <Link href={ROUTES.STUDIO}>
-                  <Sparkles className="size-4" />
-                  {t('useInStudio')}
-                </Link>
-              </Button>
-              <CopyPromptButton prompt={recipe.compiledPrompt} />
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">{t('sourceWork')}</dt>
-                <dd className="break-all">
-                  {recipe.parentGenerationId ?? '—'}
-                </dd>
-                <dt className="text-muted-foreground">{t('provider')}</dt>
-                <dd>{recipe.provider}</dd>
-                <dt className="text-muted-foreground">{t('createdAt')}</dt>
-                <dd>
-                  {new Intl.DateTimeFormat(locale, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  }).format(recipe.createdAt)}
-                </dd>
-              </dl>
-            </div>
-          </aside>
-        </section>
+        <PromptTemplateDetailEditor
+          locale={locale}
+          recipe={{
+            id: recipe.id,
+            name: recipe.name,
+            outputType: recipe.outputType,
+            compiledPrompt: recipe.compiledPrompt,
+            negativePrompt: recipe.negativePrompt,
+            modelId: recipe.modelId,
+            provider: recipe.provider,
+            parentGenerationId: recipe.parentGenerationId,
+            version: recipe.version,
+            createdAt: recipe.createdAt.toISOString(),
+          }}
+        />
 
         <section className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

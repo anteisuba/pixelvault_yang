@@ -12,6 +12,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
   [AI_ADAPTER_TYPES.GEMINI]: 'Google',
   [AI_ADAPTER_TYPES.FAL]: 'fal.ai',
+  [AI_ADAPTER_TYPES.RUNWAY]: 'Runway',
   [AI_ADAPTER_TYPES.REPLICATE]: 'Replicate',
   [AI_ADAPTER_TYPES.NOVELAI]: 'NovelAI',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'VolcEngine',
@@ -62,7 +63,8 @@ const MODEL_PRICING: Partial<Record<AI_MODELS, ModelPrice>> = {
   [AI_MODELS.SEEDANCE_20_FAST_VOLC]: { amount: 0.06, unit: 'second' },
   [AI_MODELS.MINIMAX_VIDEO]: { amount: 0.3, unit: 'second' },
   [AI_MODELS.LUMA_RAY_2]: { amount: 0.2, unit: 'second' },
-  [AI_MODELS.RUNWAY_GEN3]: { amount: 0.05, unit: 'second' },
+  [AI_MODELS.RUNWAY_GEN45]: { amount: 0.12, unit: 'second' },
+  [AI_MODELS.RUNWAY_GEN4_TURBO]: { amount: 0.05, unit: 'second' },
   [AI_MODELS.WAN_VIDEO]: { amount: 0.05, unit: 'second' },
   [AI_MODELS.HUNYUAN_VIDEO]: { amount: 0.06, unit: 'second' },
 

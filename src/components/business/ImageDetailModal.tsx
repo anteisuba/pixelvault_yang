@@ -25,7 +25,7 @@ import {
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
-import { ROUTES, galleryGenerationPath } from '@/constants/routes'
+import { galleryGenerationPath, promptCreatePath } from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
@@ -381,10 +381,17 @@ export function ImageDetailModal({
                 asChild
               >
                 <Link
-                  href={`${ROUTES.STUDIO}?prompt=${encodeURIComponent(generation.prompt)}&model=${encodeURIComponent(generation.model)}`}
+                  href={promptCreatePath({
+                    prompt: generation.prompt,
+                    negativePrompt: generation.negativePrompt,
+                    modelId: generation.model,
+                    provider: generation.provider,
+                    outputType: generation.outputType,
+                    generationId: generation.id,
+                  })}
                 >
                   <Sparkles className="size-3.5" />
-                  {t('generateWithPrompt')}
+                  {t('savePromptTemplate')}
                 </Link>
               </Button>
             )}

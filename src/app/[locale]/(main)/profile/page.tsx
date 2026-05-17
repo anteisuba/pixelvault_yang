@@ -55,6 +55,7 @@ export default async function ProfilePage({
         type: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: false,
+        published: filterResult.data.published === '1',
         projectId: filterResult.data.projectId ?? '',
       }
     : {
@@ -64,6 +65,7 @@ export default async function ProfilePage({
         type: 'all' as const,
         timeRange: 'all' as const,
         liked: false,
+        published: false,
         projectId: '',
       }
   const isDenseLocale = isCjkLocale(locale)
@@ -106,6 +108,7 @@ export default async function ProfilePage({
       model: initialFilters.model || undefined,
       sort: initialFilters.sort,
       type: initialFilters.type,
+      published: initialFilters.published,
       userId: user.id,
       projectId: initialFilters.projectId || undefined,
     }),

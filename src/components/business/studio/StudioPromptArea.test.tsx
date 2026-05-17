@@ -25,6 +25,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   projectHistory: false,
   modelSelector: false,
   civitai: false,
+  cardSelector: false,
   enhance: false,
   reverse: false,
   advanced: false,

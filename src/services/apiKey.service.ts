@@ -9,7 +9,7 @@ import {
   isAiAdapterType,
   type ProviderConfig,
 } from '@/constants/providers'
-import { HEALTH_CHECK } from '@/constants/config'
+import { HEALTH_CHECK, RUNWAY_API } from '@/constants/config'
 import { logger } from '@/lib/logger'
 import { ProviderConfigSchema } from '@/types'
 import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
@@ -341,6 +341,22 @@ async function verifyAdapterKey(
           latencyMs,
           ok: response.status !== 401 && response.status !== 403,
         })
+        if (response.status === 401 || response.status === 403) {
+          return { ok: false, latencyMs, error: `HTTP ${response.status}` }
+        }
+        return { ok: true, latencyMs }
+      }
+      case AI_ADAPTER_TYPES.RUNWAY: {
+        const url = `${baseUrl.replace(/\/$/, '')}${RUNWAY_API.TASKS_PATH}/${RUNWAY_API.PROBE_TASK_ID}`
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'X-Runway-Version': RUNWAY_API.VERSION,
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        const latencyMs = Date.now() - start
         if (response.status === 401 || response.status === 403) {
           return { ok: false, latencyMs, error: `HTTP ${response.status}` }
         }

@@ -138,7 +138,7 @@ describe('llmTextCompletion - Gemini', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       'http://example.com/ref.png',
-      undefined,
+      expect.objectContaining({ redirect: 'manual' }),
     )
     expect(payload.contents[0]?.parts[0]?.inlineData).toEqual({
       mimeType: 'image/png',

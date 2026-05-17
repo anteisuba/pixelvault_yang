@@ -17,6 +17,8 @@ export function validateKeyFormat(
       return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.FAL:
       return trimmed.length > 10 ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.RUNWAY:
+      return trimmed.length > 10 ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.REPLICATE:
       return trimmed.startsWith('r8_') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.NOVELAI:

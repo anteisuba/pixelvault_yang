@@ -175,6 +175,21 @@ describe('GET /api/images', () => {
     )
   })
 
+  it('supports owner-scoped published assets filter', async () => {
+    mockAuthenticated()
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER as never)
+    const req = createGET('/api/images', { mine: '1', published: '1' })
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    expect(mockGetPublicPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: FAKE_DB_USER.id,
+        published: true,
+      }),
+    )
+  })
+
   it('returns 500 when service throws', async () => {
     mockUnauthenticated()
     mockGetAnonPage.mockReset()

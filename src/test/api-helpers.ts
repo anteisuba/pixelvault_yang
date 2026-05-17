@@ -68,8 +68,16 @@ export function createPUT(path: string, body: unknown) {
   })
 }
 
-export function createPATCH(path: string) {
-  return new NextRequest(new URL(path, BASE_URL), { method: 'PATCH' })
+export function createPATCH(path: string, body?: unknown) {
+  return new NextRequest(new URL(path, BASE_URL), {
+    method: 'PATCH',
+    ...(body === undefined
+      ? {}
+      : {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+  })
 }
 
 export function createDELETE(path: string) {

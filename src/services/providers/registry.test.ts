@@ -20,6 +20,9 @@ vi.mock('./openai.adapter', () => ({
 vi.mock('./replicate.adapter', () => ({
   replicateAdapter: { adapterType: 'replicate' },
 }))
+vi.mock('./runway.adapter', () => ({
+  runwayAdapter: { adapterType: 'runway' },
+}))
 vi.mock('./volcengine.adapter', () => ({
   volcengineAdapter: { adapterType: 'volcengine' },
 }))
@@ -44,5 +47,11 @@ describe('getProviderAdapter', () => {
     const adapter = getProviderAdapter(AI_ADAPTER_TYPES.GEMINI)
 
     expect(adapter.adapterType).toBe('gemini')
+  })
+
+  it('returns the Runway adapter for RUNWAY type', () => {
+    const adapter = getProviderAdapter(AI_ADAPTER_TYPES.RUNWAY)
+
+    expect(adapter.adapterType).toBe('runway')
   })
 })

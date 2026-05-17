@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertSafeUrl, isSafeUrl } from './url-guard'
+import { assertSafeUrl, isSafeUrl, safeFetch } from './url-guard'
 
 describe('url-guard', () => {
   describe('valid public URLs', () => {
@@ -81,5 +81,49 @@ describe('url-guard', () => {
         expect(() => assertSafeUrl(url)).toThrow()
       },
     )
+  })
+
+  describe('safeFetch', () => {
+    it('follows safe redirects after validating each hop', async () => {
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://cdn.example.com/image.png' },
+          }),
+        )
+        .mockResolvedValueOnce(new Response('ok', { status: 200 }))
+
+      const response = await safeFetch('https://example.com/redirect')
+
+      expect(response.status).toBe(200)
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        'https://example.com/redirect',
+        expect.objectContaining({ redirect: 'manual' }),
+      )
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'https://cdn.example.com/image.png',
+        expect.objectContaining({ redirect: 'manual' }),
+      )
+      fetchMock.mockRestore()
+    })
+
+    it('rejects redirects to private IP targets before fetching them', async () => {
+      const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://127.0.0.1/admin' },
+        }),
+      )
+
+      await expect(safeFetch('https://example.com/redirect')).rejects.toThrow(
+        /private IPv4/,
+      )
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      fetchMock.mockRestore()
+    })
   })
 })

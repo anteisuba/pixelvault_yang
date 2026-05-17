@@ -18,6 +18,7 @@ const ADAPTER_PROMPT_STYLES: Record<AI_ADAPTER_TYPES, PromptStyle> = {
   [AI_ADAPTER_TYPES.NOVELAI]: 'tag',
   [AI_ADAPTER_TYPES.HUGGINGFACE]: 'weighted',
   [AI_ADAPTER_TYPES.FAL]: 'weighted',
+  [AI_ADAPTER_TYPES.RUNWAY]: 'natural',
   [AI_ADAPTER_TYPES.REPLICATE]: 'weighted',
   [AI_ADAPTER_TYPES.GEMINI]: 'natural',
   [AI_ADAPTER_TYPES.OPENAI]: 'natural',

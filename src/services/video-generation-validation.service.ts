@@ -1,7 +1,7 @@
 import 'server-only'
 
 import type { AspectRatio } from '@/constants/config'
-import { getModelById } from '@/constants/models'
+import { AI_MODELS, getModelById } from '@/constants/models'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import type { VideoResolution } from '@/constants/video-options'
 import { GenerateImageServiceError } from '@/services/generate-image.service'
@@ -19,6 +19,11 @@ function formatAllowedValues(values: readonly (number | string)[]): string {
     .map((value) => (typeof value === 'number' ? `${value}s` : value))
     .join(', ')
 }
+
+const RUNWAY_GEN45_TEXT_TO_VIDEO_ASPECT_RATIOS: readonly AspectRatio[] = [
+  '16:9',
+  '9:16',
+]
 
 export function validateVideoGenerationInput({
   modelId,
@@ -83,6 +88,18 @@ export function validateVideoGenerationInput({
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       `Unsupported aspect ratio for this model. Allowed values: ${formatAllowedValues(capabilities.supportedAspectRatios)}`,
+      400,
+    )
+  }
+
+  if (
+    modelConfig.id === AI_MODELS.RUNWAY_GEN45 &&
+    !referenceImage &&
+    !RUNWAY_GEN45_TEXT_TO_VIDEO_ASPECT_RATIOS.includes(aspectRatio)
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      `Unsupported aspect ratio for Runway Gen-4.5 text-to-video. Allowed values: ${formatAllowedValues(RUNWAY_GEN45_TEXT_TO_VIDEO_ASPECT_RATIOS)}`,
       400,
     )
   }

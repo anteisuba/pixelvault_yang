@@ -32,6 +32,7 @@ export interface GalleryFilters {
   type: OutputTypeFilter
   timeRange: GalleryTimeRange
   liked: boolean
+  published: boolean
   /**
    * Optional project scope:
    * - ''      → all projects (default)
@@ -89,6 +90,7 @@ const DEFAULT_FILTERS: GalleryFilters = {
   type: 'all',
   timeRange: 'all',
   liked: false,
+  published: false,
   projectId: '',
   provider: '',
 }
@@ -215,6 +217,7 @@ export function useGallery({
           type: f.type || undefined,
           timeRange: f.timeRange || undefined,
           liked: f.liked || undefined,
+          published: f.published || undefined,
           mine,
           projectId: f.projectId || undefined,
           provider: f.provider || undefined,

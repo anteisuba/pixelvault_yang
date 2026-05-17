@@ -6,6 +6,7 @@
       "google": "Google",
       "novelai": "NovelAI",
       "fal": "fal.ai",
+      "runway": "Runway",
       "volcengine": "火山引擎",
       "opensource": "开源",
       "replicate": "Replicate"
@@ -213,9 +214,9 @@
         "cta": "试试编辑"
       },
       "video": {
-        "eyebrow": "14 个视频模型",
+        "eyebrow": "15 个视频模型",
         "title": "视频生成",
-        "description": "Kling、LumaRay、Veo 3.1、Runway Gen3、Seedance — 14 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
+        "description": "Kling、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 15 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
         "cta": "生成视频"
       },
       "lora": {
@@ -774,6 +775,7 @@
     "uploadFileTooLarge": "文件太大，最大 {maxMb} MB。",
     "sidebarAll": "全部",
     "sidebarFavorites": "收藏",
+    "sidebarPublished": "已发布到画廊",
     "sidebarUploads": "本地素材",
     "sidebarModel3D": "3D",
     "sidebarTools": "工具",
@@ -879,6 +881,7 @@
     "outputType3d": "3D",
     "sourceWork": "来源作品",
     "provider": "服务商",
+    "providerRequired": "请填写服务商。",
     "createdAt": "创建时间",
     "generatedAssets": "生成素材",
     "generatedAssetsDescription": "这些素材都来自这条提示词模板，包含原始来源作品和后续调用结果。",
@@ -887,13 +890,39 @@
     "saveAsTemplate": "保存为提示词模板",
     "saveTemplateSuccess": "已保存到提示词工程",
     "saveTemplateFailed": "保存提示词失败",
+    "createAction": "新建模板",
+    "createCollapse": "收起",
+    "createDescription": "把常用或验证过的 Prompt 保存成模板，之后可以在 Studio 中直接调用。",
+    "createEyebrow": "新建",
+    "createModelLabel": "推荐模型",
+    "createNameLabel": "模板名称",
+    "createNamePlaceholder": "例如：明日方舟风格角色转换",
+    "createNegativePromptLabel": "反向提示词",
+    "createNegativePromptPlaceholder": "可选，填写需要排除的元素。",
+    "createOutputTypeLabel": "类型",
+    "createPromptLabel": "提示词",
+    "createPromptPlaceholder": "粘贴你想复用的完整提示词...",
+    "createPromptRequired": "请先填写提示词。",
+    "createReset": "清空",
+    "createSaving": "保存中...",
+    "createSubmit": "保存模板",
+    "createTitle": "新建提示词模板",
+    "editAction": "编辑模板",
+    "editCancel": "取消",
+    "editDescription": "调整这条模板的名称、提示词、模型和反向提示词，保存后会生成新的模板版本。",
+    "editEyebrow": "编辑",
+    "editReset": "恢复原值",
+    "editSubmit": "保存修改",
+    "editTitle": "编辑提示词模板",
     "templatePicker": "模板",
     "templatePickerTitle": "调用提示词模板",
     "replacePrompt": "替换提示词",
     "insertPrompt": "插入提示词",
     "applyRecipe": "应用整套配方",
     "recentTemplates": "最近模板",
-    "templateCount": "{count} 个模板"
+    "templateCount": "{count} 个模板",
+    "updateTemplateSuccess": "提示词模板已更新",
+    "updateTemplateFailed": "更新提示词模板失败"
   },
   "Collections": {
     "title": "合集",
@@ -1049,6 +1078,10 @@
         "label": "fal.ai",
         "description": "使用 fal.ai 平台，支持 Flux 2 等模型。"
       },
+      "runway": {
+        "label": "Runway",
+        "description": "使用 Runway 官方视频生成 API，支持 Gen-4.5 和 Gen-4 Turbo。"
+      },
       "replicate": {
         "label": "Replicate",
         "description": "使用 Replicate 平台，支持 Ideogram 等模型。"
@@ -1174,6 +1207,7 @@
     "shareLink": "分享",
     "linkCopied": "链接已复制！",
     "generateWithPrompt": "用此提示词生成",
+    "savePromptTemplate": "保存为提示词模板",
     "upscale": "超分辨率",
     "upscaling": "处理中...",
     "removeBackground": "去背景",
@@ -1696,6 +1730,14 @@
       "label": "混元视频",
       "description": "腾讯开源，83亿参数，支持图生视频"
     },
+    "runwayGen45": {
+      "label": "Runway Gen-4.5",
+      "description": "Runway 当前旗舰视频模型，支持文生视频和图生视频"
+    },
+    "runwayGen4Turbo": {
+      "label": "Runway Gen-4 Turbo",
+      "description": "更快、更省成本的 Runway 图生视频模型"
+    },
     "runwayGen3": {
       "label": "Runway Gen-3 Turbo",
       "description": "行业标杆级电影视频，fal.ai 图生视频"
@@ -2071,8 +2113,13 @@
     "sortCardsCreated": "创建时间",
     "sortCardsName": "名称",
     "cardSearchEmpty": "没有匹配的卡片。",
+    "selected": "已选择",
     "new": "新建",
     "manage": "管理",
+    "cards": "卡片",
+    "characterCards": "角色卡",
+    "backgroundCards": "背景卡",
+    "styleCards": "画风卡",
     "character": "角色",
     "background": "背景",
     "style": "画风",
@@ -2146,6 +2193,8 @@
     "script": "视频剧本",
     "advanced": "高级设置",
     "enhance": "提示词增强",
+    "cards": "卡片",
+    "characterCard": "角色卡",
     "civitai": "Civitai Token",
     "videoSettings": "视频设置",
     "keepChange": "保留与改变",

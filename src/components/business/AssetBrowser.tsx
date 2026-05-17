@@ -67,6 +67,7 @@ export function AssetBrowser({
         type: mediaType,
         timeRange: 'all',
         liked: false,
+        published: false,
         projectId,
       },
       mine: true,

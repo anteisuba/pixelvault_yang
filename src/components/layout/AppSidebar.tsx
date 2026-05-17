@@ -83,7 +83,7 @@ import { cn } from '@/lib/utils'
  *
  * Architecture (Krea-aligned):
  * - Header: brand + sidebar toggle
- * - Main nav: Gallery / Studio / Arena / Storyboard / Library
+ * - Main nav: Gallery / Prompt library / Assets
  * - Footer: CardDrawer / credit badge / avatar dropdown / LocaleSwitcher
  *
  * Visual: dark theme (uses shadcn sidebar token's dark-mode values via local
@@ -175,16 +175,6 @@ function AppSidebarContent() {
       icon: FileText,
     },
     {
-      href: ROUTES.ARENA,
-      label: t('links.arena'),
-      icon: Swords,
-    },
-    {
-      href: ROUTES.STORYBOARD,
-      label: t('links.storyboard'),
-      icon: BookOpen,
-    },
-    {
       // Krea-style asset browser. Replaces the legacy /profile entry in the
       // sidebar — /profile remains addressable for back-compat (deeplinks,
       // search results) but no longer surfaces in the main nav since the
@@ -192,6 +182,25 @@ function AppSidebarContent() {
       href: ROUTES.ASSETS,
       label: t('links.assets'),
       icon: Library,
+    },
+  ] as const
+
+  const pinnedToolLinks = [
+    {
+      href: ROUTES.ARENA,
+      label: t('links.arena'),
+      icon: Swords,
+      activePaths: [
+        ROUTES.ARENA,
+        ROUTES.ARENA_HISTORY,
+        ROUTES.ARENA_LEADERBOARD,
+      ],
+    },
+    {
+      href: ROUTES.STORYBOARD,
+      label: t('links.storyboard'),
+      icon: BookOpen,
+      activePaths: [ROUTES.STORYBOARD],
     },
   ] as const
 
@@ -322,6 +331,27 @@ function AppSidebarContent() {
                     </SidebarMenuItem>
                   )
                 })}
+
+              {pinnedToolLinks.map((tool) => {
+                const isActive = tool.activePaths.some(
+                  (p) => pathname === p || pathname.startsWith(`${p}/`),
+                )
+                const Icon = tool.icon
+                return (
+                  <SidebarMenuItem key={tool.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={tool.label}
+                    >
+                      <Link href={tool.href}>
+                        <Icon className="size-4 shrink-0" />
+                        <span>{tool.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
 
               {/* Coming Soon expander — keeps 5 locked tools out of the
                   default fold while staying discoverable. */}

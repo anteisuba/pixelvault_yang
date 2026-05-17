@@ -1,4 +1,6 @@
 export const STUDIO_PROMPT_TEXTAREA_ID = 'studio-prompt-textarea' as const
+export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
+  'pixelvault:studio-prefill-prompt' as const
 
 export const STUDIO_IMAGE_ASPECT_RATIOS = ['1:1', '16:9', '9:16'] as const
 

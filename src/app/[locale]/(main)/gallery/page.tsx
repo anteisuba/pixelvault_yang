@@ -44,6 +44,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         type: filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: filterResult.data.liked === '1',
+        published: filterResult.data.published === '1',
         projectId: filterResult.data.projectId ?? '',
       }
     : {
@@ -53,6 +54,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         type: 'all' as const,
         timeRange: 'all' as const,
         liked: false,
+        published: false,
         projectId: '',
       }
   const initialPage = await getPublicGenerationPage({
@@ -63,6 +65,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
     sort: initialFilters.sort,
     type: initialFilters.type,
     timeRange: initialFilters.timeRange,
+    published: initialFilters.published,
   })
   const total = initialPage.total ?? initialPage.generations.length
 

@@ -73,6 +73,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDANCE_10_PRO]: 'seedance10Pro',
   [AI_MODELS.VEO_31]: 'veo31',
   [AI_MODELS.PIKA_V25]: 'pikaV25',
+  [AI_MODELS.RUNWAY_GEN45]: 'runwayGen45',
+  [AI_MODELS.RUNWAY_GEN4_TURBO]: 'runwayGen4Turbo',
   [AI_MODELS.RUNWAY_GEN3]: 'runwayGen3',
   [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
   [AI_MODELS.HUNYUAN3D_V3]: 'hunyuan3dV3',
@@ -105,6 +107,7 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.SEEDANCE_10_PRO,
   AI_MODELS.PIKA_V25,
   AI_MODELS.KLING_VIDEO,
+  AI_MODELS.RUNWAY_GEN3,
   AI_MODELS.FAL_F5_TTS,
   AI_MODELS.HUNYUAN3D_2_1,
 ] as const satisfies readonly AI_MODELS[]
@@ -173,6 +176,8 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.PIKA_V25]: 'Pika',
   [AI_MODELS.WAN_VIDEO]: 'Wan',
   [AI_MODELS.HUNYUAN_VIDEO]: 'Hunyuan',
+  [AI_MODELS.RUNWAY_GEN45]: 'Runway',
+  [AI_MODELS.RUNWAY_GEN4_TURBO]: 'Runway',
   [AI_MODELS.RUNWAY_GEN3]: 'Runway',
   // Audio families
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
@@ -260,6 +265,7 @@ export type ProviderGroup =
   | 'google'
   | 'novelai'
   | 'fal'
+  | 'runway'
   | 'volcengine'
   | 'opensource'
   | 'replicate'
@@ -271,6 +277,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'google',
   'novelai',
   'fal',
+  'runway',
   'volcengine',
   'fish_audio',
   'opensource',
@@ -288,6 +295,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'novelai'
     case AI_ADAPTER_TYPES.FAL:
       return 'fal'
+    case AI_ADAPTER_TYPES.RUNWAY:
+      return 'runway'
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return 'volcengine'
     case AI_ADAPTER_TYPES.HUGGINGFACE:

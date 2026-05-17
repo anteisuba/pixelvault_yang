@@ -53,6 +53,8 @@ export enum AI_MODELS {
   SEEDANCE_10_PRO = 'seedance-1.0-pro',
   VEO_31 = 'veo-3.1',
   PIKA_V25 = 'pika-v2.5',
+  RUNWAY_GEN45 = 'runway-gen4.5',
+  RUNWAY_GEN4_TURBO = 'runway-gen4-turbo',
   RUNWAY_GEN3 = 'runway-gen3',
   // 3D models (image-to-3D)
   HUNYUAN3D_2_1 = 'hunyuan3d-2.1',

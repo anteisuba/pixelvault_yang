@@ -206,6 +206,27 @@ function cloneEnvironment(env: ScanEnvironment): ScanEnvironment {
   }
 }
 
+function isFunctionWithBody(
+  node: ts.Node,
+): node is
+  | ts.FunctionDeclaration
+  | ts.MethodDeclaration
+  | ts.ArrowFunction
+  | ts.FunctionExpression
+  | ts.ConstructorDeclaration
+  | ts.GetAccessorDeclaration
+  | ts.SetAccessorDeclaration {
+  return (
+    ts.isFunctionDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isArrowFunction(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isConstructorDeclaration(node) ||
+    ts.isGetAccessorDeclaration(node) ||
+    ts.isSetAccessorDeclaration(node)
+  )
+}
+
 function staticStringsFromExpression(
   expression: ts.Expression,
   env: ScanEnvironment,
@@ -306,7 +327,7 @@ function scanStaticTranslationUsage(
       scanTranslationCall(node, env)
     }
 
-    if (ts.isFunctionLike(node) && node.body) {
+    if (isFunctionWithBody(node) && node.body) {
       scanNode(node.body, cloneEnvironment(env))
       return
     }

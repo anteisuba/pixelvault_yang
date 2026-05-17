@@ -10,7 +10,6 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { Button } from '@/components/ui/button'
-import { PulsatingButton } from '@/components/ui/pulsating-button'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import type { GenerationRecord } from '@/types'
 
@@ -121,13 +120,15 @@ export function GalleryFeed({
               {t('loadingMore')}
             </Button>
           ) : (
-            <PulsatingButton
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
               onClick={loadMore}
-              pulseColor="hsl(var(--primary))"
-              className="rounded-full px-6 text-sm"
+              className="rounded-full border-border/80 bg-card/74 px-6 text-foreground transition-colors hover:border-foreground/30 hover:bg-muted/40"
             >
               {t('loadMore')}
-            </PulsatingButton>
+            </Button>
           )}
         </div>
       ) : generations.length > 0 ? (

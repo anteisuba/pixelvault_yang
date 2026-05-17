@@ -15,7 +15,6 @@ import { useAuth } from '@clerk/nextjs'
 import {
   getAvailableImageModels,
   getAvailableVideoModels,
-  getModelMessageKey,
 } from '@/constants/models'
 import {
   Select,
@@ -25,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { toastError } from '@/lib/toast'
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import type { OutputTypeFilter } from '@/types'
@@ -72,7 +72,7 @@ export const GalleryAdvancedFilters = memo(function GalleryAdvancedFilters({
           <SelectItem value={ALL_MODELS_VALUE}>{t('allModels')}</SelectItem>
           {modelsForType.map((m) => (
             <SelectItem key={m.id} value={m.id}>
-              {tModels(getModelMessageKey(m.id))}
+              {getTranslatedModelLabel(tModels, m.id)}
             </SelectItem>
           ))}
         </SelectContent>

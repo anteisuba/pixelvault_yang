@@ -170,7 +170,10 @@ const GalleryGridItem = memo(function GalleryGridItem({
 }: GalleryGridItemProps) {
   return (
     <BlurFade
-      delay={Math.min(index * 0.05, 0.5)}
+      delay={Math.min(index * 0.025, 0.2)}
+      duration={0.22}
+      offset={4}
+      blur="0px"
       inView
       className="mb-5 break-inside-avoid"
     >

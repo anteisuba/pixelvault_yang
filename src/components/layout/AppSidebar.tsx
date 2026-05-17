@@ -199,12 +199,6 @@ function AppSidebarContent() {
         ROUTES.ARENA_LEADERBOARD,
       ],
     },
-    {
-      href: ROUTES.STORYBOARD,
-      label: t('links.storyboard'),
-      icon: BookOpen,
-      activePaths: [ROUTES.STORYBOARD],
-    },
   ] as const
 
   // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
@@ -275,6 +269,24 @@ function AppSidebarContent() {
       activePaths: [ROUTES.STUDIO_NODE],
     },
   ] as const
+
+  const comingSoonToolLinks = [
+    ...toolLinks.filter((tool) => tool.comingSoon),
+    {
+      href: ROUTES.STORYBOARD,
+      label: t('links.storyboard'),
+      icon: BookOpen,
+      activePaths: [ROUTES.STORYBOARD],
+    },
+  ] as const
+
+  const hasActiveComingSoonLink = comingSoonToolLinks.some((tool) =>
+    tool.activePaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    ),
+  )
+
+  const isComingSoonOpen = showComingSoon || hasActiveComingSoonLink
 
   if (!isLoaded) {
     return <SidebarContent />
@@ -356,54 +368,52 @@ function AppSidebarContent() {
                 )
               })}
 
-              {/* Coming Soon expander — keeps 5 locked tools out of the
+              {/* Coming Soon expander — keeps locked tools out of the
                   default fold while staying discoverable. */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => setShowComingSoon((v) => !v)}
                   tooltip={tTools('comingSoon')}
-                  aria-expanded={showComingSoon}
+                  aria-expanded={isComingSoonOpen}
                   className="text-sidebar-foreground/60"
                 >
                   <ChevronDown
                     className={cn(
                       'size-4 shrink-0 transition-transform duration-200',
-                      !showComingSoon && '-rotate-90',
+                      !isComingSoonOpen && '-rotate-90',
                     )}
                   />
                   <span>{tTools('comingSoon')}</span>
                 </SidebarMenuButton>
                 <SidebarMenuBadge className="text-sidebar-foreground/40">
-                  {toolLinks.filter((t) => t.comingSoon).length}
+                  {comingSoonToolLinks.length}
                 </SidebarMenuBadge>
               </SidebarMenuItem>
 
-              {showComingSoon &&
-                toolLinks
-                  .filter((tool) => tool.comingSoon)
-                  .map((tool) => {
-                    const isActive = tool.activePaths.some(
-                      (p) => pathname === p,
-                    )
-                    const Icon = tool.icon
-                    return (
-                      <SidebarMenuItem key={tool.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={tool.label}
-                        >
-                          <Link href={tool.href}>
-                            <Icon className="size-4 shrink-0" />
-                            <span>{tool.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        <SidebarMenuBadge className="text-sidebar-foreground/50">
-                          <Lock className="size-3" />
-                        </SidebarMenuBadge>
-                      </SidebarMenuItem>
-                    )
-                  })}
+              {isComingSoonOpen &&
+                comingSoonToolLinks.map((tool) => {
+                  const isActive = tool.activePaths.some(
+                    (p) => pathname === p || pathname.startsWith(`${p}/`),
+                  )
+                  const Icon = tool.icon
+                  return (
+                    <SidebarMenuItem key={tool.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={tool.label}
+                      >
+                        <Link href={tool.href}>
+                          <Icon className="size-4 shrink-0" />
+                          <span>{tool.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarMenuBadge className="text-sidebar-foreground/50">
+                        <Lock className="size-3" />
+                      </SidebarMenuBadge>
+                    </SidebarMenuItem>
+                  )
+                })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

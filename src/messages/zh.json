@@ -26,6 +26,7 @@
     "model": "模型",
     "cost": "消费",
     "capabilities": "功能",
+    "close": "关闭",
     "requestCount": "{count} 次请求"
   },
   "Toasts": {
@@ -2236,6 +2237,7 @@
       "s4": "戏剧性阴影的极简主义肖像"
     },
     "generating": "正在生成...",
+    "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",
     "previewErrorTitle": "这次生成需要再试一次",
     "retry": "重试",
@@ -2330,6 +2332,28 @@
     "resetZoom": "重置缩放",
     "variantSelectWinner": "选为最佳",
     "variantSelected": "已选择"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "保持角色",
+    "keepStyle": "保持风格",
+    "keepContinuity": "保持连续性",
+    "extendScene": "延展场景",
+    "continueFromLastFrame": "从最后一帧继续",
+    "comingSoon": "即将推出"
+  },
+  "sceneProgress": {
+    "title": "场景进度",
+    "complete": "已完成",
+    "progress": "已完成 {percent}%",
+    "scene": "场景 {index}",
+    "retry": "重试",
+    "advance": "继续",
+    "pending": "等待中",
+    "generatingFrame": "正在生成画面",
+    "frameReady": "画面已就绪",
+    "generatingClip": "正在生成片段",
+    "clipReady": "片段已就绪",
+    "failed": "失败"
   },
   "StudioAdvanced": {
     "button": "高级",

@@ -26,6 +26,7 @@
     "model": "モデル",
     "cost": "コスト",
     "capabilities": "機能",
+    "close": "閉じる",
     "requestCount": "{count} リクエスト"
   },
   "Toasts": {
@@ -2236,6 +2237,7 @@
       "s4": "ドラマチックな影のミニマリストポートレート"
     },
     "generating": "生成中...",
+    "generateFailed": "生成に失敗しました",
     "elapsed": "経過時間: {seconds}",
     "previewErrorTitle": "生成に再試行が必要です",
     "retry": "再試行",
@@ -2330,6 +2332,28 @@
     "resetZoom": "ズームをリセット",
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "キャラクターを維持",
+    "keepStyle": "スタイルを維持",
+    "keepContinuity": "連続性を維持",
+    "extendScene": "シーンを延長",
+    "continueFromLastFrame": "最後のフレームから続ける",
+    "comingSoon": "近日公開"
+  },
+  "sceneProgress": {
+    "title": "シーン進行",
+    "complete": "完了",
+    "progress": "{percent}% 完了",
+    "scene": "シーン {index}",
+    "retry": "再試行",
+    "advance": "続行",
+    "pending": "待機中",
+    "generatingFrame": "フレーム生成中",
+    "frameReady": "フレーム準備完了",
+    "generatingClip": "クリップ生成中",
+    "clipReady": "クリップ準備完了",
+    "failed": "失敗"
   },
   "StudioAdvanced": {
     "button": "詳細",

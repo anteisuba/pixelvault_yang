@@ -26,6 +26,7 @@
     "model": "Model",
     "cost": "Cost",
     "capabilities": "Capabilities",
+    "close": "Close",
     "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
   "Toasts": {
@@ -2236,6 +2237,7 @@
       "s4": "Minimalist portrait with dramatic shadows"
     },
     "generating": "Generating...",
+    "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",
     "previewErrorTitle": "Generation needs another try",
     "retry": "Try again",
@@ -2330,6 +2332,28 @@
     "resetZoom": "Reset zoom",
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"
+  },
+  "sceneFeedback": {
+    "keepCharacter": "Keep character",
+    "keepStyle": "Keep style",
+    "keepContinuity": "Keep continuity",
+    "extendScene": "Extend scene",
+    "continueFromLastFrame": "Continue from last frame",
+    "comingSoon": "Coming soon"
+  },
+  "sceneProgress": {
+    "title": "Scene progress",
+    "complete": "Complete",
+    "progress": "{percent}% complete",
+    "scene": "Scene {index}",
+    "retry": "Retry",
+    "advance": "Continue",
+    "pending": "Pending",
+    "generatingFrame": "Generating frame",
+    "frameReady": "Frame ready",
+    "generatingClip": "Generating clip",
+    "clipReady": "Clip ready",
+    "failed": "Failed"
   },
   "StudioAdvanced": {
     "button": "Advanced",

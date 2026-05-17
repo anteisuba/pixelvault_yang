@@ -28,7 +28,6 @@ export const ROUTES = {
   ASSETS: '/assets',
   CARDS: '/cards',
   PROMPTS: '/prompts',
-  PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',
   ARENA_HISTORY: '/arena/history',

@@ -9,7 +9,6 @@ const SITEMAP_ROUTE = '/sitemap.xml'
 
 const privateRoutes = [
   ROUTES.STUDIO,
-  ROUTES.PROFILE,
   ROUTES.PROMPTS,
   ROUTES.ASSETS,
   ROUTES.STORYBOARD,

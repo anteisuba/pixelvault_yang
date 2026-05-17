@@ -14,6 +14,7 @@ import {
   Layers,
   LayoutGrid,
   Library,
+  Loader2,
   LogOut,
   Box,
   Lock,
@@ -175,10 +176,8 @@ function AppSidebarContent() {
       icon: FileText,
     },
     {
-      // Krea-style asset browser. Replaces the legacy /profile entry in the
-      // sidebar — /profile remains addressable for back-compat (deeplinks,
-      // search results) but no longer surfaces in the main nav since the
-      // Assets page is a strict superset (project filter + media filters).
+      // Krea-style asset browser. This is the private asset-management surface;
+      // the old /profile page now redirects to the public creator homepage.
       href: ROUTES.ASSETS,
       label: t('links.assets'),
       icon: Library,
@@ -519,7 +518,7 @@ function SidebarFooterCreditBadge() {
 }
 
 function SidebarFooterUserMenu() {
-  const { profile: myProfile } = useMyProfile()
+  const { profile: myProfile, refresh: refreshMyProfile } = useMyProfile()
   const t = useTranslations('Navbar')
   const tApiKeys = useTranslations('StudioApiKeys')
   const pathname = usePathname()
@@ -531,6 +530,8 @@ function SidebarFooterUserMenu() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPathname, setMenuPathname] = useState<string | null>(null)
   const [apiKeysOpen, setApiKeysOpen] = useState(false)
+  const [isProfileNavigationPending, setIsProfileNavigationPending] =
+    useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const isMenuOpen = menuOpen && menuPathname === pathname
 
@@ -545,13 +546,23 @@ function SidebarFooterUserMenu() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [isMenuOpen])
 
-  const handleViewProfile = useCallback(() => {
+  const handleViewProfile = useCallback(async () => {
     setMenuOpen(false)
-    const href = myProfile?.username
-      ? creatorProfilePath(myProfile.username)
-      : ROUTES.PROFILE
-    router.push(href)
-  }, [myProfile, router])
+    if (myProfile?.username) {
+      router.push(creatorProfilePath(myProfile.username))
+      return
+    }
+
+    setIsProfileNavigationPending(true)
+    try {
+      const nextProfile = await refreshMyProfile()
+      if (nextProfile?.username) {
+        router.push(creatorProfilePath(nextProfile.username))
+      }
+    } finally {
+      setIsProfileNavigationPending(false)
+    }
+  }, [myProfile?.username, refreshMyProfile, router])
 
   const handleOpenApiKeys = useCallback(() => {
     setMenuOpen(false)
@@ -615,9 +626,15 @@ function SidebarFooterUserMenu() {
             <button
               type="button"
               onClick={handleViewProfile}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              disabled={isProfileNavigationPending}
+              aria-busy={isProfileNavigationPending}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent disabled:cursor-wait disabled:opacity-70"
             >
-              <User className="size-4 text-sidebar-foreground/70" />
+              {isProfileNavigationPending ? (
+                <Loader2 className="size-4 animate-spin text-sidebar-foreground/70" />
+              ) : (
+                <User className="size-4 text-sidebar-foreground/70" />
+              )}
               {t('viewProfile')}
             </button>
             <button

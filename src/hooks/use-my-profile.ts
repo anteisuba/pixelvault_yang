@@ -55,12 +55,19 @@ export function useMyProfile() {
   const [profile, setProfile] = useState<MyProfile | null>(() =>
     userId && cachedUserId === userId ? cachedProfile : null,
   )
+  const [isLoading, setIsLoading] = useState(false)
 
   const refresh = useCallback(() => {
-    if (!userId) return
-    void loadMyProfile(userId, true).then((nextProfile) => {
-      if (nextProfile) setProfile(nextProfile)
-    })
+    if (!userId) return Promise.resolve(null)
+    setIsLoading(true)
+    return loadMyProfile(userId, true)
+      .then((nextProfile) => {
+        if (nextProfile) setProfile(nextProfile)
+        return nextProfile
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
   }, [userId])
 
   useEffect(() => {
@@ -69,20 +76,22 @@ export function useMyProfile() {
       cachedUserId = null
       return deferEffectTask(() => {
         setProfile(null)
+        setIsLoading(false)
       })
     }
     const cached = getCachedProfile(userId)
     if (cached) {
       return deferEffectTask(() => {
         setProfile(cached)
+        setIsLoading(false)
       })
     }
     return deferToIdle(() => {
-      refresh()
+      void refresh()
     })
   }, [userId, refresh])
 
-  return { profile: userId ? profile : null, refresh }
+  return { profile: userId ? profile : null, refresh, isLoading }
 }
 
 /** Invalidate the cached profile so it re-fetches on next mount */

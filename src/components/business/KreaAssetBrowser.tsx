@@ -65,6 +65,7 @@ import {
 } from '@/lib/api-client/gallery'
 import { uploadImageAPI } from '@/lib/api-client/generation'
 import {
+  clearGalleryCache,
   makeGalleryCacheKey,
   readGalleryCache,
   writeGalleryCache,
@@ -183,6 +184,70 @@ function shouldKeepAssetAfterProjectMove(
   }
   if (section.kind === 'unassigned') return projectId === null
   return section.id === projectId
+}
+
+function outputTypeMatchesSection(
+  outputType: GenerationRecord['outputType'],
+  type: Extract<Section, { kind: 'type' }>['type'],
+): boolean {
+  if (outputType === 'IMAGE') return type === 'image'
+  if (outputType === 'VIDEO') return type === 'video'
+  if (outputType === 'AUDIO') return type === 'audio'
+  if (outputType === 'MODEL_3D') return type === 'model_3d'
+  return false
+}
+
+function shouldKeepAssetAfterPatch(
+  section: Section,
+  generation: GenerationRecord,
+): boolean {
+  switch (section.kind) {
+    case 'all':
+      return true
+    case 'favorites':
+      return !!generation.isLiked
+    case 'published':
+      return generation.isPublic
+    case 'uploads':
+      return generation.provider === USER_UPLOAD_PROVIDER
+    case 'type':
+      return outputTypeMatchesSection(generation.outputType, section.type)
+    case 'unassigned':
+      return generation.projectId == null
+    case 'project':
+      return generation.projectId === section.id
+  }
+}
+
+function getVisibilityDelta(
+  before: boolean | undefined,
+  after: boolean | undefined,
+): number {
+  if (after === undefined || before === after) return 0
+  return after ? 1 : -1
+}
+
+function applyCountDelta(value: number, delta: number): number {
+  return Math.max(value + delta, 0)
+}
+
+function updateCountsAfterAssetPatch(
+  counts: AssetSectionCounts | null,
+  generation: GenerationRecord,
+  patch: Partial<GenerationRecord>,
+): AssetSectionCounts | null {
+  if (!counts) return counts
+
+  const publishedDelta = getVisibilityDelta(generation.isPublic, patch.isPublic)
+  const favoriteDelta = getVisibilityDelta(generation.isLiked, patch.isLiked)
+
+  if (publishedDelta === 0 && favoriteDelta === 0) return counts
+
+  return {
+    ...counts,
+    published: applyCountDelta(counts.published, publishedDelta),
+    favorites: applyCountDelta(counts.favorites, favoriteDelta),
+  }
 }
 
 /**
@@ -345,6 +410,7 @@ export function KreaAssetBrowser({
   }, [])
   const handleAssetDeleted = useCallback(
     (id: string) => {
+      clearGalleryCache()
       removeGeneration(id)
       void refreshCounts()
     },
@@ -365,6 +431,7 @@ export function KreaAssetBrowser({
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
     setIsBulkDeleting(true)
+    clearGalleryCache()
     ids.forEach((id) => removeGeneration(id))
     exitSelectionMode()
     void refreshCounts()
@@ -399,6 +466,7 @@ export function KreaAssetBrowser({
         return
       }
       const updatedCount = result.data?.updatedCount ?? ids.length
+      clearGalleryCache()
       ids.forEach((id) => updateGeneration(id, { isPublic: true }))
       void refreshCounts()
       toast.success(t('bulkPublishSuccess', { count: updatedCount }))
@@ -430,6 +498,7 @@ export function KreaAssetBrowser({
       const updatedCount = result.data?.updatedCount ?? ids.length
       // Mirror the new liked state in the grid so heart indicators light
       // up immediately, without waiting for a refetch.
+      clearGalleryCache()
       ids.forEach((id) => updateGeneration(id, { isLiked: true }))
       void refreshCounts()
       toast.success(t('bulkFavoriteSuccess', { count: updatedCount }))
@@ -452,6 +521,7 @@ export function KreaAssetBrowser({
         }
         const updatedCount = result.data?.updatedCount ?? ids.length
         const shouldKeep = shouldKeepAssetAfterProjectMove(section, projectId)
+        clearGalleryCache()
         ids.forEach((id) => {
           if (shouldKeep) updateGeneration(id, { projectId })
           else removeGeneration(id)
@@ -480,10 +550,64 @@ export function KreaAssetBrowser({
   // refresh the sidebar counts so both buckets update.
   const handleAssetMoved = useCallback(
     (id: string) => {
+      clearGalleryCache()
       removeGeneration(id)
       void refreshCounts()
     },
     [removeGeneration, refreshCounts],
+  )
+
+  const handleAssetUpdated = useCallback(
+    (id: string, patch: Partial<GenerationRecord>) => {
+      const current =
+        generations.find((generation) => generation.id === id) ??
+        (selectedGeneration?.id === id ? selectedGeneration : null)
+
+      if (!current) {
+        updateGeneration(id, patch)
+        void refreshCounts()
+        return
+      }
+
+      const nextGeneration = { ...current, ...patch }
+      const changesSectionMembership =
+        'isPublic' in patch ||
+        'isLiked' in patch ||
+        'projectId' in patch ||
+        'provider' in patch ||
+        'outputType' in patch
+
+      if (changesSectionMembership) {
+        clearGalleryCache()
+        setCounts((previous) =>
+          updateCountsAfterAssetPatch(previous, current, patch),
+        )
+      }
+
+      if (!shouldKeepAssetAfterPatch(section, nextGeneration)) {
+        removeGeneration(id)
+        setSelectedGeneration((prev) => (prev?.id === id ? null : prev))
+        void refreshCounts()
+        return
+      }
+
+      updateGeneration(id, patch)
+      setSelectedGeneration((prev) =>
+        prev && prev.id === id ? { ...prev, ...patch } : prev,
+      )
+
+      if (changesSectionMembership) {
+        void refreshCounts()
+      }
+    },
+    [
+      generations,
+      selectedGeneration,
+      section,
+      updateGeneration,
+      removeGeneration,
+      refreshCounts,
+    ],
   )
 
   // Grid density — persisted per device. SSR renders the default
@@ -642,6 +766,7 @@ export function KreaAssetBrowser({
         toast.error(response.error ?? t('uploadFailed'))
         return
       }
+      clearGalleryCache()
       prependGeneration(response.data.generation)
       void refreshCounts()
       toast.success(t('uploadSuccess'))
@@ -1129,17 +1254,7 @@ export function KreaAssetBrowser({
           projects={projects}
           onDeleted={handleAssetDeleted}
           onMoved={handleAssetMoved}
-          onUpdated={(id, patch) => {
-            updateGeneration(id, patch)
-            // Keep the open sheet's `generation` in sync so the buttons
-            // reflect the new isPublic/isLiked state without a refetch.
-            setSelectedGeneration((prev) =>
-              prev && prev.id === id ? { ...prev, ...patch } : prev,
-            )
-            if ('isLiked' in patch || 'isPublic' in patch) {
-              void refreshCounts()
-            }
-          }}
+          onUpdated={handleAssetUpdated}
         />
       )}
       {/* ─── Bulk selection action bar ─────────────────────────── */}

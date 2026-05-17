@@ -76,3 +76,7 @@ export function writeGalleryCache(key: string, entry: GalleryCacheEntry): void {
     cache.delete(oldest)
   }
 }
+
+export function clearGalleryCache(): void {
+  cache.clear()
+}

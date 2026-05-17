@@ -207,7 +207,9 @@ export type AssetSectionCountsResponse =
  */
 export async function fetchAssetSectionCounts(): Promise<AssetSectionCountsResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSET_SECTION_COUNTS)
+    const response = await fetch(API_ENDPOINTS.ASSET_SECTION_COUNTS, {
+      cache: 'no-store',
+    })
     if (!response.ok) {
       return {
         success: false,

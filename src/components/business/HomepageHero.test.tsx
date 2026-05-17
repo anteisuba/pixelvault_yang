@@ -8,16 +8,16 @@ import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    eyebrow: '22 image models',
-    title: 'Text to Image',
+    eyebrow: 'Personal AI gallery · 38 models',
+    title: 'Every generation, kept in your archive.',
   },
   zh: {
-    eyebrow: '22 个图像模型',
-    title: '文生图',
+    eyebrow: '个人 AI 画廊 · 38 个模型一站式',
+    title: '把每一次生成，留进自己的档案。',
   },
   ja: {
-    eyebrow: '22 の画像モデル',
-    title: 'Text to Image',
+    eyebrow: '個人 AI ギャラリー · 38 モデル',
+    title: 'すべての生成を、自分のアーカイブへ。',
   },
 } as const
 
@@ -28,7 +28,7 @@ vi.mock('next-intl', () => ({
     const map: Record<string, string> = {
       eyebrow: EXPECTED_HERO.en.eyebrow,
       title: EXPECTED_HERO.en.title,
-      subtitle: 'Run prompts across 22 image models.',
+      subtitle: 'Run prompts across 38 image, video, and audio models.',
     }
     return map[key] ?? key
   },

@@ -206,12 +206,42 @@
       "gallery": "Gallery"
     },
     "hero": {
-      "eyebrow": "22 image models",
-      "title": "Text to Image",
-      "subtitle": "Run prompts across 22 image models — Flux, Gemini, OpenAI, NovelAI, Recraft, Ideogram, and more — without juggling separate provider accounts. Pick by hand, or compare them blind in the Arena and let ELO decide."
+      "eyebrow": "Personal AI gallery · 38 models",
+      "title": "Every generation, kept in your archive.",
+      "subtitle": "38 image, video, and audio models from one canvas with your own API keys — every image, clip, prompt, and seed lives forever in your own R2."
     },
     "badges": {
       "soon": "Soon"
+    },
+    "showcaseRail": {
+      "title": "The archive, growing in real time",
+      "description": "A live rail of recent keepers — every prompt and model is one click away to remix."
+    },
+    "bottomCta": {
+      "eyebrow": "Start archiving",
+      "title": "Your next image should belong to you.",
+      "description": "Five minutes to wire your first API key — then generate across 38 models and keep every image, clip, prompt, and seed in your own R2.",
+      "primary": "Start your archive",
+      "secondary": "See the model lineup"
+    },
+    "footer": {
+      "tagline": "Personal AI gallery · Bring your own keys · Forever archived",
+      "sections": {
+        "product": "Product",
+        "resources": "Resources",
+        "legal": "Legal"
+      },
+      "links": {
+        "studio": "Studio",
+        "gallery": "Gallery",
+        "arena": "Arena",
+        "models": "Models",
+        "github": "GitHub",
+        "docs": "Docs",
+        "privacy": "Privacy",
+        "terms": "Terms"
+      },
+      "copyright": "© {year} PixelVault · BYOK · Forever archived"
     },
     "featureSections": {
       "imageEditing": {
@@ -632,24 +662,6 @@
     "errorPlayback": "Unable to play this video. Please try again."
   },
   "GalleryPage": {
-    "heroEyebrow": "Gallery",
-    "heroTitle": "Public Archive",
-    "heroDescription": "Every image includes its prompt, model, and generation info.",
-    "actions": {
-      "primarySignedIn": "Open studio",
-      "primarySignedOut": "Sign in to create",
-      "secondarySignedIn": "Open my archive",
-      "secondarySignedOut": "Back home"
-    },
-    "metrics": {
-      "archiveSizeLabel": "Public archive",
-      "archiveSizeValue": "{count, plural, =0 {No public images yet} one {# public image} other {# public images}}",
-      "modelCoverageLabel": "Current coverage",
-      "modelCoverageValue": "{count, plural, one {# built-in image model} other {# built-in image models}}",
-      "curationLabel": "Sort",
-      "curationValue": "Newest first",
-      "inlineSummary": "{imageCount} public images across {modelCount} built-in models"
-    },
     "filters": {
       "searchLabel": "Search the archive",
       "searchPlaceholder": "Search by prompt...",
@@ -692,53 +704,7 @@
     "endOfArchive": "That is the current end of the public archive."
   },
   "LibraryPage": {
-    "heroEyebrow": "My archive",
-    "heroTitle": "My Works",
-    "heroDescription": "Your generations and API usage.",
-    "actions": {
-      "primary": "Make a new image",
-      "secondary": "Browse public gallery",
-      "signOut": "Sign out"
-    },
-    "metrics": {
-      "totalWorksLabel": "Total works",
-      "totalWorksValue": "{count, plural, =0 {No works yet} one {# work} other {# works}}",
-      "imagesLabel": "Images",
-      "imagesValue": "{count, plural, =0 {No images} one {# image} other {# images}}",
-      "videosLabel": "Videos",
-      "videosValue": "{count, plural, =0 {No videos} one {# video} other {# videos}}",
-      "publicWorksLabel": "Public",
-      "publicWorksValue": "{count, plural, =0 {No public works} one {# public} other {# public}}",
-      "privateWorksLabel": "Private",
-      "privateWorksValue": "{count, plural, =0 {No private works} one {# private} other {# private}}",
-      "inlineSummary": "{total, plural, =0 {No works yet} one {1 work} other {{total} works}} · {publicCount} public · {privateCount} private · {requestCount} requests used",
-      "requestsLabel": "API requests"
-    },
-    "collectionEyebrow": "Archive",
-    "collectionTitle": "Recent generations",
-    "collectionDescription": "",
-    "feedLabel": "My archive feed",
-    "itemFallbackLabel": "Archive item",
-    "collectionCount": "Showing {shown} of {total}",
-    "emptyTitle": "No saved generations yet",
-    "emptyDescription": "Run your first image in Studio and it will appear here with its prompt and route details.",
-    "emptyAction": "Go to studio",
-    "loadMore": "Load more",
-    "loadingMore": "Loading...",
-    "endOfArchive": "That is the end of your archive.",
-    "syncPendingTitle": "Your archive is still syncing",
-    "syncPendingDescription": "We could not find an archive profile for this account yet. Return to the studio and refresh after Clerk sync completes.",
-    "syncPendingAction": "Return to studio",
-    "selectMode": "Select",
     "cancelSelect": "Cancel",
-    "selectedCount": "{count} selected",
-    "batchMakePublic": "Make public",
-    "batchMakePrivate": "Make private",
-    "batchDelete": "Delete",
-    "batchDeleteConfirmTitle": "Delete {count} generations?",
-    "batchDeleteConfirmDescription": "This will permanently delete the selected generations and their stored files.",
-    "batchSuccess": "Batch operation completed",
-    "batchFailed": "Batch operation failed",
     "projectFilterLabel": "Project",
     "projectAll": "All",
     "projectNone": "Unassigned",
@@ -750,10 +716,7 @@
     "projectCreateSubmit": "Create",
     "projectCreating": "Creating…",
     "projectCreated": "Project created",
-    "projectCreateFailed": "Failed to create project",
-    "assetBrowserSearch": "Search assets…",
-    "assetBrowserEmpty": "No assets to show here yet",
-    "assetBrowserLoading": "Loading…"
+    "projectCreateFailed": "Failed to create project"
   },
   "ImageChip": {
     "label": "Image",

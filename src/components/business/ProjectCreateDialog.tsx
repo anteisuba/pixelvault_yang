@@ -28,7 +28,7 @@ interface ProjectCreateDialogProps {
 
 /**
  * ProjectCreateDialog — minimal create-project flow used wherever the user
- * starts a new project (Profile chip filter, Studio sidebar future, etc).
+ * starts a new project (asset browser chip filter, Studio sidebar future, etc).
  *
  * Calls createProjectAPI directly instead of useProjects so any caller's
  * own useProjects instance can react to onCreated and refresh — sharing

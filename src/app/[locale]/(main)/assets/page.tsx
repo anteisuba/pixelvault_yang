@@ -47,12 +47,9 @@ export async function generateMetadata({
 }
 
 /**
- * /assets — Krea-style asset browser. Replaces /profile in the sidebar's
- * main nav (Phase 7) but keeps the same data sources (getPublicGenerations
- * scoped to the signed-in user). The Krea-aligned right sidebar with
- * All / Favorites / Tools / Folders lands in Phase 7.3 — for now this page
- * reuses ProfileFeed so the Project chip filter + create dialog work
- * unchanged.
+ * /assets — Krea-style asset browser for signed-in asset management.
+ * It uses the same user-scoped generation source as the legacy private
+ * works feed, with sections for favorites, published assets, tools, and folders.
  */
 export default async function AssetsPage({
   params,

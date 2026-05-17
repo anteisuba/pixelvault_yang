@@ -17,12 +17,12 @@ test.describe('Studio Auth Guard', () => {
     ).toBeTruthy()
   })
 
-  test('redirects unauthenticated users away from /profile', async ({
-    page,
-  }) => {
-    await page.goto('/en/profile')
-    const finalUrl = page.url()
-    expect(finalUrl).not.toContain('/profile')
+  test('shows signed-out asset gate without auth', async ({ page }) => {
+    const response = await page.goto('/en/assets')
+    expect(response?.status()).toBeLessThan(400)
+    await expect(
+      page.getByRole('heading', { name: 'Sign in required' }),
+    ).toBeVisible()
   })
 
   test('allows access to public gallery without auth', async ({ page }) => {

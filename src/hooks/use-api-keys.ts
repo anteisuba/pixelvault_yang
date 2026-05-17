@@ -264,7 +264,7 @@ export function useApiKeys({
     setIsLoading(true)
     setError(null)
 
-    // Defer to idle so gallery/profile/studio images win the connection
+    // Defer to idle so gallery/assets/studio images win the connection
     // pool on first paint. API key list is not visible until the user
     // opens settings, so a ~500ms delay is invisible.
     const cancelDefer = deferToIdle(() => {

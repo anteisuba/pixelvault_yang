@@ -176,8 +176,7 @@ function AppSidebarContent() {
       icon: FileText,
     },
     {
-      // Krea-style asset browser. This is the private asset-management surface;
-      // the old /profile page now redirects to the public creator homepage.
+      // Krea-style asset browser. This is the private asset-management surface.
       href: ROUTES.ASSETS,
       label: t('links.assets'),
       icon: Library,

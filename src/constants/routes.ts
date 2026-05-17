@@ -24,7 +24,7 @@ export const ROUTES = {
   STUDIO_ANALYZE: '/studio/analyze',
   STUDIO_LORA: '/studio/lora',
   STUDIO_NODE: '/studio/node',
-  /** Krea-style Asset browser — superset of the legacy /profile feed */
+  /** Krea-style private asset browser */
   ASSETS: '/assets',
   CARDS: '/cards',
   PROMPTS: '/prompts',

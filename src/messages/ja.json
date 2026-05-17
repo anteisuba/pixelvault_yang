@@ -206,12 +206,42 @@
       "gallery": "ギャラリー"
     },
     "hero": {
-      "eyebrow": "22 の画像モデル",
-      "title": "Text to Image",
-      "subtitle": "Flux、Gemini、OpenAI、NovelAI、Recraft、Ideogram など 22 の画像モデルを 1 つのスタジオから。プロバイダーごとにアカウントを使い分ける必要はありません。手動で選ぶか、Arena でブラインド比較して ELO に任せる。"
+      "eyebrow": "個人 AI ギャラリー · 38 モデル",
+      "title": "すべての生成を、自分のアーカイブへ。",
+      "subtitle": "38 の画像・動画・音声モデルを 1 つのキャンバスから。自分の API キーで、生成画像・動画・プロンプト・シードをすべて自分の R2 に永久保存。"
     },
     "badges": {
       "soon": "近日公開"
+    },
+    "showcaseRail": {
+      "title": "アーカイブはリアルタイムで育つ",
+      "description": "最近アーカイブに残った作品の横スクロール — プロンプトもモデルもワンクリックで再利用。"
+    },
+    "bottomCta": {
+      "eyebrow": "アーカイブを始める",
+      "title": "次の 1 枚は、あなた自身のものに。",
+      "description": "5 分で最初の API キーを接続 — 38 モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
+      "primary": "無料でアーカイブを始める",
+      "secondary": "モデル一覧を見る"
+    },
+    "footer": {
+      "tagline": "個人 AI ギャラリー · 自分のキーで · 永久保存",
+      "sections": {
+        "product": "プロダクト",
+        "resources": "リソース",
+        "legal": "法的事項"
+      },
+      "links": {
+        "studio": "スタジオ",
+        "gallery": "ギャラリー",
+        "arena": "Arena",
+        "models": "モデル",
+        "github": "GitHub",
+        "docs": "ドキュメント",
+        "privacy": "プライバシー",
+        "terms": "利用規約"
+      },
+      "copyright": "© {year} PixelVault · BYOK · 永久アーカイブ"
     },
     "featureSections": {
       "imageEditing": {
@@ -632,24 +662,6 @@
     "errorPlayback": "この動画を再生できません。もう一度お試しください。"
   },
   "GalleryPage": {
-    "heroEyebrow": "ギャラリー",
-    "heroTitle": "公開アーカイブ",
-    "heroDescription": "各画像にプロンプト、モデル、生成情報を付属。",
-    "actions": {
-      "primarySignedIn": "スタジオを開く",
-      "primarySignedOut": "サインインして作成する",
-      "secondarySignedIn": "自分のアーカイブを見る",
-      "secondarySignedOut": "ホームに戻る"
-    },
-    "metrics": {
-      "archiveSizeLabel": "公開アーカイブ",
-      "archiveSizeValue": "{count, plural, =0 {公開作品はまだありません} one {# 件の公開画像} other {# 件の公開画像}}",
-      "modelCoverageLabel": "現在の対応範囲",
-      "modelCoverageValue": "{count, plural, one {# 個の組み込み画像モデル} other {# 個の組み込み画像モデル}}",
-      "curationLabel": "並び順",
-      "curationValue": "新しい順",
-      "inlineSummary": "{imageCount}枚の公開画像、{modelCount}の組み込みモデル"
-    },
     "filters": {
       "searchLabel": "アーカイブを検索",
       "searchPlaceholder": "プロンプトで検索...",
@@ -692,53 +704,7 @@
     "endOfArchive": "現在の公開アーカイブはここまでです。"
   },
   "LibraryPage": {
-    "heroEyebrow": "マイアーカイブ",
-    "heroTitle": "マイ作品",
-    "heroDescription": "生成履歴とAPI使用量。",
-    "actions": {
-      "primary": "新しく生成する",
-      "secondary": "公開ギャラリーを見る",
-      "signOut": "サインアウト"
-    },
-    "metrics": {
-      "totalWorksLabel": "作品数",
-      "totalWorksValue": "{count, plural, =0 {作品なし} other {#件の作品}}",
-      "imagesLabel": "画像",
-      "imagesValue": "{count, plural, =0 {画像なし} other {#件の画像}}",
-      "videosLabel": "動画",
-      "videosValue": "{count, plural, =0 {動画なし} other {#件の動画}}",
-      "publicWorksLabel": "公開",
-      "publicWorksValue": "{count, plural, =0 {公開なし} other {#件公開}}",
-      "privateWorksLabel": "非公開",
-      "privateWorksValue": "{count, plural, =0 {非公開なし} other {#件非公開}}",
-      "inlineSummary": "{total, plural, =0 {作品なし} other {{total}作品}} · 公開{publicCount} · 非公開{privateCount} · {requestCount}リクエスト使用",
-      "requestsLabel": "APIリクエスト"
-    },
-    "collectionEyebrow": "アーカイブ",
-    "collectionTitle": "最近の生成",
-    "collectionDescription": "",
-    "feedLabel": "マイアーカイブフィード",
-    "itemFallbackLabel": "アーカイブ項目",
-    "collectionCount": "{shown} / {total} 件を表示中",
-    "emptyTitle": "保存済み生成結果はまだありません",
-    "emptyDescription": "まずは Studio で 1 枚生成してください。プロンプトやルート情報と一緒にここへ保存されます。",
-    "emptyAction": "スタジオへ移動",
-    "loadMore": "もっと読み込む",
-    "loadingMore": "読み込み中...",
-    "endOfArchive": "これがアーカイブの最後です。",
-    "syncPendingTitle": "アーカイブを同期しています",
-    "syncPendingDescription": "このアカウントに対応するアーカイブプロフィールがまだ見つかりません。Clerk の同期完了後に Studio に戻って再読み込みしてください。",
-    "syncPendingAction": "スタジオに戻る",
-    "selectMode": "選択",
     "cancelSelect": "キャンセル",
-    "selectedCount": "{count}件選択中",
-    "batchMakePublic": "公開にする",
-    "batchMakePrivate": "非公開にする",
-    "batchDelete": "削除",
-    "batchDeleteConfirmTitle": "{count}件を削除しますか？",
-    "batchDeleteConfirmDescription": "選択した生成結果とそのファイルが完全に削除されます。",
-    "batchSuccess": "一括操作が完了しました",
-    "batchFailed": "一括操作に失敗しました",
     "projectFilterLabel": "プロジェクト",
     "projectAll": "すべて",
     "projectNone": "未分類",
@@ -750,10 +716,7 @@
     "projectCreateSubmit": "作成",
     "projectCreating": "作成中...",
     "projectCreated": "プロジェクトを作成しました",
-    "projectCreateFailed": "プロジェクトの作成に失敗しました",
-    "assetBrowserSearch": "アセットを検索...",
-    "assetBrowserEmpty": "ここに表示するアセットはありません",
-    "assetBrowserLoading": "読み込み中..."
+    "projectCreateFailed": "プロジェクトの作成に失敗しました"
   },
   "ImageChip": {
     "label": "画像",

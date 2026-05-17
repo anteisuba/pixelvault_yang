@@ -206,12 +206,42 @@
       "gallery": "画廊"
     },
     "hero": {
-      "eyebrow": "22 个图像模型",
-      "title": "文生图",
-      "subtitle": "22 个图像模型一站式接入 — Flux、Gemini、OpenAI、NovelAI、Recraft、Ideogram 一应俱全，不用为每家分别开账户。手动挑模型，或在 Arena 盲测让 ELO 替你定夺。"
+      "eyebrow": "个人 AI 画廊 · 38 个模型一站式",
+      "title": "把每一次生成，留进自己的档案。",
+      "subtitle": "38 个图像、视频、语音模型一处接入，自带 API key — 每张图、每段视频、每条 prompt 与 seed 都永久落到你自己的 R2。"
     },
     "badges": {
       "soon": "即将上线"
+    },
+    "showcaseRail": {
+      "title": "社区档案，正在生长",
+      "description": "实时滚动展示最近留进归档的精选生成 — prompt 与模型都可一键复用。"
+    },
+    "bottomCta": {
+      "eyebrow": "开始建档",
+      "title": "你的下一张图，应该属于你自己。",
+      "description": "5 分钟接好你的第一把 API key，让 38 个模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
+      "primary": "免费开始建档",
+      "secondary": "查看模型阵容"
+    },
+    "footer": {
+      "tagline": "个人 AI 画廊 · 自带 key · 永久归档",
+      "sections": {
+        "product": "产品",
+        "resources": "资源",
+        "legal": "条款"
+      },
+      "links": {
+        "studio": "工作台",
+        "gallery": "画廊",
+        "arena": "Arena 擂台",
+        "models": "模型阵容",
+        "github": "GitHub",
+        "docs": "文档",
+        "privacy": "隐私",
+        "terms": "服务条款"
+      },
+      "copyright": "© {year} PixelVault · BYOK · 永久归档"
     },
     "featureSections": {
       "imageEditing": {
@@ -632,24 +662,6 @@
     "errorPlayback": "无法播放此视频，请重试。"
   },
   "GalleryPage": {
-    "heroEyebrow": "画廊",
-    "heroTitle": "公开作品档案",
-    "heroDescription": "每张图附带提示词、模型和生成信息。",
-    "actions": {
-      "primarySignedIn": "打开工作台",
-      "primarySignedOut": "登录后开始创作",
-      "secondarySignedIn": "打开我的档案",
-      "secondarySignedOut": "返回首页"
-    },
-    "metrics": {
-      "archiveSizeLabel": "公开档案",
-      "archiveSizeValue": "{count, plural, =0 {还没有公开作品} one {# 张公开图像} other {# 张公开图像}}",
-      "modelCoverageLabel": "当前覆盖",
-      "modelCoverageValue": "{count, plural, one {# 个内置图像模型} other {# 个内置图像模型}}",
-      "curationLabel": "排序",
-      "curationValue": "按时间倒序",
-      "inlineSummary": "{imageCount} 张公开图片，涵盖 {modelCount} 个内置模型"
-    },
     "filters": {
       "searchLabel": "搜索档案",
       "searchPlaceholder": "按提示词搜索...",
@@ -692,53 +704,7 @@
     "endOfArchive": "这就是当前公开档案的末尾了。"
   },
   "LibraryPage": {
-    "heroEyebrow": "我的档案",
-    "heroTitle": "我的作品",
-    "heroDescription": "你的生成记录和 API 用量。",
-    "actions": {
-      "primary": "生成新图像",
-      "secondary": "浏览公共画廊",
-      "signOut": "退出登录"
-    },
-    "metrics": {
-      "totalWorksLabel": "总作品",
-      "totalWorksValue": "{count, plural, =0 {暂无作品} other {#件作品}}",
-      "imagesLabel": "图片",
-      "imagesValue": "{count, plural, =0 {暂无图片} other {#张图片}}",
-      "videosLabel": "视频",
-      "videosValue": "{count, plural, =0 {暂无视频} other {#个视频}}",
-      "publicWorksLabel": "公开",
-      "publicWorksValue": "{count, plural, =0 {暂无公开} other {#件公开}}",
-      "privateWorksLabel": "私密",
-      "privateWorksValue": "{count, plural, =0 {暂无私密} other {#件私密}}",
-      "inlineSummary": "{total, plural, =0 {暂无作品} other {{total} 个作品}} · {publicCount} 个公开 · {privateCount} 个私有 · 已用 {requestCount} 次请求",
-      "requestsLabel": "API请求"
-    },
-    "collectionEyebrow": "归档",
-    "collectionTitle": "最近生成",
-    "collectionDescription": "",
-    "feedLabel": "我的档案信息流",
-    "itemFallbackLabel": "档案项目",
-    "collectionCount": "已显示 {shown} / {total}",
-    "emptyTitle": "还没有保存的生成结果",
-    "emptyDescription": "先去 Studio 跑出第一张图像，它会连同提示词和路由信息一起出现在这里。",
-    "emptyAction": "前往工作台",
-    "loadMore": "加载更多",
-    "loadingMore": "加载中...",
-    "endOfArchive": "已经到达存档末尾。",
-    "syncPendingTitle": "你的档案还在同步中",
-    "syncPendingDescription": "当前还没有找到这个账号对应的档案资料。等待 Clerk 同步完成后，返回工作台再刷新一次。",
-    "syncPendingAction": "返回工作台",
-    "selectMode": "选择",
     "cancelSelect": "取消",
-    "selectedCount": "已选 {count} 项",
-    "batchMakePublic": "设为公开",
-    "batchMakePrivate": "设为私密",
-    "batchDelete": "删除",
-    "batchDeleteConfirmTitle": "删除 {count} 项？",
-    "batchDeleteConfirmDescription": "将永久删除所选的生成内容及其存储文件。",
-    "batchSuccess": "批量操作完成",
-    "batchFailed": "批量操作失败",
     "projectFilterLabel": "项目",
     "projectAll": "全部",
     "projectNone": "未分类",
@@ -750,10 +716,7 @@
     "projectCreateSubmit": "创建",
     "projectCreating": "创建中…",
     "projectCreated": "项目已创建",
-    "projectCreateFailed": "创建项目失败",
-    "assetBrowserSearch": "搜索资产…",
-    "assetBrowserEmpty": "这里还没有资产",
-    "assetBrowserLoading": "加载中…"
+    "projectCreateFailed": "创建项目失败"
   },
   "ImageChip": {
     "label": "图像",

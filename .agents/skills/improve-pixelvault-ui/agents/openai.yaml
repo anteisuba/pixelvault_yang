@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve PixelVault UI"
+  short_description: "Project UI workflow for PixelVault"
+  default_prompt: "Use $improve-pixelvault-ui to improve a PixelVault page or component."

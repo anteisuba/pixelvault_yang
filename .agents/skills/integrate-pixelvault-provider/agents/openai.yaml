@@ -1,0 +1,4 @@
+interface:
+  display_name: "Integrate PixelVault Provider"
+  short_description: "Model and provider integration workflow"
+  default_prompt: "Use $integrate-pixelvault-provider to add, update, or debug an AI model provider."

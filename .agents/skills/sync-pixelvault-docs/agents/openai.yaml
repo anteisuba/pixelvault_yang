@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync PixelVault Docs"
+  short_description: "Keep project maps and docs aligned"
+  default_prompt: "Use $sync-pixelvault-docs to update PixelVault documentation after a meaningful change."

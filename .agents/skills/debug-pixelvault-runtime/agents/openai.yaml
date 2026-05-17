@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug PixelVault Runtime"
+  short_description: "Runtime, build, and deploy triage"
+  default_prompt: "Use $debug-pixelvault-runtime to diagnose a PixelVault runtime, build, or deploy failure."

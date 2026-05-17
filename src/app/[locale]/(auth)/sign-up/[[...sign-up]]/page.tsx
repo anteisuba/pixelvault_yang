@@ -38,7 +38,7 @@ export default async function SignUpPage({ params }: SignUpPageProps) {
   })
   const studioPath = getPathname({
     locale,
-    href: ROUTES.STUDIO,
+    href: ROUTES.STUDIO_IMAGE,
   })
 
   return (

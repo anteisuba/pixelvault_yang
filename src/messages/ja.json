@@ -756,6 +756,8 @@
     "sidebarFolders": "フォルダ",
     "sidebarUnassigned": "未分類",
     "mobileSections": "セクション",
+    "mobileSectionPickerOpen": "変更",
+    "mobileSectionPickerClose": "完了",
     "folderCreate": "フォルダを作成",
     "folderRename": "名前を変更",
     "folderDelete": "削除",

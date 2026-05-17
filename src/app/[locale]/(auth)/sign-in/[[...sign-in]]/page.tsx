@@ -38,7 +38,7 @@ export default async function SignInPage({ params }: SignInPageProps) {
   })
   const studioPath = getPathname({
     locale,
-    href: ROUTES.STUDIO,
+    href: ROUTES.STUDIO_IMAGE,
   })
 
   return (

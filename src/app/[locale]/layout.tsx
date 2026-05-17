@@ -89,7 +89,7 @@ export default async function LocaleLayout({
   })
   const studioUrl = getPathname({
     locale,
-    href: ROUTES.STUDIO,
+    href: ROUTES.STUDIO_IMAGE,
   })
   const messages = await getMessages({ locale })
 

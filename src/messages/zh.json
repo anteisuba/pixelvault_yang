@@ -756,6 +756,8 @@
     "sidebarFolders": "文件夹",
     "sidebarUnassigned": "未分类",
     "mobileSections": "分组",
+    "mobileSectionPickerOpen": "更改",
+    "mobileSectionPickerClose": "完成",
     "folderCreate": "新建文件夹",
     "folderRename": "重命名",
     "folderDelete": "删除",

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CheckCircle2,
+  ChevronDown,
   Circle,
   Folder,
   FolderInput,
@@ -366,6 +367,7 @@ export function KreaAssetBrowser({
   // Picker mode (asset selector dialog) intentionally does NOT support
   // bulk selection — its click target must always resolve onSelect.
   const [selectionMode, setSelectionMode] = useState(false)
+  const [mobileSectionPickerOpen, setMobileSectionPickerOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -966,6 +968,46 @@ export function KreaAssetBrowser({
       onPrefetch: () => prefetchSection({ kind: 'project', id: project.id }),
     })),
   ]
+  const mobileFolderAction = (
+    <ProjectCreateDialog
+      onCreated={handleProjectCreated}
+      trigger={
+        <button
+          type="button"
+          aria-label={t('folderCreate')}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      }
+    />
+  )
+  const mobileSectionGroups: MobileSectionGroup[] = [
+    {
+      key: 'primary',
+      label: t('mobileSections'),
+      options: primaryMobileSections,
+    },
+    ...(!mediaType
+      ? [
+          {
+            key: 'tools',
+            label: t('sidebarTools'),
+            options: toolMobileSections,
+          },
+        ]
+      : []),
+    {
+      key: 'folders',
+      label: t('sidebarFolders'),
+      options: folderMobileSections,
+      action: mobileFolderAction,
+    },
+  ]
+  const activeMobileSection =
+    mobileSectionGroups
+      .flatMap((group) => group.options)
+      .find((option) => option.active) ?? primaryMobileSections[0]
 
   return (
     <div
@@ -1052,34 +1094,15 @@ export function KreaAssetBrowser({
             )}
           </div>
 
-          <div className="mb-4 grid gap-2 lg:hidden">
-            <MobileSectionRail
+          <div className="mb-4 lg:hidden">
+            <MobileSectionPicker
               label={t('mobileSections')}
-              options={primaryMobileSections}
-            />
-            {!mediaType && (
-              <MobileSectionRail
-                label={t('sidebarTools')}
-                options={toolMobileSections}
-              />
-            )}
-            <MobileSectionRail
-              label={t('sidebarFolders')}
-              options={folderMobileSections}
-              action={
-                <ProjectCreateDialog
-                  onCreated={handleProjectCreated}
-                  trigger={
-                    <button
-                      type="button"
-                      aria-label={t('folderCreate')}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                    >
-                      <Plus className="size-3.5" />
-                    </button>
-                  }
-                />
-              }
+              activeOption={activeMobileSection}
+              groups={mobileSectionGroups}
+              expanded={mobileSectionPickerOpen}
+              openLabel={t('mobileSectionPickerOpen')}
+              closeLabel={t('mobileSectionPickerClose')}
+              onExpandedChange={setMobileSectionPickerOpen}
             />
           </div>
 
@@ -1621,13 +1644,102 @@ interface MobileSectionOption {
   onPrefetch?: () => void
 }
 
-interface MobileSectionRailProps {
+interface MobileSectionGroup {
+  key: string
   label: string
   options: MobileSectionOption[]
   action?: React.ReactNode
 }
 
-function MobileSectionRail({ label, options, action }: MobileSectionRailProps) {
+interface MobileSectionPickerProps {
+  label: string
+  activeOption: MobileSectionOption
+  groups: MobileSectionGroup[]
+  expanded: boolean
+  openLabel: string
+  closeLabel: string
+  onExpandedChange: (expanded: boolean) => void
+}
+
+function MobileSectionPicker({
+  label,
+  activeOption,
+  groups,
+  expanded,
+  openLabel,
+  closeLabel,
+  onExpandedChange,
+}: MobileSectionPickerProps) {
+  return (
+    <section
+      aria-label={label}
+      className="rounded-2xl border border-border/70 bg-card/80 p-2 shadow-sm"
+    >
+      <button
+        type="button"
+        onClick={() => onExpandedChange(!expanded)}
+        aria-expanded={expanded}
+        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+            {activeOption.icon}
+          </span>
+          <span className="grid min-w-0 gap-0.5">
+            <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
+              {label}
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
+              <span className="truncate">{activeOption.label}</span>
+              {typeof activeOption.count === 'number' && (
+                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {activeOption.count}
+                </span>
+              )}
+            </span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          {expanded ? closeLabel : openLabel}
+          <ChevronDown
+            className={cn(
+              'size-3.5 transition-transform',
+              expanded && 'rotate-180',
+            )}
+          />
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="mt-2 grid gap-3 border-t border-border/60 pt-3">
+          {groups.map((group) => (
+            <MobileSectionRail
+              key={group.key}
+              label={group.label}
+              options={group.options}
+              action={group.action}
+              onOptionSelected={() => onExpandedChange(false)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+interface MobileSectionRailProps {
+  label: string
+  options: MobileSectionOption[]
+  action?: React.ReactNode
+  onOptionSelected?: () => void
+}
+
+function MobileSectionRail({
+  label,
+  options,
+  action,
+  onOptionSelected,
+}: MobileSectionRailProps) {
   return (
     <section className="grid gap-1.5" aria-label={label}>
       <div className="flex min-h-7 items-center justify-between gap-2">
@@ -1645,7 +1757,10 @@ function MobileSectionRail({ label, options, action }: MobileSectionRailProps) {
           <button
             key={option.key}
             type="button"
-            onClick={option.onClick}
+            onClick={() => {
+              option.onClick()
+              onOptionSelected?.()
+            }}
             onMouseEnter={option.onPrefetch}
             onFocus={option.onPrefetch}
             aria-pressed={option.active}

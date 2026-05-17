@@ -756,6 +756,8 @@
     "sidebarFolders": "Folders",
     "sidebarUnassigned": "Unassigned",
     "mobileSections": "Sections",
+    "mobileSectionPickerOpen": "Change",
+    "mobileSectionPickerClose": "Done",
     "folderCreate": "Create folder",
     "folderRename": "Rename",
     "folderDelete": "Delete",

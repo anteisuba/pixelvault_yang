@@ -163,6 +163,31 @@ describe('POST /api/studio/generate', () => {
     )
   })
 
+  it('passes prompt template lineage when provided', async () => {
+    const bodyWithRecipe = {
+      ...QUICK_MODE_BODY,
+      recipeUsage: {
+        recipeId: 'recipe_abc',
+        recipeVersion: 1,
+        useMode: 'apply' as const,
+      },
+    }
+    const req = createPOST('/api/studio/generate', bodyWithRecipe)
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(mockCompileAndGenerate).toHaveBeenCalledWith(
+      'clerk_test_user',
+      expect.objectContaining({
+        recipeUsage: {
+          recipeId: 'recipe_abc',
+          recipeVersion: 1,
+          useMode: 'apply',
+        },
+      }),
+    )
+  })
+
   it('returns service error with correct status', async () => {
     const serviceError = Object.assign(new Error('Model unavailable'), {
       code: 'UNSUPPORTED_MODEL',

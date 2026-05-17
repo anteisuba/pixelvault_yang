@@ -116,6 +116,10 @@
       "title": "Gallery — PixelVault",
       "description": "Browse the public archive of AI-generated images."
     },
+    "prompts": {
+      "title": "Prompt Engineering — PixelVault",
+      "description": "Manage callable prompt templates and review every asset each template has produced."
+    },
     "profile": {
       "title": "Profile — PixelVault",
       "description": "Your generation history, credits, and saved API routes."
@@ -155,6 +159,7 @@
     "mobileNavigation": "Mobile navigation",
     "links": {
       "gallery": "Gallery",
+      "prompts": "Prompts",
       "studio": "Studio",
       "arena": "Arena",
       "storyboard": "Stories",
@@ -426,6 +431,11 @@
     "pauseAfterSentence2": "After sentence 2",
     "pauseAfterSentence3": "After sentence 3",
     "pauseMarkersHint": "Adds a short break after the selected sentence in multi-sentence narration.",
+    "pronunciation": "Pronunciation dictionary",
+    "addWord": "Add word",
+    "word": "Word",
+    "pronounceAs": "Pronounce as",
+    "deleteWord": "Delete word",
     "advanced": "Advanced / Experimental",
     "advancedHint": "Leave these defaults for normal narration. Tune them for video dubbing, subtitles, or post-production.",
     "format": "Format",
@@ -851,6 +861,39 @@
     "densityComfortable": "Comfortable",
     "densityNormal": "Normal",
     "densityCompact": "Compact"
+  },
+  "PromptLibrary": {
+    "title": "Prompt Engineering",
+    "description": "Save proven prompts as callable templates and review the assets each template produces.",
+    "emptyTitle": "No prompt templates yet",
+    "emptyDescription": "Save strong prompts from asset details or generation results; they become reusable creative recipes.",
+    "openAssets": "Open assets",
+    "openStudio": "Open Studio",
+    "useInStudio": "Use in Studio",
+    "copyPrompt": "Copy prompt",
+    "promptCopied": "Prompt copied",
+    "viewDetail": "View details",
+    "outputTypeImage": "Image",
+    "outputTypeVideo": "Video",
+    "outputTypeAudio": "Audio",
+    "outputType3d": "3D",
+    "sourceWork": "Source work",
+    "provider": "Provider",
+    "createdAt": "Created",
+    "generatedAssets": "Generated assets",
+    "generatedAssetsDescription": "These assets come from this prompt template, including the original source and later template runs.",
+    "noGeneratedAssets": "No new assets have been generated from this template yet.",
+    "templateMeta": "{model} · version {version}",
+    "saveAsTemplate": "Save as prompt template",
+    "saveTemplateSuccess": "Saved to Prompt Engineering",
+    "saveTemplateFailed": "Failed to save prompt",
+    "templatePicker": "Templates",
+    "templatePickerTitle": "Use a prompt template",
+    "replacePrompt": "Replace prompt",
+    "insertPrompt": "Insert prompt",
+    "applyRecipe": "Apply full recipe",
+    "recentTemplates": "Recent templates",
+    "templateCount": "{count} templates"
   },
   "Collections": {
     "title": "Collections",

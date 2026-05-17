@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
+import { z } from 'zod'
 
 import { PAGINATION } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
@@ -10,8 +11,15 @@ import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { GallerySearchSchema } from '@/types'
-import { getPublicGenerationPage } from '@/services/generation.service'
+import {
+  getGenerationByIdForUser,
+  getPublicGenerationPage,
+} from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
+
+const AssetsPageSearchSchema = GallerySearchSchema.extend({
+  generationId: z.string().trim().max(64).optional(),
+})
 
 interface AssetsPageProps {
   params: Promise<{ locale: AppLocale }>
@@ -21,6 +29,7 @@ interface AssetsPageProps {
     sort?: string
     type?: string
     projectId?: string
+    generationId?: string
   }>
 }
 
@@ -50,7 +59,7 @@ export default async function AssetsPage({
 }: AssetsPageProps) {
   const { locale: _locale } = await params
   void _locale
-  const filterResult = GallerySearchSchema.safeParse(await searchParams)
+  const filterResult = AssetsPageSearchSchema.safeParse(await searchParams)
   const initialFilters = filterResult.success
     ? {
         search: filterResult.data.search ?? '',
@@ -97,6 +106,10 @@ export default async function AssetsPage({
   }
 
   const user = await ensureUser(clerkId)
+  const initialSelectedGeneration =
+    filterResult.success && filterResult.data.generationId
+      ? await getGenerationByIdForUser(filterResult.data.generationId, user.id)
+      : null
 
   const initialPage = await getPublicGenerationPage({
     page: PAGINATION.DEFAULT_PAGE,
@@ -118,6 +131,7 @@ export default async function AssetsPage({
       initialNextCursor={initialPage.nextCursor}
       initialTotal={filteredTotal}
       initialFilters={initialFilters}
+      initialSelectedGeneration={initialSelectedGeneration}
     />
   )
 }

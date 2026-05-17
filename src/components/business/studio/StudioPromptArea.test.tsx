@@ -139,6 +139,14 @@ vi.mock('@/components/business/studio/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
 }))
 
+vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
+  PromptTemplatePicker: () => (
+    <button type="button" aria-label="templatePicker">
+      templatePicker
+    </button>
+  ),
+}))
+
 vi.mock('@/components/ui/prompt-input', () => ({
   PromptInput: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   PromptInputTextarea: (props: ComponentProps<'textarea'>) => (
@@ -186,6 +194,7 @@ function setupStudioForm(
     workflowMode: 'quick',
     selectedOptionId: 'video-option',
     prompt: 'Make a cinematic establishing shot',
+    recipeUsage: null,
     aspectRatio: '16:9',
     advancedParams: {},
     tokenInput: '',

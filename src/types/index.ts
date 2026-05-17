@@ -164,6 +164,14 @@ export interface ActiveRun {
 
 // ─── Generate Request ─────────────────────────────────────────────
 
+export const RecipeUsageSchema = z.object({
+  recipeId: z.string().trim().min(1),
+  recipeVersion: z.number().int().positive().optional(),
+  useMode: z.enum(['replace', 'insert', 'apply']),
+})
+
+export type RecipeUsage = z.infer<typeof RecipeUsageSchema>
+
 /** Zod schema for image generation request validation */
 export const GenerateRequestSchema = z.object({
   /** User's text prompt describing the desired image */
@@ -188,6 +196,8 @@ export const GenerateRequestSchema = z.object({
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
   /** Optional project ID to associate this generation with */
   projectId: z.string().trim().min(1).optional(),
+  /** Optional prompt template usage metadata for generation lineage */
+  recipeUsage: RecipeUsageSchema.optional(),
 })
 
 /** Image generation request type (derived from Zod schema) */
@@ -2644,6 +2654,8 @@ export const StudioGenerateSchema = z
     runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
     /** B5: Position within run group (0-based) */
     runGroupIndex: z.number().int().min(0).optional(),
+    /** Prompt template usage metadata for generation lineage */
+    recipeUsage: RecipeUsageSchema.optional(),
   })
   .refine((data) => !!(data.modelId || data.styleCardId), {
     message: 'Either modelId or styleCardId is required',
@@ -2909,6 +2921,15 @@ export const CreateRecipeRequestSchema = z.object({
 
 export type CreateRecipeRequest = z.infer<typeof CreateRecipeRequestSchema>
 
+export const CreateRecipeFromGenerationSchema = z.object({
+  generationId: z.string().trim().min(1),
+  name: z.string().trim().max(200).optional(),
+})
+
+export type CreateRecipeFromGenerationRequest = z.infer<
+  typeof CreateRecipeFromGenerationSchema
+>
+
 export const ListRecipesQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(20),
@@ -2922,11 +2943,17 @@ export type RecipeRecord = {
   userId: string
   outputType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D'
   name: string
+  userIntent?: unknown
   compiledPrompt: string
   negativePrompt: string | null
   modelId: string
   provider: string
+  params?: unknown
+  referenceAssets?: unknown
+  seed?: string | number | bigint | null
+  parentGenerationId: string | null
   version: number
+  evaluationSummary?: unknown
   isDeleted: boolean
   createdAt: string
   updatedAt: string

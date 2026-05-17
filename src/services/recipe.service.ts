@@ -2,20 +2,154 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { Prisma, Recipe } from '@/lib/generated/prisma/client'
+import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
-import type { CreateRecipeRequest } from '@/types'
+import {
+  GenerationSnapshotSchema,
+  type CreateRecipeFromGenerationRequest,
+  type CreateRecipeRequest,
+  type GenerationRecord,
+  type RecipeUsage,
+} from '@/types'
 
 export interface ListRecipesResult {
   recipes: Recipe[]
   total: number
 }
 
+const RECIPE_GENERATION_SELECT = {
+  id: true,
+  createdAt: true,
+  outputType: true,
+  status: true,
+  url: true,
+  storageKey: true,
+  mimeType: true,
+  thumbnailUrl: true,
+  thumbnailStorageKey: true,
+  previewUrl: true,
+  previewStorageKey: true,
+  width: true,
+  height: true,
+  duration: true,
+  referenceImageUrl: true,
+  modelUrl: true,
+  modelStorageKey: true,
+  prompt: true,
+  negativePrompt: true,
+  model: true,
+  provider: true,
+  requestCount: true,
+  isFreeGeneration: true,
+  isPublic: true,
+  isPromptPublic: true,
+  isFeatured: true,
+  userId: true,
+  projectId: true,
+  characterCardId: true,
+  cardRecipeId: true,
+  snapshot: true,
+  seed: true,
+  runGroupId: true,
+  runGroupType: true,
+  runGroupIndex: true,
+  isWinner: true,
+} as const satisfies Prisma.GenerationSelect
+
 function toPrismaJson(value: unknown): Prisma.InputJsonValue | undefined {
+  if (value == null) return undefined
   const serialized = JSON.stringify(value)
   if (!serialized) return undefined
   return JSON.parse(serialized) as Prisma.InputJsonValue
+}
+
+function getRecipeNameFromGeneration(
+  generation: Pick<GenerationRecord, 'prompt' | 'model'>,
+): string {
+  const compactPrompt = generation.prompt.replace(/\s+/g, ' ').trim()
+  if (!compactPrompt) return generation.model
+  return compactPrompt.length > 48
+    ? `${compactPrompt.slice(0, 45)}...`
+    : compactPrompt
+}
+
+function getGenerationRecipeParams(generation: {
+  snapshot?: unknown
+}): Record<string, unknown> | undefined {
+  const parsed = GenerationSnapshotSchema.safeParse(generation.snapshot)
+  if (!parsed.success) return undefined
+
+  return {
+    aspectRatio: parsed.data.aspectRatio,
+    advancedParams: parsed.data.advancedParams,
+  }
+}
+
+function getGenerationReferenceAssets(generation: {
+  referenceImageUrl?: string | null
+  snapshot?: unknown
+}): Array<{ url: string; role: 'composition' }> | undefined {
+  const parsed = GenerationSnapshotSchema.safeParse(generation.snapshot)
+  const referenceImages = parsed.success
+    ? parsed.data.referenceImages
+    : generation.referenceImageUrl
+      ? [generation.referenceImageUrl]
+      : undefined
+
+  if (!referenceImages || referenceImages.length === 0) return undefined
+
+  return referenceImages
+    .filter((url): url is string => typeof url === 'string' && url.length > 0)
+    .slice(0, 5)
+    .map((url) => ({ url, role: 'composition' as const }))
+}
+
+export function buildRecipeSnapshot(
+  recipe: Recipe,
+  usage: RecipeUsage,
+): Prisma.InputJsonValue {
+  return toPrismaJson({
+    sourceType: 'prompt_template',
+    recipeId: recipe.id,
+    recipeVersion: usage.recipeVersion ?? recipe.version,
+    useMode: usage.useMode,
+    name: recipe.name,
+    outputType: recipe.outputType,
+    compiledPrompt: recipe.compiledPrompt,
+    negativePrompt: recipe.negativePrompt,
+    modelId: recipe.modelId,
+    provider: recipe.provider,
+    params: recipe.params,
+    referenceAssets: recipe.referenceAssets,
+    parentGenerationId: recipe.parentGenerationId,
+    appliedAt: new Date().toISOString(),
+  })!
+}
+
+export async function buildRecipeSnapshotForUser(
+  userId: string,
+  usage: RecipeUsage,
+): Promise<Prisma.InputJsonValue> {
+  const recipe = await db.recipe.findFirst({
+    where: {
+      id: usage.recipeId,
+      userId,
+      isDeleted: false,
+    },
+  })
+
+  if (!recipe) {
+    throw new ApiRequestError(
+      'RECIPE_NOT_FOUND',
+      404,
+      'errors.recipes.notFound',
+      'Recipe not found',
+    )
+  }
+
+  return buildRecipeSnapshot(recipe, usage)
 }
 
 export async function createRecipe(
@@ -77,6 +211,98 @@ export async function listRecipes(
   ])
 
   return { recipes, total }
+}
+
+export async function createRecipeFromGeneration(
+  clerkId: string,
+  data: CreateRecipeFromGenerationRequest,
+): Promise<Recipe> {
+  const user = await ensureUser(clerkId)
+  const generation = await db.generation.findFirst({
+    where: {
+      id: data.generationId,
+      userId: user.id,
+    },
+  })
+
+  if (!generation) {
+    throw new ApiRequestError(
+      'GENERATION_NOT_FOUND',
+      404,
+      'errors.generation.notFound',
+      'Generation not found',
+    )
+  }
+
+  const recipe = await db.recipe.create({
+    data: {
+      userId: user.id,
+      outputType: generation.outputType,
+      name:
+        data.name?.trim() ||
+        getRecipeNameFromGeneration({
+          prompt: generation.prompt,
+          model: generation.model,
+        }),
+      compiledPrompt: generation.prompt,
+      negativePrompt: generation.negativePrompt,
+      modelId: generation.model,
+      provider: generation.provider,
+      params: toPrismaJson(getGenerationRecipeParams(generation)),
+      referenceAssets: toPrismaJson(getGenerationReferenceAssets(generation)),
+      seed: typeof generation.seed === 'bigint' ? generation.seed : undefined,
+      parentGenerationId: generation.id,
+    },
+  })
+
+  try {
+    await updatePreferenceOnRecipeSaved(user.id, recipe)
+  } catch (error) {
+    logger.warn('Recipe preference update failed', {
+      recipeId: recipe.id,
+      userId: user.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  return recipe
+}
+
+export async function listRecipeGenerations(
+  clerkId: string,
+  recipeId: string,
+): Promise<GenerationRecord[]> {
+  const user = await ensureUser(clerkId)
+  const recipe = await db.recipe.findFirst({
+    where: {
+      id: recipeId,
+      userId: user.id,
+      isDeleted: false,
+    },
+  })
+
+  if (!recipe) return []
+
+  const generations = await db.generation.findMany({
+    where: {
+      userId: user.id,
+      OR: [
+        ...(recipe.parentGenerationId
+          ? [{ id: recipe.parentGenerationId }]
+          : []),
+        {
+          recipeSnapshot: {
+            path: ['recipeId'],
+            equals: recipe.id,
+          },
+        },
+      ],
+    },
+    select: RECIPE_GENERATION_SELECT,
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return generations
 }
 
 export async function getRecipe(

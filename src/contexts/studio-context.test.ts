@@ -23,6 +23,7 @@ function makeInitialState(
     workflowMode: 'quick',
     selectedOptionId: null,
     prompt: '',
+    recipeUsage: null,
     aspectRatio: '1:1',
     advancedParams: {},
     tokenInput: '',
@@ -239,6 +240,39 @@ describe('studioFormReducer', () => {
       payload: '',
     })
     expect(next.prompt).toBe('')
+  })
+
+  it('SET_RECIPE_USAGE stores prompt template lineage', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_RECIPE_USAGE',
+      payload: {
+        recipeId: 'recipe_abc',
+        recipeVersion: 2,
+        useMode: 'apply',
+      },
+    })
+
+    expect(next.recipeUsage).toEqual({
+      recipeId: 'recipe_abc',
+      recipeVersion: 2,
+      useMode: 'apply',
+    })
+  })
+
+  it('SET_SELECTED_WORKFLOW_ID clears recipe lineage when switching media group', () => {
+    const state = makeInitialState({
+      recipeUsage: {
+        recipeId: 'recipe_abc',
+        useMode: 'apply',
+      },
+    })
+    const next = studioFormReducer(state, {
+      type: 'SET_SELECTED_WORKFLOW_ID',
+      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    })
+
+    expect(next.recipeUsage).toBeNull()
   })
 
   it('REQUEST_GENERATE increments generateRequestId', () => {

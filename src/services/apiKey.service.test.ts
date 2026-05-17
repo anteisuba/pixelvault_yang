@@ -4,6 +4,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 
 const mockFindUnique = vi.hoisted(() => vi.fn())
+const mockUpsert = vi.hoisted(() => vi.fn())
 const mockDecryptApiKey = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/logger', () => ({
@@ -14,6 +15,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     userApiKey: {
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
+      upsert: (...args: unknown[]) => mockUpsert(...args),
     },
   },
 }))
@@ -23,7 +25,7 @@ vi.mock('@/lib/crypto', () => ({
   decryptApiKey: (...args: unknown[]) => mockDecryptApiKey(...args),
 }))
 
-import { verifyApiKey } from './apiKey.service'
+import { createApiKey, verifyApiKey } from './apiKey.service'
 
 const KEY_RECORD = {
   id: 'key-1',
@@ -40,6 +42,79 @@ const KEY_RECORD = {
   isActive: true,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
 }
+
+const FISH_PROVIDER_CONFIG = {
+  label: 'Fish Audio',
+  baseUrl: 'https://api.fish.audio',
+}
+
+const FISH_KEY_RECORD = {
+  id: 'key-2',
+  userId: 'user-1',
+  modelId: 'fish-audio-s2-pro',
+  adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+  providerConfig: FISH_PROVIDER_CONFIG,
+  label: 'Fish Audio',
+  encryptedKey: 'encrypted:fish-api-key-1234',
+  maskedKey: 'fish****...****1234',
+  isActive: true,
+  createdAt: new Date('2026-01-02T00:00:00.000Z'),
+}
+
+describe('apiKey.service createApiKey', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUpsert.mockResolvedValue(FISH_KEY_RECORD)
+  })
+
+  it('updates the existing model key instead of failing on duplicate saves', async () => {
+    const result = await createApiKey(
+      'user-1',
+      'fish-audio-s2-pro',
+      AI_ADAPTER_TYPES.FISH_AUDIO,
+      FISH_PROVIDER_CONFIG,
+      'Fish Audio',
+      'fish-api-key-1234',
+    )
+
+    expect(mockUpsert).toHaveBeenCalledWith({
+      where: {
+        userId_adapterType_modelId: {
+          userId: 'user-1',
+          adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+          modelId: 'fish-audio-s2-pro',
+        },
+      },
+      create: {
+        userId: 'user-1',
+        modelId: 'fish-audio-s2-pro',
+        adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+        providerConfig: FISH_PROVIDER_CONFIG,
+        label: 'Fish Audio',
+        encryptedKey: 'encrypted:fish-api-key-1234',
+        maskedKey: 'fish****...****1234',
+        isActive: true,
+      },
+      update: {
+        providerConfig: FISH_PROVIDER_CONFIG,
+        label: 'Fish Audio',
+        encryptedKey: 'encrypted:fish-api-key-1234',
+        maskedKey: 'fish****...****1234',
+        isActive: true,
+      },
+    })
+    expect(result).toEqual({
+      id: 'key-2',
+      modelId: 'fish-audio-s2-pro',
+      adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+      providerConfig: FISH_PROVIDER_CONFIG,
+      label: 'Fish Audio',
+      maskedKey: 'fish****...****1234',
+      isActive: true,
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    })
+  })
+})
 
 describe('apiKey.service verifyApiKey', () => {
   beforeEach(() => {

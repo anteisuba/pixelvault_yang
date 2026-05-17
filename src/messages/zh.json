@@ -116,6 +116,10 @@
       "title": "画廊 — PixelVault",
       "description": "浏览 AI 生成图像的公开档案。"
     },
+    "prompts": {
+      "title": "提示词工程 — PixelVault",
+      "description": "管理可调用的提示词模板，并回看每条模板生成过的素材。"
+    },
     "profile": {
       "title": "个人中心 — PixelVault",
       "description": "你的生成历史、积分和保存的 API 路由。"
@@ -155,6 +159,7 @@
     "mobileNavigation": "移动端导航",
     "links": {
       "gallery": "画廊",
+      "prompts": "提示词",
       "studio": "工作台",
       "arena": "竞技场",
       "storyboard": "故事",
@@ -426,6 +431,11 @@
     "pauseAfterSentence2": "第 2 句后",
     "pauseAfterSentence3": "第 3 句后",
     "pauseMarkersHint": "用于多句旁白，在选中的句子后插入短暂停顿。",
+    "pronunciation": "发音词典",
+    "addWord": "添加词条",
+    "word": "词语",
+    "pronounceAs": "发音为",
+    "deleteWord": "删除词条",
     "advanced": "高级 / 实验",
     "advancedHint": "普通生成保持默认即可；视频配音、字幕或后期编辑时再调整。",
     "format": "格式",
@@ -851,6 +861,39 @@
     "densityComfortable": "宽松",
     "densityNormal": "标准",
     "densityCompact": "紧凑"
+  },
+  "PromptLibrary": {
+    "title": "提示词工程",
+    "description": "把验证过的 Prompt 保存成可调用模板，并查看每条模板产出的素材。",
+    "emptyTitle": "还没有提示词模板",
+    "emptyDescription": "从素材详情或生成结果中保存表现好的 Prompt，它们会变成可复用的创作配方。",
+    "openAssets": "打开素材",
+    "openStudio": "进入工作台",
+    "useInStudio": "用于 Studio",
+    "copyPrompt": "复制 Prompt",
+    "promptCopied": "Prompt 已复制",
+    "viewDetail": "查看详情",
+    "outputTypeImage": "图片",
+    "outputTypeVideo": "视频",
+    "outputTypeAudio": "音频",
+    "outputType3d": "3D",
+    "sourceWork": "来源作品",
+    "provider": "服务商",
+    "createdAt": "创建时间",
+    "generatedAssets": "生成素材",
+    "generatedAssetsDescription": "这些素材都来自这条提示词模板，包含原始来源作品和后续调用结果。",
+    "noGeneratedAssets": "还没有通过这条模板生成新的素材。",
+    "templateMeta": "{model} · 第 {version} 版",
+    "saveAsTemplate": "保存为提示词模板",
+    "saveTemplateSuccess": "已保存到提示词工程",
+    "saveTemplateFailed": "保存提示词失败",
+    "templatePicker": "模板",
+    "templatePickerTitle": "调用提示词模板",
+    "replacePrompt": "替换提示词",
+    "insertPrompt": "插入提示词",
+    "applyRecipe": "应用整套配方",
+    "recentTemplates": "最近模板",
+    "templateCount": "{count} 个模板"
   },
   "Collections": {
     "title": "合集",

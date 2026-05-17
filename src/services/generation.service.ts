@@ -81,6 +81,8 @@ export interface CreateGenerationInput {
   projectId?: string
   /** B0: Full input parameter snapshot (JSON) */
   snapshot?: Prisma.InputJsonValue
+  /** Prompt template / card recipe lineage snapshot (JSON) */
+  recipeSnapshot?: Prisma.InputJsonValue
   /** B0: Seed for reproducibility */
   seed?: bigint
   /** B0: Run group ID for compare/variant */
@@ -393,6 +395,7 @@ export async function createGeneration(
       userId: input.userId,
       projectId: input.projectId,
       snapshot: input.snapshot,
+      recipeSnapshot: input.recipeSnapshot,
       seed: input.seed,
       runGroupId: input.runGroupId,
       runGroupType: input.runGroupType ?? 'single',
@@ -673,6 +676,43 @@ export async function getGenerationById(
   })
 
   return generation ? normalizeGenerationReferenceImages(generation) : null
+}
+
+export async function getGenerationByIdForUser(
+  id: string,
+  userId: string,
+): Promise<GenerationRecord | null> {
+  const generation = await db.generation.findFirst({
+    where: { id, userId },
+    select: {
+      ...LIST_GENERATION_SELECT,
+      user: {
+        select: {
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+      _count: { select: { likes: true } },
+      likes: { where: { userId }, take: 1, select: { id: true } },
+    },
+  })
+
+  if (!generation) return null
+
+  const { user, _count, likes, ...rest } = generation
+  return {
+    ...rest,
+    creator: user?.username
+      ? {
+          username: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+        }
+      : null,
+    likeCount: _count.likes,
+    isLiked: likes.length > 0,
+  }
 }
 
 /**

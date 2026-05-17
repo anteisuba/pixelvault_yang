@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutGrid, LogIn, PanelLeft } from 'lucide-react'
+import { LayoutGrid, LogIn, PanelLeft, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
 
 const MOBILE_TAB_ITEM_CLASS_NAME =
-  'flex flex-1 flex-col items-center justify-center gap-[0.35rem] text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm'
+  'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors duration-[180ms] ease-out [&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm'
 
 interface TabItem {
   href: string
@@ -47,7 +47,7 @@ function TabList({ tabs, pathname }: TabListProps) {
           )}
         >
           <Icon className="size-5" />
-          <span className="text-tab font-semibold tracking-[0.04em] uppercase leading-none truncate max-w-[4.5rem]">
+          <span className="max-w-[4.5rem] truncate text-3xs font-medium leading-none">
             {label}
           </span>
         </Link>
@@ -56,23 +56,43 @@ function TabList({ tabs, pathname }: TabListProps) {
   )
 }
 
-function MobileMenuButton() {
+export function MobileHeader() {
+  const pathname = usePathname()
   const t = useTranslations('Navbar')
+  const tCommon = useTranslations('Common')
   const { openMobile, toggleSidebar } = useSidebar()
+  const title = (() => {
+    if (isTabActive(pathname, ROUTES.STUDIO)) return t('links.studio')
+    if (isTabActive(pathname, ROUTES.GALLERY)) return t('links.gallery')
+    if (isTabActive(pathname, ROUTES.PROMPTS)) return t('links.prompts')
+    if (isTabActive(pathname, ROUTES.ASSETS)) return t('links.assets')
+    if (isTabActive(pathname, ROUTES.CARDS)) return t('links.cards')
+    if (isTabActive(pathname, ROUTES.ARENA)) return t('links.arena')
+    if (isTabActive(pathname, ROUTES.STORYBOARD)) return t('links.storyboard')
+    return tCommon('brand')
+  })()
 
   return (
-    <button
-      type="button"
-      onClick={toggleSidebar}
-      aria-label={t('openMenu')}
-      aria-expanded={openMobile}
-      className={MOBILE_TAB_ITEM_CLASS_NAME}
-    >
-      <PanelLeft className="size-5" />
-      <span className="text-tab font-semibold tracking-[0.04em] uppercase leading-none truncate max-w-[4.5rem]">
-        {t('menu')}
-      </span>
-    </button>
+    <header className="fixed inset-x-0 top-0 z-50 flex h-11 items-center border-b border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden">
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        aria-label={t('openMenu')}
+        aria-expanded={openMobile}
+        className={cn(
+          'flex h-full w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors duration-[180ms] ease-out',
+          '[&:active]:opacity-72 [-webkit-tap-highlight-color:transparent] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring/75 focus-visible:-outline-offset-2 focus-visible:rounded-sm',
+        )}
+      >
+        <PanelLeft className="size-4" />
+      </button>
+      <div className="min-w-0 flex-1 px-1">
+        <div className="truncate text-center font-display text-sm font-semibold text-foreground">
+          {title}
+        </div>
+      </div>
+      <div className="w-11 shrink-0" aria-hidden />
+    </header>
   )
 }
 
@@ -84,6 +104,12 @@ export function MobileTabBar() {
   const { isLoaded } = useUser()
 
   const signedInTabs: TabItem[] = [
+    {
+      href: ROUTES.STUDIO_IMAGE,
+      label: t('links.create'),
+      icon: Sparkles,
+      activePrefix: ROUTES.STUDIO,
+    },
     { href: ROUTES.GALLERY, label: t('links.gallery'), icon: LayoutGrid },
   ]
 
@@ -95,23 +121,17 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t('mobileNavigation')}
-      className="fixed bottom-0 inset-x-0 z-50 border-t border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/90 backdrop-blur-xl backdrop-saturate-150 md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="h-14">
+      <div className="h-12">
         {isLoaded && (
           <>
             <SignedIn>
-              <div className="flex h-full items-stretch">
-                <MobileMenuButton />
-                <TabList tabs={signedInTabs} pathname={pathname} />
-              </div>
+              <TabList tabs={signedInTabs} pathname={pathname} />
             </SignedIn>
             <SignedOut>
-              <div className="flex h-full items-stretch">
-                <MobileMenuButton />
-                <TabList tabs={signedOutTabs} pathname={pathname} />
-              </div>
+              <TabList tabs={signedOutTabs} pathname={pathname} />
             </SignedOut>
           </>
         )}

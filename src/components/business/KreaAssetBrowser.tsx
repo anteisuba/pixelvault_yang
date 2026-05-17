@@ -72,7 +72,11 @@ import {
 } from '@/lib/gallery-cache'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
-import type { AssetSectionCounts, GenerationRecord } from '@/types'
+import type {
+  AssetSectionCounts,
+  GenerationRecord,
+  ProjectRecord,
+} from '@/types'
 
 type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
 
@@ -668,9 +672,12 @@ export function KreaAssetBrowser({
     [filters, mediaType],
   )
 
-  const setSection = (next: Section) => {
-    setFilters(filtersForSection(next))
-  }
+  const setSection = useCallback(
+    (next: Section) => {
+      setFilters(filtersForSection(next))
+    },
+    [filtersForSection, setFilters],
+  )
 
   const prefetchingCacheKeysRef = useRef<Set<string>>(new Set())
 
@@ -811,6 +818,15 @@ export function KreaAssetBrowser({
     setConfirmAction({ kind: 'delete-folder', id, name })
   }
 
+  const handleProjectCreated = useCallback(
+    (project: ProjectRecord) => {
+      void refreshProjects()
+      void refreshCounts()
+      setSection({ kind: 'project', id: project.id })
+    },
+    [refreshProjects, refreshCounts, setSection],
+  )
+
   const performDeleteProject = async (id: string) => {
     const ok = await removeProject(id)
     if (!ok) return
@@ -850,6 +866,106 @@ export function KreaAssetBrowser({
   const projectCount = (id: string): number | undefined =>
     counts?.byProject[id] ??
     (section.kind === 'project' && section.id === id ? total : undefined)
+
+  const primaryMobileSections: MobileSectionOption[] = [
+    {
+      key: 'all',
+      active: section.kind === 'all',
+      icon: <FolderOpen className="size-3.5" />,
+      label: t('sidebarAll'),
+      count: allCount,
+      onClick: () => setSection({ kind: 'all' }),
+      onPrefetch: () => prefetchSection({ kind: 'all' }),
+    },
+    {
+      key: 'favorites',
+      active: section.kind === 'favorites',
+      icon: <Heart className="size-3.5" />,
+      label: t('sidebarFavorites'),
+      count: favoritesCount,
+      onClick: () => setSection({ kind: 'favorites' }),
+      onPrefetch: () => prefetchSection({ kind: 'favorites' }),
+    },
+    {
+      key: 'published',
+      active: section.kind === 'published',
+      icon: <Globe className="size-3.5" />,
+      label: t('sidebarPublished'),
+      count: publishedCount,
+      onClick: () => setSection({ kind: 'published' }),
+      onPrefetch: () => prefetchSection({ kind: 'published' }),
+    },
+    {
+      key: 'uploads',
+      active: section.kind === 'uploads',
+      icon: <UploadCloud className="size-3.5" />,
+      label: t('sidebarUploads'),
+      onClick: () => setSection({ kind: 'uploads' }),
+      onPrefetch: () => prefetchSection({ kind: 'uploads' }),
+    },
+  ]
+
+  const toolMobileSections: MobileSectionOption[] = mediaType
+    ? []
+    : [
+        {
+          key: 'image',
+          active: section.kind === 'type' && section.type === 'image',
+          icon: <ImageIcon className="size-3.5" />,
+          label: t('sidebarImages'),
+          count: imageCount,
+          onClick: () => setSection({ kind: 'type', type: 'image' }),
+          onPrefetch: () => prefetchSection({ kind: 'type', type: 'image' }),
+        },
+        {
+          key: 'video',
+          active: section.kind === 'type' && section.type === 'video',
+          icon: <Video className="size-3.5" />,
+          label: t('sidebarVideos'),
+          count: videoCount,
+          onClick: () => setSection({ kind: 'type', type: 'video' }),
+          onPrefetch: () => prefetchSection({ kind: 'type', type: 'video' }),
+        },
+        {
+          key: 'audio',
+          active: section.kind === 'type' && section.type === 'audio',
+          icon: <Mic className="size-3.5" />,
+          label: t('sidebarAudio'),
+          count: audioCount,
+          onClick: () => setSection({ kind: 'type', type: 'audio' }),
+          onPrefetch: () => prefetchSection({ kind: 'type', type: 'audio' }),
+        },
+        {
+          key: 'model_3d',
+          active: section.kind === 'type' && section.type === 'model_3d',
+          icon: <Box className="size-3.5" />,
+          label: t('sidebarModel3D'),
+          count: model3DCount,
+          onClick: () => setSection({ kind: 'type', type: 'model_3d' }),
+          onPrefetch: () => prefetchSection({ kind: 'type', type: 'model_3d' }),
+        },
+      ]
+
+  const folderMobileSections: MobileSectionOption[] = [
+    {
+      key: 'unassigned',
+      active: section.kind === 'unassigned',
+      icon: <FolderX className="size-3.5" />,
+      label: t('sidebarUnassigned'),
+      count: unassignedCount,
+      onClick: () => setSection({ kind: 'unassigned' }),
+      onPrefetch: () => prefetchSection({ kind: 'unassigned' }),
+    },
+    ...projects.map((project) => ({
+      key: project.id,
+      active: section.kind === 'project' && section.id === project.id,
+      icon: <Folder className="size-3.5" />,
+      label: project.name,
+      count: projectCount(project.id),
+      onClick: () => setSection({ kind: 'project', id: project.id }),
+      onPrefetch: () => prefetchSection({ kind: 'project', id: project.id }),
+    })),
+  ]
 
   return (
     <div
@@ -934,6 +1050,37 @@ export function KreaAssetBrowser({
                 <DensityToggle density={density} onChange={changeDensity} />
               </>
             )}
+          </div>
+
+          <div className="mb-4 grid gap-2 lg:hidden">
+            <MobileSectionRail
+              label={t('mobileSections')}
+              options={primaryMobileSections}
+            />
+            {!mediaType && (
+              <MobileSectionRail
+                label={t('sidebarTools')}
+                options={toolMobileSections}
+              />
+            )}
+            <MobileSectionRail
+              label={t('sidebarFolders')}
+              options={folderMobileSections}
+              action={
+                <ProjectCreateDialog
+                  onCreated={handleProjectCreated}
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label={t('folderCreate')}
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  }
+                />
+              }
+            />
           </div>
 
           {/* Krea-style switching: useGallery serves cached snapshots
@@ -1161,15 +1308,11 @@ export function KreaAssetBrowser({
               {t('sidebarFolders')}
             </span>
             <ProjectCreateDialog
-              onCreated={(project) => {
-                void refreshProjects()
-                void refreshCounts()
-                setSection({ kind: 'project', id: project.id })
-              }}
+              onCreated={handleProjectCreated}
               trigger={
                 <button
                   type="button"
-                  aria-label="Create folder"
+                  aria-label={t('folderCreate')}
                   className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                 >
                   <Plus className="size-3.5" />
@@ -1465,6 +1608,72 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
         </button>
       ))}
     </div>
+  )
+}
+
+interface MobileSectionOption {
+  key: string
+  active: boolean
+  icon: React.ReactNode
+  label: string
+  count?: number
+  onClick: () => void
+  onPrefetch?: () => void
+}
+
+interface MobileSectionRailProps {
+  label: string
+  options: MobileSectionOption[]
+  action?: React.ReactNode
+}
+
+function MobileSectionRail({ label, options, action }: MobileSectionRailProps) {
+  return (
+    <section className="grid gap-1.5" aria-label={label}>
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <span className="px-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
+          {label}
+        </span>
+        {action}
+      </div>
+      <div
+        role="group"
+        aria-label={label}
+        className="-mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1"
+      >
+        {options.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={option.onClick}
+            onMouseEnter={option.onPrefetch}
+            onFocus={option.onPrefetch}
+            aria-pressed={option.active}
+            className={cn(
+              'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+              option.active
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
+            )}
+          >
+            <span
+              className={cn(
+                'shrink-0',
+                option.active ? 'text-primary' : 'text-muted-foreground/70',
+              )}
+            >
+              {option.icon}
+            </span>
+            <span className="truncate">{option.label}</span>
+            {typeof option.count === 'number' && (
+              <span className="shrink-0 text-3xs text-muted-foreground/70 tabular-nums">
+                {option.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 

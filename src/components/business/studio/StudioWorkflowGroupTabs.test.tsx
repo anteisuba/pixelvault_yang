@@ -57,6 +57,37 @@ describe('StudioWorkflowGroupTabs', () => {
     )
   })
 
+  it('resyncs when the selected workflow media group changes externally', () => {
+    const { rerender } = render(
+      <StudioWorkflowGroupTabs>
+        {(currentMediaGroup) => (
+          <div data-testid="current-group">{currentMediaGroup}</div>
+        )}
+      </StudioWorkflowGroupTabs>,
+    )
+
+    expect(screen.getByTestId('current-group')).toHaveTextContent(
+      WORKFLOW_MEDIA_GROUPS.VIDEO,
+    )
+
+    mockStudioContext.selectedWorkflow = {
+      id: WORKFLOW_IDS.QUICK_IMAGE,
+      mediaGroup: WORKFLOW_MEDIA_GROUPS.IMAGE,
+    }
+
+    rerender(
+      <StudioWorkflowGroupTabs>
+        {(currentMediaGroup) => (
+          <div data-testid="current-group">{currentMediaGroup}</div>
+        )}
+      </StudioWorkflowGroupTabs>,
+    )
+
+    expect(screen.getByTestId('current-group')).toHaveTextContent(
+      WORKFLOW_MEDIA_GROUPS.IMAGE,
+    )
+  })
+
   it('onValueChange triggers setSelectedWorkflowId with first workflow of group', () => {
     render(
       <StudioWorkflowGroupTabs>

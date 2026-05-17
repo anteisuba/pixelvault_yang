@@ -165,6 +165,7 @@
     "mobileNavigation": "移动端导航",
     "links": {
       "gallery": "画廊",
+      "create": "创作",
       "prompts": "提示词",
       "studio": "工作台",
       "arena": "竞技场",
@@ -667,7 +668,8 @@
         "all": "全部类型",
         "image": "图片",
         "video": "视频",
-        "audio": "音频"
+        "audio": "音频",
+        "model_3d": "3D"
       },
       "tabs": {
         "all": "全部",
@@ -790,6 +792,8 @@
     "sidebarAudio": "音频",
     "sidebarFolders": "文件夹",
     "sidebarUnassigned": "未分类",
+    "mobileSections": "分组",
+    "folderCreate": "新建文件夹",
     "folderRename": "重命名",
     "folderDelete": "删除",
     "folderRenamePrompt": "重命名文件夹：",

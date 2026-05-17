@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import {
   WORKFLOWS,
   WORKFLOW_MEDIA_GROUPS,
+  type WorkflowId,
   type WorkflowMediaGroup,
 } from '@/constants/workflows'
 import { useStudioContext } from '@/contexts/studio-context'
@@ -31,13 +32,40 @@ export function StudioWorkflowGroupTabs({
   children,
   className,
 }: StudioWorkflowGroupTabsProps) {
-  const tStudio = useTranslations('StudioPage')
   const { getSelectedWorkflow, setSelectedWorkflowId } = useStudioContext()
   const selectedWorkflow = getSelectedWorkflow()
+  const selectedMediaGroup =
+    selectedWorkflow?.mediaGroup ?? WORKFLOW_MEDIA_GROUPS.IMAGE
+
+  return (
+    <StudioWorkflowGroupTabsContent
+      key={selectedMediaGroup}
+      initialMediaGroup={selectedMediaGroup}
+      selectedMediaGroup={selectedMediaGroup}
+      setSelectedWorkflowId={setSelectedWorkflowId}
+      className={className}
+    >
+      {children}
+    </StudioWorkflowGroupTabsContent>
+  )
+}
+
+interface StudioWorkflowGroupTabsContentProps extends StudioWorkflowGroupTabsProps {
+  initialMediaGroup: WorkflowMediaGroup
+  selectedMediaGroup: WorkflowMediaGroup
+  setSelectedWorkflowId: (workflowId: WorkflowId) => void
+}
+
+function StudioWorkflowGroupTabsContent({
+  children,
+  className,
+  initialMediaGroup,
+  selectedMediaGroup,
+  setSelectedWorkflowId,
+}: StudioWorkflowGroupTabsContentProps) {
+  const tStudio = useTranslations('StudioPage')
   const [currentMediaGroup, setCurrentMediaGroup] =
-    useState<WorkflowMediaGroup>(
-      selectedWorkflow?.mediaGroup ?? WORKFLOW_MEDIA_GROUPS.IMAGE,
-    )
+    useState<WorkflowMediaGroup>(initialMediaGroup)
 
   const workflowCounts = useMemo(
     () =>
@@ -62,7 +90,7 @@ export function StudioWorkflowGroupTabs({
     (group: WorkflowMediaGroup) => {
       setCurrentMediaGroup(group)
 
-      if (selectedWorkflow?.mediaGroup === group) {
+      if (selectedMediaGroup === group) {
         return
       }
 
@@ -73,7 +101,7 @@ export function StudioWorkflowGroupTabs({
         setSelectedWorkflowId(firstWorkflowInGroup.id)
       }
     },
-    [selectedWorkflow?.mediaGroup, setSelectedWorkflowId],
+    [selectedMediaGroup, setSelectedWorkflowId],
   )
 
   return (

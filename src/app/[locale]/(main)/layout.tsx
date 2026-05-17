@@ -1,6 +1,6 @@
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
-import { MobileTabBar } from '@/components/layout/MobileTabBar'
+import { MobileHeader, MobileTabBar } from '@/components/layout/MobileTabBar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -20,7 +20,11 @@ export default function MainLayout({
       <MainProviders>
         <SidebarProvider defaultOpen={true}>
           <AppSidebar />
-          <SidebarInset id="main-content" className="pb-14 md:pb-0">
+          <MobileHeader />
+          <SidebarInset
+            id="main-content"
+            className="pt-11 pb-12 md:pt-0 md:pb-0"
+          >
             {children}
           </SidebarInset>
           <MobileTabBar />

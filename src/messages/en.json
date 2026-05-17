@@ -165,6 +165,7 @@
     "mobileNavigation": "Mobile navigation",
     "links": {
       "gallery": "Gallery",
+      "create": "Create",
       "prompts": "Prompts",
       "studio": "Studio",
       "arena": "Arena",
@@ -667,7 +668,8 @@
         "all": "All types",
         "image": "Images",
         "video": "Videos",
-        "audio": "Audio"
+        "audio": "Audio",
+        "model_3d": "3D"
       },
       "tabs": {
         "all": "All",
@@ -790,6 +792,8 @@
     "sidebarAudio": "Audio",
     "sidebarFolders": "Folders",
     "sidebarUnassigned": "Unassigned",
+    "mobileSections": "Sections",
+    "folderCreate": "Create folder",
     "folderRename": "Rename",
     "folderDelete": "Delete",
     "folderRenamePrompt": "Rename folder:",

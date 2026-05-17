@@ -165,6 +165,7 @@
     "mobileNavigation": "モバイルナビゲーション",
     "links": {
       "gallery": "ギャラリー",
+      "create": "作成",
       "prompts": "プロンプト",
       "studio": "スタジオ",
       "arena": "アリーナ",
@@ -667,7 +668,8 @@
         "all": "すべて",
         "image": "画像",
         "video": "動画",
-        "audio": "オーディオ"
+        "audio": "オーディオ",
+        "model_3d": "3D"
       },
       "tabs": {
         "all": "すべて",
@@ -790,6 +792,8 @@
     "sidebarAudio": "音声",
     "sidebarFolders": "フォルダ",
     "sidebarUnassigned": "未分類",
+    "mobileSections": "セクション",
+    "folderCreate": "フォルダを作成",
     "folderRename": "名前を変更",
     "folderDelete": "削除",
     "folderRenamePrompt": "フォルダ名を変更：",

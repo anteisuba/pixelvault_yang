@@ -19,7 +19,11 @@ import {
   VARIANT_COUNT,
   COMPARE_MAX_MODELS,
 } from '@/constants/studio'
-import { getWorkflowById, WORKFLOW_MEDIA_GROUPS } from '@/constants/workflows'
+import {
+  getWorkflowById,
+  WORKFLOW_IDS,
+  WORKFLOW_MEDIA_GROUPS,
+} from '@/constants/workflows'
 import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
@@ -42,8 +46,10 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
+import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
+import type { RecipeRecord } from '@/types'
 import {
   PromptInput,
   PromptInputTextarea,
@@ -125,6 +131,107 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     : isVideoMode
       ? videoModelOptions
       : imageModelOptions
+
+  const getRecipePrompt = useCallback(
+    (recipe: RecipeRecord) => recipe.compiledPrompt.trim(),
+    [],
+  )
+
+  const getRecipeAspectRatio = useCallback((recipe: RecipeRecord) => {
+    if (!recipe.params || typeof recipe.params !== 'object') return null
+    const params = recipe.params as Record<string, unknown>
+    const aspectRatio = params.aspectRatio
+    return aspectRatio === '1:1' ||
+      aspectRatio === '16:9' ||
+      aspectRatio === '9:16' ||
+      aspectRatio === '4:3' ||
+      aspectRatio === '3:4'
+      ? aspectRatio
+      : null
+  }, [])
+
+  const getRecipeAdvancedParams = useCallback((recipe: RecipeRecord) => {
+    if (!recipe.params || typeof recipe.params !== 'object') return null
+    const params = recipe.params as Record<string, unknown>
+    const advancedParams = params.advancedParams
+    return advancedParams &&
+      typeof advancedParams === 'object' &&
+      !Array.isArray(advancedParams)
+      ? (advancedParams as Record<string, unknown>)
+      : null
+  }, [])
+
+  const setRecipeLineage = useCallback(
+    (recipe: RecipeRecord, useMode: 'replace' | 'insert' | 'apply') => {
+      dispatch({
+        type: 'SET_RECIPE_USAGE',
+        payload: {
+          recipeId: recipe.id,
+          recipeVersion: recipe.version,
+          useMode,
+        },
+      })
+    },
+    [dispatch],
+  )
+
+  const handleReplaceRecipePrompt = useCallback(
+    (recipe: RecipeRecord) => {
+      dispatch({ type: 'SET_PROMPT', payload: getRecipePrompt(recipe) })
+      setRecipeLineage(recipe, 'replace')
+    },
+    [dispatch, getRecipePrompt, setRecipeLineage],
+  )
+
+  const handleInsertRecipePrompt = useCallback(
+    (recipe: RecipeRecord) => {
+      const nextPrompt = [state.prompt.trim(), getRecipePrompt(recipe)]
+        .filter(Boolean)
+        .join('\n\n')
+      dispatch({ type: 'SET_PROMPT', payload: nextPrompt })
+      setRecipeLineage(recipe, 'insert')
+    },
+    [dispatch, getRecipePrompt, setRecipeLineage, state.prompt],
+  )
+
+  const handleApplyRecipe = useCallback(
+    (recipe: RecipeRecord) => {
+      const workflowId =
+        recipe.outputType === 'VIDEO'
+          ? WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO
+          : recipe.outputType === 'AUDIO'
+            ? WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE
+            : WORKFLOW_IDS.QUICK_IMAGE
+      const matchedOption = modelOptions.find(
+        (option) => option.modelId === recipe.modelId,
+      )
+      const aspectRatio = getRecipeAspectRatio(recipe)
+      const advancedParams = getRecipeAdvancedParams(recipe)
+
+      dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
+      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
+      dispatch({
+        type: 'SET_OPTION_ID',
+        payload: matchedOption?.optionId ?? `workspace:${recipe.modelId}`,
+      })
+      dispatch({ type: 'SET_PROMPT', payload: getRecipePrompt(recipe) })
+      if (aspectRatio) {
+        dispatch({ type: 'SET_ASPECT_RATIO', payload: aspectRatio })
+      }
+      if (advancedParams) {
+        dispatch({ type: 'SET_ADVANCED_PARAMS', payload: advancedParams })
+      }
+      setRecipeLineage(recipe, 'apply')
+    },
+    [
+      dispatch,
+      getRecipeAdvancedParams,
+      getRecipeAspectRatio,
+      getRecipePrompt,
+      modelOptions,
+      setRecipeLineage,
+    ],
+  )
 
   // B4: Compare mode state
   const [compareMode, setCompareMode] = useState(false)
@@ -473,6 +580,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           projectId: projects.activeProjectId ?? undefined,
           referenceImages: mergedReferenceImages,
           advancedParams,
+          recipeUsage: state.recipeUsage ?? undefined,
           characterCardIds:
             injection.appliedCardIds.length > 0
               ? injection.appliedCardIds
@@ -492,6 +600,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               ? imageUpload.referenceImages
               : undefined,
           advancedParams: composeAdvancedParams(),
+          recipeUsage: state.recipeUsage ?? undefined,
         }
       }
       return null
@@ -499,6 +608,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     [
       state.workflowMode,
       state.prompt,
+      state.recipeUsage,
       state.aspectRatio,
       composePrompt,
       composeAdvancedParams,
@@ -968,7 +1078,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           placeholder={placeholder}
           className="font-serif text-sm text-foreground placeholder:text-muted-foreground/60"
         />
-        <PromptInputActions className="justify-end px-2 pb-2">
+        <PromptInputActions className="justify-between gap-2 px-2 pb-2">
+          <PromptTemplatePicker
+            onReplace={handleReplaceRecipePrompt}
+            onInsert={handleInsertRecipePrompt}
+            onApply={handleApplyRecipe}
+          />
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
           <div
             className={cn(

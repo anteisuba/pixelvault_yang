@@ -52,6 +52,7 @@ export async function compileAndGenerate(
           ? mergedQuickAdvanced
           : undefined,
       projectId: input.projectId,
+      recipeUsage: input.recipeUsage,
     })
 
     // B5: Update batch metadata if part of a run group
@@ -121,6 +122,7 @@ export async function compileAndGenerate(
       allReferenceImages.length > 0 ? allReferenceImages : undefined,
     advancedParams: mergedAdvancedParams,
     projectId: input.projectId,
+    recipeUsage: input.recipeUsage,
   })
 
   // B0: Enrich snapshot with card-mode-specific fields

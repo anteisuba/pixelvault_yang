@@ -283,14 +283,20 @@ describe('user-preference.service', () => {
       userId: 'user-1',
       outputType: 'IMAGE',
       name: 'Recipe',
+      userIntent: null,
       compiledPrompt: 'anime portrait',
       negativePrompt: 'blur, bad hands',
       modelId: 'model-a',
       provider: 'fal',
+      params: null,
+      referenceAssets: null,
+      seed: null,
+      parentGenerationId: null,
       version: 1,
+      evaluationSummary: null,
       isDeleted: false,
-      createdAt: '2026-05-04T10:00:00.000Z',
-      updatedAt: '2026-05-04T10:00:00.000Z',
+      createdAt: new Date('2026-05-04T10:00:00.000Z'),
+      updatedAt: new Date('2026-05-04T10:00:00.000Z'),
     })
 
     expect(mockPreferenceUpsert).toHaveBeenCalledWith(

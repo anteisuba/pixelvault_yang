@@ -4,6 +4,7 @@ import {
   Box,
   Check,
   Download,
+  FileText,
   FolderInput,
   Globe,
   GlobeLock,
@@ -39,6 +40,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import {
   assignGenerationProjectAPI,
+  createRecipeFromGenerationAPI,
   deleteGenerationAPI,
   setGenerationVisibility,
   toggleLikeAPI,
@@ -85,11 +87,13 @@ export function AssetDetailSheet({
   onUpdated,
 }: AssetDetailSheetProps) {
   const t = useTranslations('AssetsPage')
+  const tPrompts = useTranslations('PromptLibrary')
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [isFavoriting, setIsFavoriting] = useState(false)
+  const [isSavingRecipe, setIsSavingRecipe] = useState(false)
   const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
 
   const open = generation !== null
@@ -227,6 +231,25 @@ export function AssetDetailSheet({
     }
   }
 
+  const handleSaveRecipe = async () => {
+    if (!generation || isSavingRecipe) return
+    setIsSavingRecipe(true)
+    try {
+      const response = await createRecipeFromGenerationAPI({
+        generationId: generation.id,
+      })
+      if (response.success) {
+        toast.success(tPrompts('saveTemplateSuccess'))
+      } else {
+        toast.error(response.error ?? tPrompts('saveTemplateFailed'))
+      }
+    } catch {
+      toast.error(tPrompts('saveTemplateFailed'))
+    } finally {
+      setIsSavingRecipe(false)
+    }
+  }
+
   return (
     <Sheet
       open={open}
@@ -297,7 +320,7 @@ export function AssetDetailSheet({
                 <Sparkles className="size-4" />
                 {t('detailRemix')}
               </Button>
-              <div className="mt-2 flex items-center gap-1">
+              <div className="mt-2 flex flex-wrap items-center gap-1">
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -395,6 +418,20 @@ export function AssetDetailSheet({
                   {generation.isLiked
                     ? t('detailUnfavorite')
                     : t('detailFavorite')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => void handleSaveRecipe()}
+                  disabled={isSavingRecipe}
+                >
+                  {isSavingRecipe ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileText className="size-4" />
+                  )}
+                  {tPrompts('saveAsTemplate')}
                 </Button>
                 <ConfirmDialog
                   title={t('detailDeleteConfirmTitle')}

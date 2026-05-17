@@ -27,6 +27,7 @@ import type {
   AdvancedParams,
   GenerationEvaluation,
   GenerationPlanResponse,
+  RecipeUsage,
 } from '@/types'
 import {
   DEFAULT_WORKFLOW_ID,
@@ -103,6 +104,7 @@ export interface StudioFormState {
   workflowMode: WorkflowMode
   selectedOptionId: string | null
   prompt: string
+  recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
   tokenInput: string
@@ -170,6 +172,7 @@ export type StudioAction =
   | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
   | { type: 'SET_OPTION_ID'; payload: string | null }
   | { type: 'SET_PROMPT'; payload: string }
+  | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
@@ -237,6 +240,7 @@ const initialFormState: StudioFormState = {
   workflowMode: initialWorkflowDefaults.workflowMode ?? 'quick',
   selectedOptionId: null,
   prompt: '',
+  recipeUsage: null,
   aspectRatio: '1:1',
   advancedParams: {},
   tokenInput: '',
@@ -288,6 +292,7 @@ export function studioFormReducer(
         outputType: defaults.outputType,
         workflowMode: defaults.workflowMode ?? state.workflowMode,
         prompt: isChangingMediaGroup ? '' : state.prompt,
+        recipeUsage: isChangingMediaGroup ? null : state.recipeUsage,
         panels,
       }
     }
@@ -341,6 +346,8 @@ export function studioFormReducer(
       return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
       return { ...state, prompt: action.payload }
+    case 'SET_RECIPE_USAGE':
+      return { ...state, recipeUsage: action.payload }
     case 'SET_ASPECT_RATIO':
       return { ...state, aspectRatio: action.payload }
     case 'SET_ADVANCED_PARAMS':
@@ -403,6 +410,7 @@ export function studioFormReducer(
       return {
         ...state,
         prompt: '',
+        recipeUsage: null,
         aspectRatio: '1:1',
         advancedParams: {},
         selectedOptionId: null,

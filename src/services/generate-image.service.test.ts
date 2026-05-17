@@ -12,6 +12,13 @@ vi.mock('@/services/apiKey.service', () => ({
 vi.mock('@/services/generation.service', () => ({
   createGeneration: vi.fn(),
 }))
+const { mockBuildRecipeSnapshotForUser } = vi.hoisted(() => ({
+  mockBuildRecipeSnapshotForUser: vi.fn(),
+}))
+vi.mock('@/services/recipe.service', () => ({
+  buildRecipeSnapshotForUser: (...args: unknown[]) =>
+    mockBuildRecipeSnapshotForUser(...args),
+}))
 vi.mock('@/services/image-preview-derivative.service', () => ({
   enqueueImagePreviewDerivatives: vi.fn(),
 }))
@@ -178,6 +185,10 @@ function setupHappyPath() {
   })
   vi.mocked(isOwnedStorageUrl).mockReturnValue(false)
   vi.mocked(createGeneration).mockResolvedValue(FAKE_GENERATION as never)
+  mockBuildRecipeSnapshotForUser.mockResolvedValue({
+    sourceType: 'prompt_template',
+    recipeId: 'recipe_abc',
+  })
   vi.mocked(completeGenerationJob).mockResolvedValue(undefined as never)
   vi.mocked(attachUsageEntryToGeneration).mockResolvedValue(undefined as never)
 }
@@ -372,6 +383,31 @@ describe('generateImageForUser', () => {
     expect(uploadToR2).toHaveBeenCalledTimes(1)
     expect(createGeneration).toHaveBeenCalledWith(
       expect.objectContaining({ referenceImageUrl: sameOriginRef }),
+    )
+  })
+
+  it('persists prompt template lineage when recipeUsage is provided', async () => {
+    await generateImageForUser('clerk-1', {
+      ...BASE_INPUT,
+      recipeUsage: {
+        recipeId: 'recipe_abc',
+        recipeVersion: 1,
+        useMode: 'apply',
+      },
+    })
+
+    expect(mockBuildRecipeSnapshotForUser).toHaveBeenCalledWith('user-1', {
+      recipeId: 'recipe_abc',
+      recipeVersion: 1,
+      useMode: 'apply',
+    })
+    expect(createGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipeSnapshot: {
+          sourceType: 'prompt_template',
+          recipeId: 'recipe_abc',
+        },
+      }),
     )
   })
 

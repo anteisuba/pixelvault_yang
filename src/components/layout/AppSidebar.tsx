@@ -8,6 +8,7 @@ import {
   BookOpen,
   ChevronDown,
   Coins,
+  FileText,
   Image as ImageIcon,
   KeyRound,
   LayoutGrid,
@@ -167,6 +168,11 @@ function AppSidebarContent() {
       href: ROUTES.GALLERY,
       label: t('links.gallery'),
       icon: LayoutGrid,
+    },
+    {
+      href: ROUTES.PROMPTS,
+      label: t('links.prompts'),
+      icon: FileText,
     },
     {
       href: ROUTES.ARENA,

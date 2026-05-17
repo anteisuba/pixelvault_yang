@@ -116,6 +116,10 @@
       "title": "ギャラリー — PixelVault",
       "description": "AI生成画像の公開アーカイブを閲覧。"
     },
+    "prompts": {
+      "title": "プロンプト設計 — PixelVault",
+      "description": "呼び出せるプロンプトテンプレートを管理し、各テンプレートで生成した素材を確認します。"
+    },
     "profile": {
       "title": "プロフィール — PixelVault",
       "description": "生成履歴、クレジット、保存済みAPIルートの管理。"
@@ -155,6 +159,7 @@
     "mobileNavigation": "モバイルナビゲーション",
     "links": {
       "gallery": "ギャラリー",
+      "prompts": "プロンプト",
       "studio": "スタジオ",
       "arena": "アリーナ",
       "storyboard": "ストーリー",
@@ -426,6 +431,11 @@
     "pauseAfterSentence2": "2文目の後",
     "pauseAfterSentence3": "3文目の後",
     "pauseMarkersHint": "複数文のナレーションで、選んだ文の後に短い間を入れます。",
+    "pronunciation": "発音辞書",
+    "addWord": "単語を追加",
+    "word": "単語",
+    "pronounceAs": "発音",
+    "deleteWord": "単語を削除",
     "advanced": "詳細 / 実験",
     "advancedHint": "通常のナレーションは既定値で十分です。動画吹き替え、字幕、後編集で調整してください。",
     "format": "形式",
@@ -851,6 +861,39 @@
     "densityComfortable": "ゆったり",
     "densityNormal": "標準",
     "densityCompact": "コンパクト"
+  },
+  "PromptLibrary": {
+    "title": "プロンプト設計",
+    "description": "実績のある Prompt を呼び出せるテンプレートとして保存し、各テンプレートの生成素材を確認します。",
+    "emptyTitle": "プロンプトテンプレートはまだありません",
+    "emptyDescription": "素材詳細や生成結果から良い Prompt を保存すると、再利用できる制作レシピになります。",
+    "openAssets": "素材を開く",
+    "openStudio": "Studio を開く",
+    "useInStudio": "Studio で使う",
+    "copyPrompt": "Prompt をコピー",
+    "promptCopied": "Prompt をコピーしました",
+    "viewDetail": "詳細を見る",
+    "outputTypeImage": "画像",
+    "outputTypeVideo": "動画",
+    "outputTypeAudio": "音声",
+    "outputType3d": "3D",
+    "sourceWork": "元の作品",
+    "provider": "プロバイダー",
+    "createdAt": "作成日",
+    "generatedAssets": "生成素材",
+    "generatedAssetsDescription": "ここには、このプロンプトテンプレートから生成された素材が表示されます。元の作品と後続の実行結果を含みます。",
+    "noGeneratedAssets": "このテンプレートから生成された新しい素材はまだありません。",
+    "templateMeta": "{model} · v{version}",
+    "saveAsTemplate": "プロンプトテンプレートとして保存",
+    "saveTemplateSuccess": "プロンプト設計に保存しました",
+    "saveTemplateFailed": "プロンプトの保存に失敗しました",
+    "templatePicker": "テンプレート",
+    "templatePickerTitle": "プロンプトテンプレートを呼び出す",
+    "replacePrompt": "Prompt を置き換え",
+    "insertPrompt": "Prompt に挿入",
+    "applyRecipe": "レシピ全体を適用",
+    "recentTemplates": "最近のテンプレート",
+    "templateCount": "{count} 件のテンプレート"
   },
   "Collections": {
     "title": "コレクション",

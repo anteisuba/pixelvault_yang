@@ -26,6 +26,7 @@ export const ROUTES = {
   STUDIO_NODE: '/studio/node',
   /** Krea-style Asset browser — superset of the legacy /profile feed */
   ASSETS: '/assets',
+  PROMPTS: '/prompts',
   PROFILE: '/profile',
   ARENA: '/arena',
   ARENA_LEADERBOARD: '/arena/leaderboard',
@@ -47,6 +48,11 @@ export function creatorProfilePath(username: string): string {
 /** Build a gallery detail URL from a generation ID */
 export function galleryGenerationPath(id: string): string {
   return `${ROUTES.GALLERY}/${encodeURIComponent(id)}`
+}
+
+/** Build an asset browser deep link that opens a generation detail panel */
+export function assetGenerationPath(id: string): string {
+  return `${ROUTES.ASSETS}?generationId=${encodeURIComponent(id)}`
 }
 
 /** Type for all route values */

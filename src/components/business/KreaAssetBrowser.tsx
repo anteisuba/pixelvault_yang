@@ -77,6 +77,7 @@ type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
 
 interface KreaAssetBrowserProps {
   initialGenerations?: GenerationRecord[]
+  initialSelectedGeneration?: GenerationRecord | null
   initialPage?: number
   initialHasMore?: boolean
   initialNextCursor?: string | null
@@ -191,6 +192,7 @@ function shouldKeepAssetAfterProjectMove(
  */
 export function KreaAssetBrowser({
   initialGenerations = [],
+  initialSelectedGeneration = null,
   initialPage = 1,
   initialHasMore = false,
   initialNextCursor = null,
@@ -281,7 +283,12 @@ export function KreaAssetBrowser({
   // tile click resolves the asset picker via onSelect, so a detail
   // sheet would steal the click target.
   const [selectedGeneration, setSelectedGeneration] =
-    useState<GenerationRecord | null>(null)
+    useState<GenerationRecord | null>(
+      isPickerMode ? null : initialSelectedGeneration,
+    )
+  useEffect(() => {
+    if (!isPickerMode) setSelectedGeneration(initialSelectedGeneration)
+  }, [initialSelectedGeneration, isPickerMode])
 
   // ── Multi-select state ────────────────────────────────────────
   // Picker mode (asset selector dialog) intentionally does NOT support

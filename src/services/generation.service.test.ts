@@ -55,6 +55,7 @@ import {
   deleteGeneration,
   getAssetSectionCounts,
   getGenerationById,
+  getGenerationByIdForUser,
   getGenerationsByCharacterCard,
   getGenerationsByCharacterCombination,
   getPublicGenerationPage,
@@ -490,6 +491,63 @@ describe('generation.service', () => {
       mockGenerationFindUnique.mockResolvedValue(null)
 
       await expect(getGenerationById('missing-gen')).resolves.toBeNull()
+    })
+  })
+
+  describe('getGenerationByIdForUser', () => {
+    it('finds an owner-scoped generation with like metadata', async () => {
+      mockGenerationFindFirst.mockResolvedValue({
+        ...BASE_GENERATION,
+        user: {
+          username: 'artist',
+          displayName: 'Artist',
+          avatarUrl: null,
+        },
+        _count: { likes: 3 },
+        likes: [{ id: 'like-1' }],
+      })
+
+      const result = await getGenerationByIdForUser('gen-1', 'user-1')
+
+      expect(result).toMatchObject({
+        id: 'gen-1',
+        creator: {
+          username: 'artist',
+          displayName: 'Artist',
+          avatarUrl: null,
+        },
+        likeCount: 3,
+        isLiked: true,
+      })
+      expect(mockGenerationFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'gen-1', userId: 'user-1' },
+          select: expect.objectContaining({
+            id: true,
+            user: {
+              select: {
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+            _count: { select: { likes: true } },
+            likes: {
+              where: { userId: 'user-1' },
+              take: 1,
+              select: { id: true },
+            },
+          }),
+        }),
+      )
+    })
+
+    it('returns null when the generation is missing or not owned', async () => {
+      mockGenerationFindFirst.mockResolvedValue(null)
+
+      await expect(
+        getGenerationByIdForUser('missing-gen', 'user-1'),
+      ).resolves.toBeNull()
     })
   })
 

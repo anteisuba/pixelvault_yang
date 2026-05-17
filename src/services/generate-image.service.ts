@@ -16,6 +16,7 @@ import {
 import { createGeneration } from '@/services/generation.service'
 import { enqueueImagePreviewDerivatives } from '@/services/image-preview-derivative.service'
 import { getProviderAdapter } from '@/services/providers/registry'
+import { buildRecipeSnapshotForUser } from '@/services/recipe.service'
 import {
   ProviderError,
   type ProviderGenerationResult,
@@ -548,6 +549,10 @@ async function persistGeneratedImage(params: {
 
         timer.addNote('thumbnail_generation_deferred')
 
+        const recipeSnapshot = input.recipeUsage
+          ? await buildRecipeSnapshotForUser(userId, input.recipeUsage)
+          : undefined
+
         const createdGeneration = await createGeneration({
           url: permanentUrl,
           storageKey,
@@ -578,6 +583,7 @@ async function persistGeneratedImage(params: {
             },
             timer,
           ),
+          recipeSnapshot,
           seed:
             input.advancedParams?.seed != null
               ? BigInt(input.advancedParams.seed)

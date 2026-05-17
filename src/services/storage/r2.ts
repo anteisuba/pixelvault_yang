@@ -69,10 +69,35 @@ export interface FetchAsBufferOptions {
   maxBytes?: number
 }
 
+const DATA_URL_PREFIX = 'data:'
+const DATA_URL_BASE64_MARKER = 'base64'
+
 function isFetchAsBufferOptions(
   value: Record<string, string> | FetchAsBufferOptions,
 ): value is FetchAsBufferOptions {
   return 'headers' in value || 'maxBytes' in value
+}
+
+function parseBase64DataUrl(url: string): {
+  mimeType: string
+  base64Data: string
+} {
+  const commaIndex = url.indexOf(',')
+  if (commaIndex <= DATA_URL_PREFIX.length) throw new Error('Invalid data URL')
+
+  const metadata = url.slice(DATA_URL_PREFIX.length, commaIndex)
+  const base64Data = url.slice(commaIndex + 1)
+  const metadataParts = metadata.split(';')
+  const mimeType = metadataParts[0]
+  const isBase64 = metadataParts
+    .slice(1)
+    .some((part) => part.toLowerCase() === DATA_URL_BASE64_MARKER)
+
+  if (!mimeType || !isBase64 || !base64Data) {
+    throw new Error('Invalid data URL')
+  }
+
+  return { mimeType, base64Data }
 }
 
 /**
@@ -98,11 +123,9 @@ export async function fetchAsBuffer(
     throw new Error('Invalid maxBytes option.')
   }
 
-  if (url.startsWith('data:')) {
-    const dataUrlMatch = url.match(/^data:([^;]+);base64,(.+)$/)
-    if (!dataUrlMatch) throw new Error('Invalid data URL')
-    const mimeType = dataUrlMatch[1]
-    const buffer = Buffer.from(dataUrlMatch[2], 'base64')
+  if (url.startsWith(DATA_URL_PREFIX)) {
+    const { mimeType, base64Data } = parseBase64DataUrl(url)
+    const buffer = Buffer.from(base64Data, 'base64')
     if (maxBytes !== undefined && buffer.byteLength > maxBytes) {
       throw new Error(
         `Image exceeds maximum size of ${maxBytes} bytes (got ${buffer.byteLength}).`,

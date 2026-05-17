@@ -114,6 +114,17 @@ describe('fetchAsBuffer', () => {
     expect(result.buffer.toString()).toBe('hello')
   })
 
+  it('parses large data: URLs without recursive regexp matching', async () => {
+    const source = Buffer.alloc(8 * 1024 * 1024, 7)
+    const result = await fetchAsBuffer(
+      `data:image/png;base64,${source.toString('base64')}`,
+    )
+
+    expect(result.mimeType).toBe('image/png')
+    expect(result.buffer.byteLength).toBe(source.byteLength)
+    expect(result.buffer[0]).toBe(7)
+  })
+
   it('enforces maxBytes for data: URLs', async () => {
     const b64 = Buffer.from('hello').toString('base64')
 

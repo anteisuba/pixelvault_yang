@@ -30,6 +30,11 @@ function isSupportedStudioAspectRatio(
   return STUDIO_IMAGE_ASPECT_RATIOS.some((ratio) => ratio === value)
 }
 
+function getAspectRatioValue(ratio: SupportedStudioAspectRatio): number {
+  const [width, height] = ratio.split(':').map(Number)
+  return width / height
+}
+
 function resolveClosestStudioAspectRatio(
   width: number,
   height: number,
@@ -40,10 +45,8 @@ function resolveClosestStudioAspectRatio(
 
   return STUDIO_IMAGE_ASPECT_RATIOS.reduce<SupportedStudioAspectRatio>(
     (closest, candidate) => {
-      const candidateValue =
-        candidate === '1:1' ? 1 : candidate === '16:9' ? 16 / 9 : 9 / 16
-      const closestValue =
-        closest === '1:1' ? 1 : closest === '16:9' ? 16 / 9 : 9 / 16
+      const candidateValue = getAspectRatioValue(candidate)
+      const closestValue = getAspectRatioValue(closest)
 
       return Math.abs(candidateValue - actualRatio) <
         Math.abs(closestValue - actualRatio)

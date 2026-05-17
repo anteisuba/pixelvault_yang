@@ -108,6 +108,28 @@ describe('studio-remix helpers', () => {
     expect(preset.optionId).toBe('key:key_1')
   })
 
+  it('falls back to the nearest 4:3 family aspect ratio when remixing', () => {
+    const landscapePreset = buildStudioRemixPreset(
+      makeGeneration({
+        width: 1024,
+        height: 768,
+        snapshot: null,
+      }),
+      modelOptions,
+    )
+    const portraitPreset = buildStudioRemixPreset(
+      makeGeneration({
+        width: 768,
+        height: 1024,
+        snapshot: null,
+      }),
+      modelOptions,
+    )
+
+    expect(landscapePreset.aspectRatio).toBe('4:3')
+    expect(portraitPreset.aspectRatio).toBe('3:4')
+  })
+
   it('returns advancedParams from snapshot when present (V2)', () => {
     const preset = buildStudioRemixPreset(
       makeGeneration({

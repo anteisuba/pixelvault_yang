@@ -62,8 +62,6 @@ export function StudioAspectRatioPopover({
 }: StudioAspectRatioPopoverProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV2')
-  // Video supports more ratios than image (4:3 / 3:4 added for video-only
-  // pipelines). Audio mode never opens this popover.
   const ratios =
     state.outputType === 'video'
       ? STUDIO_VIDEO_ASPECT_RATIOS

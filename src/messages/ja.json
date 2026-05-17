@@ -129,6 +129,10 @@
       "title": "アセット — PixelVault",
       "description": "あなたの作品をまとめて閲覧・管理。プロジェクトとフォルダで整理。"
     },
+    "cards": {
+      "title": "カード管理 — PixelVault",
+      "description": "キャラクターカード、スタイルカード、背景カードをひとつの場所で管理。"
+    },
     "arena": {
       "title": "アリーナ — PixelVault",
       "description": "AIモデルをブラインドテストして最良の結果に投票。"
@@ -165,7 +169,8 @@
       "arena": "アリーナ",
       "storyboard": "ストーリー",
       "library": "アーカイブ",
-      "assets": "アセット"
+      "assets": "アセット",
+      "cards": "カード管理"
     },
     "requestsLoading": "...",
     "requestsTooltip": "使用したAPIリクエスト数"
@@ -2154,6 +2159,7 @@
     "tokenPlaceholder": "Civitai API Tokenを入力",
     "removeToken": "削除",
     "cardManagement": "カード管理",
+    "cardManagementHint": "キャラクター、スタイル、背景カードの素材をまとめて管理。",
     "projectHistory": "プロジェクトと履歴",
     "character": "キャラクター",
     "background": "背景",

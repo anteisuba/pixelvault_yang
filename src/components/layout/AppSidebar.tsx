@@ -11,6 +11,7 @@ import {
   FileText,
   Image as ImageIcon,
   KeyRound,
+  Layers,
   LayoutGrid,
   Library,
   LogOut,
@@ -33,7 +34,6 @@ import { useTranslations } from 'next-intl'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-import { CardDrawer } from '@/components/business/CardDrawer'
 
 // Lazy-load ApiKeyManager so its bundle (forms + tables) stays out of the
 // main-layout chunk that loads on every page in the (main) route group.
@@ -83,8 +83,8 @@ import { cn } from '@/lib/utils'
  *
  * Architecture (Krea-aligned):
  * - Header: brand + sidebar toggle
- * - Main nav: Gallery / Prompt library / Assets
- * - Footer: CardDrawer / credit badge / avatar dropdown / LocaleSwitcher
+ * - Main nav: Gallery / Prompt library / Assets / Cards
+ * - Footer: credit badge / avatar dropdown / LocaleSwitcher
  *
  * Visual: dark theme (uses shadcn sidebar token's dark-mode values via local
  * `dark` class) layered on top of the light editorial main surface.
@@ -182,6 +182,11 @@ function AppSidebarContent() {
       href: ROUTES.ASSETS,
       label: t('links.assets'),
       icon: Library,
+    },
+    {
+      href: ROUTES.CARDS,
+      label: t('links.cards'),
+      icon: Layers,
     },
   ] as const
 
@@ -445,7 +450,6 @@ function AppSidebarFooter() {
   return (
     <SidebarFooter className="border-t border-sidebar-border/40 gap-2">
       <SignedIn>
-        <SidebarFooterCardDrawer />
         <SidebarFooterCreditBadge />
         <SidebarFooterUserMenu />
         <div className="group-data-[collapsible=icon]:hidden">
@@ -469,22 +473,6 @@ function AppSidebarFooter() {
         </Button>
       </SignedOut>
     </SidebarFooter>
-  )
-}
-
-function SidebarFooterCardDrawer() {
-  const t = useTranslations('StudioV2')
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <CardDrawer>
-          <SidebarMenuButton tooltip={t('cardManagement')}>
-            <Library className="size-4 shrink-0" />
-            <span>{t('cardManagement')}</span>
-          </SidebarMenuButton>
-        </CardDrawer>
-      </SidebarMenuItem>
-    </SidebarMenu>
   )
 }
 

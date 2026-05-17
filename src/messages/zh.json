@@ -129,6 +129,10 @@
       "title": "素材 — PixelVault",
       "description": "浏览和管理你的所有生成作品，按项目和文件夹组织。"
     },
+    "cards": {
+      "title": "卡片管理 — PixelVault",
+      "description": "管理角色卡、画风卡和背景卡，统一控制你的生成素材库。"
+    },
     "arena": {
       "title": "竞技场 — PixelVault",
       "description": "盲测 AI 图像模型并投票选出最佳结果。"
@@ -165,7 +169,8 @@
       "arena": "竞技场",
       "storyboard": "故事",
       "library": "档案",
-      "assets": "素材"
+      "assets": "素材",
+      "cards": "卡片管理"
     },
     "requestsLoading": "...",
     "requestsTooltip": "已使用的 API 请求数"
@@ -2162,6 +2167,7 @@
     "tokenPlaceholder": "输入 Civitai API Token",
     "removeToken": "删除",
     "cardManagement": "卡片管理",
+    "cardManagementHint": "集中管理角色卡、画风卡和背景卡的素材。",
     "projectHistory": "项目与历史",
     "proModeNudge": "解锁风格卡片和角色预设，获得更精细的控制",
     "tryProMode": "试试看",

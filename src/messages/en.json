@@ -129,6 +129,10 @@
       "title": "Assets — PixelVault",
       "description": "Browse and manage every generation you've made, organised by project and folder."
     },
+    "cards": {
+      "title": "Card Management — PixelVault",
+      "description": "Manage your character, style, and background cards in one place."
+    },
     "arena": {
       "title": "Arena — PixelVault",
       "description": "Blind-test AI image models and vote for the best result."
@@ -165,7 +169,8 @@
       "arena": "Arena",
       "storyboard": "Stories",
       "library": "Archive",
-      "assets": "Assets"
+      "assets": "Assets",
+      "cards": "Card Management"
     },
     "requestsLoading": "...",
     "requestsTooltip": "Total API requests used"
@@ -2162,6 +2167,7 @@
     "tokenPlaceholder": "Enter Civitai API token",
     "removeToken": "Remove",
     "cardManagement": "Card Management",
+    "cardManagementHint": "Manage your character, style, and background card assets in one place.",
     "projectHistory": "Project & History",
     "proModeNudge": "Unlock style cards and character presets for more control",
     "tryProMode": "Try it",

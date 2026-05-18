@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Download,
   GripHorizontal,
@@ -34,6 +34,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
+import { getGenerationAudioSegments } from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
@@ -247,6 +248,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Has generation: two-column layout (image + right toolbar) ─────
   const canUseAsReference =
     generation.outputType === 'IMAGE' && typeof onUseAsReference === 'function'
+  const audioSegments = getGenerationAudioSegments(generation)
 
   const handleDownload = async () => {
     if (!generation.url) return
@@ -359,7 +361,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         <Download className="size-7 text-primary/60" />
       </div>
       <div className="w-full max-w-md px-6">
-        <AudioPlayer src={generation.url} />
+        <AudioPlayer src={generation.url} segments={audioSegments} />
       </div>
       {generation.duration && (
         <p className="font-serif text-xs text-muted-foreground">

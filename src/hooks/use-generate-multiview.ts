@@ -31,9 +31,14 @@ interface UseGenerateMultiViewReturn {
   views: MultiViewImageRecord[]
   generate: (
     params: MultiViewGenerateRequest,
+    options?: GenerateMultiViewOptions,
   ) => Promise<MultiViewImageRecord[]>
   restore: (params: MultiViewGenerateRequest) => boolean
   reset: () => void
+}
+
+interface GenerateMultiViewOptions {
+  force?: boolean
 }
 
 function stableHash(value: string): string {
@@ -97,6 +102,16 @@ function writeCachedViews(
   }
 }
 
+function removeCachedViews(params: MultiViewGenerateRequest) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.removeItem(getCacheKey(params))
+  } catch {
+    // Cache is an optimization only; generation still works without it.
+  }
+}
+
 /**
  * Generate 3 alternate camera angles (back / left / right) of a source image
  * via the reference-edit chain. Returns temporary provider URLs; partial
@@ -118,11 +133,17 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
   const generate = useCallback(
     async (
       params: MultiViewGenerateRequest,
+      options?: GenerateMultiViewOptions,
     ): Promise<MultiViewImageRecord[]> => {
-      const cachedViews = readCachedViews(params)
-      if (cachedViews) {
-        setViews(cachedViews)
-        return cachedViews
+      if (options?.force) {
+        removeCachedViews(params)
+        setViews([])
+      } else {
+        const cachedViews = readCachedViews(params)
+        if (cachedViews) {
+          setViews(cachedViews)
+          return cachedViews
+        }
       }
 
       setIsGenerating(true)

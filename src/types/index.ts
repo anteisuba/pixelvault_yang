@@ -1108,9 +1108,19 @@ export interface GenerationRecord {
 
 // ─── API Key ──────────────────────────────────────────────────────
 
+// `baseUrl` flows into outbound fetch() in apiKey.service.ts (verify) and the
+// execution worker (live calls). User-controlled values must be https-only —
+// http allows an attacker-registered key to point at internal services and
+// have the server attach Bearer/x-goog-api-key headers to the request. SSRF
+// hostname blocking is enforced at fetch time via `safeFetch`.
 export const ProviderConfigSchema = z.object({
   label: z.string().trim().min(1).max(60),
-  baseUrl: z.string().trim().url().max(300),
+  baseUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(300)
+    .refine((v) => v.startsWith('https://'), 'baseUrl must use https'),
 })
 export type ProviderConfigInput = z.infer<typeof ProviderConfigSchema>
 

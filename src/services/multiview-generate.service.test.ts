@@ -63,8 +63,8 @@ import { resolveGenerationRoute } from '@/services/generate-image.service'
 import { createApiUsageEntry } from '@/services/usage.service'
 import {
   GENERATED_VIEW_ANGLES,
+  MULTI_VIEW_NEGATIVE,
   MULTI_VIEW_PROMPTS,
-  THREE_D_READY_NEGATIVE,
 } from '@/constants/three-d-ready-prompt'
 
 const mockResolveRoute = vi.mocked(resolveGenerationRoute)
@@ -126,7 +126,7 @@ describe('generateMultiView', () => {
       const [input] = call
       expect(input.referenceImage).toBe('https://cdn.test/front.png')
       expect(input.aspectRatio).toBe('1:1')
-      expect(input.advancedParams?.negativePrompt).toBe(THREE_D_READY_NEGATIVE)
+      expect(input.advancedParams?.negativePrompt).toBe(MULTI_VIEW_NEGATIVE)
     }
   })
 

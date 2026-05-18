@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useRef, useState } from 'react'
-import { FileText, Mic, Plus, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { FileText, Mic, Plus, SlidersHorizontal } from 'lucide-react'
 
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -18,17 +18,18 @@ import { cn } from '@/lib/utils'
 
 import { ReferenceImageChip } from './ReferenceImageChip'
 import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
+import { StudioEnhanceButton } from './StudioEnhanceButton'
 
 /**
- * StudioToolbarRow — renders ONLY the toolbar button row.
- * Panel content is rendered by StudioDockPanelArea (inline panels) and
- * StudioPanelDialogs (enhance / reverse / transform modals) — see
- * StudioBottomDock for the actual mounts.
+ * StudioToolbarRow — renders ONLY the toolbar button row. Each interactive
+ * tool (enhance, reverse, transform, cards, refImage, style, aspect ratio)
+ * is now a self-contained Krea-style popover button anchored to its own
+ * trigger; only inline panels (advanced, plan, civitai, layer decompose)
+ * are still routed via dispatch + StudioDockPanelArea.
  */
 export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
   const { state, dispatch } = useStudioForm()
-  const { promptEnhance, civitai, characters, backgrounds, styles } =
-    useStudioData()
+  const { civitai } = useStudioData()
   const { isGenerating, setCurrentPlan } = useStudioGen()
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
@@ -130,23 +131,11 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
     return (
       // Wrap in Toolbar.Root so the shared chips (ReferenceImageChip,
-      // StudioAspectRatioPopover) — which use Radix Toolbar.Button under
-      // the hood — can find their roving-focus context. Plain `button`
-      // children stay valid inside Toolbar.Root.
+      // StudioAspectRatioPopover, StudioEnhanceButton) — which use Radix
+      // Toolbar.Button under the hood — can find their roving-focus
+      // context. Plain `button` children stay valid inside Toolbar.Root.
       <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
-          disabled={isGenerating}
-          className={cn(
-            pillBase,
-            state.panels.enhance ? pillActive : pillInactive,
-            promptEnhance.isEnhancing && 'opacity-70',
-          )}
-        >
-          <Sparkles className="size-4" />
-          {tBar('enhance')}
-        </button>
+        <StudioEnhanceButton disabled={isGenerating} />
         {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
         <ReferenceImageChip disabled={isGenerating} />
         {/* Aspect ratio: same popover as image mode — video-specific ratios are picked inside the popover based on outputType. */}
@@ -189,20 +178,10 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       'border border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground'
     const pillActive = 'bg-primary/10 text-primary border border-primary/30'
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
-          disabled={isGenerating || promptEnhance.isEnhancing}
-          className={cn(
-            pillBase,
-            state.panels.enhance ? pillActive : pillInactive,
-            promptEnhance.isEnhancing && 'opacity-70',
-          )}
-        >
-          <Sparkles className="size-4" />
-          {tBar('enhance')}
-        </button>
+      // Wrap in Toolbar.Root for StudioEnhanceButton (Toolbar.Button under
+      // the hood); plain `button` children remain valid inside.
+      <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+        <StudioEnhanceButton disabled={isGenerating} />
         <button
           type="button"
           onClick={() => {
@@ -237,31 +216,15 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
           <Plus className="size-4" />
           {tBar('clone')}
         </button>
-      </div>
+      </Toolbar.Root>
     )
   }
 
   return (
     <StudioToolbar
-      onEnhance={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'enhance' })}
-      isEnhancing={promptEnhance.isEnhancing}
-      onReverse={() => dispatch({ type: 'TOGGLE_PANEL', payload: 'reverse' })}
-      onTransform={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'transform' })
-      }
-      transformOpen={state.panels.transform}
       onPlan={handleOpenPlan}
       planLoading={isPlanning}
       planActive={state.panels.planPreview}
-      onCards={() =>
-        dispatch({ type: 'TOGGLE_PANEL', payload: 'cardSelector' })
-      }
-      cardsOpen={state.panels.cardSelector}
-      selectedCardCount={
-        characters.activeCardIds.length +
-        (backgrounds.activeCardId ? 1 : 0) +
-        (styles.activeCardId ? 1 : 0)
-      }
       onLayerDecompose={() =>
         dispatch({ type: 'TOGGLE_PANEL', payload: 'layerDecompose' })
       }
@@ -270,6 +233,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       }
       hasToken={civitai.hasToken}
       onMake3DReady={handleMake3DReady}
+      make3DReadyActive={state.prompt.includes('[3D-READY]')}
       disabled={isGenerating}
       quickMode={state.workflowMode === 'quick'}
     />

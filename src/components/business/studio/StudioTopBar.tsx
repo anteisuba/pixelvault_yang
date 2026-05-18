@@ -1,30 +1,25 @@
 'use client'
 
 import { memo, useState } from 'react'
-import { Gift, SlidersHorizontal } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 import { StudioAdvancedDrawer } from './StudioAdvancedDrawer'
 
 /**
- * StudioTopBar — Slim 48px bar: advanced path + free-credit badge.
+ * StudioTopBar — Slim 48px bar: advanced path entry.
  *
- * The model/route indicator was removed once the prompt area gained its own
- * model dropdown — duplicating it here just doubled the "which model is
- * active?" surface. The sidebar toggle was already removed in Phase 3.1
- * (the global AppSidebar owns navigation).
+ * The free-quota chip was relocated to the sidebar footer (Krea-style: a thin
+ * progress bar + remaining/limit under the credits badge). Keeping it here in
+ * a bright Gift icon made the dark workspace top-right too noisy — the
+ * sidebar already houses every other persistent account-level indicator
+ * (credits, locale, avatar), so quota belongs there.
  */
 export const StudioTopBar = memo(function StudioTopBar() {
-  const tStudio = useTranslations('StudioPage')
   const tAdvanced = useTranslations('StudioAdvanced')
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const { summary } = useUsageSummary()
-
-  const freeRemaining =
-    summary.freeGenerationLimit - summary.freeGenerationsToday
 
   return (
     <>
@@ -44,22 +39,6 @@ export const StudioTopBar = memo(function StudioTopBar() {
           <SlidersHorizontal className="size-4" />
           <span className="hidden sm:inline">{tAdvanced('button')}</span>
         </button>
-
-        {/* Free credits badge — compact on mobile */}
-        <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-2xs text-muted-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs">
-          <Gift className="size-3.5 text-chart-3 sm:size-4" />
-          <span className="font-serif font-medium">
-            <span className="hidden sm:inline">
-              {tStudio('freeQuota', {
-                remaining: Math.max(0, freeRemaining),
-                limit: summary.freeGenerationLimit,
-              })}
-            </span>
-            <span className="sm:hidden">
-              {Math.max(0, freeRemaining)}/{summary.freeGenerationLimit}
-            </span>
-          </span>
-        </div>
       </div>
       <StudioAdvancedDrawer
         open={advancedOpen}

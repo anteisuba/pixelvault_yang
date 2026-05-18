@@ -18,6 +18,11 @@ import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import Lightbox from 'yet-another-react-lightbox'
+import Counter from 'yet-another-react-lightbox/plugins/counter'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
+import 'yet-another-react-lightbox/styles.css'
+import 'yet-another-react-lightbox/plugins/counter.css'
 
 import {
   AI_MODELS,
@@ -152,7 +157,6 @@ export function Studio3DWorkspace({
 }: Studio3DWorkspaceProps) {
   const t = useTranslations('Model3DGenerate')
   const tModels = useTranslations('Models')
-  const tChip = useTranslations('ImageChip')
   const models = useMemo(() => getAvailableModel3DModels(), [])
   // P6: surface Hunyuan's credit cost on the Refine button so the user knows
   // what they're about to spend. Pulled from the registry instead of being
@@ -224,6 +228,7 @@ export function Studio3DWorkspace({
   const [manualMultiViewOpen, setManualMultiViewOpen] = useState(false)
   const [uploadingManualView, setUploadingManualView] =
     useState<GeneratedSideView | null>(null)
+  const [multiViewLightboxIndex, setMultiViewLightboxIndex] = useState(-1)
 
   const {
     isGenerating,
@@ -518,10 +523,18 @@ export function Studio3DWorkspace({
     reset()
   }
 
+  const handleSelectSourceImage = (generation: GenerationRecord) => {
+    setSourceImage(generation)
+    resetMultiView()
+    setManualMultiViewImages({})
+    setManualMultiViewOpen(false)
+    reset()
+  }
+
   // Fan out 3 reference-edit calls to render back / left / right angles
   // of the current source. Results stay as temporary provider URLs and are
   // submitted with the final Hunyuan v3/v3.1 job instead of being archived.
-  const handleGenerate4Views = async () => {
+  const handleGenerate4Views = async (options?: { force?: boolean }) => {
     if (
       !sourceImage ||
       isGeneratingViews ||
@@ -539,8 +552,8 @@ export function Studio3DWorkspace({
         apiKeyId: selectedMultiViewApiKeyId,
       }),
     }
-    if (restoreMultiView(request)) return
-    const views = await generateMultiViewFn(request)
+    if (!options?.force && restoreMultiView(request)) return
+    const views = await generateMultiViewFn(request, options)
     if (views.length < GENERATED_VIEW_ANGLES.length) {
       setManualMultiViewOpen(true)
     }
@@ -650,7 +663,7 @@ export function Studio3DWorkspace({
         toast.error(response.error ?? t('errorFallback'))
         return
       }
-      setSourceImage(response.data.generation)
+      handleSelectSourceImage(response.data.generation)
       toast.success(t('uploadSuccess'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('errorUnexpected'))
@@ -931,23 +944,53 @@ export function Studio3DWorkspace({
               {t('sourceImageLabel')}
             </Label>
             {sourceImage ? (
-              <div className="relative aspect-square w-full overflow-hidden rounded-lg ring-1 ring-border/40">
-                <Image
-                  src={sourceImage.url}
-                  alt="Source"
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="320px"
-                />
-                <button
-                  type="button"
-                  onClick={handleClearSource}
-                  className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-                  aria-label="Remove source image"
-                >
-                  <X className="size-3.5" />
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg ring-1 ring-border/40">
+                  <Image
+                    src={sourceImage.url}
+                    alt="Source"
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="320px"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleClearSource}
+                    className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                    aria-label="Remove source image"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPickerOpen(true)}
+                    disabled={uploading || isGenerating}
+                    className="rounded-full text-xs"
+                  >
+                    <FolderOpen className="mr-1.5 size-3" />
+                    {t('selectFromAssets')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUploadClick}
+                    disabled={uploading || isGenerating}
+                    className="rounded-full text-xs"
+                  >
+                    {uploading ? (
+                      <Loader2 className="mr-1.5 size-3 animate-spin" />
+                    ) : (
+                      <Upload className="mr-1.5 size-3" />
+                    )}
+                    {uploading ? t('uploading') : t('uploadButton')}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-6 text-center">
@@ -973,7 +1016,7 @@ export function Studio3DWorkspace({
                     className="w-full rounded-full"
                   >
                     <FolderOpen className="mr-1.5 size-3.5" />
-                    {tChip('selectAsset')}
+                    {t('selectFromAssets')}
                   </Button>
                 </div>
               </div>
@@ -1096,7 +1139,7 @@ export function Studio3DWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleGenerate4Views}
+                    onClick={() => void handleGenerate4Views()}
                     disabled={
                       isGeneratingViews ||
                       !supportsMultiViewInput ||
@@ -1133,13 +1176,15 @@ export function Studio3DWorkspace({
                         gen: view,
                         label: getViewLabel(view.view),
                       })),
-                    ].map(({ gen, label }) => {
+                    ].map(({ gen, label }, index) => {
                       const isFront = gen.id === sourceImage.id
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={gen.id}
+                          onClick={() => setMultiViewLightboxIndex(index)}
                           className={cn(
-                            'relative aspect-square overflow-hidden rounded-md ring-1',
+                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                             isFront ? 'ring-2 ring-primary' : 'ring-border/40',
                           )}
                         >
@@ -1159,13 +1204,56 @@ export function Studio3DWorkspace({
                           <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
                             {label}
                           </span>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
                   <p className="text-[10px] leading-4 text-muted-foreground">
                     {t('multiViewPickHint')}
                   </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleGenerate4Views({ force: true })}
+                    disabled={
+                      isGeneratingViews ||
+                      !supportsMultiViewInput ||
+                      !canUseSelectedMultiViewModel
+                    }
+                    className="h-8 w-full rounded-full text-xs"
+                  >
+                    {isGeneratingViews ? (
+                      <>
+                        <Loader2 className="mr-1.5 size-3 animate-spin" />
+                        {t('multiViewLoading')}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 size-3" />
+                        {t('multiViewRegenerateButton')}
+                      </>
+                    )}
+                  </Button>
+                  <Lightbox
+                    open={multiViewLightboxIndex >= 0}
+                    close={() => setMultiViewLightboxIndex(-1)}
+                    index={multiViewLightboxIndex}
+                    slides={[
+                      { src: sourceImage.url, alt: t('viewFront') },
+                      ...effectiveMultiViewViews.map((view) => ({
+                        src: view.url,
+                        alt: getViewLabel(view.view),
+                      })),
+                    ]}
+                    plugins={[Zoom, Counter]}
+                    carousel={{ finite: true }}
+                    zoom={{ maxZoomPixelRatio: 3, scrollToZoom: true }}
+                    styles={{
+                      container: { backgroundColor: 'rgba(0, 0, 0, 0.9)' },
+                    }}
+                    animation={{ fade: 300, swipe: 300 }}
+                  />
                 </>
               )}
 
@@ -1479,7 +1567,7 @@ export function Studio3DWorkspace({
       <AssetSelectorDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        onSelect={(gen) => setSourceImage(gen)}
+        onSelect={handleSelectSourceImage}
         initialGenerations={initialGenerations}
         initialTotal={initialTotal}
         initialHasMore={initialHasMore}

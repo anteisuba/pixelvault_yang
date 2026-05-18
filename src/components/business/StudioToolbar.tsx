@@ -1,16 +1,6 @@
 'use client'
 
-import {
-  Box,
-  Sparkles,
-  ScanText,
-  Key,
-  Layers,
-  Wand2,
-  Cpu,
-  Compass,
-  PanelsTopLeft,
-} from 'lucide-react'
+import { Box, Key, Layers, Cpu, Compass } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -24,21 +14,17 @@ import {
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
+import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
+import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
+import { StudioReverseButton } from '@/components/business/studio/StudioReverseButton'
+import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
 interface StudioToolbarProps {
-  onEnhance?: () => void
-  isEnhancing?: boolean
-  onReverse?: () => void
   onLayerDecompose?: () => void
-  onTransform?: () => void
-  transformOpen?: boolean
   onPlan?: () => void
   planLoading?: boolean
   planActive?: boolean
-  onCards?: () => void
-  cardsOpen?: boolean
-  selectedCardCount?: number
   onCivitaiToken?: () => void
   hasToken?: boolean
   /**
@@ -47,6 +33,8 @@ interface StudioToolbarProps {
    * generation produces a Hunyuan3D / TripoSR-ready source image.
    */
   onMake3DReady?: () => void
+  /** Visual active state: true while prompt currently carries the [3D-READY] marker. */
+  make3DReadyActive?: boolean
   disabled?: boolean
   /** Quick mode hides advanced tools */
   quickMode?: boolean
@@ -103,21 +91,14 @@ function ToolButton({
  * Studio toolbar — uses Radix Toolbar for roving tabindex keyboard navigation.
  */
 export function StudioToolbar({
-  onEnhance,
-  isEnhancing,
-  onReverse,
   onLayerDecompose,
-  onTransform,
-  transformOpen,
   onPlan,
   planLoading,
   planActive,
-  onCards,
-  cardsOpen,
-  selectedCardCount,
   onCivitaiToken,
   hasToken,
   onMake3DReady,
+  make3DReadyActive,
   disabled,
   quickMode,
 }: StudioToolbarProps) {
@@ -129,41 +110,22 @@ export function StudioToolbar({
         className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5"
         aria-label={t('toolbarLabel')}
       >
-        <ToolButton
-          icon={
-            <Sparkles
-              className={cn('size-4', isEnhancing && 'animate-pulse')}
-            />
-          }
-          label={t('enhance')}
-          onClick={onEnhance}
-          disabled={disabled || isEnhancing}
-        />
-        <ToolButton
-          icon={<ScanText className="size-4" />}
-          label={t('reverse')}
-          onClick={onReverse}
-          disabled={disabled}
-        />
+        {/* Group 1 — Prompt modifiers: enhance / reverse-engineer / style */}
+        <StudioEnhanceButton disabled={disabled} />
+        <StudioReverseButton disabled={disabled} />
         <StylePresetButton disabled={disabled} />
-        {/*
-         * Reference image entry is the Krea-style chip (Phase 5.5b) — it
-         * owns its own popover (Upload + Select asset), so the toolbar
-         * doesn't need to drive a parent-controlled panel for it.
-         */}
+
+        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
+
+        {/* Group 2 — Inputs & type switches: reference image / transform / 3D / plan / cards */}
         <ReferenceImageChip disabled={disabled} />
-        <ToolButton
-          icon={<Wand2 className="size-4" />}
-          label={t('transform')}
-          onClick={onTransform}
-          active={transformOpen}
-          disabled={disabled}
-        />
+        <StudioTransformButton disabled={disabled} />
         {onMake3DReady && (
           <ToolButton
             icon={<Box className="size-4" />}
             label={t('make3DReady')}
             onClick={onMake3DReady}
+            active={make3DReadyActive}
             disabled={disabled}
           />
         )}
@@ -180,16 +142,7 @@ export function StudioToolbar({
             disabled={disabled || planLoading}
           />
         )}
-        {onCards && (
-          <ToolButton
-            icon={<PanelsTopLeft className="size-4" />}
-            label={t('cards')}
-            onClick={onCards}
-            active={cardsOpen}
-            badge={selectedCardCount}
-            disabled={disabled}
-          />
-        )}
+        <StudioCardsButton disabled={disabled} />
         {!quickMode && (
           <ToolButton
             icon={<Layers className="size-4" />}
@@ -198,12 +151,10 @@ export function StudioToolbar({
             disabled={disabled}
           />
         )}
-        {/*
-         * AspectRatio entry is the Krea-style popover (Phase 5.5c) — it
-         * owns its own popover anchored to this button and renders pills
-         * + visual ratio preview, so the toolbar doesn't drive a parent
-         * panel for it any more.
-         */}
+
+        <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
+
+        {/* Group 3 — Size */}
         <StudioAspectRatioPopover disabled={disabled} />
         {!quickMode && (
           <>

@@ -623,6 +623,7 @@
     "sourceQualityChecklist": "Before continuing, confirm: one isolated subject, clean background, no occlusion, even lighting, full silhouette visible.",
     "multiViewModelLabel": "Multi-view model",
     "multiViewButton": "Generate side views",
+    "multiViewRegenerateButton": "Regenerate side views",
     "multiViewLoading": "Rendering views...",
     "multiViewHint": "Renders back / left / right as temporary inputs only. They are not saved to the asset library.",
     "multiViewApiKeyMissing": "This multi-view model needs a matching API key first. You can also upload back, left, and right views manually.",
@@ -2257,11 +2258,19 @@
     "emptyStateHintVideo": "Describe the shot, motion, or how the scene unfolds to start creating",
     "suggestion": {
       "s1": "A serene Japanese garden at golden hour",
-      "s2": "Abstract geometric art in warm earth tones",
-      "s3": "A cozy café interior with soft morning light",
-      "s4": "Minimalist portrait with dramatic shadows"
+      "s2": "Cyberpunk city street, neon rain, night",
+      "s3": "White-haired anime swordsman, techwear coat",
+      "s4": "Abstract geometric art in warm earth tones",
+      "s5": "A cozy café interior with soft morning light",
+      "s6": "Minimalist portrait with dramatic shadows"
     },
     "generating": "Generating...",
+    "generatingStages": {
+      "parsing": "Parsing prompt",
+      "loadingModel": "Warming model",
+      "sampling": "Sampling {step}/{total}",
+      "finalizing": "Finalizing"
+    },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",
     "previewErrorTitle": "Generation needs another try",

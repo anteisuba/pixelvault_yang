@@ -69,7 +69,7 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
-    const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4'] as const
+    const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4', 's5', 's6'] as const
     // Suggestion pills are image-prompt phrases; only meaningful in image mode.
     // Video and audio modes have their own input semantics (motion, TTS text).
     const showSuggestions = state.outputType === 'image'
@@ -119,23 +119,103 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Generating (no image yet) ─────────────────────────────────────
   if (isGenerating && !generation) {
+    // Frontend-simulated streaming reveal — we don't have an SSE channel for
+    // partial sample steps yet, so stage + step + progress are derived from
+    // elapsedSeconds against a 30 s nominal-completion budget. The point is
+    // qualitative motion: the user sees something happening every second
+    // instead of staring at a spinner that says "Generating..." until the
+    // final image pops in.
+    const NOMINAL_SECONDS = 30
+    const TOTAL_STEPS = 40
+    const fraction = Math.min(0.97, elapsedSeconds / NOMINAL_SECONDS)
+    const stageKey =
+      elapsedSeconds < 1.2
+        ? 'parsing'
+        : elapsedSeconds < 3.5
+          ? 'loadingModel'
+          : fraction < 0.92
+            ? 'sampling'
+            : 'finalizing'
+    const samplingStep = Math.max(
+      1,
+      Math.min(
+        TOTAL_STEPS,
+        Math.round(
+          ((elapsedSeconds - 3.5) / (NOMINAL_SECONDS - 3.5)) * TOTAL_STEPS,
+        ),
+      ),
+    )
+    const stageLabel =
+      stageKey === 'sampling'
+        ? t('generatingStages.sampling', {
+            step: samplingStep,
+            total: TOTAL_STEPS,
+          })
+        : t(`generatingStages.${stageKey}` as const)
+
+    // Height-driven sizing keeps the placeholder visually proportional to the
+    // requested aspect ratio without ever growing past the viewport. height is
+    // explicit so `aspect-ratio` reverses to compute width — guarantees a
+    // 9:16 placeholder stays a tall narrow card, not a full-canvas takeover.
+    const aspectRatioValue = (() => {
+      switch (state.aspectRatio) {
+        case '16:9':
+          return '16 / 9'
+        case '9:16':
+          return '9 / 16'
+        case '4:3':
+          return '4 / 3'
+        case '3:4':
+          return '3 / 4'
+        default:
+          return '1 / 1'
+      }
+    })()
+
     return (
       <div
-        className="rounded-2xl border border-dashed border-border/60 bg-muted/10"
+        className="mx-auto overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10"
+        style={{
+          aspectRatio: aspectRatioValue,
+          height: isMobile ? 'min(45vh, 360px)' : 'min(55vh, 520px)',
+          maxWidth: '100%',
+        }}
         aria-live="polite"
       >
-        <div className="flex flex-col items-center justify-center gap-3 py-12">
-          <div className="relative">
-            <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        <div className="flex h-full w-full flex-col">
+          {/* Reveal canvas — shimmer scans across a soft gradient + noise.
+              Reads as "the image is being painted in" without faking a
+              fake preview. */}
+          <div className="studio-reveal-canvas relative flex-1 overflow-hidden">
+            <div className="studio-reveal-shimmer absolute inset-0" />
           </div>
-          <p className="text-sm text-muted-foreground font-serif animate-pulse">
-            {t('generating')}
-          </p>
-          {elapsedSeconds > 0 && (
-            <p className="text-xs text-muted-foreground font-serif">
-              {t('elapsed', { seconds: formatDuration(elapsedSeconds) })}
-            </p>
-          )}
+          {/* Status strip — stage label + elapsed + thin progress bar */}
+          <div className="flex flex-col gap-2 border-t border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-medium text-foreground">
+                {stageLabel}
+              </p>
+              {elapsedSeconds > 0 && (
+                <p className="text-2xs tabular-nums text-muted-foreground">
+                  {t('elapsed', {
+                    seconds: formatDuration(elapsedSeconds),
+                  })}
+                </p>
+              )}
+            </div>
+            <div
+              className="h-0.5 overflow-hidden rounded-full bg-border/60"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(fraction * 100)}
+            >
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
+                style={{ width: `${Math.max(2, fraction * 100)}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     )

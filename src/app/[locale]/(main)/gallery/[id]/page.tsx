@@ -162,11 +162,21 @@ export default async function ImageDetailPage({
   ]
   const previewUrl = getGenerationPreviewUrl(generation)
 
+  // `prompt` is user-controlled, so `JSON.stringify(jsonLd)` could contain
+  // `</script>` or U+2028/U+2029 separators that break out of the inline
+  // script and execute. Escape the three hostile sequences inline — this
+  // keeps the JSON syntactically valid while preventing both classic XSS
+  // and the line-separator JS parser bug.
+  const jsonLdSafe = JSON.stringify(jsonLd)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+
   return (
     <div className="editorial-page">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSafe }}
       />
       <div className="editorial-container max-w-4xl">
         <div className="mb-6">

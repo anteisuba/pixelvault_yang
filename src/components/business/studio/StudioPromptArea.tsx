@@ -873,190 +873,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
        * UI is suppressed.
        */}
 
-      {/*
-       * Model selector lives ABOVE the prompt (Krea-style) rather than
-       * inside the bottom action row. Card mode hides it entirely since
-       * the active style card supplies the model — leaving an empty row
-       * here would just be visual noise.
-       */}
+      {/* Quick-Setup modal lives at fragment root because it's a Dialog
+          (no flow-layout footprint). The model picker capsule itself now
+          renders inline inside PromptInputActions below. */}
       {state.workflowMode === 'quick' && (
-        <div className="mb-2.5 flex">
-          <Popover
-            open={modelPickerOpen}
-            onOpenChange={handleModelPickerOpenChange}
-          >
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('selectModel')}
-                aria-expanded={modelPickerOpen}
-                className="flex h-9 max-w-full items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3.5 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
-              >
-                {selectedModel?.keyId && (
-                  <ApiKeyHealthDot status={healthMap[selectedModel.keyId]} />
-                )}
-                {!selectedModel?.keyId && selectedModel?.freeTier && (
-                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                )}
-                <span className="max-w-52 truncate font-medium text-foreground">
-                  {selectedModel
-                    ? (selectedModel.keyLabel ??
-                      getTranslatedModelLabel(tModels, selectedModel.modelId))
-                    : t('noModelHint')}
-                </span>
-                {selectedModel && (
-                  <span className="max-w-24 truncate text-muted-foreground/55">
-                    {getProviderLabel(selectedModel.providerConfig)}
-                  </span>
-                )}
-                <ChevronDown className="size-3.5" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              side="top"
-              sideOffset={8}
-              className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border-border/70 bg-popover/96 p-2 shadow-2xl backdrop-blur-xl sm:w-96"
-            >
-              <div className="px-3 pb-2 pt-2">
-                <div className="relative">
-                  <Search className="absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/55" />
-                  <input
-                    type="text"
-                    value={modelSearchQuery}
-                    onChange={(event) =>
-                      setModelSearchQuery(event.currentTarget.value)
-                    }
-                    placeholder={tForm('modelSelector.searchPlaceholder')}
-                    aria-label={tForm('modelSelector.searchPlaceholder')}
-                    className="h-10 w-full border-0 bg-transparent pl-6 pr-1 font-display text-base text-foreground outline-none placeholder:text-muted-foreground/65"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-
-              <div className="max-h-80 overflow-y-auto overscroll-contain px-1 pb-1">
-                {modelSearchResults.available.length > 0 && (
-                  <section className="pb-1">
-                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
-                      {tSetup('available')}
-                    </div>
-                    <div className="grid gap-1">
-                      {modelSearchResults.available.map((option) => {
-                        const isSelected =
-                          option.optionId === state.selectedOptionId
-                        const optionLabel =
-                          option.keyLabel ??
-                          getTranslatedModelLabel(tModels, option.modelId)
-                        const optionModelLabel = getTranslatedModelLabel(
-                          tModels,
-                          option.modelId,
-                        )
-                        const providerLabel = getProviderLabel(
-                          option.providerConfig,
-                        )
-                        const optionMeta = option.keyLabel
-                          ? `${optionModelLabel} · ${providerLabel}`
-                          : providerLabel
-
-                        return (
-                          <button
-                            key={option.optionId}
-                            type="button"
-                            onClick={() => handleSelectModel(option.optionId)}
-                            aria-pressed={isSelected}
-                            className={cn(
-                              'group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors',
-                              isSelected
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:bg-muted/55 hover:text-foreground',
-                            )}
-                          >
-                            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground">
-                              <Sparkles className="size-3.5" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex min-w-0 items-center gap-2">
-                                {option.keyId ? (
-                                  <ApiKeyHealthDot
-                                    status={healthMap[option.keyId]}
-                                  />
-                                ) : option.freeTier ? (
-                                  <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                ) : null}
-                                <span className="truncate text-sm font-semibold">
-                                  {optionLabel}
-                                </span>
-                              </span>
-                              <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-                                {optionMeta}
-                              </span>
-                            </span>
-                            {isSelected ? (
-                              <Check className="size-4 shrink-0 text-foreground" />
-                            ) : null}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </section>
-                )}
-
-                {modelSearchResults.locked.length > 0 && (
-                  <section
-                    className={cn(
-                      'pt-1',
-                      modelSearchResults.available.length > 0 &&
-                        'mt-1 border-t border-border/55',
-                    )}
-                  >
-                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
-                      {tSetup('needsKey')}
-                    </div>
-                    <div className="grid gap-1">
-                      {modelSearchResults.locked.map((option) => (
-                        <button
-                          key={option.optionId}
-                          type="button"
-                          onClick={() => handleOpenQuickSetup(option)}
-                          className="group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-muted-foreground/65 transition-colors hover:bg-muted/45 hover:text-foreground"
-                        >
-                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground">
-                            <Key className="size-3.5" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">
-                              {getTranslatedModelLabel(tModels, option.modelId)}
-                            </span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-                              {getProviderLabel(option.providerConfig)}
-                            </span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {!hasModelSearchResults ? (
-                  <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-                    {tForm('modelSelector.emptySearch')}
-                  </div>
-                ) : null}
-              </div>
-            </PopoverContent>
-          </Popover>
-          <QuickSetupDialog
-            open={quickSetup.open}
-            onOpenChange={(v) =>
-              setQuickSetup((prev) => ({ ...prev, open: v }))
-            }
-            modelId={quickSetup.modelId}
-            modelLabel={quickSetup.modelLabel}
-            adapterType={quickSetup.adapterType}
-            optionId={quickSetup.optionId}
-          />
-        </div>
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(v) => setQuickSetup((prev) => ({ ...prev, open: v }))}
+          modelId={quickSetup.modelId}
+          modelLabel={quickSetup.modelLabel}
+          adapterType={quickSetup.adapterType}
+          optionId={quickSetup.optionId}
+        />
       )}
 
       <PromptInput
@@ -1078,11 +906,185 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           className="min-h-12 px-2 py-1.5 font-serif text-sm leading-6 text-foreground placeholder:text-muted-foreground/60"
         />
         <PromptInputActions className="items-center justify-between gap-3 px-1.5 pb-1 pt-1">
-          <PromptTemplatePicker
-            onReplace={handleReplaceRecipePrompt}
-            onInsert={handleInsertRecipePrompt}
-            onApply={handleApplyRecipe}
-          />
+          <div className="flex min-w-0 items-center gap-1.5">
+            {state.workflowMode === 'quick' && (
+              <Popover
+                open={modelPickerOpen}
+                onOpenChange={handleModelPickerOpenChange}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t('selectModel')}
+                    aria-expanded={modelPickerOpen}
+                    className="flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
+                  >
+                    {selectedModel?.keyId && (
+                      <ApiKeyHealthDot
+                        status={healthMap[selectedModel.keyId]}
+                      />
+                    )}
+                    {!selectedModel?.keyId && selectedModel?.freeTier && (
+                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    )}
+                    <span className="max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]">
+                      {selectedModel
+                        ? (selectedModel.keyLabel ??
+                          getTranslatedModelLabel(
+                            tModels,
+                            selectedModel.modelId,
+                          ))
+                        : t('noModelHint')}
+                    </span>
+                    <ChevronDown className="size-3 shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  side="top"
+                  sideOffset={8}
+                  className="w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border-border/70 bg-popover/96 p-2 shadow-2xl backdrop-blur-xl sm:w-96"
+                >
+                  <div className="px-3 pb-2 pt-2">
+                    <div className="relative">
+                      <Search className="absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/55" />
+                      <input
+                        type="text"
+                        value={modelSearchQuery}
+                        onChange={(event) =>
+                          setModelSearchQuery(event.currentTarget.value)
+                        }
+                        placeholder={tForm('modelSelector.searchPlaceholder')}
+                        aria-label={tForm('modelSelector.searchPlaceholder')}
+                        className="h-10 w-full border-0 bg-transparent pl-6 pr-1 font-display text-base text-foreground outline-none placeholder:text-muted-foreground/65"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto overscroll-contain px-1 pb-1">
+                    {modelSearchResults.available.length > 0 && (
+                      <section className="pb-1">
+                        <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
+                          {tSetup('available')}
+                        </div>
+                        <div className="grid gap-1">
+                          {modelSearchResults.available.map((option) => {
+                            const isSelected =
+                              option.optionId === state.selectedOptionId
+                            const optionLabel =
+                              option.keyLabel ??
+                              getTranslatedModelLabel(tModels, option.modelId)
+                            const optionModelLabel = getTranslatedModelLabel(
+                              tModels,
+                              option.modelId,
+                            )
+                            const providerLabel = getProviderLabel(
+                              option.providerConfig,
+                            )
+                            const optionMeta = option.keyLabel
+                              ? `${optionModelLabel} · ${providerLabel}`
+                              : providerLabel
+
+                            return (
+                              <button
+                                key={option.optionId}
+                                type="button"
+                                onClick={() =>
+                                  handleSelectModel(option.optionId)
+                                }
+                                aria-pressed={isSelected}
+                                className={cn(
+                                  'group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors',
+                                  isSelected
+                                    ? 'bg-muted text-foreground'
+                                    : 'text-muted-foreground hover:bg-muted/55 hover:text-foreground',
+                                )}
+                              >
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground">
+                                  <Sparkles className="size-3.5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    {option.keyId ? (
+                                      <ApiKeyHealthDot
+                                        status={healthMap[option.keyId]}
+                                      />
+                                    ) : option.freeTier ? (
+                                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                    ) : null}
+                                    <span className="truncate text-sm font-semibold">
+                                      {optionLabel}
+                                    </span>
+                                  </span>
+                                  <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+                                    {optionMeta}
+                                  </span>
+                                </span>
+                                {isSelected ? (
+                                  <Check className="size-4 shrink-0 text-foreground" />
+                                ) : null}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </section>
+                    )}
+
+                    {modelSearchResults.locked.length > 0 && (
+                      <section
+                        className={cn(
+                          'pt-1',
+                          modelSearchResults.available.length > 0 &&
+                            'mt-1 border-t border-border/55',
+                        )}
+                      >
+                        <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/75">
+                          {tSetup('needsKey')}
+                        </div>
+                        <div className="grid gap-1">
+                          {modelSearchResults.locked.map((option) => (
+                            <button
+                              key={option.optionId}
+                              type="button"
+                              onClick={() => handleOpenQuickSetup(option)}
+                              className="group flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-muted-foreground/65 transition-colors hover:bg-muted/45 hover:text-foreground"
+                            >
+                              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground">
+                                <Key className="size-3.5" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold">
+                                  {getTranslatedModelLabel(
+                                    tModels,
+                                    option.modelId,
+                                  )}
+                                </span>
+                                <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
+                                  {getProviderLabel(option.providerConfig)}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {!hasModelSearchResults ? (
+                      <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                        {tForm('modelSelector.emptySearch')}
+                      </div>
+                    ) : null}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            <PromptTemplatePicker
+              onReplace={handleReplaceRecipePrompt}
+              onInsert={handleInsertRecipePrompt}
+              onApply={handleApplyRecipe}
+            />
+          </div>
           {/* Generate split button + variant dropdown (hidden in audio mode) */}
           <div
             className={cn(

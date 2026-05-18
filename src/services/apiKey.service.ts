@@ -11,6 +11,7 @@ import {
 } from '@/constants/providers'
 import { HEALTH_CHECK, RUNWAY_API } from '@/constants/config'
 import { logger } from '@/lib/logger'
+import { safeFetch } from '@/lib/url-guard'
 import { ProviderConfigSchema } from '@/types'
 import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
 
@@ -305,7 +306,7 @@ async function verifyAdapterKey(
       case AI_ADAPTER_TYPES.OPENAI: {
         // GET /models — lightweight auth check
         const url = baseUrl.replace(/\/images\/?$/, '/models')
-        response = await fetch(url, {
+        response = await safeFetch(url, {
           method: 'GET',
           headers: { Authorization: `Bearer ${apiKey}` },
           signal: AbortSignal.timeout(timeoutMs),
@@ -315,7 +316,7 @@ async function verifyAdapterKey(
       case AI_ADAPTER_TYPES.GEMINI: {
         // GET /models — list models to verify key
         const url = `${baseUrl.replace(/\/$/, '')}`
-        response = await fetch(url, {
+        response = await safeFetch(url, {
           method: 'GET',
           headers: { 'x-goog-api-key': apiKey },
           signal: AbortSignal.timeout(timeoutMs),
@@ -348,7 +349,7 @@ async function verifyAdapterKey(
       }
       case AI_ADAPTER_TYPES.RUNWAY: {
         const url = `${baseUrl.replace(/\/$/, '')}${RUNWAY_API.TASKS_PATH}/${RUNWAY_API.PROBE_TASK_ID}`
-        response = await fetch(url, {
+        response = await safeFetch(url, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -392,7 +393,7 @@ async function verifyAdapterKey(
       case AI_ADAPTER_TYPES.VOLCENGINE: {
         // GET /models — lightweight auth check (same as OpenAI pattern)
         const url = `${baseUrl.replace(/\/$/, '')}/models`
-        response = await fetch(url, {
+        response = await safeFetch(url, {
           method: 'GET',
           headers: { Authorization: `Bearer ${apiKey}` },
           signal: AbortSignal.timeout(timeoutMs),
@@ -401,7 +402,7 @@ async function verifyAdapterKey(
       }
       case AI_ADAPTER_TYPES.FISH_AUDIO: {
         // GET /wallet/self/api-credit — lightweight auth check
-        response = await fetch(
+        response = await safeFetch(
           `${baseUrl.replace(/\/$/, '')}/wallet/self/api-credit`,
           {
             method: 'GET',

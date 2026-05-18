@@ -4,8 +4,8 @@ import { randomUUID } from 'crypto'
 
 import {
   GENERATED_VIEW_ANGLES,
+  MULTI_VIEW_NEGATIVE,
   MULTI_VIEW_PROMPTS,
-  THREE_D_READY_NEGATIVE,
 } from '@/constants/three-d-ready-prompt'
 import { AI_MODELS } from '@/constants/models'
 import { logger } from '@/lib/logger'
@@ -69,7 +69,7 @@ export async function generateMultiView(
               apiKey: executionRoute.apiKey,
               referenceImage: input.imageUrl,
               advancedParams: {
-                negativePrompt: THREE_D_READY_NEGATIVE,
+                negativePrompt: MULTI_VIEW_NEGATIVE,
               },
             })
 

@@ -6,7 +6,6 @@ import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 
 import { StudioCardSection } from './StudioCardSection'
 import { StudioKeepChangePanel } from './StudioKeepChangePanel'
-import { StudioPanelDialogs } from './StudioPanelDialogs'
 import { StudioPromptArea } from './StudioPromptArea'
 import { StudioToolbarPanels } from './StudioToolbarPanels'
 import { StudioDockPanelArea } from './StudioDockPanelArea'
@@ -69,7 +68,6 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
         </div>
       </div>
       <StudioDockPanelArea />
-      <StudioPanelDialogs />
       <StudioKeepChangePanel
         open={state.panels.keepChange}
         onOpenChange={(open) =>

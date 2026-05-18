@@ -435,6 +435,7 @@ function AppSidebarFooter() {
     <SidebarFooter className="border-t border-sidebar-border/40 gap-2">
       <SignedIn>
         <SidebarFooterCreditBadge />
+        <SidebarFooterFreeQuotaBar />
         <SidebarFooterUserMenu />
         <div className="group-data-[collapsible=icon]:hidden">
           <LocaleSwitcher className="w-full justify-center !border-sidebar-border/50 !bg-sidebar-accent" />
@@ -457,6 +458,93 @@ function AppSidebarFooter() {
         </Button>
       </SignedOut>
     </SidebarFooter>
+  )
+}
+
+/**
+ * SidebarFooterFreeQuotaBar — Krea-style daily free-quota indicator.
+ * Used to live in the Studio top bar as a bright orange "🎁 today free 20/20"
+ * chip, which fought every other dark-workspace pixel for attention.
+ * Now it's a quiet hairline progress bar plus `remaining/limit` text under
+ * the credits badge, where every other persistent account indicator lives.
+ *
+ * Collapsed-rail behaviour: only show a 1.5px hue-coded dot (green/amber/red)
+ * so the sidebar can shrink to icon mode without losing the signal.
+ */
+function SidebarFooterFreeQuotaBar() {
+  const { summary, isLoading } = useUsageSummary()
+  const tStudio = useTranslations('StudioPage')
+  const { state } = useSidebar()
+  const isCollapsed = state === 'collapsed'
+
+  const limit = summary.freeGenerationLimit
+  const used = Math.min(summary.freeGenerationsToday, limit)
+  const remaining = Math.max(0, limit - used)
+  const usedPct = limit > 0 ? (used / limit) * 100 : 0
+  const isLow = remaining > 0 && remaining <= Math.max(1, Math.floor(limit / 5))
+  const isOut = remaining === 0
+  const dotClass = isOut
+    ? 'bg-destructive'
+    : isLow
+      ? 'bg-amber-500'
+      : 'bg-emerald-500'
+
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          'h-1 rounded-full bg-sidebar-accent/40',
+          isCollapsed && 'mx-2 h-1.5 w-1.5 rounded-full',
+        )}
+      />
+    )
+  }
+
+  if (isCollapsed) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="mx-auto my-0.5 size-1.5 rounded-full ring-1 ring-sidebar-border/60">
+              <span className={cn('block size-full rounded-full', dotClass)} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{tStudio('freeQuota', { remaining, limit })}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1 px-1">
+      <div className="flex items-baseline justify-between text-2xs text-sidebar-foreground/70">
+        <span className="tracking-nav-dense uppercase">
+          {tStudio('freeQuota', { remaining, limit }).replace(
+            ` ${remaining}/${limit}`,
+            '',
+          )}
+        </span>
+        <span className="font-semibold tabular-nums text-sidebar-foreground">
+          {remaining}
+          <span className="text-sidebar-foreground/50">/{limit}</span>
+        </span>
+      </div>
+      <div
+        className="h-1 overflow-hidden rounded-full bg-sidebar-accent/40"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={limit}
+        aria-valuenow={used}
+        aria-label={tStudio('freeQuota', { remaining, limit })}
+      >
+        <span
+          className={cn('block h-full rounded-full transition-all', dotClass)}
+          style={{ width: `${usedPct}%` }}
+        />
+      </div>
+    </div>
   )
 }
 

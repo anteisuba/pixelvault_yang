@@ -623,6 +623,7 @@
     "sourceQualityChecklist": "続行前に確認: 単一主体、清潔な背景、遮蔽なし、均一な照明、全体シルエットが見えること。",
     "multiViewModelLabel": "マルチビューモデル",
     "multiViewButton": "側面ビューを生成",
+    "multiViewRegenerateButton": "側面ビューを再生成",
     "multiViewLoading": "視点を生成中...",
     "multiViewHint": "背面 / 左 / 右を一時入力として生成します。素材ライブラリには保存されません。",
     "multiViewApiKeyMissing": "このマルチビューモデルには対応する API Key が必要です。背面・左・右の画像を手動アップロードすることもできます。",
@@ -2257,11 +2258,19 @@
     "emptyStateHintVideo": "ショット、動き、シーンの展開を下に書いて作成を開始",
     "suggestion": {
       "s1": "黄昏時の静かな日本庭園",
-      "s2": "暖かい土の色調の抽象幾何学アート",
-      "s3": "朝の柔らかな光が差し込む居心地よいカフェ",
-      "s4": "ドラマチックな影のミニマリストポートレート"
+      "s2": "サイバーパンクな街角、ネオンの雨、夜",
+      "s3": "白髪のアニメ剣士、テックウェアのコート",
+      "s4": "暖かい土の色調の抽象幾何学アート",
+      "s5": "朝の柔らかな光が差し込む居心地よいカフェ",
+      "s6": "ドラマチックな影のミニマリストポートレート"
     },
     "generating": "生成中...",
+    "generatingStages": {
+      "parsing": "プロンプトを解析中",
+      "loadingModel": "モデルを準備中",
+      "sampling": "サンプリング中 {step}/{total}",
+      "finalizing": "仕上げ中"
+    },
     "generateFailed": "生成に失敗しました",
     "elapsed": "経過時間: {seconds}",
     "previewErrorTitle": "生成に再試行が必要です",

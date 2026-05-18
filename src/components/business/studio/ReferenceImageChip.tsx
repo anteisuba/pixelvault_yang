@@ -103,8 +103,9 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
         <PopoverContent
           className="w-[28rem] max-w-[calc(100vw-2rem)] p-3"
-          align="start"
-          sideOffset={6}
+          side="top"
+          align="center"
+          sideOffset={12}
         >
           <div className="space-y-3">
             {/*

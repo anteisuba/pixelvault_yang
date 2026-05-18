@@ -85,7 +85,12 @@ export function StudioAspectRatioPopover({
           <span className="hidden sm:inline">{state.aspectRatio}</span>
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3" align="start" sideOffset={6}>
+      <PopoverContent
+        className="w-auto p-3"
+        side="top"
+        align="center"
+        sideOffset={12}
+      >
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1.5">
             {ratios.map((r) => (

@@ -54,7 +54,12 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
           <span className="hidden truncate sm:inline">{buttonLabel}</span>
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-3" align="start" sideOffset={6}>
+      <PopoverContent
+        className="w-72 p-3"
+        side="top"
+        align="center"
+        sideOffset={12}
+      >
         <div className="mb-2 text-2xs font-medium text-muted-foreground/70">
           {t('label')}
         </div>

@@ -386,14 +386,62 @@ export async function advanceLongVideoPipelineFromWorker(
   const videoResult = queueStatus.result
   const provider = getProviderLabel(executionRoute.providerConfig)
 
-  // Upload completed clip to R2
+  // video-perf #1: For `last_frame_chain` pipelines, the next clip's
+  // submission only needs the provider's thumbnail URL — which is
+  // already in `videoResult.thumbnailUrl` at this point. Run that
+  // submit in parallel with the R2 upload of the current clip so the
+  // ~3–10s upload window stops being dead time between clips. For
+  // 4-clip pipelines this saves ~9–30s end-to-end.
+  //
+  // `native_extend` stays sequential because `submitExtendVideoToQueue`
+  // takes a video URL we want to persist in R2 first (the alternative —
+  // passing the provider's short-lived URL — would leave `inputVideoUrl`
+  // in DB pointing at a TTL'd asset, breaking the retry path).
+  //
+  // The `nextClip.status === 'PENDING'` guard makes the optimisation
+  // idempotent under worker retry: if a previous attempt already
+  // submitted N+1 (and we crashed before persisting clip N's R2 row),
+  // we won't re-submit and double-bill the provider queue.
+  const extensionMethod = getModelById(pipeline.modelId)?.videoExtension
+    ?.extensionMethod
+  const nextClipIndex = activeClip.clipIndex + 1
+  const nextClip = pipeline.clips.find((c) => c.clipIndex === nextClipIndex)
+  const willHaveMoreClips = pipeline.completedClips + 1 < pipeline.totalClips
+  const parallelSubmitTargetClip =
+    willHaveMoreClips &&
+    nextClip &&
+    nextClip.status === 'PENDING' &&
+    extensionMethod === 'last_frame_chain'
+      ? nextClip
+      : undefined
+
   const clipStorageKey = generateStorageKey('VIDEO', pipeline.userId)
-  const { publicUrl: clipVideoUrl } = await streamUploadToR2({
+  const r2UploadPromise = streamUploadToR2({
     sourceUrl: videoResult.videoUrl,
     key: clipStorageKey,
     mimeType: 'video/mp4',
     fetchHeaders: videoResult.fetchHeaders,
   })
+
+  const parallelSubmitPromise: Promise<void> = parallelSubmitTargetClip
+    ? submitNextClip({
+        pipeline,
+        previousClipVideoUrl: undefined,
+        previousClipLastFrameUrl: videoResult.thumbnailUrl,
+        nextClipId: parallelSubmitTargetClip.id,
+        nextClipIndex,
+        executionRoute,
+      })
+    : Promise.resolve()
+  // submitNextClip catches its own errors and writes FAILED status to
+  // both the clip and the pipeline — swallow here so an unhandled
+  // rejection doesn't fire before Promise.all awaits it below.
+  parallelSubmitPromise.catch(() => {})
+
+  const [{ publicUrl: clipVideoUrl }] = await Promise.all([
+    r2UploadPromise,
+    parallelSubmitPromise,
+  ])
 
   // Create usage entry for this clip
   await createApiUsageEntry({
@@ -446,9 +494,6 @@ export async function advanceLongVideoPipelineFromWorker(
     return await finalizePipeline(updatedPipeline, pipeline.userId)
   }
 
-  // Submit next clip
-  const nextClipIndex = activeClip.clipIndex + 1
-  const nextClip = pipeline.clips.find((c) => c.clipIndex === nextClipIndex)
   if (!nextClip) {
     // Shouldn't happen, but handle gracefully
     const updatedPipeline = await db.videoPipeline.findUniqueOrThrow({
@@ -461,14 +506,19 @@ export async function advanceLongVideoPipelineFromWorker(
     return await finalizePipeline(updatedPipeline, pipeline.userId)
   }
 
-  await submitNextClip({
-    pipeline,
-    previousClipVideoUrl: clipVideoUrl,
-    previousClipLastFrameUrl: videoResult.thumbnailUrl,
-    nextClipId: nextClip.id,
-    nextClipIndex,
-    executionRoute,
-  })
+  // Submit next clip sequentially when we didn't pipeline it above.
+  // The PENDING guard makes this a no-op when a previous worker
+  // iteration already queued the next clip.
+  if (!parallelSubmitTargetClip && nextClip.status === 'PENDING') {
+    await submitNextClip({
+      pipeline,
+      previousClipVideoUrl: clipVideoUrl,
+      previousClipLastFrameUrl: videoResult.thumbnailUrl,
+      nextClipId: nextClip.id,
+      nextClipIndex,
+      executionRoute,
+    })
+  }
 
   // Return fresh pipeline state
   return mapPipelineToRecord(

@@ -415,6 +415,102 @@ describe('video-pipeline.service', () => {
       )
     })
 
+    it('submits the next last_frame_chain clip in parallel with the current R2 upload', async () => {
+      // video-perf #1: last_frame_chain pipelines should kick the next
+      // clip's submitVideoToQueue at the same time the previous clip's
+      // bytes are being multipart-uploaded to R2 — the next clip only
+      // depends on the provider thumbnail URL, which we already have.
+      const submitOrder: string[] = []
+      let resolveStreamUpload!: (value: {
+        publicUrl: string
+        sizeBytes: number
+      }) => void
+      mockStreamUploadToR2.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            submitOrder.push('r2Upload:start')
+            resolveStreamUpload = (value) => {
+              submitOrder.push('r2Upload:end')
+              resolve(value)
+            }
+          }),
+      )
+      mockSubmitVideoToQueue.mockImplementationOnce(async () => {
+        submitOrder.push('submitNextClip')
+        return {
+          requestId: 'request-2',
+          statusUrl: 'https://queue.example.com/status-2',
+          responseUrl: 'https://queue.example.com/response-2',
+        }
+      })
+
+      mockVideoPipelineFindUnique.mockResolvedValue(
+        pipeline({
+          modelId: AI_MODELS.SEEDANCE_15_PRO,
+          extensionMethod: 'last_frame_chain',
+        }),
+      )
+      mockCheckVideoQueueStatus.mockResolvedValue({
+        status: 'COMPLETED',
+        result: {
+          videoUrl: 'https://provider.example.com/clip.mp4',
+          thumbnailUrl: 'https://provider.example.com/last-frame.png',
+          duration: 10,
+          width: 1280,
+          height: 720,
+          requestCount: 1,
+        },
+      })
+      mockVideoPipelineFindUniqueOrThrow.mockResolvedValue(
+        pipeline({
+          modelId: AI_MODELS.SEEDANCE_15_PRO,
+          extensionMethod: 'last_frame_chain',
+          completedClips: 1,
+          currentDurationSec: 10,
+          clips: [
+            clip({
+              status: 'COMPLETED',
+              videoUrl: 'https://cdn.example.com/clip.mp4',
+              storageKey: 'videos/user-1/clip.mp4',
+              durationSec: 10,
+            }),
+            clip({ id: 'clip-1', clipIndex: 1, status: 'QUEUED' }),
+          ],
+        }),
+      )
+
+      const advancePromise = advanceLongVideoPipelineFromWorker('pipeline-1')
+
+      // Yield so the in-flight uploadPromise has the chance to start,
+      // and verify the parallel submit didn't wait for it.
+      await new Promise((resolve) => setImmediate(resolve))
+
+      expect(submitOrder).toContain('r2Upload:start')
+      expect(submitOrder).toContain('submitNextClip')
+      // submitNextClip must complete before the R2 upload finishes —
+      // that's the whole point of the parallel optimisation.
+      expect(submitOrder.indexOf('submitNextClip')).toBeLessThan(
+        submitOrder.indexOf('r2Upload:end') === -1
+          ? Number.MAX_SAFE_INTEGER
+          : submitOrder.indexOf('r2Upload:end'),
+      )
+
+      resolveStreamUpload({
+        publicUrl: 'https://cdn.example.com/clip.mp4',
+        sizeBytes: 1024,
+      })
+      await advancePromise
+
+      expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceImage: 'https://provider.example.com/last-frame.png',
+        }),
+      )
+      // native_extend's `submitExtendVideoToQueue` should not fire on
+      // last_frame_chain pipelines.
+      expect(mockSubmitExtendVideoToQueue).not.toHaveBeenCalled()
+    })
+
     it('finalizes the pipeline when all clips are completed', async () => {
       mockVideoPipelineFindUnique.mockResolvedValue(
         pipeline({

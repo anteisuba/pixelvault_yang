@@ -149,6 +149,31 @@ export async function submitVideoGenerationForUserId(
 
   const breaker = getCircuitBreaker(executionRoute.adapterType)
 
+  // video-perf #4: kick off the reference-image upload before we hand
+  // off to the provider queue. The upload (typically ~1–3s) is fully
+  // independent of `submitVideoToQueue` — its result is only used as
+  // metadata for later polling. Running them in parallel hides the
+  // upload behind the provider submit window. The `.catch(() => {})`
+  // detaches the rejection so the orphan path (when submit throws
+  // first) doesn't trigger unhandledRejection; the await further down
+  // still surfaces the real error if the upload itself failed.
+  const referenceImageUrlPromise: Promise<string | undefined> =
+    input.referenceImage
+      ? timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
+          const refKey = generateStorageKey('IMAGE', userId)
+          const { buffer: refBuffer, mimeType: refMimeType } =
+            await fetchAsBuffer(input.referenceImage!)
+          return uploadToR2({
+            data: refBuffer,
+            key: refKey,
+            mimeType: refMimeType,
+          })
+        })
+      : Promise.resolve(undefined)
+  referenceImageUrlPromise.catch(() => {
+    /* swallowed; re-awaited below */
+  })
+
   let queueResult: Awaited<
     ReturnType<NonNullable<typeof providerAdapter.submitVideoToQueue>>
   >
@@ -192,24 +217,7 @@ export async function submitVideoGenerationForUserId(
     throw new GenerateImageServiceError('PROVIDER_ERROR', message, status)
   }
 
-  // Upload reference image to R2 if provided
-  let referenceImageUrl: string | undefined
-  if (input.referenceImage) {
-    const sourceReferenceImage = input.referenceImage
-    referenceImageUrl = await timer.measure(
-      GENERATION_STAGE.REFERENCE_UPLOAD,
-      async () => {
-        const refKey = generateStorageKey('IMAGE', userId)
-        const { buffer: refBuffer, mimeType: refMimeType } =
-          await fetchAsBuffer(sourceReferenceImage)
-        return uploadToR2({
-          data: refBuffer,
-          key: refKey,
-          mimeType: refMimeType,
-        })
-      },
-    )
-  }
+  const referenceImageUrl = await referenceImageUrlPromise
 
   const generationJob = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
     createGenerationJob({
@@ -587,19 +595,27 @@ export async function checkVideoGenerationStatusForUserId(
   }
 
   try {
-    const { publicUrl } = await timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
-      streamUploadToR2({
-        sourceUrl: videoResult.videoUrl,
-        key: storageKey,
-        mimeType: 'video/mp4',
-        fetchHeaders: videoResult.fetchHeaders,
-      }),
-    )
+    // video-perf #3: the video upload and the poster derivative both
+    // pull from provider-controlled URLs (videoUrl + thumbnailUrl) but
+    // produce independent outputs. Used to run sequentially, costing
+    // ~3–8s on the poster step that the user spent waiting for the
+    // generation row to commit. Now they share the wall clock; the
+    // poster failure path stays best-effort via the helper's try/catch.
+    const [{ publicUrl }, posterAsset] = await Promise.all([
+      timer.measure(GENERATION_STAGE.R2_UPLOAD, () =>
+        streamUploadToR2({
+          sourceUrl: videoResult.videoUrl,
+          key: storageKey,
+          mimeType: 'video/mp4',
+          fetchHeaders: videoResult.fetchHeaders,
+        }),
+      ),
+      timer.measure(
+        GENERATION_STAGE.THUMBNAIL_GENERATION,
+        tryCreateVideoPosterAsset,
+      ),
+    ])
     timer.addNote('result_download_streamed_with_r2_upload')
-    const posterAsset = await timer.measure(
-      GENERATION_STAGE.THUMBNAIL_GENERATION,
-      tryCreateVideoPosterAsset,
-    )
 
     const generation = await timer.measure(
       GENERATION_STAGE.DB_FINALIZE,

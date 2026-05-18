@@ -50,6 +50,11 @@ import {
 
 type VoiceTab = 'public' | 'favorites' | 'cloned'
 
+interface VoiceSelectorProps {
+  className?: string
+  onSelectComplete?: () => void
+}
+
 function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
   return VOICE_LIBRARY_LANGUAGES.some((language) => language === value)
 }
@@ -91,7 +96,10 @@ function isClonedVoiceCard(card: VoiceCardRecord): boolean {
   )
 }
 
-export const VoiceSelector = memo(function VoiceSelector() {
+export const VoiceSelector = memo(function VoiceSelector({
+  className,
+  onSelectComplete,
+}: VoiceSelectorProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioPage')
   const voiceCards = useVoiceCards()
@@ -239,6 +247,7 @@ export const VoiceSelector = memo(function VoiceSelector() {
         type: 'SET_PRONUNCIATION_DICTIONARY',
         payload: card.pronunciationDictionary,
       })
+      onSelectComplete?.()
     }
   }
 
@@ -263,11 +272,15 @@ export const VoiceSelector = memo(function VoiceSelector() {
   }
 
   const handleSelect = (voiceId: string) => {
+    const isSelected = state.voiceId === voiceId
     dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
     dispatch({
       type: 'SET_VOICE_ID',
-      payload: state.voiceId === voiceId ? null : voiceId,
+      payload: isSelected ? null : voiceId,
     })
+    if (!isSelected) {
+      onSelectComplete?.()
+    }
   }
 
   const handleCoverError = (voiceId: string) => {
@@ -323,7 +336,7 @@ export const VoiceSelector = memo(function VoiceSelector() {
     state.voiceId
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg border border-border/60 p-0.5">
         <button

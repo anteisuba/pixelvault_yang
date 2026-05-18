@@ -50,10 +50,10 @@ const LayerDecomposePanel = dynamic(
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
-const VoiceSelector = dynamic(
+const FishVoiceLibraryDialog = dynamic(
   () =>
-    import('@/components/business/studio/VoiceSelector').then(
-      (mod) => mod.VoiceSelector,
+    import('@/components/business/studio/FishVoiceLibraryDialog').then(
+      (mod) => mod.FishVoiceLibraryDialog,
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
@@ -265,151 +265,137 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       </Dialog>
 
       {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
-      <Dialog
+      <FishVoiceLibraryDialog
         open={state.panels.voiceSelector}
         onOpenChange={(open) => {
           if (!open) closePanel('voiceSelector')
         }}
-      >
-        <DialogContent
-          className={`${DIALOG_BASE} flex h-[85vh] min-h-0 flex-col !max-w-5xl`}
-        >
-          <DialogTitle className={DIALOG_HEADER}>{tBar('voice')}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {tBar('voice')}
-          </DialogDescription>
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden px-5 pb-5 pt-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <section className="flex min-h-0 flex-col overflow-hidden">
-              <VoiceSelector />
-            </section>
-            <aside className="min-h-0 overflow-y-auto rounded-lg border border-border/60 bg-muted/10 p-4">
-              <StudioAudioParams
-                voiceCardId={state.voiceCardId}
-                pace={state.audioPace}
-                pauseMarkers={state.audioPauseMarkers}
-                advanced={{
-                  style: state.audioEmotion,
-                  volume: state.audioVolume,
-                  normalizeLoudness: state.audioNormalizeLoudness,
-                  normalizeText: state.audioNormalizeText,
-                  withTimestamps: state.audioWithTimestamps,
-                  format: state.audioFormat,
-                  sampleRate: state.audioSampleRate,
-                  mp3Bitrate: state.audioMp3Bitrate,
-                  opusBitrate: state.audioOpusBitrate,
-                  latency: state.audioLatency,
-                  temperature: state.audioTemperature,
-                  topP: state.audioTopP,
-                  chunkLength: state.audioChunkLength,
-                  repetitionPenalty: state.audioRepetitionPenalty,
-                  speakerVoiceIds: state.audioSpeakerVoiceIds,
-                }}
-                onChangePace={(pace) =>
-                  dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
-                }
-                onChangePauseMarkers={(markers) =>
-                  dispatch({
-                    type: 'SET_AUDIO_PAUSE_MARKERS',
-                    payload: markers,
-                  })
-                }
-                onChangeAdvanced={(settings) => {
-                  if (settings.style !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_EMOTION',
-                      payload: settings.style,
-                    })
-                  }
-                  if (settings.volume !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_VOLUME',
-                      payload: settings.volume,
-                    })
-                  }
-                  if (settings.normalizeLoudness !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_NORMALIZE_LOUDNESS',
-                      payload: settings.normalizeLoudness,
-                    })
-                  }
-                  if (settings.normalizeText !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_NORMALIZE_TEXT',
-                      payload: settings.normalizeText,
-                    })
-                  }
-                  if (settings.withTimestamps !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_WITH_TIMESTAMPS',
-                      payload: settings.withTimestamps,
-                    })
-                  }
-                  if (settings.format !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_FORMAT',
-                      payload: settings.format,
-                    })
-                  }
-                  if (settings.sampleRate !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_SAMPLE_RATE',
-                      payload: settings.sampleRate,
-                    })
-                  }
-                  if (settings.mp3Bitrate !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_MP3_BITRATE',
-                      payload: settings.mp3Bitrate,
-                    })
-                  }
-                  if (settings.opusBitrate !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_OPUS_BITRATE',
-                      payload: settings.opusBitrate,
-                    })
-                  }
-                  if (settings.latency !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_LATENCY',
-                      payload: settings.latency,
-                    })
-                  }
-                  if (settings.temperature !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_TEMPERATURE',
-                      payload: settings.temperature,
-                    })
-                  }
-                  if (settings.topP !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_TOP_P',
-                      payload: settings.topP,
-                    })
-                  }
-                  if (settings.chunkLength !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_CHUNK_LENGTH',
-                      payload: settings.chunkLength,
-                    })
-                  }
-                  if (settings.repetitionPenalty !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_REPETITION_PENALTY',
-                      payload: settings.repetitionPenalty,
-                    })
-                  }
-                  if (settings.speakerVoiceIds !== undefined) {
-                    dispatch({
-                      type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
-                      payload: settings.speakerVoiceIds,
-                    })
-                  }
-                }}
-              />
-            </aside>
-          </div>
-        </DialogContent>
-      </Dialog>
+        sidePanel={
+          <StudioAudioParams
+            voiceCardId={state.voiceCardId}
+            pace={state.audioPace}
+            pauseMarkers={state.audioPauseMarkers}
+            advanced={{
+              style: state.audioEmotion,
+              volume: state.audioVolume,
+              normalizeLoudness: state.audioNormalizeLoudness,
+              normalizeText: state.audioNormalizeText,
+              withTimestamps: state.audioWithTimestamps,
+              format: state.audioFormat,
+              sampleRate: state.audioSampleRate,
+              mp3Bitrate: state.audioMp3Bitrate,
+              opusBitrate: state.audioOpusBitrate,
+              latency: state.audioLatency,
+              temperature: state.audioTemperature,
+              topP: state.audioTopP,
+              chunkLength: state.audioChunkLength,
+              repetitionPenalty: state.audioRepetitionPenalty,
+              speakerVoiceIds: state.audioSpeakerVoiceIds,
+            }}
+            onChangePace={(pace) =>
+              dispatch({ type: 'SET_AUDIO_PACE', payload: pace })
+            }
+            onChangePauseMarkers={(markers) =>
+              dispatch({
+                type: 'SET_AUDIO_PAUSE_MARKERS',
+                payload: markers,
+              })
+            }
+            onChangeAdvanced={(settings) => {
+              if (settings.style !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_EMOTION',
+                  payload: settings.style,
+                })
+              }
+              if (settings.volume !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_VOLUME',
+                  payload: settings.volume,
+                })
+              }
+              if (settings.normalizeLoudness !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_NORMALIZE_LOUDNESS',
+                  payload: settings.normalizeLoudness,
+                })
+              }
+              if (settings.normalizeText !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_NORMALIZE_TEXT',
+                  payload: settings.normalizeText,
+                })
+              }
+              if (settings.withTimestamps !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_WITH_TIMESTAMPS',
+                  payload: settings.withTimestamps,
+                })
+              }
+              if (settings.format !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_FORMAT',
+                  payload: settings.format,
+                })
+              }
+              if (settings.sampleRate !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_SAMPLE_RATE',
+                  payload: settings.sampleRate,
+                })
+              }
+              if (settings.mp3Bitrate !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_MP3_BITRATE',
+                  payload: settings.mp3Bitrate,
+                })
+              }
+              if (settings.opusBitrate !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_OPUS_BITRATE',
+                  payload: settings.opusBitrate,
+                })
+              }
+              if (settings.latency !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_LATENCY',
+                  payload: settings.latency,
+                })
+              }
+              if (settings.temperature !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_TEMPERATURE',
+                  payload: settings.temperature,
+                })
+              }
+              if (settings.topP !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_TOP_P',
+                  payload: settings.topP,
+                })
+              }
+              if (settings.chunkLength !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_CHUNK_LENGTH',
+                  payload: settings.chunkLength,
+                })
+              }
+              if (settings.repetitionPenalty !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_REPETITION_PENALTY',
+                  payload: settings.repetitionPenalty,
+                })
+              }
+              if (settings.speakerVoiceIds !== undefined) {
+                dispatch({
+                  type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
+                  payload: settings.speakerVoiceIds,
+                })
+              }
+            }}
+          />
+        }
+      />
 
       {/* ── Voice Trainer (audio mode) ────────────────────────── */}
       <Dialog

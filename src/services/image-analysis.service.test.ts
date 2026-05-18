@@ -34,11 +34,14 @@ const mockFetchAsBuffer = vi.fn()
 const mockGenerateStorageKey = vi.fn()
 const mockIsOwnedStorageUrl = vi.fn()
 const mockUploadToR2 = vi.fn()
+const mockDetectTrustedImageMime = vi.fn()
 vi.mock('@/services/storage/r2', () => ({
   fetchAsBuffer: (...args: unknown[]) => mockFetchAsBuffer(...args),
   generateStorageKey: (...args: unknown[]) => mockGenerateStorageKey(...args),
   isOwnedStorageUrl: (...args: unknown[]) => mockIsOwnedStorageUrl(...args),
   uploadToR2: (...args: unknown[]) => mockUploadToR2(...args),
+  detectTrustedImageMime: (...args: unknown[]) =>
+    mockDetectTrustedImageMime(...args),
 }))
 
 import {
@@ -67,6 +70,10 @@ describe('analyzeImage', () => {
     mockUploadToR2.mockResolvedValue(
       'https://cdn.test.com/generations/db_user_1/image/key.png',
     )
+    mockDetectTrustedImageMime.mockResolvedValue({
+      format: 'png',
+      mimeType: 'image/png',
+    })
     mockImageAnalysisCreate.mockResolvedValue({
       id: 'analysis_1',
       generatedPrompt: 'generated prompt',

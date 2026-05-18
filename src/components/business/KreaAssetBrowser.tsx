@@ -51,7 +51,7 @@ import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
 import { ROUTES } from '@/constants/routes'
 import {
-  USER_UPLOAD_ACCEPTED_MIME_PREFIXES,
+  USER_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
@@ -140,9 +140,7 @@ const DENSITY_IMAGE_SIZES: Record<Density, string> = {
   normal: '(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw',
   compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
 }
-const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_PREFIXES.map(
-  (prefix) => `${prefix}*`,
-).join(',')
+const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')
 const DENSITY_XL_COLS: Record<Density, number> = {
   comfortable: 4,
   normal: 6,
@@ -742,9 +740,9 @@ export function KreaAssetBrowser({
     event.target.value = ''
     if (!file) return
 
-    const isAcceptedType = USER_UPLOAD_ACCEPTED_MIME_PREFIXES.some((prefix) =>
-      file.type.startsWith(prefix),
-    )
+    const isAcceptedType = (
+      USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
+    ).includes(file.type)
     if (!isAcceptedType) {
       toast.error(t('uploadUnsupportedFile'))
       return

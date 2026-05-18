@@ -52,6 +52,44 @@ export function generateStorageKey(
   return `generations/${userId}/${subdir}/${date}_${random}.${ext}`
 }
 
+// ─── Magic-Byte Image Validation ──────────────────────────────────
+
+const SHARP_FORMAT_TO_MIME: Record<string, string> = {
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+}
+
+/**
+ * Verify the *real* format of an image buffer via libvips magic bytes and
+ * return a trusted MIME type. Use this on every code path that accepts an
+ * image from a client — `fetchAsBuffer` only reads the claimed MIME from a
+ * data URL header or HTTP `content-type`, both of which the user controls.
+ *
+ * Throws when the buffer is not a decodable raster image in the allowed
+ * set. Defaults to `{ jpeg, png, webp, gif }` — SVG is intentionally
+ * excluded because it can carry inline scripts.
+ */
+export async function detectTrustedImageMime(
+  buffer: Buffer,
+  allowedFormats: ReadonlySet<string> = new Set(['jpeg', 'png', 'webp', 'gif']),
+): Promise<{ format: string; mimeType: string }> {
+  let format: string | undefined
+  try {
+    const metadata = await sharp(buffer).metadata()
+    format = metadata.format
+  } catch {
+    throw new Error('Unsupported or corrupted image file')
+  }
+  if (!format || !allowedFormats.has(format)) {
+    throw new Error(
+      `Unsupported image format: ${format ?? 'unknown'}. Allowed: ${[...allowedFormats].join(', ')}`,
+    )
+  }
+  return { format, mimeType: SHARP_FORMAT_TO_MIME[format] ?? `image/${format}` }
+}
+
 // ─── Fetch as Buffer ──────────────────────────────────────────────
 
 export interface FetchAsBufferOptions {

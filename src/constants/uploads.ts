@@ -9,5 +9,32 @@ export const USER_UPLOAD_PROVIDER = 'user-upload'
 /** Maximum size in bytes for a single user-upload (5 MB) */
 export const USER_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 
-/** Accepted MIME types for user uploads (image only) */
-export const USER_UPLOAD_ACCEPTED_MIME_PREFIXES = ['image/'] as const
+/**
+ * Accepted MIME types for user uploads. Deliberately narrow — `image/svg+xml`
+ * is excluded because SVG can carry inline scripts that execute when the
+ * file is later opened directly from the CDN.
+ *
+ * Server-side, the *real* format is re-verified against the buffer via
+ * `sharp.metadata()` in `upload-image.service.ts` so a client can't lie
+ * about the MIME type in the data URL header.
+ */
+export const USER_UPLOAD_ACCEPTED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+] as const
+
+export type AcceptedUploadMimeType =
+  (typeof USER_UPLOAD_ACCEPTED_MIME_TYPES)[number]
+
+/**
+ * `sharp.metadata().format` values that correspond to the allowed MIME
+ * types above. Used by `upload-image.service.ts` for magic-byte validation.
+ */
+export const USER_UPLOAD_ACCEPTED_SHARP_FORMATS = new Set([
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+])

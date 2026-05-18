@@ -60,10 +60,39 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // Defence-in-depth CSP. `script-src` / `style-src` are intentionally
+    // omitted because the app embeds Clerk, Sentry, and `<script
+    // type="application/ld+json">` blocks that would require nonce or
+    // hash plumbing to keep working. The directives below cover the
+    // attack surface that nosniff + X-Frame-Options don't:
+    //
+    //   - object-src 'none'     — blocks <object>/<embed>/<applet> from
+    //                             loading attacker-controlled SVG/SWF.
+    //   - base-uri 'self'       — prevents <base href> injection from
+    //                             rewriting the resolution of every
+    //                             relative URL on the page.
+    //   - form-action 'self'    — caps where forms can POST to.
+    //   - frame-ancestors 'none' — modern equivalent of X-Frame-Options
+    //                             that browsers honour over the legacy
+    //                             header.
+    //   - upgrade-insecure-requests — coerces any stray http:// URL to
+    //                             https:// before the request fires.
+    const cspDirectives = [
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      'upgrade-insecure-requests',
+    ].join('; ')
+
     return [
       {
         source: '/(.*)',
         headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives,
+          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',

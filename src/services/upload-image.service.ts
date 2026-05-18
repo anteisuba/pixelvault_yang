@@ -1,13 +1,14 @@
 import 'server-only'
 
 import {
-  USER_UPLOAD_ACCEPTED_MIME_PREFIXES,
+  USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
   USER_UPLOAD_MAX_BYTES,
   USER_UPLOAD_PROVIDER,
 } from '@/constants/uploads'
 import { createGeneration } from '@/services/generation.service'
 import {
   createImagePreviewAssets,
+  detectTrustedImageMime,
   fetchAsBuffer,
   generateStorageKey,
   uploadToR2,
@@ -42,18 +43,7 @@ export async function uploadUserImageForUserId(
     )
   }
 
-  const { buffer, mimeType } = await fetchAsBuffer(input.imageDataUrl)
-
-  const accepted = USER_UPLOAD_ACCEPTED_MIME_PREFIXES.some((prefix) =>
-    mimeType.startsWith(prefix),
-  )
-  if (!accepted) {
-    throw new GenerateImageServiceError(
-      'PROVIDER_ERROR',
-      `Unsupported file type: ${mimeType}`,
-      400,
-    )
-  }
+  const { buffer } = await fetchAsBuffer(input.imageDataUrl)
 
   if (buffer.byteLength > USER_UPLOAD_MAX_BYTES) {
     throw new GenerateImageServiceError(
@@ -63,12 +53,27 @@ export async function uploadUserImageForUserId(
     )
   }
 
+  let trustedMimeType: string
+  try {
+    const detected = await detectTrustedImageMime(
+      buffer,
+      USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
+    )
+    trustedMimeType = detected.mimeType
+  } catch (error) {
+    throw new GenerateImageServiceError(
+      'PROVIDER_ERROR',
+      error instanceof Error ? error.message : 'Invalid image file',
+      400,
+    )
+  }
+
   const storageKey = generateStorageKey('IMAGE', userId)
   const [publicUrl, previewAssets] = await Promise.all([
     uploadToR2({
       data: buffer,
       key: storageKey,
-      mimeType,
+      mimeType: trustedMimeType,
     }),
     createImagePreviewAssets({
       sourceBuffer: buffer,
@@ -79,7 +84,7 @@ export async function uploadUserImageForUserId(
   return createGeneration({
     url: publicUrl,
     storageKey,
-    mimeType,
+    mimeType: trustedMimeType,
     thumbnailUrl: previewAssets.thumbnailUrl,
     thumbnailStorageKey: previewAssets.thumbnailStorageKey,
     previewUrl: previewAssets.previewUrl,

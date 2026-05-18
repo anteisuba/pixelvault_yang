@@ -9,6 +9,7 @@ import {
 } from '@/services/llm-text.service'
 import { generateImageForUser } from '@/services/generate-image.service'
 import {
+  detectTrustedImageMime,
   fetchAsBuffer,
   generateStorageKey,
   isOwnedStorageUrl,
@@ -110,9 +111,10 @@ async function resolveAnalysisSourceUrl(
   userId: string,
 ): Promise<ResolvedSourceUpload> {
   if (imageData.startsWith('data:')) {
-    const { buffer, mimeType } = await fetchAsBuffer(imageData, {
+    const { buffer } = await fetchAsBuffer(imageData, {
       maxBytes: ANALYSIS_MAX_IMAGE_BYTES,
     })
+    const { mimeType } = await detectTrustedImageMime(buffer)
     const storageKey = generateStorageKey('IMAGE', userId)
     const url = await uploadToR2({ data: buffer, key: storageKey, mimeType })
     return { url, storageKey }
@@ -126,9 +128,10 @@ async function resolveAnalysisSourceUrl(
   // if the original origin disappears. fetchAsBuffer enforces SSRF guards
   // and the size cap matches the route-level data-URL ceiling so users
   // can't trivially bypass it by passing a URL pointing at a huge file.
-  const { buffer, mimeType } = await fetchAsBuffer(imageData, {
+  const { buffer } = await fetchAsBuffer(imageData, {
     maxBytes: ANALYSIS_MAX_IMAGE_BYTES,
   })
+  const { mimeType } = await detectTrustedImageMime(buffer)
   const storageKey = generateStorageKey('IMAGE', userId)
   const url = await uploadToR2({ data: buffer, key: storageKey, mimeType })
   return { url, storageKey }

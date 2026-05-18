@@ -23,10 +23,10 @@ const SECTION_ASSETS: Record<string, readonly string[]> = {
     '/homepage/imageEditing/04-watercolor.webp',
   ],
   video: [
-    '/homepage/video/01.png',
-    '/homepage/video/02.png',
-    '/homepage/video/03.png',
-    '/homepage/video/04.png',
+    '/homepage/video/01.webp',
+    '/homepage/video/02.webp',
+    '/homepage/video/03.webp',
+    '/homepage/video/04.webp',
   ],
   lora: [
     '/homepage/lora/01.png',

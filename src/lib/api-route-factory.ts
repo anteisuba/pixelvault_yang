@@ -2,6 +2,7 @@ import 'server-only'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import * as Sentry from '@sentry/nextjs'
 import type { z } from 'zod'
 
 import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
@@ -174,6 +175,7 @@ function handleRouteError(
   routeName: string,
   startedAt: number,
   error: unknown,
+  context: { clerkId?: string | null } = {},
 ): NextResponse<ErrorResponse> {
   if (isGenerationError(error)) {
     logger.warn(`${routeName} error`, {
@@ -225,6 +227,16 @@ function handleRouteError(
     error: errorMessage,
     stack: errorStack,
     durationMs: Date.now() - startedAt,
+  })
+
+  // Stdout logging keeps a 24-72h Vercel trail; Sentry keeps the structured,
+  // queryable, alertable copy. Only unknown / unhandled errors get here —
+  // GenerationError + ApiRequestError + database quota are already handled
+  // above and aren't worth paging on.
+  Sentry.captureException(error, {
+    tags: { route: routeName },
+    user: context.clerkId ? { id: context.clerkId } : undefined,
+    extra: { durationMs: Date.now() - startedAt },
   })
 
   // Only a short whitelist of upstream-status messages is surfaced verbatim

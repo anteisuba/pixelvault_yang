@@ -1,15 +1,23 @@
 'use client'
 
 import { memo, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import {
+  ChevronDown,
+  FileAudio2,
+  HelpCircle,
+  Mic2,
+  SlidersHorizontal,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
+  AUDIO_ADVANCED_TAB_IDS,
   AUDIO_FORMATS,
   AUDIO_LATENCIES,
   AUDIO_MP3_BITRATES,
   AUDIO_OPUS_BITRATES,
   AUDIO_SAMPLE_RATES,
+  isAudioAdvancedTabId,
   isAudioFormat,
   isAudioLatency,
   TTS_CHUNK_LENGTH_RANGE,
@@ -17,6 +25,7 @@ import {
   TTS_TEMPERATURE_RANGE,
   TTS_TOP_P_RANGE,
   TTS_VOLUME_RANGE,
+  type AudioAdvancedTabId,
   type AudioFormat,
   type AudioLatency,
 } from '@/constants/audio-options'
@@ -36,6 +45,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 export interface StudioAudioAdvancedSettings {
@@ -86,6 +102,81 @@ const PAUSE_OPTIONS = AUDIO_PAUSE_MARKERS.map((value, index) => ({
   labelKey: `pauseAfterSentence${index + 1}`,
 }))
 
+const ADVANCED_TAB_OPTIONS = [
+  {
+    value: AUDIO_ADVANCED_TAB_IDS.OUTPUT,
+    labelKey: 'tabOutput',
+    icon: FileAudio2,
+  },
+  {
+    value: AUDIO_ADVANCED_TAB_IDS.VOICE,
+    labelKey: 'tabVoice',
+    icon: Mic2,
+  },
+  {
+    value: AUDIO_ADVANCED_TAB_IDS.MODEL,
+    labelKey: 'tabModel',
+    icon: SlidersHorizontal,
+  },
+] as const
+
+interface AudioFieldHintProps {
+  label: string
+  hint: string
+}
+
+function AudioInfoTooltip({ label, hint }: AudioFieldHintProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${label}: ${hint}`}
+          className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground/65 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HelpCircle className="size-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-64">
+        {hint}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function AudioFieldLabel({ label, hint }: AudioFieldHintProps) {
+  return (
+    <span className="flex items-center gap-1.5 text-2xs font-medium text-muted-foreground/70">
+      {label}
+      <AudioInfoTooltip label={label} hint={hint} />
+    </span>
+  )
+}
+
+interface AudioSwitchRowProps extends AudioFieldHintProps {
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}
+
+function AudioSwitchRow({
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: AudioSwitchRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border/50 px-3 py-2 text-xs">
+      <AudioFieldLabel label={label} hint={hint} />
+      <Switch
+        size="sm"
+        aria-label={label}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+      />
+    </div>
+  )
+}
+
 function parseSpeakerVoiceIds(value: string): string[] {
   return value
     .split(',')
@@ -104,6 +195,9 @@ export const StudioAudioParams = memo(function StudioAudioParams({
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [advancedTab, setAdvancedTab] = useState<AudioAdvancedTabId>(
+    AUDIO_ADVANCED_TAB_IDS.OUTPUT,
+  )
 
   return (
     <div className="space-y-5" data-voice-card-id={voiceCardId ?? undefined}>
@@ -221,209 +315,319 @@ export const StudioAudioParams = memo(function StudioAudioParams({
           )}
         >
           <div className="overflow-hidden">
-            <div className="space-y-4 pt-4">
-              <div className="grid gap-2">
-                <Select
-                  value={advanced.format}
-                  onValueChange={(value) => {
-                    if (isAudioFormat(value)) {
-                      onChangeAdvanced({ format: value })
-                    }
-                  }}
-                >
-                  <SelectTrigger size="sm" aria-label={t('format')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUDIO_FORMATS.map((format) => (
-                      <SelectItem key={format} value={format}>
-                        {t(`format${format.toUpperCase()}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={String(advanced.sampleRate)}
-                  onValueChange={(value) =>
-                    onChangeAdvanced({ sampleRate: Number(value) })
+            <TooltipProvider delayDuration={250}>
+              <Tabs
+                value={advancedTab}
+                onValueChange={(value) => {
+                  if (isAudioAdvancedTabId(value)) {
+                    setAdvancedTab(value)
                   }
+                }}
+                className="pt-4"
+              >
+                <TabsList className="grid h-auto w-full grid-cols-3">
+                  {ADVANCED_TAB_OPTIONS.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <TabsTrigger
+                        key={option.value}
+                        value={option.value}
+                        onClick={() => setAdvancedTab(option.value)}
+                        className="h-8 gap-1 text-2xs"
+                      >
+                        <Icon className="size-3" />
+                        {t(option.labelKey)}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+
+                <TabsContent
+                  value={AUDIO_ADVANCED_TAB_IDS.OUTPUT}
+                  className="mt-4 space-y-3"
                 >
-                  <SelectTrigger size="sm" aria-label={t('sampleRate')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUDIO_SAMPLE_RATES.map((sampleRate) => (
-                      <SelectItem key={sampleRate} value={String(sampleRate)}>
-                        {t('sampleRateValue', { sampleRate })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <AudioFieldLabel
+                        label={t('format')}
+                        hint={t('formatHint')}
+                      />
+                      <Select
+                        value={advanced.format}
+                        onValueChange={(value) => {
+                          if (isAudioFormat(value)) {
+                            onChangeAdvanced({ format: value })
+                          }
+                        }}
+                      >
+                        <SelectTrigger size="sm" aria-label={t('format')}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AUDIO_FORMATS.map((format) => (
+                            <SelectItem key={format} value={format}>
+                              {t(`format${format.toUpperCase()}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <Select
-                  value={advanced.latency}
-                  onValueChange={(value) => {
-                    if (isAudioLatency(value)) {
-                      onChangeAdvanced({ latency: value })
-                    }
-                  }}
+                    <div className="space-y-1.5">
+                      <AudioFieldLabel
+                        label={t('sampleRate')}
+                        hint={t('sampleRateHint')}
+                      />
+                      <Select
+                        value={String(advanced.sampleRate)}
+                        onValueChange={(value) =>
+                          onChangeAdvanced({ sampleRate: Number(value) })
+                        }
+                      >
+                        <SelectTrigger size="sm" aria-label={t('sampleRate')}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AUDIO_SAMPLE_RATES.map((sampleRate) => (
+                            <SelectItem
+                              key={sampleRate}
+                              value={String(sampleRate)}
+                            >
+                              {t('sampleRateValue', { sampleRate })}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <AudioFieldLabel
+                        label={t('latency')}
+                        hint={t('latencyHint')}
+                      />
+                      <Select
+                        value={advanced.latency}
+                        onValueChange={(value) => {
+                          if (isAudioLatency(value)) {
+                            onChangeAdvanced({ latency: value })
+                          }
+                        }}
+                      >
+                        <SelectTrigger size="sm" aria-label={t('latency')}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AUDIO_LATENCIES.map((latency) => (
+                            <SelectItem key={latency} value={latency}>
+                              {t(
+                                `latency${latency.charAt(0).toUpperCase()}${latency.slice(1)}`,
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {advanced.format === 'mp3' && (
+                      <div className="space-y-1.5">
+                        <AudioFieldLabel
+                          label={t('mp3Bitrate')}
+                          hint={t('mp3BitrateHint')}
+                        />
+                        <Select
+                          value={String(advanced.mp3Bitrate)}
+                          onValueChange={(value) =>
+                            onChangeAdvanced({ mp3Bitrate: Number(value) })
+                          }
+                        >
+                          <SelectTrigger size="sm" aria-label={t('mp3Bitrate')}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AUDIO_MP3_BITRATES.map((bitrate) => (
+                              <SelectItem key={bitrate} value={String(bitrate)}>
+                                {t('mp3BitrateValue', { bitrate })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {advanced.format === 'opus' && (
+                      <div className="space-y-1.5">
+                        <AudioFieldLabel
+                          label={t('opusBitrate')}
+                          hint={t('opusBitrateHint')}
+                        />
+                        <Select
+                          value={String(advanced.opusBitrate)}
+                          onValueChange={(value) =>
+                            onChangeAdvanced({ opusBitrate: Number(value) })
+                          }
+                        >
+                          <SelectTrigger
+                            size="sm"
+                            aria-label={t('opusBitrate')}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AUDIO_OPUS_BITRATES.map((bitrate) => (
+                              <SelectItem key={bitrate} value={String(bitrate)}>
+                                {bitrate === -1000
+                                  ? t('opusBitrateAuto')
+                                  : t('opusBitrateValue', {
+                                      bitrate: bitrate / 1000,
+                                    })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent
+                  value={AUDIO_ADVANCED_TAB_IDS.VOICE}
+                  className="mt-4 space-y-4"
                 >
-                  <SelectTrigger size="sm" aria-label={t('latency')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUDIO_LATENCIES.map((latency) => (
-                      <SelectItem key={latency} value={latency}>
-                        {t(
-                          `latency${latency.charAt(0).toUpperCase()}${latency.slice(1)}`,
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="grid gap-2">
+                    <AudioSwitchRow
+                      label={t('normalizeLoudness')}
+                      hint={t('normalizeLoudnessHint')}
+                      checked={advanced.normalizeLoudness}
+                      onCheckedChange={(checked) =>
+                        onChangeAdvanced({ normalizeLoudness: checked })
+                      }
+                    />
+                  </div>
 
-                {advanced.format === 'mp3' && (
-                  <Select
-                    value={String(advanced.mp3Bitrate)}
-                    onValueChange={(value) =>
-                      onChangeAdvanced({ mp3Bitrate: Number(value) })
+                  <ParamSlider
+                    label={t('volume')}
+                    labelAccessory={
+                      <AudioInfoTooltip
+                        label={t('volume')}
+                        hint={t('volumeHint')}
+                      />
                     }
-                  >
-                    <SelectTrigger size="sm" aria-label={t('mp3Bitrate')}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AUDIO_MP3_BITRATES.map((bitrate) => (
-                        <SelectItem key={bitrate} value={String(bitrate)}>
-                          {t('mp3BitrateValue', { bitrate })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {advanced.format === 'opus' && (
-                  <Select
-                    value={String(advanced.opusBitrate)}
-                    onValueChange={(value) =>
-                      onChangeAdvanced({ opusBitrate: Number(value) })
-                    }
-                  >
-                    <SelectTrigger size="sm" aria-label={t('opusBitrate')}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AUDIO_OPUS_BITRATES.map((bitrate) => (
-                        <SelectItem key={bitrate} value={String(bitrate)}>
-                          {bitrate === -1000
-                            ? t('opusBitrateAuto')
-                            : t('opusBitrateValue', {
-                                bitrate: bitrate / 1000,
-                              })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <label className="flex items-center justify-between gap-3 rounded-md border border-border/50 px-3 py-2 text-xs">
-                  <span>{t('normalizeLoudness')}</span>
-                  <Switch
-                    size="sm"
-                    checked={advanced.normalizeLoudness}
-                    onCheckedChange={(checked) =>
-                      onChangeAdvanced({ normalizeLoudness: checked })
-                    }
+                    value={advanced.volume}
+                    onChange={(value) => onChangeAdvanced({ volume: value })}
+                    min={TTS_VOLUME_RANGE.min}
+                    max={TTS_VOLUME_RANGE.max}
+                    step={TTS_VOLUME_RANGE.step}
+                    formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
                   />
-                </label>
-                <label className="flex items-center justify-between gap-3 rounded-md border border-border/50 px-3 py-2 text-xs">
-                  <span>{t('normalizeText')}</span>
-                  <Switch
-                    size="sm"
-                    checked={advanced.normalizeText}
-                    onCheckedChange={(checked) =>
-                      onChangeAdvanced({ normalizeText: checked })
-                    }
-                  />
-                </label>
-                <label className="flex items-center justify-between gap-3 rounded-md border border-border/50 px-3 py-2 text-xs">
-                  <span>{t('withTimestamps')}</span>
-                  <Switch
-                    size="sm"
-                    checked={advanced.withTimestamps}
-                    onCheckedChange={(checked) =>
-                      onChangeAdvanced({ withTimestamps: checked })
-                    }
-                  />
-                </label>
-              </div>
 
-              <ParamSlider
-                label={t('volume')}
-                value={advanced.volume}
-                onChange={(value) => onChangeAdvanced({ volume: value })}
-                min={TTS_VOLUME_RANGE.min}
-                max={TTS_VOLUME_RANGE.max}
-                step={TTS_VOLUME_RANGE.step}
-                formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
-              />
-              <ParamSlider
-                label={t('temperature')}
-                value={advanced.temperature}
-                onChange={(value) => onChangeAdvanced({ temperature: value })}
-                min={TTS_TEMPERATURE_RANGE.min}
-                max={TTS_TEMPERATURE_RANGE.max}
-                step={TTS_TEMPERATURE_RANGE.step}
-              />
-              <ParamSlider
-                label={t('topP')}
-                value={advanced.topP}
-                onChange={(value) => onChangeAdvanced({ topP: value })}
-                min={TTS_TOP_P_RANGE.min}
-                max={TTS_TOP_P_RANGE.max}
-                step={TTS_TOP_P_RANGE.step}
-              />
-              <ParamSlider
-                label={t('chunkLength')}
-                value={advanced.chunkLength}
-                onChange={(value) => onChangeAdvanced({ chunkLength: value })}
-                min={TTS_CHUNK_LENGTH_RANGE.min}
-                max={TTS_CHUNK_LENGTH_RANGE.max}
-                step={TTS_CHUNK_LENGTH_RANGE.step}
-              />
-              <ParamSlider
-                label={t('repetitionPenalty')}
-                value={advanced.repetitionPenalty}
-                onChange={(value) =>
-                  onChangeAdvanced({ repetitionPenalty: value })
-                }
-                min={TTS_REPETITION_PENALTY_RANGE.min}
-                max={TTS_REPETITION_PENALTY_RANGE.max}
-                step={TTS_REPETITION_PENALTY_RANGE.step}
-              />
+                  <div className="space-y-1.5">
+                    <AudioFieldLabel
+                      label={t('speakerVoiceIds')}
+                      hint={t('speakerVoiceIdsHint')}
+                    />
+                    <Input
+                      value={advanced.speakerVoiceIds.join(', ')}
+                      onChange={(event) =>
+                        onChangeAdvanced({
+                          speakerVoiceIds: parseSpeakerVoiceIds(
+                            event.target.value,
+                          ),
+                        })
+                      }
+                      placeholder={t('speakerVoiceIdsPlaceholder')}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </TabsContent>
 
-              <div className="space-y-1">
-                <label className="block text-2xs font-medium text-muted-foreground/70">
-                  {t('speakerVoiceIds')}
-                </label>
-                <Input
-                  value={advanced.speakerVoiceIds.join(', ')}
-                  onChange={(event) =>
-                    onChangeAdvanced({
-                      speakerVoiceIds: parseSpeakerVoiceIds(event.target.value),
-                    })
-                  }
-                  placeholder={t('speakerVoiceIdsPlaceholder')}
-                  className="h-9 text-xs"
-                />
-                <p className="text-2xs text-muted-foreground">
-                  {t('speakerVoiceIdsHint')}
-                </p>
-              </div>
-            </div>
+                <TabsContent
+                  value={AUDIO_ADVANCED_TAB_IDS.MODEL}
+                  className="mt-4 space-y-4"
+                >
+                  <div className="grid gap-2">
+                    <AudioSwitchRow
+                      label={t('normalizeText')}
+                      hint={t('normalizeTextHint')}
+                      checked={advanced.normalizeText}
+                      onCheckedChange={(checked) =>
+                        onChangeAdvanced({ normalizeText: checked })
+                      }
+                    />
+                    <AudioSwitchRow
+                      label={t('withTimestamps')}
+                      hint={t('withTimestampsHint')}
+                      checked={advanced.withTimestamps}
+                      onCheckedChange={(checked) =>
+                        onChangeAdvanced({ withTimestamps: checked })
+                      }
+                    />
+                  </div>
+
+                  <ParamSlider
+                    label={t('temperature')}
+                    labelAccessory={
+                      <AudioInfoTooltip
+                        label={t('temperature')}
+                        hint={t('temperatureHint')}
+                      />
+                    }
+                    value={advanced.temperature}
+                    onChange={(value) =>
+                      onChangeAdvanced({ temperature: value })
+                    }
+                    min={TTS_TEMPERATURE_RANGE.min}
+                    max={TTS_TEMPERATURE_RANGE.max}
+                    step={TTS_TEMPERATURE_RANGE.step}
+                  />
+                  <ParamSlider
+                    label={t('topP')}
+                    labelAccessory={
+                      <AudioInfoTooltip
+                        label={t('topP')}
+                        hint={t('topPHint')}
+                      />
+                    }
+                    value={advanced.topP}
+                    onChange={(value) => onChangeAdvanced({ topP: value })}
+                    min={TTS_TOP_P_RANGE.min}
+                    max={TTS_TOP_P_RANGE.max}
+                    step={TTS_TOP_P_RANGE.step}
+                  />
+                  <ParamSlider
+                    label={t('chunkLength')}
+                    labelAccessory={
+                      <AudioInfoTooltip
+                        label={t('chunkLength')}
+                        hint={t('chunkLengthHint')}
+                      />
+                    }
+                    value={advanced.chunkLength}
+                    onChange={(value) =>
+                      onChangeAdvanced({ chunkLength: value })
+                    }
+                    min={TTS_CHUNK_LENGTH_RANGE.min}
+                    max={TTS_CHUNK_LENGTH_RANGE.max}
+                    step={TTS_CHUNK_LENGTH_RANGE.step}
+                  />
+                  <ParamSlider
+                    label={t('repetitionPenalty')}
+                    labelAccessory={
+                      <AudioInfoTooltip
+                        label={t('repetitionPenalty')}
+                        hint={t('repetitionPenaltyHint')}
+                      />
+                    }
+                    value={advanced.repetitionPenalty}
+                    onChange={(value) =>
+                      onChangeAdvanced({ repetitionPenalty: value })
+                    }
+                    min={TTS_REPETITION_PENALTY_RANGE.min}
+                    max={TTS_REPETITION_PENALTY_RANGE.max}
+                    step={TTS_REPETITION_PENALTY_RANGE.step}
+                  />
+                </TabsContent>
+              </Tabs>
+            </TooltipProvider>
           </div>
         </div>
       </section>

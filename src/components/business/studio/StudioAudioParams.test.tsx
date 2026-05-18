@@ -84,4 +84,22 @@ describe('StudioAudioParams', () => {
 
     expect(onChangeAdvanced).toHaveBeenCalledWith({ style: 'narration' })
   })
+
+  it('groups advanced controls into output, voice, and model tabs', () => {
+    renderAudioParams()
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+
+    expect(screen.getByText('tabOutput')).toBeInTheDocument()
+    expect(screen.getByText('tabVoice')).toBeInTheDocument()
+    expect(screen.getByText('tabModel')).toBeInTheDocument()
+    expect(screen.getByText('format')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+    expect(screen.getByText('speakerVoiceIds')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /tabModel/ }))
+    expect(screen.getByText('temperature')).toBeInTheDocument()
+    expect(screen.getByText('withTimestamps')).toBeInTheDocument()
+  })
 })

@@ -12,7 +12,7 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
@@ -28,6 +28,12 @@ import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
 } from '@/constants/sample-prompts'
+import {
+  TTS_ESTIMATED_CHARS_PER_MINUTE,
+  TTS_MAX_TEXT_LENGTH,
+  TTS_MIN_PREVIEW_MINUTES,
+  TTS_PROMPT_WARNING_LENGTH,
+} from '@/constants/audio-options'
 import {
   useStudioForm,
   useStudioData,
@@ -97,6 +103,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tModels = useTranslations('Models')
+  const locale = useLocale()
   const { healthMap } = useApiKeysContext()
 
   useEffect(() => {
@@ -125,6 +132,39 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     : isVideoMode
       ? videoModel
       : imageModel
+  const trimmedPrompt = state.prompt.trim()
+  const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
+  const isAudioPromptOverLimit =
+    isAudioMode && audioPromptLength > TTS_MAX_TEXT_LENGTH
+  const isAudioPromptNearLimit =
+    isAudioMode && audioPromptLength >= TTS_PROMPT_WARNING_LENGTH
+  const audioEstimatedMinutesLabel = useMemo(() => {
+    const estimatedMinutes =
+      audioPromptLength > 0
+        ? Math.max(
+            TTS_MIN_PREVIEW_MINUTES,
+            audioPromptLength / TTS_ESTIMATED_CHARS_PER_MINUTE,
+          )
+        : 0
+
+    return new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 1,
+      minimumFractionDigits:
+        estimatedMinutes > 0 && estimatedMinutes < 1 ? 1 : 0,
+    }).format(estimatedMinutes)
+  }, [audioPromptLength, locale])
+  const audioPromptMeta = selectedModel
+    ? tPromptArea('audioPromptMeta', {
+        current: audioPromptLength,
+        max: TTS_MAX_TEXT_LENGTH,
+        minutes: audioEstimatedMinutesLabel,
+        credits: selectedModel.requestCount ?? 1,
+      })
+    : tPromptArea('audioPromptMetaNoModel', {
+        current: audioPromptLength,
+        max: TTS_MAX_TEXT_LENGTH,
+        minutes: audioEstimatedMinutesLabel,
+      })
   type SelectedModelOption = NonNullable<typeof selectedModel>
   const modelOptions = isAudioMode
     ? audioModelOptions
@@ -365,8 +405,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const canGenerate =
     (usesStyleCardForModel
       ? !!styles.activeCardId && !!selectedStyleCard?.modelId
-      : !!selectedModel?.modelId && !!state.prompt.trim()) &&
-    (!modelRequiresRef || hasRefImage)
+      : !!selectedModel?.modelId && !!trimmedPrompt) &&
+    (!modelRequiresRef || hasRefImage) &&
+    !isAudioPromptOverLimit
 
   // ── Reset selectedOptionId when outputType changes ─────────────
   // image/video/audio each have their own model pools; carrying a stale
@@ -760,8 +801,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         toast.info(tPromptArea('blocked.styleCardRequired'))
       } else if (!usesStyleCardForModel && !selectedModel?.modelId) {
         toast.info(tPromptArea('blocked.modelRequired'))
-      } else if (!usesStyleCardForModel && !state.prompt.trim()) {
+      } else if (!usesStyleCardForModel && !trimmedPrompt) {
         toast.info(tPromptArea('blocked.promptRequired'))
+        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      } else if (isAudioPromptOverLimit) {
+        toast.info(
+          tPromptArea('blocked.audioPromptTooLong', {
+            max: TTS_MAX_TEXT_LENGTH,
+          }),
+        )
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
@@ -778,7 +826,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       !isAudioMode &&
       !isVideoMode &&
       state.workflowMode === 'quick' &&
-      state.prompt.trim() &&
+      trimmedPrompt &&
       !userPickedModel
     ) {
       const result = await fetchGenerationPlanAPI({
@@ -804,8 +852,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     hasRefImage,
     isAudioMode,
     isVideoMode,
+    isAudioPromptOverLimit,
     state.workflowMode,
     state.prompt,
+    trimmedPrompt,
     executeGenerate,
     setCurrentPlan,
     dispatch,
@@ -905,6 +955,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           placeholder={placeholder}
           className="min-h-12 px-2 py-1.5 font-serif text-sm leading-6 text-foreground placeholder:text-muted-foreground/60"
         />
+        {isAudioMode && (
+          <div
+            className={cn(
+              'flex justify-end px-2 pb-1 text-2xs tabular-nums',
+              isAudioPromptOverLimit
+                ? 'text-destructive'
+                : isAudioPromptNearLimit
+                  ? 'text-amber-600'
+                  : 'text-muted-foreground/70',
+            )}
+          >
+            {audioPromptMeta}
+          </div>
+        )}
         <PromptInputActions className="items-center justify-between gap-3 px-1.5 pb-1 pt-1">
           <div className="flex min-w-0 items-center gap-1.5">
             {state.workflowMode === 'quick' && (
@@ -1091,7 +1155,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               'inline-flex isolate shrink-0 items-stretch overflow-hidden rounded-full bg-primary text-primary-foreground',
               'shadow-sm shadow-primary/20 ring-1 ring-primary/10 transition-shadow duration-200',
               !isGenerating && 'hover:shadow-md hover:shadow-primary/25',
-              isGenerating && 'bg-muted text-muted-foreground',
+              (isGenerating || isAudioPromptOverLimit) &&
+                'bg-muted text-muted-foreground',
             )}
           >
             <button
@@ -1100,7 +1165,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 event.stopPropagation()
                 void handleGenerate()
               }}
-              disabled={isGenerating}
+              disabled={isGenerating || isAudioPromptOverLimit}
               aria-busy={isGenerating}
               aria-disabled={!canGenerate}
               className={cn(
@@ -1108,7 +1173,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 isGenerating
                   ? 'cursor-not-allowed studio-generating'
-                  : 'active:scale-[0.97]',
+                  : isAudioPromptOverLimit
+                    ? 'cursor-not-allowed'
+                    : 'active:scale-[0.97]',
               )}
               style={{
                 transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',

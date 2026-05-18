@@ -19,6 +19,26 @@ export type AudioLatency = (typeof AUDIO_LATENCIES)[number]
 
 /** TTS text input constraints */
 export const TTS_MAX_TEXT_LENGTH = 5000
+export const TTS_PROMPT_WARNING_LENGTH = 4500
+export const TTS_ESTIMATED_CHARS_PER_MINUTE = 900
+export const TTS_MIN_PREVIEW_MINUTES = 0.1
+
+export const AUDIO_ADVANCED_TAB_IDS = {
+  OUTPUT: 'output',
+  VOICE: 'voice',
+  MODEL: 'model',
+} as const
+
+export type AudioAdvancedTabId =
+  (typeof AUDIO_ADVANCED_TAB_IDS)[keyof typeof AUDIO_ADVANCED_TAB_IDS]
+
+export function isAudioAdvancedTabId(
+  value: string,
+): value is AudioAdvancedTabId {
+  return Object.values(AUDIO_ADVANCED_TAB_IDS).includes(
+    value as AudioAdvancedTabId,
+  )
+}
 
 /** Speed control range for TTS */
 export const TTS_SPEED_RANGE = {

@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { TTS_MAX_TEXT_LENGTH } from '@/constants/audio-options'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
@@ -43,6 +44,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }))
 
 vi.mock('sonner', () => ({
@@ -441,5 +443,36 @@ describe('StudioPromptArea', () => {
         }),
       }),
     )
+  })
+
+  it('shows audio prompt estimate and disables generation when text exceeds the TTS limit', () => {
+    const audioModel = {
+      optionId: 'audio-option',
+      modelId: 'fish-audio-s2-pro',
+      keyId: 'fish-key-1',
+      keyLabel: 'Fish key',
+      adapterType: 'fish_audio',
+      providerConfig: {
+        label: 'Fish Audio',
+        baseUrl: 'https://api.fish.audio',
+      },
+      sourceType: 'saved',
+      requestCount: 2,
+    }
+    mockUseAudioModelOptions.mockReturnValue({
+      selectedModel: audioModel,
+      modelOptions: [audioModel],
+    })
+    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
+      outputType: 'audio',
+      selectedOptionId: 'audio-option',
+      prompt: 'a'.repeat(TTS_MAX_TEXT_LENGTH + 1),
+    })
+
+    render(<StudioPromptArea />)
+
+    expect(screen.getByText('audioPromptMeta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
+    expect(mockGenerate).not.toHaveBeenCalled()
   })
 })

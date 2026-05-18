@@ -1,9 +1,12 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import { Slider } from '@/components/ui/slider'
 
 interface ParamSliderProps {
   label: string
+  labelAccessory?: ReactNode
   value: number
   onChange: (value: number) => void
   min: number
@@ -22,6 +25,7 @@ interface ParamSliderProps {
  */
 export function ParamSlider({
   label,
+  labelAccessory,
   value,
   onChange,
   min,
@@ -34,7 +38,10 @@ export function ParamSlider({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">{label}</span>
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          {label}
+          {labelAccessory}
+        </span>
         <span className="min-w-12 text-right font-mono text-sm text-muted-foreground">
           {formatValue ? formatValue(value) : value}
         </span>

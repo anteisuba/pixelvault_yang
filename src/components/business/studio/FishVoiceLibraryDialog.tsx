@@ -19,6 +19,8 @@ interface FishVoiceLibraryDialogProps {
   onOpenChange: (open: boolean) => void
   sidePanel?: ReactNode
   onVoiceSelectComplete?: () => void
+  selectedVoiceId?: string | null
+  onSelectVoiceId?: (voiceId: string) => void
 }
 
 export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
@@ -26,6 +28,8 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
   onOpenChange,
   sidePanel,
   onVoiceSelectComplete,
+  selectedVoiceId,
+  onSelectVoiceId,
 }: FishVoiceLibraryDialogProps) {
   const t = useTranslations('StudioPage')
 
@@ -54,6 +58,8 @@ export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({
             <VoiceSelector
               className="h-full"
               onSelectComplete={onVoiceSelectComplete}
+              selectedVoiceId={selectedVoiceId}
+              onSelectVoiceId={onSelectVoiceId}
             />
           </section>
           {sidePanel ? (

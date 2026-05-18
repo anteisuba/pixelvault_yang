@@ -355,6 +355,28 @@ describe('studioFormReducer', () => {
     })
   })
 
+  // ── SET_AUDIO_SPEAKER_VOICE_IDS normalization ──
+
+  it('SET_AUDIO_SPEAKER_VOICE_IDS trims, drops empties, and de-duplicates', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
+      payload: ['  voice-a ', '', 'voice-b', 'voice-a', '   '],
+    })
+    expect(next.audioSpeakerVoiceIds).toEqual(['voice-a', 'voice-b'])
+  })
+
+  it('SET_AUDIO_SPEAKER_VOICE_IDS caps the payload at the speaker limit', () => {
+    const state = makeInitialState()
+    const oversized = Array.from({ length: 12 }, (_, index) => `voice-${index}`)
+    const next = studioFormReducer(state, {
+      type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
+      payload: oversized,
+    })
+    expect(next.audioSpeakerVoiceIds).toHaveLength(8)
+    expect(next.audioSpeakerVoiceIds).toEqual(oversized.slice(0, 8))
+  })
+
   // ── SET_ASPECT_RATIO ──
 
   it('SET_ASPECT_RATIO changes aspectRatio', () => {

@@ -1,12 +1,14 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import {
   ChevronDown,
   FileAudio2,
   HelpCircle,
   Mic2,
+  Plus,
   SlidersHorizontal,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -17,6 +19,8 @@ import {
   AUDIO_MP3_BITRATES,
   AUDIO_OPUS_BITRATES,
   AUDIO_SAMPLE_RATES,
+  AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH,
+  AUDIO_SPEAKER_VOICE_IDS_MAX,
   isAudioAdvancedTabId,
   isAudioFormat,
   isAudioLatency,
@@ -29,12 +33,15 @@ import {
   type AudioFormat,
   type AudioLatency,
 } from '@/constants/audio-options'
+// Note: speaker voice IDs are normalized by the reducer
+// (`SET_AUDIO_SPEAKER_VOICE_IDS`), so this component trusts incoming props
+// and never re-normalizes for display.
 import {
   AUDIO_PACE,
   AUDIO_PAUSE_MARKERS,
   AUDIO_STYLE,
 } from '@/constants/voice-cards'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { cn } from '@/lib/utils'
 import {
@@ -80,6 +87,9 @@ interface StudioAudioParamsProps {
   onChangePace: (pace: string) => void
   onChangePauseMarkers: (markers: string[]) => void
   onChangeAdvanced: (settings: Partial<StudioAudioAdvancedSettings>) => void
+  onRequestSpeakerVoiceSelect: (index: number | null) => void
+  isSelectingSpeakerVoice?: boolean
+  activeSpeakerVoiceIndex?: number | null
 }
 
 const STYLE_OPTIONS = [
@@ -179,9 +189,160 @@ function AudioSwitchRow({
 
 function parseSpeakerVoiceIds(value: string): string[] {
   return value
-    .split(',')
+    .split(/[\s,]+/)
     .map((item) => item.trim())
-    .filter(Boolean)
+    .filter(
+      (item) =>
+        item.length > 0 && item.length <= AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH,
+    )
+}
+
+interface SpeakerVoiceIdsFieldProps {
+  voiceIds: string[]
+  isSelecting?: boolean
+  activeIndex?: number | null
+  onChange: (voiceIds: string[]) => void
+  onRequestVoiceSelect: (index: number | null) => void
+}
+
+function SpeakerVoiceIdsField({
+  voiceIds,
+  isSelecting,
+  activeIndex,
+  onChange,
+  onRequestVoiceSelect,
+}: SpeakerVoiceIdsFieldProps) {
+  const t = useTranslations('audioParams')
+  const [draft, setDraft] = useState('')
+  const canAddMore = voiceIds.length < AUDIO_SPEAKER_VOICE_IDS_MAX
+
+  const commitDraft = () => {
+    const parsedVoiceIds = parseSpeakerVoiceIds(draft)
+    if (parsedVoiceIds.length === 0) return
+
+    onChange([...voiceIds, ...parsedVoiceIds])
+    setDraft('')
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault()
+      commitDraft()
+    }
+  }
+
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = event.clipboardData.getData('text')
+    const parsedVoiceIds = parseSpeakerVoiceIds(pastedText)
+    if (parsedVoiceIds.length <= 1) return
+
+    event.preventDefault()
+    onChange([...voiceIds, ...parsedVoiceIds])
+    setDraft('')
+  }
+
+  const handleRemove = (indexToRemove: number) => {
+    onChange(voiceIds.filter((_, index) => index !== indexToRemove))
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <AudioFieldLabel
+          label={t('speakerVoiceIds')}
+          hint={t('speakerVoiceIdsHint')}
+        />
+        <Button
+          type="button"
+          variant={isSelecting && activeIndex === null ? 'default' : 'outline'}
+          size="sm"
+          disabled={!canAddMore}
+          onClick={() => onRequestVoiceSelect(null)}
+          className="h-8 shrink-0 gap-1.5 px-2 text-2xs"
+        >
+          <Plus className="size-3" />
+          {t('speakerVoiceAdd')}
+        </Button>
+      </div>
+
+      <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-background/60 px-2 py-2">
+        {voiceIds.map((voiceId, index) => {
+          const speakerNumber = index + 1
+          const isActive = activeIndex === index
+
+          return (
+            <span
+              key={`${voiceId}-${index}`}
+              className={cn(
+                'inline-flex max-w-full items-center gap-1 rounded-full border bg-muted/30 pl-2 pr-1 text-2xs transition-colors',
+                isActive
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border/60',
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => onRequestVoiceSelect(index)}
+                aria-label={t('speakerVoiceReplace', {
+                  index: speakerNumber,
+                })}
+                className="inline-flex min-w-0 items-center gap-1.5 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="shrink-0 font-medium text-muted-foreground">
+                  {t('speakerVoiceLabel', { index: speakerNumber })}
+                </span>
+                <span className="max-w-36 truncate font-mono text-foreground">
+                  {voiceId}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                aria-label={t('speakerVoiceRemove', {
+                  index: speakerNumber,
+                })}
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          )
+        })}
+
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onBlur={commitDraft}
+          disabled={!canAddMore}
+          maxLength={AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH}
+          placeholder={
+            voiceIds.length === 0
+              ? t('speakerVoiceInputPlaceholder')
+              : undefined
+          }
+          className="h-7 min-w-32 flex-1 bg-transparent px-1 text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        />
+      </div>
+
+      {voiceIds.length === 0 ? (
+        <p className="text-2xs text-muted-foreground">
+          {t('speakerVoiceEmpty')}
+        </p>
+      ) : null}
+      {!canAddMore ? (
+        <p className="text-2xs text-muted-foreground">
+          {t('speakerVoiceLimitReached', {
+            max: AUDIO_SPEAKER_VOICE_IDS_MAX,
+          })}
+        </p>
+      ) : null}
+      {isSelecting ? (
+        <p className="text-2xs text-primary">{t('speakerVoicePickHint')}</p>
+      ) : null}
+    </div>
+  )
 }
 
 export const StudioAudioParams = memo(function StudioAudioParams({
@@ -192,6 +353,9 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   onChangePace,
   onChangePauseMarkers,
   onChangeAdvanced,
+  onRequestSpeakerVoiceSelect,
+  isSelectingSpeakerVoice,
+  activeSpeakerVoiceIndex,
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -520,24 +684,15 @@ export const StudioAudioParams = memo(function StudioAudioParams({
                     formatValue={(value) => `${value > 0 ? '+' : ''}${value}`}
                   />
 
-                  <div className="space-y-1.5">
-                    <AudioFieldLabel
-                      label={t('speakerVoiceIds')}
-                      hint={t('speakerVoiceIdsHint')}
-                    />
-                    <Input
-                      value={advanced.speakerVoiceIds.join(', ')}
-                      onChange={(event) =>
-                        onChangeAdvanced({
-                          speakerVoiceIds: parseSpeakerVoiceIds(
-                            event.target.value,
-                          ),
-                        })
-                      }
-                      placeholder={t('speakerVoiceIdsPlaceholder')}
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                  <SpeakerVoiceIdsField
+                    voiceIds={advanced.speakerVoiceIds}
+                    isSelecting={isSelectingSpeakerVoice}
+                    activeIndex={activeSpeakerVoiceIndex}
+                    onChange={(speakerVoiceIds) =>
+                      onChangeAdvanced({ speakerVoiceIds })
+                    }
+                    onRequestVoiceSelect={onRequestSpeakerVoiceSelect}
+                  />
                 </TabsContent>
 
                 <TabsContent

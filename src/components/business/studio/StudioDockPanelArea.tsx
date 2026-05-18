@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { Key, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
@@ -96,6 +96,11 @@ const DIALOG_BODY = 'overflow-y-auto px-5 pb-5 pt-1'
 const DIALOG_HEADER =
   'flex items-center gap-2 border-b border-border/40 px-5 py-3 font-display text-sm font-medium'
 
+type SpeakerVoiceSelectionTarget =
+  | { mode: 'append' }
+  | { mode: 'replace'; index: number }
+  | null
+
 /**
  * StudioDockPanelArea — Krea-style centred dialogs for every toolbar pill
  * that used to dock into the bottom-right 40% column. Each panel is its
@@ -115,6 +120,8 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const tPanels = useTranslations('StudioPanels')
   const tBar = useTranslations('StudioToolbar')
   const { selectedModel } = useImageModelOptions()
+  const [speakerVoiceSelectionTarget, setSpeakerVoiceSelectionTarget] =
+    useState<SpeakerVoiceSelectionTarget>(null)
 
   const selectedStyleCard = styles.activeCard
   const adapterType =
@@ -139,6 +146,40 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     [dispatch],
   )
 
+  const requestSpeakerVoiceSelect = useCallback((index: number | null) => {
+    setSpeakerVoiceSelectionTarget(
+      index === null ? { mode: 'append' } : { mode: 'replace', index },
+    )
+  }, [])
+
+  // Speaker voice IDs are normalized by the reducer
+  // (`SET_AUDIO_SPEAKER_VOICE_IDS`), so this handler stays focused on append
+  // vs. replace semantics and trusts the reducer for de-dup / cap / trim.
+  const handleSpeakerVoiceSelect = useCallback(
+    (voiceId: string) => {
+      if (!speakerVoiceSelectionTarget) return
+
+      const nextSpeakerVoiceIds = [...state.audioSpeakerVoiceIds]
+      if (speakerVoiceSelectionTarget.mode === 'append') {
+        nextSpeakerVoiceIds.push(voiceId)
+      } else {
+        nextSpeakerVoiceIds[speakerVoiceSelectionTarget.index] = voiceId
+      }
+
+      dispatch({
+        type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
+        payload: nextSpeakerVoiceIds,
+      })
+      setSpeakerVoiceSelectionTarget(null)
+    },
+    [dispatch, speakerVoiceSelectionTarget, state.audioSpeakerVoiceIds],
+  )
+
+  const handleVoiceSelectComplete = useCallback(() => {
+    setSpeakerVoiceSelectionTarget(null)
+    closePanel('voiceSelector')
+  }, [closePanel])
+
   const handleSaveToken = useCallback(async () => {
     if (!state.tokenInput.trim()) return
     const ok = await civitai.save(state.tokenInput.trim())
@@ -146,6 +187,16 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       dispatch({ type: 'SET_TOKEN_INPUT', payload: '' })
     }
   }, [state.tokenInput, civitai, dispatch])
+
+  const activeSpeakerVoiceIndex =
+    speakerVoiceSelectionTarget?.mode === 'replace'
+      ? speakerVoiceSelectionTarget.index
+      : null
+  const selectedSpeakerVoiceId =
+    activeSpeakerVoiceIndex === null
+      ? null
+      : (state.audioSpeakerVoiceIds[activeSpeakerVoiceIndex] ?? null)
+  const isSelectingSpeakerVoice = speakerVoiceSelectionTarget !== null
 
   return (
     <>
@@ -268,8 +319,16 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       <FishVoiceLibraryDialog
         open={state.panels.voiceSelector}
         onOpenChange={(open) => {
-          if (!open) closePanel('voiceSelector')
+          if (!open) {
+            setSpeakerVoiceSelectionTarget(null)
+            closePanel('voiceSelector')
+          }
         }}
+        selectedVoiceId={selectedSpeakerVoiceId}
+        onSelectVoiceId={
+          isSelectingSpeakerVoice ? handleSpeakerVoiceSelect : undefined
+        }
+        onVoiceSelectComplete={handleVoiceSelectComplete}
         sidePanel={
           <StudioAudioParams
             voiceCardId={state.voiceCardId}
@@ -393,6 +452,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 })
               }
             }}
+            onRequestSpeakerVoiceSelect={requestSpeakerVoiceSelect}
+            isSelectingSpeakerVoice={isSelectingSpeakerVoice}
+            activeSpeakerVoiceIndex={activeSpeakerVoiceIndex}
           />
         }
       />

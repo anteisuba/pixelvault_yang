@@ -329,17 +329,34 @@ export function AudioPlayer({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <button
-            type="button"
-            className="group relative h-2 cursor-pointer rounded-full bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={handleSeek}
-            aria-label={t('seek')}
-          >
-            <span
-              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </button>
+          {compact ? (
+            <button
+              type="button"
+              className="group relative h-2 cursor-pointer rounded-full bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={handleSeek}
+              aria-label={t('seek')}
+            >
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </button>
+          ) : (
+            // Non-interactive thin indicator — seek interaction lives on the
+            // waveform above so users don't see two redundant scrubbers.
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={Math.max(0, Math.round(duration))}
+              aria-valuenow={Math.max(0, Math.round(currentTime))}
+              className="relative h-1 rounded-full bg-border"
+            >
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
           <div className="flex justify-between font-display text-[10px] text-muted-foreground">
             <span>{formatTime(currentTime)}</span>
             <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>

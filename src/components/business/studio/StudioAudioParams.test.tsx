@@ -19,9 +19,12 @@ class MockResizeObserver {
 vi.stubGlobal('ResizeObserver', MockResizeObserver)
 
 function renderAudioParams(overrides?: {
+  advanced?: Partial<StudioAudioAdvancedSettings>
+  activeSpeakerVoiceIndex?: number | null
   onChangePace?: (pace: string) => void
   onChangePauseMarkers?: (markers: string[]) => void
   onChangeAdvanced?: (settings: Partial<StudioAudioAdvancedSettings>) => void
+  onRequestSpeakerVoiceSelect?: (index: number | null) => void
 }) {
   const advanced: StudioAudioAdvancedSettings = {
     style: 'none',
@@ -39,6 +42,7 @@ function renderAudioParams(overrides?: {
     chunkLength: 300,
     repetitionPenalty: 1.2,
     speakerVoiceIds: [],
+    ...overrides?.advanced,
   }
   const props = {
     voiceCardId: 'voice-card-1',
@@ -48,6 +52,9 @@ function renderAudioParams(overrides?: {
     onChangePace: overrides?.onChangePace ?? vi.fn(),
     onChangePauseMarkers: overrides?.onChangePauseMarkers ?? vi.fn(),
     onChangeAdvanced: overrides?.onChangeAdvanced ?? vi.fn(),
+    onRequestSpeakerVoiceSelect:
+      overrides?.onRequestSpeakerVoiceSelect ?? vi.fn(),
+    activeSpeakerVoiceIndex: overrides?.activeSpeakerVoiceIndex,
   }
 
   render(<StudioAudioParams {...props} />)
@@ -101,5 +108,55 @@ describe('StudioAudioParams', () => {
     fireEvent.click(screen.getByRole('tab', { name: /tabModel/ }))
     expect(screen.getByText('temperature')).toBeInTheDocument()
     expect(screen.getByText('withTimestamps')).toBeInTheDocument()
+  })
+
+  it('renders speaker voice ids as chips with picker and remove controls', () => {
+    const onChangeAdvanced = vi.fn()
+    const onRequestSpeakerVoiceSelect = vi.fn()
+    renderAudioParams({
+      advanced: {
+        speakerVoiceIds: ['voice-a', 'voice-b'],
+      },
+      activeSpeakerVoiceIndex: 1,
+      onChangeAdvanced,
+      onRequestSpeakerVoiceSelect,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    expect(screen.getByText('voice-a')).toBeInTheDocument()
+    expect(screen.getByText('voice-b')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'speakerVoiceAdd' }))
+    expect(onRequestSpeakerVoiceSelect).toHaveBeenCalledWith(null)
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'speakerVoiceReplace' })[1],
+    )
+    expect(onRequestSpeakerVoiceSelect).toHaveBeenCalledWith(1)
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'speakerVoiceRemove' })[0],
+    )
+    expect(onChangeAdvanced).toHaveBeenCalledWith({
+      speakerVoiceIds: ['voice-b'],
+    })
+  })
+
+  it('converts pasted speaker ids into chips instead of keeping a comma string', () => {
+    const onChangeAdvanced = vi.fn()
+    renderAudioParams({ onChangeAdvanced })
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    const input = screen.getByPlaceholderText('speakerVoiceInputPlaceholder')
+    fireEvent.change(input, { target: { value: 'voice-a, voice-b' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onChangeAdvanced).toHaveBeenCalledWith({
+      speakerVoiceIds: ['voice-a', 'voice-b'],
+    })
   })
 })

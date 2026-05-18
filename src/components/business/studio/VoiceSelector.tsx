@@ -53,6 +53,8 @@ type VoiceTab = 'public' | 'favorites' | 'cloned'
 interface VoiceSelectorProps {
   className?: string
   onSelectComplete?: () => void
+  selectedVoiceId?: string | null
+  onSelectVoiceId?: (voiceId: string) => void
 }
 
 function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
@@ -99,6 +101,8 @@ function isClonedVoiceCard(card: VoiceCardRecord): boolean {
 export const VoiceSelector = memo(function VoiceSelector({
   className,
   onSelectComplete,
+  selectedVoiceId,
+  onSelectVoiceId,
 }: VoiceSelectorProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioPage')
@@ -232,6 +236,13 @@ export const VoiceSelector = memo(function VoiceSelector({
   }
 
   const handleSelectVoiceCard = (card: VoiceCardRecord) => {
+    if (onSelectVoiceId) {
+      if (!card.voiceId) return
+      onSelectVoiceId(card.voiceId)
+      onSelectComplete?.()
+      return
+    }
+
     const isSelected = state.voiceCardId === card.id
     dispatch({
       type: 'SET_VOICE_CARD_ID',
@@ -272,6 +283,12 @@ export const VoiceSelector = memo(function VoiceSelector({
   }
 
   const handleSelect = (voiceId: string) => {
+    if (onSelectVoiceId) {
+      onSelectVoiceId(voiceId)
+      onSelectComplete?.()
+      return
+    }
+
     const isSelected = state.voiceId === voiceId
     dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
     dispatch({
@@ -315,6 +332,8 @@ export const VoiceSelector = memo(function VoiceSelector({
   const totalPages = Math.max(1, Math.ceil(total / VOICE_LIBRARY_PAGE_SIZE))
   const isPublicTab = tab === 'public'
   const isLocalCardsTab = !isPublicTab
+  const usesExternalSelection = Boolean(onSelectVoiceId)
+  const activeVoiceId = usesExternalSelection ? selectedVoiceId : state.voiceId
   const normalizedVoiceCardSearch = debouncedSearch.toLowerCase()
   const localVoiceCards = voiceCards.cards.filter((card) => {
     const isCloned = isClonedVoiceCard(card)
@@ -331,9 +350,13 @@ export const VoiceSelector = memo(function VoiceSelector({
         : t('voiceFavoritesLoadFailed')
       : error
   const selectedVoiceLabel =
-    voiceCards.cards.find((card) => card.id === state.voiceCardId)?.name ??
-    voices.find((voice) => voice.id === state.voiceId)?.title ??
-    state.voiceId
+    voiceCards.cards.find((card) =>
+      usesExternalSelection
+        ? card.voiceId === activeVoiceId
+        : card.id === state.voiceCardId,
+    )?.name ??
+    voices.find((voice) => voice.id === activeVoiceId)?.title ??
+    activeVoiceId
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
@@ -457,7 +480,9 @@ export const VoiceSelector = memo(function VoiceSelector({
             </div>
           ) : (
             localVoiceCards.map((card) => {
-              const isSelected = state.voiceCardId === card.id
+              const isSelected = usesExternalSelection
+                ? activeVoiceId === card.voiceId
+                : state.voiceCardId === card.id
               const isPending = pendingVoiceCardId === card.id
               const providerLabel =
                 card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO
@@ -537,7 +562,7 @@ export const VoiceSelector = memo(function VoiceSelector({
           </div>
         ) : (
           voices.map((voice) => {
-            const isSelected = state.voiceId === voice.id
+            const isSelected = activeVoiceId === voice.id
             const savedVoiceCard = voiceCards.cards.find(
               (card) => card.voiceId === voice.id,
             )

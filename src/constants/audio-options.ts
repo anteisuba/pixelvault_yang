@@ -22,6 +22,8 @@ export const TTS_MAX_TEXT_LENGTH = 5000
 export const TTS_PROMPT_WARNING_LENGTH = 4500
 export const TTS_ESTIMATED_CHARS_PER_MINUTE = 900
 export const TTS_MIN_PREVIEW_MINUTES = 0.1
+export const AUDIO_SPEAKER_VOICE_IDS_MAX = 8
+export const AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH = 200
 
 export const AUDIO_ADVANCED_TAB_IDS = {
   OUTPUT: 'output',
@@ -113,4 +115,29 @@ export function isAudioFormat(value: string): value is AudioFormat {
 
 export function isAudioLatency(value: string): value is AudioLatency {
   return AUDIO_LATENCIES.includes(value as AudioLatency)
+}
+
+/**
+ * Trim, drop empties / oversized entries, de-duplicate, and cap to the max
+ * speaker count. Used by the reducer so every consumer reads an already
+ * normalized list — UI components can `trust` props instead of re-normalizing.
+ */
+export function normalizeSpeakerVoiceIds(voiceIds: string[]): string[] {
+  const next: string[] = []
+
+  for (const voiceId of voiceIds) {
+    const trimmed = voiceId.trim()
+    if (
+      !trimmed ||
+      trimmed.length > AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH ||
+      next.includes(trimmed)
+    ) {
+      continue
+    }
+
+    next.push(trimmed)
+    if (next.length >= AUDIO_SPEAKER_VOICE_IDS_MAX) break
+  }
+
+  return next
 }

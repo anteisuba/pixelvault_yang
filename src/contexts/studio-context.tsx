@@ -45,6 +45,7 @@ import {
   DEFAULT_AUDIO_MP3_BITRATE,
   DEFAULT_AUDIO_OPUS_BITRATE,
   DEFAULT_AUDIO_SAMPLE_RATE,
+  normalizeSpeakerVoiceIds,
   TTS_CHUNK_LENGTH_RANGE,
   TTS_REPETITION_PENALTY_RANGE,
   TTS_TEMPERATURE_RANGE,
@@ -337,7 +338,10 @@ export function studioFormReducer(
     case 'SET_AUDIO_REPETITION_PENALTY':
       return { ...state, audioRepetitionPenalty: action.payload }
     case 'SET_AUDIO_SPEAKER_VOICE_IDS':
-      return { ...state, audioSpeakerVoiceIds: action.payload }
+      return {
+        ...state,
+        audioSpeakerVoiceIds: normalizeSpeakerVoiceIds(action.payload),
+      }
     case 'SET_PRONUNCIATION_DICTIONARY':
       return { ...state, pronunciationDictionary: action.payload }
     case 'SET_STYLE_PRESET':

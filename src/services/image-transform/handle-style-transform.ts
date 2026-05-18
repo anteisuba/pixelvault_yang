@@ -13,6 +13,12 @@ import { logger } from '@/lib/logger'
 import { getTransformPresetById } from '@/constants/transform-presets'
 import { generateImageForUser } from '@/services/generate-image.service'
 import { compileRecipe } from '@/services/recipe-compiler.service'
+import {
+  fetchAsBuffer,
+  generateStorageKey,
+  uploadToR2,
+} from '@/services/storage/r2'
+import { ensureUser } from '@/services/user.service'
 import type {
   TransformInput,
   TransformOutput,
@@ -53,7 +59,26 @@ export async function handleStyleTransform(
 
   // ─── 2. Generate N variants in parallel ───────────────────────
   const variantCount = input.variants
-  const referenceImage = input.subject.imageData
+  let referenceImage = input.subject.imageData
+
+  // image-perf #1: a 4-variant transform request used to upload the
+  // same data:URL reference image to R2 four times. Hoist the upload
+  // once when there is more than one variant — each downstream
+  // `generateImageForUser` call's `isOwnedStorageUrl` check then
+  // short-circuits the in-line upload, and providers receive an R2
+  // URL they can fetch in parallel. Single-variant requests keep the
+  // existing parallel-with-provider path (see image-perf #2 in
+  // generate-image.service.ts).
+  if (variantCount > 1 && referenceImage?.startsWith('data:')) {
+    const dbUser = await ensureUser(clerkId)
+    const refKey = generateStorageKey('IMAGE', dbUser.id)
+    const refData = await fetchAsBuffer(referenceImage)
+    referenceImage = await uploadToR2({
+      data: refData.buffer,
+      key: refKey,
+      mimeType: refData.mimeType,
+    })
+  }
 
   logger.info(`[handleStyleTransform] Starting ${variantCount} variant(s)`, {
     style: input.style.type,

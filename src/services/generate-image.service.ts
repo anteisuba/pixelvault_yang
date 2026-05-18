@@ -432,6 +432,56 @@ async function callProviderWithFallback(params: {
   }
 }
 
+// ─── Stage C-pre: Reference upload (can run in parallel with provider) ──
+
+/**
+ * Resolve a generation's effective reference image into a public R2 URL.
+ *
+ *   - Already-owned R2 URL → return verbatim.
+ *   - data: URL → decode base64, upload to a fresh R2 key.
+ *   - External http(s) URL → stream-pipe fetch into R2 multipart upload.
+ *   - No reference image → return undefined.
+ *
+ * Exposed (rather than inlined into `persistGeneratedImage`) so callers
+ * can fire it in parallel with `callProviderWithFallback`. The provider
+ * call typically dominates wall-clock; running the ref upload alongside
+ * it hides the upload latency entirely. See image-perf optimisation #2.
+ */
+async function uploadReferenceImageIfNeeded(params: {
+  userId: string
+  input: GenerateRequest
+  timer: GenerationStageTimer
+}): Promise<string | undefined> {
+  const { userId, input, timer } = params
+  const effectiveRefImage =
+    input.referenceImage || input.referenceImages?.[0] || undefined
+
+  if (!effectiveRefImage) return undefined
+  if (isOwnedStorageUrl(effectiveRefImage)) return effectiveRefImage
+
+  const refKey = generateStorageKey('IMAGE', userId)
+  if (effectiveRefImage.startsWith('data:')) {
+    return timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
+      const refData = await fetchAsBuffer(effectiveRefImage)
+      return uploadToR2({
+        data: refData.buffer,
+        key: refKey,
+        mimeType: refData.mimeType,
+      })
+    })
+  }
+  const { publicUrl } = await timer.measure(
+    GENERATION_STAGE.REFERENCE_UPLOAD,
+    () =>
+      uploadFromHttpToR2({
+        sourceUrl: effectiveRefImage,
+        key: refKey,
+      }),
+  )
+  timer.addNote('reference_upload_streams_download_and_r2_upload')
+  return publicUrl
+}
+
 // ─── Stage C: Persist generated image to R2 + DB ────────────────
 
 async function persistGeneratedImage(params: {
@@ -443,6 +493,12 @@ async function persistGeneratedImage(params: {
   asset: ProviderGenerationResult
   durationMs: number
   timer: GenerationStageTimer
+  /**
+   * Pre-resolved reference URL from a parallel upload started before the
+   * provider call. If undefined, this function will upload inline (slower
+   * — only used by paths that don't pre-warm).
+   */
+  preResolvedReferenceUrl?: Promise<string | undefined>
 }): Promise<GenerationRecord> {
   const {
     userId,
@@ -453,48 +509,15 @@ async function persistGeneratedImage(params: {
     asset,
     durationMs,
     timer,
+    preResolvedReferenceUrl,
   } = params
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const effectiveRefImage =
-    input.referenceImage || input.referenceImages?.[0] || undefined
 
   try {
-    // Reference image persistence:
-    //   - Already a URL inside our R2 bucket → reuse it verbatim. The DB never
-    //     stored a separate storage-key for reference images and deletion
-    //     never cleaned them up, so the prior "always re-upload to a fresh
-    //     key" path was just silently orphaning duplicate copies of the same
-    //     bytes. Reusing the source URL saves a fetch + upload (~0.5–2s)
-    //     without changing observable behaviour.
-    //   - data: URL → buffer path (base64 decoded in-process).
-    //   - External HTTP URL → fetch + stream pipe to R2.
-    const refImagePromise: Promise<string | undefined> = (async () => {
-      if (!effectiveRefImage) return undefined
-      if (isOwnedStorageUrl(effectiveRefImage)) return effectiveRefImage
-
-      const refKey = generateStorageKey('IMAGE', userId)
-      if (effectiveRefImage.startsWith('data:')) {
-        return timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
-          const refData = await fetchAsBuffer(effectiveRefImage)
-          return uploadToR2({
-            data: refData.buffer,
-            key: refKey,
-            mimeType: refData.mimeType,
-          })
-        })
-      }
-      const { publicUrl } = await timer.measure(
-        GENERATION_STAGE.REFERENCE_UPLOAD,
-        () =>
-          uploadFromHttpToR2({
-            sourceUrl: effectiveRefImage,
-            key: refKey,
-          }),
-      )
-      timer.addNote('reference_upload_streams_download_and_r2_upload')
-      return publicUrl
-    })()
+    const refImagePromise: Promise<string | undefined> =
+      preResolvedReferenceUrl ??
+      uploadReferenceImageIfNeeded({ userId, input, timer })
 
     // Main generated image:
     //   - HTTP URL (fal / replicate / HuggingFace) → fetch + stream pipe to

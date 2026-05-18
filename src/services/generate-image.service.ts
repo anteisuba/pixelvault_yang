@@ -530,29 +530,35 @@ async function persistGeneratedImage(params: {
     const generation = await timer.measure(
       GENERATION_STAGE.DB_FINALIZE,
       async () => {
-        const usageEntry = await createApiUsageEntry({
-          userId,
-          generationJobId,
-          adapterType: route.adapterType,
-          provider,
-          modelId: route.modelId,
-          requestCount: route.creditCost,
-          inputImageCount: input.referenceImage
-            ? 1
-            : (input.referenceImages?.length ?? 0),
-          outputImageCount: 1,
-          width: asset.width,
-          height: asset.height,
-          durationMs: timer.elapsedMs(),
-          wasSuccessful: true,
-        })
+        // Stage 1: independent prerequisites. The usage entry and recipe
+        // snapshot only depend on `input` + `userId`, not on each other —
+        // run them in parallel to cut one DB round-trip out of the path.
+        const [usageEntry, recipeSnapshot] = await Promise.all([
+          createApiUsageEntry({
+            userId,
+            generationJobId,
+            adapterType: route.adapterType,
+            provider,
+            modelId: route.modelId,
+            requestCount: route.creditCost,
+            inputImageCount: input.referenceImage
+              ? 1
+              : (input.referenceImages?.length ?? 0),
+            outputImageCount: 1,
+            width: asset.width,
+            height: asset.height,
+            durationMs: timer.elapsedMs(),
+            wasSuccessful: true,
+          }),
+          input.recipeUsage
+            ? buildRecipeSnapshotForUser(userId, input.recipeUsage)
+            : Promise.resolve(undefined),
+        ])
 
         timer.addNote('thumbnail_generation_deferred')
 
-        const recipeSnapshot = input.recipeUsage
-          ? await buildRecipeSnapshotForUser(userId, input.recipeUsage)
-          : undefined
-
+        // Stage 2: the actual generation row. Has to wait for the recipe
+        // snapshot so the JSONB column is populated atomically.
         const createdGeneration = await createGeneration({
           url: permanentUrl,
           storageKey,
@@ -590,23 +596,29 @@ async function persistGeneratedImage(params: {
               : undefined,
         })
 
-        try {
-          await enqueueImagePreviewDerivatives({
-            generationJobId,
-            generationId: createdGeneration.id,
-            sourceUrl: permanentUrl,
-            sourceStorageKey: storageKey,
-          })
-          timer.addNote('thumbnail_generation_enqueued')
-        } catch (error) {
-          logger.warn('Image preview derivative enqueue failed', {
-            generationJobId,
-            generationId: createdGeneration.id,
-            storageKey,
-            error: error instanceof Error ? error.message : String(error),
-          })
-          timer.addNote('thumbnail_generation_enqueue_failed')
-        }
+        // Stage 3: three independent finalize writes — link the usage
+        // row, mark the job complete, enqueue the preview-derivative
+        // worker. All keyed off the new generation id; none of them
+        // depend on the others. The enqueue is best-effort: failures
+        // are logged but never bubbled up (it was already wrapped in
+        // try/catch before the parallelization).
+        const enqueuePromise = enqueueImagePreviewDerivatives({
+          generationJobId,
+          generationId: createdGeneration.id,
+          sourceUrl: permanentUrl,
+          sourceStorageKey: storageKey,
+        }).then(
+          () => timer.addNote('thumbnail_generation_enqueued'),
+          (error: unknown) => {
+            logger.warn('Image preview derivative enqueue failed', {
+              generationJobId,
+              generationId: createdGeneration.id,
+              storageKey,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            timer.addNote('thumbnail_generation_enqueue_failed')
+          },
+        )
 
         await Promise.all([
           attachUsageEntryToGeneration(usageEntry.id, createdGeneration.id),
@@ -614,6 +626,7 @@ async function persistGeneratedImage(params: {
             generationId: createdGeneration.id,
             requestCount: route.creditCost,
           }),
+          enqueuePromise,
         ])
 
         return createdGeneration

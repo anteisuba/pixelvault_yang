@@ -74,11 +74,20 @@ const SHARP_FORMAT_TO_MIME: Record<string, string> = {
 export async function detectTrustedImageMime(
   buffer: Buffer,
   allowedFormats: ReadonlySet<string> = new Set(['jpeg', 'png', 'webp', 'gif']),
-): Promise<{ format: string; mimeType: string }> {
+): Promise<{
+  format: string
+  mimeType: string
+  width: number
+  height: number
+}> {
   let format: string | undefined
+  let width: number | undefined
+  let height: number | undefined
   try {
     const metadata = await sharp(buffer).metadata()
     format = metadata.format
+    width = metadata.width
+    height = metadata.height
   } catch {
     throw new Error('Unsupported or corrupted image file')
   }
@@ -87,7 +96,12 @@ export async function detectTrustedImageMime(
       `Unsupported image format: ${format ?? 'unknown'}. Allowed: ${[...allowedFormats].join(', ')}`,
     )
   }
-  return { format, mimeType: SHARP_FORMAT_TO_MIME[format] ?? `image/${format}` }
+  return {
+    format,
+    mimeType: SHARP_FORMAT_TO_MIME[format] ?? `image/${format}`,
+    width: width ?? 0,
+    height: height ?? 0,
+  }
 }
 
 // ─── Fetch as Buffer ──────────────────────────────────────────────

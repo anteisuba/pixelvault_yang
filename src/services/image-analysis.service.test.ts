@@ -73,6 +73,8 @@ describe('analyzeImage', () => {
     mockDetectTrustedImageMime.mockResolvedValue({
       format: 'png',
       mimeType: 'image/png',
+      width: 512,
+      height: 512,
     })
     mockImageAnalysisCreate.mockResolvedValue({
       id: 'analysis_1',

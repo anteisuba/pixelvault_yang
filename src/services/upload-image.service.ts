@@ -54,12 +54,16 @@ export async function uploadUserImageForUserId(
   }
 
   let trustedMimeType: string
+  let detectedWidth: number
+  let detectedHeight: number
   try {
     const detected = await detectTrustedImageMime(
       buffer,
       USER_UPLOAD_ACCEPTED_SHARP_FORMATS,
     )
     trustedMimeType = detected.mimeType
+    detectedWidth = detected.width
+    detectedHeight = detected.height
   } catch (error) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',
@@ -89,8 +93,8 @@ export async function uploadUserImageForUserId(
     thumbnailStorageKey: previewAssets.thumbnailStorageKey,
     previewUrl: previewAssets.previewUrl,
     previewStorageKey: previewAssets.previewStorageKey,
-    width: 0, // unknown without decoding; client may patch later
-    height: 0,
+    width: detectedWidth,
+    height: detectedHeight,
     prompt: input.note ?? '',
     model: USER_UPLOAD_PROVIDER,
     provider: USER_UPLOAD_PROVIDER,

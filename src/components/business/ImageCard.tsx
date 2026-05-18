@@ -13,7 +13,6 @@ import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
 import { isCjkLocale } from '@/i18n/routing'
-import { Link } from '@/i18n/navigation'
 import { creatorProfilePath } from '@/constants/routes'
 
 import type { GenerationRecord } from '@/types'
@@ -166,6 +165,10 @@ export const ImageCard = memo(function ImageCard({
   const creator = generation.creator
   const creatorName =
     creator?.displayName?.trim() || creator?.username?.trim() || ''
+  const creatorPath = creator?.username
+    ? creatorProfilePath(creator.username)
+    : ''
+  const creatorHref = creatorPath ? `/${locale}${creatorPath}` : ''
   const creatorHandle = creator?.username ? `@${creator.username}` : ''
   const showCreatorHandle =
     Boolean(creator?.displayName?.trim()) &&
@@ -226,8 +229,8 @@ export const ImageCard = memo(function ImageCard({
                 isVideo ? 'bottom-12' : isAudio ? 'top-2.5' : 'bottom-2.5',
               )}
             >
-              <Link
-                href={creatorProfilePath(creator.username)}
+              <a
+                href={creatorHref}
                 aria-label={t('creatorProfileLabel', { name: creatorName })}
                 className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
               >
@@ -258,7 +261,7 @@ export const ImageCard = memo(function ImageCard({
                     </span>
                   ) : null}
                 </span>
-              </Link>
+              </a>
             </div>
           ) : null}
         </div>
@@ -299,8 +302,8 @@ export const ImageCard = memo(function ImageCard({
 
             {/* Creator attribution */}
             {creator?.username && !showVisibility && (
-              <Link
-                href={creatorProfilePath(creator.username)}
+              <a
+                href={creatorHref}
                 className="flex items-center gap-2 group/creator"
               >
                 {creator.avatarUrl ? (
@@ -320,7 +323,7 @@ export const ImageCard = memo(function ImageCard({
                 <span className="text-xs text-muted-foreground group-hover/creator:text-foreground transition-colors truncate">
                   {creatorName}
                 </span>
-              </Link>
+              </a>
             )}
 
             {showVisibility || generation.isPromptPublic ? (

@@ -196,7 +196,7 @@ describe('ImageCard', () => {
     const creatorLink = screen.getByRole('link', {
       name: 'View Alice W. profile',
     })
-    expect(creatorLink).toHaveAttribute('href', '/u/alice')
+    expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
     expect(screen.getByText('@alice')).toBeInTheDocument()
   })

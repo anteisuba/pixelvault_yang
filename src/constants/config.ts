@@ -182,6 +182,16 @@ export const API_ENDPOINTS = {
   LORA_TRAINING: '/api/lora-training',
 } as const
 
+/**
+ * Temporary provider asset CDN hosts that the auth-gated download proxy may
+ * fetch before an edited result is persisted into R2. Keep this list narrow:
+ * arbitrary public URLs must not become downloadable through our proxy.
+ */
+export const DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES = [
+  'fal.media',
+  'replicate.delivery',
+] as const
+
 /** Client-side API request guardrails */
 export const CLIENT_API = {
   ACTION_TIMEOUT_MS: 15_000,

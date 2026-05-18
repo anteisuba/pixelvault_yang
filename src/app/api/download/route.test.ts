@@ -18,6 +18,7 @@ import { GET } from './route'
 
 const STORAGE_BASE_URL = 'https://cdn.test.com'
 const ASSET_URL = `${STORAGE_BASE_URL}/generations/video.mp4`
+const FAL_ASSET_URL = 'https://v3b.fal.media/files/b/0a9ab613/upscaled.png'
 
 interface ApiEnvelope {
   success: boolean
@@ -69,10 +70,23 @@ describe('GET /api/download', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('returns 403 when url is outside the configured storage base URL', async () => {
+  it('returns 403 when url is outside allowed download hosts', async () => {
     const req = createGET('/api/download', {
       url: 'https://example.com/video.mp4',
       filename: 'video.mp4',
+    })
+    const res = await GET(req)
+    const body = await parseJSON<ApiEnvelope>(res)
+
+    expect(res.status).toBe(403)
+    expect(body.success).toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 for lookalike provider hostnames', async () => {
+    const req = createGET('/api/download', {
+      url: 'https://fal.media.evil.test/files/image.png',
+      filename: 'image.png',
     })
     const res = await GET(req)
     const body = await parseJSON<ApiEnvelope>(res)
@@ -96,7 +110,28 @@ describe('GET /api/download', () => {
     )
     expect(res.headers.get('Cache-Control')).toBe('private, no-cache')
     expect(await res.text()).toBe('asset-body')
-    expect(fetchMock).toHaveBeenCalledWith(ASSET_URL)
+    expect(fetchMock).toHaveBeenCalledWith(
+      ASSET_URL,
+      expect.objectContaining({ redirect: 'manual' }),
+    )
+  })
+
+  it('proxies a trusted fal.ai temporary asset as an attachment', async () => {
+    const req = createGET('/api/download', {
+      url: FAL_ASSET_URL,
+      filename: 'pixelvault-edit-upscale.png',
+    })
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="pixelvault-edit-upscale.png"',
+    )
+    expect(await res.text()).toBe('asset-body')
+    expect(fetchMock).toHaveBeenCalledWith(
+      FAL_ASSET_URL,
+      expect.objectContaining({ redirect: 'manual' }),
+    )
   })
 
   it('returns 502 when the upstream asset request fails', async () => {

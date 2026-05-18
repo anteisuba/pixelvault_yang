@@ -4,7 +4,11 @@ import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
-import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { safeFetch } from '@/lib/url-guard'
+import {
+  DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES,
+  RATE_LIMIT_CONFIGS,
+} from '@/constants/config'
 
 const QuerySchema = z.object({
   url: z.string().url(),
@@ -32,6 +36,28 @@ function isAllowedStorageUrl(assetUrl: string): boolean {
   } catch {
     return false
   }
+}
+
+function matchesHostSuffix(hostname: string, suffix: string): boolean {
+  return hostname === suffix || hostname.endsWith(`.${suffix}`)
+}
+
+function isAllowedProviderAssetUrl(assetUrl: string): boolean {
+  try {
+    const parsedAssetUrl = new URL(assetUrl)
+    if (parsedAssetUrl.protocol !== 'https:') return false
+
+    const hostname = parsedAssetUrl.hostname.toLowerCase()
+    return DOWNLOAD_PROXY_ALLOWED_PROVIDER_HOST_SUFFIXES.some((suffix) =>
+      matchesHostSuffix(hostname, suffix),
+    )
+  } catch {
+    return false
+  }
+}
+
+function isAllowedDownloadUrl(assetUrl: string): boolean {
+  return isAllowedStorageUrl(assetUrl) || isAllowedProviderAssetUrl(assetUrl)
 }
 
 function buildContentDisposition(filename?: string): string {
@@ -75,7 +101,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!isAllowedStorageUrl(parsed.data.url)) {
+  if (!isAllowedDownloadUrl(parsed.data.url)) {
     return NextResponse.json(
       { success: false, error: 'Download URL is not allowed' },
       { status: 403 },
@@ -83,7 +109,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const upstreamResponse = await fetch(parsed.data.url)
+    const upstreamResponse = await safeFetch(parsed.data.url)
     if (!upstreamResponse.ok) {
       logger.error('Download proxy upstream failed', {
         url: parsed.data.url,

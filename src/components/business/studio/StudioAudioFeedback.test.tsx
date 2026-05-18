@@ -44,4 +44,43 @@ describe('StudioAudioFeedback', () => {
       'pace_wrong',
     ])
   })
+
+  it('hides the retry button until a tag is selected and forwards selection on click', () => {
+    const onRetry = vi.fn()
+    render(
+      <StudioAudioFeedback
+        generationId="gen-1"
+        onFeedback={vi.fn()}
+        onRetry={onRetry}
+      />,
+    )
+
+    expect(screen.queryByText('retryWithFixes')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('paceWrong'))
+    fireEvent.click(screen.getByText('audioQuality'))
+
+    const retryButton = screen.getByText('retryWithFixes')
+    fireEvent.click(retryButton)
+    expect(onRetry).toHaveBeenCalledWith(['pace_wrong', 'audio_quality'])
+  })
+
+  it('disables the retry button while a retry is in flight', () => {
+    const onRetry = vi.fn()
+    render(
+      <StudioAudioFeedback
+        generationId="gen-1"
+        onFeedback={vi.fn()}
+        onRetry={onRetry}
+        isRetrying
+      />,
+    )
+
+    fireEvent.click(screen.getByText('voiceMismatch'))
+    const retryButton = screen.getByRole('button', { name: 'retryWithFixes' })
+    expect(retryButton).toBeDisabled()
+
+    fireEvent.click(retryButton)
+    expect(onRetry).not.toHaveBeenCalled()
+  })
 })

@@ -526,7 +526,15 @@
     "repetitionPenaltyHint": "長いナレーションで同じ語句が繰り返されるのを抑えます。",
     "speakerVoiceIds": "話者ボイス ID",
     "speakerVoiceIdsPlaceholder": "aliceVoiceId, bobVoiceId",
-    "speakerVoiceIdsHint": "<|speaker:0|>、<|speaker:1|> の順に、カンマ区切りで入力します。"
+    "speakerVoiceIdsHint": "<|speaker:0|>、<|speaker:1|> の順に割り当てます。ボイスライブラリから追加するか、ここに ID を貼り付けてください。",
+    "speakerVoiceAdd": "ボイスを追加",
+    "speakerVoiceInputPlaceholder": "ボイス ID を貼り付け",
+    "speakerVoiceEmpty": "話者ボイスはまだありません。",
+    "speakerVoiceLabel": "話者 {index}",
+    "speakerVoiceRemove": "話者 {index} を削除",
+    "speakerVoiceReplace": "話者 {index} を置換",
+    "speakerVoiceLimitReached": "話者ボイスは最大 {max} 件です。",
+    "speakerVoicePickHint": "左側のボイスライブラリから割り当てるボイスを選択してください。"
   },
   "audioFeedback": {
     "voiceMismatch": "声が合わない",
@@ -534,7 +542,9 @@
     "paceWrong": "速度が違う",
     "pronunciationError": "発音の問題",
     "pauseUnnatural": "間が不自然",
-    "audioQuality": "音質の問題"
+    "audioQuality": "音質の問題",
+    "retryWithFixes": "修正して再生成",
+    "retryPronunciationHint": "難読語の読み仮名を本文に追記して再試行してください。"
   },
   "VideoGenerate": {
     "modelLabel": "動画モデル",

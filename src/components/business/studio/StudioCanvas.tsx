@@ -11,6 +11,8 @@ import {
 
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   useStudioForm,
@@ -25,10 +27,15 @@ import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { cn } from '@/lib/utils'
+import {
+  applyAudioFeedbackTags,
+  type AudioFeedbackTag,
+} from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
 import { CompareGrid } from './CompareGrid'
 import { GenerationPreview } from './GenerationPreview'
+import { StudioAudioFeedback } from './StudioAudioFeedback'
 import { StudioGenerationErrorDialog } from './StudioGenerationErrorDialog'
 import { StudioResultFeedback } from './StudioResultFeedback'
 import { VariantGrid } from './VariantGrid'
@@ -50,7 +57,9 @@ export const StudioCanvas = memo(function StudioCanvas() {
     selectWinner,
     lastEvaluation,
     setLastEvaluation,
+    isGenerating,
   } = useStudioGen()
+  const tAudioFeedback = useTranslations('audioFeedback')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   const errorDialogOpen = !!error && error !== errorDismissed
   const { modelOptions } = useImageModelOptions()
@@ -81,6 +90,29 @@ export const StudioCanvas = memo(function StudioCanvas() {
   useEffect(() => {
     setLastEvaluation(null)
   }, [lastGeneration?.id, setLastEvaluation])
+
+  const handleAudioFeedbackRetry = useCallback(
+    (tags: AudioFeedbackTag[]) => {
+      if (tags.length === 0 || isGenerating) return
+
+      const patch = applyAudioFeedbackTags(tags, state)
+      for (const action of patch.actions) {
+        dispatch(action)
+      }
+      if (patch.openPanel) {
+        dispatch({ type: 'OPEN_PANEL', payload: patch.openPanel })
+        // `voice_mismatch` defers to the user — they must pick a new voice
+        // before the next generation can apply. Skip the auto-regenerate so
+        // we don't run with the stale voice.
+        return
+      }
+      if (patch.pronunciationHint) {
+        toast.info(tAudioFeedback('retryPronunciationHint'))
+      }
+      dispatch({ type: 'REQUEST_GENERATE' })
+    },
+    [dispatch, isGenerating, state, tAudioFeedback],
+  )
 
   const handleFeedback = useCallback(
     (tags: string[]) => {
@@ -254,6 +286,14 @@ export const StudioCanvas = memo(function StudioCanvas() {
                 generationId={lastGeneration.id}
                 evaluation={lastEvaluation}
                 onFeedback={handleFeedback}
+              />
+            )}
+            {lastGeneration?.outputType === 'AUDIO' && !activeRun?.mode && (
+              <StudioAudioFeedback
+                generationId={lastGeneration.id}
+                onFeedback={handleFeedback}
+                onRetry={handleAudioFeedbackRetry}
+                isRetrying={isGenerating}
               />
             )}
           </>

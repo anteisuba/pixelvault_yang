@@ -7,25 +7,21 @@ import {
   Gauge,
   MessageCircleWarning,
   Music2,
+  RotateCw,
   SmilePlus,
   Volume2,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import type { AudioFeedbackTag } from '@/lib/studio/audio-feedback-mapping'
 
 interface StudioAudioFeedbackProps {
   generationId: string
-  onFeedback: (tags: string[]) => void
+  onFeedback: (tags: AudioFeedbackTag[]) => void
+  onRetry?: (tags: AudioFeedbackTag[]) => void
+  isRetrying?: boolean
 }
-
-type AudioFeedbackTag =
-  | 'voice_mismatch'
-  | 'emotion_wrong'
-  | 'pace_wrong'
-  | 'pronunciation_error'
-  | 'pause_unnatural'
-  | 'audio_quality'
 
 const AUDIO_FEEDBACK_OPTIONS: Array<{
   tag: AudioFeedbackTag
@@ -58,6 +54,8 @@ function getNextTags(
 export function StudioAudioFeedback({
   generationId,
   onFeedback,
+  onRetry,
+  isRetrying,
 }: StudioAudioFeedbackProps) {
   const t = useTranslations('audioFeedback')
   const [selection, setSelection] = useState<{
@@ -80,32 +78,56 @@ export function StudioAudioFeedback({
     [generationId, onFeedback],
   )
 
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {AUDIO_FEEDBACK_OPTIONS.map(({ tag, labelKey, icon: Icon }) => {
-        const active = selectedTags.includes(tag)
+  const handleRetry = useCallback(() => {
+    if (!onRetry || selectedTags.length === 0 || isRetrying) return
+    onRetry(selectedTags)
+  }, [onRetry, selectedTags, isRetrying])
 
-        return (
+  const canRetry = Boolean(onRetry) && selectedTags.length > 0 && !isRetrying
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {AUDIO_FEEDBACK_OPTIONS.map(({ tag, labelKey, icon: Icon }) => {
+          const active = selectedTags.includes(tag)
+
+          return (
+            <Button
+              key={tag}
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-pressed={active}
+              data-active={active}
+              onClick={() => handleToggle(tag)}
+              className={cn(
+                'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                'hover:border-primary/30 hover:text-primary',
+                active &&
+                  'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10',
+              )}
+            >
+              <Icon className="size-3" />
+              {t(labelKey)}
+            </Button>
+          )
+        })}
+      </div>
+
+      {onRetry && selectedTags.length > 0 ? (
+        <div className="flex justify-end">
           <Button
-            key={tag}
             type="button"
-            variant="outline"
             size="sm"
-            aria-pressed={active}
-            data-active={active}
-            onClick={() => handleToggle(tag)}
-            className={cn(
-              'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
-              'hover:border-primary/30 hover:text-primary',
-              active &&
-                'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10',
-            )}
+            disabled={!canRetry}
+            onClick={handleRetry}
+            className="h-8 gap-1.5 rounded-full px-3 text-xs"
           >
-            <Icon className="size-3" />
-            {t(labelKey)}
+            <RotateCw className={cn('size-3', isRetrying && 'animate-spin')} />
+            {t('retryWithFixes')}
           </Button>
-        )
-      })}
+        </div>
+      ) : null}
     </div>
   )
 }

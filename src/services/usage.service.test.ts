@@ -23,12 +23,14 @@ const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
 const mockSlotCount = vi.fn()
 const mockSlotCreate = vi.fn()
+const mockExecuteRaw = vi.fn().mockResolvedValue(1)
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     freeTierSlot: {
       count: (...args: unknown[]) => mockSlotCount(...args),
       create: (...args: unknown[]) => mockSlotCreate(...args),
     },
+    $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
   }),
 )
 
@@ -261,20 +263,20 @@ describe('usage.service', () => {
       })
     })
 
-    it('converts Prisma P2034 serialization failure to FREE_LIMIT_EXCEEDED', async () => {
-      mockSlotCount.mockResolvedValue(19)
-      const p2034 = Object.assign(
-        new Error('Transaction failed due to serialization failure'),
-        { code: 'P2034' },
-      )
-      mockSlotCreate.mockRejectedValue(p2034)
+    it('acquires a per-(user,date) advisory lock before counting', async () => {
+      mockSlotCount.mockResolvedValue(0)
 
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
-        code: 'FREE_LIMIT_EXCEEDED',
-      })
+      await atomicReserveFreeTierSlot('user-1')
+
+      expect(mockExecuteRaw).toHaveBeenCalledOnce()
+      // Lock acquisition runs before any slot read so concurrent reservers
+      // for the same user serialize through the lock rather than racing.
+      const lockCallOrder = mockExecuteRaw.mock.invocationCallOrder[0]
+      const countCallOrder = mockSlotCount.mock.invocationCallOrder[0]
+      expect(lockCallOrder).toBeLessThan(countCallOrder)
     })
 
-    it('re-throws non-P2034 errors unchanged', async () => {
+    it('re-throws unexpected create errors unchanged', async () => {
       mockSlotCount.mockResolvedValue(19)
       mockSlotCreate.mockRejectedValue(new Error('connection refused'))
 

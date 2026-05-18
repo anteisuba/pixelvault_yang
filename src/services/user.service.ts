@@ -513,8 +513,11 @@ export async function getCreatorProfile(
     height: g.height,
     duration: g.duration,
     referenceImageUrl: g.referenceImageUrl,
-    prompt: g.prompt,
-    negativePrompt: g.negativePrompt,
+    // Honour the per-row prompt-privacy flag the owner toggled on the
+    // gallery detail page. The detail route already redacts; this list
+    // route used to leak the full prompt anyway.
+    prompt: g.isPromptPublic ? g.prompt : '',
+    negativePrompt: g.isPromptPublic ? g.negativePrompt : null,
     model: g.model,
     provider: g.provider,
     requestCount: g.requestCount,

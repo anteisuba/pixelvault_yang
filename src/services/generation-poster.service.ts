@@ -1,7 +1,11 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
+import {
+  detectTrustedImageMime,
+  generateStorageKey,
+  uploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { GenerateImageServiceError } from '@/services/generate-image.service'
 import type { GenerationRecord } from '@/types'
@@ -21,7 +25,11 @@ export async function uploadGenerationPoster(
   clerkId: string,
   generationId: string,
   posterBuffer: Buffer,
-  mimeType: string,
+  // The route-supplied content-type is no longer trusted; we re-derive
+  // it from the buffer's magic bytes below. The arg stays for the call
+  // signature so the route's early MIME-prefix sniff still works as a
+  // fast-reject.
+  _claimedMimeType: string,
 ): Promise<GenerationRecord> {
   if (posterBuffer.byteLength === 0) {
     throw new GenerateImageServiceError(
@@ -37,10 +45,19 @@ export async function uploadGenerationPoster(
       400,
     )
   }
-  if (!mimeType.startsWith('image/')) {
+
+  // Trust libvips, not the client header. The 3D viewer captures the
+  // canvas as image/png via `.toBlob()`, so the strict allow-list
+  // (jpeg/png/webp/gif) is enough. SVG is intentionally excluded
+  // because it can carry inline scripts.
+  let trustedMimeType: string
+  try {
+    const detected = await detectTrustedImageMime(posterBuffer)
+    trustedMimeType = detected.mimeType
+  } catch (error) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',
-      `Unsupported poster MIME type: ${mimeType}`,
+      error instanceof Error ? error.message : 'Invalid poster image',
       400,
     )
   }
@@ -75,7 +92,7 @@ export async function uploadGenerationPoster(
   const posterUrl = await uploadToR2({
     data: posterBuffer,
     key: posterKey,
-    mimeType,
+    mimeType: trustedMimeType,
   })
 
   const updated = await db.generation.update({
@@ -83,7 +100,7 @@ export async function uploadGenerationPoster(
     data: {
       url: posterUrl,
       storageKey: posterKey,
-      mimeType,
+      mimeType: trustedMimeType,
     },
   })
 

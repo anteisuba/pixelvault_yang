@@ -294,11 +294,13 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
+    let routeClerkId: string | null = null
 
     try {
       // 1. Auth
       const clerkId = await getClerkId(true)
       if (!clerkId) throw new AuthError()
+      routeClerkId = clerkId
 
       // 2. Rate limit
       let remaining = 0
@@ -363,7 +365,9 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
         },
       )
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }
@@ -404,8 +408,10 @@ export function createApiGetByIdRoute<TResult>(config: GetByIdConfig<TResult>) {
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
+    let routeClerkId: string | null = null
     try {
       const clerkId = await getClerkId(true)
+      routeClerkId = clerkId
       const { id } = await context.params
       const result = await config.handler(clerkId!, id)
       if (result == null) {
@@ -427,7 +433,9 @@ export function createApiGetByIdRoute<TResult>(config: GetByIdConfig<TResult>) {
         data: toJsonSafe(result),
       })
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }
@@ -440,8 +448,10 @@ export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
+    let routeClerkId: string | null = null
     try {
       const clerkId = await getClerkId(true)
+      routeClerkId = clerkId
 
       if (config.rateLimit) {
         const { errorResponse } = await applyUserRateLimit(
@@ -496,7 +506,9 @@ export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
         data: toJsonSafe(result),
       })
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }
@@ -507,8 +519,10 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<null> | ErrorResponse>> {
     const startedAt = Date.now()
+    let routeClerkId: string | null = null
     try {
       const clerkId = await getClerkId(true)
+      routeClerkId = clerkId
 
       if (config.rateLimit) {
         const { errorResponse } = await applyUserRateLimit(
@@ -540,7 +554,9 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
         data: null,
       })
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }
@@ -573,6 +589,7 @@ export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
+    const routeClerkId: string | null = null
 
     try {
       const rawBody = await request.text()
@@ -603,7 +620,9 @@ export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
         data: toJsonSafe(result),
       })
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }
@@ -615,6 +634,7 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
+    let routeClerkId: string | null = null
 
     try {
       const shouldReadAuth =
@@ -622,6 +642,7 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
       const clerkId = shouldReadAuth
         ? await getClerkId(config.requireAuth ?? false)
         : null
+      routeClerkId = clerkId
 
       if (config.rateLimit && clerkId) {
         const { errorResponse: rateLimitedResponse } = await applyUserRateLimit(
@@ -675,7 +696,9 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
 
       return response
     } catch (error) {
-      return handleRouteError(config.routeName, startedAt, error)
+      return handleRouteError(config.routeName, startedAt, error, {
+        clerkId: routeClerkId,
+      })
     }
   }
 }

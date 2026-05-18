@@ -53,13 +53,6 @@ function todayUTC(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function isPrismaErrorCode(error: unknown, code: string): boolean {
-  if (!(error instanceof Error)) return false
-
-  const errorCode = (error as Error & { code?: unknown }).code
-  return errorCode === code
-}
-
 export class FreeTierExhaustedError extends Error {
   readonly code = 'FREE_LIMIT_EXCEEDED' as const
 
@@ -71,35 +64,48 @@ export class FreeTierExhaustedError extends Error {
   }
 }
 
+/**
+ * Atomically claim one free-tier slot for `(userId, today)` against a daily
+ * cap, returning normally on success or throwing `FreeTierExhaustedError`
+ * when the cap is hit.
+ *
+ * Previously used a Serializable transaction + count+create — that path
+ * relied on SSI retries (P2034) and burned a Postgres-internal advisory
+ * lock per Vercel connection. Two reasons it was the wrong tool:
+ *
+ *   1. Serializable is heavy in Neon; the SSI retry budget is small and
+ *      P2034 surfaces as `FreeTierExhaustedError` regardless of the real
+ *      reason, so genuine concurrent reservations were silently dropped.
+ *   2. The cap is per-(user, day), so we don't need global serialization;
+ *      a per-key advisory lock contains contention to the one user racing
+ *      against themselves (the typical double-click case).
+ *
+ * The new path takes a `pg_advisory_xact_lock` keyed by user+date in the
+ * default ReadCommitted isolation level. The lock releases automatically
+ * on commit/rollback; nothing else in the codebase acquires advisory
+ * locks, so the keyspace is private.
+ */
 export async function atomicReserveFreeTierSlot(userId: string): Promise<void> {
   if (!FREE_TIER.ENABLED) return
 
   const date = todayUTC()
+  const lockKey = `free-tier-slot:${userId}:${date}`
 
-  try {
-    await db.$transaction(
-      async (tx) => {
-        const count = await tx.freeTierSlot.count({
-          where: { userId, date },
-        })
+  await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
 
-        if (count >= FREE_TIER.DAILY_LIMIT) {
-          throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
-        }
+    const count = await tx.freeTierSlot.count({
+      where: { userId, date },
+    })
 
-        await tx.freeTierSlot.create({
-          data: { userId, date },
-        })
-      },
-      { isolationLevel: 'Serializable' },
-    )
-  } catch (error) {
-    if (isPrismaErrorCode(error, 'P2034')) {
+    if (count >= FREE_TIER.DAILY_LIMIT) {
       throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
     }
 
-    throw error
-  }
+    await tx.freeTierSlot.create({
+      data: { userId, date },
+    })
+  })
 }
 
 export async function createGenerationJob(

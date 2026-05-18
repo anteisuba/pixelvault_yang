@@ -526,7 +526,15 @@
     "repetitionPenaltyHint": "Raises resistance to repeated words or phrases in longer narration.",
     "speakerVoiceIds": "Speaker voice IDs",
     "speakerVoiceIdsPlaceholder": "aliceVoiceId, bobVoiceId",
-    "speakerVoiceIdsHint": "Match the order of <|speaker:0|>, <|speaker:1|>. Separate IDs with commas."
+    "speakerVoiceIdsHint": "Mapped in order to <|speaker:0|>, <|speaker:1|>. Add chips from the voice library or paste IDs here.",
+    "speakerVoiceAdd": "Add voice",
+    "speakerVoiceInputPlaceholder": "Paste a voice ID",
+    "speakerVoiceEmpty": "No speaker voices yet.",
+    "speakerVoiceLabel": "Speaker {index}",
+    "speakerVoiceRemove": "Remove speaker {index}",
+    "speakerVoiceReplace": "Replace speaker {index}",
+    "speakerVoiceLimitReached": "Up to {max} speaker voices.",
+    "speakerVoicePickHint": "Select a voice from the library list to assign it."
   },
   "audioFeedback": {
     "voiceMismatch": "Voice mismatch",
@@ -534,7 +542,9 @@
     "paceWrong": "Pace feels wrong",
     "pronunciationError": "Pronunciation issue",
     "pauseUnnatural": "Pause feels unnatural",
-    "audioQuality": "Audio quality issue"
+    "audioQuality": "Audio quality issue",
+    "retryWithFixes": "Retry with fixes",
+    "retryPronunciationHint": "Mark tricky words with a pronunciation override in the prompt and try again."
   },
   "VideoGenerate": {
     "modelLabel": "Video Model",
@@ -2390,7 +2400,8 @@
       "prompt": "Prompt",
       "promptPlaceholder": "Describe how the expanded area should continue...",
       "cancel": "Cancel",
-      "apply": "Apply outpaint"
+      "apply": "Apply outpaint",
+      "finalSize": "Final size {width} × {height}"
     },
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
@@ -2423,7 +2434,20 @@
     "resultTitle": "Result",
     "resultAlt": "Edited result",
     "emptySourceTitle": "Load an image to start editing",
+    "emptyStateTitle": "Choose a source image",
+    "emptyStateSubtitle": "Pick from your gallery, upload a local file, or paste an image / URL.",
+    "pasteShortcut": "Focus this panel and press ⌘V / Ctrl+V to paste.",
+    "importSuccess": "Image imported into your gallery.",
+    "importFailed": "Could not import that URL.",
+    "dismissError": "Dismiss",
+    "decomposeQueued": "Queued — the model may be cold-starting.",
+    "decomposeRunning": "Decomposing layers…",
     "toolsTitle": "Edit tools",
+    "groups": {
+      "auto": "One-click",
+      "interactive": "Interactive",
+      "advanced": "Advanced"
+    },
     "actions": {
       "upscale": "Super resolution",
       "removeBg": "Remove background",

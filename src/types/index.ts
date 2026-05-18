@@ -417,24 +417,18 @@ export interface AudioStatusResponse {
 // ─── Image Edit ──────────────────────────────────────────────────
 // Moved from /api/image/edit/route.ts to centralize all schemas
 
-export const ImageEditSchema = z
-  .object({
-    action: z.enum(['upscale', 'remove-background']),
-    imageUrl: z.string().url(),
-    /** When true, persist the edited result to R2 and create a Generation record */
-    persist: z.boolean().optional(),
-    /** Source generation ID (required when persist is true) */
-    generationId: z.string().trim().min(1).optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.persist && !value.generationId) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['generationId'],
-        message: 'generationId is required when persist is true',
-      })
-    }
-  })
+export const ImageEditSchema = z.object({
+  action: z.enum(['upscale', 'remove-background']),
+  imageUrl: z.string().url(),
+  /**
+   * Persist the edited result to R2 + create a Generation row. Defaults to
+   * true so fal.ai's temporary CDN URL (which expires) is always captured.
+   * Callers that explicitly want a preview-only response pass false.
+   */
+  persist: z.boolean().optional().default(true),
+  /** Optional source generation ID — when provided, the persisted row links back. */
+  generationId: z.string().trim().min(1).optional(),
+})
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
 
@@ -536,18 +530,30 @@ export interface VideoStatusResponse {
 
 // ─── User Image Upload ──────────────────────────────────────────
 
-export const UploadImageRequestSchema = z.object({
-  /** Image as a data URL (data:image/png;base64,...). Decoded server-side. */
-  imageDataUrl: z
-    .string()
-    .trim()
-    .min(1)
-    .startsWith('data:', 'Must be a data URL'),
-  /** Optional note saved as the prompt field for browsing context */
-  note: z.string().trim().max(500).optional(),
-  /** Optional project to assign the upload to */
-  projectId: z.string().trim().min(1).optional(),
-})
+export const UploadImageRequestSchema = z
+  .object({
+    /** Image as a data URL (data:image/png;base64,...). Decoded server-side. */
+    imageDataUrl: z
+      .string()
+      .trim()
+      .min(1)
+      .startsWith('data:', 'Must be a data URL')
+      .optional(),
+    /**
+     * Remote https URL the server fetches and persists. Lets the client
+     * "import" a pasted URL into the gallery without piping the binary
+     * through the browser.
+     */
+    imageUrl: z.string().trim().url().optional(),
+    /** Optional note saved as the prompt field for browsing context */
+    note: z.string().trim().max(500).optional(),
+    /** Optional project to assign the upload to */
+    projectId: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => Boolean(value.imageDataUrl ?? value.imageUrl), {
+    message: 'Either imageDataUrl or imageUrl must be provided',
+    path: ['imageDataUrl'],
+  })
 
 export type UploadImageRequest = z.infer<typeof UploadImageRequestSchema>
 

@@ -526,7 +526,15 @@
     "repetitionPenaltyHint": "降低长旁白里重复词句的概率。",
     "speakerVoiceIds": "多角色音色 ID",
     "speakerVoiceIdsPlaceholder": "aliceVoiceId, bobVoiceId",
-    "speakerVoiceIdsHint": "按 <|speaker:0|>、<|speaker:1|> 的顺序填写，用逗号分隔。"
+    "speakerVoiceIdsHint": "按 <|speaker:0|>、<|speaker:1|> 的顺序指定音色。可从声音库添加 chip，也可在这里粘贴 ID。",
+    "speakerVoiceAdd": "添加音色",
+    "speakerVoiceInputPlaceholder": "粘贴音色 ID",
+    "speakerVoiceEmpty": "还没有多角色音色。",
+    "speakerVoiceLabel": "角色 {index}",
+    "speakerVoiceRemove": "移除角色 {index}",
+    "speakerVoiceReplace": "替换角色 {index}",
+    "speakerVoiceLimitReached": "最多 {max} 个角色音色。",
+    "speakerVoicePickHint": "从左侧声音库选择一个音色来分配给角色。"
   },
   "audioFeedback": {
     "voiceMismatch": "音色不对",
@@ -534,7 +542,9 @@
     "paceWrong": "语速不对",
     "pronunciationError": "发音错误",
     "pauseUnnatural": "停顿不自然",
-    "audioQuality": "音质问题"
+    "audioQuality": "音质问题",
+    "retryWithFixes": "按反馈重试",
+    "retryPronunciationHint": "可以在文本里给生僻词标注读音再重试。"
   },
   "VideoGenerate": {
     "modelLabel": "视频模型",
@@ -2390,7 +2400,8 @@
       "prompt": "提示词",
       "promptPlaceholder": "描述扩展区域应该如何延续...",
       "cancel": "取消",
-      "apply": "应用扩图"
+      "apply": "应用扩图",
+      "finalSize": "最终尺寸 {width} × {height}"
     },
     "toolDrawerTitle": "工具",
     "toolMore": "更多工具",
@@ -2423,7 +2434,20 @@
     "resultTitle": "结果",
     "resultAlt": "编辑结果",
     "emptySourceTitle": "载入图片后开始编辑",
+    "emptyStateTitle": "选择源图",
+    "emptyStateSubtitle": "从素材库挑选、上传本地图片，或粘贴图片 / URL。",
+    "pasteShortcut": "聚焦此区后按 ⌘V / Ctrl+V 粘贴。",
+    "importSuccess": "图片已导入到画廊。",
+    "importFailed": "无法从该 URL 导入图片。",
+    "dismissError": "关闭",
+    "decomposeQueued": "排队中 — 模型可能正在冷启动。",
+    "decomposeRunning": "正在分解图层…",
     "toolsTitle": "编辑工具",
+    "groups": {
+      "auto": "一键操作",
+      "interactive": "交互式",
+      "advanced": "进阶"
+    },
     "actions": {
       "upscale": "超分辨率",
       "removeBg": "去背景",

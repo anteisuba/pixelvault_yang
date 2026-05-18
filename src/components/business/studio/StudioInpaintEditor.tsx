@@ -31,9 +31,36 @@ interface HistoryEntry {
 
 const DEFAULT_BRUSH_SIZE = 20
 const MAX_HISTORY_LENGTH = 20
+const MAX_CANVAS_EDGE = 1024
 
 function clampImageSize(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 1024
+}
+
+/**
+ * Scale source dimensions so the canvas long edge stays ≤ MAX_CANVAS_EDGE.
+ * Keeps mask resolution proportional to the image (fal.ai requires matching
+ * aspect ratios) while bounding memory + dataURL payload size — a 4K source
+ * would otherwise allocate ~64 MB and produce a multi-MB base64 mask.
+ */
+function fitCanvasDimensions(
+  width: number,
+  height: number,
+): {
+  width: number
+  height: number
+} {
+  const w = clampImageSize(width)
+  const h = clampImageSize(height)
+  const longEdge = Math.max(w, h)
+  if (longEdge <= MAX_CANVAS_EDGE) {
+    return { width: Math.round(w), height: Math.round(h) }
+  }
+  const scale = MAX_CANVAS_EDGE / longEdge
+  return {
+    width: Math.max(1, Math.round(w * scale)),
+    height: Math.max(1, Math.round(h * scale)),
+  }
 }
 
 export const StudioInpaintEditor = memo(function StudioInpaintEditor({
@@ -54,8 +81,10 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
   const [prompt, setPrompt] = useState('')
   const [history, setHistory] = useState<HistoryEntry[]>([])
 
-  const canvasWidth = clampImageSize(imageWidth)
-  const canvasHeight = clampImageSize(imageHeight)
+  const { width: canvasWidth, height: canvasHeight } = useMemo(
+    () => fitCanvasDimensions(imageWidth, imageHeight),
+    [imageHeight, imageWidth],
+  )
   const imageKey = `${imageUrl}:${canvasWidth}x${canvasHeight}`
   const aspectRatio = useMemo(
     () => `${canvasWidth} / ${canvasHeight}`,

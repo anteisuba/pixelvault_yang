@@ -2390,7 +2390,8 @@
       "prompt": "プロンプト",
       "promptPlaceholder": "拡張部分をどう続けるか説明してください...",
       "cancel": "キャンセル",
-      "apply": "拡張を適用"
+      "apply": "拡張を適用",
+      "finalSize": "最終サイズ {width} × {height}"
     },
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
@@ -2423,7 +2424,20 @@
     "resultTitle": "結果",
     "resultAlt": "編集結果",
     "emptySourceTitle": "画像を読み込んで編集を開始",
+    "emptyStateTitle": "元画像を選択",
+    "emptyStateSubtitle": "ギャラリーから選ぶ、ローカル画像をアップロード、または画像 / URL を貼り付けてください。",
+    "pasteShortcut": "このパネルにフォーカスして ⌘V / Ctrl+V で貼り付け。",
+    "importSuccess": "画像をギャラリーに取り込みました。",
+    "importFailed": "その URL から画像を取り込めませんでした。",
+    "dismissError": "閉じる",
+    "decomposeQueued": "キュー待機中 — モデルがコールドスタートの可能性があります。",
+    "decomposeRunning": "レイヤーを分解中…",
     "toolsTitle": "編集ツール",
+    "groups": {
+      "auto": "ワンクリック",
+      "interactive": "インタラクティブ",
+      "advanced": "アドバンス"
+    },
     "actions": {
       "upscale": "超解像",
       "removeBg": "背景除去",

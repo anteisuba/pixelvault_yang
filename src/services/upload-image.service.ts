@@ -35,15 +35,18 @@ export async function uploadUserImageForUserId(
   userId: string,
   input: UploadImageRequest,
 ): Promise<GenerationRecord> {
-  if (!input.imageDataUrl.startsWith('data:')) {
+  const sourceUrl = input.imageDataUrl ?? input.imageUrl
+  if (!sourceUrl) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',
-      'imageDataUrl must be a data URL',
+      'Either imageDataUrl or imageUrl must be provided',
       400,
     )
   }
 
-  const { buffer } = await fetchAsBuffer(input.imageDataUrl)
+  const { buffer } = await fetchAsBuffer(sourceUrl, {
+    maxBytes: USER_UPLOAD_MAX_BYTES,
+  })
 
   if (buffer.byteLength > USER_UPLOAD_MAX_BYTES) {
     throw new GenerateImageServiceError(

@@ -9,7 +9,9 @@ import {
   type SyntheticEvent,
 } from 'react'
 import {
+  AlertCircle,
   ArrowUpRight,
+  Clipboard,
   Download,
   Eraser,
   Expand,
@@ -17,7 +19,6 @@ import {
   Layers,
   Loader2,
   Paintbrush,
-  Save,
   Upload,
   Wand2,
 } from 'lucide-react'
@@ -54,6 +55,8 @@ import { StudioOutpaintEditor } from './StudioOutpaintEditor'
 type SimpleEditAction = 'upscale' | 'remove-background'
 type EditAction = SimpleEditAction | 'inpaint' | 'outpaint' | 'decompose'
 type ActiveEditor = 'overview' | 'inpaint' | 'outpaint'
+type DecomposeStage = 'queued' | 'running'
+type ToolGroup = 'auto' | 'interactive' | 'advanced'
 
 interface EditableSource {
   imageUrl: string
@@ -133,11 +136,12 @@ export function StudioImageEditWorkspace() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const pasteTargetRef = useRef<HTMLDivElement | null>(null)
   const [source, setSource] = useState<EditableSource | null>(initialSource)
-  const [sourceError, setSourceError] = useState<string | null>(null)
+  const [bannerError, setBannerError] = useState<string | null>(null)
   const [isUploadingSource, setIsUploadingSource] = useState(false)
   const [assetPickerOpen, setAssetPickerOpen] = useState(false)
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>('overview')
   const [runningAction, setRunningAction] = useState<EditAction | null>(null)
+  const [decomposeStage, setDecomposeStage] = useState<DecomposeStage>('queued')
   const [result, setResult] = useState<EditResult | null>(null)
   const [layerResult, setLayerResult] = useState<ImageDecomposeResult | null>(
     null,
@@ -150,12 +154,10 @@ export function StudioImageEditWorkspace() {
   } = useInpaint()
 
   const hasSource = source !== null
-  const isBusy = runningAction !== null || isMaskEditing
+  const isBusy = runningAction !== null || isMaskEditing || isUploadingSource
   const displayImage = result?.imageUrl ?? source?.imageUrl ?? null
   const displayWidth = result?.width ?? source?.width ?? DEFAULT_IMAGE_SIZE
   const displayHeight = result?.height ?? source?.height ?? DEFAULT_IMAGE_SIZE
-  const resultCanBeSaved =
-    result?.action === 'upscale' || result?.action === 'remove-background'
 
   const actionButtons = useMemo(
     () =>
@@ -164,40 +166,56 @@ export function StudioImageEditWorkspace() {
           action: 'upscale' as const,
           icon: Wand2,
           label: t('actions.upscale'),
+          group: 'auto' as const,
         },
         {
           action: 'remove-background' as const,
           icon: Eraser,
           label: t('actions.removeBg'),
+          group: 'auto' as const,
         },
         {
           action: 'inpaint' as const,
           icon: Paintbrush,
           label: t('actions.inpaint'),
+          group: 'interactive' as const,
         },
         {
           action: 'outpaint' as const,
           icon: Expand,
           label: t('actions.outpaint'),
+          group: 'interactive' as const,
         },
         {
           action: 'decompose' as const,
           icon: Layers,
           label: t('actions.decompose'),
+          group: 'advanced' as const,
         },
       ] satisfies Array<{
         action: EditAction
         icon: typeof Wand2
         label: string
+        group: ToolGroup
       }>,
     [t],
   )
+
+  const toolGroups = useMemo(() => {
+    const groups: Record<ToolGroup, typeof actionButtons> = {
+      auto: [],
+      interactive: [],
+      advanced: [],
+    }
+    actionButtons.forEach((button) => groups[button.group].push(button))
+    return groups
+  }, [actionButtons])
 
   const resetEditState = useCallback(() => {
     setResult(null)
     setLayerResult(null)
     setActiveEditor('overview')
-    setSourceError(null)
+    setBannerError(null)
   }, [])
 
   const setSourceFromGeneration = useCallback(
@@ -214,36 +232,56 @@ export function StudioImageEditWorkspace() {
   )
 
   const setSourceFromUrl = useCallback(
-    (imageUrl: string) => {
+    async (imageUrl: string) => {
       if (!isRemoteImageUrl(imageUrl)) {
-        setSourceError(t('sourceInvalid'))
+        setBannerError(t('sourceInvalid'))
         return
       }
 
-      setSource({
-        imageUrl,
-        width: DEFAULT_IMAGE_SIZE,
-        height: DEFAULT_IMAGE_SIZE,
-      })
-      resetEditState()
+      setIsUploadingSource(true)
+      setBannerError(null)
+      try {
+        const response = await uploadImageAPI({
+          imageUrl,
+          note: t('uploadNote'),
+        })
+
+        if (!response.success || !response.data) {
+          const message = response.error ?? t('importFailed')
+          setBannerError(message)
+          toast.error(message)
+          return
+        }
+
+        setSourceFromGeneration(response.data.generation)
+        toast.success(t('importSuccess'))
+      } catch {
+        const message = t('importFailed')
+        setBannerError(message)
+        toast.error(message)
+      } finally {
+        setIsUploadingSource(false)
+      }
     },
-    [resetEditState, t],
+    [setSourceFromGeneration, t],
   )
 
   const validateSourceFile = useCallback(
     (file: File): boolean => {
       const acceptedTypes = USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
       if (!acceptedTypes.includes(file.type)) {
-        toast.error(t('uploadUnsupported'))
+        const message = t('uploadUnsupported')
+        setBannerError(message)
+        toast.error(message)
         return false
       }
 
       if (file.size > USER_UPLOAD_MAX_BYTES) {
-        toast.error(
-          t('uploadTooLarge', {
-            maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
-          }),
-        )
+        const message = t('uploadTooLarge', {
+          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
+        })
+        setBannerError(message)
+        toast.error(message)
         return false
       }
 
@@ -257,6 +295,7 @@ export function StudioImageEditWorkspace() {
       if (!validateSourceFile(file)) return
 
       setIsUploadingSource(true)
+      setBannerError(null)
       try {
         const imageDataUrl = await readFileAsDataUrl(file)
         const response = await uploadImageAPI({
@@ -265,14 +304,18 @@ export function StudioImageEditWorkspace() {
         })
 
         if (!response.success || !response.data) {
-          toast.error(response.error ?? t('uploadFailed'))
+          const message = response.error ?? t('uploadFailed')
+          setBannerError(message)
+          toast.error(message)
           return
         }
 
         setSourceFromGeneration(response.data.generation)
         toast.success(t('uploadSuccess'))
       } catch {
-        toast.error(t('uploadFailed'))
+        const message = t('uploadFailed')
+        setBannerError(message)
+        toast.error(message)
       } finally {
         setIsUploadingSource(false)
       }
@@ -303,7 +346,7 @@ export function StudioImageEditWorkspace() {
       const pastedText = event.clipboardData.getData('text').trim()
       if (pastedText && isRemoteImageUrl(pastedText)) {
         event.preventDefault()
-        setSourceFromUrl(pastedText)
+        void setSourceFromUrl(pastedText)
       }
     },
     [setSourceFromUrl, uploadSourceFile],
@@ -331,7 +374,11 @@ export function StudioImageEditWorkspace() {
       if (!source || isBusy) return
 
       setRunningAction(action)
-      const response = await editImageAPI(action, source.imageUrl)
+      setBannerError(null)
+      // Server persists by default — the returned record is what we render.
+      const response = await editImageAPI(action, source.imageUrl, {
+        generationId: source.generationId,
+      })
       setRunningAction(null)
 
       if (!response.success || !response.data) {
@@ -352,35 +399,6 @@ export function StudioImageEditWorkspace() {
     },
     [isBusy, source, t, tErrors],
   )
-
-  const saveSimpleResult = useCallback(async () => {
-    if (!source?.generationId || !result || !resultCanBeSaved || isBusy) return
-    if (result.action !== 'upscale' && result.action !== 'remove-background') {
-      return
-    }
-
-    const action = result.action
-    setRunningAction(action)
-    const response = await editImageAPI(action, source.imageUrl, {
-      persist: true,
-      generationId: source.generationId,
-    })
-    setRunningAction(null)
-
-    if (!response.success || !response.data) {
-      toast.error(getApiErrorMessage(tErrors, response, t('saveFailed')))
-      return
-    }
-
-    setResult({
-      ...result,
-      imageUrl: response.data.imageUrl,
-      width: response.data.width,
-      height: response.data.height,
-      generation: response.data.generation,
-    })
-    toast.success(t('savedToGallery'))
-  }, [isBusy, result, resultCanBeSaved, source, t, tErrors])
 
   const applyInpaint = useCallback(
     async (maskDataUrl: string, prompt: string) => {
@@ -439,18 +457,32 @@ export function StudioImageEditWorkspace() {
   const runDecompose = useCallback(async () => {
     if (!source || isBusy) return
 
+    // See-Through runs on a HuggingFace Space that often cold-starts: the
+    // first request waits 30-60s before the model even loads. Surface that
+    // explicitly so the user doesn't assume the page froze.
     setRunningAction('decompose')
-    const response = await decomposeImageAPI(source.imageUrl)
-    setRunningAction(null)
+    setDecomposeStage('queued')
+    setBannerError(null)
+    const stageTimer = window.setTimeout(
+      () => setDecomposeStage('running'),
+      8000,
+    )
 
-    if (!response.success || !response.data) {
-      toast.error(getApiErrorMessage(tErrors, response, t('decomposeFailed')))
-      return
+    try {
+      const response = await decomposeImageAPI(source.imageUrl)
+
+      if (!response.success || !response.data) {
+        toast.error(getApiErrorMessage(tErrors, response, t('decomposeFailed')))
+        return
+      }
+
+      setLayerResult(response.data)
+      setActiveEditor('overview')
+      toast.success(t('decomposeDone', { count: response.data.layerCount }))
+    } finally {
+      window.clearTimeout(stageTimer)
+      setRunningAction(null)
     }
-
-    setLayerResult(response.data)
-    setActiveEditor('overview')
-    toast.success(t('decomposeDone', { count: response.data.layerCount }))
   }, [isBusy, source, t, tErrors])
 
   const downloadResult = useCallback(async () => {
@@ -494,108 +526,79 @@ export function StudioImageEditWorkspace() {
   }, [resetEditState, result])
 
   return (
-    <div className="min-h-svh bg-background px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <div className="min-h-svh bg-background px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
         <header className="max-w-3xl">
           <p className="text-nav font-semibold uppercase tracking-nav text-muted-foreground">
             {t('eyebrow')}
           </p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {t('title')}
           </h1>
-          <p className="mt-3 font-serif text-sm leading-6 text-muted-foreground sm:text-base">
+          <p className="mt-1 font-serif text-sm leading-6 text-muted-foreground">
             {t('subtitle')}
           </p>
         </header>
 
+        {(() => {
+          const activeError = maskEditError ?? bannerError
+          if (!activeError) return null
+          return (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span className="flex-1">{activeError}</span>
+              <button
+                type="button"
+                onClick={() => setBannerError(null)}
+                className="text-xs underline-offset-2 hover:underline"
+                aria-label={t('dismissError')}
+              >
+                {t('dismissError')}
+              </button>
+            </div>
+          )
+        })()}
+
         <div className="grid gap-4 lg:grid-cols-3">
           <main className="space-y-4 lg:col-span-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')}
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={isUploadingSource || isBusy}
+            />
+
             <section
               ref={pasteTargetRef}
-              className="rounded-xl border border-border/70 bg-card p-4"
               tabIndex={0}
               onPaste={handlePaste}
+              className="overflow-hidden rounded-xl border border-border/70 bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')}
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isUploadingSource || isBusy}
-              />
-              <div className="flex flex-col gap-4">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">
-                    {t('sourcePickerTitle')}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t('sourcePickerDescription')}
-                  </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto justify-start rounded-lg px-3 py-3"
-                    onClick={() => setAssetPickerOpen(true)}
-                    disabled={isBusy || isUploadingSource}
-                  >
-                    <ImageIcon className="size-4" />
-                    <span>{t('chooseFromAssets')}</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto justify-start rounded-lg px-3 py-3"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isBusy || isUploadingSource}
-                  >
-                    {isUploadingSource ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Upload className="size-4" />
-                    )}
-                    <span>{t('uploadSource')}</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto justify-start rounded-lg px-3 py-3"
-                    onClick={() => {
-                      pasteTargetRef.current?.focus()
-                      setSourceError(null)
-                      toast(t('pasteHint'))
-                    }}
-                    disabled={isBusy || isUploadingSource}
-                  >
-                    <ImageIcon className="size-4" />
-                    <span>{t('pasteSource')}</span>
-                  </Button>
-                </div>
-              </div>
-              {sourceError ? (
-                <p className="mt-2 text-sm text-destructive">{sourceError}</p>
-              ) : null}
-            </section>
-
-            <section className="overflow-hidden rounded-xl border border-border/70 bg-card">
               <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">
                     {result ? t('resultTitle') : t('sourceTitle')}
                   </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {source?.generationId
-                      ? t('sourceBadgeGeneration')
-                      : t('sourceBadgeExternal')}
-                  </p>
+                  {hasSource ? (
+                    <p className="text-xs text-muted-foreground">
+                      {source?.generationId
+                        ? t('sourceBadgeGeneration')
+                        : t('sourceBadgeExternal')}
+                    </p>
+                  ) : null}
                 </div>
-                <p className="text-xs tabular-nums text-muted-foreground">
-                  {displayWidth} × {displayHeight}
-                </p>
+                {hasSource ? (
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {displayWidth} × {displayHeight}
+                  </p>
+                ) : null}
               </div>
-              <div className="flex min-h-96 items-center justify-center bg-muted/20 p-4">
+              <div className="flex min-h-96 items-center justify-center bg-muted/40 p-4">
                 {displayImage ? (
                   <img
                     src={displayImage}
@@ -607,25 +610,86 @@ export function StudioImageEditWorkspace() {
                     }}
                   />
                 ) : (
-                  <div className="max-w-sm text-center">
+                  <div className="w-full max-w-md text-center">
                     <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <ImageIcon className="size-5" />
                     </div>
-                    <p className="mt-3 text-sm font-medium text-foreground">
-                      {t('emptySourceTitle')}
+                    <p className="mt-3 text-base font-semibold text-foreground">
+                      {t('emptyStateTitle')}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t('emptyStateSubtitle')}
+                    </p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="justify-center rounded-lg"
+                        onClick={() => setAssetPickerOpen(true)}
+                        disabled={isBusy}
+                      >
+                        <ImageIcon className="size-4" />
+                        <span>{t('chooseFromAssets')}</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="justify-center rounded-lg"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isBusy}
+                      >
+                        {isUploadingSource ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Upload className="size-4" />
+                        )}
+                        <span>{t('uploadSource')}</span>
+                      </Button>
+                    </div>
+                    <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                      <Clipboard className="size-3" />
+                      {t('pasteShortcut')}
                     </p>
                   </div>
                 )}
               </div>
+              {hasSource ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clipboard className="size-3" />
+                    {t('pasteShortcut')}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAssetPickerOpen(true)}
+                      disabled={isBusy}
+                    >
+                      {t('chooseFromAssets')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isBusy}
+                    >
+                      {isUploadingSource ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Upload className="size-3" />
+                      )}
+                      {t('uploadSource')}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </section>
 
             {activeEditor === 'inpaint' && source ? (
               <section className="rounded-xl border border-border/70 bg-card p-4">
-                {maskEditError ? (
-                  <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                    {maskEditError}
-                  </div>
-                ) : null}
                 <StudioInpaintEditor
                   imageUrl={source.imageUrl}
                   imageWidth={source.width}
@@ -639,11 +703,6 @@ export function StudioImageEditWorkspace() {
 
             {activeEditor === 'outpaint' && source ? (
               <section className="rounded-xl border border-border/70 bg-card p-4">
-                {maskEditError ? (
-                  <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                    {maskEditError}
-                  </div>
-                ) : null}
                 <StudioOutpaintEditor
                   imageUrl={source.imageUrl}
                   imageWidth={source.width}
@@ -661,103 +720,117 @@ export function StudioImageEditWorkspace() {
               <h2 className="text-sm font-semibold text-foreground">
                 {t('toolsTitle')}
               </h2>
-              <div className="mt-3 grid gap-2">
-                {actionButtons.map(({ action, icon: Icon, label }) => {
-                  const isRunning = runningAction === action
+              <div className="mt-3 space-y-4">
+                {(
+                  [
+                    { key: 'auto', label: t('groups.auto') },
+                    { key: 'interactive', label: t('groups.interactive') },
+                    { key: 'advanced', label: t('groups.advanced') },
+                  ] as const
+                ).map(({ key, label }) => {
+                  const buttons = toolGroups[key]
+                  if (buttons.length === 0) return null
                   return (
-                    <Button
-                      key={action}
-                      type="button"
-                      variant={activeEditor === action ? 'default' : 'outline'}
-                      className={cn(
-                        'h-auto justify-start rounded-lg px-3 py-2.5',
-                        activeEditor === action && 'shadow-none',
-                      )}
-                      disabled={!hasSource || isBusy}
-                      onClick={() => {
-                        if (action === 'inpaint' || action === 'outpaint') {
-                          setActiveEditor(action)
-                          return
-                        }
-                        if (action === 'decompose') {
-                          void runDecompose()
-                          return
-                        }
-                        void runSimpleEdit(action)
-                      }}
-                    >
-                      {isRunning ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Icon className="size-4" />
-                      )}
-                      <span>{label}</span>
-                    </Button>
+                    <div key={key} className="space-y-2">
+                      <p className="text-nav font-medium uppercase tracking-nav text-muted-foreground">
+                        {label}
+                      </p>
+                      <div className="grid gap-2">
+                        {buttons.map(({ action, icon: Icon, label }) => {
+                          const isRunning = runningAction === action
+                          return (
+                            <Button
+                              key={action}
+                              type="button"
+                              variant={
+                                activeEditor === action ? 'default' : 'outline'
+                              }
+                              className={cn(
+                                'h-auto justify-start rounded-lg px-3 py-2.5',
+                                activeEditor === action && 'shadow-none',
+                              )}
+                              disabled={!hasSource || isBusy}
+                              onClick={() => {
+                                if (
+                                  action === 'inpaint' ||
+                                  action === 'outpaint'
+                                ) {
+                                  setActiveEditor(action)
+                                  return
+                                }
+                                if (action === 'decompose') {
+                                  void runDecompose()
+                                  return
+                                }
+                                void runSimpleEdit(action)
+                              }}
+                            >
+                              {isRunning ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <Icon className="size-4" />
+                              )}
+                              <span>{label}</span>
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   )
                 })}
               </div>
+              {runningAction === 'decompose' ? (
+                <p className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  {decomposeStage === 'queued'
+                    ? t('decomposeQueued')
+                    : t('decomposeRunning')}
+                </p>
+              ) : null}
             </section>
 
-            <section className="rounded-xl border border-border/70 bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">
-                {t('resultActionsTitle')}
-              </h2>
-              <div className="mt-3 grid gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="justify-start rounded-lg"
-                  disabled={!result || isBusy}
-                  onClick={() => void downloadResult()}
-                >
-                  <Download className="size-4" />
-                  {t('downloadResult')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="justify-start rounded-lg"
-                  disabled={
-                    !result ||
-                    !resultCanBeSaved ||
-                    !source?.generationId ||
-                    !!result.generation ||
-                    isBusy
-                  }
-                  onClick={() => void saveSimpleResult()}
-                >
-                  {runningAction === result?.action ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  {t('saveResult')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="justify-start rounded-lg"
-                  disabled={!result || isBusy}
-                  onClick={useResultAsSource}
-                >
-                  <ImageIcon className="size-4" />
-                  {t('useResultAsSource')}
-                </Button>
-                {result?.generation ? (
+            {result ? (
+              <section className="rounded-xl border border-border/70 bg-card p-4">
+                <h2 className="text-sm font-semibold text-foreground">
+                  {t('resultActionsTitle')}
+                </h2>
+                <div className="mt-3 grid gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     className="justify-start rounded-lg"
-                    asChild
+                    disabled={isBusy}
+                    onClick={() => void downloadResult()}
                   >
-                    <Link href={galleryGenerationPath(result.generation.id)}>
-                      <ArrowUpRight className="size-4" />
-                      {t('openSavedGeneration')}
-                    </Link>
+                    <Download className="size-4" />
+                    {t('downloadResult')}
                   </Button>
-                ) : null}
-              </div>
-            </section>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-start rounded-lg"
+                    disabled={isBusy}
+                    onClick={useResultAsSource}
+                  >
+                    <ImageIcon className="size-4" />
+                    {t('useResultAsSource')}
+                  </Button>
+                  {result.generation ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-start rounded-lg"
+                      asChild
+                    >
+                      <Link href={galleryGenerationPath(result.generation.id)}>
+                        <ArrowUpRight className="size-4" />
+                        {t('openSavedGeneration')}
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
 
             {layerResult ? (
               <section className="rounded-xl border border-border/70 bg-card p-4">
@@ -767,6 +840,30 @@ export function StudioImageEditWorkspace() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t('layerCount', { count: layerResult.layerCount })}
                 </p>
+                {layerResult.layers.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    {layerResult.layers.map((layer) => (
+                      <a
+                        key={layer.imageUrl}
+                        href={layer.imageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative aspect-square overflow-hidden rounded-md border border-border/60 bg-muted/30"
+                        title={layer.name}
+                      >
+                        <img
+                          src={layer.imageUrl}
+                          alt={layer.name}
+                          loading="lazy"
+                          className="size-full object-contain transition-transform group-hover:scale-105"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                          {layer.name}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"

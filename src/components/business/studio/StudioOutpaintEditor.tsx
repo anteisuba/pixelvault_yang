@@ -44,17 +44,6 @@ function clampPadding(value: number): number {
   return Math.min(512, Math.max(0, Math.round(value)))
 }
 
-function scalePreviewPadding(value: number): number {
-  if (value <= 0) return 0
-  return Math.max(6, Math.round((value / 512) * 48))
-}
-
-function getAspectRatio(width: number, height: number): string {
-  const safeWidth = Number.isFinite(width) && width > 0 ? width : 1024
-  const safeHeight = Number.isFinite(height) && height > 0 ? height : 1024
-  return `${safeWidth} / ${safeHeight}`
-}
-
 function getImageDimension(value: number): number {
   return Number.isFinite(value) && value > 0 ? Math.round(value) : 1024
 }
@@ -70,21 +59,22 @@ export const StudioOutpaintEditor = memo(function StudioOutpaintEditor({
   const t = useTranslations('StudioV3.outpaintEditor')
   const [padding, setPadding] = useState<OutpaintPadding>(DEFAULT_PADDING)
   const [prompt, setPrompt] = useState('')
-  const aspectRatio = useMemo(
-    () => getAspectRatio(imageWidth, imageHeight),
-    [imageHeight, imageWidth],
-  )
-  const previewWidth = getImageDimension(imageWidth)
-  const previewHeight = getImageDimension(imageHeight)
+  const safeImageWidth = getImageDimension(imageWidth)
+  const safeImageHeight = getImageDimension(imageHeight)
 
+  const finalWidth = safeImageWidth + padding.left + padding.right
+  const finalHeight = safeImageHeight + padding.top + padding.bottom
+
+  // Padding expressed as a percentage of the *final* canvas so the preview
+  // mirrors the real outpaint proportions instead of an arbitrary cap.
   const previewPadding = useMemo(
     () => ({
-      paddingTop: scalePreviewPadding(padding.top),
-      paddingRight: scalePreviewPadding(padding.right),
-      paddingBottom: scalePreviewPadding(padding.bottom),
-      paddingLeft: scalePreviewPadding(padding.left),
+      paddingTop: `${(padding.top / finalHeight) * 100}%`,
+      paddingRight: `${(padding.right / finalWidth) * 100}%`,
+      paddingBottom: `${(padding.bottom / finalHeight) * 100}%`,
+      paddingLeft: `${(padding.left / finalWidth) * 100}%`,
     }),
-    [padding],
+    [finalHeight, finalWidth, padding],
   )
 
   const updatePadding = useCallback((side: PaddingSide, value: number) => {
@@ -116,20 +106,25 @@ export const StudioOutpaintEditor = memo(function StudioOutpaintEditor({
         <div className="lg:col-span-2">
           <div className="rounded-lg border border-border bg-muted p-4">
             <div
-              className="mx-auto max-w-xl rounded-md bg-background/60"
-              style={previewPadding}
+              className="relative mx-auto w-full max-w-xl rounded-md bg-background/60 ring-1 ring-dashed ring-border"
+              style={{
+                aspectRatio: `${finalWidth} / ${finalHeight}`,
+                ...previewPadding,
+              }}
               aria-label={t('padding')}
             >
               <Image
                 src={imageUrl}
                 alt=""
-                width={previewWidth}
-                height={previewHeight}
+                width={safeImageWidth}
+                height={safeImageHeight}
                 unoptimized
-                className="block w-full rounded-md border border-border bg-background object-contain"
-                style={{ aspectRatio }}
+                className="block size-full rounded-sm border border-border bg-background object-contain"
               />
             </div>
+            <p className="mt-2 text-center text-xs tabular-nums text-muted-foreground">
+              {t('finalSize', { width: finalWidth, height: finalHeight })}
+            </p>
           </div>
         </div>
 

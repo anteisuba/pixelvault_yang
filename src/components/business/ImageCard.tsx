@@ -77,7 +77,7 @@ export const ImageCard = memo(function ImageCard({
   const [detailOpen, setDetailOpen] = useState(false)
   // Modal mounts on first open and stays mounted thereafter — pairs with the
   // dynamic import above so neither the chunk nor the modal's hook tree
-  // (useImageEditing etc.) runs for cards the user never opens.
+  // runs for cards the user never opens.
   const [hasOpenedDetail, setHasOpenedDetail] = useState(false)
   const openDetail = useCallback(() => {
     setHasOpenedDetail(true)

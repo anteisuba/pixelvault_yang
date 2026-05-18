@@ -41,8 +41,10 @@ export const POST = createApiRoute({
         ? await upscaleImage(data.imageUrl, apiKey)
         : await removeBackground(data.imageUrl, apiKey)
 
-    // Persist to R2 + DB if requested
-    if (data.persist && data.generationId) {
+    // Persist by default — fal.ai's CDN URL is temporary, so the only safe
+    // path is to copy into R2 + create a Generation row immediately. Callers
+    // can opt out with `persist: false` for ephemeral previews.
+    if (data.persist) {
       const generation = await persistEditedImage({
         userId: user.id,
         resultUrl: result.imageUrl,

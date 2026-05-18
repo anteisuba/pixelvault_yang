@@ -545,13 +545,14 @@ export async function editImageAPI(
     const response = await fetch(API_ENDPOINTS.IMAGE_EDIT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Persist defaults to true server-side; only forward the field when the
+      // caller wants to opt out. generationId is forwarded whenever provided
+      // so the persisted row links back to the original source.
       body: JSON.stringify({
         action,
         imageUrl,
-        ...(options?.persist && {
-          persist: true,
-          generationId: options.generationId,
-        }),
+        ...(options?.persist === false && { persist: false }),
+        ...(options?.generationId && { generationId: options.generationId }),
       }),
     })
     if (!response.ok) {

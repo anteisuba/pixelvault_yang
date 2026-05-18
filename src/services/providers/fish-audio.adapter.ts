@@ -53,6 +53,8 @@ function buildFishAudioRequestBody(
     prompt,
     voiceId,
     speakerVoiceIds,
+    referenceAudioUrl,
+    referenceText,
     speed,
     volume,
     normalizeLoudness,
@@ -80,6 +82,13 @@ function buildFishAudioRequestBody(
     body.reference_id = speakerVoiceIds
   } else if (voiceId) {
     body.reference_id = voiceId
+  } else if (referenceAudioUrl && referenceText?.trim()) {
+    body.references = [
+      {
+        audio: referenceAudioUrl,
+        text: referenceText.trim(),
+      },
+    ]
   }
 
   const prosody: Record<string, unknown> = {}

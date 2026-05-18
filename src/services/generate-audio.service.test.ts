@@ -303,6 +303,29 @@ describe('generateAudioForUser', () => {
     )
   })
 
+  it('forwards Fish reference audio and transcript fields to the adapter', async () => {
+    const mockGenerateAudio = vi.fn().mockResolvedValue({
+      audioUrl: 'https://provider.example.com/audio.mp3',
+      format: 'mp3',
+      duration: 2,
+      requestCount: 1,
+    })
+    setupSyncHappyPath(mockGenerateAudio)
+
+    await generateAudioForUser('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      referenceAudioUrl: 'https://cdn.example.com/reference.wav',
+      referenceText: 'Reference voice transcript',
+    })
+
+    expect(mockGenerateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceAudioUrl: 'https://cdn.example.com/reference.wav',
+        referenceText: 'Reference voice transcript',
+      }),
+    )
+  })
+
   it('maps audio pace, pauses, and pronunciation dictionary for provider calls', async () => {
     const mockGenerateAudio = vi.fn().mockResolvedValue({
       audioUrl: 'https://provider.example.com/audio.mp3',

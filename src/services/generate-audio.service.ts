@@ -404,6 +404,8 @@ export async function generateAudioForUser(
               apiKey: route.apiKey,
               voiceId: request.voiceId,
               speakerVoiceIds: request.speakerVoiceIds,
+              referenceAudioUrl: request.referenceAudioUrl,
+              referenceText: request.referenceText,
               speed,
               volume: request.volume,
               normalizeLoudness: request.normalizeLoudness,

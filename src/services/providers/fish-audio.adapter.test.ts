@@ -91,6 +91,36 @@ describe('fishAudioAdapter.generateAudio', () => {
     })
   })
 
+  it('sends inline reference text when using zero-shot reference audio', async () => {
+    const generateAudio = fishAudioAdapter.generateAudio
+    if (!generateAudio) throw new Error('Fish Audio generateAudio missing')
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from(Buffer.from('fake-mp3-bytes')), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      }),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    await generateAudio({
+      ...BASE_AUDIO_INPUT,
+      referenceAudioUrl: 'https://cdn.example.com/reference.wav',
+      referenceText: '  Reference voice transcript  ',
+    })
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(init.body))
+
+    expect(body.reference_id).toBeUndefined()
+    expect(body.references).toEqual([
+      {
+        audio: 'https://cdn.example.com/reference.wav',
+        text: 'Reference voice transcript',
+      },
+    ])
+  })
+
   it('throws on error response', async () => {
     const generateAudio = fishAudioAdapter.generateAudio
     if (!generateAudio) throw new Error('Fish Audio generateAudio missing')

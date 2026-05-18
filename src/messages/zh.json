@@ -2202,6 +2202,11 @@
         "content_filtered": "内容被服务商安全系统过滤",
         "model_unavailable": "该模型暂时不可用",
         "insufficient_credits": "今日免费生成次数已用完",
+        "unsupported_reference_image_format": "该模型无法读取当前参考图格式",
+        "reference_image_too_large": "参考图文件过大，超出该模型限制",
+        "reference_image_unreachable": "服务商无法下载这张参考图",
+        "reference_image_limit_exceeded": "参考图数量超过该模型限制",
+        "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
         "unknown": "发生了未知错误"
       }
     },
@@ -2456,7 +2461,16 @@
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",
-      "timeout": "AI 提供商超时，请重试。"
+      "timeout": "AI 提供商超时，请重试。",
+      "unsupportedOpenAiReferenceImage": "OpenAI 只接受 JPEG、PNG 或 WebP 参考图。请转换图片格式后再试。",
+      "unsupportedGeminiReferenceImage": "Gemini 接受 PNG、JPEG、WebP、HEIC 或 HEIF 参考图。请转换图片格式后再试。",
+      "unsupportedFalReferenceImage": "fal.ai 无法读取这张参考图。请使用 PNG、JPEG、WebP 或 GIF，并确认图片链接可被服务端直接访问。",
+      "unsupportedVolcengineReferenceImage": "Seedream 无法读取这张参考图。请使用 JPEG、PNG 或 WebP 等通用格式，并确认图片链接可被服务端直接访问。",
+      "unsupportedReferenceImage": "该模型无法读取当前参考图格式。请改用 JPEG、PNG 或 WebP 后再生成。",
+      "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
+      "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
+      "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
+      "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",

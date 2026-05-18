@@ -6,11 +6,60 @@ export const GENERATION_ERROR_CODES = {
   CONTENT_FILTERED: 'content_filtered',
   MODEL_UNAVAILABLE: 'model_unavailable',
   INSUFFICIENT_CREDITS: 'insufficient_credits',
+  UNSUPPORTED_REFERENCE_IMAGE_FORMAT: 'unsupported_reference_image_format',
+  REFERENCE_IMAGE_TOO_LARGE: 'reference_image_too_large',
+  REFERENCE_IMAGE_UNREACHABLE: 'reference_image_unreachable',
+  REFERENCE_IMAGE_LIMIT_EXCEEDED: 'reference_image_limit_exceeded',
+  INVALID_REFERENCE_IMAGE_DIMENSIONS: 'invalid_reference_image_dimensions',
   UNKNOWN: 'unknown',
 } as const
 
 export type GenerationErrorCode =
   (typeof GENERATION_ERROR_CODES)[keyof typeof GENERATION_ERROR_CODES]
+
+export const REFERENCE_IMAGE_ERROR_PATTERNS = {
+  UNSUPPORTED_FORMAT:
+    /unsupported_file_mimetype|unsupported\s+(?:mime|mimetype|file|image|format)|unsupported.*image\/|invalid\s+(?:mime|mimetype|file type|image format)|supported file formats|only.*(?:jpeg|jpg|png|webp|gif|heic|heif)|image\/avif|\.avif/i,
+  TOO_LARGE:
+    /(?:file|image|payload).*?(?:too large|exceeds?|exceeded|maximum|max)|less than \d+\s?mb|no more than \d+\s?mb|size.*limit/i,
+  UNREACHABLE:
+    /failed to download|could not download|unable to download|download.*failed|not accessible|direct download|directly viewable|invalid.*url|url.*invalid|could not fetch|fetch.*failed/i,
+  LIMIT_EXCEEDED:
+    /too many (?:images|files)|up to \d+ images|maximum.*(?:images|files)|must not exceed \d+|input.*output.*(?:exceed|limit)/i,
+  INVALID_DIMENSIONS:
+    /dimension|width|height|aspect ratio|resolution|pixels|same dimensions|match.*resolution|must match/i,
+} as const
+
+const PROVIDER_REFERENCE_FORMAT_GUIDANCE: Array<{
+  providerPattern: RegExp
+  i18nKey: string
+  fallbackMessage: string
+}> = [
+  {
+    providerPattern: /openai/i,
+    i18nKey: 'errors.provider.unsupportedOpenAiReferenceImage',
+    fallbackMessage:
+      'OpenAI accepts JPEG, PNG, or WebP reference images. Convert the image and try again.',
+  },
+  {
+    providerPattern: /gemini|google/i,
+    i18nKey: 'errors.provider.unsupportedGeminiReferenceImage',
+    fallbackMessage:
+      'Gemini accepts PNG, JPEG, WebP, HEIC, or HEIF reference images. Convert the image and try again.',
+  },
+  {
+    providerPattern: /fal/i,
+    i18nKey: 'errors.provider.unsupportedFalReferenceImage',
+    fallbackMessage:
+      'fal.ai could not read this reference image. Use PNG, JPEG, WebP, or GIF, and make sure the image URL is directly accessible.',
+  },
+  {
+    providerPattern: /volcengine|seedream|doubao|bytedance|byteplus/i,
+    i18nKey: 'errors.provider.unsupportedVolcengineReferenceImage',
+    fallbackMessage:
+      'Seedream could not read this reference image. Use a common format such as JPEG, PNG, or WebP, and make sure the URL is directly accessible.',
+  },
+]
 
 // Order matters — first match wins. Capacity / 503 phrases must beat the
 // generic "api key" word so a message like "This is not an API key error"
@@ -18,6 +67,26 @@ export type GenerationErrorCode =
 // requires an "invalid/expired/missing" qualifier so casual mentions of
 // the term don't trigger.
 const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
+  {
+    pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
+    code: GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
+  },
+  {
+    pattern: REFERENCE_IMAGE_ERROR_PATTERNS.TOO_LARGE,
+    code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+  },
+  {
+    pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNREACHABLE,
+    code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+  },
+  {
+    pattern: REFERENCE_IMAGE_ERROR_PATTERNS.LIMIT_EXCEEDED,
+    code: GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED,
+  },
+  {
+    pattern: REFERENCE_IMAGE_ERROR_PATTERNS.INVALID_DIMENSIONS,
+    code: GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS,
+  },
   {
     pattern: /timeout|timed?\s*out/i,
     code: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
@@ -59,4 +128,47 @@ export function parseGenerationErrorCode(
     }
   }
   return GENERATION_ERROR_CODES.UNKNOWN
+}
+
+function getUnsupportedReferenceImageI18nKey(errorMessage: string): string {
+  const providerGuidance = PROVIDER_REFERENCE_FORMAT_GUIDANCE.find((guidance) =>
+    guidance.providerPattern.test(errorMessage),
+  )
+
+  return (
+    providerGuidance?.i18nKey ?? 'errors.provider.unsupportedReferenceImage'
+  )
+}
+
+export function getGenerationErrorI18nKey(errorMessage: string): string | null {
+  const errorCode = parseGenerationErrorCode(errorMessage)
+
+  if (errorCode === GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT) {
+    return getUnsupportedReferenceImageI18nKey(errorMessage)
+  }
+  if (errorCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE) {
+    return 'errors.provider.referenceImageTooLarge'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE) {
+    return 'errors.provider.referenceImageUnreachable'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED) {
+    return 'errors.provider.referenceImageLimitExceeded'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
+    return 'errors.provider.invalidReferenceImageDimensions'
+  }
+
+  return null
+}
+
+export function getUnsupportedReferenceImageMessage(provider: string): string {
+  const providerGuidance = PROVIDER_REFERENCE_FORMAT_GUIDANCE.find((guidance) =>
+    guidance.providerPattern.test(provider),
+  )
+
+  return (
+    providerGuidance?.fallbackMessage ??
+    'This model could not read the reference image format. Use JPEG, PNG, or WebP, then try again.'
+  )
 }

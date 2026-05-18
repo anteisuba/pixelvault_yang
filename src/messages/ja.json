@@ -2202,6 +2202,11 @@
         "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
         "model_unavailable": "このモデルは一時的に利用できません",
         "insufficient_credits": "本日の無料生成上限に達しました",
+        "unsupported_reference_image_format": "このモデルは現在の参照画像形式を読み取れません",
+        "reference_image_too_large": "参照画像がこのモデルの上限を超えています",
+        "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
+        "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
+        "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
         "unknown": "予期しないエラーが発生しました"
       }
     },
@@ -2456,7 +2461,16 @@
     },
     "provider": {
       "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
-      "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。"
+      "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。",
+      "unsupportedOpenAiReferenceImage": "OpenAI は JPEG、PNG、WebP の参照画像を受け付けます。画像形式を変換してから再試行してください。",
+      "unsupportedGeminiReferenceImage": "Gemini は PNG、JPEG、WebP、HEIC、HEIF の参照画像を受け付けます。画像形式を変換してから再試行してください。",
+      "unsupportedFalReferenceImage": "fal.ai がこの参照画像を読み取れませんでした。PNG、JPEG、WebP、GIF のいずれかを使い、画像URLがサーバーから直接アクセスできることを確認してください。",
+      "unsupportedVolcengineReferenceImage": "Seedream がこの参照画像を読み取れませんでした。JPEG、PNG、WebP など一般的な形式を使い、画像URLがサーバーから直接アクセスできることを確認してください。",
+      "unsupportedReferenceImage": "このモデルは現在の参照画像形式を読み取れません。JPEG、PNG、WebP のいずれかに変更してから再生成してください。",
+      "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
+      "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
+      "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
+      "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。"
     },
     "validation": {
       "invalidInput": "入力が無効です。パラメータを確認してください。",

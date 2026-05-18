@@ -336,6 +336,60 @@ describe('createApiRoute', () => {
     expect(json.errorCode).toBe('FREE_LIMIT_EXCEEDED')
   })
 
+  it('returns a provider-specific i18n key for unsupported reference image format errors', async () => {
+    const legacyError = Object.assign(
+      new Error(
+        "OpenAI error: Invalid file 'image': unsupported mimetype ('image/avif'). Supported file formats are 'image/jpeg', 'image/png', and 'image/webp'.",
+      ),
+      {
+        code: 'PROVIDER_ERROR',
+        status: 400,
+        name: 'GenerateImageServiceError',
+      },
+    )
+    mockHandler.mockRejectedValue(legacyError)
+    mockIsServiceError.mockReturnValue(true)
+
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      errorCode: string
+      i18nKey: string
+    }>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.errorCode).toBe('PROVIDER_ERROR')
+    expect(json.i18nKey).toBe('errors.provider.unsupportedOpenAiReferenceImage')
+  })
+
+  it('returns a precise i18n key for unreachable reference image errors', async () => {
+    const legacyError = Object.assign(
+      new Error(
+        'fal.ai could not download the reference image. The URL is not accessible.',
+      ),
+      {
+        code: 'PROVIDER_ERROR',
+        status: 400,
+        name: 'GenerateImageServiceError',
+      },
+    )
+    mockHandler.mockRejectedValue(legacyError)
+    mockIsServiceError.mockReturnValue(true)
+
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      errorCode: string
+      i18nKey: string
+    }>(res)
+
+    expect(res.status).toBe(400)
+    expect(json.errorCode).toBe('PROVIDER_ERROR')
+    expect(json.i18nKey).toBe('errors.provider.referenceImageUnreachable')
+  })
+
   // ── Unknown Error ──
 
   it('returns 500 for unknown errors', async () => {

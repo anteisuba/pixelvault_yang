@@ -2202,6 +2202,11 @@
         "content_filtered": "Content was filtered by the provider's safety system",
         "model_unavailable": "This model is temporarily unavailable",
         "insufficient_credits": "Daily free generation limit reached",
+        "unsupported_reference_image_format": "This model cannot read the reference image format",
+        "reference_image_too_large": "The reference image is too large for this model",
+        "reference_image_unreachable": "The provider could not download the reference image",
+        "reference_image_limit_exceeded": "This model received too many reference images",
+        "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
         "unknown": "An unexpected error occurred"
       }
     },
@@ -2456,7 +2461,16 @@
     },
     "provider": {
       "failed": "AI provider error. Please try again.",
-      "timeout": "AI provider timed out. Please try again."
+      "timeout": "AI provider timed out. Please try again.",
+      "unsupportedOpenAiReferenceImage": "OpenAI accepts JPEG, PNG, or WebP reference images. Convert the image and try again.",
+      "unsupportedGeminiReferenceImage": "Gemini accepts PNG, JPEG, WebP, HEIC, or HEIF reference images. Convert the image and try again.",
+      "unsupportedFalReferenceImage": "fal.ai could not read this reference image. Use PNG, JPEG, WebP, or GIF, and make sure the image URL is directly accessible.",
+      "unsupportedVolcengineReferenceImage": "Seedream could not read this reference image. Use a common format such as JPEG, PNG, or WebP, and make sure the URL is directly accessible.",
+      "unsupportedReferenceImage": "This model could not read the reference image format. Use JPEG, PNG, or WebP, then try again.",
+      "referenceImageTooLarge": "The reference image is too large for this model. Compress it or use a smaller image, then try again.",
+      "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
+      "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
+      "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again."
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",

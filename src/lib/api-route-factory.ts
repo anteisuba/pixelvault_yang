@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import type { z } from 'zod'
 
+import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
 import { logger } from '@/lib/logger'
 import { isDatabaseQuotaExceededError } from '@/lib/database-utils'
 import { rateLimit } from '@/lib/rate-limit'
@@ -195,6 +196,7 @@ function handleRouteError(
         success: false,
         error: error.message,
         errorCode: error.code,
+        i18nKey: getGenerationErrorI18nKey(error.message) ?? undefined,
       },
       { status: error.status },
     )

@@ -10,6 +10,10 @@ import type {
   Trellis2TextureSize,
 } from '@/constants/model-3d-generation'
 import type { VideoResolution } from '@/constants/video-options'
+import {
+  getUnsupportedReferenceImageMessage,
+  REFERENCE_IMAGE_ERROR_PATTERNS,
+} from '@/constants/generation-errors'
 import type { AdvancedParams, ModelHealthStatus } from '@/types'
 
 export interface ProviderGenerationInput {
@@ -223,6 +227,26 @@ function humanizeProviderError(
 
   // Map common patterns to user-friendly messages
   const patterns: [RegExp, string][] = [
+    [
+      REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
+      getUnsupportedReferenceImageMessage(provider),
+    ],
+    [
+      REFERENCE_IMAGE_ERROR_PATTERNS.TOO_LARGE,
+      `${provider} could not use this reference image because the file is too large. Compress it or use a smaller image, then try again.`,
+    ],
+    [
+      REFERENCE_IMAGE_ERROR_PATTERNS.UNREACHABLE,
+      `${provider} could not download the reference image. Use a direct public image URL or upload the image again.`,
+    ],
+    [
+      REFERENCE_IMAGE_ERROR_PATTERNS.LIMIT_EXCEEDED,
+      `${provider} received too many reference images for this model. Remove some reference images and try again.`,
+    ],
+    [
+      REFERENCE_IMAGE_ERROR_PATTERNS.INVALID_DIMENSIONS,
+      `${provider} rejected the reference image dimensions. Use an image with a supported size and aspect ratio, then try again.`,
+    ],
     [
       /file_download_error|Failed to download the file/i,
       'LoRA model file could not be loaded. Please re-open Train LoRA to refresh the URL, then try again.',

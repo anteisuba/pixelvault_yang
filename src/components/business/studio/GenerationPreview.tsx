@@ -3,19 +3,13 @@
 import { memo, useCallback, useState } from 'react'
 import {
   Download,
-  Eraser,
-  Expand,
   GripHorizontal,
   ImagePlus,
-  Layers,
   Maximize2,
-  Paintbrush,
   PenTool,
   RotateCcw,
-  Save,
   Share2,
   Sparkles,
-  Wand2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -30,7 +24,6 @@ import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
-import { ImageCard } from '@/components/business/ImageCard'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import {
   Drawer,
@@ -39,21 +32,11 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { downloadRemoteAsset, editImageAPI } from '@/lib/api-client/generation'
+import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
-import { useInpaint } from '@/hooks/use-inpaint'
-
-import { StudioInpaintEditor } from './StudioInpaintEditor'
-import { StudioOutpaintEditor } from './StudioOutpaintEditor'
 
 interface GenerationPreviewProps {
   generation: GenerationRecord | null
@@ -77,103 +60,6 @@ export const GenerationPreview = memo(function GenerationPreview({
   const isMobile = useIsMobile()
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
-  const [editingAction, setEditingAction] = useState<
-    'upscale' | 'remove-background' | null
-  >(null)
-  const [editedAction, setEditedAction] = useState<
-    'upscale' | 'remove-background' | 'inpaint' | 'outpaint' | null
-  >(null)
-  const [editedUrl, setEditedUrl] = useState<string | null>(null)
-  const [inpaintOpen, setInpaintOpen] = useState(false)
-  const [outpaintOpen, setOutpaintOpen] = useState(false)
-  const {
-    inpaint,
-    outpaint,
-    isLoading: isMaskEditing,
-    error: maskEditError,
-  } = useInpaint()
-
-  const handleImageEdit = useCallback(
-    async (action: 'upscale' | 'remove-background') => {
-      if (!generation?.url || editingAction) return
-      setEditingAction(action)
-      try {
-        const result = await editImageAPI(action, generation.url)
-        if (result.success && result.data) {
-          setEditedUrl(result.data.imageUrl)
-          setEditedAction(action)
-        }
-      } finally {
-        setEditingAction(null)
-      }
-    },
-    [generation?.url, editingAction],
-  )
-
-  const handleSaveEditedImage = useCallback(async () => {
-    if (
-      !editedUrl ||
-      !generation?.url ||
-      editedAction === null ||
-      editedAction === 'inpaint' ||
-      editedAction === 'outpaint'
-    ) {
-      return
-    }
-
-    setEditingAction(editedAction)
-    try {
-      await editImageAPI(editedAction, generation.url, {
-        persist: true,
-        generationId: generation.id,
-      })
-    } finally {
-      setEditingAction(null)
-    }
-  }, [editedAction, editedUrl, generation?.url, generation?.id])
-
-  const handleApplyInpaint = useCallback(
-    async (maskDataUrl: string, prompt: string) => {
-      if (!generation?.url) return
-
-      const result = await inpaint({
-        imageUrl: generation.url,
-        maskImageUrl: maskDataUrl,
-        prompt,
-        sourceGenerationId: generation.id,
-      })
-
-      if (result) {
-        setEditedUrl(result.imageUrl)
-        setEditedAction('inpaint')
-        setInpaintOpen(false)
-      }
-    },
-    [generation?.id, generation?.url, inpaint],
-  )
-
-  const handleApplyOutpaint = useCallback(
-    async (
-      padding: { top: number; right: number; bottom: number; left: number },
-      prompt: string,
-    ) => {
-      if (!generation?.url) return
-
-      const result = await outpaint({
-        imageUrl: generation.url,
-        padding,
-        prompt,
-        sourceGenerationId: generation.id,
-      })
-
-      if (result) {
-        setEditedUrl(result.imageUrl)
-        setEditedAction('outpaint')
-        setOutpaintOpen(false)
-      }
-    },
-    [generation?.id, generation?.url, outpaint],
-  )
 
   const dragRef = useStudioDraggable({
     url: generation?.url ?? undefined,
@@ -308,10 +194,6 @@ export const GenerationPreview = memo(function GenerationPreview({
     }
   }
 
-  const handleOpenLayers = () => {
-    dispatch({ type: 'OPEN_PANEL', payload: 'layerDecompose' })
-  }
-
   // ── Shared image container ────────────────────────────────────────
   const imageContainer = (
     <TransformWrapper
@@ -330,18 +212,20 @@ export const GenerationPreview = memo(function GenerationPreview({
           wrapperClass="!w-full"
           contentClass="!w-full flex items-center justify-center"
         >
-          <div
+          {/* Bare <img> — the gallery ImageCard wraps the image in a card with
+              date, prompt, metadata footer. Inside Studio the prompt already
+              lives in the input below, so the footer is redundant noise AND
+              its layout pushes the image past max-h, cropping it.
+              `object-contain` + max-h on the img itself = always full picture. */}
+          <img
+            src={generation.url}
+            alt={generation.prompt ?? ''}
+            draggable={false}
             className={cn(
-              'w-auto mx-auto [&_img]:object-contain',
+              'mx-auto block max-w-full object-contain',
               isMobile ? 'max-h-[45vh]' : 'max-h-[60vh]',
             )}
-          >
-            <ImageCard
-              generation={
-                editedUrl ? { ...generation, url: editedUrl } : generation
-              }
-            />
-          </div>
+          />
         </TransformComponent>
 
         {/* Zoom controls — top right */}
@@ -414,7 +298,6 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   const isAudio = generation.outputType === 'AUDIO'
   const isVideo = generation.outputType === 'VIDEO'
-  const isImage = generation.outputType === 'IMAGE'
   const previewContent = isAudio
     ? audioContainer
     : isVideo
@@ -487,91 +370,8 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       )}
-      {!isAudio && variant === 'icon' && (
-        <div className="my-1 h-px bg-border/40" />
-      )}
-      {isImage && (
-        <>
-          <CanvasToolButton
-            icon={Paintbrush}
-            label={t('toolInpaint')}
-            disabled={editingAction !== null || isMaskEditing}
-            onClick={() => setInpaintOpen(true)}
-            variant={variant}
-          />
-          <CanvasToolButton
-            icon={Expand}
-            label={t('toolOutpaint')}
-            disabled={editingAction !== null || isMaskEditing}
-            onClick={() => setOutpaintOpen(true)}
-            variant={variant}
-          />
-        </>
-      )}
-      {!isAudio && (
-        <CanvasToolButton
-          icon={Wand2}
-          label={
-            editingAction === 'upscale' ? t('upscaling') : t('toolSuperRes')
-          }
-          disabled={editingAction !== null || isMaskEditing}
-          onClick={() => void handleImageEdit('upscale')}
-          variant={variant}
-        />
-      )}
-      {!isAudio && (
-        <CanvasToolButton
-          icon={Eraser}
-          label={
-            editingAction === 'remove-background'
-              ? t('removingBg')
-              : t('toolRemoveBg')
-          }
-          disabled={editingAction !== null || isMaskEditing}
-          onClick={() => void handleImageEdit('remove-background')}
-          variant={variant}
-        />
-      )}
-      {!isAudio && (
-        <CanvasToolButton
-          icon={Save}
-          label={t('toolSaveSuperRes')}
-          disabled={
-            !editedUrl ||
-            editingAction !== null ||
-            isMaskEditing ||
-            editedAction === 'inpaint' ||
-            editedAction === 'outpaint'
-          }
-          onClick={() => void handleSaveEditedImage()}
-          variant={variant}
-        />
-      )}
-      {!isAudio && (
-        <CanvasToolButton
-          icon={Layers}
-          label={t('toolLayers')}
-          onClick={handleOpenLayers}
-          variant={variant}
-        />
-      )}
     </>
   )
-
-  const maskEditorDialogs =
-    generation.outputType === 'IMAGE' ? (
-      <ImageMaskEditorDialogs
-        generation={generation}
-        inpaintOpen={inpaintOpen}
-        outpaintOpen={outpaintOpen}
-        isLoading={isMaskEditing}
-        error={maskEditError}
-        onInpaintOpenChange={setInpaintOpen}
-        onOutpaintOpenChange={setOutpaintOpen}
-        onApplyInpaint={handleApplyInpaint}
-        onApplyOutpaint={handleApplyOutpaint}
-      />
-    ) : null
 
   // ── Mobile layout: full-width image + peek row + drawer ───────────
   if (isMobile) {
@@ -660,7 +460,6 @@ export const GenerationPreview = memo(function GenerationPreview({
           onOpenChange={setDetailOpen}
           showVisibility
         />
-        {maskEditorDialogs}
       </>
     )
   }
@@ -686,85 +485,9 @@ export const GenerationPreview = memo(function GenerationPreview({
         onOpenChange={setDetailOpen}
         showVisibility
       />
-      {maskEditorDialogs}
     </>
   )
 })
-
-interface ImageMaskEditorDialogsProps {
-  generation: GenerationRecord
-  inpaintOpen: boolean
-  outpaintOpen: boolean
-  isLoading: boolean
-  error: string | null
-  onInpaintOpenChange: (open: boolean) => void
-  onOutpaintOpenChange: (open: boolean) => void
-  onApplyInpaint: (maskDataUrl: string, prompt: string) => void
-  onApplyOutpaint: (
-    padding: { top: number; right: number; bottom: number; left: number },
-    prompt: string,
-  ) => void
-}
-
-function ImageMaskEditorDialogs({
-  generation,
-  inpaintOpen,
-  outpaintOpen,
-  isLoading,
-  error,
-  onInpaintOpenChange,
-  onOutpaintOpenChange,
-  onApplyInpaint,
-  onApplyOutpaint,
-}: ImageMaskEditorDialogsProps) {
-  const t = useTranslations('StudioV3')
-
-  return (
-    <>
-      <Dialog open={inpaintOpen} onOpenChange={onInpaintOpenChange}>
-        <DialogContent className="max-h-screen overflow-y-auto sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{t('inpaintEditor.title')}</DialogTitle>
-          </DialogHeader>
-          {error && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <StudioInpaintEditor
-            imageUrl={generation.url}
-            imageWidth={generation.width}
-            imageHeight={generation.height}
-            onApply={onApplyInpaint}
-            onCancel={() => onInpaintOpenChange(false)}
-            isLoading={isLoading}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={outpaintOpen} onOpenChange={onOutpaintOpenChange}>
-        <DialogContent className="max-h-screen overflow-y-auto sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{t('outpaintEditor.title')}</DialogTitle>
-          </DialogHeader>
-          {error && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <StudioOutpaintEditor
-            imageUrl={generation.url}
-            imageWidth={generation.width}
-            imageHeight={generation.height}
-            onApply={onApplyOutpaint}
-            onCancel={() => onOutpaintOpenChange(false)}
-            isLoading={isLoading}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
 
 // ── Canvas Tool Button ──────────────────────────────────────────────
 

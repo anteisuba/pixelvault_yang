@@ -113,6 +113,10 @@
       "audio": {
         "title": "Audio Studio — PixelVault",
         "description": "Generate audio with text-to-speech and voice cloning."
+      },
+      "edit": {
+        "title": "Image Edit — PixelVault",
+        "description": "Edit generated images with inpaint, outpaint, super resolution, background removal, and layer tools."
       }
     },
     "gallery": {
@@ -1185,6 +1189,7 @@
     "linkCopied": "Link copied!",
     "generateWithPrompt": "Generate with this",
     "savePromptTemplate": "Save as prompt template",
+    "editInStudio": "Edit in Studio",
     "upscale": "Upscale",
     "upscaling": "Upscaling...",
     "removeBackground": "Remove BG",
@@ -2352,6 +2357,56 @@
     "resetZoom": "Reset zoom",
     "variantSelectWinner": "Select as best",
     "variantSelected": "Selected"
+  },
+  "StudioImageEdit": {
+    "eyebrow": "Studio Tool",
+    "title": "Image Edit",
+    "subtitle": "Work from a generated image or a remote source, then save the edited result back into your gallery.",
+    "sourcePickerTitle": "Choose a source image",
+    "sourcePickerDescription": "Pick from your assets, upload a local image, or paste an image directly here.",
+    "chooseFromAssets": "Choose from assets",
+    "uploadSource": "Upload image",
+    "pasteSource": "Paste image",
+    "pasteHint": "Press ⌘V / Ctrl+V now to paste an image.",
+    "sourceInvalid": "Use a valid http or https image URL.",
+    "uploadUnsupported": "Upload a JPG, PNG, WebP, or GIF image.",
+    "uploadTooLarge": "Image must be {maxMb} MB or smaller.",
+    "uploadNote": "Image edit source",
+    "uploadFailed": "Upload failed.",
+    "uploadSuccess": "Source image loaded.",
+    "sourceTitle": "Source",
+    "sourceBadgeGeneration": "Gallery source",
+    "sourceBadgeExternal": "External source",
+    "sourceAlt": "Source image",
+    "resultTitle": "Result",
+    "resultAlt": "Edited result",
+    "emptySourceTitle": "Load an image to start editing",
+    "toolsTitle": "Edit tools",
+    "actions": {
+      "upscale": "Super resolution",
+      "removeBg": "Remove background",
+      "inpaint": "Inpaint",
+      "outpaint": "Outpaint",
+      "decompose": "Layer decompose"
+    },
+    "resultActionsTitle": "Result",
+    "downloadResult": "Download result",
+    "saveResult": "Save to gallery",
+    "useResultAsSource": "Use result as source",
+    "openSavedGeneration": "Open saved generation",
+    "downloadPsd": "Download PSD",
+    "layersTitle": "Layers",
+    "layerCount": "{count} layers extracted",
+    "success": {
+      "upscale": "Super resolution complete.",
+      "removeBg": "Background removed."
+    },
+    "savedToGallery": "Saved to gallery.",
+    "decomposeDone": "{count} layers extracted.",
+    "editFailed": "Image edit failed.",
+    "saveFailed": "Could not save the result.",
+    "downloadFailed": "Download failed.",
+    "decomposeFailed": "Layer decomposition failed."
   },
   "sceneFeedback": {
     "keepCharacter": "Keep character",

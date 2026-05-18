@@ -113,6 +113,10 @@
       "audio": {
         "title": "音频工作台 — PixelVault",
         "description": "用文本转语音和声音克隆生成音频。"
+      },
+      "edit": {
+        "title": "图片编辑 — PixelVault",
+        "description": "使用局部重绘、扩图、超分、去背景和图层工具编辑生成图片。"
       }
     },
     "gallery": {
@@ -1185,6 +1189,7 @@
     "linkCopied": "链接已复制！",
     "generateWithPrompt": "用此提示词生成",
     "savePromptTemplate": "保存为提示词模板",
+    "editInStudio": "在 Studio 编辑",
     "upscale": "超分辨率",
     "upscaling": "处理中...",
     "removeBackground": "去背景",
@@ -2352,6 +2357,56 @@
     "resetZoom": "重置缩放",
     "variantSelectWinner": "选为最佳",
     "variantSelected": "已选择"
+  },
+  "StudioImageEdit": {
+    "eyebrow": "Studio 工具",
+    "title": "图片编辑",
+    "subtitle": "从生成图片或远程素材开始编辑，并把结果保存回你的画廊。",
+    "sourcePickerTitle": "选择源图",
+    "sourcePickerDescription": "从素材库选择、上传本地图片，或直接把图片粘贴到这里。",
+    "chooseFromAssets": "从素材选择",
+    "uploadSource": "上传图片",
+    "pasteSource": "粘贴图片",
+    "pasteHint": "现在可以按 ⌘V / Ctrl+V 粘贴图片。",
+    "sourceInvalid": "请输入有效的 http 或 https 图片 URL。",
+    "uploadUnsupported": "请上传 JPG、PNG、WebP 或 GIF 图片。",
+    "uploadTooLarge": "图片不能超过 {maxMb} MB。",
+    "uploadNote": "图片编辑源图",
+    "uploadFailed": "上传失败。",
+    "uploadSuccess": "源图已载入。",
+    "sourceTitle": "源图",
+    "sourceBadgeGeneration": "画廊来源",
+    "sourceBadgeExternal": "外部来源",
+    "sourceAlt": "源图片",
+    "resultTitle": "结果",
+    "resultAlt": "编辑结果",
+    "emptySourceTitle": "载入图片后开始编辑",
+    "toolsTitle": "编辑工具",
+    "actions": {
+      "upscale": "超分辨率",
+      "removeBg": "去背景",
+      "inpaint": "局部重绘",
+      "outpaint": "扩展画布",
+      "decompose": "图层分解"
+    },
+    "resultActionsTitle": "结果",
+    "downloadResult": "下载结果",
+    "saveResult": "保存到画廊",
+    "useResultAsSource": "将结果作为源图",
+    "openSavedGeneration": "打开已保存作品",
+    "downloadPsd": "下载 PSD",
+    "layersTitle": "图层",
+    "layerCount": "已提取 {count} 个图层",
+    "success": {
+      "upscale": "超分完成。",
+      "removeBg": "背景已移除。"
+    },
+    "savedToGallery": "已保存到画廊。",
+    "decomposeDone": "已提取 {count} 个图层。",
+    "editFailed": "图片编辑失败。",
+    "saveFailed": "无法保存结果。",
+    "downloadFailed": "下载失败。",
+    "decomposeFailed": "图层分解失败。"
   },
   "sceneFeedback": {
     "keepCharacter": "保持角色",

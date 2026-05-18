@@ -18,7 +18,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { AI_MODELS } from '@/constants/models'
+import { studioImageEditPath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
@@ -203,31 +203,19 @@ export const StudioCanvas = memo(function StudioCanvas() {
     })()
   }, [searchParams, router, pathname, handleRemix, modelOptions.length])
 
-  // C3: Edit with Kontext — set reference image + switch to Kontext Pro + focus prompt
+  // Route heavyweight image editing through the dedicated tool page.
   const handleEdit = useCallback(
-    async (generation: GenerationRecord) => {
-      await imageUpload.addFromUrl(generation.url)
-      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'image' })
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
-      dispatch({ type: 'SET_PROMPT', payload: '' })
-
-      // Find Kontext Pro option and select it
-      const kontextOption = modelOptions.find(
-        (o) => o.modelId === AI_MODELS.FLUX_KONTEXT_PRO,
+    (generation: GenerationRecord) => {
+      router.push(
+        studioImageEditPath({
+          generationId: generation.id,
+          sourceUrl: generation.url,
+          width: generation.width,
+          height: generation.height,
+        }),
       )
-      if (kontextOption) {
-        dispatch({ type: 'SET_OPTION_ID', payload: kontextOption.optionId })
-      }
-
-      dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
-
-      const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-      if (promptField instanceof HTMLTextAreaElement) {
-        promptField.focus()
-        promptField.placeholder = 'Describe what to change...'
-      }
     },
-    [imageUpload, dispatch, modelOptions],
+    [router],
   )
 
   return (

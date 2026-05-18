@@ -113,6 +113,10 @@
       "audio": {
         "title": "音声スタジオ — PixelVault",
         "description": "テキスト読み上げと音声クローンで音声を生成。"
+      },
+      "edit": {
+        "title": "画像編集 — PixelVault",
+        "description": "インペイント、アウトペイント、超解像、背景除去、レイヤー機能で生成画像を編集。"
       }
     },
     "gallery": {
@@ -1185,6 +1189,7 @@
     "linkCopied": "リンクをコピーしました！",
     "generateWithPrompt": "このプロンプトで生成",
     "savePromptTemplate": "プロンプトテンプレートとして保存",
+    "editInStudio": "Studioで編集",
     "upscale": "高解像度化",
     "upscaling": "処理中...",
     "removeBackground": "背景除去",
@@ -2352,6 +2357,56 @@
     "resetZoom": "ズームをリセット",
     "variantSelectWinner": "ベストに選択",
     "variantSelected": "選択済み"
+  },
+  "StudioImageEdit": {
+    "eyebrow": "Studioツール",
+    "title": "画像編集",
+    "subtitle": "生成画像または外部ソースから編集し、結果をギャラリーへ保存できます。",
+    "sourcePickerTitle": "元画像を選択",
+    "sourcePickerDescription": "素材から選択、ローカル画像をアップロード、または画像を直接貼り付けできます。",
+    "chooseFromAssets": "素材から選択",
+    "uploadSource": "画像をアップロード",
+    "pasteSource": "画像を貼り付け",
+    "pasteHint": "⌘V / Ctrl+V で画像を貼り付けできます。",
+    "sourceInvalid": "有効な http または https の画像URLを入力してください。",
+    "uploadUnsupported": "JPG、PNG、WebP、GIF の画像をアップロードしてください。",
+    "uploadTooLarge": "画像は {maxMb} MB 以下にしてください。",
+    "uploadNote": "画像編集の元画像",
+    "uploadFailed": "アップロードに失敗しました。",
+    "uploadSuccess": "元画像を読み込みました。",
+    "sourceTitle": "元画像",
+    "sourceBadgeGeneration": "ギャラリー由来",
+    "sourceBadgeExternal": "外部ソース",
+    "sourceAlt": "元画像",
+    "resultTitle": "結果",
+    "resultAlt": "編集結果",
+    "emptySourceTitle": "画像を読み込んで編集を開始",
+    "toolsTitle": "編集ツール",
+    "actions": {
+      "upscale": "超解像",
+      "removeBg": "背景除去",
+      "inpaint": "インペイント",
+      "outpaint": "アウトペイント",
+      "decompose": "レイヤー分解"
+    },
+    "resultActionsTitle": "結果",
+    "downloadResult": "結果をダウンロード",
+    "saveResult": "ギャラリーに保存",
+    "useResultAsSource": "結果を元画像にする",
+    "openSavedGeneration": "保存した作品を開く",
+    "downloadPsd": "PSDをダウンロード",
+    "layersTitle": "レイヤー",
+    "layerCount": "{count} レイヤーを抽出",
+    "success": {
+      "upscale": "超解像が完了しました。",
+      "removeBg": "背景を除去しました。"
+    },
+    "savedToGallery": "ギャラリーに保存しました。",
+    "decomposeDone": "{count} レイヤーを抽出しました。",
+    "editFailed": "画像編集に失敗しました。",
+    "saveFailed": "結果を保存できませんでした。",
+    "downloadFailed": "ダウンロードに失敗しました。",
+    "decomposeFailed": "レイヤー分解に失敗しました。"
   },
   "sceneFeedback": {
     "keepCharacter": "キャラクターを維持",

@@ -531,7 +531,12 @@ export async function editImageAPI(
   options?: { persist?: boolean; generationId?: string },
 ): Promise<{
   success: boolean
-  data?: { imageUrl: string; width: number; height: number }
+  data?: {
+    imageUrl: string
+    width: number
+    height: number
+    generation?: GenerationRecord
+  }
   error?: string
   errorCode?: string
   i18nKey?: string

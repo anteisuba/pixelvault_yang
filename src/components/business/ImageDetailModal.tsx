@@ -9,23 +9,23 @@ import {
   Coins,
   Copy,
   Download,
-  Eraser,
   Globe2,
   ImageIcon,
-  Layers,
   Link2,
-  Loader2,
   LockKeyhole,
   Pin,
   Sparkles,
-  Save,
   Trash2,
-  ZoomIn,
+  Wand2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 
-import { galleryGenerationPath, promptCreatePath } from '@/constants/routes'
+import {
+  galleryGenerationPath,
+  promptCreatePath,
+  studioImageEditPath,
+} from '@/constants/routes'
 import { isCjkLocale } from '@/i18n/routing'
 import { Link } from '@/i18n/navigation'
 
@@ -34,7 +34,6 @@ import {
   toggleGenerationVisibility,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { useImageEditing } from '@/hooks/use-image-editing'
 import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import VideoPlayer from '@/components/business/VideoPlayer'
@@ -83,26 +82,6 @@ export function ImageDetailModal({
   const tErrors = useTranslations('Errors')
   const closeLabel = tCommon.has('close') ? tCommon('close') : t('close')
 
-  const {
-    editingAction,
-    editAndDownload,
-    editAndSave,
-    decomposeAndDownload,
-    decomposeAndSave,
-  } = useImageEditing({
-    generationId: generation.id,
-    generationUrl: generation.url,
-    tErrors,
-    labels: {
-      editFailed: t('editFailed'),
-      downloadFailed: t('downloadFailed'),
-      editSuccess: t('editSuccess'),
-      editSavedToGallery: t('editSavedToGallery'),
-      decomposeFailed: t('decomposeFailed'),
-      decomposeSuccess: t('decomposeSuccess'),
-    },
-  })
-
   const createdAt = new Date(generation.createdAt)
   const modelLabel = getTranslatedModelLabel(tModels, generation.model)
   const previewUrl = getGenerationPreviewUrl(generation)
@@ -130,12 +109,6 @@ export function ImageDetailModal({
       setIsDownloading(false)
     }
   }
-
-  // Aliases for backward compatibility with JSX references
-  const handleEditDownload = editAndDownload
-  const handleEditSave = editAndSave
-  const handleDecomposeDownload = decomposeAndDownload
-  const handleDecomposeSave = decomposeAndSave
 
   const labelClass = getLabelClassName(isDenseLocale)
 
@@ -397,87 +370,24 @@ export function ImageDetailModal({
             )}
 
             {generation.outputType === 'IMAGE' && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  disabled={editingAction !== null}
-                  onClick={() =>
-                    void handleEditDownload(
-                      'upscale',
-                      `pixelvault-${generation.id.slice(0, 8)}-upscaled.png`,
-                    )
-                  }
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                asChild
+              >
+                <Link
+                  href={studioImageEditPath({
+                    generationId: generation.id,
+                    sourceUrl: generation.url,
+                    width: generation.width,
+                    height: generation.height,
+                  })}
                 >
-                  {editingAction === 'upscale' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <ZoomIn className="size-3.5" />
-                  )}
-                  {editingAction === 'upscale' ? t('upscaling') : t('upscale')}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  disabled={editingAction !== null}
-                  onClick={() =>
-                    void handleEditDownload(
-                      'remove-background',
-                      `pixelvault-${generation.id.slice(0, 8)}-nobg.png`,
-                    )
-                  }
-                >
-                  {editingAction === 'remove-background' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Eraser className="size-3.5" />
-                  )}
-                  {editingAction === 'remove-background'
-                    ? t('removingBackground')
-                    : t('removeBackground')}
-                </Button>
-                {/* Save edited to gallery */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  disabled={editingAction !== null}
-                  onClick={() => void handleEditSave('upscale')}
-                >
-                  <Save className="size-3.5" />
-                  {t('saveUpscaleToGallery')}
-                </Button>
-                {/* Layer decomposition (See-Through) */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  disabled={editingAction !== null}
-                  onClick={() => void handleDecomposeDownload()}
-                  title={t('decomposeDescription')}
-                >
-                  {editingAction === 'decompose' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Layers className="size-3.5" />
-                  )}
-                  {editingAction === 'decompose'
-                    ? t('decomposing')
-                    : t('decompose')}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  disabled={editingAction !== null}
-                  onClick={() => void handleDecomposeSave()}
-                >
-                  <Save className="size-3.5" />
-                  {t('saveDecomposeToGallery')}
-                </Button>
-              </>
+                  <Wand2 className="size-3.5" />
+                  {t('editInStudio')}
+                </Link>
+              </Button>
             )}
 
             {showVisibility && (

@@ -4,16 +4,6 @@ import { NextIntlClientProvider } from 'next-intl'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
-vi.mock('@/hooks/use-image-editing', () => ({
-  useImageEditing: vi.fn(() => ({
-    editingAction: null,
-    editAndDownload: vi.fn(),
-    editAndSave: vi.fn(),
-    decomposeAndDownload: vi.fn(),
-    decomposeAndSave: vi.fn(),
-  })),
-}))
-
 vi.mock('@/lib/api-client', () => ({
   downloadRemoteAsset: vi.fn(),
   toggleGenerationVisibility: vi.fn(),
@@ -63,6 +53,7 @@ const MESSAGES = {
     linkCopied: 'Link Copied!',
     generateWithPrompt: 'Generate',
     savePromptTemplate: 'Save Prompt',
+    editInStudio: 'Edit in Studio',
     upscale: 'Upscale',
     upscaling: 'Upscaling...',
     removeBackground: 'Remove BG',
@@ -213,14 +204,20 @@ describe('ImageDetailModal', () => {
     expect(screen.queryByText('Delete')).not.toBeInTheDocument()
   })
 
-  it('shows image editing buttons for IMAGE output type', () => {
+  it('links IMAGE output type to the dedicated Studio editor', () => {
     renderModal()
-    expect(screen.getByText('Upscale')).toBeInTheDocument()
-    expect(screen.getByText('Remove BG')).toBeInTheDocument()
-    expect(screen.getByText('Decompose')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /edit in studio/i })
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('/studio/edit'),
+    )
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('generationId=gen_modal_001'),
+    )
   })
 
-  it('hides image editing buttons for VIDEO output type', () => {
+  it('hides the Studio edit link for VIDEO output type', () => {
     renderModal({
       generation: {
         ...BASE_GEN,
@@ -228,7 +225,6 @@ describe('ImageDetailModal', () => {
         url: 'https://r2.example.com/test.mp4',
       },
     })
-    expect(screen.queryByText('Upscale')).not.toBeInTheDocument()
-    expect(screen.queryByText('Remove BG')).not.toBeInTheDocument()
+    expect(screen.queryByText('Edit in Studio')).not.toBeInTheDocument()
   })
 })

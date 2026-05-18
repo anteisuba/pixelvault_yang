@@ -6,13 +6,14 @@ import {
   Coins,
   Download,
   ImageIcon,
+  Wand2,
 } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getFormatter, getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, studioImageEditPath } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
@@ -308,6 +309,27 @@ export default async function ImageDetailPage({
                   {t('openOriginal')}
                 </a>
               </Button>
+
+              {generation.outputType === 'IMAGE' ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  asChild
+                >
+                  <Link
+                    href={studioImageEditPath({
+                      generationId: generation.id,
+                      sourceUrl: generation.url,
+                      width: generation.width,
+                      height: generation.height,
+                    })}
+                  >
+                    <Wand2 className="size-3.5" />
+                    {t('editInStudio')}
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

@@ -201,8 +201,8 @@ function AppSidebarContent() {
   ] as const
 
   // Tools group — Krea-aligned per-tool entries. Image / Video / Audio map to
-  // their per-media-type routes (Phase 3); Edit / Enhance / Analyze / LoRA /
-  // Node are Coming Soon placeholders until Phase 6 swaps in real UI.
+  // their per-media-type routes; Edit is the dedicated image editor while
+  // Enhance / Analyze / LoRA / Node stay discoverable as later-phase tools.
   const toolLinks = [
     {
       href: ROUTES.STUDIO_IMAGE,
@@ -236,7 +236,7 @@ function AppSidebarContent() {
       href: ROUTES.STUDIO_EDIT,
       label: tTools('tools.edit.label'),
       icon: Wand2,
-      comingSoon: true,
+      comingSoon: false,
       activePaths: [ROUTES.STUDIO_EDIT],
     },
     {

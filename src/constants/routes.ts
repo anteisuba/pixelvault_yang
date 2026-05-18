@@ -81,5 +81,25 @@ export function promptCreatePath(
   return `${ROUTES.PROMPTS}?${params.toString()}`
 }
 
+export interface StudioImageEditPathOptions {
+  generationId?: string
+  sourceUrl?: string
+  width?: number | null
+  height?: number | null
+}
+
+/** Build a Studio image editor URL with an optional source image preloaded. */
+export function studioImageEditPath(
+  options: StudioImageEditPathOptions = {},
+): string {
+  const params = new URLSearchParams()
+  if (options.generationId) params.set('generationId', options.generationId)
+  if (options.sourceUrl) params.set('sourceUrl', options.sourceUrl)
+  if (options.width) params.set('width', String(options.width))
+  if (options.height) params.set('height', String(options.height))
+  const query = params.toString()
+  return query ? `${ROUTES.STUDIO_EDIT}?${query}` : ROUTES.STUDIO_EDIT
+}
+
 /** Type for all route values */
 export type Route = (typeof ROUTES)[keyof typeof ROUTES]

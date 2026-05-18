@@ -163,6 +163,14 @@ export const ImageCard = memo(function ImageCard({
   const labelClass = getLabelClassName(isDenseLocale)
   const isGalleryPresentation =
     presentation === IMAGE_CARD_PRESENTATIONS.GALLERY && !showVisibility
+  const creator = generation.creator
+  const creatorName =
+    creator?.displayName?.trim() || creator?.username?.trim() || ''
+  const creatorHandle = creator?.username ? `@${creator.username}` : ''
+  const showCreatorHandle =
+    Boolean(creator?.displayName?.trim()) &&
+    creator?.displayName?.trim() !== creator?.username
+  const creatorInitial = creatorName.charAt(0).toUpperCase()
 
   const detailGeneration = {
     ...generation,
@@ -211,6 +219,48 @@ export const ImageCard = memo(function ImageCard({
             unlikeLabel={t('unlike')}
             downloadLabel={t('download')}
           />
+          {isGalleryPresentation && creator?.username ? (
+            <div
+              className={cn(
+                'pointer-events-none absolute left-2.5 right-2.5 z-10 flex justify-start',
+                isVideo ? 'bottom-12' : isAudio ? 'top-2.5' : 'bottom-2.5',
+              )}
+            >
+              <Link
+                href={creatorProfilePath(creator.username)}
+                aria-label={t('creatorProfileLabel', { name: creatorName })}
+                className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+              >
+                {creator.avatarUrl ? (
+                  <Image
+                    src={creator.avatarUrl}
+                    alt=""
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="size-6 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-[10px] font-semibold"
+                  >
+                    {creatorInitial}
+                  </span>
+                )}
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-xs font-semibold">
+                    {creatorName}
+                  </span>
+                  {showCreatorHandle ? (
+                    <span className="block truncate text-[10px] text-white/70">
+                      {creatorHandle}
+                    </span>
+                  ) : null}
+                </span>
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         {isGalleryPresentation ? null : (
@@ -248,18 +298,15 @@ export const ImageCard = memo(function ImageCard({
             </div>
 
             {/* Creator attribution */}
-            {generation.creator?.username && !showVisibility && (
+            {creator?.username && !showVisibility && (
               <Link
-                href={creatorProfilePath(generation.creator.username)}
+                href={creatorProfilePath(creator.username)}
                 className="flex items-center gap-2 group/creator"
               >
-                {generation.creator.avatarUrl ? (
+                {creator.avatarUrl ? (
                   <Image
-                    src={generation.creator.avatarUrl}
-                    alt={
-                      generation.creator.displayName ??
-                      generation.creator.username
-                    }
+                    src={creator.avatarUrl}
+                    alt={creator.displayName ?? creator.username}
                     width={20}
                     height={20}
                     unoptimized
@@ -267,17 +314,11 @@ export const ImageCard = memo(function ImageCard({
                   />
                 ) : (
                   <span className="size-5 rounded-full bg-muted flex items-center justify-center text-3xs font-medium text-muted-foreground">
-                    {(
-                      generation.creator.displayName ??
-                      generation.creator.username
-                    )
-                      .charAt(0)
-                      .toUpperCase()}
+                    {creatorName.charAt(0).toUpperCase()}
                   </span>
                 )}
                 <span className="text-xs text-muted-foreground group-hover/creator:text-foreground transition-colors truncate">
-                  {generation.creator.displayName ??
-                    generation.creator.username}
+                  {creatorName}
                 </span>
               </Link>
             )}

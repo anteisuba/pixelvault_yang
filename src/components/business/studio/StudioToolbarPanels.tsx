@@ -58,7 +58,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         setCurrentPlan(result.data)
         dispatch({ type: 'OPEN_PANEL', payload: 'planPreview' })
       } else {
-        toast.error(result.error ?? 'Failed to generate plan')
+        toast.error(result.error ?? tV2('planFailed'))
       }
     } finally {
       setIsPlanning(false)

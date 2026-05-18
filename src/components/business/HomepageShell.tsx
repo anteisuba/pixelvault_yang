@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -11,9 +12,12 @@ import { Link } from '@/i18n/navigation'
 import '@/app/homepage.css'
 
 import { HomepageAuthCta } from './HomepageAuthCta'
+import { HomepageBottomCta } from './HomepageBottomCta'
 import { HomepageFeatureSection } from './HomepageFeatureSection'
+import { HomepageFooter } from './HomepageFooter'
 import { HomepageHero } from './HomepageHero'
 import { HomepageModelLineup } from './HomepageModelLineup'
+import { HomepageShowcaseRail } from './HomepageShowcaseRail'
 
 export function HomepageShell() {
   const t = useTranslations('Homepage')
@@ -78,19 +82,29 @@ export function HomepageShell() {
         >
           <HomepageHero />
 
-          {HOMEPAGE_FEATURE_SECTIONS.map((section) => (
-            <HomepageFeatureSection
-              key={section.id}
-              id={section.id}
-              ctaHref={section.ctaHref}
-              tone={section.tone}
-              reverse={section.reverse}
-              comingSoon={'comingSoon' in section ? section.comingSoon : false}
-              media={section.media}
-            />
-          ))}
+          <div className="homepage-features-band flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]">
+            {HOMEPAGE_FEATURE_SECTIONS.map((section, idx) => (
+              <Fragment key={section.id}>
+                <HomepageFeatureSection
+                  id={section.id}
+                  ctaHref={section.ctaHref}
+                  tone={section.tone}
+                  reverse={section.reverse}
+                  comingSoon={
+                    'comingSoon' in section ? section.comingSoon : false
+                  }
+                  media={section.media}
+                />
+                {idx === 3 && <HomepageShowcaseRail />}
+              </Fragment>
+            ))}
+          </div>
 
           <HomepageModelLineup />
+
+          <HomepageBottomCta />
+
+          <HomepageFooter />
         </main>
       </div>
     </div>

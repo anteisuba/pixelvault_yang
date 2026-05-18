@@ -124,7 +124,9 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
                     <button
                       type="button"
                       onClick={() => imageUpload.removeReferenceImage(idx)}
-                      aria-label="remove"
+                      aria-label={t('removeReferenceImage', {
+                        index: idx + 1,
+                      })}
                       className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition-opacity group-hover:opacity-100"
                     >
                       <X className="size-3" />

@@ -406,6 +406,7 @@ function StudioCardPicker() {
 export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, styles } = useStudioData()
+  const tCommon = useTranslations('Common')
   const tPanels = useTranslations('StudioPanels')
   const { selectedModel } = useImageModelOptions()
   const { keys: apiKeys } = useApiKeysContext()
@@ -478,6 +479,7 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
       >
         <DialogContent
           showCloseButton
+          closeLabel={tCommon('close')}
           className={CARD_DIALOG_CLASSES}
           onPointerDownOutside={(e) => {
             if (cardGuard.current) e.preventDefault()
@@ -503,6 +505,7 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
       >
         <DialogContent
           showCloseButton
+          closeLabel={tCommon('close')}
           className={REVERSE_DIALOG_CLASSES}
           onPointerDownOutside={(e) => {
             if (reverseGuard.current) e.preventDefault()
@@ -535,6 +538,7 @@ export const StudioPanelDialogs = memo(function StudioPanelDialogs() {
       >
         <DialogContent
           showCloseButton
+          closeLabel={tCommon('close')}
           className={TRANSFORM_DIALOG_CLASSES}
           onPointerDownOutside={(e) => {
             if (transformGuard.current) e.preventDefault()

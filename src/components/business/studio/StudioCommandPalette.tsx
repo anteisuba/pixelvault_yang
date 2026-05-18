@@ -20,13 +20,13 @@ import {
   Search,
   Cpu,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 import { useStudioForm, type PanelName } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
-import { useTranslations } from 'next-intl'
 
 /**
  * StudioCommandPalette — Cmd+K command palette for quick actions.
@@ -37,6 +37,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   const [loraOpen, setLoraOpen] = useState(false)
   const { state, dispatch } = useStudioForm()
   const { modelOptions } = useImageModelOptions()
+  const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
 
   // Listen for Cmd+K / Ctrl+K
@@ -89,23 +90,25 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        label="Studio command palette"
+        label={t('label')}
         className="studio-command-dialog"
       >
-        <CommandInput placeholder="Search models, actions..." />
+        <CommandInput placeholder={t('searchPlaceholder')} />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandEmpty>{t('empty')}</CommandEmpty>
 
           {/* Mode switching */}
-          <CommandGroup heading="Mode">
+          <CommandGroup heading={t('groups.mode')}>
             <CommandItem
               onSelect={() => switchMode('image')}
               className="studio-command-item"
             >
               <ImageIcon className="size-4 text-muted-foreground" />
-              <span>Image Mode</span>
+              <span>{t('commands.imageMode')}</span>
               {state.outputType === 'image' && (
-                <span className="ml-auto text-xs text-primary">Active</span>
+                <span className="ml-auto text-xs text-primary">
+                  {t('active')}
+                </span>
               )}
             </CommandItem>
             <CommandItem
@@ -113,9 +116,11 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               className="studio-command-item"
             >
               <Film className="size-4 text-muted-foreground" />
-              <span>Video Mode</span>
+              <span>{t('commands.videoMode')}</span>
               {state.outputType === 'video' && (
-                <span className="ml-auto text-xs text-primary">Active</span>
+                <span className="ml-auto text-xs text-primary">
+                  {t('active')}
+                </span>
               )}
             </CommandItem>
             <CommandItem
@@ -123,9 +128,11 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               className="studio-command-item"
             >
               <Mic className="size-4 text-muted-foreground" />
-              <span>Audio Mode</span>
+              <span>{t('commands.audioMode')}</span>
               {state.outputType === 'audio' && (
-                <span className="ml-auto text-xs text-primary">Active</span>
+                <span className="ml-auto text-xs text-primary">
+                  {t('active')}
+                </span>
               )}
             </CommandItem>
           </CommandGroup>
@@ -133,15 +140,17 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
           <CommandSeparator />
 
           {/* Workflow */}
-          <CommandGroup heading="Workflow">
+          <CommandGroup heading={t('groups.workflow')}>
             <CommandItem
               onSelect={() => switchWorkflow('quick')}
               className="studio-command-item"
             >
               <Wand2 className="size-4 text-muted-foreground" />
-              <span>Quick Generate</span>
+              <span>{t('commands.quickGenerate')}</span>
               {state.workflowMode === 'quick' && (
-                <span className="ml-auto text-xs text-primary">Active</span>
+                <span className="ml-auto text-xs text-primary">
+                  {t('active')}
+                </span>
               )}
             </CommandItem>
             <CommandItem
@@ -149,9 +158,11 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               className="studio-command-item"
             >
               <Layers className="size-4 text-muted-foreground" />
-              <span>Card Generate</span>
+              <span>{t('commands.cardGenerate')}</span>
               {state.workflowMode === 'card' && (
-                <span className="ml-auto text-xs text-primary">Active</span>
+                <span className="ml-auto text-xs text-primary">
+                  {t('active')}
+                </span>
               )}
             </CommandItem>
           </CommandGroup>
@@ -160,7 +171,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
 
           {/* Models */}
           {modelOptions.length > 0 && (
-            <CommandGroup heading="Models">
+            <CommandGroup heading={t('groups.models')}>
               {modelOptions.map((opt) => {
                 const label =
                   opt.keyLabel ?? getTranslatedModelLabel(tModels, opt.modelId)
@@ -180,7 +191,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
                     </span>
                     {isActive && (
                       <span className="ml-auto text-xs text-primary">
-                        Active
+                        {t('active')}
                       </span>
                     )}
                   </CommandItem>
@@ -192,27 +203,27 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
           <CommandSeparator />
 
           {/* Panels */}
-          <CommandGroup heading="Panels">
+          <CommandGroup heading={t('groups.panels')}>
             <CommandItem
               onSelect={() => togglePanel('advanced')}
               className="studio-command-item"
             >
               <Settings2 className="size-4 text-muted-foreground" />
-              <span>Toggle Advanced Settings</span>
+              <span>{t('commands.toggleAdvanced')}</span>
             </CommandItem>
             <CommandItem
               onSelect={() => togglePanel('refImage')}
               className="studio-command-item"
             >
               <ImageIcon className="size-4 text-muted-foreground" />
-              <span>Toggle Reference Image</span>
+              <span>{t('commands.toggleReference')}</span>
             </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />
 
           {/* Tools */}
-          <CommandGroup heading="Tools">
+          <CommandGroup heading={t('groups.tools')}>
             <CommandItem
               onSelect={() => {
                 setOpen(false)
@@ -221,7 +232,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               className="studio-command-item"
             >
               <Cpu className="size-4 text-muted-foreground" />
-              <span>Train LoRA</span>
+              <span>{t('commands.trainLora')}</span>
             </CommandItem>
           </CommandGroup>
         </CommandList>

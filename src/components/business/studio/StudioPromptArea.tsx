@@ -756,17 +756,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     if (!canGenerate) {
       // Krea-style: button stays clickable; click surfaces the missing piece
       // instead of silently doing nothing.
-      // TODO: replace inline strings with StudioV3.generateBlocked* keys
-      //       once the i18n edit lands.
       if (usesStyleCardForModel && !styles.activeCardId) {
-        toast.info('Pick a style card first')
+        toast.info(tPromptArea('blocked.styleCardRequired'))
       } else if (!usesStyleCardForModel && !selectedModel?.modelId) {
-        toast.info('Pick a model first')
+        toast.info(tPromptArea('blocked.modelRequired'))
       } else if (!usesStyleCardForModel && !state.prompt.trim()) {
-        toast.info('Type a prompt to generate')
+        toast.info(tPromptArea('blocked.promptRequired'))
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
       } else if (modelRequiresRef && !hasRefImage) {
-        toast.info('This model needs a reference image')
+        toast.info(tPromptArea('blocked.referenceRequired'))
         dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
       }
       return
@@ -811,6 +809,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     executeGenerate,
     setCurrentPlan,
     dispatch,
+    tPromptArea,
   ])
 
   const handledGenerateRequestRef = useRef(state.generateRequestId)

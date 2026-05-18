@@ -7,6 +7,8 @@ import { StudioInputImage } from './StudioInputImage'
 // Minimal messages for tests
 const messages = {
   Transform: {
+    inputPreviewAlt: 'Transform input',
+    removeInputImage: 'Remove transform input image',
     errors: {
       uploadRequired: 'Upload an image to transform.',
       inputTooLarge: 'Image must be under 10 MB and 2048×2048.',
@@ -62,7 +64,9 @@ describe('StudioInputImage', () => {
     )
 
     // Button is hidden by group-hover, but still in DOM
-    const removeButton = screen.getByRole('button')
+    const removeButton = screen.getByRole('button', {
+      name: 'Remove transform input image',
+    })
     fireEvent.click(removeButton)
     expect(onRemove).toHaveBeenCalledOnce()
   })

@@ -27,6 +27,7 @@
     "cost": "Cost",
     "capabilities": "Capabilities",
     "close": "Close",
+    "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}"
   },
   "Toasts": {
@@ -208,7 +209,7 @@
     "hero": {
       "eyebrow": "Personal AI gallery · 38 models",
       "title": "Every generation, kept in your archive.",
-      "subtitle": "38 image, video, and audio models from one canvas with your own API keys — every image, clip, prompt, and seed lives forever in your own R2."
+      "subtitle": "One canvas, 38 image, video, and audio models — every render, clip, and voice line stays in a gallery that's yours to keep, even if you close the account."
     },
     "badges": {
       "soon": "Soon"
@@ -723,6 +724,7 @@
     "description": "Attach an image to edit it, or to apply its style and content to your generation.",
     "upload": "Upload",
     "selectAsset": "Select asset",
+    "removeReferenceImage": "Remove reference image {index}",
     "back": "Back",
     "selectAssetEmpty": "No saved assets yet",
     "selectFromArchive": "Pick from archive",
@@ -1229,7 +1231,8 @@
     "like": "Like",
     "unlike": "Unlike",
     "download": "Download",
-    "downloadFailed": "Download failed"
+    "downloadFailed": "Download failed",
+    "creatorProfileLabel": "View {name} profile"
   },
   "PromptEnhance": {
     "button": "Enhance",
@@ -2035,6 +2038,12 @@
   },
   "StudioPromptArea": {
     "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain",
+    "blocked": {
+      "styleCardRequired": "Pick a style card first",
+      "modelRequired": "Pick a model first",
+      "promptRequired": "Type a prompt to generate",
+      "referenceRequired": "This model needs a reference image"
+    },
     "samplePrompts": {
       "quickImage": "A serene Japanese garden at golden hour, koi fish swimming in a crystal clear pond, cherry blossoms falling gently",
       "animeIllustration": "A young adventurer with flowing silver hair standing atop a cliff, overlooking a vast fantasy kingdom at sunset",
@@ -2044,6 +2053,29 @@
       "cinematicVideo": "A lone samurai walking through a misty bamboo forest at dawn, camera slowly tracking from behind",
       "characterToVideo": "The character turns to face the camera and smiles warmly, gentle wind blowing their hair",
       "voiceNarration": "Welcome to PixelVault, where your imagination becomes reality through the power of AI"
+    }
+  },
+  "StudioCommandPalette": {
+    "label": "Studio command palette",
+    "searchPlaceholder": "Search modes, models, panels...",
+    "empty": "No command found.",
+    "active": "Active",
+    "groups": {
+      "mode": "Mode",
+      "workflow": "Workflow",
+      "models": "Models",
+      "panels": "Panels",
+      "tools": "Tools"
+    },
+    "commands": {
+      "imageMode": "Image mode",
+      "videoMode": "Video mode",
+      "audioMode": "Audio mode",
+      "quickGenerate": "Quick generate",
+      "cardGenerate": "Card generate",
+      "toggleAdvanced": "Toggle advanced settings",
+      "toggleReference": "Toggle reference image",
+      "trainLora": "Train LoRA"
     }
   },
   "StudioTools": {
@@ -2141,6 +2173,7 @@
     "plan": "Plan",
     "planLoading": "Planning…",
     "planNeedsPrompt": "Type a prompt to plan",
+    "planFailed": "Failed to generate plan",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
@@ -2458,6 +2491,8 @@
   "Transform": {
     "title": "Image Transform",
     "description": "Transform your images with AI-powered style transfer",
+    "inputPreviewAlt": "Transform input",
+    "removeInputImage": "Remove transform input image",
     "errors": {
       "notImplemented": "This transformation type is not yet available. Stay tuned!",
       "uploadRequired": "Please upload an image to transform.",

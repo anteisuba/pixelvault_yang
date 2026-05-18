@@ -27,6 +27,7 @@
     "cost": "消费",
     "capabilities": "功能",
     "close": "关闭",
+    "skipToMainContent": "跳到主内容",
     "requestCount": "{count} 次请求"
   },
   "Toasts": {
@@ -208,7 +209,7 @@
     "hero": {
       "eyebrow": "个人 AI 画廊 · 38 个模型一站式",
       "title": "把每一次生成，留进自己的档案。",
-      "subtitle": "38 个图像、视频、语音模型一处接入，自带 API key — 每张图、每段视频、每条 prompt 与 seed 都永久落到你自己的 R2。"
+      "subtitle": "在一个画布里调用 38 个图像、视频、语音模型 — 每张图、每段视频、每段配音连同 prompt 都永久收进你自己的画廊，账号注销也带得走。"
     },
     "badges": {
       "soon": "即将上线"
@@ -723,6 +724,7 @@
     "description": "附加一张图片用于编辑，或将其风格和内容应用到生成。",
     "upload": "上传",
     "selectAsset": "选择素材",
+    "removeReferenceImage": "移除第 {index} 张参考图",
     "back": "返回",
     "selectAssetEmpty": "还没有保存的素材",
     "selectFromArchive": "从档案选择",
@@ -1229,7 +1231,8 @@
     "like": "收藏",
     "unlike": "取消收藏",
     "download": "下载",
-    "downloadFailed": "下载失败"
+    "downloadFailed": "下载失败",
+    "creatorProfileLabel": "查看 {name} 的主页"
   },
   "PromptEnhance": {
     "button": "增强",
@@ -2035,6 +2038,12 @@
   },
   "StudioPromptArea": {
     "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感",
+    "blocked": {
+      "styleCardRequired": "请先选择一张风格卡",
+      "modelRequired": "请先选择模型",
+      "promptRequired": "请输入提示词后再生成",
+      "referenceRequired": "这个模型需要参考图"
+    },
     "samplePrompts": {
       "quickImage": "黄金时分的宁静日式庭院，锦鲤在清澈的池塘中游弋，樱花花瓣轻柔飘落",
       "animeIllustration": "一位银发飘逸的年轻冒险者站在悬崖之巅，俯瞰日落时分辽阔的奇幻王国",
@@ -2044,6 +2053,29 @@
       "cinematicVideo": "一位武士独行于拂晓薄雾的竹林中，镜头从背后缓缓跟随",
       "characterToVideo": "角色转身面向镜头，温暖地微笑，轻风吹拂着发丝",
       "voiceNarration": "欢迎来到 PixelVault，在这里，AI 的力量让你的想象变为现实"
+    }
+  },
+  "StudioCommandPalette": {
+    "label": "Studio 命令面板",
+    "searchPlaceholder": "搜索模式、模型、面板...",
+    "empty": "没有找到命令。",
+    "active": "当前",
+    "groups": {
+      "mode": "模式",
+      "workflow": "工作流",
+      "models": "模型",
+      "panels": "面板",
+      "tools": "工具"
+    },
+    "commands": {
+      "imageMode": "图像模式",
+      "videoMode": "视频模式",
+      "audioMode": "音频模式",
+      "quickGenerate": "快速生成",
+      "cardGenerate": "卡片生成",
+      "toggleAdvanced": "切换高级设置",
+      "toggleReference": "切换参考图",
+      "trainLora": "训练 LoRA"
     }
   },
   "StudioTools": {
@@ -2141,6 +2173,7 @@
     "plan": "规划",
     "planLoading": "规划中…",
     "planNeedsPrompt": "先输入提示词再规划",
+    "planFailed": "生成计划失败",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
@@ -2458,6 +2491,8 @@
   "Transform": {
     "title": "图像变换",
     "description": "使用 AI 风格迁移变换你的图像",
+    "inputPreviewAlt": "待变换输入图",
+    "removeInputImage": "移除待变换输入图",
     "errors": {
       "notImplemented": "此变换类型暂未开放，敬请期待！",
       "uploadRequired": "请上传一张图片进行变换。",

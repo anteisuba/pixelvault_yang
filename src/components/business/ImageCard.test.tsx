@@ -93,6 +93,7 @@ const MESSAGES = {
     unlike: 'Unlike',
     download: 'Download',
     downloadFailed: 'Download failed',
+    creatorProfileLabel: 'View {name} profile',
     referenceImageLabel: 'Reference Image',
     promptPrivateHint: 'Prompt is private',
     imageVisibilityLabel: 'Image Visibility',
@@ -177,6 +178,27 @@ describe('ImageCard', () => {
     expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
     expect(screen.queryByText('Open')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Open Image')).toBeInTheDocument()
+  })
+
+  it('shows creator link in gallery presentation', () => {
+    renderCard({
+      generation: {
+        ...BASE_GEN,
+        creator: {
+          username: 'alice',
+          displayName: 'Alice W.',
+          avatarUrl: 'https://example.com/alice.png',
+        },
+      },
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+
+    const creatorLink = screen.getByRole('link', {
+      name: 'View Alice W. profile',
+    })
+    expect(creatorLink).toHaveAttribute('href', '/u/alice')
+    expect(screen.getByText('Alice W.')).toBeInTheDocument()
+    expect(screen.getByText('@alice')).toBeInTheDocument()
   })
 
   it('shows lock hint when prompt is private but image is public', () => {

@@ -93,7 +93,7 @@ export const StudioInputImage = memo(function StudioInputImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageData}
-          alt="Transform input"
+          alt={t('inputPreviewAlt')}
           className="w-full rounded-lg object-contain max-h-48 border border-border/40"
         />
         <Button
@@ -102,6 +102,7 @@ export const StudioInputImage = memo(function StudioInputImage({
           className="absolute top-2 right-2 size-7 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={onImageRemove}
           disabled={disabled}
+          aria-label={t('removeInputImage')}
         >
           <X className="size-4" />
         </Button>

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
+import { HomepageFeatureMediaFallback } from './HomepageFeatureMediaFallback'
+
 interface HomepageFeatureSectionProps {
   id: string
   ctaHref: string
@@ -38,7 +40,7 @@ export function HomepageFeatureSection({
     >
       <div
         className={cn(
-          'homepage-feature-media-container rounded-3xl',
+          'homepage-feature-media-container',
           `homepage-feature-tone-${tone}`,
           reverse && 'lg:order-2',
         )}
@@ -67,6 +69,7 @@ export function HomepageFeatureSection({
             aria-label={media.alt}
           />
         )}
+        {!media && <HomepageFeatureMediaFallback id={id} />}
       </div>
 
       <div

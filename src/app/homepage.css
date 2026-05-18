@@ -212,16 +212,35 @@
 }
 
 .homepage-top-link {
-  color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  position: relative;
+  color: color-mix(in oklab, var(--foreground) 96%, var(--background));
+  letter-spacing: 0.005em;
   transition:
     color 180ms ease,
     transform 180ms ease;
 }
 
+.homepage-top-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 1.5px;
+  background: var(--foreground);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .homepage-top-link:hover,
 .homepage-top-link:focus-visible {
   color: var(--foreground);
-  transform: translateY(-1px);
+}
+
+.homepage-top-link:hover::after,
+.homepage-top-link:focus-visible::after {
+  transform: scaleX(1);
 }
 
 .homepage-nav-gallery {
@@ -235,12 +254,24 @@
 }
 
 .homepage-nav-login {
-  background: var(--foreground);
-  color: var(--background);
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 38%, transparent);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 .homepage-nav-login:hover {
-  background: color-mix(in oklab, var(--foreground) 88%, var(--primary));
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.homepage-nav-login:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
+  outline-offset: 2px;
 }
 
 .homepage-showcase-surface {
@@ -282,71 +313,157 @@
 }
 
 .homepage-hero-grid {
-  min-height: clamp(31rem, 62vh, 39rem);
-}
-
-@media (min-width: 1024px) {
-  .homepage-hero-grid {
-    grid-template-columns: minmax(0, 0.95fr) minmax(26rem, 0.85fr);
-  }
+  grid-template-columns: minmax(0, 1fr);
+  min-height: clamp(34rem, 70vh, 44rem);
 }
 
 .homepage-hero-title {
-  font-size: clamp(3rem, 5.5vw, 4.75rem);
+  font-size: clamp(2.75rem, 5.5vw, 4.75rem);
   line-height: 1;
   letter-spacing: -0.045em;
 }
 
 .homepage-hero-copy {
-  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
-  line-height: 1.45;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  line-height: 1.5;
 }
 
 .homepage-hero-mosaic {
   display: grid;
-  height: clamp(19rem, 33vw, 28rem);
-  grid-template-areas:
-    'tile-a tile-b tile-c tile-d'
-    'tile-a tile-b tile-c tile-e'
-    'tile-f tile-f tile-c tile-e';
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  height: clamp(15rem, 26vw, 22rem);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   background: var(--home-surface);
   box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
+  position: relative;
+  isolation: isolate;
+}
+
+@media (max-width: 768px) {
+  .homepage-hero-mosaic {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    height: clamp(18rem, 56vw, 26rem);
+  }
 }
 
 .homepage-hero-tile {
-  min-height: 8rem;
+  position: relative;
   overflow: hidden;
+  min-height: 6rem;
+  opacity: 0;
+  animation: homepage-hero-tile-in 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-
 .homepage-hero-tile:nth-child(1) {
-  grid-area: tile-a;
+  animation-delay: 40ms;
 }
-
 .homepage-hero-tile:nth-child(2) {
-  grid-area: tile-b;
+  animation-delay: 120ms;
 }
-
 .homepage-hero-tile:nth-child(3) {
-  grid-area: tile-c;
+  animation-delay: 200ms;
 }
-
 .homepage-hero-tile:nth-child(4) {
-  grid-area: tile-d;
+  animation-delay: 280ms;
 }
-
 .homepage-hero-tile:nth-child(5) {
-  grid-area: tile-e;
+  animation-delay: 360ms;
+}
+.homepage-hero-tile:nth-child(6) {
+  animation-delay: 440ms;
 }
 
-.homepage-hero-tile:nth-child(6) {
-  grid-area: tile-f;
+.homepage-hero-tile-image {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  will-change: transform;
+  animation: homepage-hero-zoom 28s ease-in-out infinite alternate;
+}
+
+.homepage-hero-tile:nth-child(1) .homepage-hero-tile-image {
+  animation-delay: 0s;
+}
+.homepage-hero-tile:nth-child(2) .homepage-hero-tile-image {
+  animation-delay: -4s;
+}
+.homepage-hero-tile:nth-child(3) .homepage-hero-tile-image {
+  animation-delay: -8s;
+}
+.homepage-hero-tile:nth-child(4) .homepage-hero-tile-image {
+  animation-delay: -12s;
+}
+.homepage-hero-tile:nth-child(5) .homepage-hero-tile-image {
+  animation-delay: -16s;
+}
+.homepage-hero-tile:nth-child(6) .homepage-hero-tile-image {
+  animation-delay: -20s;
+}
+
+@keyframes homepage-hero-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes homepage-hero-zoom {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1.16);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-hero-tile,
+  .homepage-hero-tile-image {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 .homepage-hero-pill {
   background: color-mix(in oklab, var(--secondary) 50%, var(--background));
   color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+}
+
+/* — Features contrast band: white surface inside dark page — */
+.homepage-features-band {
+  /* break out to full viewport width */
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(1rem, calc(50vw - 37.5rem));
+  padding-block: clamp(3rem, 5vw, 5rem);
+
+  /* force light palette so inherited CSS variables flip */
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.5% 0 0);
+  --card: oklch(100% 0 0);
+  --secondary: oklch(97% 0 0);
+  --muted: oklch(97% 0 0);
+  --muted-foreground: oklch(55.6% 0 0);
+  --border: oklch(92.2% 0 0);
+  --primary: oklch(0% 0 0);
+  --primary-foreground: oklch(100% 0 0);
+
+  /* re-derive the homepage-local tokens against the flipped palette */
+  --home-border: color-mix(in oklab, var(--border) 72%, transparent);
+  --home-muted: color-mix(in oklab, var(--foreground) 68%, var(--background));
+  --home-surface: color-mix(in oklab, var(--card) 94%, var(--background));
+  --home-surface-soft: color-mix(
+    in oklab,
+    var(--secondary) 72%,
+    var(--background)
+  );
+
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .homepage-feature-section {
@@ -368,7 +485,6 @@
 
 .homepage-feature-media-container {
   height: clamp(19rem, 33vw, 28rem);
-  border: 1px solid var(--home-border);
   position: relative;
   overflow: hidden;
 }
@@ -573,6 +689,156 @@
 }
 
 .homepage-footer-border {
+  border-top: 1px solid var(--home-border);
+}
+
+/* — Showcase rail (rhythm break) — */
+.homepage-showcase-rail {
+  padding-block: clamp(1rem, 2vw, 1.5rem);
+}
+
+.homepage-rail-title {
+  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.homepage-rail-viewport {
+  position: relative;
+  margin-inline: calc(-1 * clamp(1rem, 3vw, 2rem));
+  overflow: hidden;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    black 4%,
+    black 96%,
+    transparent 100%
+  );
+}
+
+.homepage-rail-track {
+  display: flex;
+  gap: 1rem;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+  width: max-content;
+  animation: homepage-rail-scroll 56s linear infinite;
+}
+
+.homepage-rail-viewport:hover .homepage-rail-track {
+  animation-play-state: paused;
+}
+
+.homepage-rail-card {
+  width: clamp(14rem, 22vw, 19rem);
+  height: clamp(18rem, 27vw, 24rem);
+  border: 1px solid var(--home-border);
+  background: var(--home-surface);
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 280ms ease;
+}
+
+.homepage-rail-card:hover {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow:
+    0 6px 18px color-mix(in oklab, var(--foreground) 14%, transparent),
+    0 18px 40px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.homepage-rail-fade-l,
+.homepage-rail-fade-r {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4rem;
+  pointer-events: none;
+  z-index: 2;
+}
+.homepage-rail-fade-l {
+  left: 0;
+  background: linear-gradient(90deg, var(--background) 0%, transparent 100%);
+}
+.homepage-rail-fade-r {
+  right: 0;
+  background: linear-gradient(270deg, var(--background) 0%, transparent 100%);
+}
+
+@keyframes homepage-rail-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-rail-track {
+    animation: none !important;
+  }
+}
+
+/* — Bottom CTA — */
+.homepage-bottom-cta {
+  border: 1px solid var(--home-border);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in oklab, var(--primary) 22%, var(--background)) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 75% 80%,
+      color-mix(in oklab, var(--chart-3) 18%, var(--background)) 0%,
+      transparent 55%
+    ),
+    color-mix(in oklab, var(--background) 92%, var(--card));
+}
+
+.homepage-bottom-cta-glow {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--primary) 14%, transparent) 0%,
+    transparent 55%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(60px);
+}
+
+.homepage .homepage-secondary-btn {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 42%, transparent);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+.homepage .homepage-secondary-btn:hover {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+/* — Footer — */
+.homepage-footer {
+  border-top: 1px solid var(--home-border);
+  padding-bottom: clamp(2rem, 3vw, 3rem);
+}
+
+.homepage-footer-link {
+  color: color-mix(in oklab, var(--foreground) 80%, var(--background));
+  transition: color 180ms ease;
+}
+.homepage-footer-link:hover,
+.homepage-footer-link:focus-visible {
+  color: var(--foreground);
+}
+
+.homepage-footer-copy {
   border-top: 1px solid var(--home-border);
 }
 

@@ -27,6 +27,7 @@
     "cost": "コスト",
     "capabilities": "機能",
     "close": "閉じる",
+    "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト"
   },
   "Toasts": {
@@ -208,7 +209,7 @@
     "hero": {
       "eyebrow": "個人 AI ギャラリー · 38 モデル",
       "title": "すべての生成を、自分のアーカイブへ。",
-      "subtitle": "38 の画像・動画・音声モデルを 1 つのキャンバスから。自分の API キーで、生成画像・動画・プロンプト・シードをすべて自分の R2 に永久保存。"
+      "subtitle": "1 つのキャンバスで 38 の画像・動画・音声モデルを使い分け。生成した画像も動画もボイスも、プロンプトごとあなただけのギャラリーに永久保存 — アカウントを閉じても持ち出せます。"
     },
     "badges": {
       "soon": "近日公開"
@@ -723,6 +724,7 @@
     "description": "画像を添付して編集、またはそのスタイルと内容を生成に適用します。",
     "upload": "アップロード",
     "selectAsset": "アーカイブから選ぶ",
+    "removeReferenceImage": "参照画像 {index} を削除",
     "back": "戻る",
     "selectAssetEmpty": "保存済みの画像がありません",
     "selectFromArchive": "アーカイブから選ぶ",
@@ -1229,7 +1231,8 @@
     "like": "いいね",
     "unlike": "いいね解除",
     "download": "ダウンロード",
-    "downloadFailed": "ダウンロードに失敗しました"
+    "downloadFailed": "ダウンロードに失敗しました",
+    "creatorProfileLabel": "{name} のプロフィールを表示"
   },
   "PromptEnhance": {
     "button": "強化",
@@ -2035,6 +2038,12 @@
   },
   "StudioPromptArea": {
     "samplePrompt": "朝の柔らかい光の中の映画的なポートレート、浅い被写界深度、フィルムグレイン",
+    "blocked": {
+      "styleCardRequired": "先にスタイルカードを選択してください",
+      "modelRequired": "先にモデルを選択してください",
+      "promptRequired": "生成するにはプロンプトを入力してください",
+      "referenceRequired": "このモデルには参照画像が必要です"
+    },
     "samplePrompts": {
       "quickImage": "黄金時の静かな日本庭園、澄んだ池を泳ぐ錦鯉、静かに舞い散る桜の花びら",
       "animeIllustration": "流れるような銀髪の若き冒険者が崖の上に立ち、夕暮れ時の広大なファンタジー王国を見下ろしている",
@@ -2044,6 +2053,29 @@
       "cinematicVideo": "夜明けの霧に包まれた竹林を一人の侍が歩いている、カメラが背後からゆっくり追従",
       "characterToVideo": "キャラクターがカメラに向かって振り返り、温かく微笑む。穏やかな風が髪をなびかせている",
       "voiceNarration": "PixelVaultへようこそ。AIの力であなたの想像が現実になる場所です"
+    }
+  },
+  "StudioCommandPalette": {
+    "label": "Studio コマンドパレット",
+    "searchPlaceholder": "モード、モデル、パネルを検索...",
+    "empty": "コマンドが見つかりません。",
+    "active": "選択中",
+    "groups": {
+      "mode": "モード",
+      "workflow": "ワークフロー",
+      "models": "モデル",
+      "panels": "パネル",
+      "tools": "ツール"
+    },
+    "commands": {
+      "imageMode": "画像モード",
+      "videoMode": "動画モード",
+      "audioMode": "音声モード",
+      "quickGenerate": "クイック生成",
+      "cardGenerate": "カード生成",
+      "toggleAdvanced": "詳細設定を切り替え",
+      "toggleReference": "参照画像を切り替え",
+      "trainLora": "LoRAトレーニング"
     }
   },
   "StudioTools": {
@@ -2133,6 +2165,7 @@
     "plan": "計画",
     "planLoading": "計画中…",
     "planNeedsPrompt": "プロンプトを入力してください",
+    "planFailed": "計画の生成に失敗しました",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
@@ -2458,6 +2491,8 @@
   "Transform": {
     "title": "画像変換",
     "description": "AIスタイル転送で画像を変換します",
+    "inputPreviewAlt": "変換する入力画像",
+    "removeInputImage": "変換する入力画像を削除",
     "errors": {
       "notImplemented": "この変換タイプはまだ利用できません。お楽しみに！",
       "uploadRequired": "変換する画像をアップロードしてください。",

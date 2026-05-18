@@ -20,7 +20,7 @@ import {
   CARD_RECIPE,
 } from '@/constants/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
-import { AI_MODELS } from '@/constants/models'
+import { AI_MODELS, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
@@ -1200,7 +1200,12 @@ export type GalleryTimeRange = (typeof GALLERY_TIME_RANGE_OPTIONS)[number]
 
 export const GallerySearchSchema = z.object({
   search: z.string().trim().max(200).optional(),
-  model: z.string().trim().max(100).optional(),
+  model: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((model) => (model ? getModelById(model)?.id : undefined)),
   sort: z.enum(GALLERY_SORT_OPTIONS).default('newest'),
   type: z.enum(OUTPUT_TYPE_FILTER_OPTIONS).default('all'),
   timeRange: z.enum(GALLERY_TIME_RANGE_OPTIONS).default('all'),

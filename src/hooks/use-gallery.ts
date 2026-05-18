@@ -136,6 +136,7 @@ export function useGallery({
   const hasMoreRef = useRef(initialHasMore)
   const nextCursorRef = useRef(initialNextCursor)
   const isFetchingRef = useRef(false)
+  const requestIdRef = useRef(0)
   const filtersRef = useRef(filters)
   const generationsRef = useRef(initialGenerations)
   // Seed the module-level gallery cache once with the SSR snapshot so
@@ -203,7 +204,10 @@ export function useGallery({
       append: boolean,
       opts?: { silent?: boolean },
     ) => {
-      if (isFetchingRef.current) return
+      if (append && isFetchingRef.current) return
+
+      const requestId = requestIdRef.current + 1
+      requestIdRef.current = requestId
       isFetchingRef.current = true
 
       if (!opts?.silent) setIsFetching(true)
@@ -228,6 +232,8 @@ export function useGallery({
           filterParams,
           append ? nextCursorRef.current : null,
         )
+
+        if (requestId !== requestIdRef.current) return
 
         if (response.success && response.data) {
           const fresh = response.data.generations ?? []
@@ -274,17 +280,24 @@ export function useGallery({
             })
           }
         } else {
-          setError(
-            getApiErrorMessage(tErrors, response, 'Failed to load gallery'),
-          )
+          if (!opts?.silent) {
+            setError(
+              getApiErrorMessage(tErrors, response, 'Failed to load gallery'),
+            )
+          }
         }
       } catch (error) {
-        setError(
-          error instanceof Error ? error.message : 'Failed to load gallery',
-        )
+        if (requestId === requestIdRef.current && !opts?.silent) {
+          setError(
+            error instanceof Error ? error.message : 'Failed to load gallery',
+          )
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          isFetchingRef.current = false
+          setIsFetching(false)
+        }
       }
-      isFetchingRef.current = false
-      if (!opts?.silent) setIsFetching(false)
     },
     // State setters are listed for React Compiler's
     // preserve-manual-memoization rule — they're stable references, so

@@ -8,16 +8,16 @@ import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    eyebrow: 'Personal AI gallery · 38 models',
-    title: 'Every generation, kept in your archive.',
+    eyebrow: '38 models. Bring your own API key. Pay as you go.',
+    title: 'Turn ideas into images, footage, and voice.',
   },
   zh: {
-    eyebrow: '个人 AI 画廊 · 38 个模型一站式',
-    title: '把每一次生成，留进自己的档案。',
+    eyebrow: '38 个模型。自带 API key。按用量付费。',
+    title: '把想法做成画面、镜头和声音。',
   },
   ja: {
-    eyebrow: '個人 AI ギャラリー · 38 モデル',
-    title: 'すべての生成を、自分のアーカイブへ。',
+    eyebrow: '38 モデル。BYO API キー。従量課金。',
+    title: 'アイデアを、絵と映像と声に。',
   },
 } as const
 

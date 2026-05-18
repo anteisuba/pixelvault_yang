@@ -207,9 +207,9 @@
       "gallery": "ギャラリー"
     },
     "hero": {
-      "eyebrow": "個人 AI ギャラリー · 38 モデル",
-      "title": "すべての生成を、自分のアーカイブへ。",
-      "subtitle": "1 つのキャンバスで 38 の画像・動画・音声モデルを使い分け。生成した画像も動画もボイスも、プロンプトごとあなただけのギャラリーに永久保存 — アカウントを閉じても持ち出せます。"
+      "eyebrow": "38 モデル。BYO API キー。従量課金。",
+      "title": "アイデアを、絵と映像と声に。",
+      "subtitle": "PixelVault はあなただけの AI 創作ギャラリー。画像も動画もボイスもひとつの場所で。作品・プロンプト・シードはすべて自動保存。"
     },
     "badges": {
       "soon": "近日公開"
@@ -307,7 +307,7 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "アーカイブを始める",
+      "signedOutPrimary": "創作を始める",
       "signedInPrimary": "スタジオを開く",
       "signedOutUtility": "サインイン",
       "signedInUtility": "スタジオへ",
@@ -1232,7 +1232,10 @@
     "unlike": "いいね解除",
     "download": "ダウンロード",
     "downloadFailed": "ダウンロードに失敗しました",
-    "creatorProfileLabel": "{name} のプロフィールを表示"
+    "creatorProfileLabel": "{name} のプロフィールを表示",
+    "copyPromptAction": "プロンプトをコピー",
+    "useInStudioAction": "Studioで使用",
+    "promptCopiedToast": "プロンプトをコピーしました"
   },
   "PromptEnhance": {
     "button": "強化",

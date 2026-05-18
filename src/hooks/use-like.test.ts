@@ -121,6 +121,22 @@ describe('useLike', () => {
     expect(result.current.isPending).toBe(false)
   })
 
+  it('returns false when the API rejects the toggle', async () => {
+    mockToggleLikeAPI.mockResolvedValue({
+      success: false,
+      error: 'Unauthorized',
+    })
+
+    const { result } = renderHook(() => useLike())
+
+    let committed = true
+    await act(async () => {
+      committed = await result.current.toggle('gen-1')
+    })
+
+    expect(committed).toBe(false)
+  })
+
   it('second click while first is pending is blocked (inflight guard)', async () => {
     let resolveAPI: (value: ToggleLikeResponse) => void
     mockToggleLikeAPI.mockImplementation(
@@ -152,5 +168,31 @@ describe('useLike', () => {
     })
 
     expect(result.current.isPending).toBe(false)
+  })
+
+  it('coalesces rapid same-id toggles in the same tick', async () => {
+    let resolveAPI: (value: ToggleLikeResponse) => void
+    mockToggleLikeAPI.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAPI = resolve
+        }),
+    )
+
+    const { result } = renderHook(() => useLike())
+
+    act(() => {
+      void result.current.toggle('gen-1')
+      void result.current.toggle('gen-1')
+      void result.current.toggle('gen-1')
+      void result.current.toggle('gen-1')
+      void result.current.toggle('gen-1')
+    })
+
+    expect(mockToggleLikeAPI).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveAPI!({ success: true, data: { liked: true, likeCount: 5 } })
+    })
   })
 })

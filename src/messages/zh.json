@@ -207,9 +207,9 @@
       "gallery": "画廊"
     },
     "hero": {
-      "eyebrow": "个人 AI 画廊 · 38 个模型一站式",
-      "title": "把每一次生成，留进自己的档案。",
-      "subtitle": "在一个画布里调用 38 个图像、视频、语音模型 — 每张图、每段视频、每段配音连同 prompt 都永久收进你自己的画廊，账号注销也带得走。"
+      "eyebrow": "38 个模型。自带 API key。按用量付费。",
+      "title": "把想法做成画面、镜头和声音。",
+      "subtitle": "PixelVault 是你的个人 AI 创作画廊。在一处生成图像、视频和配音；作品、prompt 和 seed 自动保存。"
     },
     "badges": {
       "soon": "即将上线"
@@ -307,7 +307,7 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "开始建立档案",
+      "signedOutPrimary": "开始创作",
       "signedInPrimary": "打开工作台",
       "signedOutUtility": "登录",
       "signedInUtility": "前往工作台",
@@ -1232,7 +1232,10 @@
     "unlike": "取消收藏",
     "download": "下载",
     "downloadFailed": "下载失败",
-    "creatorProfileLabel": "查看 {name} 的主页"
+    "creatorProfileLabel": "查看 {name} 的主页",
+    "copyPromptAction": "复制 Prompt",
+    "useInStudioAction": "在 Studio 使用",
+    "promptCopiedToast": "Prompt 已复制"
   },
   "PromptEnhance": {
     "button": "增强",

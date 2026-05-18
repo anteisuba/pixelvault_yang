@@ -2,6 +2,7 @@ import { ImageIcon, Music, Play } from 'lucide-react'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
 interface ImageCardMediaProps {
@@ -77,7 +78,20 @@ export function ImageCardMedia({
         )}
       </button>
       {generation.referenceImageUrl && (
-        <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white backdrop-blur-md">
+        <span
+          className={cn(
+            // Type-aware accent so a glance tells image vs. video vs. audio:
+            // image → sky, video → violet, audio → emerald. Tint stays on the
+            // glass pill rather than swapping the whole chrome so it reads as
+            // a Krea-style badge with a subtle category cue, not a sticker.
+            'absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-white shadow-sm ring-1 backdrop-blur-md',
+            isAudio
+              ? 'bg-emerald-500/45 ring-emerald-200/50'
+              : isVideo
+                ? 'bg-violet-500/45 ring-violet-200/50'
+                : 'bg-sky-500/45 ring-sky-200/50',
+          )}
+        >
           <ImageIcon className="size-3" />
           {referenceImageLabel}
         </span>

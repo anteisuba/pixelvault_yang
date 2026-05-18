@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { toggleLikeAPI } from '@/lib/api-client'
 
 export interface UseLikeReturn {
-  toggle: (generationId: string) => Promise<void>
+  toggle: (generationId: string) => Promise<boolean>
   isPending: boolean
 }
 
@@ -18,10 +18,12 @@ export function useLike(
   onSuccess?: (generationId: string, liked: boolean, likeCount: number) => void,
 ): UseLikeReturn {
   const [isPending, setIsPending] = useState(false)
+  const pendingIdsRef = useRef(new Set<string>())
 
   const toggle = useCallback(
     async (generationId: string) => {
-      if (isPending) return
+      if (pendingIdsRef.current.has(generationId)) return false
+      pendingIdsRef.current.add(generationId)
       setIsPending(true)
       try {
         const response = await toggleLikeAPI(generationId)
@@ -31,12 +33,15 @@ export function useLike(
             response.data.liked,
             response.data.likeCount,
           )
+          return true
         }
+        return false
       } finally {
-        setIsPending(false)
+        pendingIdsRef.current.delete(generationId)
+        setIsPending(pendingIdsRef.current.size > 0)
       }
     },
-    [isPending, onSuccess],
+    [onSuccess],
   )
 
   return { toggle, isPending }

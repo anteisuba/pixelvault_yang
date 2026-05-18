@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 // ─── Mocks ──────────────────────────────────────────────────────
@@ -39,6 +39,9 @@ vi.mock('@/i18n/navigation', () => ({
       {children}
     </a>
   ),
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
 }))
 
 vi.mock('@/lib/model-options', () => ({
@@ -75,9 +78,11 @@ import {
   IMAGE_CARD_PRESENTATIONS,
 } from '@/components/business/ImageCard'
 import { useLike } from '@/hooks/use-like'
+import { downloadRemoteAsset } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 
 const mockUseLike = vi.mocked(useLike)
+const mockDownloadRemoteAsset = vi.mocked(downloadRemoteAsset)
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
@@ -107,6 +112,9 @@ const MESSAGES = {
     featuredOff: 'Not Featured',
     pinAction: 'Pin',
     unpinAction: 'Unpin',
+    copyPromptAction: 'Copy prompt',
+    useInStudioAction: 'Use in Studio',
+    promptCopiedToast: 'Prompt copied',
   },
   Common: {
     requestCount: '{count} credits',
@@ -154,7 +162,11 @@ function renderCard(
 describe('ImageCard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseLike.mockReturnValue({ toggle: vi.fn(), isPending: false })
+    mockUseLike.mockReturnValue({
+      toggle: vi.fn().mockResolvedValue(true),
+      isPending: false,
+    })
+    mockDownloadRemoteAsset.mockResolvedValue({ success: true })
   })
 
   it('renders metadata (model, provider)', () => {
@@ -173,11 +185,11 @@ describe('ImageCard', () => {
       presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
     })
 
-    expect(screen.queryByText('sunset over the ocean')).not.toBeInTheDocument()
-    expect(screen.queryByText('Stable Diffusion XL')).not.toBeInTheDocument()
     expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
     expect(screen.queryByText('Open')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Open Image')).toBeInTheDocument()
+    expect(screen.getByText('sunset over the ocean')).toBeInTheDocument()
+    expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
   })
 
   it('shows creator link in gallery presentation', () => {
@@ -199,6 +211,28 @@ describe('ImageCard', () => {
     expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
     expect(screen.getByText('@alice')).toBeInTheDocument()
+  })
+
+  it('does not open detail modal when gallery creator link is clicked', () => {
+    renderCard({
+      generation: {
+        ...BASE_GEN,
+        creator: {
+          username: 'alice',
+          displayName: 'Alice W.',
+          avatarUrl: 'https://example.com/alice.png',
+        },
+      },
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+
+    const creatorLink = screen.getByRole('link', {
+      name: 'View Alice W. profile',
+    })
+    creatorLink.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(creatorLink)
+
+    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
   })
 
   it('shows lock hint when prompt is private but image is public', () => {
@@ -245,6 +279,42 @@ describe('ImageCard', () => {
     })
     expect(screen.getByText('5')).toBeInTheDocument()
     expect(screen.getByLabelText('Like')).toBeInTheDocument()
+  })
+
+  it('does not open detail modal from like or download controls', async () => {
+    const toggle = vi.fn().mockResolvedValue(true)
+    mockUseLike.mockReturnValue({ toggle, isPending: false })
+
+    renderCard({
+      generation: { ...BASE_GEN, likeCount: 5, isLiked: false },
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+
+    fireEvent.click(screen.getByLabelText('Like'))
+    fireEvent.click(screen.getByLabelText('Download'))
+
+    expect(toggle).toHaveBeenCalledWith(BASE_GEN.id)
+    expect(mockDownloadRemoteAsset).toHaveBeenCalledWith(
+      BASE_GEN.url,
+      'pixelvault-gen_card.png',
+    )
+    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
+  })
+
+  it('rolls back optimistic like state when the toggle is not committed', async () => {
+    const toggle = vi.fn().mockResolvedValue(false)
+    mockUseLike.mockReturnValue({ toggle, isPending: false })
+
+    renderCard({
+      generation: { ...BASE_GEN, likeCount: 5, isLiked: false },
+    })
+
+    fireEvent.click(screen.getByLabelText('Like'))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Like')).toBeInTheDocument()
+      expect(screen.getByText('5')).toBeInTheDocument()
+    })
   })
 
   it('uses stored poster assets for video cards without preloading metadata', () => {

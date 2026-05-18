@@ -161,13 +161,21 @@ export const GalleryHeader = memo(function GalleryHeader({
 
   return (
     <div className="space-y-3">
-      {/* Pill row */}
+      {/* Pill row — visually grouped: [sort] · [type] · [time]   [search + advanced + clear] */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Group 1: ordering */}
         <PillGroup
           options={sortOptions}
           value={filters.sort}
           onChange={(v) => onFiltersChange({ ...filters, sort: v })}
         />
+
+        <div
+          aria-hidden="true"
+          className="hidden h-5 w-px shrink-0 bg-border/50 sm:block"
+        />
+
+        {/* Group 2: content filters (what + when) */}
         <PillGroup
           options={typeOptions}
           value={filters.type}
@@ -179,67 +187,71 @@ export const GalleryHeader = memo(function GalleryHeader({
           onChange={(v) => onFiltersChange({ ...filters, timeRange: v })}
         />
 
-        {/* Search toggle */}
-        {searchOpen ? (
-          <div className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1">
-            <Search className="size-3.5 text-muted-foreground shrink-0" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="w-40 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-              autoFocus
-            />
-            {searchInput && (
-              <button type="button" onClick={clearSearch}>
-                <X className="size-3 text-muted-foreground hover:text-foreground" />
-              </button>
-            )}
-          </div>
-        ) : (
+        {/* Spacer — pushes the action cluster to the right edge so search /
+            advanced feel like a separate tool group from the filter pills. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Search toggle */}
+          {searchOpen ? (
+            <div className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1">
+              <Search className="size-3.5 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder={t('searchPlaceholder')}
+                className="w-40 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                autoFocus
+              />
+              {searchInput && (
+                <button type="button" onClick={clearSearch}>
+                  <X className="size-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors',
+                filters.search && 'border-primary/40 text-primary',
+              )}
+            >
+              <Search className="size-3.5" />
+              {filters.search || t('searchLabel')}
+            </button>
+          )}
+
+          {/* Advanced toggle */}
           <button
             type="button"
-            onClick={() => setSearchOpen(true)}
+            onClick={() => setAdvancedOpen(!advancedOpen)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors',
-              filters.search && 'border-primary/40 text-primary',
+              (advancedOpen || hasAdvancedFilters) &&
+                'border-primary/40 text-primary',
             )}
           >
-            <Search className="size-3.5" />
-            {filters.search || t('searchLabel')}
+            <SlidersHorizontal className="size-3.5" />
+            {hasAdvancedFilters && (
+              <span className="size-1.5 rounded-full bg-primary" />
+            )}
           </button>
-        )}
 
-        {/* Advanced toggle */}
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen(!advancedOpen)}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors',
-            (advancedOpen || hasAdvancedFilters) &&
-              'border-primary/40 text-primary',
+          {/* Clear all */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAll}
+              className="h-7 gap-1 text-xs text-muted-foreground"
+              disabled={isLoading}
+            >
+              <X className="size-3" />
+              {t('clearFilters')}
+            </Button>
           )}
-        >
-          <SlidersHorizontal className="size-3.5" />
-          {hasAdvancedFilters && (
-            <span className="size-1.5 rounded-full bg-primary" />
-          )}
-        </button>
-
-        {/* Clear all */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAll}
-            className="h-7 gap-1 text-xs text-muted-foreground"
-            disabled={isLoading}
-          >
-            <X className="size-3" />
-            {t('clearFilters')}
-          </Button>
-        )}
+        </div>
       </div>
 
       {/* Advanced popover (inline, not floating) */}

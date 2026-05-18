@@ -342,7 +342,7 @@ interface GalleryItemProps {
   gen: GenerationRecord
   isLatest: boolean
   isLiked: boolean
-  onToggleLike: (generationId: string) => Promise<void>
+  onToggleLike: (generationId: string) => Promise<boolean>
   isLikePending: boolean
   onClick: () => void
   onRemix: (gen: GenerationRecord) => void

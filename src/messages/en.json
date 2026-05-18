@@ -207,9 +207,9 @@
       "gallery": "Gallery"
     },
     "hero": {
-      "eyebrow": "Personal AI gallery · 38 models",
-      "title": "Every generation, kept in your archive.",
-      "subtitle": "One canvas, 38 image, video, and audio models — every render, clip, and voice line stays in a gallery that's yours to keep, even if you close the account."
+      "eyebrow": "38 models. Bring your own API key. Pay as you go.",
+      "title": "Turn ideas into images, footage, and voice.",
+      "subtitle": "PixelVault is your personal AI creative gallery. Generate images, video, and voice in one place — every render, prompt, and seed is saved automatically."
     },
     "badges": {
       "soon": "Soon"
@@ -307,7 +307,7 @@
       }
     },
     "actions": {
-      "signedOutPrimary": "Start your archive",
+      "signedOutPrimary": "Start creating",
       "signedInPrimary": "Open studio",
       "signedOutUtility": "Sign in",
       "signedInUtility": "Go to studio",
@@ -1232,7 +1232,10 @@
     "unlike": "Unlike",
     "download": "Download",
     "downloadFailed": "Download failed",
-    "creatorProfileLabel": "View {name} profile"
+    "creatorProfileLabel": "View {name} profile",
+    "copyPromptAction": "Copy prompt",
+    "useInStudioAction": "Use in Studio",
+    "promptCopiedToast": "Prompt copied"
   },
   "PromptEnhance": {
     "button": "Enhance",

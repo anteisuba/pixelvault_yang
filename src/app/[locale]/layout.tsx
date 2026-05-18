@@ -10,6 +10,7 @@ import { notFound } from 'next/navigation'
 
 import { ROUTES } from '@/constants/routes'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
+import { MARKETING_NAMESPACES, pickMessages } from '@/i18n/messages-split'
 import { getPathname } from '@/i18n/navigation'
 import { isAppLocale, LOCALES } from '@/i18n/routing'
 
@@ -91,7 +92,11 @@ export default async function LocaleLayout({
     locale,
     href: ROUTES.STUDIO_IMAGE,
   })
-  const messages = await getMessages({ locale })
+  // Root provider only carries the namespaces used by marketing + auth
+  // surfaces. `(main)/layout.tsx` re-wraps with the full bundle. See
+  // `src/i18n/messages-split.ts` for details.
+  const allMessages = await getMessages({ locale })
+  const marketingMessages = pickMessages(allMessages, MARKETING_NAMESPACES)
 
   return (
     <ClerkProvider
@@ -101,7 +106,7 @@ export default async function LocaleLayout({
       signInFallbackRedirectUrl={studioUrl}
       signUpFallbackRedirectUrl={studioUrl}
     >
-      <NextIntlClientProvider locale={locale} messages={messages}>
+      <NextIntlClientProvider locale={locale} messages={marketingMessages}>
         {children}
       </NextIntlClientProvider>
     </ClerkProvider>

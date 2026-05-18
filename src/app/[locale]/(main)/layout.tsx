@@ -1,4 +1,5 @@
-import { getTranslations } from 'next-intl/server'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages, getTranslations } from 'next-intl/server'
 
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
@@ -17,6 +18,11 @@ export default async function MainLayout({
   const { locale: localeParam } = await params
   const locale = isAppLocale(localeParam) ? localeParam : DEFAULT_LOCALE
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
+  // Root layout's NextIntlClientProvider only ships the marketing
+  // subset. Re-wrap with the full bundle so Studio/Gallery/Arena
+  // client components see every namespace. use-intl 4.x replaces
+  // (not merges) on nesting.
+  const fullMessages = await getMessages({ locale })
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
@@ -26,20 +32,22 @@ export default async function MainLayout({
       >
         {tCommon('skipToMainContent')}
       </a>
-      <MainProviders>
-        <SidebarProvider defaultOpen={true}>
-          <AppSidebar />
-          <MobileHeader />
-          <SidebarInset
-            id="main-content"
-            className="pt-11 pb-12 md:pt-0 md:pb-0"
-          >
-            {children}
-          </SidebarInset>
-          <MobileTabBar />
-        </SidebarProvider>
-      </MainProviders>
-      <Toaster />
+      <NextIntlClientProvider locale={locale} messages={fullMessages}>
+        <MainProviders>
+          <SidebarProvider defaultOpen={true}>
+            <AppSidebar />
+            <MobileHeader />
+            <SidebarInset
+              id="main-content"
+              className="pt-11 pb-12 md:pt-0 md:pb-0"
+            >
+              {children}
+            </SidebarInset>
+            <MobileTabBar />
+          </SidebarProvider>
+        </MainProviders>
+        <Toaster />
+      </NextIntlClientProvider>
     </div>
   )
 }

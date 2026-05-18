@@ -757,6 +757,479 @@ Codex review 已完成 (2026-05-18). 6 个关键发现 + 4 个决策已 lock 进
 | T4 通用 generator       | 4 函数 | 1 主接口   | **1 主接口**         | §3.3 generateCharacterAssets             |
 | 新发现 OpenAI multi-ref | 假设   | (未提及)   | **必须升级 adapter** | §3.5 Week 1 Day 1 阻塞性任务             |
 
+## 17.5 UI 视觉规范 (Design Review 输出)
+
+经 /plan-design-review 7 passes 评审, Stage 1 §4 UI IA 从 4/10 提升到 9/10. 完整视觉 spec 如下.
+
+### 17.5.A 详情页布局 (新建 CharacterDetailPage)
+
+🔴 **隐含 scope 暴露**: 现有 CharacterCard 系统**没有 detail 页面**, 只有 Gallery/Tile/Manager/CreateForm. Stage 1 必须新建:
+
+- 路由: `src/app/[locale]/(main)/cards/[id]/page.tsx`
+- 组件: `src/components/business/characters/CharacterDetailPage.tsx` (新)
+- 路径示例: `/cards/abc-uuid` → 展示该角色 detail + 资产 tab strip
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ AppSidebar (dark Krea Overlay, 已存在)                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Cards › Maya                                              [⚙][⤴][🗑]   │  ← Breadcrumb (Lora #b0aea5, 14px)
+│                                                                          │
+│  ┌────────┐                                                              │
+│  │   👤   │  Maya                                                        │  ← 28px Space Grotesk medium
+│  │ 96×96  │  A confident architect who designs                           │  ← Lora 15px #b0aea5, max 2 lines
+│  │ rounded│  buildings that breathe with the wind.                       │
+│  └────────┘  [architecture] [original] [recurring]                       │  ← Tags 12px Space Grotesk uppercase
+│                                                                          │
+│  ───────────────────────────────────────────────────  ← 1px #e8e6dc      │
+│                                                                          │
+│   三视图 (3)    服装 (2)    表情 (4)    其他 (1)                         │  ← Tab strip (13px Space Grotesk)
+│   ━━━━━━━━━                                                              │     active = 下划线 2px #d97757
+│   ───────────────────────────────────────────────────                    │     base = 1px #e8e6dc
+│                                                                          │
+│  [ 资产卡片网格 4 列 (240×240 each) ]                                    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.5.B Tab Strip Spec (已锁: 下划线形态)
+
+```css
+.tab-strip {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid #e8e6dc;
+  padding: 0;
+}
+.tab-item {
+  padding: 16px 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b0aea5;
+  cursor: pointer;
+  transition: color 200ms ease-out;
+}
+.tab-item:hover {
+  color: #141413;
+}
+.tab-item.active {
+  color: #141413;
+  border-bottom: 2px solid #d97757;
+  margin-bottom: -1px; /* 盖住 strip 底部的 1px line */
+}
+.tab-item .count {
+  margin-left: 4px;
+  color: #b0aea5;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile: horizontal scroll, 隐藏 count */
+@media (max-width: 640px) {
+  .tab-strip {
+    overflow-x: auto;
+    gap: 24px;
+    scrollbar-width: none;
+  }
+  .tab-item .count {
+    display: none;
+  }
+}
+```
+
+**ARIA**: `<nav role="tablist" aria-label="Asset categories">`, 每个 tab `role="tab" aria-selected aria-controls`. Tab content `role="tabpanel"`.
+
+**键盘**: ←→ 切换 tab; Tab key 进入 grid.
+
+### 17.5.C 一键生成 CTA Card (已锁: empty 居中放大 / 有资产末尾)
+
+**两个状态**:
+
+```
+┌─────────────────────────────────────┐    ┌──────────────┐
+│                                     │    │              │
+│                                     │    │   asset 1    │
+│           ╔═══════════╗             │    │              │
+│           ║   ╔═══╗   ║             │    └──────────────┘
+│           ║   ║ + ║   ║             │    ┌──────────────┐
+│           ║   ╚═══╝   ║             │    │              │
+│           ║           ║             │    │   asset 2    │
+│           ║ 为 Maya   ║             │    │              │
+│           ║ 生成三视图║             │    └──────────────┘
+│           ║           ║             │    ┌──────────────┐
+│           ║ ~3 credits║             │    │   ┌─────┐    │
+│           ╚═══════════╝             │    │   │  +  │    │  ← 末尾 CTA card 同尺寸
+│                                     │    │   │ 添加│    │     dashed border, terracotta
+│                                     │    │   └─────┘    │
+└─────────────────────────────────────┘    └──────────────┘
+   EMPTY 状态 (零资产)                       有资产状态 (CTA 在 grid 末尾)
+   居中, 放大 1.4x (336×336)                同 asset 尺寸 240×240
+```
+
+**Empty state 完整 spec**:
+
+```tsx
+<div className="empty-state">
+  <div className="cta-card cta-card--large">
+    {' '}
+    {/* 1.4x size */}
+    <PlusIcon className="w-12 h-12 text-[#d97757]" />
+    <h3 className="font-display text-lg font-medium text-[#141413]">
+      为 {character.name} 生成三视图
+    </h3>
+    <p className="font-serif text-sm text-[#8a8880] max-w-xs text-center">
+      三视图 (正/侧/背) 让你的角色在视频里转身、面对镜头、被观众认出。
+    </p>
+    <span className="font-display text-xs uppercase tracking-wide text-[#b0aea5]">
+      ~3 credits
+    </span>
+  </div>
+</div>
+```
+
+**CTA Card CSS**:
+
+```css
+.cta-card {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  border: 1px dashed #d97757;
+  background: #faf9f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out;
+}
+.cta-card:hover {
+  background: rgba(217, 119, 87, 0.04);
+  border-color: #141413;
+}
+.cta-card--large {
+  /* Empty state version */
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 40px;
+  aspect-ratio: 1 / 1;
+}
+.cta-card .label {
+  font-family: 'Space Grotesk';
+  font-size: 14px;
+  font-weight: 500;
+  color: #141413;
+  text-align: center;
+}
+.cta-card .cost-hint {
+  font-family: Lora, serif;
+  font-size: 13px;
+  color: #8a8880; /* 升级 muted, 满足 4.5:1 对比度 */
+}
+```
+
+**CTA 4 个状态 (生成流程)**:
+
+| 状态                    | CTA Card 样子                                                              |
+| ----------------------- | -------------------------------------------------------------------------- |
+| idle (可点击)           | dashed terracotta border + plus icon + label + cost hint                   |
+| generating (单张)       | 替换内部为 spinner + "Generating..." + 1px terracotta solid border, 不可点 |
+| batch generating (3 张) | spinner + "Generating 1 of 3..." + 下方进度 bar (terracotta filled)        |
+| partial-success         | 完成的 asset 已显示 + CTA card 显示 "2 / 3 succeeded — Retry failed?"      |
+| success                 | CTA card disappear → 资产 stagger fade-in (100ms 间隔) + Toast 通知        |
+
+### 17.5.D Asset Card Spec (已锁: hover 出现元数据)
+
+```css
+.asset-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px; /* rounded-2xl, 不要 rounded-full */
+  border: 1px solid #e8e6dc;
+  overflow: hidden;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 200ms ease-out;
+}
+.asset-card:hover {
+  border-color: #141413;
+}
+.asset-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* hover 时出现的 metadata overlay */
+.asset-card .meta-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(20, 20, 19, 0.7) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
+  color: #fff;
+}
+.asset-card:hover .meta-overlay,
+.asset-card:focus-within .meta-overlay {
+  opacity: 1;
+}
+.asset-card .view-type {
+  font-family: 'Space Grotesk';
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.asset-card .meta-line {
+  font-family: Lora, serif;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* hover 时出现的 actions (右上角) */
+.asset-card .actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.asset-card:hover .actions,
+.asset-card:focus-within .actions {
+  opacity: 1;
+}
+.asset-card .actions button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+/* Touch 设备: 长按触发 hover */
+@media (hover: none) {
+  .asset-card .meta-overlay,
+  .asset-card .actions {
+    opacity: 0;
+  }
+  .asset-card.long-pressed .meta-overlay,
+  .asset-card.long-pressed .actions {
+    opacity: 1;
+  }
+}
+```
+
+### 17.5.E Asset Card 6 个状态
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│          │  │ ░░░░░░░░ │  │█████████ │  │ ✓ 选中    │  │ ⚠ 错误    │  │   asset  │
+│  empty   │  │ ░shimmer░│  │██asset██ │  │  asset   │  │  border  │  │  + meta  │
+│  state   │  │ ░░░░░░░░ │  │█████████ │  │ #d97757  │  │  red-tint│  │ overlay  │
+│ (居中CTA)│  │Generating│  │  hover   │  │  border  │  │  [Retry] │  │ (hover时)│
+└──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+  empty       loading        hover        selected      failed       hover+meta
+```
+
+**Failed state 警告色衍生** (避免刺眼):
+
+```css
+.asset-card.failed {
+  border-color: rgba(217, 88, 88, 0.4);
+  background: rgba(217, 88, 88, 0.02);
+}
+.asset-card.failed .retry-link {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d97757;
+  font-family: 'Space Grotesk';
+  font-size: 14px;
+  text-decoration: underline;
+}
+```
+
+### 17.5.F Motion Spec
+
+```css
+/* 资产 fade-in (生成完成时) */
+@keyframes asset-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.asset-card.enter {
+  animation: asset-enter 400ms ease-out;
+}
+
+/* Batch 三视图 stagger */
+.asset-card.enter:nth-child(1) {
+  animation-delay: 0ms;
+}
+.asset-card.enter:nth-child(2) {
+  animation-delay: 100ms;
+}
+.asset-card.enter:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+/* Shimmer (loading) */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.asset-card.generating {
+  background: linear-gradient(90deg, #f3f1e9 0%, #faf9f5 50%, #f3f1e9 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+```
+
+**禁止**: bounce / spring / scale-up / parallax. design-system.md 明确禁止.
+
+### 17.5.G Responsive Grid
+
+```css
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1023px) {
+  .asset-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .asset-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .asset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+```
+
+### 17.5.H 🔴 P1 Accessibility 修复 (项目级别, 不只 Stage 1)
+
+design-system.md 的 `--muted-foreground: #b0aea5` 在 14px body text 上对比度 **2.7:1**, **不满足 WCAG AA 4.5:1**.
+
+**Stage 1 必修**:
+
+- 任何 14px 及以下的 muted 文字使用 `#8a8880` (4.0:1, AA Large 合格)
+- 或限制 muted 仅用于 ≥18px (AA Large 需 3:1)
+- 在 `globals.css` 新增 token: `--muted-foreground-readable: oklch(0.55 0.005 89);` (= #8a8880)
+
+### 17.5.I 微文案 (避免 AI Slop)
+
+| 场景          | ❌ Generic AI slop             | ✅ 具体温暖                                                           |
+| ------------- | ------------------------------ | --------------------------------------------------------------------- |
+| Empty 三视图  | "No three-view assets yet"     | "Maya 还没有三视图。这让她能在视频里转身、面对镜头、被观众认出。"     |
+| CTA 文案      | "Generate three-view set"      | "为 Maya 生成三视图 (~3 credits)"                                     |
+| 生成中        | "Loading..." / "Processing..." | "Generating 1 of 3..." (具体进度)                                     |
+| 全部失败      | "Generation failed"            | "三张三视图全部失败 — 检查 API key 或换 Gemini Pro Image 重试"        |
+| 部分失败      | "Some generations failed"      | "2 / 3 succeeded. 侧视图失败 — 可能是侧脸角度不清晰"                  |
+| 删除确认      | "Are you sure?"                | "删除 Maya 的正视图? 关联此资产的 Stage 2 视频剧本会失去 reference。" |
+| Provider 切换 | "Switch model"                 | "改用 Gemini Pro Image 重试这张?" (在失败 card 上)                    |
+
+### 17.5.J UI 组件树调整 (覆盖 §4.4)
+
+```
+src/components/business/characters/
+├── CharacterDetailPage.tsx                    (🔴 新, 隐含 scope 之前漏了)
+│   ├── CharacterHeader.tsx                    (96×96 头像 + name + desc + tags + actions)
+│   └── CharacterAssetGallery.tsx              (tab strip + asset grid 容器)
+│       ├── AssetTabStrip.tsx                  (下划线 tabs, terracotta active)
+│       ├── AssetGrid.tsx                      (responsive 1/2/3/4-col grid)
+│       ├── AssetCard.tsx                      (6 states: empty/loading/hover/selected/failed/normal)
+│       └── AssetGenerateCTA.tsx               (CTA card, 两种 size variants)
+├── ThreeViewGenerator.tsx                     (启动按钮 + 进度 modal)
+├── OutfitVariantGenerator.tsx                 (上传衣服参考 + 启动)
+└── ExpressionBatchGenerator.tsx               (4 预设 picker + 启动)
+
+src/app/[locale]/(main)/cards/[id]/
+└── page.tsx                                   (🔴 新路由, 渲染 CharacterDetailPage)
+```
+
+### 17.5.K Design Review Score (7 passes)
+
+| Pass                    | 初始 | Spec 后                 |
+| ----------------------- | ---- | ----------------------- |
+| 1. Information Arch     | 3/10 | 9/10                    |
+| 2. Interaction States   | 1/10 | 10/10                   |
+| 3. User Journey         | 2/10 | 8/10                    |
+| 4. AI Slop Risk         | 5/10 | 9/10                    |
+| 5. Design System Align  | 3/10 | 10/10                   |
+| 6. Responsive & A11y    | 1/10 | 9/10                    |
+| 7. Unresolved Decisions | —    | 5 resolved / 3 deferred |
+| **Overall**             | 4/10 | **9/10**                |
+
+3 deferred decisions (Pass 7):
+
+- Provider 切换 UX (失败时自动 fallback Gemini) → Stage 2 一起做
+- 资产删除确认 dialog 详细文案 → Week 3 UI polish
+- Generating 时阻塞 navigate away → Week 3 UI polish (默认非阻塞, 提示 banner)
+
+### 17.5.L i18n 关键 key 清单 (zh/en/ja 三语)
+
+```
+StudioV2:
+  characterDetail:
+    breadcrumb: "Cards"
+    tabs:
+      threeView: "三视图"
+      outfit: "服装"
+      expression: "表情"
+      other: "其他"
+    emptyState:
+      threeView:
+        title: "{name} 还没有三视图"
+        body: "三视图 (正/侧/背) 让你的角色在视频里转身、面对镜头、被观众认出。"
+        cta: "为 {name} 生成三视图"
+        cost: "~{credits} credits"
+    actions:
+      replace: "替换"
+      editLabel: "编辑标签"
+      delete: "删除"
+    generating:
+      single: "正在生成..."
+      batch: "正在生成 {current} / {total}..."
+    error:
+      allFailed: "{count} 张全部失败 — 检查 API key 或换 Gemini Pro Image 重试"
+      partialFailed: "{success} / {total} 成功"
+      retry: "重试"
+```
+
 ## 18. Completion summary
 
 - Step 0: Scope Challenge — 重大收敛 (避免新建 CharacterAsset 子表, 节省 7-10 个文件)
@@ -764,25 +1237,29 @@ Codex review 已完成 (2026-05-18). 6 个关键发现 + 4 个决策已 lock 进
 - Code Quality Review: 5 个 issue (2 P1 bug: image-transform switch 不一致 + OpenAI adapter 单图限制, 3 改进)
 - Test Review: Coverage diagram 产出, 26 gaps + 2 REGRESSION (强制覆盖)
 - Performance Review: 1 关键决策 (表情批量串行 + 限流)
-- NOT in scope: 10 项明确延后
+- Design Review: 7 passes, 整体分 4/10 → **9/10**, 3 个关键决策已锁 (tab 下划线 / CTA empty 居中 / metadata hover)
+  - 🔴 暴露隐含 scope: 必须新建 CharacterDetailPage + `/cards/[id]` 路由 (§17.5.A, §17.5.J)
+  - 🔴 暴露项目级 a11y bug: muted token #b0aea5 对比度不够, 必须新增 readable variant (§17.5.H)
+- NOT in scope: 10 项明确延后 + Design review 3 项延后 (Provider fallback / 删除 dialog 文案 / 阻塞 navigate)
 - What already exists: 9 项复用清单
 - Failure modes: 7 个场景 + 1 个 critical silent failure 标记
-- 工期: **3 周** (1 FT, 砍姿态库)
+- 工期: **3 周** (1 FT, 砍姿态库) — Design review 暴露的新 scope (CharacterDetailPage) 仍可在 Week 3 内完成, 因为 §17.5 spec 已锁
 - 并行: 4 lanes, A+B 可并行 2 周
 - Outside voice: ran (Codex) — 6 finding, 4 lock 进文档
 - Cross-model tensions: 5 个, 全部 resolve
 
 ## GSTACK REVIEW REPORT
 
-| Review        | Trigger               | Why                             | Runs | Status                  | Findings                                         |
-| ------------- | --------------------- | ------------------------------- | ---- | ----------------------- | ------------------------------------------------ |
-| CEO Review    | `/plan-ceo-review`    | Scope & strategy                | 0    | —                       | —                                                |
-| Codex Review  | `/codex review`       | Independent 2nd opinion         | 1    | issues_found → 5 locked | 6 findings, 4 incorporated + 1 partial, 1 未采纳 |
-| Eng Review    | `/plan-eng-review`    | Architecture & tests (required) | 1    | issues_open → APPROVED  | 5 issues (2 P1, 3 改进), 26 test gaps, 3 周 plan |
-| Design Review | `/plan-design-review` | UI/UX gaps                      | 0    | —                       | —                                                |
-| DX Review     | `/plan-devex-review`  | Developer experience gaps       | 0    | —                       | —                                                |
+| Review        | Trigger               | Why                             | Runs | Status                  | Findings                                                                           |
+| ------------- | --------------------- | ------------------------------- | ---- | ----------------------- | ---------------------------------------------------------------------------------- |
+| CEO Review    | `/plan-ceo-review`    | Scope & strategy                | 0    | —                       | —                                                                                  |
+| Codex Review  | `/codex review`       | Independent 2nd opinion         | 1    | issues_found → 5 locked | 6 findings, 4 incorporated + 1 partial, 1 未采纳                                   |
+| Eng Review    | `/plan-eng-review`    | Architecture & tests (required) | 1    | issues_open → APPROVED  | 5 issues (2 P1, 3 改进), 26 test gaps, 3 周 plan                                   |
+| Design Review | `/plan-design-review` | UI/UX gaps                      | 1    | CLEAR (PLAN)            | 4/10 → 9/10, 5 decisions, 3 deferred, exposed CharacterDetailPage scope + a11y bug |
+| DX Review     | `/plan-devex-review`  | Developer experience gaps       | 0    | —                       | —                                                                                  |
 
 - **CODEX**: 6 findings, 4 fully incorporated (T1-T4), 1 partially (Stage 1 4→3 周), 1 declined (Week 0 spike)
 - **CROSS-MODEL**: 5 tensions resolved, all locked in §17
 - **UNRESOLVED**: 0
-- **VERDICT**: ENG CLEARED with Codex amendments — ready to implement Week 1 starting OpenAI adapter image[] upgrade as Day 1 blocker
+- **DESIGN**: 4/10 → 9/10, 3 关键决策已锁 (tab 下划线 / CTA empty 居中 / metadata hover). 暴露 P1 隐含 scope: CharacterDetailPage 路由不存在, 必须新建. 暴露项目级 P1 a11y: muted token 对比度不够
+- **VERDICT**: ENG + DESIGN CLEARED with Codex amendments — ready to implement Week 1 starting OpenAI adapter image[] upgrade as Day 1 blocker. Design spec 完整 in §17.5, 工程师可直接实现.

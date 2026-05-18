@@ -779,6 +779,23 @@ export async function generateImageForUser(
     routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
   })
 
+  // image-perf #2: start the reference-image R2 upload before we hand
+  // control to the provider. Provider latency dominates (~3–60s); the
+  // ref upload is ~100–800ms; running them concurrently hides the
+  // upload behind the provider call. We hold an unawaited promise here
+  // and resolve it inside `persistGeneratedImage`.
+  // `.catch` neutralises the unhandledRejection if the provider throws
+  // first — `persistGeneratedImage` re-throws the real error when it
+  // awaits the promise itself.
+  const refImageUrlPromise = uploadReferenceImageIfNeeded({
+    userId: dbUser.id,
+    input,
+    timer,
+  })
+  refImageUrlPromise.catch(() => {
+    /* swallowed here; awaited inside persistGeneratedImage */
+  })
+
   const result = await timer.measure(GENERATION_STAGE.PROVIDER_SUBMIT, () =>
     callProviderWithFallback({
       clerkId,
@@ -802,5 +819,6 @@ export async function generateImageForUser(
     asset: result.asset,
     durationMs: result.durationMs,
     timer,
+    preResolvedReferenceUrl: refImageUrlPromise,
   })
 }

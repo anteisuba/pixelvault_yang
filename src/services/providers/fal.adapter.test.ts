@@ -234,6 +234,25 @@ describe('falAdapter image-to-3D queue', () => {
     apiKey: 'fal-test-key',
   }
 
+  it('surfaces exhausted fal balance separately from invalid API keys', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail:
+              'User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.',
+          }),
+          { status: 403 },
+        ),
+      ),
+    )
+
+    await expect(
+      falAdapter.submitModel3DToQueue!(MODEL_3D_INPUT),
+    ).rejects.toThrow('账户余额不足')
+  })
+
   it('submits with input_image_url for Hunyuan3D and returns queue handles', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -326,6 +345,47 @@ describe('falAdapter image-to-3D queue', () => {
     expect(body.enable_pbr).toBe(true)
     expect(body.face_count).toBe(1_000_000)
     expect(body.generate_type).toBe('Normal')
+  })
+
+  it('forwards all five multi-view angles to Hunyuan3D v3.1 Pro', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          request_id: 'req-hy31-5view',
+          status_url: 'https://queue.fal.run/status/req-hy31-5view',
+          response_url: 'https://queue.fal.run/result/req-hy31-5view',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.submitModel3DToQueue!({
+      ...MODEL_3D_INPUT,
+      modelId: 'hunyuan3d-v3.1-pro',
+      multiViewImages: {
+        backImageUrl: 'https://r2.example.com/back.png',
+        leftImageUrl: 'https://r2.example.com/left.png',
+        rightImageUrl: 'https://r2.example.com/right.png',
+        leftFrontImageUrl: 'https://r2.example.com/left-front.png',
+        rightFrontImageUrl: 'https://r2.example.com/right-front.png',
+      },
+      enablePbr: true,
+      faceCount: 500_000,
+      generateType: 'Normal',
+    })
+
+    const [, init] = fetchMock.mock.calls[0]
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.back_image_url).toBe('https://r2.example.com/back.png')
+    expect(body.left_image_url).toBe('https://r2.example.com/left.png')
+    expect(body.right_image_url).toBe('https://r2.example.com/right.png')
+    expect(body.left_front_image_url).toBe(
+      'https://r2.example.com/left-front.png',
+    )
+    expect(body.right_front_image_url).toBe(
+      'https://r2.example.com/right-front.png',
+    )
   })
 
   it('submits Hunyuan3D v3.1 Pro geometry preview requests', async () => {

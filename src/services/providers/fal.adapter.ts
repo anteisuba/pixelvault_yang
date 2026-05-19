@@ -39,9 +39,20 @@ function formatFalError(status: number, errorBody: string): string {
   const type =
     typeof firstError?.type === 'string' ? firstError.type : undefined
   const msg = typeof firstError?.msg === 'string' ? firstError.msg : undefined
+  const detailText = typeof detail === 'string' ? detail : undefined
+  const normalizedMessage = [type, msg, detailText, errorBody]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ')
 
   if (type === 'content_policy_violation') {
     return 'fal.ai 内容审核拒绝：生成结果被判定为敏感内容。请调整 prompt 或参考图（常见触发：暴力、裸露、真人脸特征、特定角色等）后重试。'
+  }
+  if (
+    /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|余额不足|余额已耗尽|充值/i.test(
+      normalizedMessage,
+    )
+  ) {
+    return 'fal.ai 账户余额不足，请前往 fal.ai 控制台充值，或切换到有余额的 API Key 后重试。'
   }
   if (status === 401 || status === 403) {
     return 'fal.ai API Key 无效或权限不足，请检查 Key 是否正确。'

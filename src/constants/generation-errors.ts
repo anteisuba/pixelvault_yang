@@ -5,6 +5,7 @@ export const GENERATION_ERROR_CODES = {
   INVALID_API_KEY: 'invalid_api_key',
   CONTENT_FILTERED: 'content_filtered',
   MODEL_UNAVAILABLE: 'model_unavailable',
+  PROVIDER_INSUFFICIENT_BALANCE: 'provider_insufficient_balance',
   INSUFFICIENT_CREDITS: 'insufficient_credits',
   UNSUPPORTED_REFERENCE_IMAGE_FORMAT: 'unsupported_reference_image_format',
   REFERENCE_IMAGE_TOO_LARGE: 'reference_image_too_large',
@@ -102,6 +103,11 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; code: GenerationErrorCode }> = [
   },
   {
     pattern:
+      /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|余额不足|余额已耗尽|充值/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
+  },
+  {
+    pattern:
       /(?:invalid|expired|missing|not\s+set).*api[\s-]?key|unauthorized|\b401\b/i,
     code: GENERATION_ERROR_CODES.INVALID_API_KEY,
   },
@@ -157,6 +163,9 @@ export function getGenerationErrorI18nKey(errorMessage: string): string | null {
   }
   if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
     return 'errors.provider.invalidReferenceImageDimensions'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE) {
+    return 'errors.provider.insufficientBalance'
   }
 
   return null

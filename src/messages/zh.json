@@ -857,6 +857,22 @@
     "scaleHint": "0 = 关闭，1 = 完全应用",
     "alreadyHere": "{name} 已激活，准备生成"
   },
+  "StudioLoraChip": {
+    "label": "LoRA",
+    "trigger": "选择 LoRA",
+    "triggerWithCount": "{count} 个 LoRA 已激活",
+    "emptyHint": "还没有 LoRA。点下方「打开 LoRA 库」浏览或收藏。",
+    "removeAria": "移除 {name}",
+    "openLibrary": "打开 LoRA 库",
+    "clearAll": "全部清除",
+    "bannerEmpty": "先从 LoRA 库挑一个 LoRA，再回来生成。",
+    "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",
+    "bannerNoModel": "请先选一个支持 {family} 的模型。",
+    "bannerUnsupported": "当前模型「{model}」不支持 LoRA — 这些 {family} LoRA 将被忽略。",
+    "bannerFamilyMismatch": "当前模型「{model}」与 {family} LoRA 不兼容 — 生成结果不会带 LoRA 风格。",
+    "pickModel": "切到 {model}",
+    "pickModelHint": "用 LoRA 的基础架构选一个能跑的模型"
+  },
   "LoraWorkbench": {
     "tabs": {
       "mine": "我的",

@@ -16,6 +16,7 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAspectRatioPopover'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
+import { StudioLoraChip } from '@/components/business/studio/StudioLoraChip'
 import { StudioReverseButton } from '@/components/business/studio/StudioReverseButton'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
@@ -143,6 +144,7 @@ export function StudioToolbar({
           />
         )}
         <StudioCardsButton disabled={disabled} />
+        <StudioLoraChip disabled={disabled} />
         {!quickMode && (
           <ToolButton
             icon={<Layers className="size-4" />}

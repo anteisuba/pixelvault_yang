@@ -857,6 +857,22 @@
     "scaleHint": "0 = off, 1 = full effect",
     "alreadyHere": "{name} is active — ready to generate"
   },
+  "StudioLoraChip": {
+    "label": "LoRA",
+    "trigger": "Pick a LoRA",
+    "triggerWithCount": "{count} LoRA active",
+    "emptyHint": "No LoRA yet. Tap \"Open LoRA Library\" below to browse or favorite one.",
+    "removeAria": "Remove {name}",
+    "openLibrary": "Open LoRA Library",
+    "clearAll": "Clear all",
+    "bannerEmpty": "Pick a LoRA from the library, then come back to generate.",
+    "bannerOk": "Current model \"{model}\" can run these LoRAs.",
+    "bannerNoModel": "Pick a model that supports {family} first.",
+    "bannerUnsupported": "Current model \"{model}\" doesn't support LoRA — your {family} LoRAs will be ignored.",
+    "bannerFamilyMismatch": "Current model \"{model}\" is not compatible with {family} LoRAs — they won't take effect.",
+    "pickModel": "Switch to {model}",
+    "pickModelHint": "Pick a model that matches the LoRA's base architecture"
+  },
   "LoraWorkbench": {
     "tabs": {
       "mine": "Mine",

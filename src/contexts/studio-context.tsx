@@ -151,6 +151,20 @@ export interface StudioFormState {
   audioRepetitionPenalty: number
   /** Audio-specific — ordered voice IDs for <|speaker:n|> dialogue tags */
   audioSpeakerVoiceIds: string[]
+  /**
+   * Audio-specific — public URL of an ad-hoc reference clip the user
+   * uploaded for zero-shot voice cloning. Null when not in use. Lower
+   * priority than `speakerVoiceIds` / `voiceId` — the Fish adapter only
+   * consults this when neither preset path is set.
+   */
+  audioReferenceUrl: string | null
+  /** Display name of the uploaded reference audio (UX only, not sent). */
+  audioReferenceFileName: string | null
+  /**
+   * Required transcript for the reference audio above. Fish's `references`
+   * payload rejects audio without text, so the schema enforces both-or-none.
+   */
+  audioReferenceText: string
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
   /** Video-specific — duration in seconds per clip */
@@ -199,6 +213,11 @@ export type StudioAction =
   | { type: 'SET_AUDIO_CHUNK_LENGTH'; payload: number }
   | { type: 'SET_AUDIO_REPETITION_PENALTY'; payload: number }
   | { type: 'SET_AUDIO_SPEAKER_VOICE_IDS'; payload: string[] }
+  | {
+      type: 'SET_AUDIO_REFERENCE_UPLOAD'
+      payload: { url: string; fileName: string } | null
+    }
+  | { type: 'SET_AUDIO_REFERENCE_TEXT'; payload: string }
   | {
       type: 'SET_PRONUNCIATION_DICTIONARY'
       payload: Record<string, string>
@@ -269,6 +288,9 @@ const initialFormState: StudioFormState = {
   audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
   audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
   audioSpeakerVoiceIds: [],
+  audioReferenceUrl: null,
+  audioReferenceFileName: null,
+  audioReferenceText: '',
   stylePresetId: NO_STYLE_PRESET_ID,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
@@ -344,6 +366,22 @@ export function studioFormReducer(
         ...state,
         audioSpeakerVoiceIds: normalizeSpeakerVoiceIds(action.payload),
       }
+    case 'SET_AUDIO_REFERENCE_UPLOAD':
+      if (!action.payload) {
+        return {
+          ...state,
+          audioReferenceUrl: null,
+          audioReferenceFileName: null,
+          audioReferenceText: '',
+        }
+      }
+      return {
+        ...state,
+        audioReferenceUrl: action.payload.url,
+        audioReferenceFileName: action.payload.fileName,
+      }
+    case 'SET_AUDIO_REFERENCE_TEXT':
+      return { ...state, audioReferenceText: action.payload }
     case 'SET_PRONUNCIATION_DICTIONARY':
       return { ...state, pronunciationDictionary: action.payload }
     case 'SET_STYLE_PRESET':
@@ -443,6 +481,9 @@ export function studioFormReducer(
         audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
         audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
         audioSpeakerVoiceIds: [],
+        audioReferenceUrl: null,
+        audioReferenceFileName: null,
+        audioReferenceText: '',
         stylePresetId: NO_STYLE_PRESET_ID,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,

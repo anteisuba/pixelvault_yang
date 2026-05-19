@@ -47,6 +47,9 @@ function makeInitialState(
     audioChunkLength: 300,
     audioRepetitionPenalty: 1.2,
     audioSpeakerVoiceIds: [],
+    audioReferenceUrl: null,
+    audioReferenceFileName: null,
+    audioReferenceText: '',
     stylePresetId: '',
     videoDuration: 5,
     videoResolution: null,
@@ -376,6 +379,47 @@ describe('studioFormReducer', () => {
     })
     expect(next.audioSpeakerVoiceIds).toHaveLength(8)
     expect(next.audioSpeakerVoiceIds).toEqual(oversized.slice(0, 8))
+  })
+
+  // ── SET_AUDIO_REFERENCE_UPLOAD / SET_AUDIO_REFERENCE_TEXT ──
+
+  it('SET_AUDIO_REFERENCE_UPLOAD stores url and fileName', () => {
+    const state = makeInitialState()
+    const next = studioFormReducer(state, {
+      type: 'SET_AUDIO_REFERENCE_UPLOAD',
+      payload: { url: 'https://cdn.example.com/r.mp3', fileName: 'voice.mp3' },
+    })
+    expect(next.audioReferenceUrl).toBe('https://cdn.example.com/r.mp3')
+    expect(next.audioReferenceFileName).toBe('voice.mp3')
+  })
+
+  it('SET_AUDIO_REFERENCE_UPLOAD with null clears url, fileName, and text', () => {
+    const state = makeInitialState({
+      audioReferenceUrl: 'https://cdn.example.com/r.mp3',
+      audioReferenceFileName: 'voice.mp3',
+      audioReferenceText: 'hello world',
+    })
+    const next = studioFormReducer(state, {
+      type: 'SET_AUDIO_REFERENCE_UPLOAD',
+      payload: null,
+    })
+    expect(next.audioReferenceUrl).toBeNull()
+    expect(next.audioReferenceFileName).toBeNull()
+    expect(next.audioReferenceText).toBe('')
+  })
+
+  it('SET_AUDIO_REFERENCE_TEXT updates only the transcript field', () => {
+    const state = makeInitialState({
+      audioReferenceUrl: 'https://cdn.example.com/r.mp3',
+      audioReferenceFileName: 'voice.mp3',
+    })
+    const next = studioFormReducer(state, {
+      type: 'SET_AUDIO_REFERENCE_TEXT',
+      payload: 'Hello world.',
+    })
+    expect(next.audioReferenceText).toBe('Hello world.')
+    expect(next.audioReferenceUrl).toBe('https://cdn.example.com/r.mp3')
+    expect(next.audioReferenceFileName).toBe('voice.mp3')
   })
 
   // ── SET_ASPECT_RATIO ──

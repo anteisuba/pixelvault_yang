@@ -534,7 +534,21 @@
     "speakerVoiceRemove": "移除角色 {index}",
     "speakerVoiceReplace": "替换角色 {index}",
     "speakerVoiceLimitReached": "最多 {max} 个角色音色。",
-    "speakerVoicePickHint": "从左侧声音库选择一个音色来分配给角色。"
+    "speakerVoicePickHint": "从左侧声音库选择一个音色来分配给角色。",
+    "referenceAudio": "参考音频（零样本克隆）",
+    "referenceAudioHint": "上传一段短音频 + 对应文字，本次生成会克隆这个嗓音。仅当没有选预设音色 / 多角色音色时生效。",
+    "referencePick": "点击上传音频（≤ {max}）",
+    "referenceUploading": "正在上传参考音频…",
+    "referenceUploadSuccess": "参考音频已上传。",
+    "referenceRemove": "移除参考音频",
+    "referenceFallbackName": "参考音频",
+    "referenceText": "参考文字稿",
+    "referenceTextPlaceholder": "把音频中说的话原样写下来…",
+    "referenceTextHint": "需要与音频内容一字一句对应，Fish Audio 据此锁定音色。",
+    "referenceTextRequired": "上传参考音频后必须填写对应文字稿。",
+    "referenceErrorTooLarge": "参考音频太大，单文件不能超过 {max}。",
+    "referenceErrorNotAudio": "这不是一个音频文件，请上传 MP3 / WAV / M4A / FLAC。",
+    "referenceErrorFailed": "参考音频上传失败。"
   },
   "audioFeedback": {
     "voiceMismatch": "音色不对",
@@ -2123,7 +2137,8 @@
       "modelRequired": "请先选择模型",
       "promptRequired": "请输入提示词后再生成",
       "referenceRequired": "这个模型需要参考图",
-      "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内"
+      "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
+      "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。"
     },
     "audioPromptMeta": "{current} / {max} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
     "audioPromptMetaNoModel": "{current} / {max} 字 · ≈ {minutes} 分钟 · 选择模型后显示额度",

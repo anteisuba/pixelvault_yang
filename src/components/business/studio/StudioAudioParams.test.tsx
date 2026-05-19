@@ -25,6 +25,13 @@ function renderAudioParams(overrides?: {
   onChangePauseMarkers?: (markers: string[]) => void
   onChangeAdvanced?: (settings: Partial<StudioAudioAdvancedSettings>) => void
   onRequestSpeakerVoiceSelect?: (index: number | null) => void
+  audioReferenceUrl?: string | null
+  audioReferenceFileName?: string | null
+  audioReferenceText?: string
+  onChangeAudioReferenceUpload?: (
+    payload: { url: string; fileName: string } | null,
+  ) => void
+  onChangeAudioReferenceText?: (text: string) => void
 }) {
   const advanced: StudioAudioAdvancedSettings = {
     style: 'none',
@@ -55,6 +62,13 @@ function renderAudioParams(overrides?: {
     onRequestSpeakerVoiceSelect:
       overrides?.onRequestSpeakerVoiceSelect ?? vi.fn(),
     activeSpeakerVoiceIndex: overrides?.activeSpeakerVoiceIndex,
+    audioReferenceUrl: overrides?.audioReferenceUrl ?? null,
+    audioReferenceFileName: overrides?.audioReferenceFileName ?? null,
+    audioReferenceText: overrides?.audioReferenceText ?? '',
+    onChangeAudioReferenceUpload:
+      overrides?.onChangeAudioReferenceUpload ?? vi.fn(),
+    onChangeAudioReferenceText:
+      overrides?.onChangeAudioReferenceText ?? vi.fn(),
   }
 
   render(<StudioAudioParams {...props} />)
@@ -158,6 +172,68 @@ describe('StudioAudioParams', () => {
     expect(onChangeAdvanced).toHaveBeenCalledWith({
       speakerVoiceIds: ['voice-a', 'voice-b'],
     })
+  })
+
+  it('renders the reference-audio dropzone with transcript field on the Voice tab', () => {
+    renderAudioParams()
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    // Empty state: dropzone visible, transcript empty
+    expect(screen.getByText(/referencePick/)).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('referenceTextPlaceholder'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('referenceTextHint')).toBeInTheDocument()
+  })
+
+  it('shows the required-transcript hint when audio is uploaded but text is empty', () => {
+    renderAudioParams({
+      audioReferenceUrl: 'https://cdn.example.com/r.mp3',
+      audioReferenceFileName: 'voice.mp3',
+      audioReferenceText: '',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    expect(screen.getByText('voice.mp3')).toBeInTheDocument()
+    expect(screen.getByText('referenceTextRequired')).toBeInTheDocument()
+  })
+
+  it('forwards transcript edits via onChangeAudioReferenceText', () => {
+    const onChangeAudioReferenceText = vi.fn()
+    renderAudioParams({
+      audioReferenceUrl: 'https://cdn.example.com/r.mp3',
+      audioReferenceFileName: 'voice.mp3',
+      audioReferenceText: '',
+      onChangeAudioReferenceText,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    fireEvent.change(screen.getByPlaceholderText('referenceTextPlaceholder'), {
+      target: { value: 'Hello world.' },
+    })
+    expect(onChangeAudioReferenceText).toHaveBeenCalledWith('Hello world.')
+  })
+
+  it('clears the reference upload when the trash button is pressed', () => {
+    const onChangeAudioReferenceUpload = vi.fn()
+    renderAudioParams({
+      audioReferenceUrl: 'https://cdn.example.com/r.mp3',
+      audioReferenceFileName: 'voice.mp3',
+      audioReferenceText: 'hi',
+      onChangeAudioReferenceUpload,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /tabVoice/ }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'referenceRemove' }))
+    expect(onChangeAudioReferenceUpload).toHaveBeenCalledWith(null)
   })
 
   it('does not trigger the hover-preview audio when no demo file is configured', () => {

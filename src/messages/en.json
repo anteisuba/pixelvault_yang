@@ -534,7 +534,21 @@
     "speakerVoiceRemove": "Remove speaker {index}",
     "speakerVoiceReplace": "Replace speaker {index}",
     "speakerVoiceLimitReached": "Up to {max} speaker voices.",
-    "speakerVoicePickHint": "Select a voice from the library list to assign it."
+    "speakerVoicePickHint": "Select a voice from the library list to assign it.",
+    "referenceAudio": "Reference audio (zero-shot)",
+    "referenceAudioHint": "Upload a short clip plus its transcript to clone that voice for this generation. Used only when no preset voice or speaker chip is set.",
+    "referencePick": "Click to upload an audio clip (≤ {max})",
+    "referenceUploading": "Uploading reference clip…",
+    "referenceUploadSuccess": "Reference clip uploaded.",
+    "referenceRemove": "Remove reference clip",
+    "referenceFallbackName": "reference clip",
+    "referenceText": "Reference transcript",
+    "referenceTextPlaceholder": "Type exactly what the clip says…",
+    "referenceTextHint": "Match the speech word-for-word. Fish Audio uses this to lock the voice.",
+    "referenceTextRequired": "Transcript is required when a reference clip is attached.",
+    "referenceErrorTooLarge": "Reference audio is too large. Max {max}.",
+    "referenceErrorNotAudio": "That file isn't audio. Try MP3, WAV, M4A, or FLAC.",
+    "referenceErrorFailed": "Failed to upload the reference clip."
   },
   "audioFeedback": {
     "voiceMismatch": "Voice mismatch",
@@ -2123,7 +2137,8 @@
       "modelRequired": "Pick a model first",
       "promptRequired": "Type a prompt to generate",
       "referenceRequired": "This model needs a reference image",
-      "audioPromptTooLong": "Shorten the audio text to {max} characters or less"
+      "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
+      "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating."
     },
     "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
     "audioPromptMetaNoModel": "{current} / {max} chars · ≈ {minutes} min · select a model for cost",

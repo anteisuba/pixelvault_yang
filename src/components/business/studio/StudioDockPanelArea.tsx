@@ -462,6 +462,21 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
             onRequestSpeakerVoiceSelect={requestSpeakerVoiceSelect}
             isSelectingSpeakerVoice={isSelectingSpeakerVoice}
             activeSpeakerVoiceIndex={activeSpeakerVoiceIndex}
+            audioReferenceUrl={state.audioReferenceUrl}
+            audioReferenceFileName={state.audioReferenceFileName}
+            audioReferenceText={state.audioReferenceText}
+            onChangeAudioReferenceUpload={(payload) =>
+              dispatch({
+                type: 'SET_AUDIO_REFERENCE_UPLOAD',
+                payload,
+              })
+            }
+            onChangeAudioReferenceText={(text) =>
+              dispatch({
+                type: 'SET_AUDIO_REFERENCE_TEXT',
+                payload: text,
+              })
+            }
           />
         }
       />

@@ -15,12 +15,15 @@ import {
   ChevronDown,
   FileAudio2,
   HelpCircle,
+  Loader2,
   MessagesSquare,
   Mic2,
   MinusCircle,
   Moon,
   Plus,
   SlidersHorizontal,
+  Trash2,
+  Upload,
   Wind,
   X,
   Zap,
@@ -56,7 +59,11 @@ import {
   AUDIO_PAUSE_MARKERS,
   AUDIO_STYLE,
 } from '@/constants/voice-cards'
+import { toast } from 'sonner'
+
+import { uploadReferenceAudioAPI } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { cn } from '@/lib/utils'
 import {
@@ -105,6 +112,18 @@ interface StudioAudioParamsProps {
   onRequestSpeakerVoiceSelect: (index: number | null) => void
   isSelectingSpeakerVoice?: boolean
   activeSpeakerVoiceIndex?: number | null
+  /** Public R2 URL of the uploaded ad-hoc reference clip, or null. */
+  audioReferenceUrl: string | null
+  /** Display-only name of the uploaded reference clip. */
+  audioReferenceFileName: string | null
+  /** Transcript the user wrote for the uploaded reference clip. */
+  audioReferenceText: string
+  /** Fires when the reference clip is uploaded or cleared. */
+  onChangeAudioReferenceUpload: (
+    payload: { url: string; fileName: string } | null,
+  ) => void
+  /** Fires on every keystroke in the reference transcript textarea. */
+  onChangeAudioReferenceText: (text: string) => void
 }
 
 type AudioStyleValue = (typeof AUDIO_STYLE)[keyof typeof AUDIO_STYLE]
@@ -390,6 +409,161 @@ function SpeakerVoiceIdsField({
   )
 }
 
+const REFERENCE_AUDIO_MAX_MB = 25
+const REFERENCE_AUDIO_MAX_BYTES = REFERENCE_AUDIO_MAX_MB * 1024 * 1024
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const kb = bytes / 1024
+  if (kb < 1024) return `${kb.toFixed(1)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
+}
+
+interface ReferenceAudioFieldProps {
+  url: string | null
+  fileName: string | null
+  text: string
+  onChangeUpload: (payload: { url: string; fileName: string } | null) => void
+  onChangeText: (text: string) => void
+}
+
+function ReferenceAudioField({
+  url,
+  fileName,
+  text,
+  onChangeUpload,
+  onChangeText,
+}: ReferenceAudioFieldProps) {
+  const t = useTranslations('audioParams')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handlePick = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selected = event.target.files?.[0] ?? null
+      event.target.value = ''
+      if (!selected) return
+
+      if (selected.size > REFERENCE_AUDIO_MAX_BYTES) {
+        toast.error(
+          t('referenceErrorTooLarge', { max: `${REFERENCE_AUDIO_MAX_MB} MB` }),
+        )
+        return
+      }
+      if (!selected.type.startsWith('audio/')) {
+        toast.error(t('referenceErrorNotAudio'))
+        return
+      }
+
+      setIsUploading(true)
+      const result = await uploadReferenceAudioAPI(selected)
+      setIsUploading(false)
+
+      if (!result.success || !result.data) {
+        toast.error(result.error ?? t('referenceErrorFailed'))
+        return
+      }
+
+      onChangeUpload({
+        url: result.data.url,
+        fileName: result.data.fileName || selected.name,
+      })
+      toast.success(t('referenceUploadSuccess'))
+    },
+    [onChangeUpload, t],
+  )
+
+  const handleClear = useCallback(() => {
+    if (isUploading) return
+    onChangeUpload(null)
+  }, [isUploading, onChangeUpload])
+
+  return (
+    <div className="space-y-2">
+      <AudioFieldLabel
+        label={t('referenceAudio')}
+        hint={t('referenceAudioHint')}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handlePick}
+        className="sr-only"
+        aria-label={t('referenceAudio')}
+      />
+
+      {url ? (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-xs">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <FileAudio2 className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate text-foreground">
+              {fileName ?? t('referenceFallbackName')}
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            disabled={isUploading}
+            aria-label={t('referenceRemove')}
+            className="h-6 w-6 shrink-0 p-0"
+          >
+            <Trash2 className="size-3" />
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className={cn(
+            'flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 bg-background/50 px-3 py-3 text-2xs text-muted-foreground transition-colors',
+            'hover:border-primary/40 hover:bg-muted/30 hover:text-foreground',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            isUploading && 'cursor-wait opacity-70',
+          )}
+        >
+          {isUploading ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Upload className="size-3.5" />
+          )}
+          <span>
+            {isUploading
+              ? t('referenceUploading')
+              : t('referencePick', { max: `${REFERENCE_AUDIO_MAX_MB} MB` })}
+          </span>
+        </button>
+      )}
+
+      <Textarea
+        value={text}
+        onChange={(event) => onChangeText(event.target.value)}
+        placeholder={t('referenceTextPlaceholder')}
+        rows={3}
+        aria-label={t('referenceText')}
+        className="text-xs"
+        disabled={!url && text.length === 0 ? false : isUploading}
+      />
+      <p
+        className={cn(
+          'text-2xs',
+          url && text.trim().length === 0
+            ? 'text-destructive'
+            : 'text-muted-foreground',
+        )}
+      >
+        {url && text.trim().length === 0
+          ? t('referenceTextRequired')
+          : t('referenceTextHint')}
+      </p>
+    </div>
+  )
+}
+
 export const StudioAudioParams = memo(function StudioAudioParams({
   voiceCardId,
   pace,
@@ -401,6 +575,11 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   onRequestSpeakerVoiceSelect,
   isSelectingSpeakerVoice,
   activeSpeakerVoiceIndex,
+  audioReferenceUrl,
+  audioReferenceFileName,
+  audioReferenceText,
+  onChangeAudioReferenceUpload,
+  onChangeAudioReferenceText,
 }: StudioAudioParamsProps) {
   const t = useTranslations('audioParams')
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -746,6 +925,14 @@ export const StudioAudioParams = memo(function StudioAudioParams({
                   value={AUDIO_ADVANCED_TAB_IDS.VOICE}
                   className="mt-4 space-y-4"
                 >
+                  <ReferenceAudioField
+                    url={audioReferenceUrl}
+                    fileName={audioReferenceFileName}
+                    text={audioReferenceText}
+                    onChangeUpload={onChangeAudioReferenceUpload}
+                    onChangeText={onChangeAudioReferenceText}
+                  />
+
                   <div className="grid gap-2">
                     <AudioSwitchRow
                       label={t('normalizeLoudness')}

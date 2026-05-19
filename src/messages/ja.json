@@ -534,7 +534,21 @@
     "speakerVoiceRemove": "話者 {index} を削除",
     "speakerVoiceReplace": "話者 {index} を置換",
     "speakerVoiceLimitReached": "話者ボイスは最大 {max} 件です。",
-    "speakerVoicePickHint": "左側のボイスライブラリから割り当てるボイスを選択してください。"
+    "speakerVoicePickHint": "左側のボイスライブラリから割り当てるボイスを選択してください。",
+    "referenceAudio": "参考音声（ゼロショットクローン）",
+    "referenceAudioHint": "短い音声と書き起こしをアップロードすると、その声を今回の生成にクローンします。プリセットボイスや話者ボイスを使っていない場合のみ有効です。",
+    "referencePick": "音声をアップロード（{max} まで）",
+    "referenceUploading": "参考音声をアップロード中…",
+    "referenceUploadSuccess": "参考音声をアップロードしました。",
+    "referenceRemove": "参考音声を削除",
+    "referenceFallbackName": "参考音声",
+    "referenceText": "参考音声の書き起こし",
+    "referenceTextPlaceholder": "音声の内容を一字一句書き起こしてください…",
+    "referenceTextHint": "Fish Audio はこの書き起こしで声を固定します。完全一致させてください。",
+    "referenceTextRequired": "参考音声をアップロードしたら、書き起こしも必須です。",
+    "referenceErrorTooLarge": "参考音声が大きすぎます。最大 {max} まで。",
+    "referenceErrorNotAudio": "音声ファイルではありません。MP3 / WAV / M4A / FLAC を選択してください。",
+    "referenceErrorFailed": "参考音声のアップロードに失敗しました。"
   },
   "audioFeedback": {
     "voiceMismatch": "声が合わない",
@@ -2123,7 +2137,8 @@
       "modelRequired": "先にモデルを選択してください",
       "promptRequired": "生成するにはプロンプトを入力してください",
       "referenceRequired": "このモデルには参照画像が必要です",
-      "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください"
+      "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください",
+      "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。"
     },
     "audioPromptMeta": "{current} / {max} 文字 · 約 {minutes} 分 · 生成 {credits} 回分",
     "audioPromptMetaNoModel": "{current} / {max} 文字 · 約 {minutes} 分 · モデル選択後に消費量を表示",

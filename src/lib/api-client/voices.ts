@@ -28,6 +28,20 @@ interface VoiceTranscriptionResponse {
   errorCode?: string
 }
 
+export interface ReferenceAudioUpload {
+  url: string
+  sizeBytes: number
+  mimeType: string
+  fileName: string
+}
+
+interface ReferenceAudioUploadResponse {
+  success: boolean
+  data?: ReferenceAudioUpload
+  error?: string
+  errorCode?: string
+}
+
 export async function listVoicesAPI(params: {
   self?: boolean
   page?: number
@@ -99,6 +113,37 @@ export async function transcribeVoiceAPI(
 ): Promise<VoiceTranscriptionResponse> {
   try {
     const response = await fetch('/api/voices/transcribe', {
+      method: 'POST',
+      body: formData,
+    })
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        errorCode: (payload as { errorCode?: string }).errorCode,
+        error:
+          (payload as { error?: string }).error ??
+          `Failed with status ${response.status}`,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function uploadReferenceAudioAPI(
+  file: File,
+): Promise<ReferenceAudioUploadResponse> {
+  try {
+    const formData = new FormData()
+    formData.append('audio', file)
+
+    const response = await fetch('/api/voices/upload-reference', {
       method: 'POST',
       body: formData,
     })

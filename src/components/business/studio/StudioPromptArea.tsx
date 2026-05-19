@@ -402,12 +402,19 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
   const hasRefImage = imageUpload.referenceImages.length > 0
+  // A half-filled reference (audio without transcript) would 400 at the API
+  // boundary; gate the generate button before it gets there.
+  const isAudioReferenceIncomplete =
+    isAudioMode &&
+    Boolean(state.audioReferenceUrl) &&
+    state.audioReferenceText.trim().length === 0
   const canGenerate =
     (usesStyleCardForModel
       ? !!styles.activeCardId && !!selectedStyleCard?.modelId
       : !!selectedModel?.modelId && !!trimmedPrompt) &&
     (!modelRequiresRef || hasRefImage) &&
-    !isAudioPromptOverLimit
+    !isAudioPromptOverLimit &&
+    !isAudioReferenceIncomplete
 
   // ── Reset selectedOptionId when outputType changes ─────────────
   // image/video/audio each have their own model pools; carrying a stale
@@ -674,9 +681,19 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             apiKeyId: selectedModel.keyId,
             freePrompt: state.prompt || undefined,
             voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+            // Preset reference (from a saved voice card) wins; otherwise fall
+            // back to whatever ad-hoc clip the user uploaded for this run.
+            // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
+            // references) takes care of the rest at the provider call site.
             referenceAudioUrl:
-              selectedVoiceCard?.referenceAudioUrl ?? undefined,
-            referenceText: selectedVoiceCard?.sampleText ?? undefined,
+              selectedVoiceCard?.referenceAudioUrl ??
+              state.audioReferenceUrl ??
+              undefined,
+            referenceText:
+              selectedVoiceCard?.sampleText ??
+              (state.audioReferenceText.trim()
+                ? state.audioReferenceText.trim()
+                : undefined),
             emotion: state.audioEmotion,
             pace: state.audioPace,
             pauseMarkers: state.audioPauseMarkers,
@@ -777,6 +794,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       state.audioChunkLength,
       state.audioRepetitionPenalty,
       state.audioSpeakerVoiceIds,
+      state.audioReferenceUrl,
+      state.audioReferenceText,
       state.workflowMode,
       selectedVoiceCard?.voiceId,
       selectedVoiceCard?.referenceAudioUrl,
@@ -811,6 +830,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           }),
         )
         document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      } else if (isAudioReferenceIncomplete) {
+        toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
         dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
@@ -853,6 +874,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isAudioMode,
     isVideoMode,
     isAudioPromptOverLimit,
+    isAudioReferenceIncomplete,
     state.workflowMode,
     state.prompt,
     trimmedPrompt,

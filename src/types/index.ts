@@ -284,69 +284,95 @@ export type GenerateVideoResponse = GenerateResponse
 
 // ─── Audio Generate Request ─────────────────────────────────────
 
-export const GenerateAudioRequestSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1, 'Text is required')
-    .max(
-      TTS_MAX_TEXT_LENGTH,
-      `Text is too long (max ${TTS_MAX_TEXT_LENGTH} characters)`,
-    ),
-  modelId: z.string().trim().min(1, 'Model is required').max(160),
-  voiceId: z.string().trim().min(1).max(200).optional(),
-  emotion: z.enum(AUDIO_EMOTIONS).optional(),
-  pace: z.enum(AUDIO_PACES).optional(),
-  pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
-  pronunciationDictionary: z.record(z.string(), z.string()).optional(),
-  speed: z.number().min(0.5).max(2.0).optional(),
-  volume: z
-    .number()
-    .min(TTS_VOLUME_RANGE.min)
-    .max(TTS_VOLUME_RANGE.max)
-    .optional(),
-  normalizeLoudness: z.boolean().optional(),
-  normalizeText: z.boolean().optional(),
-  withTimestamps: z.boolean().optional(),
-  format: z.enum(AUDIO_FORMATS).optional(),
-  sampleRate: z.number().int().min(8000).max(48000).optional(),
-  mp3Bitrate: z
-    .number()
-    .refine((value) =>
-      AUDIO_MP3_BITRATES.includes(value as (typeof AUDIO_MP3_BITRATES)[number]),
-    )
-    .optional(),
-  opusBitrate: z
-    .number()
-    .refine((value) =>
-      AUDIO_OPUS_BITRATES.includes(
-        value as (typeof AUDIO_OPUS_BITRATES)[number],
+export const GenerateAudioRequestSchema = z
+  .object({
+    prompt: z
+      .string()
+      .trim()
+      .min(1, 'Text is required')
+      .max(
+        TTS_MAX_TEXT_LENGTH,
+        `Text is too long (max ${TTS_MAX_TEXT_LENGTH} characters)`,
       ),
-    )
-    .optional(),
-  latency: z.enum(AUDIO_LATENCIES).optional(),
-  temperature: z
-    .number()
-    .min(TTS_TEMPERATURE_RANGE.min)
-    .max(TTS_TEMPERATURE_RANGE.max)
-    .optional(),
-  topP: z.number().min(TTS_TOP_P_RANGE.min).max(TTS_TOP_P_RANGE.max).optional(),
-  chunkLength: z
-    .number()
-    .int()
-    .min(TTS_CHUNK_LENGTH_RANGE.min)
-    .max(TTS_CHUNK_LENGTH_RANGE.max)
-    .optional(),
-  repetitionPenalty: z
-    .number()
-    .min(TTS_REPETITION_PENALTY_RANGE.min)
-    .max(TTS_REPETITION_PENALTY_RANGE.max)
-    .optional(),
-  speakerVoiceIds: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
-  referenceAudioUrl: z.string().url().optional(),
-  referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
-  apiKeyId: z.string().trim().min(1).optional(),
-})
+    modelId: z.string().trim().min(1, 'Model is required').max(160),
+    voiceId: z.string().trim().min(1).max(200).optional(),
+    emotion: z.enum(AUDIO_EMOTIONS).optional(),
+    pace: z.enum(AUDIO_PACES).optional(),
+    pauseMarkers: z.array(z.enum(AUDIO_PAUSE_MARKERS)).optional(),
+    pronunciationDictionary: z.record(z.string(), z.string()).optional(),
+    speed: z.number().min(0.5).max(2.0).optional(),
+    volume: z
+      .number()
+      .min(TTS_VOLUME_RANGE.min)
+      .max(TTS_VOLUME_RANGE.max)
+      .optional(),
+    normalizeLoudness: z.boolean().optional(),
+    normalizeText: z.boolean().optional(),
+    withTimestamps: z.boolean().optional(),
+    format: z.enum(AUDIO_FORMATS).optional(),
+    sampleRate: z.number().int().min(8000).max(48000).optional(),
+    mp3Bitrate: z
+      .number()
+      .refine((value) =>
+        AUDIO_MP3_BITRATES.includes(
+          value as (typeof AUDIO_MP3_BITRATES)[number],
+        ),
+      )
+      .optional(),
+    opusBitrate: z
+      .number()
+      .refine((value) =>
+        AUDIO_OPUS_BITRATES.includes(
+          value as (typeof AUDIO_OPUS_BITRATES)[number],
+        ),
+      )
+      .optional(),
+    latency: z.enum(AUDIO_LATENCIES).optional(),
+    temperature: z
+      .number()
+      .min(TTS_TEMPERATURE_RANGE.min)
+      .max(TTS_TEMPERATURE_RANGE.max)
+      .optional(),
+    topP: z
+      .number()
+      .min(TTS_TOP_P_RANGE.min)
+      .max(TTS_TOP_P_RANGE.max)
+      .optional(),
+    chunkLength: z
+      .number()
+      .int()
+      .min(TTS_CHUNK_LENGTH_RANGE.min)
+      .max(TTS_CHUNK_LENGTH_RANGE.max)
+      .optional(),
+    repetitionPenalty: z
+      .number()
+      .min(TTS_REPETITION_PENALTY_RANGE.min)
+      .max(TTS_REPETITION_PENALTY_RANGE.max)
+      .optional(),
+    speakerVoiceIds: z
+      .array(z.string().trim().min(1).max(200))
+      .max(8)
+      .optional(),
+    referenceAudioUrl: z.string().url().optional(),
+    referenceText: z.string().trim().max(TTS_MAX_TEXT_LENGTH).optional(),
+    apiKeyId: z.string().trim().min(1).optional(),
+  })
+  .refine(
+    (data) => {
+      // Fish Audio's `references` payload requires `text` whenever an inline
+      // audio URL is provided. Reject partial pairs at the API boundary so
+      // the user gets a clear 400 instead of a silently dropped reference.
+      const hasUrl = typeof data.referenceAudioUrl === 'string'
+      const hasText =
+        typeof data.referenceText === 'string' && data.referenceText.length > 0
+      return hasUrl === hasText
+    },
+    {
+      message:
+        'referenceAudioUrl and referenceText must both be provided or both omitted',
+      path: ['referenceText'],
+    },
+  )
 
 export type GenerateAudioRequest = z.infer<typeof GenerateAudioRequestSchema>
 
@@ -745,6 +771,7 @@ export type Model3DStatusResponseData =
       status: 'IN_QUEUE' | 'IN_PROGRESS'
       generation?: never
       previewModelUrl?: string
+      meshModelUrl?: string
       stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
       /**
        * Temporary provider URL surfaced during the `uploading` stage so the
@@ -773,6 +800,7 @@ export type Model3DStatusResponseData =
       generation?: never
       previewModelUrl?: string
       stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
+      cancelled?: boolean
     }
 
 // ─── Multi-View Generation (reference-edit chain for 3D inputs) ─────
@@ -2816,6 +2844,45 @@ export interface LoraTrainingListResponse {
   data?: LoraTrainingRecord[]
   error?: string
 }
+
+// ─── LoRA Assets ──────────────────────────────────────────────────
+
+export const LoraAssetSourceSchema = z.enum(['curated', 'trained', 'imported'])
+export type LoraAssetSource = z.infer<typeof LoraAssetSourceSchema>
+
+export const LoraAssetTypeSchema = z.enum(['subject', 'style'])
+export type LoraAssetType = z.infer<typeof LoraAssetTypeSchema>
+
+export const LoraAssetBaseFamilySchema = z.string().trim().min(1)
+export type LoraAssetBaseFamily = z.infer<typeof LoraAssetBaseFamilySchema>
+
+export const LoraAssetRecordSchema = z.object({
+  id: z.string(),
+  styleCode: z.string(),
+  name: z.string(),
+  source: LoraAssetSourceSchema,
+  type: LoraAssetTypeSchema,
+  baseModelFamily: LoraAssetBaseFamilySchema,
+  provider: z.string(),
+  triggerWord: z.string(),
+  loraUrl: z.string().url(),
+  coverImageUrl: z.string().url().nullable(),
+  previewImageUrls: z.array(z.string().url()),
+  defaultScale: z.number(),
+  isPublic: z.boolean(),
+  isOwn: z.boolean(),
+  createdAt: z.string(),
+})
+
+export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
+
+export const ActiveLoraSchema = z.object({
+  assetId: z.string(),
+  styleCode: z.string(),
+  scale: z.number(),
+})
+
+export type ActiveLora = z.infer<typeof ActiveLoraSchema>
 
 // ─── Video Script (VS1-VS11) ─────────────────────────────────────
 export * from './video-script'

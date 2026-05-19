@@ -7,18 +7,35 @@ import { useTranslations } from 'next-intl'
 
 import { useRouter } from '@/i18n/navigation'
 import { ROUTES } from '@/constants/routes'
+import { IMAGE_MODEL_OPTIONS } from '@/constants/models/image'
 import { getReplayPayloadAPI } from '@/lib/api-client/generation-replay'
 import type { OutputType } from '@/types'
 
 interface UseLoraButtonProps {
   generationId: string
   outputType: OutputType
+  /** The model id this generation was produced with — used to decide
+   *  whether a LoRA could possibly have been attached. */
+  modelId: string
 }
 
 function studioRouteForOutputType(outputType: OutputType): string {
   if (outputType === 'VIDEO') return ROUTES.STUDIO_VIDEO
   if (outputType === 'AUDIO') return ROUTES.STUDIO_AUDIO
   return ROUTES.STUDIO_IMAGE
+}
+
+/**
+ * Cheap render-time check: was this image produced by a model that even
+ * accepts a `loras` array? If not, there's nothing to replay and the
+ * "Use LoRA" chip is pure noise on the gallery card. Snapshot inspection
+ * still happens server-side on click, so the rare case of "LoRA-capable
+ * model but no LoRA on this run" degrades to a clear toast.
+ */
+function modelSupportsLora(modelId: string): boolean {
+  return IMAGE_MODEL_OPTIONS.some(
+    (m) => m.id === modelId && m.supportsLora === true,
+  )
 }
 
 /**
@@ -35,6 +52,7 @@ function studioRouteForOutputType(outputType: OutputType): string {
 export function UseLoraButton({
   generationId,
   outputType,
+  modelId,
 }: UseLoraButtonProps) {
   const t = useTranslations('UseLoraButton')
   const router = useRouter()
@@ -69,6 +87,8 @@ export function UseLoraButton({
     },
     [generationId, outputType, isPending, router, t],
   )
+
+  if (!modelSupportsLora(modelId)) return null
 
   return (
     <button

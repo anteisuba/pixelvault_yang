@@ -356,6 +356,7 @@ export const ImageCard = memo(function ImageCard({
                     <UseLoraButton
                       generationId={generation.id}
                       outputType={generation.outputType}
+                      modelId={generation.model}
                     />
                     {canShowPromptOverlay ? (
                       <button

@@ -82,9 +82,16 @@ interface Compatibility {
  * model run this LoRA?" The Civitai LoRA library returns things like
  * "Flux.1 D", "SDXL 1.0", "Illustrious", "Pony", "SD 1.5", etc.
  */
-function familyBucket(raw: string): 'flux' | 'sdxl' | 'other' {
+type FamilyBucket = 'flux' | 'sdxl' | 'anima' | 'other'
+
+function familyBucket(raw: string): FamilyBucket {
   const v = raw.toLowerCase()
   if (v.includes('flux')) return 'flux'
+  // Anima is technically an SDXL finetune, but it has its own checkpoint
+  // and Civitai LoRAs marked "Anima" are tuned against it specifically —
+  // route them to the dedicated anima-pencil-xl model rather than the
+  // Illustrious/NoobAI path so users get LoRA effects as authored.
+  if (v.includes('anima')) return 'anima'
   if (
     v.includes('sdxl') ||
     v.includes('illustrious') ||
@@ -96,13 +103,14 @@ function familyBucket(raw: string): 'flux' | 'sdxl' | 'other' {
   return 'other'
 }
 
-function modelBucket(modelId: string | null): 'flux' | 'sdxl' | 'other' | null {
+function modelBucket(modelId: string | null): FamilyBucket | null {
   if (!modelId) return null
   const option = IMAGE_MODEL_OPTIONS.find((m) => m.id === modelId)
   if (!option?.supportsLora) return 'other'
-  // FLUX_2_DEV + FLUX_LORA → flux; ILLUSTRIOUS_XL → sdxl
+  // FLUX_2_DEV + FLUX_LORA → flux; ILLUSTRIOUS_XL → sdxl; ANIMA_PENCIL_XL → anima
   if (option.id === 'flux-2-dev' || option.id === 'flux-lora') return 'flux'
   if (option.id === 'illustrious-xl') return 'sdxl'
+  if (option.id === 'anima-pencil-xl') return 'anima'
   return 'other'
 }
 
@@ -169,12 +177,16 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
     }
 
     const family = familyBucket(items[0]!.asset.baseModelFamily)
+    // Flux LoRAs go to fal-ai/flux-lora, the canonical FLUX.1 LoRA
+    // endpoint — flux-2-dev's LoRA injection is less reliable.
     const recommendedModelId =
       family === 'flux'
-        ? 'flux-2-dev'
+        ? 'flux-lora'
         : family === 'sdxl'
           ? 'illustrious-xl'
-          : null
+          : family === 'anima'
+            ? 'anima-pencil-xl'
+            : null
 
     // Find a configured route the user can actually use (saved key OR free).
     // Workspace routes without a saved key won't generate, so prefer 'saved'

@@ -1884,6 +1884,10 @@
       "label": "Illustrious XL",
       "description": "Anime/illustration-specialized model with the largest LoRA ecosystem on Civitai. Supports dual LoRA."
     },
+    "animaPencilXl": {
+      "label": "Anima Pencil XL",
+      "description": "Illustrious-derived finetune tuned for anime characters and pencil/lineart aesthetics. Use this for Civitai LoRAs tagged Anima."
+    },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
       "description": "Fast and cost-effective by Google. Good text rendering and prompt understanding."

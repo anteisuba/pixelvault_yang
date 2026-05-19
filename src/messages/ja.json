@@ -1884,6 +1884,10 @@
       "label": "Illustrious XL",
       "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
     },
+    "animaPencilXl": {
+      "label": "Anima Pencil XL",
+      "description": "Illustrious派生のfinetune。アニメキャラクターと鉛筆/線画スタイルに特化。CivitaiのAnimaタグLoRA向け。"
+    },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
       "description": "Google製。高速・低コスト。テキスト描画とプロンプト理解に優れる。"

@@ -170,7 +170,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'budget',
     styleTag: 'general',
   },
-  // #9b — FLUX with LoRA support, use custom LoRAs for style/character control
+  // #9b — FLUX with LoRA support, the canonical fal-ai/flux-lora endpoint.
+  // This is the path Civitai Flux.1 D LoRAs should run on; flux-2-dev
+  // routes LoRAs less reliably (different inference graph).
   {
     id: AI_MODELS.FLUX_LORA,
     cost: 1,
@@ -178,7 +180,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-lora',
     outputType: 'IMAGE',
-    available: false,
+    available: true,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-lora',
     qualityTier: 'standard',
     styleTag: 'general',
@@ -194,6 +196,26 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     outputType: 'IMAGE',
     available: true,
     officialUrl: 'https://replicate.com/delta-lock/noobai-xl',
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    supportsLora: true,
+  },
+  // #9d — Anima (AnimaPencil-XL) — SDXL-architecture finetune popular on
+  // Civitai. Routes through Replicate's lucataco/animapencil-xl-v4 image.
+  // The community has newer Anima checkpoints (v5/v6) but lucataco's v4 is
+  // the most consistently maintained on Replicate. If output quality drifts
+  // or LoRA injection misbehaves, swap externalModelId here — schema
+  // expectations match the Illustrious XL (NoobAI) family because both
+  // are community SDXL pushes routed via the version-hash path.
+  {
+    id: AI_MODELS.ANIMA_PENCIL_XL,
+    cost: 2,
+    adapterType: AI_ADAPTER_TYPES.REPLICATE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
+    externalModelId: 'lucataco/animapencil-xl-v4',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://replicate.com/lucataco/animapencil-xl-v4',
     qualityTier: 'standard',
     styleTag: 'anime',
     supportsLora: true,

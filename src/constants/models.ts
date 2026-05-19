@@ -48,6 +48,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
   [AI_MODELS.ILLUSTRIOUS_XL]: 'illustriousXl',
+  [AI_MODELS.ANIMA_PENCIL_XL]: 'animaPencilXl',
   [AI_MODELS.NOVELAI_V4_FULL]: 'novelaiV4Full',
   [AI_MODELS.NOVELAI_V3]: 'novelaiV3',
   [AI_MODELS.GEMINI_25_FLASH_IMAGE]: 'gemini25FlashImage',
@@ -99,7 +100,9 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.NOVELAI_V3,
   AI_MODELS.RECRAFT_V3,
   AI_MODELS.GEMINI_25_FLASH_IMAGE,
-  AI_MODELS.FLUX_LORA,
+  // FLUX_LORA was hidden during the flux-2 migration but is the canonical
+  // FAL endpoint for FLUX.1 D LoRAs — Wave 1 (Anima/FLUX-LoRA path fix)
+  // brings it back as the recommended target for Civitai Flux.1 D LoRAs.
   AI_MODELS.NOVELAI_V4_FULL,
   AI_MODELS.SDXL,
   AI_MODELS.SEEDANCE_PRO,
@@ -153,6 +156,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'NovelAI',
   [AI_MODELS.ILLUSTRIOUS_XL]: 'Illustrious',
+  [AI_MODELS.ANIMA_PENCIL_XL]: 'Anima',
   [AI_MODELS.NOVELAI_V4_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V3]: 'NovelAI',
   [AI_MODELS.GEMINI_25_FLASH_IMAGE]: 'Gemini',

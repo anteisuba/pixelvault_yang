@@ -153,8 +153,9 @@ function extractImageUrl(output: unknown): string {
 
 // ─── Private helpers ────────────────────────────────────────────
 
-/** Build input payload for NoobAI/Illustrious XL models */
-function buildNoobAIInput(
+/** Build input payload for community SDXL finetunes on Replicate
+ *  (NoobAI/Illustrious XL, AnimaPencil XL — share schema). */
+function buildCommunitySdxlInput(
   prompt: string,
   width: number,
   height: number,
@@ -231,9 +232,9 @@ async function resolveCivitaiUrl(url: string): Promise<string> {
 async function applyLoraParams(
   input: Record<string, unknown>,
   loras: Array<{ url: string; scale?: number | null }>,
-  isNoobAI: boolean,
+  isCommunitySdxl: boolean,
 ): Promise<void> {
-  if (isNoobAI) {
+  if (isCommunitySdxl) {
     const resolved = await Promise.all(
       loras.map(async (lora) => {
         let url = await resolveCivitaiUrl(lora.url)
@@ -259,12 +260,12 @@ async function applyLoraParams(
  */
 async function resolveModelBody(
   externalModelId: string,
-  isNoobAI: boolean,
+  isCommunitySdxl: boolean,
   input: Record<string, unknown>,
   apiKey: string,
   baseUrl: string,
 ): Promise<Record<string, unknown>> {
-  if (!isNoobAI) return { model: externalModelId, input }
+  if (!isCommunitySdxl) return { model: externalModelId, input }
 
   const modelRes = await fetch(`${baseUrl}/models/${externalModelId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -308,10 +309,17 @@ export const replicateAdapter: ProviderAdapter = {
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
     const externalModelId = getExecutionModelId(modelId)
     const endpoint = `${baseUrl}/predictions`
-    const isNoobAI = externalModelId.includes('noobai')
+    // Community SDXL finetunes pushed to Replicate need version-hash
+    // resolution AND multi-LoRA JSON schema. NoobAI (Illustrious XL) and
+    // AnimaPencil share these expectations — both expect width/height
+    // dimensions + a stringified `loras` array, not the flux-style
+    // aspect_ratio + single hf_lora payload.
+    const isCommunitySdxl =
+      externalModelId.includes('noobai') ||
+      externalModelId.includes('animapencil')
 
-    const input: Record<string, unknown> = isNoobAI
-      ? buildNoobAIInput(prompt, width, height, advancedParams)
+    const input: Record<string, unknown> = isCommunitySdxl
+      ? buildCommunitySdxlInput(prompt, width, height, advancedParams)
       : buildFluxInput(prompt, aspectRatio, advancedParams)
 
     if (advancedParams?.seed != null && advancedParams.seed >= 0) {
@@ -324,9 +332,9 @@ export const replicateAdapter: ProviderAdapter = {
         urls: advancedParams.loras.map((l: { url: string }) =>
           l.url.slice(0, 80),
         ),
-        isNoobAI,
+        isCommunitySdxl,
       })
-      await applyLoraParams(input, advancedParams.loras, isNoobAI)
+      await applyLoraParams(input, advancedParams.loras, isCommunitySdxl)
     }
 
     const effectiveRefImage = referenceImages?.[0] ?? referenceImage
@@ -341,7 +349,7 @@ export const replicateAdapter: ProviderAdapter = {
 
     const predBody = await resolveModelBody(
       externalModelId,
-      isNoobAI,
+      isCommunitySdxl,
       input,
       apiKey,
       baseUrl,
@@ -350,7 +358,7 @@ export const replicateAdapter: ProviderAdapter = {
     logger.debug('[Replicate] generateImage request', {
       endpoint,
       modelId: externalModelId,
-      isNoobAI,
+      isCommunitySdxl,
     })
 
     const response = await fetch(endpoint, {

@@ -41,6 +41,7 @@ export const CIVITAI_LORA_BASE_MODEL_VALUES = [
   'Illustrious',
   'Pony',
   'SD 1.5',
+  'Anima',
 ] as const
 
 export type CivitaiLoraBaseModel =

@@ -26,6 +26,7 @@ export enum AI_MODELS {
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
   ILLUSTRIOUS_XL = 'illustrious-xl',
+  ANIMA_PENCIL_XL = 'anima-pencil-xl',
   NOVELAI_V4_FULL = 'nai-diffusion-4-full',
   NOVELAI_V3 = 'nai-diffusion-3',
   GEMINI_25_FLASH_IMAGE = 'gemini-2.5-flash-image',

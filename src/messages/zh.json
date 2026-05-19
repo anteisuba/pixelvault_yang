@@ -1884,6 +1884,10 @@
       "label": "Illustrious XL",
       "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
     },
+    "animaPencilXl": {
+      "label": "Anima Pencil XL",
+      "description": "Illustrious 衍生 finetune，专精动漫角色与铅笔线稿。适合 Civitai 上 Anima 标签的 LoRA。"
+    },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
       "description": "Google 出品，快速低成本。擅长文字渲染和提示词理解。"

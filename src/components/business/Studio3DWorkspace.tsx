@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Ban,
   Box,
+  ChevronDown,
   Check,
   Dices,
   Download,
@@ -13,6 +14,7 @@ import {
   HelpCircle,
   ImageIcon,
   Loader2,
+  SlidersHorizontal,
   Sparkles,
   Upload,
   Wand2,
@@ -240,6 +242,7 @@ export function Studio3DWorkspace({
   const [selectedModelId, setSelectedModelId] = useState<string>(
     models[0]?.id ?? AI_MODELS.HUNYUAN3D_V31_PRO,
   )
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [enablePbr, setEnablePbr] = useState(true)
   // PR1-A2: default face budget is 500k (the `fidelity` preset). Counter-
   // intuitively this is sharper than 1M/1.5M for character/figurine subjects
@@ -432,6 +435,8 @@ export function Studio3DWorkspace({
     () => getModelById(selectedMultiViewModelId),
     [selectedMultiViewModelId],
   )
+  const multiViewUses3DRouteKey =
+    selectedMultiViewModel?.adapterType === AI_ADAPTER_TYPES.FAL
   const multiViewActiveKeys = useMemo(() => {
     const adapterType = selectedMultiViewModel?.adapterType
     if (!adapterType) return []
@@ -461,6 +466,10 @@ export function Studio3DWorkspace({
   const supportsMeshFirstPreview =
     MESH_FIRST_PREVIEW_MODEL_IDS.has(selectedModelId)
   const sourceIdentity = sourceImage?.id ?? sourceImage?.url ?? null
+
+  useEffect(() => {
+    if (!isHunyuanV3) setAdvancedOpen(true)
+  }, [isHunyuanV3])
 
   useEffect(() => {
     setManualMultiViewImages({})
@@ -742,8 +751,12 @@ export function Studio3DWorkspace({
       imageUrl: sourceImage.url,
       sourceGenerationId: sourceImage.id,
       modelId: selectedMultiViewModel.id,
-      ...(selectedMultiViewApiKeyId && {
-        apiKeyId: selectedMultiViewApiKeyId,
+      ...((multiViewUses3DRouteKey
+        ? selectedApiKeyId
+        : selectedMultiViewApiKeyId) && {
+        apiKeyId: multiViewUses3DRouteKey
+          ? selectedApiKeyId
+          : selectedMultiViewApiKeyId,
       }),
     }
     if (!options?.force && restoreMultiView(request)) return
@@ -1282,7 +1295,7 @@ export function Studio3DWorkspace({
           )}
         </main>
 
-        {/* Right panel — image picker + model + params + generate */}
+        {/* Right panel — source, multi-view, preset, advanced params, generate */}
         <aside className="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
           {/*
            * fal key gate. Only visible when no active fal key is present —
@@ -1306,115 +1319,78 @@ export function Studio3DWorkspace({
             </div>
           )}
 
-          {/*
-           * fal key selector — visible whenever the user has at least one
-           * active fal key. With multiple keys it's a real picker; with one
-           * it stays as a confirmation badge so the user always sees which
-           * route is about to be charged.
-           */}
-          {hasFalKey && (
-            <div className="flex flex-col gap-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                {t('apiKeyDropdownLabel')}
-              </Label>
-              <Select
-                value={selectedApiKeyId}
-                onValueChange={setSelectedApiKeyId}
-              >
-                {/*
-                 * Trigger is hand-rendered (no <SelectValue>) so we can
-                 * surface only the label and keep the masked key hidden by
-                 * default — masked digits are technically already redacted
-                 * but visually look like a real key to a shoulder-surfer.
-                 * The dropdown content still shows masked so users with
-                 * multiple keys can disambiguate.
-                 */}
-                <SelectTrigger className="w-full">
-                  {(() => {
-                    const selectedKey = falActiveKeys.find(
-                      (k) => k.id === selectedApiKeyId,
-                    )
-                    return selectedKey ? (
-                      <span className="font-medium">{selectedKey.label}</span>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        {t('apiKeyDropdownPlaceholder')}
-                      </span>
-                    )
-                  })()}
-                </SelectTrigger>
-                <SelectContent>
-                  {falActiveKeys.map((k) => (
-                    <SelectItem key={k.id} value={k.id}>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">{k.label}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {k.maskedKey}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           {/* Compact image picker — mirrors Image Studio bottom-toolbar chip pattern */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               {t('sourceImageLabel')}
             </Label>
             {sourceImage ? (
-              <div className="flex flex-col gap-2">
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg ring-1 ring-border/40">
+              <div className="flex gap-3 rounded-lg border border-border/50 bg-background/60 p-2">
+                <div className="relative size-20 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
                   <Image
                     src={sourceImage.url}
-                    alt="Source"
+                    alt={t('sourceImageLabel')}
                     fill
                     unoptimized
                     className="object-cover"
-                    sizes="320px"
+                    sizes="80px"
                   />
                   <button
                     type="button"
                     onClick={handleClearSource}
-                    className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-                    aria-label="Remove source image"
+                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                    aria-label={t('removeSourceImageLabel')}
                   >
-                    <X className="size-3.5" />
+                    <X className="size-3" />
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPickerOpen(true)}
-                    disabled={uploading || isGenerating}
-                    className="rounded-full text-xs"
-                  >
-                    <FolderOpen className="mr-1.5 size-3" />
-                    {t('selectFromAssets')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUploadClick}
-                    disabled={uploading || isGenerating}
-                    className="rounded-full text-xs"
-                  >
-                    {uploading ? (
-                      <Loader2 className="mr-1.5 size-3 animate-spin" />
-                    ) : (
-                      <Upload className="mr-1.5 size-3" />
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {sourceImage.prompt || t('sourceImageLabel')}
+                    </p>
+                    {sourceImage.width > 0 && sourceImage.height > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {sourceImage.width}×{sourceImage.height}
+                      </p>
                     )}
-                    {uploading ? t('uploading') : t('uploadButton')}
-                  </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPickerOpen(true)}
+                      disabled={uploading || isGenerating}
+                      className="h-8 rounded-full px-2"
+                      aria-label={t('selectFromAssets')}
+                      title={t('selectFromAssets')}
+                    >
+                      <FolderOpen className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleUploadClick}
+                      disabled={uploading || isGenerating}
+                      className="h-8 rounded-full px-2"
+                      aria-label={
+                        uploading ? t('uploading') : t('uploadButton')
+                      }
+                      title={uploading ? t('uploading') : t('uploadButton')}
+                    >
+                      {uploading ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="size-3.5" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-6 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
                 <ImageIcon className="size-6 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
                   {t('sourceImagePlaceholder')}
@@ -1451,36 +1427,17 @@ export function Studio3DWorkspace({
             />
           </div>
 
-          {sourceImage && (
-            <div
-              className={cn(
-                'rounded-lg border p-3 text-xs leading-5',
-                sourceQualityIssues.length > 0
-                  ? 'border-destructive/40 bg-destructive/10 text-destructive'
-                  : 'border-emerald-500/30 bg-emerald-500/10 text-muted-foreground',
-              )}
-            >
+          {sourceImage && sourceQualityIssues.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs leading-5 text-destructive">
               <div className="mb-1 flex items-center gap-1.5 font-medium">
-                {sourceQualityIssues.length > 0 ? (
-                  <AlertTriangle className="size-3.5" />
-                ) : (
-                  <Check className="size-3.5 text-emerald-600" />
-                )}
-                <span>
-                  {sourceQualityIssues.length > 0
-                    ? t('sourceQualityBlocked')
-                    : t('sourceQualityReady')}
-                </span>
+                <AlertTriangle className="size-3.5" />
+                <span>{t('sourceQualityBlocked')}</span>
               </div>
-              {sourceQualityIssues.length > 0 ? (
-                <ul className="list-disc space-y-1 pl-4">
-                  {sourceQualityIssues.map((issue) => (
-                    <li key={issue}>{issue}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>{t('sourceQualityChecklist')}</p>
-              )}
+              <ul className="list-disc space-y-1 pl-4">
+                {sourceQualityIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -1489,70 +1446,12 @@ export function Studio3DWorkspace({
            * Hunyuan model, render or upload side views. The final 3D job
            * receives every available view together.
            */}
-          {sourceImage && (
+          {sourceImage && supportsMultiViewInput && (
             <div className="flex flex-col gap-2">
               <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
                 <Wand2 className="size-3" />
                 {t('multiViewLabel')}
               </Label>
-              {supportsMultiViewInput && (
-                <div className="flex flex-col gap-2">
-                  <Select
-                    value={selectedMultiViewModelId}
-                    onValueChange={(v) => setSelectedMultiViewModelId(v)}
-                  >
-                    <SelectTrigger className="h-9 w-full">
-                      <SelectValue placeholder={t('multiViewModelLabel')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MODEL_3D_MULTIVIEW_MODEL_IDS.map((modelId) => {
-                        const messageKey = getModelMessageKey(modelId)
-                        return (
-                          <SelectItem key={modelId} value={modelId}>
-                            {tModels(`${messageKey}.label`)}
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-
-                  {multiViewActiveKeys.length > 0 && (
-                    <Select
-                      value={selectedMultiViewApiKeyId}
-                      onValueChange={setSelectedMultiViewApiKeyId}
-                    >
-                      <SelectTrigger className="h-9 w-full">
-                        {(() => {
-                          const selectedKey = multiViewActiveKeys.find(
-                            (k) => k.id === selectedMultiViewApiKeyId,
-                          )
-                          return selectedKey ? (
-                            <span className="font-medium">
-                              {selectedKey.label}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {t('apiKeyDropdownPlaceholder')}
-                            </span>
-                          )
-                        })()}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {multiViewActiveKeys.map((k) => (
-                          <SelectItem key={k.id} value={k.id}>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-medium">{k.label}</span>
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {k.maskedKey}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              )}
 
               {effectiveMultiViewViews.length === 0 ? (
                 <>
@@ -1562,9 +1461,7 @@ export function Studio3DWorkspace({
                     size="sm"
                     onClick={() => void handleGenerate4Views()}
                     disabled={
-                      isGeneratingViews ||
-                      !supportsMultiViewInput ||
-                      !canUseSelectedMultiViewModel
+                      isGeneratingViews || !canUseSelectedMultiViewModel
                     }
                     className="w-full rounded-full"
                   >
@@ -1581,11 +1478,9 @@ export function Studio3DWorkspace({
                     )}
                   </Button>
                   <p className="text-[10px] leading-4 text-muted-foreground">
-                    {!supportsMultiViewInput
-                      ? t('multiViewUnsupportedHint')
-                      : canUseSelectedMultiViewModel
-                        ? t('multiViewHint')
-                        : t('multiViewApiKeyMissing')}
+                    {canUseSelectedMultiViewModel
+                      ? t('multiViewHint')
+                      : t('multiViewApiKeyMissing')}
                   </p>
                 </>
               ) : (
@@ -1638,9 +1533,7 @@ export function Studio3DWorkspace({
                     size="sm"
                     onClick={() => void handleGenerate4Views({ force: true })}
                     disabled={
-                      isGeneratingViews ||
-                      !supportsMultiViewInput ||
-                      !canUseSelectedMultiViewModel
+                      isGeneratingViews || !canUseSelectedMultiViewModel
                     }
                     className="h-8 w-full rounded-full text-xs"
                   >
@@ -1677,335 +1570,473 @@ export function Studio3DWorkspace({
                   />
                 </>
               )}
-
-              {supportsMultiViewInput && (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setManualMultiViewOpen((open) => !open)}
-                    className="h-8 justify-start rounded-full px-2 text-xs"
-                  >
-                    <Upload className="mr-1.5 size-3" />
-                    {manualMultiViewOpen
-                      ? t('manualViewHide')
-                      : t('manualViewShow')}
-                  </Button>
-
-                  {manualMultiViewOpen && (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {GENERATED_VIEW_ANGLES.map((view) => {
-                        const manualImage = manualMultiViewImages[view]
-                        const isUploading = uploadingManualView === view
-                        const label = getViewLabel(view)
-                        return (
-                          <div
-                            key={view}
-                            className="relative flex min-w-0 flex-col gap-1"
-                          >
-                            <div className="relative aspect-square overflow-hidden rounded-md border border-dashed border-border/60 bg-muted/30">
-                              {manualImage ? (
-                                <Image
-                                  src={manualImage.url}
-                                  alt={label}
-                                  fill
-                                  unoptimized
-                                  className="object-cover"
-                                  sizes="80px"
-                                />
-                              ) : (
-                                <div className="flex size-full items-center justify-center text-muted-foreground">
-                                  <ImageIcon className="size-4" />
-                                </div>
-                              )}
-                              <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
-                                {label}
-                              </span>
-                              {manualImage && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveManualView(view)}
-                                  className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
-                                  aria-label={t('manualViewRemoveLabel', {
-                                    view: label,
-                                  })}
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleManualViewUploadClick(view)}
-                              disabled={uploadingManualView !== null}
-                              className="h-7 rounded-full px-2 text-[10px]"
-                            >
-                              {isUploading ? (
-                                <Loader2 className="mr-1 size-3 animate-spin" />
-                              ) : (
-                                <Upload className="mr-1 size-3" />
-                              )}
-                              {manualImage
-                                ? t('manualViewReplace')
-                                : t('manualViewUpload')}
-                            </Button>
-                            <input
-                              ref={(node) => {
-                                manualViewInputRefs.current[view] = node
-                              }}
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(event) =>
-                                handleManualViewFileChange(view, event)
-                              }
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {t('modelLabel')}
-            </Label>
-            <Select
-              value={selectedModelId}
-              onValueChange={(v) => setSelectedModelId(v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t('modelPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((model) => {
-                  const messageKey = getModelMessageKey(model.id)
-                  return (
-                    <SelectItem key={model.id} value={model.id}>
-                      {tModels(`${messageKey}.label`)}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/*
-           * Source preprocessing toggle — applies to both Hunyuan and TripoSR
-           * since both benefit from a ≥1024px square source. Default ON;
-           * off is essentially "send raw" for debugging.
-           */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-col gap-0.5">
-              <Label htmlFor="prep-3d" className="text-sm font-medium">
-                {t('prep3DLabel')}
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                {t('prep3DHint')}
-              </span>
-            </div>
-            <Switch id="prep-3d" checked={prep3D} onCheckedChange={setPrep3D} />
-          </div>
-
           {isHunyuanV3 && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {/*
                * PR1-A2: preset chips. The default is `fidelity` (most-faithful
                * to source). Clicking a chip batch-sets multi-view model + PBR
                * + face budget. The chip auto-deselects the moment the user
                * hand-tunes any of the three knobs off-preset.
                */}
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('presetLabel')}
-                </Label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {PRESETS_3D.map((preset) => {
-                    const isActive = activePresetId === preset.id
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => applyPreset(preset)}
-                        title={t(PRESET_I18N[preset.id].hint)}
-                        className={cn(
-                          'rounded-full border px-2 py-1.5 text-[10px] font-medium transition-colors',
-                          isActive
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border/60 text-muted-foreground hover:bg-muted/40',
-                        )}
-                      >
-                        {t(PRESET_I18N[preset.id].label)}
-                      </button>
-                    )
-                  })}
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('presetLabel')}
+              </Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {PRESETS_3D.map((preset) => {
+                  const isActive = activePresetId === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      title={t(PRESET_I18N[preset.id].hint)}
+                      className={cn(
+                        'rounded-full border px-2 py-1.5 text-[10px] font-medium transition-colors',
+                        isActive
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border/60 text-muted-foreground hover:bg-muted/40',
+                      )}
+                    >
+                      {t(PRESET_I18N[preset.id].label)}
+                    </button>
+                  )
+                })}
+              </div>
+              {activePresetId && (
+                <p className="text-[10px] leading-4 text-muted-foreground">
+                  {t(PRESET_I18N[activePresetId].hint)}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              aria-expanded={advancedOpen}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left transition-colors hover:bg-background"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{t('advancedSettingsLabel')}</span>
+              </span>
+              <ChevronDown
+                className={cn(
+                  'size-4 shrink-0 text-muted-foreground transition-transform',
+                  advancedOpen && 'rotate-180',
+                )}
+              />
+            </button>
+
+            {advancedOpen && (
+              <div className="flex flex-col gap-4 rounded-lg border border-border/50 bg-background/40 p-3">
+                {falActiveKeys.length > 1 && (
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('apiKeyDropdownLabel')}
+                    </Label>
+                    <Select
+                      value={selectedApiKeyId}
+                      onValueChange={setSelectedApiKeyId}
+                    >
+                      <SelectTrigger className="w-full">
+                        {(() => {
+                          const selectedKey = falActiveKeys.find(
+                            (k) => k.id === selectedApiKeyId,
+                          )
+                          return selectedKey ? (
+                            <span className="font-medium">
+                              {selectedKey.label}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t('apiKeyDropdownPlaceholder')}
+                            </span>
+                          )
+                        })()}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {falActiveKeys.map((k) => (
+                          <SelectItem key={k.id} value={k.id}>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{k.label}</span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {k.maskedKey}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('modelLabel')}
+                  </Label>
+                  <Select
+                    value={selectedModelId}
+                    onValueChange={(v) => setSelectedModelId(v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('modelPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {models.map((model) => {
+                        const messageKey = getModelMessageKey(model.id)
+                        return (
+                          <SelectItem key={model.id} value={model.id}>
+                            {tModels(`${messageKey}.label`)}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {activePresetId && (
-                  <p className="text-[10px] leading-4 text-muted-foreground">
-                    {t(PRESET_I18N[activePresetId].hint)}
-                  </p>
+
+                {isHunyuanV3 && (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {t('multiViewModelLabel')}
+                      </Label>
+                      <Select
+                        value={selectedMultiViewModelId}
+                        onValueChange={(v) => setSelectedMultiViewModelId(v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={t('multiViewModelLabel')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MODEL_3D_MULTIVIEW_MODEL_IDS.map((modelId) => {
+                            const messageKey = getModelMessageKey(modelId)
+                            return (
+                              <SelectItem key={modelId} value={modelId}>
+                                {tModels(`${messageKey}.label`)}
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {!multiViewUses3DRouteKey &&
+                      multiViewActiveKeys.length > 1 && (
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                            {t('apiKeyDropdownLabel')}
+                          </Label>
+                          <Select
+                            value={selectedMultiViewApiKeyId}
+                            onValueChange={setSelectedMultiViewApiKeyId}
+                          >
+                            <SelectTrigger className="w-full">
+                              {(() => {
+                                const selectedKey = multiViewActiveKeys.find(
+                                  (k) => k.id === selectedMultiViewApiKeyId,
+                                )
+                                return selectedKey ? (
+                                  <span className="font-medium">
+                                    {selectedKey.label}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    {t('apiKeyDropdownPlaceholder')}
+                                  </span>
+                                )
+                              })()}
+                            </SelectTrigger>
+                            <SelectContent>
+                              {multiViewActiveKeys.map((k) => (
+                                <SelectItem key={k.id} value={k.id}>
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="font-medium">
+                                      {k.label}
+                                    </span>
+                                    <span className="font-mono text-xs text-muted-foreground">
+                                      {k.maskedKey}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                    {sourceImage && (
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setManualMultiViewOpen((open) => !open)
+                          }
+                          className="h-8 justify-start rounded-full px-2 text-xs"
+                        >
+                          <Upload className="mr-1.5 size-3" />
+                          {manualMultiViewOpen
+                            ? t('manualViewHide')
+                            : t('manualViewShow')}
+                        </Button>
+
+                        {manualMultiViewOpen && (
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {GENERATED_VIEW_ANGLES.map((view) => {
+                              const manualImage = manualMultiViewImages[view]
+                              const isUploading = uploadingManualView === view
+                              const label = getViewLabel(view)
+                              return (
+                                <div
+                                  key={view}
+                                  className="relative flex min-w-0 flex-col gap-1"
+                                >
+                                  <div className="relative aspect-square overflow-hidden rounded-md border border-dashed border-border/60 bg-muted/30">
+                                    {manualImage ? (
+                                      <Image
+                                        src={manualImage.url}
+                                        alt={label}
+                                        fill
+                                        unoptimized
+                                        className="object-cover"
+                                        sizes="80px"
+                                      />
+                                    ) : (
+                                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                                        <ImageIcon className="size-4" />
+                                      </div>
+                                    )}
+                                    <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
+                                      {label}
+                                    </span>
+                                    {manualImage && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemoveManualView(view)
+                                        }
+                                        className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+                                        aria-label={t('manualViewRemoveLabel', {
+                                          view: label,
+                                        })}
+                                      >
+                                        <X className="size-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleManualViewUploadClick(view)
+                                    }
+                                    disabled={uploadingManualView !== null}
+                                    className="h-7 rounded-full px-2 text-[10px]"
+                                  >
+                                    {isUploading ? (
+                                      <Loader2 className="mr-1 size-3 animate-spin" />
+                                    ) : (
+                                      <Upload className="mr-1 size-3" />
+                                    )}
+                                    {manualImage
+                                      ? t('manualViewReplace')
+                                      : t('manualViewUpload')}
+                                  </Button>
+                                  <input
+                                    ref={(node) => {
+                                      manualViewInputRefs.current[view] = node
+                                    }}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(event) =>
+                                      handleManualViewFileChange(view, event)
+                                    }
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {supportsMeshFirstPreview && (
+                      <p className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                        {t('meshPreviewHint')}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2">
+                      <Label
+                        htmlFor="enable-pbr"
+                        className="text-sm font-medium"
+                      >
+                        {t('enablePbrLabel')}
+                      </Label>
+                      <Switch
+                        id="enable-pbr"
+                        checked={enablePbr}
+                        onCheckedChange={setEnablePbr}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {t('faceCountLabel')}
+                      </Label>
+                      <Select
+                        value={String(faceCount)}
+                        onValueChange={(v) => setFaceCount(Number(v))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FACE_COUNT_OPTIONS.map((opt) => (
+                            <SelectItem
+                              key={opt.value}
+                              value={String(opt.value)}
+                            >
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="prep-3d" className="text-sm font-medium">
+                    {t('prep3DLabel')}
+                  </Label>
+                  <Switch
+                    id="prep-3d"
+                    checked={prep3D}
+                    onCheckedChange={setPrep3D}
+                  />
+                </div>
+
+                {isTrellis2 && (
+                  <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                          {t('trellisResolutionLabel')}
+                        </Label>
+                        <Select
+                          value={String(trellisResolution)}
+                          onValueChange={(v) =>
+                            setTrellisResolution(
+                              Number(
+                                v,
+                              ) as (typeof TRELLIS_2_RESOLUTIONS)[number],
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TRELLIS_2_RESOLUTIONS.map((value) => (
+                              <SelectItem key={value} value={String(value)}>
+                                {value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                          {t('trellisTextureLabel')}
+                        </Label>
+                        <Select
+                          value={String(trellisTextureSize)}
+                          onValueChange={(v) =>
+                            setTrellisTextureSize(
+                              Number(
+                                v,
+                              ) as (typeof TRELLIS_2_TEXTURE_SIZES)[number],
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TRELLIS_2_TEXTURE_SIZES.map((value) => (
+                              <SelectItem key={value} value={String(value)}>
+                                {value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {t('trellisDecimationLabel')}
+                      </Label>
+                      <Select
+                        value={String(trellisDecimationTarget)}
+                        onValueChange={(v) =>
+                          setTrellisDecimationTarget(Number(v))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TRELLIS_DECIMATION_OPTIONS.map((opt) => (
+                            <SelectItem
+                              key={opt.value}
+                              value={String(opt.value)}
+                            >
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label
+                        htmlFor="trellis-remesh"
+                        className="text-sm font-medium"
+                      >
+                        {t('trellisRemeshLabel')}
+                      </Label>
+                      <Switch
+                        id="trellis-remesh"
+                        checked={trellisRemesh}
+                        onCheckedChange={setTrellisRemesh}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {isTriposr && (
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="remove-bg" className="text-sm font-medium">
+                      {t('removeBackgroundLabel')}
+                    </Label>
+                    <Switch
+                      id="remove-bg"
+                      checked={removeBackground}
+                      onCheckedChange={setRemoveBackground}
+                    />
+                  </div>
                 )}
               </div>
-              {supportsMeshFirstPreview && (
-                <div className="rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  {t('meshPreviewHint')}
-                </div>
-              )}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label htmlFor="enable-pbr" className="text-sm font-medium">
-                    {t('enablePbrLabel')}
-                  </Label>
-                  <span className="text-xs text-muted-foreground">
-                    {t('enablePbrHint')}
-                  </span>
-                </div>
-                <Switch
-                  id="enable-pbr"
-                  checked={enablePbr}
-                  onCheckedChange={setEnablePbr}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('faceCountLabel')}
-                </Label>
-                <Select
-                  value={String(faceCount)}
-                  onValueChange={(v) => setFaceCount(Number(v))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FACE_COUNT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={String(opt.value)}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {isTrellis2 && (
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('trellisResolutionLabel')}
-                  </Label>
-                  <Select
-                    value={String(trellisResolution)}
-                    onValueChange={(v) =>
-                      setTrellisResolution(
-                        Number(v) as (typeof TRELLIS_2_RESOLUTIONS)[number],
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TRELLIS_2_RESOLUTIONS.map((value) => (
-                        <SelectItem key={value} value={String(value)}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('trellisTextureLabel')}
-                  </Label>
-                  <Select
-                    value={String(trellisTextureSize)}
-                    onValueChange={(v) =>
-                      setTrellisTextureSize(
-                        Number(v) as (typeof TRELLIS_2_TEXTURE_SIZES)[number],
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TRELLIS_2_TEXTURE_SIZES.map((value) => (
-                        <SelectItem key={value} value={String(value)}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('trellisDecimationLabel')}
-                </Label>
-                <Select
-                  value={String(trellisDecimationTarget)}
-                  onValueChange={(v) => setTrellisDecimationTarget(Number(v))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRELLIS_DECIMATION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={String(opt.value)}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label
-                    htmlFor="trellis-remesh"
-                    className="text-sm font-medium"
-                  >
-                    {t('trellisRemeshLabel')}
-                  </Label>
-                  <span className="text-xs text-muted-foreground">
-                    {t('trellisRemeshHint')}
-                  </span>
-                </div>
-                <Switch
-                  id="trellis-remesh"
-                  checked={trellisRemesh}
-                  onCheckedChange={setTrellisRemesh}
-                />
-              </div>
-            </div>
-          )}
-
-          {isTriposr && (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex flex-col gap-0.5">
-                <Label htmlFor="remove-bg" className="text-sm font-medium">
-                  {t('removeBackgroundLabel')}
-                </Label>
-                <span className="text-xs text-muted-foreground">
-                  {t('removeBackgroundHint')}
-                </span>
-              </div>
-              <Switch
-                id="remove-bg"
-                checked={removeBackground}
-                onCheckedChange={setRemoveBackground}
-              />
-            </div>
-          )}
+            )}
+          </div>
 
           <Button
             type="button"

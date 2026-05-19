@@ -8,6 +8,7 @@ import {
   type CivitaiLoraSort,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
+import { withRetry } from '@/lib/with-retry'
 import type {
   CivitaiLoraLibraryItem,
   CivitaiLoraLibraryResult,
@@ -187,6 +188,20 @@ function toLibraryItem(
   }
 }
 
+/**
+ * Error wrapper that carries the HTTP status (when applicable) so
+ * `withRetry`'s default retryability check can distinguish retryable
+ * 5xx/429 from terminal 4xx without having to grep error messages.
+ */
+class CivitaiFetchError extends Error {
+  readonly status?: number
+  constructor(message: string, status?: number) {
+    super(message)
+    this.name = 'CivitaiFetchError'
+    this.status = status
+  }
+}
+
 async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   const controller = new AbortController()
   let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -194,7 +209,7 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
       controller.abort()
-      reject(new Error('Civitai request timed out'))
+      reject(new CivitaiFetchError('Civitai request timed out'))
     }, CIVITAI_REQUEST_TIMEOUT_MS)
   })
 
@@ -204,7 +219,10 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
     signal: controller.signal,
   }).then(async (response) => {
     if (!response.ok) {
-      throw new Error(`Civitai request failed with status ${response.status}`)
+      throw new CivitaiFetchError(
+        `Civitai request failed with status ${response.status}`,
+        response.status,
+      )
     }
     return response.json() as Promise<unknown>
   })
@@ -241,9 +259,17 @@ export async function listCivitaiLoras({
   if (baseModel !== 'all') url.searchParams.set('baseModels', baseModel)
 
   try {
-    const parsed = CivitaiModelsResponseSchema.parse(
-      await fetchCivitaiPayload(url),
-    )
+    // Civitai's public API blips with intermittent 5xx/timeouts — withRetry
+    // wraps three attempts with exponential backoff. Our CivitaiFetchError
+    // carries `.status` so the default retry classifier lets 4xx fail fast
+    // (a bad query won't get better by hammering it).
+    const payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 3,
+      baseDelayMs: 400,
+      maxDelayMs: 2000,
+      label: 'civitai.listLoras',
+    })
+    const parsed = CivitaiModelsResponseSchema.parse(payload)
     const items = parsed.items
       .map(toLibraryItem)
       .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))

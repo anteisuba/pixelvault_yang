@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ApiKeyError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { withRetry } from '@/lib/with-retry'
 import {
@@ -678,18 +679,47 @@ async function applyMaskToImage(
   const width = sourceMeta.width ?? 1024
   const height = sourceMeta.height ?? 1024
 
-  // mask → single-channel grayscale bytes, sized to match the source
-  let maskPipeline = sharp(maskBuffer).resize(width, height, { fit: 'fill' })
-  // Drop any alpha channel from the mask FIRST so .greyscale() works on RGB —
-  // otherwise some fal masks come back as alpha-only RGBA which collapses to
-  // a fully-white grayscale and you get back the original image untouched.
-  if (sourceMeta.hasAlpha || true) {
-    maskPipeline = maskPipeline.removeAlpha()
-  }
-  maskPipeline = maskPipeline.greyscale()
+  // sharp's `.greyscale()` keeps the image as 3-channel sRGB (R=G=B), so a
+  // subsequent `.raw()` yields width*height*3 bytes. `joinChannel` then sees
+  // a buffer triple the size it expects for channels:1 and either errors or
+  // (silently) walks off the end of the meaningful data — which is exactly
+  // how the cutout ended up looking like the original image. Force a real
+  // single-channel buffer via `toColourspace('b-w')` + `extractChannel(0)`.
+  let maskPipeline = sharp(maskBuffer)
+    .resize(width, height, { fit: 'fill' })
+    .removeAlpha()
+    .toColourspace('b-w')
+    .extractChannel(0)
   if (invert) maskPipeline = maskPipeline.negate()
 
-  const maskAlpha = await maskPipeline.raw().toBuffer()
+  const { data: maskAlpha, info: maskInfo } = await maskPipeline
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+
+  if (maskInfo.channels !== 1 || maskAlpha.length !== width * height) {
+    throw new ProviderError(
+      'fal.ai',
+      500,
+      `Bad mask shape: ${maskInfo.channels}ch ${maskAlpha.length}B vs expected 1ch ${width * height}B`,
+    )
+  }
+
+  // Quick sanity log so failed extractions show whether the model returned
+  // an empty mask vs. a fully-white "select everything" mask vs. an actual
+  // segmentation result.
+  let zeroCount = 0
+  let fullCount = 0
+  for (let i = 0; i < maskAlpha.length; i++) {
+    const v = maskAlpha[i]
+    if (v < 8) zeroCount++
+    else if (v > 247) fullCount++
+  }
+  logger.info('[extract] mask stats', {
+    width,
+    height,
+    zeroPct: ((zeroCount / maskAlpha.length) * 100).toFixed(1),
+    fullPct: ((fullCount / maskAlpha.length) * 100).toFixed(1),
+  })
 
   // Strip the source's own alpha (if any) then attach the mask as alpha.
   const cutoutBuffer = await sharp(sourceBuffer)

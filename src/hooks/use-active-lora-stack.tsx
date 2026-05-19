@@ -19,6 +19,73 @@ import type { ActiveLora, LoraAssetRecord } from '@/types'
 const STORAGE_KEY = 'pv.active-lora-stack.v1'
 const MAX_STACK = 3 // FAL flux-lora supports up to 5; cap UI at 3 for clarity
 
+const STYLE_PARAM = 'style'
+
+interface ParsedStyleToken {
+  code: string
+  scale?: number
+}
+
+/**
+ * Parse the `?style=` query into an ordered list of LoRA codes + optional
+ * scale overrides. Accepts:
+ *   ?style=code              — single code, default scale
+ *   ?style=code:0.8          — single code, explicit scale
+ *   ?style=a,b               — comma-separated multi (order preserved)
+ *   ?style=a:0.8,b:1.2       — multi with per-LoRA scale
+ *   ?style=a&style=b         — repeated query is also a valid multi form
+ *
+ * Invalid scales (NaN, negative) are dropped silently — the LoRA still
+ * loads at its asset default. We do not throw on malformed input because
+ * style links are user-shareable and need to degrade gracefully.
+ */
+export function parseStyleParams(
+  styleValues: readonly string[],
+): ParsedStyleToken[] {
+  const out: ParsedStyleToken[] = []
+  for (const raw of styleValues) {
+    for (const token of raw.split(',')) {
+      const trimmed = token.trim()
+      if (!trimmed) continue
+      const [code, scaleStr] = trimmed.split(':')
+      if (!code) continue
+      const parsedScale = scaleStr != null ? Number(scaleStr) : NaN
+      const validScale =
+        Number.isFinite(parsedScale) && parsedScale >= 0
+          ? parsedScale
+          : undefined
+      out.push(
+        validScale !== undefined ? { code, scale: validScale } : { code },
+      )
+    }
+  }
+  return out
+}
+
+/**
+ * Serialize stack entries into a single `?style=` query value. Order
+ * matches stack order. Omits the `:scale` suffix when the entry uses
+ * its asset's default scale, keeping the URL terse for the common case.
+ */
+export function serializeStackForUrl(
+  items: readonly { asset: LoraAssetRecord; scale?: number }[],
+): string {
+  return items
+    .map((entry) => {
+      const scale = entry.scale
+      if (scale == null || scale === entry.asset.defaultScale) {
+        return entry.asset.styleCode
+      }
+      return `${entry.asset.styleCode}:${roundScale(scale)}`
+    })
+    .join(',')
+}
+
+function roundScale(n: number): string {
+  // Strip trailing zeros for compact URLs: 1.0 → "1", 0.8 → "0.8"
+  return Number(n.toFixed(2)).toString()
+}
+
 interface StoredEntry {
   asset: LoraAssetRecord
   scale?: number
@@ -34,6 +101,13 @@ interface ActiveLoraStackValue {
   clear(): void
   /** True while resolving a `?style=` query param on mount */
   isResolvingFromUrl: boolean
+  /**
+   * Build a shareable URL that reproduces this stack on the canvas.
+   * Always points at /<locale>/studio/image with a `?style=` value
+   * encoding code + (non-default) scale per LoRA, in stack order.
+   * Returns `null` when the stack is empty.
+   */
+  getShareUrl(): string | null
 }
 
 const ActiveLoraStackContext = createContext<ActiveLoraStackValue | null>(null)
@@ -83,21 +157,26 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     hasHydrated.current = true
   }, [])
 
-  // Resolve `?style=<code>` (one or many) → fetch + push. setState calls
-  // live inside the async IIFE so the lint rule (which only flags
-  // synchronous setState in the effect body) doesn't trip.
+  // Resolve `?style=` tokens → fetch + push. Accepts the legacy
+  // single-code form, comma-separated multi, and `code:scale` per-token
+  // overrides. Resolution order matches URL order, so a shared link
+  // reproduces the sender's stack layering.
   useEffect(() => {
-    const codes = searchParams.getAll('style').filter((c) => c.length > 0)
-    if (codes.length === 0) return
+    const tokens = parseStyleParams(searchParams.getAll(STYLE_PARAM))
+    if (tokens.length === 0) return
 
     let cancelled = false
     void (async () => {
       setIsResolvingFromUrl(true)
       const resolved: StoredEntry[] = []
-      for (const code of codes) {
+      for (const { code, scale } of tokens) {
         const result = await getLoraAssetByCodeAPI(code)
         if (result.success && result.data) {
-          resolved.push({ asset: result.data })
+          resolved.push(
+            scale !== undefined
+              ? { asset: result.data, scale }
+              : { asset: result.data },
+          )
         } else {
           logger.warn('Failed to resolve ?style= code', {
             code,
@@ -166,6 +245,19 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     [items],
   )
 
+  const getShareUrl = useCallback((): string | null => {
+    if (items.length === 0) return null
+    if (typeof window === 'undefined') return null
+    const encoded = serializeStackForUrl(items)
+    if (!encoded) return null
+    // Extract the locale prefix from the current path so the share link
+    // lands the recipient on the same language they're already using.
+    // Routes look like `/{locale}/studio/image` or `/{locale}/studio/lora`.
+    const segments = window.location.pathname.split('/').filter(Boolean)
+    const locale = segments[0] ?? 'en'
+    return `${window.location.origin}/${locale}/studio/image?${STYLE_PARAM}=${encodeURIComponent(encoded)}`
+  }, [items])
+
   const value = useMemo<ActiveLoraStackValue>(
     () => ({
       items,
@@ -175,8 +267,18 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
       remove,
       clear,
       isResolvingFromUrl,
+      getShareUrl,
     }),
-    [items, toActiveLoras, push, setScale, remove, clear, isResolvingFromUrl],
+    [
+      items,
+      toActiveLoras,
+      push,
+      setScale,
+      remove,
+      clear,
+      isResolvingFromUrl,
+      getShareUrl,
+    ],
   )
 
   return (

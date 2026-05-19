@@ -855,7 +855,11 @@
     "clear": "すべて解除",
     "scaleLabel": "強度",
     "scaleHint": "0 = オフ、1 = 最大",
-    "alreadyHere": "{name} を適用済み — 生成できます"
+    "alreadyHere": "{name} を適用済み — 生成できます",
+    "share": "共有",
+    "shareCopied": "リンクをコピーしました — 同じLoRAスタックが開きます",
+    "shareCopyFailed": "コピーに失敗しました",
+    "shareEmpty": "スタックが空です — 共有するものがありません"
   },
   "StudioLoraChip": {
     "label": "LoRA",
@@ -864,6 +868,10 @@
     "emptyHint": "まだLoRAがありません。下の「LoRAライブラリを開く」から探してください。",
     "removeAria": "{name} を解除",
     "openLibrary": "LoRAライブラリを開く",
+    "share": "共有",
+    "shareCopied": "リンクをコピーしました — 同じLoRAスタックが開きます",
+    "shareCopyFailed": "コピーに失敗しました",
+    "shareEmpty": "スタックが空です — 共有するものがありません",
     "clearAll": "すべて解除",
     "bannerEmpty": "LoRAライブラリから選んでから生成してください。",
     "bannerOk": "現在のモデル「{model}」でこれらのLoRAを実行できます。",

@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 import type { LoraAssetRecord } from '@/types'
-import { LoraStackProvider, useActiveLoraStack } from './use-active-lora-stack'
+import {
+  LoraStackProvider,
+  parseStyleParams,
+  serializeStackForUrl,
+  useActiveLoraStack,
+} from './use-active-lora-stack'
 
 vi.mock('@/lib/api-client/lora-assets', () => ({
   getLoraAssetByCodeAPI: vi.fn(),
@@ -181,5 +186,118 @@ describe('useActiveLoraStack', () => {
       expect(result.current.isResolvingFromUrl).toBe(false)
     })
     expect(result.current.items).toEqual([])
+  })
+
+  it('parses ?style=a,b multi codes into the stack in order', async () => {
+    mockSearchParams.set('style', 'pv-c-a-aaaa,pv-c-b-bbbb')
+    mockGet.mockImplementation(async (code: string) => ({
+      success: true,
+      data: makeAsset({ id: code, styleCode: code }),
+    }))
+
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(2)
+    })
+    expect(result.current.items.map((entry) => entry.asset.id)).toEqual([
+      'pv-c-a-aaaa',
+      'pv-c-b-bbbb',
+    ])
+  })
+
+  it('parses ?style=code:scale to apply a per-LoRA scale override', async () => {
+    mockSearchParams.set('style', 'pv-c-a-aaaa:0.6,pv-c-b-bbbb')
+    mockGet.mockImplementation(async (code: string) => ({
+      success: true,
+      data: makeAsset({ id: code, styleCode: code }),
+    }))
+
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(2)
+    })
+    expect(result.current.items[0]?.scale).toBe(0.6)
+    expect(result.current.items[1]?.scale).toBeUndefined()
+  })
+})
+
+describe('parseStyleParams', () => {
+  it('returns an empty list for empty input', () => {
+    expect(parseStyleParams([])).toEqual([])
+    expect(parseStyleParams([''])).toEqual([])
+  })
+
+  it('parses a single bare code', () => {
+    expect(parseStyleParams(['pv-c-a-aaaa'])).toEqual([{ code: 'pv-c-a-aaaa' }])
+  })
+
+  it('parses comma-separated codes preserving order', () => {
+    expect(parseStyleParams(['a,b,c'])).toEqual([
+      { code: 'a' },
+      { code: 'b' },
+      { code: 'c' },
+    ])
+  })
+
+  it('parses code:scale tokens', () => {
+    expect(parseStyleParams(['a:0.8,b:1.2'])).toEqual([
+      { code: 'a', scale: 0.8 },
+      { code: 'b', scale: 1.2 },
+    ])
+  })
+
+  it('drops invalid scales but keeps the code', () => {
+    expect(parseStyleParams(['a:abc'])).toEqual([{ code: 'a' }])
+    expect(parseStyleParams(['a:-1'])).toEqual([{ code: 'a' }])
+  })
+
+  it('merges repeated ?style= query values in order', () => {
+    expect(parseStyleParams(['a:0.5', 'b,c:1.1'])).toEqual([
+      { code: 'a', scale: 0.5 },
+      { code: 'b' },
+      { code: 'c', scale: 1.1 },
+    ])
+  })
+})
+
+describe('serializeStackForUrl', () => {
+  it('returns an empty string for an empty stack', () => {
+    expect(serializeStackForUrl([])).toBe('')
+  })
+
+  it('omits :scale when the entry uses the asset default', () => {
+    const asset = makeAsset({ defaultScale: 1.0 })
+    expect(serializeStackForUrl([{ asset, scale: 1.0 }])).toBe(asset.styleCode)
+    expect(serializeStackForUrl([{ asset }])).toBe(asset.styleCode)
+  })
+
+  it('includes :scale only when it differs from the default', () => {
+    const asset = makeAsset({ defaultScale: 1.0, styleCode: 'pv-c-x-xxxx' })
+    expect(serializeStackForUrl([{ asset, scale: 0.8 }])).toBe(
+      'pv-c-x-xxxx:0.8',
+    )
+  })
+
+  it('joins multiple entries with commas in stack order', () => {
+    const a = makeAsset({ id: 'a', styleCode: 'a', defaultScale: 1.0 })
+    const b = makeAsset({ id: 'b', styleCode: 'b', defaultScale: 1.0 })
+    expect(serializeStackForUrl([{ asset: a, scale: 0.5 }, { asset: b }])).toBe(
+      'a:0.5,b',
+    )
+  })
+
+  it('round-trips through parseStyleParams', () => {
+    const a = makeAsset({ id: 'a', styleCode: 'a', defaultScale: 1.0 })
+    const b = makeAsset({ id: 'b', styleCode: 'b', defaultScale: 1.0 })
+    const serialized = serializeStackForUrl([
+      { asset: a, scale: 0.75 },
+      { asset: b, scale: 1.0 }, // default → no :scale suffix
+    ])
+    expect(parseStyleParams([serialized])).toEqual([
+      { code: 'a', scale: 0.75 },
+      { code: 'b' },
+    ])
   })
 })

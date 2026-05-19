@@ -1,14 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import * as Toolbar from '@radix-ui/react-toolbar'
+import { toast } from 'sonner'
 import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
   CircleSlash,
   Palette,
+  Share2,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -100,7 +102,21 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
   const tModels = useTranslations('Models')
   const { state, dispatch } = useStudioForm()
   const { modelOptions, selectedModel } = useImageModelOptions()
-  const { items, setScale, remove, clear } = useActiveLoraStack()
+  const { items, setScale, remove, clear, getShareUrl } = useActiveLoraStack()
+
+  const handleShare = useCallback(async () => {
+    const url = getShareUrl()
+    if (!url) {
+      toast.info(t('shareEmpty'))
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success(t('shareCopied'))
+    } catch {
+      toast.error(t('shareCopyFailed'))
+    }
+  }, [getShareUrl, t])
   const count = items.length
 
   const compatibility = useMemo<Compatibility>(() => {
@@ -296,15 +312,29 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
             <ArrowUpRight className="size-3.5" aria-hidden />
             {t('openLibrary')}
           </Link>
-          {items.length > 0 ? (
-            <button
-              type="button"
-              onClick={clear}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              {t('clearAll')}
-            </button>
-          ) : null}
+          <div className="flex items-center gap-3 text-xs">
+            {items.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => void handleShare()}
+                className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
+                aria-label={t('share')}
+                title={t('share')}
+              >
+                <Share2 className="size-3.5" aria-hidden />
+                {t('share')}
+              </button>
+            ) : null}
+            {items.length > 0 ? (
+              <button
+                type="button"
+                onClick={clear}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t('clearAll')}
+              </button>
+            ) : null}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

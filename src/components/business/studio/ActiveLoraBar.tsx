@@ -1,8 +1,10 @@
 'use client'
 
+import { useCallback } from 'react'
 import Link from 'next/link'
-import { Palette, Plus, X } from 'lucide-react'
+import { Palette, Plus, Share2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { ROUTES } from '@/constants/routes'
@@ -35,8 +37,22 @@ const SCALE_STEP = 0.05
  */
 export function ActiveLoraBar({ className }: { className?: string }) {
   const t = useTranslations('LoraStack')
-  const { items, setScale, remove, clear, isResolvingFromUrl } =
+  const { items, setScale, remove, clear, isResolvingFromUrl, getShareUrl } =
     useActiveLoraStack()
+
+  const handleShare = useCallback(async () => {
+    const url = getShareUrl()
+    if (!url) {
+      toast.info(t('shareEmpty'))
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success(t('shareCopied'))
+    } catch {
+      toast.error(t('shareCopyFailed'))
+    }
+  }, [getShareUrl, t])
 
   if (items.length === 0 && !isResolvingFromUrl) return null
 
@@ -144,6 +160,19 @@ export function ActiveLoraBar({ className }: { className?: string }) {
         <Plus className="size-3" aria-hidden />
         {t('addMore')}
       </Link>
+
+      {items.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => void handleShare()}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+          aria-label={t('share')}
+          title={t('share')}
+        >
+          <Share2 className="size-3" aria-hidden />
+          {t('share')}
+        </button>
+      ) : null}
 
       <Link
         href={ROUTES.STUDIO_LORA}

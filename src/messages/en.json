@@ -855,7 +855,11 @@
     "clear": "Clear all",
     "scaleLabel": "Strength",
     "scaleHint": "0 = off, 1 = full effect",
-    "alreadyHere": "{name} is active — ready to generate"
+    "alreadyHere": "{name} is active — ready to generate",
+    "share": "Share",
+    "shareCopied": "Link copied — opening it loads the same LoRA stack",
+    "shareCopyFailed": "Couldn't copy",
+    "shareEmpty": "Stack is empty — nothing to share"
   },
   "StudioLoraChip": {
     "label": "LoRA",
@@ -864,6 +868,10 @@
     "emptyHint": "No LoRA yet. Tap \"Open LoRA Library\" below to browse or favorite one.",
     "removeAria": "Remove {name}",
     "openLibrary": "Open LoRA Library",
+    "share": "Share",
+    "shareCopied": "Link copied — opening it loads the same LoRA stack",
+    "shareCopyFailed": "Couldn't copy",
+    "shareEmpty": "Stack is empty — nothing to share",
     "clearAll": "Clear all",
     "bannerEmpty": "Pick a LoRA from the library, then come back to generate.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",

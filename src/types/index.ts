@@ -687,6 +687,19 @@ export type Model3DStatusResponseData =
       generation?: never
       previewModelUrl?: string
       stage?: (typeof MODEL_3D_PROGRESS_STAGES)[number]
+      /**
+       * Temporary provider URL surfaced during the `uploading` stage so the
+       * UI can render the finished mesh before R2 ingest completes. Only set
+       * when the worker has the fal result but hasn't finalized the R2
+       * upload yet.
+       */
+      provisionalModelUrl?: string
+      /**
+       * Best-effort byte counter for the R2 ingest, readable when the status
+       * poll lands on the same worker running the upload. `total` may be 0
+       * if the source provider didn't advertise content-length.
+       */
+      uploadProgress?: { loaded: number; total: number }
     }
   | {
       jobId: string
@@ -729,7 +742,12 @@ export type MultiViewGenerateRequest = z.infer<
 
 export interface MultiViewImageRecord {
   id: string
-  view: 'back' | 'left' | 'right'
+  /**
+   * `back / left / right` are the three orthogonal angles auto-generated for
+   * Hunyuan3D feeds. `leftFront / rightFront` are 45° diagonal variants kept
+   * available for manual workflows; they aren't part of the default fan-out.
+   */
+  view: 'back' | 'left' | 'right' | 'leftFront' | 'rightFront'
   url: string
   width: number
   height: number

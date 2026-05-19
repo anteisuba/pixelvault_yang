@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Box,
   Check,
+  Dices,
   Download,
   FolderOpen,
   ImageIcon,
@@ -103,6 +104,51 @@ const TRELLIS_DECIMATION_OPTIONS = [
   { value: TRELLIS_2_DECIMATION_TARGET.MAX, label: '2M' },
 ]
 
+type Preset3DId = 'fidelity' | 'detail' | 'fast'
+
+interface Preset3D {
+  id: Preset3DId
+  multiViewModelId: string
+  enablePbr: boolean
+  faceCount: number
+}
+
+// PR1-A2: opinionated 3D parameter bundles for Hunyuan3D v3 / v3.1 Pro.
+// `fidelity` is the default — 500k faces stays sharper than 1M/1.5M because
+// texel density holds up, and Flux Kontext preserves pose for the side views.
+// `detail` only pays off for texture-heavy industrial subjects. `fast` keeps
+// the same Flux Kontext multi-view source (the speed/cost difference is in
+// PBR off + 500k face budget) — previously it swapped to Gemini Flash, but
+// Gemini's reference-edit was both less stable on anime/figurine subjects
+// and prone to 60s timeouts that tripped the per-provider circuit breaker
+// once 5 concurrent angle calls fanned out.
+const PRESETS_3D: readonly Preset3D[] = [
+  {
+    id: 'fidelity',
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    enablePbr: true,
+    faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
+  },
+  {
+    id: 'detail',
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    enablePbr: true,
+    faceCount: HUNYUAN3D_FACE_COUNT.HIGH,
+  },
+  {
+    id: 'fast',
+    multiViewModelId: AI_MODELS.FLUX_KONTEXT_PRO,
+    enablePbr: false,
+    faceCount: HUNYUAN3D_FACE_COUNT.DEFAULT,
+  },
+] as const
+
+const PRESET_I18N: Record<Preset3DId, { label: string; hint: string }> = {
+  fidelity: { label: 'presetFidelityLabel', hint: 'presetFidelityHint' },
+  detail: { label: 'presetDetailLabel', hint: 'presetDetailHint' },
+  fast: { label: 'presetFastLabel', hint: 'presetFastHint' },
+}
+
 type GeneratedSideView = (typeof GENERATED_VIEW_ANGLES)[number]
 type ManualMultiViewImages = Partial<
   Record<GeneratedSideView, MultiViewImageRecord>
@@ -125,6 +171,8 @@ function getMultiViewImages(
     if (view.view === 'back') images.backImageUrl = view.url
     if (view.view === 'left') images.leftImageUrl = view.url
     if (view.view === 'right') images.rightImageUrl = view.url
+    if (view.view === 'leftFront') images.leftFrontImageUrl = view.url
+    if (view.view === 'rightFront') images.rightFrontImageUrl = view.url
   }
 
   return Object.keys(images).length > 0 ? images : undefined
@@ -177,7 +225,13 @@ export function Studio3DWorkspace({
     models[0]?.id ?? AI_MODELS.HUNYUAN3D_V31_PRO,
   )
   const [enablePbr, setEnablePbr] = useState(true)
-  const [faceCount, setFaceCount] = useState<number>(HUNYUAN3D_FACE_COUNT.HIGH)
+  // PR1-A2: default face budget is 500k (the `fidelity` preset). Counter-
+  // intuitively this is sharper than 1M/1.5M for character/figurine subjects
+  // because texel density stays high. High/Max budgets are still selectable
+  // via the `detail` preset or the manual face-count dropdown.
+  const [faceCount, setFaceCount] = useState<number>(
+    HUNYUAN3D_FACE_COUNT.DEFAULT,
+  )
   const [trellisResolution, setTrellisResolution] =
     useState<(typeof TRELLIS_2_RESOLUTIONS)[number]>(1536)
   const [trellisTextureSize, setTrellisTextureSize] =
@@ -230,11 +284,32 @@ export function Studio3DWorkspace({
     useState<GeneratedSideView | null>(null)
   const [multiViewLightboxIndex, setMultiViewLightboxIndex] = useState(-1)
 
+  // PR1-A2: derived from the three knobs the preset bundles touch. Highlights
+  // the matching chip when the user's current settings happen to match a
+  // preset; goes null the moment they hand-tune anything off-preset.
+  const activePresetId = useMemo<Preset3DId | null>(() => {
+    const match = PRESETS_3D.find(
+      (p) =>
+        p.multiViewModelId === selectedMultiViewModelId &&
+        p.enablePbr === enablePbr &&
+        p.faceCount === faceCount,
+    )
+    return match?.id ?? null
+  }, [selectedMultiViewModelId, enablePbr, faceCount])
+
+  const applyPreset = (preset: Preset3D) => {
+    setSelectedMultiViewModelId(preset.multiViewModelId)
+    setEnablePbr(preset.enablePbr)
+    setFaceCount(preset.faceCount)
+  }
+
   const {
     isGenerating,
     stage,
     elapsedSeconds,
     previewModelUrl,
+    provisionalModelUrl,
+    uploadProgress,
     generatedGeneration,
     generate,
     reset,
@@ -440,6 +515,7 @@ export function Studio3DWorkspace({
     sourceUrl?: string
     sourceGenerationId?: string | null
     sourcePrompt?: string
+    seed?: number
   }) => {
     const targetModelId = override?.modelId ?? selectedModelId
     const targetSourceUrl = override?.sourceUrl ?? sourceImage?.url
@@ -464,6 +540,7 @@ export function Studio3DWorkspace({
       ...(targetPrompt && { prompt: targetPrompt }),
       prep3D,
       ...(selectedApiKeyId && { apiKeyId: selectedApiKeyId }),
+      ...(override?.seed != null && { seed: override.seed }),
       ...(targetIsHunyuanV3 && {
         enablePbr,
         faceCount,
@@ -512,6 +589,28 @@ export function Studio3DWorkspace({
       sourceUrl: refineSourceUrl,
       sourceGenerationId: sourceImage?.id ?? null,
       sourcePrompt: sourceImage?.prompt ?? displayGeneration?.prompt,
+    })
+  }
+
+  // PR1-A4: reroll the seed while reusing the existing multi-view images.
+  // `effectiveMultiViewViews` is unchanged, so submitGenerate auto-passes the
+  // same back/left/right/leftFront/rightFront URLs — only the Hunyuan seed
+  // changes. ~30s per attempt because no multi-view regeneration.
+  const canRetryWithNewSeed =
+    !!sourceImage &&
+    !!displayGeneration &&
+    HUNYUAN3D_V3_MODEL_IDS.has(displayGeneration.model) &&
+    !isGenerating &&
+    hasFalKey &&
+    sourceQualityIssues.length === 0
+
+  const handleRetryWithNewSeed = async () => {
+    if (!canRetryWithNewSeed || !displayGeneration) return
+    // Seed range matches the Hunyuan field expected by fal (0–9999 int).
+    const newSeed = Math.floor(Math.random() * 10000)
+    await submitGenerate({
+      modelId: displayGeneration.model,
+      seed: newSeed,
     })
   }
 
@@ -571,12 +670,13 @@ export function Studio3DWorkspace({
     })
   }
 
-  const getViewLabel = (view: GeneratedSideView) =>
-    view === 'back'
-      ? t('viewBack')
-      : view === 'left'
-        ? t('viewLeft')
-        : t('viewRight')
+  const getViewLabel = (view: GeneratedSideView) => {
+    if (view === 'back') return t('viewBack')
+    if (view === 'left') return t('viewLeft')
+    if (view === 'right') return t('viewRight')
+    if (view === 'leftFront') return t('viewLeftFront')
+    return t('viewRightFront')
+  }
 
   const handleManualViewFileChange = async (
     view: GeneratedSideView,
@@ -757,6 +857,25 @@ export function Studio3DWorkspace({
                   </a>
                 </Button>
                 {/*
+                 * PR1-A4: reroll the seed using the same multi-view images.
+                 * "Not quite right, try again" is the core workflow for the
+                 * fidelity-driven user — skipping multi-view regeneration
+                 * keeps each retry to ~30s and avoids paying for new side
+                 * views every time.
+                 */}
+                {canRetryWithNewSeed && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRetryWithNewSeed()}
+                    title={t('retrySeedHint')}
+                  >
+                    <Dices className="mr-1.5 size-3.5" />
+                    {t('retrySeedLabel')}
+                  </Button>
+                )}
+                {/*
                  * Refine entry — only visible when the current mesh is a
                  * TripoSR base. Triggers a second pass through Hunyuan3D
                  * using the same source image, so the user can preview cheap
@@ -779,6 +898,27 @@ export function Studio3DWorkspace({
                     )}
                   </Button>
                 )}
+              </div>
+            </div>
+          ) : isGenerating && provisionalModelUrl ? (
+            /*
+             * PR2-B2: fal returned the finished GLB, R2 ingest is still
+             * running. Render the temporary URL so the user can rotate the
+             * model immediately; the "saving to assets" banner explains why
+             * the download button is missing. Once status flips to COMPLETED
+             * the `displayGeneration` branch above takes over with the
+             * permanent R2 URL.
+             */
+            <div className="relative size-full">
+              <ModelViewer
+                src={provisionalModelUrl}
+                poster={sourceImage?.url}
+                alt={t('provisionalSavingLabel')}
+                className="h-full w-full"
+              />
+              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm backdrop-blur-sm dark:text-emerald-300">
+                <Check className="size-3.5" />
+                <span>{t('provisionalSavingLabel')}</span>
               </div>
             </div>
           ) : isGenerating ? (
@@ -838,7 +978,19 @@ export function Studio3DWorkspace({
               <div className="flex items-center justify-between gap-3 text-xs">
                 <span className="font-medium">{generationStageLabel}</span>
                 <span className="text-neutral-400">
-                  {t('elapsed', { seconds: `${elapsedSeconds}s` })}
+                  {/*
+                   * PR2-B3: when the worker that's doing the R2 upload is
+                   * also handling this status poll, replace "已等待 752s"
+                   * with "上传 64.2 / 120.3 MB". Otherwise (different worker,
+                   * or pre-upload stages) fall back to the elapsed counter.
+                   */}
+                  {uploadProgress
+                    ? uploadProgress.total > 0
+                      ? t('uploadProgressKnown', {
+                          progress: `${(uploadProgress.loaded / 1024 / 1024).toFixed(1)} / ${(uploadProgress.total / 1024 / 1024).toFixed(1)} MB`,
+                        })
+                      : t('uploadProgressUnknown')
+                    : t('elapsed', { seconds: `${elapsedSeconds}s` })}
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-1">
@@ -1395,6 +1547,43 @@ export function Studio3DWorkspace({
 
           {isHunyuanV3 && (
             <div className="flex flex-col gap-3">
+              {/*
+               * PR1-A2: preset chips. The default is `fidelity` (most-faithful
+               * to source). Clicking a chip batch-sets multi-view model + PBR
+               * + face budget. The chip auto-deselects the moment the user
+               * hand-tunes any of the three knobs off-preset.
+               */}
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('presetLabel')}
+                </Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PRESETS_3D.map((preset) => {
+                    const isActive = activePresetId === preset.id
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyPreset(preset)}
+                        title={t(PRESET_I18N[preset.id].hint)}
+                        className={cn(
+                          'rounded-full border px-2 py-1.5 text-[10px] font-medium transition-colors',
+                          isActive
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border/60 text-muted-foreground hover:bg-muted/40',
+                        )}
+                      >
+                        {t(PRESET_I18N[preset.id].label)}
+                      </button>
+                    )
+                  })}
+                </div>
+                {activePresetId && (
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    {t(PRESET_I18N[activePresetId].hint)}
+                  </p>
+                )}
+              </div>
               {supportsMeshFirstPreview && (
                 <div className="rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
                   {t('meshPreviewHint')}

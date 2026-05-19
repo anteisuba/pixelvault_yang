@@ -33,6 +33,7 @@ import {
 } from '@/services/providers/types'
 import {
   generateStorageKey,
+  streamUploadToR2,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
 import {
@@ -128,6 +129,15 @@ type GenerationExecutionRoute = Awaited<
 
 const finalizing3DJobs = new Set<string>()
 const MODEL_3D_FINALIZATION_STALE_MS = 15 * 60 * 1000
+
+/**
+ * PR2-B3: in-memory upload progress per job. Best-effort — readable when the
+ * status poll hits the same worker that's running the R2 upload. On a cold
+ * start or a different Fluid Compute instance the entry won't be visible and
+ * the client UI degrades from "X / Y MB" to indeterminate, but the upload
+ * itself still completes correctly.
+ */
+const finalUploadProgress = new Map<string, { loaded: number; total: number }>()
 const MESH_FIRST_PREVIEW_MODEL_IDS = new Set<string>(
   MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
 )
@@ -813,11 +823,21 @@ function buildFinalizing3DResponse(
   jobId: string,
   queueMeta: Model3DQueueMeta,
 ): Model3DStatusResponseData {
+  const progress = finalUploadProgress.get(jobId)
   return {
     jobId,
     status: 'IN_PROGRESS',
     stage: 'uploading',
     previewModelUrl: queueMeta.mesh?.modelUrl,
+    // PR2-B2: hand the fal temp GLB URL to the client so it can render the
+    // finished mesh while R2 ingest finishes in the background. The hook
+    // keeps the download button disabled until status flips to COMPLETED.
+    ...(queueMeta.finalResult && {
+      provisionalModelUrl: queueMeta.finalResult.modelUrl,
+    }),
+    // PR2-B3: live byte counter if this worker is the one running the
+    // upload. Replaces "已等待 752s" with "已上传 64 / 120 MB".
+    ...(progress && { uploadProgress: progress }),
   }
 }
 
@@ -973,17 +993,55 @@ async function persistCompleted3DGeneration(params: {
       fileSize: result.fileSize,
     })
 
+    // PR2-B1: prefer streaming upload (pipelines fetch + R2 PUT instead of
+    // buffering the full GLB in memory) — same path the video pipeline uses.
+    // Fall back to the buffered implementation if streaming fails: some
+    // provider CDNs terminate long-lived streamed downloads under R2
+    // backpressure, and a 100MB+ buffered retry is still preferable to
+    // surfacing a failure to the user.
+    const mimeType = result.contentType ?? 'model/gltf-binary'
     const { publicUrl: glbPublicUrl } = await timer.measure(
       GENERATION_STAGE.R2_UPLOAD,
-      () =>
-        uploadBufferedHttpToR2({
-          sourceUrl: result.modelUrl,
-          key: modelStorageKey,
-          mimeType: result.contentType ?? 'model/gltf-binary',
-          timeoutMs: 300_000,
-        }),
+      async () => {
+        try {
+          const streamed = await streamUploadToR2({
+            sourceUrl: result.modelUrl,
+            key: modelStorageKey,
+            mimeType,
+            // PR2-B1: GLBs are ~50-250MB and bandwidth-bound. Bump concurrency
+            // above the default of 1 so multiple 10MB parts upload in
+            // parallel — the previous serial PUT loop was the main reason
+            // streaming took as long as buffered.
+            concurrency: 4,
+            partSizeBytes: 10 * 1024 * 1024,
+            onProgress: (loaded, total) => {
+              finalUploadProgress.set(job.id, { loaded, total })
+            },
+          })
+          timer.addNote('result_streamed_to_r2')
+          return streamed
+        } catch (streamError) {
+          logger.warn('3D stream upload failed, falling back to buffered', {
+            jobId: job.id,
+            modelId: job.modelId,
+            error:
+              streamError instanceof Error
+                ? streamError.message
+                : String(streamError),
+          })
+          finalUploadProgress.delete(job.id)
+          const buffered = await uploadBufferedHttpToR2({
+            sourceUrl: result.modelUrl,
+            key: modelStorageKey,
+            mimeType,
+            timeoutMs: 300_000,
+          })
+          timer.addNote('result_download_buffered_with_r2_upload')
+          return buffered
+        }
+      },
     )
-    timer.addNote('result_download_buffered_with_r2_upload')
+    finalUploadProgress.delete(job.id)
 
     logger.info('3D final R2 upload completed', {
       jobId: job.id,

@@ -668,7 +668,22 @@
     "viewFront": "Front",
     "viewBack": "Back",
     "viewLeft": "Left",
-    "viewRight": "Right"
+    "viewRight": "Right",
+    "viewLeftFront": "Left-front",
+    "viewRightFront": "Right-front",
+    "presetLabel": "Recommended presets",
+    "presetFidelityLabel": "Closest to source",
+    "presetFidelityHint": "Flux Kontext + PBR + 500k faces. The best starting point for most scenes — 500k stays sharper than 1.5M.",
+    "presetDetailLabel": "Ultra detail",
+    "presetDetailHint": "Flux Kontext + PBR + 1M faces. Worth it for texture-heavy or industrial subjects.",
+    "presetFastLabel": "Quick preview",
+    "presetFastHint": "Flux Kontext + PBR off + 500k faces. Cheaper and faster — use for iteration only.",
+    "retrySeedLabel": "Retry with a new seed",
+    "retrySeedHint": "Reuses the existing multi-view set and only re-runs 3D with a fresh seed (~30s, doesn't regenerate side views).",
+    "uploadProgressKnown": "Uploading {progress}",
+    "uploadProgressUnknown": "Uploading…",
+    "provisionalSavingLabel": "Rendered — saving to your asset library",
+    "provisionalSavingHint": "The download button activates once saving completes."
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",

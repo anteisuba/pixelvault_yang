@@ -184,7 +184,9 @@ describe('generateMultiView', () => {
       imageUrl: 'https://cdn.test/front.png',
     })
 
-    expect(mockCreateUsage).toHaveBeenCalledTimes(3)
+    // One usage row per generated angle in GENERATED_VIEW_ANGLES
+    // (back, left, right, leftFront, rightFront).
+    expect(mockCreateUsage).toHaveBeenCalledTimes(GENERATED_VIEW_ANGLES.length)
     expect(mockCreateUsage).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'db-user-1',
@@ -196,17 +198,27 @@ describe('generateMultiView', () => {
   })
 
   it('returns partial results when some angles fail', async () => {
-    generateImageMock
-      .mockResolvedValueOnce(fakeImageResult('back'))
-      .mockRejectedValueOnce(new Error('boom'))
-      .mockResolvedValueOnce(fakeImageResult('right'))
+    // Reject only the `left` angle (identified by its prompt) so the test
+    // stays robust against Promise.allSettled ordering: any successful
+    // angles should still come back, the failing one should be dropped.
+    generateImageMock.mockImplementation(
+      async ({ prompt }: { prompt: string }) => {
+        if (prompt === MULTI_VIEW_PROMPTS.left) {
+          throw new Error('boom')
+        }
+        return fakeImageResult('any')
+      },
+    )
 
     const result = await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
     })
 
-    expect(result.views).toHaveLength(2)
-    expect(result.views.map((v) => v.view)).toEqual(['back', 'right'])
+    const expectedSurvivors = GENERATED_VIEW_ANGLES.filter((a) => a !== 'left')
+    expect(result.views).toHaveLength(expectedSurvivors.length)
+    expect(result.views.map((v) => v.view).sort()).toEqual(
+      [...expectedSurvivors].sort(),
+    )
   })
 
   it('throws a provider error when every angle fails', async () => {

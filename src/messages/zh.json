@@ -668,7 +668,22 @@
     "viewFront": "正面",
     "viewBack": "背面",
     "viewLeft": "左侧",
-    "viewRight": "右侧"
+    "viewRight": "右侧",
+    "viewLeftFront": "左前",
+    "viewRightFront": "右前",
+    "presetLabel": "推荐预设",
+    "presetFidelityLabel": "最像原图",
+    "presetFidelityHint": "Flux Kontext + PBR + 500k 面数。大多数场景的最佳起点，500k 反而比 1.5M 锐利。",
+    "presetDetailLabel": "极致细节",
+    "presetDetailHint": "Flux Kontext + PBR + 1M 面数。适合重纹理或工业品。",
+    "presetFastLabel": "快速预览",
+    "presetFastHint": "Flux Kontext + 关闭 PBR + 500k 面数。省钱省时间，仅用于试错。",
+    "retrySeedLabel": "换种子重跑",
+    "retrySeedHint": "复用现有多视图，仅换 seed 重新生成 3D（约 30 秒，不重新生成侧视图）。",
+    "uploadProgressKnown": "上传 {progress}",
+    "uploadProgressUnknown": "上传中…",
+    "provisionalSavingLabel": "已渲染，正在保存到资产库",
+    "provisionalSavingHint": "保存完成后下载按钮会激活。"
   },
   "MultiViewGenerate": {
     "success": "侧视图已准备好。",

@@ -418,12 +418,25 @@ export function isOwnedStorageUrl(url: string): boolean {
 /**
  * Stream-upload a remote URL directly to R2 using multipart upload.
  * Avoids loading the entire file into memory (prevents OOM for large videos).
+ *
+ * The `onProgress` callback (when provided) fires repeatedly during upload,
+ * approximately once per `partSize` chunk completed. The `total` value is
+ * taken from the source response's `content-length` header when present and
+ * may be 0 if the provider doesn't advertise it.
+ *
+ * `concurrency` controls how many multipart parts are in flight at once. The
+ * default of 1 preserves the previous (conservative) behaviour the video
+ * pipeline was tuned against. Callers shipping large files where bandwidth
+ * is the bottleneck (e.g. 100MB+ GLBs from fal) should pass 4+.
  */
 export async function streamUploadToR2(params: {
   sourceUrl: string
   key: string
   mimeType: string
   fetchHeaders?: Record<string, string>
+  onProgress?: (loaded: number, total: number) => void
+  concurrency?: number
+  partSizeBytes?: number
 }): Promise<{ publicUrl: string; sizeBytes: number }> {
   assertSafeUrl(params.sourceUrl, { allowedProtocols: ['http:', 'https:'] })
 
@@ -441,6 +454,9 @@ export async function streamUploadToR2(params: {
         )
       }
 
+      const contentLength = response.headers.get('content-length')
+      const totalHint = contentLength ? Number.parseInt(contentLength, 10) : 0
+
       const upload = new Upload({
         client: r2,
         params: {
@@ -450,24 +466,30 @@ export async function streamUploadToR2(params: {
           ContentType: params.mimeType,
           CacheControl: 'public, max-age=31536000, immutable',
         },
-        queueSize: 1,
-        partSize: 5 * 1024 * 1024, // 5MB parts
+        queueSize: params.concurrency ?? 1,
+        partSize: params.partSizeBytes ?? 5 * 1024 * 1024,
       })
+
+      if (params.onProgress) {
+        const onProgress = params.onProgress
+        upload.on('httpUploadProgress', (progress) => {
+          const loaded = progress.loaded ?? 0
+          const total = progress.total ?? totalHint
+          onProgress(loaded, total)
+        })
+      }
 
       await upload.done()
 
-      const contentLength = response.headers.get('content-length')
-      const sizeBytes = contentLength ? Number.parseInt(contentLength, 10) : 0
-
       logger.info('Stream uploaded to R2', {
         key: params.key,
-        sizeBytes,
+        sizeBytes: totalHint,
         mimeType: params.mimeType,
       })
 
       return {
         publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
-        sizeBytes,
+        sizeBytes: totalHint,
       }
     },
     { maxAttempts: 2, baseDelayMs: 2000, label: 'r2.streamUpload' },

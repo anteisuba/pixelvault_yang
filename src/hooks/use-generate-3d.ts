@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { VIDEO_GENERATION } from '@/constants/config'
 import type { Generate3DRequest, GenerationRecord } from '@/types'
 import { submit3DAPI, check3DStatusAPI } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 
 type Model3DStage =
   | 'idle'
@@ -16,12 +17,24 @@ type Model3DStage =
   | 'texture'
   | 'uploading'
 
+interface UploadProgress {
+  loaded: number
+  total: number
+}
+
 interface UseGenerate3DReturn {
   isGenerating: boolean
   stage: Model3DStage
   elapsedSeconds: number
   error: string | null
   previewModelUrl: string | null
+  /**
+   * PR2-B2: temporary fal GLB URL surfaced during the `uploading` stage so
+   * the UI can render the finished mesh before R2 ingest completes. Cleared
+   * once the COMPLETED status arrives with the permanent R2 URL.
+   */
+  provisionalModelUrl: string | null
+  uploadProgress: UploadProgress | null
   generatedGeneration: GenerationRecord | null
   generate: (params: Generate3DRequest) => Promise<void>
   reset: () => void
@@ -40,6 +53,12 @@ export function useGenerate3D(): UseGenerate3DReturn {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [previewModelUrl, setPreviewModelUrl] = useState<string | null>(null)
+  const [provisionalModelUrl, setProvisionalModelUrl] = useState<string | null>(
+    null,
+  )
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(
+    null,
+  )
   const [generatedGeneration, setGeneratedGeneration] =
     useState<GenerationRecord | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -51,6 +70,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
   // stack up and saturate the connection pool.
   const inFlightRef = useRef(false)
   const t = useTranslations('Model3DGenerate')
+  const tErrors = useTranslations('Errors')
 
   // Hunyuan3D and TripoSR routinely take 60–180s end-to-end. A 6s cadence
   // keeps the UI responsive without overlapping the typical 5–15s status
@@ -102,6 +122,8 @@ export function useGenerate3D(): UseGenerate3DReturn {
       setIsGenerating(true)
       setError(null)
       setPreviewModelUrl(null)
+      setProvisionalModelUrl(null)
+      setUploadProgress(null)
       setGeneratedGeneration(null)
       setStage('queued')
       startTimer()
@@ -110,7 +132,9 @@ export function useGenerate3D(): UseGenerate3DReturn {
         const submitResponse = await submit3DAPI(params)
 
         if (!submitResponse.success || !submitResponse.data) {
-          finish(submitResponse.error ?? t('errorFallback'))
+          finish(
+            getApiErrorMessage(tErrors, submitResponse, t('errorFallback')),
+          )
           return
         }
 
@@ -136,32 +160,59 @@ export function useGenerate3D(): UseGenerate3DReturn {
 
             if (!statusResponse.success || !statusResponse.data) {
               if (pollCountRef.current <= 5) return
-              finish(statusResponse.error ?? t('errorFallback'))
+              finish(
+                getApiErrorMessage(tErrors, statusResponse, t('errorFallback')),
+              )
               return
             }
 
             const { status, generation, previewModelUrl, stage } =
               statusResponse.data
+            // Discriminated union — provisional fields live on the
+            // IN_QUEUE/IN_PROGRESS branch only. The narrow has to stay
+            // inline in the ternary; TS doesn't propagate it through a
+            // boolean variable.
+            const provisional =
+              statusResponse.data.status === 'IN_QUEUE' ||
+              statusResponse.data.status === 'IN_PROGRESS'
+                ? statusResponse.data.provisionalModelUrl
+                : undefined
+            const progress =
+              statusResponse.data.status === 'IN_QUEUE' ||
+              statusResponse.data.status === 'IN_PROGRESS'
+                ? statusResponse.data.uploadProgress
+                : undefined
 
             if (previewModelUrl) {
               setPreviewModelUrl(previewModelUrl)
             }
+            if (provisional) {
+              setProvisionalModelUrl(provisional)
+            }
+            setUploadProgress(progress ?? null)
             if (stage === 'mesh') {
               setStage('mesh')
             }
             if (stage === 'texture') {
               setStage('texture')
             }
+            if (stage === 'uploading') {
+              setStage('uploading')
+            }
 
             if (status === 'COMPLETED' && generation) {
               setGeneratedGeneration(generation)
+              setProvisionalModelUrl(null)
+              setUploadProgress(null)
               finish()
               toast.success(t('toastSuccess'))
               return
             }
 
             if (status === 'FAILED') {
-              finish(statusResponse.error ?? t('errorFallback'))
+              finish(
+                getApiErrorMessage(tErrors, statusResponse, t('errorFallback')),
+              )
               return
             }
 
@@ -180,13 +231,15 @@ export function useGenerate3D(): UseGenerate3DReturn {
         finish(message)
       }
     },
-    [t, startTimer, finish],
+    [t, tErrors, startTimer, finish],
   )
 
   const reset = useCallback(() => {
     submitInFlightRef.current = false
     setError(null)
     setPreviewModelUrl(null)
+    setProvisionalModelUrl(null)
+    setUploadProgress(null)
     setGeneratedGeneration(null)
     setStage('idle')
     setElapsedSeconds(0)
@@ -207,6 +260,8 @@ export function useGenerate3D(): UseGenerate3DReturn {
     elapsedSeconds,
     error,
     previewModelUrl,
+    provisionalModelUrl,
+    uploadProgress,
     generatedGeneration,
     generate,
     reset,

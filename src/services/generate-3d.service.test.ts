@@ -49,6 +49,7 @@ vi.mock('@/services/generation.service', () => ({
 
 vi.mock('@/services/storage/r2', () => ({
   generateStorageKey: vi.fn(),
+  streamUploadToR2: vi.fn(),
   uploadBufferedHttpToR2: vi.fn(),
 }))
 
@@ -106,6 +107,7 @@ import {
 } from '@/services/usage.service'
 import {
   generateStorageKey,
+  streamUploadToR2,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
 
@@ -123,6 +125,7 @@ const mockCreateUsageEntry = vi.mocked(createApiUsageEntry)
 const mockCreateJob = vi.mocked(createGenerationJob)
 const mockFailJob = vi.mocked(failGenerationJob)
 const mockGenerateStorageKey = vi.mocked(generateStorageKey)
+const mockStreamUploadToR2 = vi.mocked(streamUploadToR2)
 const mockUploadBufferedHttpToR2 = vi.mocked(uploadBufferedHttpToR2)
 
 const RUNNING_JOB = {
@@ -180,6 +183,10 @@ describe('check3DGenerationStatusForUserId', () => {
     mockPrepareSourceImage.mockResolvedValue('https://cdn.test/prepared.png')
     mockGenerateStorageKey.mockReturnValue('generations/user-1/model/final.glb')
     mockCreateUsageEntry.mockResolvedValue({ id: 'usage-1' } as never)
+    mockStreamUploadToR2.mockResolvedValue({
+      publicUrl: 'https://cdn.test/final.glb',
+      sizeBytes: 456,
+    })
     mockUploadBufferedHttpToR2.mockResolvedValue({
       publicUrl: 'https://cdn.test/final.glb',
     } as never)
@@ -398,6 +405,10 @@ describe('check3DGenerationStatusForUserId', () => {
         status: 'IN_PROGRESS',
         stage: 'uploading',
         previewModelUrl: 'https://fal.run/mesh.glb',
+        // PR2-B2: the fal temp GLB URL is now surfaced during the uploading
+        // stage so the client can preview the finished mesh while R2 ingest
+        // runs in the background.
+        provisionalModelUrl: 'https://fal.run/final.glb',
       })
       const updateArg = mockUpdateJob.mock.calls[0][0] as {
         data: { externalRequestId: string; status: string }
@@ -410,6 +421,7 @@ describe('check3DGenerationStatusForUserId', () => {
         modelUrl: 'https://fal.run/final.glb',
         fileSize: 456,
       })
+      expect(mockStreamUploadToR2).not.toHaveBeenCalled()
       expect(mockUploadBufferedHttpToR2).not.toHaveBeenCalled()
       expect(mockCreateGeneration).not.toHaveBeenCalled()
       expect(mockAttachUsageEntry).not.toHaveBeenCalled()
@@ -430,12 +442,14 @@ describe('check3DGenerationStatusForUserId', () => {
         },
         data: { status: 'RUNNING' },
       })
-      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledTimes(1)
-      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledWith(
+      // PR2-B1: stream upload is the primary path; buffered is fallback-only.
+      expect(mockStreamUploadToR2).toHaveBeenCalledTimes(1)
+      expect(mockStreamUploadToR2).toHaveBeenCalledWith(
         expect.objectContaining({
           sourceUrl: 'https://fal.run/final.glb',
         }),
       )
+      expect(mockUploadBufferedHttpToR2).not.toHaveBeenCalled()
       expect(mockCreateGeneration).toHaveBeenCalledTimes(1)
       expect(mockCreateGeneration).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -444,6 +458,68 @@ describe('check3DGenerationStatusForUserId', () => {
         }),
       )
       expect(mockAttachUsageEntry).toHaveBeenCalledTimes(1)
+      expect(mockCompleteJob).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
+
+  it('falls back to buffered upload when streaming the GLB fails', async () => {
+    // PR2-B1: some provider CDNs terminate long-lived streamed downloads
+    // under R2 multipart backpressure. The buffered path remains as a
+    // safety net so a transient CDN issue doesn't surface as a failed run.
+    vi.useFakeTimers()
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.TEXTURE_RUNNING,
+        mesh: {
+          requestId: 'mesh-req',
+          statusUrl: 'https://queue.fal.run/status/mesh-req',
+          responseUrl: 'https://queue.fal.run/result/mesh-req',
+          modelUrl: 'https://fal.run/mesh.glb',
+        },
+        final: {
+          requestId: 'final-req',
+          statusUrl: 'https://queue.fal.run/status/final-req',
+          responseUrl: 'https://queue.fal.run/result/final-req',
+        },
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: 'source prompt',
+        apiKeyId: 'fal-key-id',
+      }),
+    } as never)
+    const checkModel3DQueueStatus = vi.fn().mockResolvedValue({
+      status: 'COMPLETED',
+      result: {
+        modelUrl: 'https://fal.run/final.glb',
+        contentType: 'model/gltf-binary',
+        fileSize: 456,
+        requestCount: 1,
+      },
+    })
+    mockGetProviderAdapter.mockReturnValue({
+      checkModel3DQueueStatus,
+      submitModel3DToQueue: vi.fn(),
+    } as never)
+    mockStreamUploadToR2.mockRejectedValueOnce(
+      new Error('provider CDN closed the connection'),
+    )
+
+    try {
+      await check3DGenerationStatusForUserId('user-1', 'job-1')
+      await vi.runOnlyPendingTimersAsync()
+
+      expect(mockStreamUploadToR2).toHaveBeenCalledTimes(1)
+      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledTimes(1)
+      expect(mockUploadBufferedHttpToR2).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceUrl: 'https://fal.run/final.glb',
+        }),
+      )
+      expect(mockCreateGeneration).toHaveBeenCalledTimes(1)
       expect(mockCompleteJob).toHaveBeenCalledTimes(1)
     } finally {
       vi.clearAllTimers()

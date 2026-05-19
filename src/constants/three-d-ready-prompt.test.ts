@@ -17,12 +17,14 @@ describe('THREE_D_READY_NEGATIVE', () => {
 })
 
 describe('MULTI_VIEW_PROMPTS', () => {
-  it('covers four cardinal angles', () => {
+  it('covers all six camera angles (front + five non-front)', () => {
     expect(Object.keys(MULTI_VIEW_PROMPTS).sort()).toEqual([
       'back',
       'front',
       'left',
+      'leftFront',
       'right',
+      'rightFront',
     ])
   })
 
@@ -36,6 +38,23 @@ describe('MULTI_VIEW_PROMPTS', () => {
       expect(prompt.toLowerCase()).toContain('same framing')
     }
   })
+
+  it('each prompt locks the drift vectors that hurt 3D reconstruction', () => {
+    for (const prompt of Object.values(MULTI_VIEW_PROMPTS)) {
+      expect(prompt.toLowerCase()).toContain('hand pose')
+      expect(prompt.toLowerCase()).toContain('finger placement')
+      expect(prompt.toLowerCase()).toContain('body proportions')
+    }
+  })
+
+  it('45-degree diagonal prompts state the rotation explicitly', () => {
+    expect(MULTI_VIEW_PROMPTS.leftFront.toLowerCase()).toContain(
+      '45 degrees counter-clockwise',
+    )
+    expect(MULTI_VIEW_PROMPTS.rightFront.toLowerCase()).toContain(
+      '45 degrees clockwise',
+    )
+  })
 })
 
 describe('MULTI_VIEW_NEGATIVE', () => {
@@ -45,10 +64,26 @@ describe('MULTI_VIEW_NEGATIVE', () => {
     expect(MULTI_VIEW_NEGATIVE).toContain('changed pose')
     expect(MULTI_VIEW_NEGATIVE).toContain('forced full body')
   })
+
+  it('blocks the specific drift vectors that wreck 3D reconstruction', () => {
+    expect(MULTI_VIEW_NEGATIVE).toContain('different hand position')
+    expect(MULTI_VIEW_NEGATIVE).toContain('different finger placement')
+    expect(MULTI_VIEW_NEGATIVE).toContain('changed hairstyle')
+    expect(MULTI_VIEW_NEGATIVE).toContain('changed proportions')
+    expect(MULTI_VIEW_NEGATIVE).toContain('perspective distortion')
+    expect(MULTI_VIEW_NEGATIVE).toContain('dramatic lighting change')
+  })
 })
 
 describe('GENERATED_VIEW_ANGLES', () => {
-  it('lists the three non-front angles in stable order', () => {
+  it('auto-generates the three orthogonal non-front angles', () => {
     expect(GENERATED_VIEW_ANGLES).toEqual(['back', 'left', 'right'])
+  })
+
+  it('is a subset of MULTI_VIEW_PROMPTS keys (45° variants kept for manual use)', () => {
+    const promptKeys = new Set(Object.keys(MULTI_VIEW_PROMPTS))
+    for (const angle of GENERATED_VIEW_ANGLES) {
+      expect(promptKeys.has(angle)).toBe(true)
+    }
   })
 })

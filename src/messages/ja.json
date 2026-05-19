@@ -668,7 +668,22 @@
     "viewFront": "正面",
     "viewBack": "背面",
     "viewLeft": "左",
-    "viewRight": "右"
+    "viewRight": "右",
+    "viewLeftFront": "左前",
+    "viewRightFront": "右前",
+    "presetLabel": "推奨プリセット",
+    "presetFidelityLabel": "ソースに最も近い",
+    "presetFidelityHint": "Flux Kontext + PBR + 500k ポリゴン。ほとんどの場面に最適。500k の方が 1.5M より鮮明です。",
+    "presetDetailLabel": "高ディテール",
+    "presetDetailHint": "Flux Kontext + PBR + 1M ポリゴン。質感重視や工業デザイン向き。",
+    "presetFastLabel": "クイックプレビュー",
+    "presetFastHint": "Flux Kontext + PBR オフ + 500k ポリゴン。試行錯誤用に低コスト・高速化。",
+    "retrySeedLabel": "シードを変えて再試行",
+    "retrySeedHint": "既存のマルチビューを使い、シードのみ変えて 3D を再生成（約 30 秒、サイドビューは再生成しません）。",
+    "uploadProgressKnown": "アップロード中 {progress}",
+    "uploadProgressUnknown": "アップロード中…",
+    "provisionalSavingLabel": "レンダリング完了 — アセットライブラリに保存中",
+    "provisionalSavingHint": "保存が完了するとダウンロードボタンが有効になります。"
   },
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",

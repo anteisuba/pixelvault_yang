@@ -67,6 +67,7 @@ function makeInitialState(
       aspectRatio: false,
       voiceSelector: false,
       voiceTrainer: false,
+      audioTranscribe: false,
       transform: false,
       videoParams: false,
       script: false,

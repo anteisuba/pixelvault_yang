@@ -722,6 +722,22 @@
     "playbackRate": "Playback speed",
     "download": "Download audio"
   },
+  "AudioTranscribe": {
+    "description": "Upload an audio clip to extract its spoken text and seed your TTS prompt.",
+    "pickFile": "Click to upload an audio file",
+    "limits": "MP3, WAV, M4A, or FLAC up to {max}",
+    "uploadLabel": "Audio file",
+    "removeFile": "Remove file",
+    "transcribe": "Transcribe",
+    "hintReplace": "The transcript will fill the prompt.",
+    "hintAppend": "The transcript will be appended to your prompt.",
+    "success": "Transcript inserted into the prompt.",
+    "errorTooLarge": "Audio file is too large. Max {max}.",
+    "errorNotAudio": "That file isn't audio. Try MP3, WAV, M4A, or FLAC.",
+    "errorEmptyResult": "Fish Audio didn't return any text for this clip.",
+    "errorApiKeyRequired": "Add a Fish Audio API key first to use transcription.",
+    "errorFailed": "Transcription failed. Please try again."
+  },
   "GalleryPage": {
     "filters": {
       "searchLabel": "Search the archive",
@@ -2298,6 +2314,7 @@
     "voice": "Voice",
     "voiceSelected": "✓ Voice",
     "clone": "Clone",
+    "transcribe": "Transcribe",
     "make3DReady": "3D Ready",
     "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
     "make3DReadyOn": "3D-ready template applied — generation will produce a Hunyuan3D / TripoSR-friendly source.",

@@ -35,6 +35,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   aspectRatio: false,
   voiceSelector: false,
   voiceTrainer: false,
+  audioTranscribe: false,
   transform: false,
   videoParams: false,
   script: false,

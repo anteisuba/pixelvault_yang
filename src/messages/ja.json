@@ -722,6 +722,22 @@
     "playbackRate": "再生速度",
     "download": "音声をダウンロード"
   },
+  "AudioTranscribe": {
+    "description": "音声をアップロードして書き起こし、TTS プロンプトに反映します。",
+    "pickFile": "音声ファイルを選択",
+    "limits": "MP3 / WAV / M4A / FLAC、1 ファイル最大 {max}",
+    "uploadLabel": "音声ファイル",
+    "removeFile": "ファイルを削除",
+    "transcribe": "書き起こす",
+    "hintReplace": "書き起こしテキストでプロンプトを置き換えます。",
+    "hintAppend": "書き起こしテキストを現在のプロンプトに追記します。",
+    "success": "書き起こしテキストをプロンプトに反映しました。",
+    "errorTooLarge": "音声ファイルが大きすぎます。最大 {max} まで。",
+    "errorNotAudio": "音声ファイルではありません。MP3 / WAV / M4A / FLAC を選択してください。",
+    "errorEmptyResult": "Fish Audio から書き起こし結果が返りませんでした。",
+    "errorApiKeyRequired": "Fish Audio の API キーを登録してから書き起こしを使用してください。",
+    "errorFailed": "書き起こしに失敗しました。もう一度お試しください。"
+  },
   "GalleryPage": {
     "filters": {
       "searchLabel": "アーカイブを検索",
@@ -2298,6 +2314,7 @@
     "voice": "音声",
     "voiceSelected": "✓ 音声",
     "clone": "クローン",
+    "transcribe": "音声を書き起こし",
     "make3DReady": "3D対応",
     "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
     "make3DReadyOn": "3D対応テンプレートを適用しました — 生成画像はそのまま 3D Studio に投入できます。",

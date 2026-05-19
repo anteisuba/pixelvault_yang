@@ -91,6 +91,7 @@ export type PanelName =
   | 'aspectRatio'
   | 'voiceSelector'
   | 'voiceTrainer'
+  | 'audioTranscribe'
   | 'transform'
   | 'videoParams'
   | 'script'
@@ -228,6 +229,7 @@ const initialPanels: Record<PanelName, boolean> = {
   aspectRatio: false,
   voiceSelector: false,
   voiceTrainer: false,
+  audioTranscribe: false,
   transform: false,
   videoParams: false,
   script: false,

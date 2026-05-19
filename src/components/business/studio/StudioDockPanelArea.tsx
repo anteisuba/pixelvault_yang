@@ -71,6 +71,13 @@ const VoiceTrainer = dynamic(
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
+const AudioTranscribeDialog = dynamic(
+  () =>
+    import('@/components/business/studio/AudioTranscribeDialog').then(
+      (mod) => mod.AudioTranscribeDialog,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
 const StudioVideoParams = dynamic(
   () =>
     import('@/components/business/studio/StudioVideoParams').then(
@@ -473,6 +480,28 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           </DialogDescription>
           <div className={DIALOG_BODY}>
             <VoiceTrainer />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Audio Transcribe (audio mode) ─────────────────────── */}
+      <Dialog
+        open={state.panels.audioTranscribe}
+        onOpenChange={(open) => {
+          if (!open) closePanel('audioTranscribe')
+        }}
+      >
+        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
+          <DialogTitle className={DIALOG_HEADER}>
+            {tBar('transcribe')}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {tBar('transcribe')}
+          </DialogDescription>
+          <div className={DIALOG_BODY}>
+            <AudioTranscribeDialog
+              onComplete={() => closePanel('audioTranscribe')}
+            />
           </div>
         </DialogContent>
       </Dialog>

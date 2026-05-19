@@ -1,7 +1,13 @@
 'use client'
 
 import { memo, useCallback, useRef, useState } from 'react'
-import { FileText, Mic, Plus, SlidersHorizontal } from 'lucide-react'
+import {
+  FileAudio2,
+  FileText,
+  Mic,
+  Plus,
+  SlidersHorizontal,
+} from 'lucide-react'
 
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -215,6 +221,26 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
         >
           <Plus className="size-4" />
           {tBar('clone')}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (state.panels.voiceSelector) {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'voiceSelector' })
+            }
+            if (state.panels.voiceTrainer) {
+              dispatch({ type: 'CLOSE_PANEL', payload: 'voiceTrainer' })
+            }
+            dispatch({ type: 'TOGGLE_PANEL', payload: 'audioTranscribe' })
+          }}
+          disabled={isGenerating}
+          className={cn(
+            pillBase,
+            state.panels.audioTranscribe ? pillActive : pillInactive,
+          )}
+        >
+          <FileAudio2 className="size-4" />
+          {tBar('transcribe')}
         </button>
       </Toolbar.Root>
     )

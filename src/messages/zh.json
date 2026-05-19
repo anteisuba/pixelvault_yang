@@ -722,6 +722,22 @@
     "playbackRate": "播放速度",
     "download": "下载音频"
   },
+  "AudioTranscribe": {
+    "description": "上传一段音频，自动转写为脚本填入下方提示词。",
+    "pickFile": "点击上传音频文件",
+    "limits": "支持 MP3 / WAV / M4A / FLAC，单文件最大 {max}",
+    "uploadLabel": "音频文件",
+    "removeFile": "移除文件",
+    "transcribe": "开始转写",
+    "hintReplace": "转写文本将填入提示词。",
+    "hintAppend": "转写文本会追加到当前提示词后面。",
+    "success": "已将转写文本写入提示词。",
+    "errorTooLarge": "音频文件太大，单文件不能超过 {max}。",
+    "errorNotAudio": "这不是一个音频文件，请上传 MP3 / WAV / M4A / FLAC。",
+    "errorEmptyResult": "Fish Audio 未能识别出任何文字内容。",
+    "errorApiKeyRequired": "请先绑定 Fish Audio API Key 再使用转写功能。",
+    "errorFailed": "转写失败，请稍后重试。"
+  },
   "GalleryPage": {
     "filters": {
       "searchLabel": "搜索档案",
@@ -2298,6 +2314,7 @@
     "voice": "音色",
     "voiceSelected": "✓ 音色",
     "clone": "克隆",
+    "transcribe": "音频转脚本",
     "make3DReady": "3D 适配",
     "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
     "make3DReadyOn": "已套用 3D 适配模板 — 生成后即可投喂 3D Studio。",

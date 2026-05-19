@@ -857,7 +857,7 @@
     "tabs": {
       "mine": "Mine",
       "train": "Train",
-      "community": "Community"
+      "community": "LoRA Library"
     },
     "trainCTA": "Train a new LoRA",
     "trainTitle": "Train LoRA",
@@ -868,10 +868,11 @@
       "asset": "Auto-saved asset"
     },
     "myLorasTitle": "My LoRAs",
-    "myLorasDescription": "Your trained and curated assets live here. Flip your own LoRA public when it is ready to share.",
-    "myLorasEmpty": "No LoRAs yet. Switch to Train to create your first one.",
-    "communityTitle": "Civitai LoRA library",
-    "communityDescription": "Search public Civitai LoRAs directly, sort the results, then use one in Image Studio.",
+    "myLorasTrainedSection": "Trained by me",
+    "myLorasFavoritesSection": "Favorites",
+    "myLorasEmpty": "No LoRAs yet. Switch to Train to create one, or favorite one from the LoRA Library.",
+    "myLorasFavoritesEmpty": "No favorites yet. Open the LoRA Library and tap the heart on one you like.",
+    "communityTitle": "LoRA Library",
     "communityEmpty": "No matching LoRAs found.",
     "communitySearch": "Search LoRAs...",
     "communitySortFilter": "Sort",
@@ -906,7 +907,13 @@
     "togglePublicAria": "Toggle public visibility",
     "madePublic": "LoRA is now public — others can discover it.",
     "madePrivate": "LoRA is now private.",
-    "visibilityUpdateFailed": "Couldn't update visibility"
+    "visibilityUpdateFailed": "Couldn't update visibility",
+    "favorite": "Favorite",
+    "unfavorite": "Remove favorite",
+    "favorited": "Favorited",
+    "favoriteAdded": "Added to favorites — find it under Mine → Favorites.",
+    "favoriteFailed": "Couldn't add favorite",
+    "viewCover": "View full cover"
   },
   "UseLoraButton": {
     "action": "Use LoRA",

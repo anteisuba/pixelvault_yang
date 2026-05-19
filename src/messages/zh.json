@@ -857,7 +857,7 @@
     "tabs": {
       "mine": "我的",
       "train": "训练",
-      "community": "社区"
+      "community": "LoRA 库"
     },
     "trainCTA": "训练新的 LoRA",
     "trainTitle": "训练 LoRA",
@@ -868,10 +868,11 @@
       "asset": "自动入库"
     },
     "myLorasTitle": "我的 LoRA",
-    "myLorasDescription": "自训和 curated 资产都在这里；需要分享时，把自己的 LoRA 切到公开。",
-    "myLorasEmpty": "你还没有 LoRA。切到训练分支创建第一个。",
-    "communityTitle": "Civitai LoRA 库",
-    "communityDescription": "直接搜索 Civitai 公开 LoRA，按结果排序，选中后点使用即可带入图像 Studio。",
+    "myLorasTrainedSection": "自训",
+    "myLorasFavoritesSection": "收藏",
+    "myLorasEmpty": "你还没有 LoRA。切到训练分支创建第一个，或从 LoRA 库收藏一个。",
+    "myLorasFavoritesEmpty": "还没有收藏。打开 LoRA 库，给喜欢的 LoRA 点一颗心。",
+    "communityTitle": "LoRA 库",
     "communityEmpty": "没有找到匹配的 LoRA。",
     "communitySearch": "搜索 LoRA...",
     "communitySortFilter": "排序",
@@ -906,7 +907,13 @@
     "togglePublicAria": "切换公开状态",
     "madePublic": "已设为公开 — 其他人可以发现它。",
     "madePrivate": "已设为私有。",
-    "visibilityUpdateFailed": "更新公开状态失败"
+    "visibilityUpdateFailed": "更新公开状态失败",
+    "favorite": "收藏",
+    "unfavorite": "取消收藏",
+    "favorited": "已收藏",
+    "favoriteAdded": "已加入收藏 — 可以在「我的 → 收藏」找到。",
+    "favoriteFailed": "收藏失败",
+    "viewCover": "查看封面大图"
   },
   "UseLoraButton": {
     "action": "使用 LoRA",

@@ -658,10 +658,16 @@ async function callExtractionModel(
 }
 
 /**
- * Combine the source image and a grayscale mask into a single PNG with the
- * alpha channel driven by the mask. When `invert` is true the alpha is
- * inverted first — that's how the "extract background" preset works (mask
- * comes back as foreground, we want to keep what isn't foreground).
+ * Combine source image RGB + a mask into a single transparent PNG. The mask's
+ * grayscale value drives the output alpha channel directly via `joinChannel`,
+ * which is more reliable than `composite(blend: 'dest-in')` because the
+ * latter's behaviour depends on whether the mask happens to carry an alpha
+ * channel of its own (fal models are inconsistent here — some return RGB
+ * binary masks, some return RGBA with alpha-only mask data).
+ *
+ * Pipeline: grayscale + resize the mask → extract raw single-channel bytes →
+ * join those bytes as the source image's alpha. When `invert` is true the
+ * mask is negated first — that's how the "extract background" preset works.
  */
 async function applyMaskToImage(
   sourceBuffer: Buffer,
@@ -672,18 +678,24 @@ async function applyMaskToImage(
   const width = sourceMeta.width ?? 1024
   const height = sourceMeta.height ?? 1024
 
-  // Normalize mask to single-channel, resized to source dims, optionally
-  // inverted. dest-in then drops every source pixel whose mask byte is 0.
-  let maskPipeline = sharp(maskBuffer)
-    .resize(width, height, { fit: 'fill' })
-    .greyscale()
-    .removeAlpha()
+  // mask → single-channel grayscale bytes, sized to match the source
+  let maskPipeline = sharp(maskBuffer).resize(width, height, { fit: 'fill' })
+  // Drop any alpha channel from the mask FIRST so .greyscale() works on RGB —
+  // otherwise some fal masks come back as alpha-only RGBA which collapses to
+  // a fully-white grayscale and you get back the original image untouched.
+  if (sourceMeta.hasAlpha || true) {
+    maskPipeline = maskPipeline.removeAlpha()
+  }
+  maskPipeline = maskPipeline.greyscale()
   if (invert) maskPipeline = maskPipeline.negate()
-  const alphaMask = await maskPipeline.png().toBuffer()
 
+  const maskAlpha = await maskPipeline.raw().toBuffer()
+
+  // Strip the source's own alpha (if any) then attach the mask as alpha.
   const cutoutBuffer = await sharp(sourceBuffer)
-    .ensureAlpha()
-    .composite([{ input: alphaMask, blend: 'dest-in' }])
+    .resize(width, height, { fit: 'fill' })
+    .removeAlpha()
+    .joinChannel(maskAlpha, { raw: { width, height, channels: 1 } })
     .png()
     .toBuffer()
 

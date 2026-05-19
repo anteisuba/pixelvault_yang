@@ -857,7 +857,7 @@
     "tabs": {
       "mine": "マイ",
       "train": "学習",
-      "community": "コミュニティ"
+      "community": "LoRA ライブラリ"
     },
     "trainCTA": "新しいLoRAを学習",
     "trainTitle": "LoRAを学習",
@@ -868,10 +868,11 @@
       "asset": "自動保存"
     },
     "myLorasTitle": "マイLoRA",
-    "myLorasDescription": "学習済み・curatedの資産をここで管理します。共有したい自分のLoRAは公開に切り替えます。",
-    "myLorasEmpty": "まだLoRAがありません。学習分岐で最初のLoRAを作成してください。",
-    "communityTitle": "Civitai LoRAライブラリ",
-    "communityDescription": "Civitaiの公開LoRAを検索し、並び替えて、そのまま画像Studioで使えます。",
+    "myLorasTrainedSection": "自分で学習",
+    "myLorasFavoritesSection": "お気に入り",
+    "myLorasEmpty": "まだLoRAがありません。学習分岐で最初のLoRAを作るか、LoRAライブラリからお気に入りに追加してください。",
+    "myLorasFavoritesEmpty": "お気に入りはまだありません。LoRAライブラリでハートをタップしてください。",
+    "communityTitle": "LoRA ライブラリ",
     "communityEmpty": "一致するLoRAがありません。",
     "communitySearch": "LoRAを検索...",
     "communitySortFilter": "並び順",
@@ -906,7 +907,13 @@
     "togglePublicAria": "公開設定を切り替え",
     "madePublic": "公開しました。他の人も発見できます。",
     "madePrivate": "非公開にしました。",
-    "visibilityUpdateFailed": "公開設定を更新できませんでした"
+    "visibilityUpdateFailed": "公開設定を更新できませんでした",
+    "favorite": "お気に入り",
+    "unfavorite": "お気に入りを解除",
+    "favorited": "お気に入り済み",
+    "favoriteAdded": "お気に入りに追加しました — マイ → お気に入りで確認できます。",
+    "favoriteFailed": "お気に入りに追加できませんでした",
+    "viewCover": "カバー画像を拡大"
   },
   "UseLoraButton": {
     "action": "LoRAを使う",

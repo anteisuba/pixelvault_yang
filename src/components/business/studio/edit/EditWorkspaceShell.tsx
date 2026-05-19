@@ -76,122 +76,124 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
           disabled={isUploadingSource || isBusy}
         />
 
-        <section
-          ref={pasteTargetRef}
-          tabIndex={0}
-          onPaste={handlePaste}
-          className="overflow-hidden rounded-xl border border-border/70 bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        >
-          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                {result ? t('resultTitle') : t('sourceTitle')}
-              </h2>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <section
+            ref={pasteTargetRef}
+            tabIndex={0}
+            onPaste={handlePaste}
+            className="overflow-hidden rounded-xl border border-border/70 bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  {result ? t('resultTitle') : t('sourceTitle')}
+                </h2>
+                {hasSource ? (
+                  <p className="text-xs text-muted-foreground">
+                    {source?.generationId
+                      ? t('sourceBadgeGeneration')
+                      : t('sourceBadgeExternal')}
+                  </p>
+                ) : null}
+              </div>
               {hasSource ? (
-                <p className="text-xs text-muted-foreground">
-                  {source?.generationId
-                    ? t('sourceBadgeGeneration')
-                    : t('sourceBadgeExternal')}
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {displayWidth} × {displayHeight}
                 </p>
               ) : null}
             </div>
-            {hasSource ? (
-              <p className="text-xs tabular-nums text-muted-foreground">
-                {displayWidth} × {displayHeight}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex min-h-96 items-center justify-center bg-muted/40 p-4">
-            {displayImage ? (
-              <img
-                src={displayImage}
-                alt={result ? t('resultAlt') : t('sourceAlt')}
-                onLoad={updateLoadedDimensions}
-                className="max-h-[70svh] max-w-full rounded-lg object-contain"
-                style={{
-                  aspectRatio: `${displayWidth} / ${displayHeight}`,
-                }}
-              />
-            ) : (
-              <div className="w-full max-w-md text-center">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <ImageIcon className="size-5" />
+            <div className="flex min-h-96 items-center justify-center bg-muted/40 p-4">
+              {displayImage ? (
+                <img
+                  src={displayImage}
+                  alt={result ? t('resultAlt') : t('sourceAlt')}
+                  onLoad={updateLoadedDimensions}
+                  className="max-h-[70svh] max-w-full rounded-lg object-contain"
+                  style={{
+                    aspectRatio: `${displayWidth} / ${displayHeight}`,
+                  }}
+                />
+              ) : (
+                <div className="w-full max-w-md text-center">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <ImageIcon className="size-5" />
+                  </div>
+                  <p className="mt-3 text-base font-semibold text-foreground">
+                    {t('emptyStateTitle')}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t('emptyStateSubtitle')}
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-center rounded-lg"
+                      onClick={() => setAssetPickerOpen(true)}
+                      disabled={isBusy}
+                    >
+                      <ImageIcon className="size-4" />
+                      <span>{t('chooseFromAssets')}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-center rounded-lg"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isBusy}
+                    >
+                      {isUploadingSource ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Upload className="size-4" />
+                      )}
+                      <span>{t('uploadSource')}</span>
+                    </Button>
+                  </div>
+                  <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <Clipboard className="size-3" />
+                    {t('pasteShortcut')}
+                  </p>
                 </div>
-                <p className="mt-3 text-base font-semibold text-foreground">
-                  {t('emptyStateTitle')}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('emptyStateSubtitle')}
-                </p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              )}
+            </div>
+            {hasSource ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clipboard className="size-3" />
+                  {t('pasteShortcut')}
+                </span>
+                <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant="outline"
-                    className="justify-center rounded-lg"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setAssetPickerOpen(true)}
                     disabled={isBusy}
                   >
-                    <ImageIcon className="size-4" />
-                    <span>{t('chooseFromAssets')}</span>
+                    {t('chooseFromAssets')}
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
-                    className="justify-center rounded-lg"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isBusy}
                   >
                     {isUploadingSource ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2 className="size-3 animate-spin" />
                     ) : (
-                      <Upload className="size-4" />
+                      <Upload className="size-3" />
                     )}
-                    <span>{t('uploadSource')}</span>
+                    {t('uploadSource')}
                   </Button>
                 </div>
-                <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                  <Clipboard className="size-3" />
-                  {t('pasteShortcut')}
-                </p>
               </div>
-            )}
-          </div>
-          {hasSource ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 bg-card/60 px-4 py-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Clipboard className="size-3" />
-                {t('pasteShortcut')}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAssetPickerOpen(true)}
-                  disabled={isBusy}
-                >
-                  {t('chooseFromAssets')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isBusy}
-                >
-                  {isUploadingSource ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Upload className="size-3" />
-                  )}
-                  {t('uploadSource')}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </section>
+            ) : null}
+          </section>
 
-        {children}
+          <div className="space-y-4">{children}</div>
+        </div>
       </div>
 
       <AssetSelectorDialog

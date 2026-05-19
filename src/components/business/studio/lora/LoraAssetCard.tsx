@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { Palette, Globe2, Lock, Sparkles, Copy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { ROUTES } from '@/constants/routes'
+import { useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { Switch } from '@/components/ui/switch'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, type ReactNode } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   ArrowUpRight,
@@ -29,6 +29,7 @@ import {
   type LoraWorkbenchSection,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
+import { usePathname, useRouter } from '@/i18n/navigation'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'

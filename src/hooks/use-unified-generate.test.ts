@@ -1,3 +1,4 @@
+import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -12,8 +13,11 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+const mockSearchParams = new URLSearchParams()
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => mockSearchParams,
 }))
 
 vi.mock('sonner', () => ({
@@ -37,6 +41,7 @@ vi.mock('@/lib/api-error-message', () => ({
 }))
 
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
+import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
 import {
   studioGenerateAPI,
   generateAudioAPI,
@@ -47,6 +52,10 @@ import { toast } from 'sonner'
 const mockStudioGenerate = vi.mocked(studioGenerateAPI)
 const mockGenerateAudio = vi.mocked(generateAudioAPI)
 const mockCheckAudioStatus = vi.mocked(checkAudioStatusAPI)
+
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(LoraStackProvider, null, children)
+}
 
 // ─── Fixtures ─────────────────────────────────────────────────────
 
@@ -78,6 +87,8 @@ describe('useUnifiedGenerate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    window.localStorage.clear()
+    mockSearchParams.forEach((_, key) => mockSearchParams.delete(key))
     // Stub crypto.randomUUID for deterministic test runs
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(
       '00000000-0000-0000-0000-000000000000',
@@ -85,7 +96,7 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('starts in idle state', () => {
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     expect(result.current.isGenerating).toBe(false)
     expect(result.current.stage).toBe('idle')
@@ -97,7 +108,7 @@ describe('useUnifiedGenerate', () => {
   it('generates image in single mode and returns generation', async () => {
     mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let gen: unknown
     await act(async () => {
@@ -123,7 +134,7 @@ describe('useUnifiedGenerate', () => {
       }),
     )
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let first!: Promise<GenerationRecord | null>
     let second!: Promise<GenerationRecord | null>
@@ -154,7 +165,7 @@ describe('useUnifiedGenerate', () => {
   it('sets error state when image generation fails', async () => {
     mockStudioGenerate.mockResolvedValue(ERROR_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let gen: unknown
     await act(async () => {
@@ -173,7 +184,7 @@ describe('useUnifiedGenerate', () => {
   it('creates activeRun with correct mode for single image', async () => {
     mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     await act(async () => {
       await result.current.generate({ mode: 'image', image: IMAGE_INPUT })
@@ -188,7 +199,7 @@ describe('useUnifiedGenerate', () => {
   it('generates audio and returns generation', async () => {
     mockGenerateAudio.mockResolvedValue(SUCCESS_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let gen: unknown
     await act(async () => {
@@ -232,7 +243,7 @@ describe('useUnifiedGenerate', () => {
         },
       })
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let generationPromise: Promise<unknown> | undefined
 
@@ -293,7 +304,7 @@ describe('useUnifiedGenerate', () => {
         },
       })
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let generationPromise: Promise<unknown> | undefined
 
@@ -336,7 +347,7 @@ describe('useUnifiedGenerate', () => {
       },
     })
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let generationPromise: Promise<unknown> | undefined
 
@@ -375,7 +386,7 @@ describe('useUnifiedGenerate', () => {
       },
     })
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let generationPromise: Promise<unknown> | undefined
 
@@ -405,7 +416,7 @@ describe('useUnifiedGenerate', () => {
       success: true,
     })
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let generation: unknown
     await act(async () => {
@@ -423,7 +434,7 @@ describe('useUnifiedGenerate', () => {
   })
 
   it('returns null when mode has no matching input', async () => {
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     let gen: unknown
     await act(async () => {
@@ -438,7 +449,7 @@ describe('useUnifiedGenerate', () => {
       .mockResolvedValueOnce(ERROR_RESPONSE)
       .mockResolvedValueOnce(SUCCESS_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     await act(async () => {
       await result.current.generate({ mode: 'image', image: IMAGE_INPUT })
@@ -458,7 +469,7 @@ describe('useUnifiedGenerate', () => {
   it('reset clears all state', async () => {
     mockStudioGenerate.mockResolvedValue(SUCCESS_RESPONSE)
 
-    const { result } = renderHook(() => useUnifiedGenerate())
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
     await act(async () => {
       await result.current.generate({ mode: 'image', image: IMAGE_INPUT })

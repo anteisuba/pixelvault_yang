@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { VoiceTrainer } from './VoiceTrainer'
@@ -168,6 +168,56 @@ describe('VoiceTrainer', () => {
     expect(toastError.mock.calls[0]?.[0]).toBe('voiceApiKeyRequired')
     expect(dispatchMock).not.toHaveBeenCalled()
     expect(refreshMock).not.toHaveBeenCalled()
+  })
+
+  it('shows the uploading-stage label immediately after train is clicked', async () => {
+    let resolveCreate: (value: unknown) => void = () => {}
+    createVoiceMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve
+      }),
+    )
+
+    render(<VoiceTrainer />)
+    fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
+      target: { value: 'My Voice' },
+    })
+    pickFiles([makeAudioFile('clip.mp3', 1024)])
+
+    fireEvent.click(screen.getByText('voiceTrainCreate'))
+
+    // The "uploading" label is what proves the user gets immediate feedback
+    // when they hit Create. The 1500ms → finalizing transition is a pure
+    // setTimeout schedule and is not worth wrestling fake timers for.
+    await waitFor(() =>
+      expect(screen.getByText('voiceTrainStageUploading')).toBeInTheDocument(),
+    )
+    expect(screen.queryByText('voiceTrainCreate')).not.toBeInTheDocument()
+
+    // Resolving the request returns the button to idle.
+    await act(async () => {
+      resolveCreate({
+        success: true,
+        data: { id: 'v-1' },
+        voiceCard: { id: 'c-1', voiceId: 'v-1' },
+      })
+    })
+
+    await waitFor(() =>
+      expect(screen.getByText('voiceTrainCreate')).toBeInTheDocument(),
+    )
+  })
+
+  it('labels the transcribe button to flag first-file-only with multiple files', () => {
+    render(<VoiceTrainer />)
+
+    pickFiles([makeAudioFile('a.mp3', 1024)])
+    expect(screen.getByText('voiceTranscribe')).toBeInTheDocument()
+    expect(screen.queryByText('voiceTranscribeFirst')).not.toBeInTheDocument()
+
+    pickFiles([makeAudioFile('b.mp3', 1024)])
+    expect(screen.getByText('voiceTranscribeFirst')).toBeInTheDocument()
+    expect(screen.queryByText('voiceTranscribe')).not.toBeInTheDocument()
   })
 
   it('fills the transcript via the auto-transcribe button', async () => {

@@ -12,6 +12,7 @@ vi.mock('@/services/user.service', () => ({
 const mockAssetFindUnique = vi.fn()
 const mockAssetFindMany = vi.fn()
 const mockAssetCreate = vi.fn()
+const mockAssetUpdate = vi.fn()
 const mockJobFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
@@ -20,6 +21,7 @@ vi.mock('@/lib/db', () => ({
       findUnique: (...a: unknown[]) => mockAssetFindUnique(...a),
       findMany: (...a: unknown[]) => mockAssetFindMany(...a),
       create: (...a: unknown[]) => mockAssetCreate(...a),
+      update: (...a: unknown[]) => mockAssetUpdate(...a),
     },
     loraTrainingJob: {
       findUnique: (...a: unknown[]) => mockJobFindUnique(...a),
@@ -33,6 +35,8 @@ import {
   listLoraAssetsForUser,
   ensureLoraAssetFromTrainingJob,
   findLoraAssetsByUrls,
+  listDiscoverLoraAssets,
+  setLoraAssetVisibility,
 } from '@/services/lora-asset.service'
 
 const OWNER = { id: 'user_owner', clerkId: 'clerk_owner' }
@@ -250,5 +254,64 @@ describe('ensureLoraAssetFromTrainingJob', () => {
       trainingJobId: 'job_1',
     })
     expect(callArg.data.styleCode).toMatch(/^pv-c-forest-[a-f0-9]{4}$/)
+  })
+})
+
+describe('listDiscoverLoraAssets', () => {
+  it('excludes the viewer own assets when signed in', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindMany.mockResolvedValue([
+      buildRow({ id: 'other_1', userId: 'stranger', isPublic: true }),
+    ])
+    const result = await listDiscoverLoraAssets(OWNER.clerkId)
+    const where = mockAssetFindMany.mock.calls[0][0].where as {
+      userId?: { not: string }
+    }
+    expect(where.userId).toEqual({ not: OWNER.id })
+    expect(result).toHaveLength(1)
+  })
+
+  it('drops the user filter for anonymous viewers', async () => {
+    mockAssetFindMany.mockResolvedValue([])
+    await listDiscoverLoraAssets(null)
+    const where = mockAssetFindMany.mock.calls[0][0].where as Record<
+      string,
+      unknown
+    >
+    expect(where.userId).toBeUndefined()
+    expect(where.isPublic).toBe(true)
+    expect(where.source).toBe('trained')
+  })
+})
+
+describe('setLoraAssetVisibility', () => {
+  it('returns null when the asset does not exist', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(null)
+    const result = await setLoraAssetVisibility(OWNER.clerkId, 'missing', true)
+    expect(result).toBeNull()
+    expect(mockAssetUpdate).not.toHaveBeenCalled()
+  })
+
+  it('throws when caller is not the owner', async () => {
+    mockEnsureUser.mockResolvedValue(VIEWER)
+    mockAssetFindUnique.mockResolvedValue(buildRow({ userId: OWNER.id }))
+    await expect(
+      setLoraAssetVisibility(VIEWER.clerkId, 'asset_1', true),
+    ).rejects.toThrow(/authorized/i)
+    expect(mockAssetUpdate).not.toHaveBeenCalled()
+  })
+
+  it('flips isPublic and returns the updated record for the owner', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(buildRow({ isPublic: false }))
+    mockAssetUpdate.mockResolvedValue(buildRow({ isPublic: true }))
+    const result = await setLoraAssetVisibility(OWNER.clerkId, 'asset_1', true)
+    expect(mockAssetUpdate).toHaveBeenCalledWith({
+      where: { id: 'asset_1' },
+      data: { isPublic: true },
+    })
+    expect(result?.isPublic).toBe(true)
+    expect(result?.isOwn).toBe(true)
   })
 })

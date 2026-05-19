@@ -32,6 +32,22 @@ import { ensureUser } from '@/services/user.service'
 
 import { POST } from './route'
 
+interface UploadReferenceSuccessBody {
+  success: true
+  data: {
+    url: string
+    fileName: string
+    sizeBytes: number
+    mimeType: string
+  }
+}
+
+interface UploadReferenceErrorBody {
+  success: false
+  error?: string
+  errorCode?: string
+}
+
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockUpload = vi.mocked(uploadReferenceAudio)
 
@@ -70,7 +86,7 @@ describe('POST /api/voices/upload-reference', () => {
   it('rejects requests without an audio file', async () => {
     const response = await POST(createUploadPOST(new FormData()))
     expect(response.status).toBe(400)
-    const body = await parseJSON(response)
+    const body = await parseJSON<{ success: boolean }>(response)
     expect(body).toMatchObject({ success: false })
     expect(mockUpload).not.toHaveBeenCalled()
   })
@@ -81,7 +97,7 @@ describe('POST /api/voices/upload-reference', () => {
     formData.append('audio', file, file.name)
     const response = await POST(createUploadPOST(formData))
     expect(response.status).toBe(400)
-    const body = await parseJSON(response)
+    const body = await parseJSON<UploadReferenceErrorBody>(response)
     expect(body).toMatchObject({
       success: false,
       errorCode: 'UNSUPPORTED_AUDIO_TYPE',
@@ -105,7 +121,7 @@ describe('POST /api/voices/upload-reference', () => {
     )
     const response = await POST(oversizedRequest)
     expect(response.status).toBe(413)
-    const body = await parseJSON(response)
+    const body = await parseJSON<UploadReferenceErrorBody>(response)
     expect(body).toMatchObject({
       success: false,
       errorCode: 'AUDIO_TOO_LARGE',
@@ -127,7 +143,7 @@ describe('POST /api/voices/upload-reference', () => {
     const response = await POST(createUploadPOST(formData))
 
     expect(response.status).toBe(200)
-    const body = await parseJSON(response)
+    const body = await parseJSON<UploadReferenceSuccessBody>(response)
     expect(body).toMatchObject({
       success: true,
       data: {

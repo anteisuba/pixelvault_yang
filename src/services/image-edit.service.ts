@@ -702,40 +702,14 @@ export async function extractElement(params: {
   modelId?: string
 }): Promise<ImageEditResult> {
   const modelId = params.modelId ?? FAL_DEFAULT_EXTRACT_MODEL
-  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
 
-  const response = await withRetry(
-    async () => {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Key ${params.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: params.imageUrl,
-          text_prompt: params.prompt,
-        }),
-      })
-      if (!res.ok) {
-        const errorBody = await res.text().catch(() => 'Unknown error')
-        throw new ProviderError('fal.ai', res.status, errorBody)
-      }
-      return res.json()
-    },
-    { label: 'fal.extractElement', maxAttempts: 3, baseDelayMs: 1000 },
+  const maskUrl = await callExtractionModel(
+    modelId,
+    params.apiKey,
+    params.imageUrl,
+    params.prompt,
   )
 
-  const parsed = LangSamResponseSchema.safeParse(response)
-  if (!parsed.success) {
-    throw new ProviderError(
-      'fal.ai',
-      502,
-      `Malformed lang-SAM response: ${parsed.error.message}`,
-    )
-  }
-
-  const maskUrl = parsed.data.masks[0]
   const [{ buffer: sourceBuffer }, { buffer: maskBuffer }] = await Promise.all([
     fetchAsBuffer(params.imageUrl),
     fetchAsBuffer(maskUrl),

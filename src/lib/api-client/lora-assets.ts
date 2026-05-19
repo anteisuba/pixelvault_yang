@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import type { LoraAssetRecord } from '@/types'
+import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
+import type { CivitaiLoraLibraryResult, LoraAssetRecord } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
 
@@ -14,6 +15,12 @@ interface SingleResponse {
   data?: LoraAssetRecord
   error?: string
   errorCode?: string
+}
+
+interface CivitaiListResponse {
+  success: boolean
+  data?: CivitaiLoraLibraryResult
+  error?: string
 }
 
 export async function listLoraAssetsAPI(): Promise<ListResponse> {
@@ -50,6 +57,44 @@ export async function listDiscoverLoraAssetsAPI(): Promise<ListResponse> {
       }
     }
     return (await response.json()) as ListResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+export async function listCivitaiLoraAssetsAPI(params: {
+  page?: number
+  pageSize?: number
+  cursor?: string | null
+  search?: string
+  baseModel?: CivitaiLoraBaseModel
+  sort?: CivitaiLoraSort
+}): Promise<CivitaiListResponse> {
+  try {
+    const query = new URLSearchParams()
+    if (params.page) query.set('page', String(params.page))
+    if (params.pageSize) query.set('pageSize', String(params.pageSize))
+    if (params.cursor) query.set('cursor', params.cursor)
+    if (params.search) query.set('search', params.search)
+    if (params.baseModel) query.set('baseModel', params.baseModel)
+    if (params.sort) query.set('sort', params.sort)
+
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as CivitaiListResponse
   } catch (error) {
     return {
       success: false,

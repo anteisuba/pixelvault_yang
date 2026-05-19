@@ -2905,6 +2905,35 @@ export const ActiveLoraSchema = z.object({
 
 export type ActiveLora = z.infer<typeof ActiveLoraSchema>
 
+export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
+  modelId: z.number(),
+  modelVersionId: z.number(),
+  versionName: z.string(),
+  creatorName: z.string().nullable(),
+  creatorAvatarUrl: z.string().url().nullable(),
+  modelPageUrl: z.string().url(),
+  tags: z.array(z.string()),
+  downloadCount: z.number(),
+  thumbsUpCount: z.number(),
+})
+
+export type CivitaiLoraLibraryItem = z.infer<
+  typeof CivitaiLoraLibraryItemSchema
+>
+
+export const CivitaiLoraLibraryResultSchema = z.object({
+  items: z.array(CivitaiLoraLibraryItemSchema),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+  total: z.number().int().nonnegative().nullable(),
+  hasNextPage: z.boolean(),
+  nextCursor: z.string().nullable(),
+})
+
+export type CivitaiLoraLibraryResult = z.infer<
+  typeof CivitaiLoraLibraryResultSchema
+>
+
 /**
  * Server response for `GET /api/generations/[id]/replay` — the focused
  * "Use this image's LoRAs" payload. Designed to grow: today it carries

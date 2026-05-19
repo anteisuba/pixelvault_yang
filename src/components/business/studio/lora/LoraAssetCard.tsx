@@ -6,28 +6,18 @@ import { Palette, Globe2, Lock, Sparkles, Copy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { Switch } from '@/components/ui/switch'
-import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { ROUTES } from '@/constants/routes'
-import { cn } from '@/lib/utils'
 import type { LoraAssetRecord } from '@/types'
+import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 
 interface LoraAssetCardProps {
   asset: LoraAssetRecord
-  /** Show the "Make public" toggle. Only sensible on the user's own cards. */
   showVisibilityToggle?: boolean
-  /** Called when the toggle flips — should return whether the API succeeded. */
   onVisibilityChange?: (assetId: string, isPublic: boolean) => Promise<boolean>
 }
 
-/**
- * Single LoRA tile shown in `/studio/lora`.
- *
- * Primary action — "Use" — pushes the asset onto the session-wide
- * ActiveLoraStack (Week 1) and navigates the user to `/studio/image`
- * where the bar follows them. This is the bridge between the LoRA
- * library and the generation surfaces.
- */
 export function LoraAssetCard({
   asset,
   showVisibilityToggle = false,
@@ -46,12 +36,8 @@ export function LoraAssetCard({
     if (!alreadyInStack) {
       stack.push(asset)
     }
-    toast.success(t('addedToStack', { name: asset.name }), {
-      action: {
-        label: t('goToStudio'),
-        onClick: () => router.push(ROUTES.STUDIO_IMAGE),
-      },
-    })
+    toast.success(t('addedToStack', { name: asset.name }))
+    router.push(ROUTES.STUDIO_IMAGE)
   }, [alreadyInStack, asset, stack, router, t])
 
   const handleCopyCode = useCallback(async () => {
@@ -78,7 +64,7 @@ export function LoraAssetCard({
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md">
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+      <div className="relative aspect-square overflow-hidden bg-muted">
         {asset.coverImageUrl ? (
           // Plain <img> is fine here — assets are user/curated content
           // and don't benefit from next/image's optimization pass.
@@ -95,7 +81,7 @@ export function LoraAssetCard({
         )}
         <span
           className={cn(
-            'absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide backdrop-blur',
+            'absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium uppercase tracking-wide backdrop-blur',
             asset.type === 'style'
               ? 'bg-purple-500/30 text-white'
               : 'bg-emerald-500/30 text-white',

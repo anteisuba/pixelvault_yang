@@ -19,10 +19,16 @@ import { EditTaskHeader } from '../EditTaskHeader'
 const TASK = 'extract-element' as const
 
 /**
- * Short English phrases that map to clean Lang-SAM mask outputs. Keeping the
- * actual prompt in English even when the UI is localised — the model is
- * trained on English category labels and Chinese / Japanese tokens reduce
- * mask quality dramatically.
+ * BiRefNet has no text input — it auto-extracts the dominant subject. The
+ * picker UI grays out the prompt field when this model is selected.
+ */
+const PROMPTLESS_MODELS = new Set<string>(['fal-ai/birefnet/v2'])
+
+/**
+ * Short English phrases that map to clean mask outputs. Keeping the actual
+ * prompt in English even when the UI is localised — the models are trained
+ * on English category labels and Chinese / Japanese tokens reduce mask
+ * quality dramatically.
  */
 const PRESETS = [
   { key: 'clothing', prompt: 'clothing', invert: false },
@@ -60,16 +66,22 @@ export function ExtractElementTaskPage() {
     setActivePresetKey(preset.key)
   }, [])
 
+  const isPromptless = PROMPTLESS_MODELS.has(modelId)
+
   const run = useCallback(async () => {
     if (!source || isBusy) return
     const trimmed = prompt.trim()
-    if (!trimmed) return
+    // BiRefNet ignores the prompt server-side; for every other model we still
+    // require one. Send a sentinel so the API schema (which mandates min(1))
+    // accepts the request.
+    const effectivePrompt = isPromptless ? trimmed || 'subject' : trimmed
+    if (!effectivePrompt) return
 
     setRunningTask(TASK)
     setBannerError(null)
     const response = await extractElementAPI({
       imageUrl: source.imageUrl,
-      prompt: trimmed,
+      prompt: effectivePrompt,
       invert,
       sourceGenerationId: source.generationId,
       modelId,
@@ -93,6 +105,7 @@ export function ExtractElementTaskPage() {
   }, [
     invert,
     isBusy,
+    isPromptless,
     modelId,
     prompt,
     setBannerError,
@@ -116,56 +129,64 @@ export function ExtractElementTaskPage() {
           disabled={isBusy}
         />
 
-        <div className="mb-3 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            {t('extract.presetsLabel')}
+        {isPromptless ? (
+          <p className="mb-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {t('extract.promptlessHint')}
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {PRESETS.map((preset) => {
-              const active = activePresetKey === preset.key
-              return (
-                <button
-                  key={preset.key}
-                  type="button"
-                  onClick={() => applyPreset(preset)}
-                  disabled={isBusy}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                    active
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border/70 bg-card text-foreground hover:border-border',
-                    isBusy && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  {t(`extract.presets.${preset.key}`)}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="mb-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('extract.presetsLabel')}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((preset) => {
+                  const active = activePresetKey === preset.key
+                  return (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      disabled={isBusy}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                        active
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border/70 bg-card text-foreground hover:border-border',
+                        isBusy && 'cursor-not-allowed opacity-60',
+                      )}
+                    >
+                      {t(`extract.presets.${preset.key}`)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-        <div className="mb-3 space-y-2">
-          <label
-            htmlFor="extract-prompt"
-            className="text-xs font-medium text-muted-foreground"
-          >
-            {t('extract.promptLabel')}
-          </label>
-          <Textarea
-            id="extract-prompt"
-            value={prompt}
-            onChange={(event) => {
-              setPrompt(event.target.value)
-              setActivePresetKey(null)
-            }}
-            placeholder={t('extract.promptPlaceholder')}
-            className="min-h-16 resize-none"
-            disabled={isBusy}
-          />
-          <p className="text-2xs text-muted-foreground/70">
-            {t('extract.promptHint')}
-          </p>
-        </div>
+            <div className="mb-3 space-y-2">
+              <label
+                htmlFor="extract-prompt"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                {t('extract.promptLabel')}
+              </label>
+              <Textarea
+                id="extract-prompt"
+                value={prompt}
+                onChange={(event) => {
+                  setPrompt(event.target.value)
+                  setActivePresetKey(null)
+                }}
+                placeholder={t('extract.promptPlaceholder')}
+                className="min-h-16 resize-none"
+                disabled={isBusy}
+              />
+              <p className="text-2xs text-muted-foreground/70">
+                {t('extract.promptHint')}
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="mb-3 flex items-center gap-2">
           <input
@@ -187,7 +208,7 @@ export function ExtractElementTaskPage() {
         <Button
           type="button"
           className="rounded-lg"
-          disabled={!hasSource || isBusy || !prompt.trim()}
+          disabled={!hasSource || isBusy || (!isPromptless && !prompt.trim())}
           onClick={() => void run()}
         >
           {isRunning ? (

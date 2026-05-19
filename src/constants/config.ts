@@ -189,6 +189,8 @@ export const API_ENDPOINTS = {
 
   /** LoRA Asset library (curated + user-trained) */
   LORA_ASSETS: '/api/lora-assets',
+  /** Public Civitai LoRA browser */
+  LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
   /** Resolve a style-code share-link → LoraAsset */
   LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
 

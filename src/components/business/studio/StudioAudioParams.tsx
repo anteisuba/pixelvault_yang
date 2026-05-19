@@ -1,14 +1,29 @@
 'use client'
 
-import { memo, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type ComponentType,
+  type KeyboardEvent,
+} from 'react'
+import {
+  BookOpen,
   ChevronDown,
   FileAudio2,
   HelpCircle,
+  MessagesSquare,
   Mic2,
+  MinusCircle,
+  Moon,
   Plus,
   SlidersHorizontal,
+  Wind,
   X,
+  Zap,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -92,14 +107,44 @@ interface StudioAudioParamsProps {
   activeSpeakerVoiceIndex?: number | null
 }
 
-const STYLE_OPTIONS = [
-  { value: AUDIO_STYLE.NONE, labelKey: 'styleNone' },
-  { value: AUDIO_STYLE.CALM, labelKey: 'styleCalm' },
-  { value: AUDIO_STYLE.EXCITED, labelKey: 'styleExcited' },
-  { value: AUDIO_STYLE.WHISPER, labelKey: 'styleWhisper' },
-  { value: AUDIO_STYLE.NARRATION, labelKey: 'styleNarration' },
-  { value: AUDIO_STYLE.DIALOGUE, labelKey: 'styleDialogue' },
+type AudioStyleValue = (typeof AUDIO_STYLE)[keyof typeof AUDIO_STYLE]
+
+interface StyleOption {
+  value: AudioStyleValue
+  labelKey: string
+  icon: ComponentType<{ className?: string }>
+}
+
+const STYLE_OPTIONS: readonly StyleOption[] = [
+  { value: AUDIO_STYLE.NONE, labelKey: 'styleNone', icon: MinusCircle },
+  { value: AUDIO_STYLE.CALM, labelKey: 'styleCalm', icon: Wind },
+  { value: AUDIO_STYLE.EXCITED, labelKey: 'styleExcited', icon: Zap },
+  { value: AUDIO_STYLE.WHISPER, labelKey: 'styleWhisper', icon: Moon },
+  {
+    value: AUDIO_STYLE.NARRATION,
+    labelKey: 'styleNarration',
+    icon: BookOpen,
+  },
+  {
+    value: AUDIO_STYLE.DIALOGUE,
+    labelKey: 'styleDialogue',
+    icon: MessagesSquare,
+  },
 ] as const
+
+// Hover-preview wiring for the reading-style chips. Drop ~3s demo clips into
+// `public/audio/style-demos/` and add the per-style entry below to light up
+// hover previews — missing files degrade silently to a no-op.
+const STYLE_DEMO_BASE_PATH = '/audio/style-demos'
+const STYLE_DEMO_FILES: Partial<Record<AudioStyleValue, string>> = {
+  // calm: 'calm.mp3',
+  // excited: 'excited.mp3',
+  // whisper: 'whisper.mp3',
+  // narration: 'narration.mp3',
+  // dialogue: 'dialogue.mp3',
+}
+const STYLE_PREVIEW_HOVER_MS = 500
+const STYLE_PREVIEW_VOLUME = 0.6
 
 const PACE_OPTIONS = [
   { value: AUDIO_PACE.SLOW, labelKey: 'paceSlow' },
@@ -362,6 +407,42 @@ export const StudioAudioParams = memo(function StudioAudioParams({
   const [advancedTab, setAdvancedTab] = useState<AudioAdvancedTabId>(
     AUDIO_ADVANCED_TAB_IDS.OUTPUT,
   )
+  const stylePreviewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const stylePreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
+
+  const stopStylePreview = useCallback(() => {
+    if (stylePreviewTimerRef.current) {
+      clearTimeout(stylePreviewTimerRef.current)
+      stylePreviewTimerRef.current = null
+    }
+    const audio = stylePreviewAudioRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+  }, [])
+
+  const startStylePreview = useCallback(
+    (style: AudioStyleValue) => {
+      const file = STYLE_DEMO_FILES[style]
+      if (!file) return
+      stopStylePreview()
+      stylePreviewTimerRef.current = setTimeout(() => {
+        const audio = stylePreviewAudioRef.current ?? new Audio()
+        stylePreviewAudioRef.current = audio
+        audio.src = `${STYLE_DEMO_BASE_PATH}/${file}`
+        audio.volume = STYLE_PREVIEW_VOLUME
+        // Demo files may be absent in dev — swallow play() rejections so a
+        // 404 doesn't bubble up to the user.
+        void audio.play().catch(() => {})
+      }, STYLE_PREVIEW_HOVER_MS)
+    },
+    [stopStylePreview],
+  )
+
+  useEffect(() => stopStylePreview, [stopStylePreview])
 
   return (
     <div className="space-y-5" data-voice-card-id={voiceCardId ?? undefined}>
@@ -381,15 +462,23 @@ export const StudioAudioParams = memo(function StudioAudioParams({
           aria-label={t('style')}
           className="!grid w-full grid-cols-2"
         >
-          {STYLE_OPTIONS.map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="px-2 text-center"
-            >
-              {t(option.labelKey)}
-            </ToggleGroupItem>
-          ))}
+          {STYLE_OPTIONS.map((option) => {
+            const Icon = option.icon
+            return (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                onMouseEnter={() => startStylePreview(option.value)}
+                onMouseLeave={stopStylePreview}
+                onFocus={() => startStylePreview(option.value)}
+                onBlur={stopStylePreview}
+                className="flex items-center justify-center gap-1.5 px-2 text-center"
+              >
+                <Icon className="size-3 shrink-0 opacity-70" />
+                <span className="truncate">{t(option.labelKey)}</span>
+              </ToggleGroupItem>
+            )
+          })}
         </ToggleGroup>
       </section>
 

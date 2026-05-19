@@ -159,4 +159,25 @@ describe('StudioAudioParams', () => {
       speakerVoiceIds: ['voice-a', 'voice-b'],
     })
   })
+
+  it('does not trigger the hover-preview audio when no demo file is configured', () => {
+    vi.useFakeTimers()
+    const playSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'play')
+      .mockImplementation(function play(this: HTMLMediaElement) {
+        return Promise.resolve()
+      })
+
+    try {
+      renderAudioParams()
+
+      // No demo files seeded in src — hovering must not spin up audio.
+      fireEvent.mouseEnter(screen.getByText('styleCalm').closest('button')!)
+      vi.advanceTimersByTime(2000)
+      expect(playSpy).not.toHaveBeenCalled()
+    } finally {
+      playSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
 })

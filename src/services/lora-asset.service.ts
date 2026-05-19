@@ -231,6 +231,76 @@ export async function setLoraAssetVisibility(
 }
 
 /**
+ * Import a Civitai LoRA into the viewer's "Favorites" (source = 'imported').
+ * Idempotent on (userId, loraUrl): returns the existing row if present.
+ * Visible only to the owner — favorites are personal, not republished.
+ */
+export async function favoriteExternalLora(
+  clerkId: string,
+  input: {
+    name: string
+    triggerWord: string
+    loraUrl: string
+    type: LoraAssetType
+    baseModelFamily: string
+    provider: string
+    coverImageUrl?: string | null
+  },
+): Promise<LoraAssetRecord> {
+  const user = await ensureUser(clerkId)
+
+  const existing = await db.loraAsset.findFirst({
+    where: { userId: user.id, loraUrl: input.loraUrl },
+  })
+  if (existing) return toRecord(existing, user.id)
+
+  const styleCode = await reserveUniqueStyleCode(input.name, input.type)
+  const created = await db.loraAsset.create({
+    data: {
+      userId: user.id,
+      name: input.name,
+      styleCode,
+      source: 'imported',
+      type: input.type,
+      baseModelFamily: input.baseModelFamily,
+      provider: input.provider,
+      triggerWord: input.triggerWord,
+      loraUrl: input.loraUrl,
+      coverImageUrl: input.coverImageUrl ?? null,
+      defaultScale: 1.0,
+      isPublic: false,
+    },
+  })
+
+  logger.info('LoraAsset favorited (imported)', {
+    userId: user.id,
+    styleCode,
+    loraUrl: input.loraUrl,
+  })
+
+  return toRecord(created, user.id)
+}
+
+/**
+ * Remove a user's favorite (only imported assets — trained/curated stay put).
+ * Returns true if a row was deleted.
+ */
+export async function unfavoriteLora(
+  clerkId: string,
+  loraAssetId: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row || row.userId !== user.id) return false
+  if (row.source !== 'imported') {
+    throw new Error('Only imported favorites can be removed this way')
+  }
+  await db.loraAsset.delete({ where: { id: loraAssetId } })
+  logger.info('LoraAsset unfavorited', { userId: user.id, loraAssetId })
+  return true
+}
+
+/**
  * Idempotently create a LoraAsset from a completed LoraTrainingJob.
  * Called by lora-training.service when a job reaches COMPLETED.
  */

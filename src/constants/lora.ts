@@ -15,7 +15,7 @@ export const DEFAULT_LORA_WORKBENCH_SECTION = LORA_WORKBENCH_SECTIONS.MINE
 
 export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
-export const CIVITAI_LORA_PAGE_SIZE = 20
+export const CIVITAI_LORA_PAGE_SIZE = 10
 
 export const CIVITAI_LORA_SORT_VALUES = [
   'Highest Rated',

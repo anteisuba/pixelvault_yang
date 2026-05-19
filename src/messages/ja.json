@@ -912,6 +912,7 @@
     "unfavorite": "お気に入りを解除",
     "favorited": "お気に入り済み",
     "favoriteAdded": "お気に入りに追加しました — マイ → お気に入りで確認できます。",
+    "favoriteRemoved": "お気に入りから外しました",
     "favoriteFailed": "お気に入りに追加できませんでした",
     "viewCover": "カバー画像を拡大"
   },

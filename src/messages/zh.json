@@ -912,6 +912,7 @@
     "unfavorite": "取消收藏",
     "favorited": "已收藏",
     "favoriteAdded": "已加入收藏 — 可以在「我的 → 收藏」找到。",
+    "favoriteRemoved": "已取消收藏",
     "favoriteFailed": "收藏失败",
     "viewCover": "查看封面大图"
   },

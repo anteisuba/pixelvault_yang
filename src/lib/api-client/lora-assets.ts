@@ -1,6 +1,10 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type { CivitaiLoraBaseModel, CivitaiLoraSort } from '@/constants/lora'
-import type { CivitaiLoraLibraryResult, LoraAssetRecord } from '@/types'
+import type {
+  CivitaiLoraLibraryResult,
+  FavoriteLoraRequest,
+  LoraAssetRecord,
+} from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
 
@@ -133,6 +137,59 @@ export async function setLoraAssetVisibilityAPI(
       }
     }
     return (await response.json()) as SingleAssetResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+export async function favoriteLoraAPI(
+  input: FavoriteLoraRequest,
+): Promise<SingleAssetResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.LORA_ASSETS_FAVORITE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as SingleAssetResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
+export async function unfavoriteLoraAPI(
+  assetId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS_FAVORITE}?assetId=${encodeURIComponent(assetId)}`,
+      { method: 'DELETE' },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return { success: true }
   } catch (error) {
     return {
       success: false,

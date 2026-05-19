@@ -193,6 +193,8 @@ export const API_ENDPOINTS = {
   LORA_ASSETS_CIVITAI: '/api/lora-assets/civitai',
   /** Resolve a style-code share-link → LoraAsset */
   LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
+  /** Import an external (Civitai) LoRA into the viewer's favorites */
+  LORA_ASSETS_FAVORITE: '/api/lora-assets/favorite',
 
   /** "Use this image" payload — style codes (and later prompt/seed/model) */
   GENERATIONS_BASE: '/api/generations',

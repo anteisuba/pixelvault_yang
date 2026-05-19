@@ -912,6 +912,7 @@
     "unfavorite": "Remove favorite",
     "favorited": "Favorited",
     "favoriteAdded": "Added to favorites — find it under Mine → Favorites.",
+    "favoriteRemoved": "Removed from favorites",
     "favoriteFailed": "Couldn't add favorite",
     "viewCover": "View full cover"
   },

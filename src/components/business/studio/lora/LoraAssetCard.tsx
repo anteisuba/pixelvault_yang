@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Palette, Globe2, Lock, Sparkles, Copy } from 'lucide-react'
+import { Palette, Globe2, Lock, Sparkles, Copy, HeartOff } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -16,12 +16,14 @@ interface LoraAssetCardProps {
   asset: LoraAssetRecord
   showVisibilityToggle?: boolean
   onVisibilityChange?: (assetId: string, isPublic: boolean) => Promise<boolean>
+  onUnfavorite?: (assetId: string) => Promise<boolean>
 }
 
 export function LoraAssetCard({
   asset,
   showVisibilityToggle = false,
   onVisibilityChange,
+  onUnfavorite,
 }: LoraAssetCardProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
@@ -125,6 +127,17 @@ export function LoraAssetCard({
           >
             <Copy className="size-3" aria-hidden />
           </button>
+          {onUnfavorite ? (
+            <button
+              type="button"
+              onClick={() => void onUnfavorite(asset.id)}
+              className="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={t('unfavorite')}
+              title={t('unfavorite')}
+            >
+              <HeartOff className="size-3" aria-hidden />
+            </button>
+          ) : null}
         </div>
 
         {showVisibilityToggle ? (

@@ -13,15 +13,19 @@ const mockAssetFindUnique = vi.fn()
 const mockAssetFindMany = vi.fn()
 const mockAssetCreate = vi.fn()
 const mockAssetUpdate = vi.fn()
+const mockAssetDelete = vi.fn()
+const mockAssetFindFirst = vi.fn()
 const mockJobFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
     loraAsset: {
       findUnique: (...a: unknown[]) => mockAssetFindUnique(...a),
+      findFirst: (...a: unknown[]) => mockAssetFindFirst(...a),
       findMany: (...a: unknown[]) => mockAssetFindMany(...a),
       create: (...a: unknown[]) => mockAssetCreate(...a),
       update: (...a: unknown[]) => mockAssetUpdate(...a),
+      delete: (...a: unknown[]) => mockAssetDelete(...a),
     },
     loraTrainingJob: {
       findUnique: (...a: unknown[]) => mockJobFindUnique(...a),
@@ -37,6 +41,8 @@ import {
   findLoraAssetsByUrls,
   listDiscoverLoraAssets,
   setLoraAssetVisibility,
+  favoriteExternalLora,
+  unfavoriteLora,
 } from '@/services/lora-asset.service'
 
 const OWNER = { id: 'user_owner', clerkId: 'clerk_owner' }
@@ -313,5 +319,88 @@ describe('setLoraAssetVisibility', () => {
     })
     expect(result?.isPublic).toBe(true)
     expect(result?.isOwn).toBe(true)
+  })
+})
+
+describe('favoriteExternalLora', () => {
+  const civitaiInput = {
+    name: 'Anima Phoebe',
+    triggerWord: 'phoebe_anima',
+    loraUrl: 'https://civitai.com/api/download/12345',
+    type: 'subject' as const,
+    baseModelFamily: 'flux',
+    provider: 'fal',
+    coverImageUrl: 'https://image.civitai.com/cover.png',
+  }
+
+  it('creates an imported asset on first favorite', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockAssetFindUnique.mockResolvedValue(null) // unique styleCode on first try
+    mockAssetCreate.mockResolvedValue(
+      buildRow({ id: 'fav_1', source: 'imported', ...civitaiInput }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+
+    expect(mockAssetCreate).toHaveBeenCalledTimes(1)
+    const arg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect(arg.data).toMatchObject({
+      userId: OWNER.id,
+      source: 'imported',
+      type: 'subject',
+      provider: 'fal',
+      loraUrl: civitaiInput.loraUrl,
+      coverImageUrl: civitaiInput.coverImageUrl,
+      isPublic: false,
+    })
+    expect(result.id).toBe('fav_1')
+    expect(result.isOwn).toBe(true)
+  })
+
+  it('is idempotent — returns existing row without creating a duplicate', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindFirst.mockResolvedValue(
+      buildRow({ id: 'fav_existing', source: 'imported' }),
+    )
+
+    const result = await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+
+    expect(mockAssetCreate).not.toHaveBeenCalled()
+    expect(result.id).toBe('fav_existing')
+  })
+})
+
+describe('unfavoriteLora', () => {
+  it('returns false when the asset does not exist', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(null)
+    const result = await unfavoriteLora(OWNER.clerkId, 'missing')
+    expect(result).toBe(false)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('refuses to delete a non-imported asset (no nuking trained LoRAs)', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'trained', userId: OWNER.id }),
+    )
+    await expect(unfavoriteLora(OWNER.clerkId, 'asset_1')).rejects.toThrow(
+      /imported/i,
+    )
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('deletes an imported favorite owned by the caller', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'imported', userId: OWNER.id }),
+    )
+    mockAssetDelete.mockResolvedValue({})
+    const result = await unfavoriteLora(OWNER.clerkId, 'asset_1')
+    expect(result).toBe(true)
+    expect(mockAssetDelete).toHaveBeenCalledWith({ where: { id: 'asset_1' } })
   })
 })

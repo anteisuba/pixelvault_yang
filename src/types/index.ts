@@ -2897,6 +2897,17 @@ export const LoraAssetRecordSchema = z.object({
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
 
+export const FavoriteLoraRequestSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  triggerWord: z.string().trim().min(1).max(80),
+  loraUrl: z.string().url(),
+  type: LoraAssetTypeSchema,
+  baseModelFamily: LoraAssetBaseFamilySchema,
+  provider: z.string().trim().min(1).max(40),
+  coverImageUrl: z.string().url().nullable().optional(),
+})
+export type FavoriteLoraRequest = z.infer<typeof FavoriteLoraRequestSchema>
+
 export const ActiveLoraSchema = z.object({
   assetId: z.string(),
   styleCode: z.string(),

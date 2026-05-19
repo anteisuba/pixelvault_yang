@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
@@ -11,7 +11,6 @@ import {
   Heart,
   Library,
   Loader2,
-  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -34,9 +33,10 @@ import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
-import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { LoraTrainingForm } from '@/components/business/LoraTrainingDialog'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -53,7 +53,17 @@ export function LoraWorkbench() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { myAssets, isLoadingMine, refresh, setVisibility } = useLoraAssets()
+  const {
+    trainedAssets,
+    favoriteAssets,
+    isLoadingMine,
+    refresh,
+    setVisibility,
+    favoriteCivitaiLora,
+    unfavoriteAsset,
+    unfavoriteByUrl,
+    isFavorited,
+  } = useLoraAssets()
 
   const sectionParam = searchParams.get(LORA_WORKBENCH_SEARCH_PARAM)
   const activeSection = isLoraWorkbenchSection(sectionParam)
@@ -118,48 +128,170 @@ export function LoraWorkbench() {
       ) : null}
 
       {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
-        <AssetBranch
-          title={t('myLorasTitle')}
-          description={t('myLorasDescription')}
-          count={myAssets.length}
-          assets={myAssets}
-          empty={t('myLorasEmpty')}
+        <MyLoraBranch
+          trained={trainedAssets}
+          favorites={favoriteAssets}
           isLoading={isLoadingMine}
           onRefresh={refresh}
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveSection(LORA_WORKBENCH_SECTIONS.TRAIN)}
-            >
-              <Plus className="size-3.5" aria-hidden />
-              {t('trainCTA')}
-            </Button>
-          }
-          renderAsset={(asset) => (
-            <LoraAssetCard
-              key={asset.id}
-              asset={asset}
-              showVisibilityToggle={asset.isOwn}
-              onVisibilityChange={setVisibility}
-            />
-          )}
+          onVisibilityChange={setVisibility}
+          onUnfavorite={unfavoriteAsset}
         />
       ) : null}
 
       {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-        <CivitaiCommunityBranch />
+        <CivitaiCommunityBranch
+          onFavorite={favoriteCivitaiLora}
+          onUnfavoriteByUrl={unfavoriteByUrl}
+          isFavorited={isFavorited}
+        />
       ) : null}
     </div>
   )
 }
 
-function CivitaiCommunityBranch() {
+interface MyLoraBranchProps {
+  trained: LoraAssetRecord[]
+  favorites: LoraAssetRecord[]
+  isLoading: boolean
+  onRefresh: () => Promise<void>
+  onVisibilityChange: (assetId: string, isPublic: boolean) => Promise<boolean>
+  onUnfavorite: (assetId: string) => Promise<boolean>
+}
+
+function MyLoraBranch({
+  trained,
+  favorites,
+  isLoading,
+  onRefresh,
+  onVisibilityChange,
+  onUnfavorite,
+}: MyLoraBranchProps) {
+  const t = useTranslations('LoraWorkbench')
+  const totalCount = trained.length + favorites.length
+
+  return (
+    <section className="space-y-6">
+      <header className="flex items-center justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => void onRefresh()}
+        >
+          <RefreshCw className="size-3.5" aria-hidden />
+          {t('refresh')}
+        </Button>
+      </header>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center rounded-2xl border border-border bg-card/40 py-12 text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" aria-hidden />
+        </div>
+      ) : totalCount === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
+          <p className="text-sm text-muted-foreground">{t('myLorasEmpty')}</p>
+        </div>
+      ) : (
+        <>
+          <AssetSection
+            title={t('myLorasTrainedSection')}
+            count={trained.length}
+          >
+            {trained.length === 0 ? (
+              <EmptyHint text={t('myLorasEmpty')} />
+            ) : (
+              <AssetGrid>
+                {trained.map((asset) => (
+                  <LoraAssetCard
+                    key={asset.id}
+                    asset={asset}
+                    showVisibilityToggle={asset.isOwn}
+                    onVisibilityChange={onVisibilityChange}
+                  />
+                ))}
+              </AssetGrid>
+            )}
+          </AssetSection>
+
+          <AssetSection
+            title={t('myLorasFavoritesSection')}
+            count={favorites.length}
+          >
+            {favorites.length === 0 ? (
+              <EmptyHint text={t('myLorasFavoritesEmpty')} />
+            ) : (
+              <AssetGrid>
+                {favorites.map((asset) => (
+                  <LoraAssetCard
+                    key={asset.id}
+                    asset={asset}
+                    onUnfavorite={onUnfavorite}
+                  />
+                ))}
+              </AssetGrid>
+            )}
+          </AssetSection>
+        </>
+      )}
+    </section>
+  )
+}
+
+interface AssetSectionProps {
+  title: string
+  count: number
+  children: ReactNode
+}
+
+function AssetSection({ title, count, children }: AssetSectionProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          {title}
+        </h2>
+        <span className="text-xs text-muted-foreground">({count})</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function AssetGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {children}
+    </div>
+  )
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/60 bg-card/30 px-4 py-6 text-center text-xs text-muted-foreground">
+      {text}
+    </div>
+  )
+}
+
+interface CivitaiCommunityBranchProps {
+  onFavorite: (item: CivitaiLoraLibraryItem) => Promise<LoraAssetRecord | null>
+  onUnfavoriteByUrl: (loraUrl: string) => Promise<boolean>
+  isFavorited: (loraUrl: string) => boolean
+}
+
+function CivitaiCommunityBranch({
+  onFavorite,
+  onUnfavoriteByUrl,
+  isFavorited,
+}: CivitaiCommunityBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
   const stack = useActiveLoraStack()
   const library = useCivitaiLoraLibrary()
+  const [coverPreview, setCoverPreview] = useState<{
+    url: string
+    name: string
+  } | null>(null)
 
   const handleUse = useCallback(
     (item: CivitaiLoraLibraryItem) => {
@@ -168,6 +300,17 @@ function CivitaiCommunityBranch() {
       router.push(ROUTES.STUDIO_IMAGE)
     },
     [router, stack, t],
+  )
+
+  const handleFavoriteToggle = useCallback(
+    async (item: CivitaiLoraLibraryItem) => {
+      if (isFavorited(item.loraUrl)) {
+        await onUnfavoriteByUrl(item.loraUrl)
+      } else {
+        await onFavorite(item)
+      }
+    },
+    [isFavorited, onFavorite, onUnfavoriteByUrl],
   )
 
   const handleSortChange = useCallback(
@@ -182,14 +325,9 @@ function CivitaiCommunityBranch() {
   return (
     <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="font-display text-xl font-semibold tracking-tight">
-            {t('communityTitle')}
-          </h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {t('communityDescription')}
-          </p>
-        </div>
+        <h2 className="font-display text-xl font-semibold tracking-tight">
+          {t('communityTitle')}
+        </h2>
         <Button
           type="button"
           variant="ghost"
@@ -257,8 +395,10 @@ function CivitaiCommunityBranch() {
                   isActive={stack.items.some(
                     (entry) => entry.asset.id === item.id,
                   )}
+                  isFavorited={isFavorited(item.loraUrl)}
                   onSelect={library.selectItem}
                   onUse={handleUse}
+                  onFavorite={handleFavoriteToggle}
                 />
               ))
             )}
@@ -294,8 +434,46 @@ function CivitaiCommunityBranch() {
           </div>
         </div>
 
-        <CivitaiLoraInspector item={library.selectedItem} onUse={handleUse} />
+        <CivitaiLoraInspector
+          item={library.selectedItem}
+          isFavorited={
+            library.selectedItem
+              ? isFavorited(library.selectedItem.loraUrl)
+              : false
+          }
+          onUse={handleUse}
+          onFavorite={handleFavoriteToggle}
+          onPreviewCover={(item) =>
+            item.coverImageUrl
+              ? setCoverPreview({
+                  url: item.coverImageUrl,
+                  name: item.name,
+                })
+              : undefined
+          }
+        />
       </div>
+
+      <Dialog
+        open={coverPreview !== null}
+        onOpenChange={(open) => {
+          if (!open) setCoverPreview(null)
+        }}
+      >
+        <DialogContent className="max-w-4xl border-none bg-transparent p-0 shadow-none">
+          <DialogTitle className="sr-only">
+            {coverPreview?.name ?? ''}
+          </DialogTitle>
+          {coverPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverPreview.url}
+              alt={coverPreview.name}
+              className="h-auto w-full rounded-xl object-contain"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
@@ -304,16 +482,20 @@ interface CivitaiLoraRowProps {
   item: CivitaiLoraLibraryItem
   isSelected: boolean
   isActive: boolean
+  isFavorited: boolean
   onSelect: (item: CivitaiLoraLibraryItem) => void
   onUse: (item: CivitaiLoraLibraryItem) => void
+  onFavorite: (item: CivitaiLoraLibraryItem) => void
 }
 
 function CivitaiLoraRow({
   item,
   isSelected,
   isActive,
+  isFavorited,
   onSelect,
   onUse,
+  onFavorite,
 }: CivitaiLoraRowProps) {
   const t = useTranslations('LoraWorkbench')
 
@@ -351,6 +533,22 @@ function CivitaiLoraRow({
       </button>
       <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => onFavorite(item)}
+        aria-label={isFavorited ? t('unfavorite') : t('favorite')}
+        title={isFavorited ? t('unfavorite') : t('favorite')}
+      >
+        <Heart
+          className={cn(
+            'size-3.5',
+            isFavorited && 'fill-rose-500 text-rose-500',
+          )}
+          aria-hidden
+        />
+      </Button>
+      <Button
+        type="button"
         variant={isActive ? 'secondary' : 'ghost'}
         size="icon-sm"
         onClick={() => onUse(item)}
@@ -370,7 +568,6 @@ function LoraThumb({ item }: LoraThumbProps) {
   return (
     <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
       {item.coverImageUrl ? (
-        // Third-party Civitai thumbnails are remote and small; raw img avoids domain config churn.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={item.coverImageUrl}
@@ -387,10 +584,19 @@ function LoraThumb({ item }: LoraThumbProps) {
 
 interface CivitaiLoraInspectorProps {
   item: CivitaiLoraLibraryItem | null
+  isFavorited: boolean
   onUse: (item: CivitaiLoraLibraryItem) => void
+  onFavorite: (item: CivitaiLoraLibraryItem) => void
+  onPreviewCover: (item: CivitaiLoraLibraryItem) => void
 }
 
-function CivitaiLoraInspector({ item, onUse }: CivitaiLoraInspectorProps) {
+function CivitaiLoraInspector({
+  item,
+  isFavorited,
+  onUse,
+  onFavorite,
+  onPreviewCover,
+}: CivitaiLoraInspectorProps) {
   const t = useTranslations('LoraWorkbench')
 
   if (!item) {
@@ -404,7 +610,18 @@ function CivitaiLoraInspector({ item, onUse }: CivitaiLoraInspectorProps) {
   return (
     <aside className="min-h-0 overflow-y-auto rounded-xl border border-border/60 bg-muted/10 p-4">
       <div className="space-y-4">
-        <div className="overflow-hidden rounded-lg border border-border/60 bg-muted">
+        <button
+          type="button"
+          onClick={() => onPreviewCover(item)}
+          disabled={!item.coverImageUrl}
+          aria-label={t('viewCover')}
+          className={cn(
+            'block w-full overflow-hidden rounded-lg border border-border/60 bg-muted',
+            item.coverImageUrl
+              ? 'cursor-zoom-in transition-opacity hover:opacity-90'
+              : 'cursor-default',
+          )}
+        >
           {item.coverImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -417,7 +634,7 @@ function CivitaiLoraInspector({ item, onUse }: CivitaiLoraInspectorProps) {
               <Sparkles className="size-8" aria-hidden />
             </div>
           )}
-        </div>
+        </button>
 
         <div className="space-y-1">
           <h3 className="font-display text-lg font-semibold leading-tight">
@@ -479,7 +696,21 @@ function CivitaiLoraInspector({ item, onUse }: CivitaiLoraInspectorProps) {
             <Sparkles className="size-4" aria-hidden />
             {t('communityUseInStudio')}
           </Button>
-          <Button type="button" variant="outline" asChild>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onFavorite(item)}
+          >
+            <Heart
+              className={cn(
+                'size-4',
+                isFavorited && 'fill-rose-500 text-rose-500',
+              )}
+              aria-hidden
+            />
+            {isFavorited ? t('unfavorite') : t('favorite')}
+          </Button>
+          <Button type="button" variant="ghost" asChild>
             <a href={item.modelPageUrl} target="_blank" rel="noreferrer">
               <ArrowUpRight className="size-4" aria-hidden />
               {t('communityOpenSource')}
@@ -510,119 +741,9 @@ function Metric({ icon, label, value }: MetricProps) {
 }
 
 function TrainingBranch() {
-  const t = useTranslations('LoraWorkbench')
-
   return (
-    <section className="grid gap-4 lg:grid-cols-3">
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 lg:col-span-2">
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <GraduationCap className="size-5" aria-hidden />
-          </div>
-          <h2 className="font-display text-2xl font-semibold tracking-tight">
-            {t('trainTitle')}
-          </h2>
-          <p className="text-sm leading-6 text-muted-foreground">
-            {t('trainDescription')}
-          </p>
-        </div>
-        <LoraTrainingDialog
-          trigger={
-            <Button type="button" size="lg" className="mt-6">
-              <Plus className="size-4" aria-hidden />
-              {t('trainCTA')}
-            </Button>
-          }
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-        <BranchSignal label={t('trainSignal.dataset')} />
-        <BranchSignal label={t('trainSignal.trigger')} />
-        <BranchSignal label={t('trainSignal.asset')} />
-      </div>
-    </section>
-  )
-}
-
-interface BranchSignalProps {
-  label: string
-}
-
-function BranchSignal({ label }: BranchSignalProps) {
-  return (
-    <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm font-medium text-foreground">
-      {label}
-    </div>
-  )
-}
-
-interface AssetBranchProps {
-  title: string
-  description: string
-  count: number
-  assets: LoraAssetRecord[]
-  empty: string
-  isLoading: boolean
-  onRefresh: () => Promise<void>
-  action?: ReactNode
-  renderAsset: (asset: LoraAssetRecord) => ReactNode
-}
-
-function AssetBranch({
-  title,
-  description,
-  count,
-  assets,
-  empty,
-  isLoading,
-  onRefresh,
-  action,
-  renderAsset,
-}: AssetBranchProps) {
-  const t = useTranslations('LoraWorkbench')
-
-  return (
-    <section className="space-y-4">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-xl font-semibold tracking-tight">
-              {title}
-            </h2>
-            <span className="text-xs text-muted-foreground">({count})</span>
-          </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {action}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void onRefresh()}
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-            {t('refresh')}
-          </Button>
-        </div>
-      </header>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-card/40 py-12 text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" aria-hidden />
-        </div>
-      ) : assets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
-          <p className="text-sm text-muted-foreground">{empty}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {assets.map(renderAsset)}
-        </div>
-      )}
+    <section className="mx-auto max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <LoraTrainingForm showHeading />
     </section>
   )
 }

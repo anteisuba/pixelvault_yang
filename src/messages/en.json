@@ -851,7 +851,11 @@
     "chipTitle": "Trigger: {trigger} · {code}",
     "removeAria": "Remove {name}",
     "manage": "Manage",
-    "clear": "Clear all"
+    "addMore": "Add more",
+    "clear": "Clear all",
+    "scaleLabel": "Strength",
+    "scaleHint": "0 = off, 1 = full effect",
+    "alreadyHere": "{name} is active — ready to generate"
   },
   "LoraWorkbench": {
     "tabs": {

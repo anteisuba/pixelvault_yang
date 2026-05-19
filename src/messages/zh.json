@@ -851,7 +851,11 @@
     "chipTitle": "触发词: {trigger} · {code}",
     "removeAria": "移除 {name}",
     "manage": "管理",
-    "clear": "全部清除"
+    "addMore": "添加更多",
+    "clear": "全部清除",
+    "scaleLabel": "强度",
+    "scaleHint": "0 = 关闭，1 = 完全应用",
+    "alreadyHere": "{name} 已激活，准备生成"
   },
   "LoraWorkbench": {
     "tabs": {

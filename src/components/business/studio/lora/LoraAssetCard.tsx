@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { ROUTES } from '@/constants/routes'
-import { useRouter } from '@/i18n/navigation'
+import { usePathname, useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { Switch } from '@/components/ui/switch'
@@ -26,7 +26,9 @@ export function LoraAssetCard({
   onUnfavorite,
 }: LoraAssetCardProps) {
   const t = useTranslations('LoraWorkbench')
+  const tStack = useTranslations('LoraStack')
   const router = useRouter()
+  const pathname = usePathname()
   const stack = useActiveLoraStack()
   const [isToggling, setIsToggling] = useState(false)
 
@@ -38,9 +40,15 @@ export function LoraAssetCard({
     if (!alreadyInStack) {
       stack.push(asset)
     }
+    // Already on the image canvas? Don't yank focus — just confirm.
+    // The stack is now hot and the next generate will pick it up.
+    if (pathname === ROUTES.STUDIO_IMAGE) {
+      toast.success(tStack('alreadyHere', { name: asset.name }))
+      return
+    }
     toast.success(t('addedToStack', { name: asset.name }))
     router.push(ROUTES.STUDIO_IMAGE)
-  }, [alreadyInStack, asset, stack, router, t])
+  }, [alreadyInStack, asset, pathname, stack, router, t, tStack])
 
   const handleCopyCode = useCallback(async () => {
     try {

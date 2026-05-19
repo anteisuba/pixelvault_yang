@@ -851,7 +851,11 @@
     "chipTitle": "トリガー: {trigger} · {code}",
     "removeAria": "{name} を解除",
     "manage": "管理",
-    "clear": "すべて解除"
+    "addMore": "追加",
+    "clear": "すべて解除",
+    "scaleLabel": "強度",
+    "scaleHint": "0 = オフ、1 = 最大",
+    "alreadyHere": "{name} を適用済み — 生成できます"
   },
   "LoraWorkbench": {
     "tabs": {

@@ -548,6 +548,120 @@ export async function outpaintImage(params: {
   )
 }
 
+// ─── Element Extraction (text-guided cutout) ────────────────────
+
+const FAL_DEFAULT_EXTRACT_MODEL = 'fal-ai/lang-segment-anything'
+
+const LangSamResponseSchema = z.object({
+  masks: z
+    .array(
+      z
+        .union([z.string().url(), z.object({ url: z.string().url() })])
+        .transform((entry) => (typeof entry === 'string' ? entry : entry.url)),
+    )
+    .min(1),
+})
+
+/**
+ * Combine the source image and a grayscale mask into a single PNG with the
+ * alpha channel driven by the mask. When `invert` is true the alpha is
+ * inverted first — that's how the "extract background" preset works (mask
+ * comes back as foreground, we want to keep what isn't foreground).
+ */
+async function applyMaskToImage(
+  sourceBuffer: Buffer,
+  maskBuffer: Buffer,
+  invert: boolean,
+): Promise<{ buffer: Buffer; width: number; height: number }> {
+  const sourceMeta = await sharp(sourceBuffer).metadata()
+  const width = sourceMeta.width ?? 1024
+  const height = sourceMeta.height ?? 1024
+
+  // Normalize mask to single-channel, resized to source dims, optionally
+  // inverted. dest-in then drops every source pixel whose mask byte is 0.
+  let maskPipeline = sharp(maskBuffer)
+    .resize(width, height, { fit: 'fill' })
+    .greyscale()
+    .removeAlpha()
+  if (invert) maskPipeline = maskPipeline.negate()
+  const alphaMask = await maskPipeline.png().toBuffer()
+
+  const cutoutBuffer = await sharp(sourceBuffer)
+    .ensureAlpha()
+    .composite([{ input: alphaMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer()
+
+  return { buffer: cutoutBuffer, width, height }
+}
+
+/**
+ * Text-guided element extraction. fal lang-segment-anything maps the prompt
+ * to a binary mask; we then composite source × mask into a transparent PNG.
+ */
+export async function extractElement(params: {
+  imageUrl: string
+  prompt: string
+  apiKey: string
+  invert?: boolean
+  modelId?: string
+}): Promise<ImageEditResult> {
+  const modelId = params.modelId ?? FAL_DEFAULT_EXTRACT_MODEL
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
+
+  const response = await withRetry(
+    async () => {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Key ${params.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_url: params.imageUrl,
+          text_prompt: params.prompt,
+        }),
+      })
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => 'Unknown error')
+        throw new ProviderError('fal.ai', res.status, errorBody)
+      }
+      return res.json()
+    },
+    { label: 'fal.extractElement', maxAttempts: 3, baseDelayMs: 1000 },
+  )
+
+  const parsed = LangSamResponseSchema.safeParse(response)
+  if (!parsed.success) {
+    throw new ProviderError(
+      'fal.ai',
+      502,
+      `Malformed lang-SAM response: ${parsed.error.message}`,
+    )
+  }
+
+  const maskUrl = parsed.data.masks[0]
+  const [{ buffer: sourceBuffer }, { buffer: maskBuffer }] = await Promise.all([
+    fetchAsBuffer(params.imageUrl),
+    fetchAsBuffer(maskUrl),
+  ])
+
+  const cutout = await applyMaskToImage(
+    sourceBuffer,
+    maskBuffer,
+    params.invert === true,
+  )
+
+  // Return as data URL so the route's existing persistEditedImage pipeline
+  // (fetchAsBuffer → uploadToR2 → createGeneration) handles persistence the
+  // same way it does for fal / Gemini / OpenAI returns.
+  return {
+    imageUrl: `data:image/png;base64,${cutout.buffer.toString('base64')}`,
+    width: cutout.width,
+    height: cutout.height,
+  }
+}
+
 /**
  * Generic API key resolver that picks the right adapter based on `modelId`.
  * Prefer this in new code; `resolveFalImageEditApiKey` stays as a thin alias

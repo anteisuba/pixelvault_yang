@@ -2905,6 +2905,25 @@ export const ActiveLoraSchema = z.object({
 
 export type ActiveLora = z.infer<typeof ActiveLoraSchema>
 
+/**
+ * Server response for `GET /api/generations/[id]/replay` — the focused
+ * "Use this image's LoRAs" payload. Designed to grow: today it carries
+ * style codes the viewer can replay; tomorrow it can add prompt/seed
+ * fields for the full "Use everything" tier without renaming the route.
+ *
+ * `hasHiddenLoras` is true when the source snapshot referenced LoRAs
+ * the viewer can't see (private / deleted / never tracked as a
+ * LoraAsset) so the UI can show a "some styles are hidden" hint
+ * without leaking what they were.
+ */
+export const ReplayPayloadSchema = z.object({
+  generationId: z.string(),
+  styleCodes: z.array(z.string()),
+  hasHiddenLoras: z.boolean(),
+})
+
+export type ReplayPayload = z.infer<typeof ReplayPayloadSchema>
+
 // ─── Video Script (VS1-VS11) ─────────────────────────────────────
 export * from './video-script'
 

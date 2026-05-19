@@ -838,6 +838,22 @@
     "projectCreated": "项目已创建",
     "projectCreateFailed": "创建项目失败"
   },
+  "LoraStack": {
+    "regionLabel": "已启用的 LoRA 风格",
+    "label": "LoRA:",
+    "resolving": "正在解析风格…",
+    "chipTitle": "触发词: {trigger} · {code}",
+    "removeAria": "移除 {name}",
+    "manage": "管理",
+    "clear": "全部清除"
+  },
+  "UseLoraButton": {
+    "action": "使用 LoRA",
+    "failed": "无法加载这张图的 LoRA",
+    "noneAvailable": "这张图没有使用 LoRA",
+    "allHidden": "这张图的 LoRA 是私有的",
+    "someHidden": "这张图的部分 LoRA 是私有的，未被应用"
+  },
   "ImageChip": {
     "label": "图像",
     "description": "附加一张图片用于编辑，或将其风格和内容应用到生成。",
@@ -2568,6 +2584,10 @@
       "decompose": {
         "label": "图层分解",
         "description": "拆成可编辑的 PSD 图层。"
+      },
+      "extract-element": {
+        "label": "提取元素",
+        "description": "按名字抠出服装、人物或背景。"
       }
     },
     "placeholder": {
@@ -2584,6 +2604,23 @@
       "scale2x": "2× (Clarity)",
       "scale4x": "4× (Aura SR)"
     },
+    "extract": {
+      "presetsLabel": "快速选择",
+      "presets": {
+        "clothing": "服装",
+        "person": "人物",
+        "hair": "头发",
+        "accessory": "配饰",
+        "background": "背景"
+      },
+      "promptLabel": "要提取的元素",
+      "promptPlaceholder": "例如：clothing、the cat、the red dress",
+      "promptHint": "用英文短语描述，蒙版精度最稳。",
+      "invertLabel": "反向蒙版（保留匹配元素之外的所有部分）",
+      "run": "提取",
+      "success": "元素已提取。"
+    },
+    "extractFailed": "元素提取失败。",
     "resultActionsTitle": "结果",
     "downloadResult": "下载结果",
     "saveResult": "保存到画廊",

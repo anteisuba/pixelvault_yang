@@ -78,6 +78,9 @@ export const API_ENDPOINTS = {
   /** Image layer decomposition (See-Through) */
   IMAGE_DECOMPOSE: '/api/image/decompose',
 
+  /** Element extraction (text-guided cutout via lang-SAM) */
+  IMAGE_EXTRACT: '/api/image/extract',
+
   /** Image transform (style / pose / background — Phase 1: style only) */
   IMAGE_TRANSFORM: '/api/image-transform',
 
@@ -188,6 +191,9 @@ export const API_ENDPOINTS = {
   LORA_ASSETS: '/api/lora-assets',
   /** Resolve a style-code share-link → LoraAsset */
   LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
+
+  /** "Use this image" payload — style codes (and later prompt/seed/model) */
+  GENERATIONS_BASE: '/api/generations',
 } as const
 
 /**

@@ -838,6 +838,22 @@
     "projectCreated": "プロジェクトを作成しました",
     "projectCreateFailed": "プロジェクトの作成に失敗しました"
   },
+  "LoraStack": {
+    "regionLabel": "適用中のLoRAスタイル",
+    "label": "LoRA:",
+    "resolving": "スタイルを解決中…",
+    "chipTitle": "トリガー: {trigger} · {code}",
+    "removeAria": "{name} を解除",
+    "manage": "管理",
+    "clear": "すべて解除"
+  },
+  "UseLoraButton": {
+    "action": "LoRAを使う",
+    "failed": "この画像のLoRAを読み込めませんでした",
+    "noneAvailable": "この画像はLoRAを使っていません",
+    "allHidden": "この画像のLoRAはプライベートです",
+    "someHidden": "この画像の一部のLoRAはプライベートのため適用されませんでした"
+  },
   "ImageChip": {
     "label": "画像",
     "description": "画像を添付して編集、またはそのスタイルと内容を生成に適用します。",
@@ -2568,6 +2584,10 @@
       "decompose": {
         "label": "レイヤー分解",
         "description": "編集可能な PSD レイヤーに分解。"
+      },
+      "extract-element": {
+        "label": "要素を抽出",
+        "description": "服・人物・背景などを名前で切り出し。"
       }
     },
     "placeholder": {
@@ -2584,6 +2604,23 @@
       "scale2x": "2× (Clarity)",
       "scale4x": "4× (Aura SR)"
     },
+    "extract": {
+      "presetsLabel": "クイック選択",
+      "presets": {
+        "clothing": "服",
+        "person": "人物",
+        "hair": "髪",
+        "accessory": "アクセサリー",
+        "background": "背景"
+      },
+      "promptLabel": "抽出する要素",
+      "promptPlaceholder": "例: clothing, the cat, the red dress",
+      "promptHint": "英語の短いフレーズが最も精度が安定します。",
+      "invertLabel": "マスクを反転（マッチした要素以外を残す）",
+      "run": "抽出",
+      "success": "要素を抽出しました。"
+    },
+    "extractFailed": "要素の抽出に失敗しました。",
     "resultActionsTitle": "結果",
     "downloadResult": "結果をダウンロード",
     "saveResult": "ギャラリーに保存",

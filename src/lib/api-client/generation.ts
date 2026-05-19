@@ -733,6 +733,53 @@ export async function decomposeImageAPI(
   }
 }
 
+export async function extractElementAPI(params: {
+  imageUrl: string
+  prompt: string
+  invert?: boolean
+  sourceGenerationId?: string
+  modelId?: string
+  apiKeyId?: string
+}): Promise<{
+  success: boolean
+  data?: {
+    imageUrl: string
+    width: number
+    height: number
+    generation?: GenerationRecord
+  }
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}> {
+  try {
+    const response = await fetch(API_ENDPOINTS.IMAGE_EXTRACT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Extract failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
 export async function submitLongVideoAPI(
   params: LongVideoRequest,
 ): Promise<LongVideoSubmitResponse> {

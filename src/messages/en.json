@@ -838,6 +838,22 @@
     "projectCreated": "Project created",
     "projectCreateFailed": "Failed to create project"
   },
+  "LoraStack": {
+    "regionLabel": "Active LoRA styles",
+    "label": "LoRA:",
+    "resolving": "Resolving style…",
+    "chipTitle": "Trigger: {trigger} · {code}",
+    "removeAria": "Remove {name}",
+    "manage": "Manage",
+    "clear": "Clear all"
+  },
+  "UseLoraButton": {
+    "action": "Use LoRA",
+    "failed": "Couldn't load this image's LoRAs",
+    "noneAvailable": "This image wasn't made with a LoRA",
+    "allHidden": "This image's LoRAs are private",
+    "someHidden": "Some of this image's LoRAs are private and weren't applied"
+  },
   "ImageChip": {
     "label": "Image",
     "description": "Attach an image to edit it, or to apply its style and content to your generation.",
@@ -2568,6 +2584,10 @@
       "decompose": {
         "label": "Layer decompose",
         "description": "Split into editable PSD layers."
+      },
+      "extract-element": {
+        "label": "Extract element",
+        "description": "Cut out a clothing, person, or background by name."
       }
     },
     "placeholder": {
@@ -2584,6 +2604,23 @@
       "scale2x": "2× (Clarity)",
       "scale4x": "4× (Aura SR)"
     },
+    "extract": {
+      "presetsLabel": "Quick picks",
+      "presets": {
+        "clothing": "Clothing",
+        "person": "Person",
+        "hair": "Hair",
+        "accessory": "Accessories",
+        "background": "Background"
+      },
+      "promptLabel": "Element to extract",
+      "promptPlaceholder": "e.g. clothing, the cat, the red dress",
+      "promptHint": "English short phrases give the cleanest masks.",
+      "invertLabel": "Invert mask (keep everything except the matched element)",
+      "run": "Extract",
+      "success": "Element extracted."
+    },
+    "extractFailed": "Element extraction failed.",
     "resultActionsTitle": "Result",
     "downloadResult": "Download result",
     "saveResult": "Save to gallery",

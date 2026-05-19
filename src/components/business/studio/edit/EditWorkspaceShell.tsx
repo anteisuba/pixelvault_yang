@@ -116,7 +116,16 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
                 </p>
               ) : null}
             </div>
-            <div className="flex min-h-96 items-center justify-center bg-muted/40 p-4">
+            <div
+              className={cn(
+                'flex items-center justify-center bg-muted/40 p-4',
+                // Task subpages keep the tall canvas so the user can actually
+                // see their image while editing. The /edit overview shrinks
+                // the empty state to a single compact row so the task grid
+                // sits above the fold.
+                displayImage || isTaskPage ? 'min-h-96' : 'min-h-32',
+              )}
+            >
               {displayImage ? (
                 <img
                   src={displayImage}
@@ -127,7 +136,7 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
                     aspectRatio: `${displayWidth} / ${displayHeight}`,
                   }}
                 />
-              ) : (
+              ) : isTaskPage ? (
                 <div className="w-full max-w-md text-center">
                   <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <ImageIcon className="size-5" />
@@ -168,6 +177,45 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
                     <Clipboard className="size-3" />
                     {t('pasteShortcut')}
                   </p>
+                </div>
+              ) : (
+                // Overview-only compact row: actions inline, no big icon block.
+                <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                  <p className="text-sm text-muted-foreground">
+                    {t('emptyStateTitle')}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => setAssetPickerOpen(true)}
+                      disabled={isBusy}
+                    >
+                      <ImageIcon className="size-3.5" />
+                      {t('chooseFromAssets')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isBusy}
+                    >
+                      {isUploadingSource ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="size-3.5" />
+                      )}
+                      {t('uploadSource')}
+                    </Button>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/80">
+                    <Clipboard className="size-3" />
+                    ⌘V
+                  </span>
                 </div>
               )}
             </div>

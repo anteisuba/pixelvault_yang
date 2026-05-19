@@ -209,6 +209,10 @@ describe('ImageCard', () => {
       name: 'View Alice W. profile',
     })
     expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
+    expect(creatorLink.parentElement).toHaveClass('z-30')
+    expect(creatorLink.parentElement?.className).not.toContain(
+      'group-hover:opacity-0',
+    )
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
     expect(screen.getByText('@alice')).toBeInTheDocument()
   })

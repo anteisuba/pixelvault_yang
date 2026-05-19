@@ -234,6 +234,9 @@ export const ImageCard = memo(function ImageCard({
     Boolean(creator?.displayName?.trim()) &&
     creator?.displayName?.trim() !== creator?.username
   const creatorInitial = creatorName.charAt(0).toUpperCase()
+  const galleryCreatorHoverPositionClass = generation.referenceImageUrl
+    ? 'group-hover:top-12 group-focus-within:top-12'
+    : 'group-hover:top-2.5 group-focus-within:top-2.5'
 
   const detailGeneration = {
     ...generation,
@@ -285,15 +288,19 @@ export const ImageCard = memo(function ImageCard({
           {isGalleryPresentation && creator?.username ? (
             <div
               className={cn(
-                'pointer-events-none absolute left-2.5 right-2.5 z-10 flex justify-start transition-opacity duration-200',
-                isVideo ? 'bottom-12' : isAudio ? 'top-2.5' : 'bottom-2.5',
-                // Fade the creator pill out on hover so the prompt/action overlay
-                // owns the bottom of the card without colliding.
-                isGalleryPresentation && 'group-hover:opacity-0',
+                'pointer-events-none absolute left-2.5 right-2.5 z-30 flex justify-start transition-all duration-200',
+                isAudio
+                  ? 'top-2.5'
+                  : cn(
+                      isVideo ? 'bottom-12' : 'bottom-2.5',
+                      'group-hover:bottom-auto group-focus-within:bottom-auto',
+                      galleryCreatorHoverPositionClass,
+                    ),
               )}
             >
               <a
                 href={creatorHref}
+                onClick={(e) => e.stopPropagation()}
                 aria-label={t('creatorProfileLabel', { name: creatorName })}
                 className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
               >

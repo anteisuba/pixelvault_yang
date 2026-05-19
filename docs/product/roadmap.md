@@ -206,10 +206,24 @@
 ### W4. Audio & Final Assembly — PARTIAL
 
 - Audio mode is already shipped in the main `/studio` route
-- `/api/generate-audio` is live
-- `/api/voices` is live
-- Voice selection and voice cloning are already wired into Studio
-- Audio submit / status uses outbox-backed server-owned contract; finalize uses `db.$transaction`
+- `/api/generate-audio`, `/api/generate-audio/status` live
+- `/api/voices`, `/api/voices/[id]` live
+- `/api/voices/transcribe` (ASR — Step 10), `/api/voices/upload-reference`
+  (zero-shot reference upload — Step 11) live
+- Voice selection (Fish library dialog) and voice cloning wired into Studio
+- Audio dock panel: pace / pause / style chips + Output / Voice / Model
+  advanced tabs + speaker chips + zero-shot reference dropzone
+- Post-generation feedback chips with one-click retry via `REQUEST_GENERATE`
+  action token (Step 8)
+- Audio-to-prompt transcription dialog (Step 10)
+- Audio submit / status uses outbox-backed server-owned contract; finalize
+  uses `db.$transaction`
+- Schema enforces both-or-none on `referenceAudioUrl` + `referenceText` for
+  zero-shot voice cloning
+- Style chip hover-preview wired but demo MP3s (`public/audio/style-demos/`)
+  not seeded yet (B1 follow-up)
+- Step 12 (voice cloning UX hardening — train → library sync, batch upload,
+  polling status) still needs an audit pass
 - Final clip + TTS + BGM assembly workflow is still pending
 
 ### W5. Image Transform Phase 1 — COMPLETE
@@ -263,6 +277,8 @@
 - Prompt / reference tooling (with style preset chips)
 - Video generation (with Cloudflare Worker execution path for cinematic short)
 - Audio generation mode (outbox + transactional finalize)
-- Voice library and voice cloning
+- Voice library (Fish public + private), voice cloning, ASR audio-to-prompt
+- Zero-shot voice cloning via inline reference dropzone
+- Audio feedback chips + one-click retry
 - Quick Setup API key onboarding dialog
 - Generation pipeline 3-stage refactor (image service)

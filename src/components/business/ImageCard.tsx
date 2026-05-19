@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
 import { ImageCardActions } from '@/components/business/image-card/ImageCardActions'
 import { ImageCardVisibility } from '@/components/business/image-card/ImageCardVisibility'
+import { UseLoraButton } from '@/components/business/image-card/UseLoraButton'
 
 import { ArrowUpRight, Coins, Copy, LockKeyhole, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -345,6 +346,10 @@ export const ImageCard = memo(function ImageCard({
                     {modelLabel}
                   </span>
                   <div className="ml-auto flex items-center gap-1.5">
+                    <UseLoraButton
+                      generationId={generation.id}
+                      outputType={generation.outputType}
+                    />
                     {canShowPromptOverlay ? (
                       <button
                         type="button"

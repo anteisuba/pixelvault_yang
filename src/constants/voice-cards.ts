@@ -23,6 +23,9 @@ export const VOICE_API_ERROR_CODES = {
   PUBLIC_LIBRARY_UNAVAILABLE: 'PUBLIC_LIBRARY_UNAVAILABLE',
 } as const
 
+export const VOICE_TRAIN_MAX_FILES = 8
+export const VOICE_TRAIN_MAX_FILE_BYTES = 10 * 1024 * 1024
+
 export const VOICE_CARD_DEFAULT_PACE = 'normal'
 
 export const AUDIO_STYLE = {

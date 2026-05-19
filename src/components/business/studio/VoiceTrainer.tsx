@@ -1,12 +1,17 @@
 'use client'
 
-import { memo, useState, useRef } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { Loader2, Mic, Plus, Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { VOICE_API_ERROR_CODES } from '@/constants/voice-cards'
+import {
+  VOICE_API_ERROR_CODES,
+  VOICE_TRAIN_MAX_FILES,
+  VOICE_TRAIN_MAX_FILE_BYTES,
+} from '@/constants/voice-cards'
 import { useStudioForm } from '@/contexts/studio-context'
+import { useVoiceCards } from '@/hooks/use-voice-cards'
 import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +24,10 @@ interface UploadedFile {
   name: string
 }
 
+type TrainStage = 'idle' | 'uploading' | 'finalizing'
+
+const UPLOAD_TO_FINALIZE_MS = 1500
+
 /**
  * VoiceTrainer — Upload audio to create a custom Fish Audio voice (clone).
  * Fast mode: voice is instantly available after creation.
@@ -26,20 +35,55 @@ interface UploadedFile {
 export const VoiceTrainer = memo(function VoiceTrainer() {
   const { dispatch } = useStudioForm()
   const t = useTranslations('StudioPage')
+  const voiceCards = useVoiceCards()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [title, setTitle] = useState('')
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [transcript, setTranscript] = useState('')
   const [enhance, setEnhance] = useState(false)
-  const [isTraining, setIsTraining] = useState(false)
+  const [trainStage, setTrainStage] = useState<TrainStage>('idle')
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const isTraining = trainStage !== 'idle'
+
+  useEffect(
+    () => () => {
+      if (stageTimerRef.current) clearTimeout(stageTimerRef.current)
+    },
+    [],
+  )
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files
     if (!selected) return
 
-    const newFiles: UploadedFile[] = Array.from(selected).map((f) => ({
+    const incoming = Array.from(selected)
+    const oversized = incoming.find((f) => f.size > VOICE_TRAIN_MAX_FILE_BYTES)
+    if (oversized) {
+      toast.error(
+        t('voiceTrainFileTooLarge', {
+          name: oversized.name,
+          maxMb: Math.floor(VOICE_TRAIN_MAX_FILE_BYTES / 1024 / 1024),
+        }),
+      )
+      e.target.value = ''
+      return
+    }
+
+    const remaining = VOICE_TRAIN_MAX_FILES - files.length
+    if (remaining <= 0) {
+      toast.error(t('voiceTrainTooManyFiles', { max: VOICE_TRAIN_MAX_FILES }))
+      e.target.value = ''
+      return
+    }
+
+    const accepted = incoming.slice(0, remaining)
+    if (accepted.length < incoming.length) {
+      toast.error(t('voiceTrainTooManyFiles', { max: VOICE_TRAIN_MAX_FILES }))
+    }
+
+    const newFiles: UploadedFile[] = accepted.map((f) => ({
       file: f,
       name: f.name,
     }))
@@ -56,7 +100,12 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
   const handleTrain = async () => {
     if (!title.trim() || files.length === 0) return
 
-    setIsTraining(true)
+    setTrainStage('uploading')
+    stageTimerRef.current = setTimeout(() => {
+      setTrainStage('finalizing')
+      stageTimerRef.current = null
+    }, UPLOAD_TO_FINALIZE_MS)
+
     const formData = new FormData()
     formData.append('title', title.trim())
 
@@ -73,7 +122,11 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
     }
 
     const result = await createVoiceAPI(formData)
-    setIsTraining(false)
+    if (stageTimerRef.current) {
+      clearTimeout(stageTimerRef.current)
+      stageTimerRef.current = null
+    }
+    setTrainStage('idle')
 
     if (result.success && result.data) {
       toast.success(t('voiceTrainSuccess'))
@@ -83,6 +136,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
         payload: result.voiceCard?.id ?? null,
       })
       dispatch({ type: 'SET_VOICE_ID', payload: selectedVoiceId })
+      void voiceCards.refresh()
       // Reset form
       setTitle('')
       setFiles([])
@@ -224,7 +278,7 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
           className="h-8 w-fit gap-2 text-xs"
         >
           {isTranscribing && <Loader2 className="size-3.5 animate-spin" />}
-          {t('voiceTranscribe')}
+          {files.length > 1 ? t('voiceTranscribeFirst') : t('voiceTranscribe')}
         </Button>
       </div>
 
@@ -247,15 +301,17 @@ export const VoiceTrainer = memo(function VoiceTrainer() {
         disabled={!canTrain}
         className="h-10 gap-2 rounded-xl text-sm font-medium"
       >
-        {isTraining ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            {t('voiceTraining')}
-          </>
-        ) : (
+        {trainStage === 'idle' ? (
           <>
             <Plus className="size-4" />
             {t('voiceTrainCreate')}
+          </>
+        ) : (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            {trainStage === 'uploading'
+              ? t('voiceTrainStageUploading')
+              : t('voiceTraining')}
           </>
         )}
       </Button>

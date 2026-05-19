@@ -437,6 +437,8 @@
     "voiceTrainCreate": "创建声音",
     "voiceTrainSuccess": "声音创建成功！",
     "voiceTrainFailed": "创建声音失败",
+    "voiceTrainTooManyFiles": "单次克隆最多 {max} 个文件。",
+    "voiceTrainFileTooLarge": "{name} 超过了 {maxMb} MB 限制。",
     "voiceTranscribe": "自动识别文字稿",
     "voiceTranscribeSuccess": "文字稿已识别",
     "voiceTranscribeFailed": "文字稿识别失败",

@@ -1,5 +1,5 @@
-import { ToolPlaceholder } from '@/components/business/studio/ToolPlaceholder'
+import { LoraWorkbench } from '@/components/business/studio/lora/LoraWorkbench'
 
 export default function StudioLoraPage() {
-  return <ToolPlaceholder toolKey="lora" />
+  return <LoraWorkbench />
 }

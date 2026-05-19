@@ -550,9 +550,13 @@ export async function outpaintImage(params: {
 
 // ─── Element Extraction (text-guided cutout) ────────────────────
 
-const FAL_DEFAULT_EXTRACT_MODEL = 'fal-ai/lang-segment-anything'
+const FAL_DEFAULT_EXTRACT_MODEL = 'fal-ai/sam-3/image'
+const FAL_EVF_SAM_MODEL = 'fal-ai/evf-sam'
+const FAL_LANG_SAM_MODEL = 'fal-ai/lang-segment-anything'
+const FAL_BIREFNET_MODEL = 'fal-ai/birefnet/v2'
 
-const LangSamResponseSchema = z.object({
+/** SAM 3 / Lang-SAM share this shape: array of masks (string url or object). */
+const FalMaskListSchema = z.object({
   masks: z
     .array(
       z
@@ -561,6 +565,97 @@ const LangSamResponseSchema = z.object({
     )
     .min(1),
 })
+
+/** EVF-SAM returns a single mask as `image: { url }`. */
+const FalSingleImageSchema = z.object({
+  image: z.object({ url: z.string().url() }),
+})
+
+/** BiRefNet with `output_mask: true` returns the mask separately. */
+const FalBirefnetSchema = z.object({
+  mask_image: z.object({ url: z.string().url() }),
+})
+
+/**
+ * Per-model adapter that turns the extract request into the right fal body +
+ * parser. Each branch returns the mask URL so the calling function can do the
+ * common fetch + sharp composite pipeline.
+ */
+async function callExtractionModel(
+  modelId: string,
+  apiKey: string,
+  imageUrl: string,
+  prompt: string,
+): Promise<string> {
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
+
+  const body: Record<string, unknown> = (() => {
+    if (modelId === FAL_LANG_SAM_MODEL) {
+      return { image_url: imageUrl, text_prompt: prompt }
+    }
+    if (modelId === FAL_EVF_SAM_MODEL) {
+      return { image_url: imageUrl, prompt, mask_only: true }
+    }
+    if (modelId === FAL_BIREFNET_MODEL) {
+      return { image_url: imageUrl, output_mask: true }
+    }
+    // SAM 3 and any future text-prompt models default here.
+    return { image_url: imageUrl, prompt }
+  })()
+
+  const response = await withRetry(
+    async () => {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Key ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => 'Unknown error')
+        throw new ProviderError('fal.ai', res.status, errorBody)
+      }
+      return res.json()
+    },
+    { label: `fal.extract.${modelId}`, maxAttempts: 3, baseDelayMs: 1000 },
+  )
+
+  if (modelId === FAL_EVF_SAM_MODEL) {
+    const parsed = FalSingleImageSchema.safeParse(response)
+    if (!parsed.success) {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `Malformed EVF-SAM response: ${parsed.error.message}`,
+      )
+    }
+    return parsed.data.image.url
+  }
+
+  if (modelId === FAL_BIREFNET_MODEL) {
+    const parsed = FalBirefnetSchema.safeParse(response)
+    if (!parsed.success) {
+      throw new ProviderError(
+        'fal.ai',
+        502,
+        `Malformed BiRefNet response: ${parsed.error.message}`,
+      )
+    }
+    return parsed.data.mask_image.url
+  }
+
+  const parsed = FalMaskListSchema.safeParse(response)
+  if (!parsed.success) {
+    throw new ProviderError(
+      'fal.ai',
+      502,
+      `Malformed mask-list response from ${modelId}: ${parsed.error.message}`,
+    )
+  }
+  return parsed.data.masks[0]
+}
 
 /**
  * Combine the source image and a grayscale mask into a single PNG with the

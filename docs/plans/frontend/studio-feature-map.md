@@ -1,6 +1,6 @@
 # Studio 功能地图
 
-> Last updated: 2026-04-28
+> Last updated: 2026-05-19
 > Scope: current implemented Studio behavior only.
 > Companion reference: `docs/plans/product/unified-development-plan.md`.
 
@@ -79,11 +79,11 @@ Modes are now driven by `selectedWorkflowId` in `StudioFormContext`. The legacy
 `outputType` (`image` / `video` / `audio`) is derived from the active workflow's
 `mediaGroup` and is still consumed by downstream components.
 
-| Mode    | Current UI shape                                          | Main files                                                                                                                                 |
-| ------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `image` | Canvas + dock workbench                                   | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioCanvas.tsx`, `StudioBottomDock.tsx`                                                  |
-| `video` | Same canvas + dock shell, video-specific dock panel       | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioVideoParams.tsx` (dock panel), `use-generate-video.ts`, `use-generate-long-video.ts` |
-| `audio` | Same canvas + dock shell, audio-specific toolbar / panels | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioToolbarPanels.tsx`, `VoiceSelector.tsx`, `VoiceTrainer.tsx`                          |
+| Mode    | Current UI shape                                              | Main files                                                                                                                                                                       |
+| ------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image` | Canvas + dock workbench                                       | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioCanvas.tsx`, `StudioBottomDock.tsx`                                                                                        |
+| `video` | Same canvas + dock shell, video-specific dock panel           | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioVideoParams.tsx` (dock panel), `use-generate-video.ts`, `use-generate-long-video.ts`                                       |
+| `audio` | Same canvas + dock shell, audio-specific dock panel + dialogs | `StudioWorkspace.tsx`, `StudioPromptArea.tsx`, `StudioAudioParams.tsx`, `StudioAudioFeedback.tsx`, `FishVoiceLibraryDialog.tsx`, `AudioTranscribeDialog.tsx`, `VoiceTrainer.tsx` |
 
 Note: video no longer has a separate `VideoGenerateForm.tsx` — that file was
 deleted during the W6 unification work. Video runs in the same shell as image
@@ -199,9 +199,26 @@ Three providers split by update frequency (per `src/contexts/CLAUDE.md`):
   - `activeRun`
 
 `PanelName` union now contains: `cardManagement`, `projectHistory`,
-`modelSelector`, `civitai`, `enhance`, `reverse`, `advanced`, `refImage`,
-`layerDecompose`, `aspectRatio`, `voiceSelector`, `voiceTrainer`, `transform`,
-`videoParams`, `script`, `keepChange`.
+`modelSelector`, `civitai`, `cardSelector`, `enhance`, `reverse`, `advanced`,
+`refImage`, `layerDecompose`, `aspectRatio`, `voiceSelector`, `voiceTrainer`,
+`audioTranscribe`, `transform`, `videoParams`, `script`, `keepChange`,
+`planPreview`.
+
+Audio-specific HOT fields (in addition to `voiceId` / `voiceCardId`):
+
+- `audioEmotion`, `audioPace`, `audioPauseMarkers`, `pronunciationDictionary`
+- `audioVolume`, `audioNormalizeLoudness`, `audioNormalizeText`,
+  `audioWithTimestamps`
+- Output: `audioFormat`, `audioSampleRate`, `audioMp3Bitrate`, `audioOpusBitrate`
+- Model: `audioLatency`, `audioTemperature`, `audioTopP`, `audioChunkLength`,
+  `audioRepetitionPenalty`
+- Dialogue: `audioSpeakerVoiceIds` (ordered chips for `<|speaker:n|>` tags)
+- Zero-shot reference (Step 11): `audioReferenceUrl`, `audioReferenceFileName`,
+  `audioReferenceText` — schema-enforced both-or-none via `.refine()` on
+  `GenerateAudioRequestSchema`
+
+Plus the cross-mode action token `generateRequestId` (bumped by
+`REQUEST_GENERATE`) used by feedback retry and external regeneration triggers.
 
 ### Command palette and shortcuts
 
@@ -415,34 +432,59 @@ the submit payload (the F1 micro-packet from 2026-04-24).
 
 Primary files:
 
-- `StudioPromptArea.tsx`
+- `StudioPromptArea.tsx` (build payload, audio reference completeness gate)
 - `useAudioModelOptions.ts`
-- `StudioToolbarPanels.tsx`
-- `VoiceSelector.tsx`
-- `VoiceTrainer.tsx`
-- `GenerationPreview.tsx`
+- `StudioDockPanelArea.tsx` (mounts audio dock + dialogs)
+- `StudioAudioParams.tsx` (dock panel — pace / pause / advanced settings,
+  speaker chips, style chips with icons + hover-preview scaffolding,
+  inline reference-audio dropzone with required transcript)
+- `StudioAudioFeedback.tsx` (👍 / 👎 chips + one-click retry that dispatches
+  `REQUEST_GENERATE` on the canvas)
+- `VoiceSelector.tsx` (voiceSelector panel)
+- `VoiceTrainer.tsx` (voiceTrainer panel)
+- `FishVoiceLibraryDialog.tsx` (full Fish voice catalog browser — public +
+  private voices, pagination, search)
+- `AudioTranscribeDialog.tsx` (ASR entry — upload audio → transcribed text
+  flows into the prompt field; opens via the `audioTranscribe` panel)
+- `GenerationPreview.tsx` (audio player with corrected single-seek track,
+  timestamp segments when `audioWithTimestamps` is true)
 
 Current built-in audio routes:
 
 - `Fish Audio S2 Pro`
 - `FAL F5-TTS`
 
-Implemented:
+Implemented (Sprints 1-5 of `studio-audio-plan.md`, all shipped 2026-04 → 2026-05):
 
 - audio mode reachable through workflow group tabs (`audio` group → "配音旁白")
 - audio model route selection
 - TTS prompt input inside the shared Studio prompt area
 - selected voice state in Studio form context
-- voice library browser
-- public voices tab
-- my voices tab
-- voice search
-- pagination
+- Fish voice library dialog (public voices + my voices, search, pagination)
+- create private cloned voice from uploaded audio (voiceTrainer)
+- optional transcript / audio enhancement during voice cloning
 - delete my voice
-- create private cloned voice from uploaded audio
-- optional transcript during voice cloning
-- optional audio enhancement during voice cloning
-- audio result playback inside Studio preview
+- pace control + sentence pause markers + style chips (with per-style icons
+  and hover-preview scaffolding; no demo MP3s seeded yet — see Known Issues)
+- advanced settings grouped into Output / Voice / Model tabs:
+  - Output: format, sample rate, MP3 bitrate, Opus bitrate, loudness +
+    text normalization
+  - Voice: ordered speaker voice chips for `<|speaker:n|>` dialogue tags
+    (paste comma-separated → chips), reference-audio dropzone + transcript
+    (Step 11 — zero-shot voice cloning fallback when no preset voice is set)
+  - Model: temperature, top-p, chunk length, repetition penalty, latency,
+    timestamp alignment
+- speaker voice chips wired to `VoiceSelector` (click chip → swap voice,
+  remove chip → drop, "add" chip → open picker)
+- post-generation feedback chips (👍 / 👎) with one-click retry that bumps
+  `generateRequestId` to re-run the same payload (Step 8)
+- audio-to-prompt transcription entry (ASR via `/api/voices/transcribe`)
+  surfaced as the `audioTranscribe` dialog from the toolbar (Step 10)
+- zero-shot reference upload — inline dropzone on the Voice tab, file goes
+  to R2 via `/api/voices/upload-reference`, schema requires text + URL
+  together (Step 11)
+- audio result playback inside Studio preview with timestamp segments when
+  `audioWithTimestamps` is true
 - async submit / status using outbox-backed server-owned contract (audio
   finalize wraps DB writes in `db.$transaction`)
 
@@ -452,6 +494,9 @@ Supporting APIs:
 - `POST /api/generate-audio/status`
 - `GET/POST /api/voices`
 - `GET/DELETE /api/voices/[id]`
+- `POST /api/voices/transcribe` (ASR — used by `AudioTranscribeDialog`)
+- `POST /api/voices/upload-reference` (multipart, 25 MiB cap, audio MIMEs
+  only — used by the inline reference-audio dropzone)
 
 ## Projects and History
 
@@ -555,6 +600,8 @@ beyond the shared route resolver.
 - `POST /api/generate-audio/status`
 - `GET/POST /api/voices`
 - `GET/DELETE /api/voices/[id]`
+- `POST /api/voices/transcribe`
+- `POST /api/voices/upload-reference`
 
 ### Project workbench
 
@@ -588,9 +635,14 @@ beyond the shared route resolver.
 - remix and Kontext edit entry
 - video generation (cinematic short via Cloudflare Worker for FAL routes;
   inline path otherwise)
-- audio generation
-- voice library selection
-- voice cloning
+- audio generation (Fish S2 Pro + FAL F5-TTS)
+- voice library selection (Fish public + private catalog, search + paginate)
+- voice cloning (`VoiceTrainer` + Fish create-voice API)
+- audio advanced controls (Output / Voice / Model tabs, speaker chips, style
+  chips with hover-preview scaffolding)
+- audio post-generation feedback chips + one-click retry
+- audio-to-prompt transcription (ASR entry into the prompt field)
+- zero-shot voice cloning via the inline reference-audio dropzone (Step 11)
 - gallery filter tabs (`all` / `favorites` / `today`)
 - preview Like / Heart action (wired to `useLike`)
 - preview Super Res / Remove BG / Save Edited (wired to `image-edit` service)
@@ -619,9 +671,14 @@ beyond the shared route resolver.
   workflow→workflowMode override semantics) not done
 - ⚠️ `execution-callback` finalize is not wrapped in `db.$transaction` — see
   Server-owned Execution section
-- ⚠️ `studio-feature-map.md` was significantly out of date prior to
-  2026-04-28 and may still drift; treat the source code as the final authority
-  when in doubt
+- ⚠️ Audio style chips have icons + hover-preview wiring but no demo MP3s
+  are seeded in `public/audio/style-demos/` — hovering does nothing until
+  the 6 demo files land (B1 follow-up)
+- ⚠️ Voice cloning (Step 12) still relies on `VoiceTrainer` as a panel;
+  train → voice library round-trip + batch upload + polling status need an
+  audit pass
+- ⚠️ `studio-feature-map.md` may still drift; treat the source code as the
+  final authority when in doubt
 
 ## Recommended Reading Order For Future Analysis
 
@@ -704,11 +761,15 @@ Read:
 Read:
 
 1. `useAudioModelOptions.ts`
-2. `StudioPromptArea.tsx`
-3. `VoiceSelector.tsx`
-4. `VoiceTrainer.tsx`
-5. `src/services/generate-audio.service.ts`
-6. `src/services/fish-audio-voice.service.ts`
+2. `StudioPromptArea.tsx` (audio submit + reference-completeness gate)
+3. `StudioAudioParams.tsx` (dock panel — pace, pause, style chips,
+   advanced tabs, reference-audio dropzone)
+4. `StudioAudioFeedback.tsx` (feedback chips + `REQUEST_GENERATE` retry)
+5. `FishVoiceLibraryDialog.tsx` / `VoiceSelector.tsx` / `VoiceTrainer.tsx`
+6. `AudioTranscribeDialog.tsx` (audio-to-prompt entry)
+7. `src/services/generate-audio.service.ts`
+8. `src/services/fish-audio-voice.service.ts`
+9. `src/services/audio-reference.service.ts` (R2 upload for zero-shot refs)
 
 ### If the problem is server-owned execution / worker callback
 

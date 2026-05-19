@@ -257,7 +257,7 @@ function AppSidebarContent() {
       href: ROUTES.STUDIO_LORA,
       label: tTools('tools.lora.label'),
       icon: Palette,
-      comingSoon: true,
+      comingSoon: false,
       activePaths: [ROUTES.STUDIO_LORA],
     },
     {

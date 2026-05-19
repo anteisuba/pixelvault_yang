@@ -32,6 +32,7 @@ import {
   getLoraAssetByStyleCode,
   listLoraAssetsForUser,
   ensureLoraAssetFromTrainingJob,
+  findLoraAssetsByUrls,
 } from '@/services/lora-asset.service'
 
 const OWNER = { id: 'user_owner', clerkId: 'clerk_owner' }
@@ -137,6 +138,59 @@ describe('listLoraAssetsForUser', () => {
     expect(result.map((r) => r.id)).toEqual(['owned_1', 'owned_2', 'curated_1'])
     expect(result[0]?.isOwn).toBe(true)
     expect(result[2]?.isOwn).toBe(false)
+  })
+})
+
+describe('findLoraAssetsByUrls', () => {
+  it('returns empty when no URLs provided', async () => {
+    const result = await findLoraAssetsByUrls([], null)
+    expect(result).toEqual([])
+    expect(mockAssetFindMany).not.toHaveBeenCalled()
+  })
+
+  it('preserves the input URL order in the output', async () => {
+    const urls = ['https://x/a.safetensors', 'https://x/b.safetensors']
+    mockAssetFindMany.mockResolvedValue([
+      buildRow({ id: 'b1', loraUrl: urls[1], isPublic: true }),
+      buildRow({ id: 'a1', loraUrl: urls[0], isPublic: true }),
+    ])
+    const result = await findLoraAssetsByUrls(urls, null)
+    expect(result.map((r) => r.id)).toEqual(['a1', 'b1'])
+  })
+
+  it("prefers the viewer's own copy over a public copy on URL collision", async () => {
+    const url = 'https://x/shared.safetensors'
+    mockAssetFindMany.mockResolvedValue([
+      buildRow({
+        id: 'public_copy',
+        userId: null,
+        loraUrl: url,
+        isPublic: true,
+      }),
+      buildRow({
+        id: 'owned_copy',
+        userId: OWNER.id,
+        loraUrl: url,
+        isPublic: false,
+      }),
+    ])
+    const result = await findLoraAssetsByUrls([url], OWNER.id)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.id).toBe('owned_copy')
+  })
+
+  it('skips URLs the viewer cannot see', async () => {
+    const url = 'https://x/private.safetensors'
+    mockAssetFindMany.mockResolvedValue([
+      buildRow({
+        id: 'private',
+        userId: OWNER.id,
+        loraUrl: url,
+        isPublic: false,
+      }),
+    ])
+    const result = await findLoraAssetsByUrls([url], VIEWER.id)
+    expect(result).toEqual([])
   })
 })
 

@@ -57,7 +57,17 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
   'fal-ai/lang-segment-anything': {
     id: 'fal-ai/lang-segment-anything',
     provider: 'fal',
-    displayName: 'Lang-SAM (Grounding + SAM 2)',
+    displayName: 'Lang-SAM (legacy)',
+  },
+  'fal-ai/sam-3/image': {
+    id: 'fal-ai/sam-3/image',
+    provider: 'fal',
+    displayName: 'SAM 3 (Meta)',
+  },
+  'fal-ai/evf-sam': {
+    id: 'fal-ai/evf-sam',
+    provider: 'fal',
+    displayName: 'EVF-SAM',
   },
   'gemini-3-pro-image-preview': {
     id: 'gemini-3-pro-image-preview',
@@ -154,8 +164,13 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
     task: 'extract-element',
     icon: Scissors,
     providers: ['fal'],
-    models: ['fal-ai/lang-segment-anything'],
-    defaultModelId: 'fal-ai/lang-segment-anything',
+    models: [
+      'fal-ai/sam-3/image',
+      'fal-ai/evf-sam',
+      'fal-ai/lang-segment-anything',
+      'fal-ai/birefnet/v2',
+    ],
+    defaultModelId: 'fal-ai/sam-3/image',
   },
 ]
 

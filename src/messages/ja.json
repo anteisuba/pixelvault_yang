@@ -437,6 +437,8 @@
     "voiceTrainCreate": "ボイスを作成",
     "voiceTrainSuccess": "ボイスの作成に成功しました！",
     "voiceTrainFailed": "ボイスの作成に失敗しました",
+    "voiceTrainTooManyFiles": "クローンごとに最大 {max} 件までです。",
+    "voiceTrainFileTooLarge": "{name} は {maxMb} MB を超えています。",
     "voiceTranscribe": "自動文字起こし",
     "voiceTranscribeSuccess": "文字起こしを入力しました",
     "voiceTranscribeFailed": "音声の文字起こしに失敗しました",

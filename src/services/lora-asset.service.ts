@@ -104,6 +104,52 @@ export async function getLoraAssetByStyleCode(
 }
 
 /**
+ * Reverse-lookup LoraAssets by their stored loraUrl, ordered to match
+ * the input URL list. Skips rows the viewer can't see (private + not
+ * owned). Used by generation-replay to translate a snapshot's
+ * `advancedParams.loras[].url` array back into shareable style codes.
+ */
+export async function findLoraAssetsByUrls(
+  urls: string[],
+  viewerUserId: string | null,
+): Promise<LoraAssetRecord[]> {
+  if (urls.length === 0) return []
+
+  const rows = await db.loraAsset.findMany({
+    where: { loraUrl: { in: urls } },
+  })
+
+  // Index by url for stable input-order output. If the same URL maps to
+  // multiple assets (curated + user copy, say), prefer the viewer's own
+  // copy, then any public asset.
+  const byUrl = new Map<string, typeof rows>()
+  for (const row of rows) {
+    const existing = byUrl.get(row.loraUrl) ?? []
+    existing.push(row)
+    byUrl.set(row.loraUrl, existing)
+  }
+
+  const pickVisible = (
+    candidates: typeof rows,
+  ): (typeof rows)[number] | null => {
+    const owned = candidates.find((r) => r.userId === viewerUserId)
+    if (owned) return owned
+    const publicAsset = candidates.find((r) => r.isPublic)
+    if (publicAsset) return publicAsset
+    return null
+  }
+
+  const out: LoraAssetRecord[] = []
+  for (const url of urls) {
+    const candidates = byUrl.get(url)
+    if (!candidates || candidates.length === 0) continue
+    const picked = pickVisible(candidates)
+    if (picked) out.push(toRecord(picked, viewerUserId))
+  }
+  return out
+}
+
+/**
  * List LoRA assets the viewer can use: their own + all curated.
  * Ordered: owned (newest first) → curated (newest first).
  */
@@ -126,6 +172,62 @@ export async function listLoraAssetsForUser(
   ])
 
   return [...owned, ...curated].map((row) => toRecord(row, user.id))
+}
+
+/**
+ * "Discover" feed — public LoRAs trained by other users. Excludes:
+ *   - the viewer's own assets (those live in My LoRAs)
+ *   - curated assets (already mixed into My LoRAs)
+ *   - private assets
+ */
+export async function listDiscoverLoraAssets(
+  clerkId: string | null,
+): Promise<LoraAssetRecord[]> {
+  const viewerUserId = clerkId ? (await ensureUser(clerkId)).id : null
+
+  const rows = await db.loraAsset.findMany({
+    where: {
+      isPublic: true,
+      source: 'trained',
+      ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+    },
+    orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
+    take: 60,
+  })
+
+  return rows.map((row) => toRecord(row, viewerUserId))
+}
+
+/**
+ * Flip a LoraAsset's `isPublic` flag. Only the owner can do this;
+ * curated platform LoRAs (no userId) can't be toggled by anyone here.
+ * Returns the updated record so the client can swap optimistic state
+ * for the canonical row in one round-trip.
+ */
+export async function setLoraAssetVisibility(
+  clerkId: string,
+  loraAssetId: string,
+  isPublic: boolean,
+): Promise<LoraAssetRecord | null> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row) return null
+  if (row.userId !== user.id) {
+    throw new Error('Not authorized to modify this LoRA')
+  }
+
+  const updated = await db.loraAsset.update({
+    where: { id: loraAssetId },
+    data: { isPublic },
+  })
+
+  logger.info('LoraAsset visibility changed', {
+    loraAssetId,
+    userId: user.id,
+    isPublic,
+  })
+
+  return toRecord(updated, user.id)
 }
 
 /**

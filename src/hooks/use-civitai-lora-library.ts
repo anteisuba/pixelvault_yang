@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { CIVITAI_LORA_PAGE_SIZE, type CivitaiLoraSort } from '@/constants/lora'
+import {
+  CIVITAI_LORA_PAGE_SIZE,
+  type CivitaiLoraBaseModel,
+  type CivitaiLoraSort,
+} from '@/constants/lora'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
@@ -18,8 +22,10 @@ export interface UseCivitaiLoraLibraryReturn {
   error: string | null
   search: string
   sort: CivitaiLoraSort
+  baseModel: CivitaiLoraBaseModel
   setSearch: (value: string) => void
   setSort: (value: CivitaiLoraSort) => void
+  setBaseModel: (value: CivitaiLoraBaseModel) => void
   selectItem: (item: CivitaiLoraLibraryItem) => void
   nextPage: () => void
   previousPage: () => void
@@ -37,6 +43,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const [search, setSearchValue] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sort, setSortValue] = useState<CivitaiLoraSort>('Highest Rated')
+  const [baseModel, setBaseModelValue] = useState<CivitaiLoraBaseModel>('all')
   const requestIdRef = useRef(0)
   const cursorByPageRef = useRef<Map<number, string | null>>(
     new Map([[1, null]]),
@@ -70,6 +77,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       cursor,
       search: activeSearch || undefined,
       sort,
+      baseModel,
     })
     if (requestIdRef.current !== requestId) return
 
@@ -90,7 +98,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       setError(response.error ?? 'Failed to load Civitai LoRAs')
     }
     setIsLoading(false)
-  }, [applyResult, debouncedSearch, page, sort])
+  }, [applyResult, baseModel, debouncedSearch, page, sort])
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -114,6 +122,12 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
   const setSort = useCallback((value: CivitaiLoraSort) => {
     cursorByPageRef.current = new Map([[1, null]])
     setSortValue(value)
+    setPage(1)
+  }, [])
+
+  const setBaseModel = useCallback((value: CivitaiLoraBaseModel) => {
+    cursorByPageRef.current = new Map([[1, null]])
+    setBaseModelValue(value)
     setPage(1)
   }, [])
 
@@ -143,8 +157,10 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     error,
     search,
     sort,
+    baseModel,
     setSearch,
     setSort,
+    setBaseModel,
     selectItem,
     nextPage,
     previousPage,

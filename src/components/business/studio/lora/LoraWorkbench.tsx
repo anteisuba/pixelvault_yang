@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
@@ -9,22 +9,27 @@ import {
   Download,
   GraduationCap,
   Heart,
+  History,
   Library,
   Loader2,
   RefreshCw,
   Search,
   Sparkles,
+  Wand2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_SORT_OPTIONS,
   DEFAULT_LORA_WORKBENCH_SECTION,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
+  isCivitaiLoraBaseModel,
   isCivitaiLoraSort,
   isLoraWorkbenchSection,
+  type CivitaiLoraBaseModel,
   type LoraWorkbenchSection,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
@@ -46,6 +51,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  clearSearchHistory,
+  readSearchHistory,
+  recordSearchTerm,
+} from '@/lib/civitai-search-history'
+import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 
 export function LoraWorkbench() {
@@ -292,6 +303,42 @@ function CivitaiCommunityBranch({
     url: string
     name: string
   } | null>(null)
+  const [history, setHistory] = useState<string[]>([])
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const searchWrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Defer the hydrate so React doesn't see a synchronous setState in
+    // the effect body — same pattern useCivitaiLoraLibrary uses for its
+    // initial refresh.
+    return deferEffectTask(() => {
+      setHistory(readSearchHistory())
+    })
+  }, [])
+
+  // Commit a search term to history on debounce-completion (i.e. when
+  // the active search the API is actually using stabilises). We hook
+  // off `library.search` ≥ 2 chars to avoid logging every keystroke.
+  useEffect(() => {
+    const trimmed = library.search.trim()
+    if (trimmed.length < 2) return
+    const id = setTimeout(() => {
+      setHistory(recordSearchTerm(trimmed))
+    }, 800)
+    return () => clearTimeout(id)
+  }, [library.search])
+
+  // Close history dropdown on outside click.
+  useEffect(() => {
+    if (!historyOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!searchWrapperRef.current?.contains(e.target as Node)) {
+        setHistoryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [historyOpen])
 
   const handleUse = useCallback(
     (item: CivitaiLoraLibraryItem) => {
@@ -322,6 +369,39 @@ function CivitaiCommunityBranch({
     [library],
   )
 
+  const handleBaseModelChange = useCallback(
+    (value: CivitaiLoraBaseModel) => {
+      library.setBaseModel(value)
+    },
+    [library],
+  )
+
+  const handleHistoryPick = useCallback(
+    (term: string) => {
+      library.setSearch(term)
+      setHistoryOpen(false)
+    },
+    [library],
+  )
+
+  const handleHistoryClear = useCallback(() => {
+    setHistory(clearSearchHistory())
+    setHistoryOpen(false)
+  }, [])
+
+  const handleCopyTryPrompt = useCallback(
+    async (item: CivitaiLoraLibraryItem) => {
+      const template = buildTryPromptTemplate(item)
+      try {
+        await navigator.clipboard.writeText(template)
+        toast.success(t('tryPromptCopied'))
+      } catch {
+        toast.error(t('tryPromptCopyFailed'))
+      }
+    },
+    [t],
+  )
+
   return (
     <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
@@ -341,15 +421,60 @@ function CivitaiCommunityBranch({
 
       <div className="grid gap-4 pt-4 lg:grid-cols-3">
         <div className="flex min-h-0 flex-col gap-3 lg:col-span-2">
+          <BaseModelChipRow
+            value={library.baseModel}
+            onChange={handleBaseModelChange}
+          />
+
           <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="relative min-w-0 flex-1">
+            <div ref={searchWrapperRef} className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={library.search}
                 onChange={(event) => library.setSearch(event.target.value)}
+                onFocus={() => setHistoryOpen(true)}
                 placeholder={t('communitySearch')}
                 className="h-9 pl-9 text-xs"
               />
+              {historyOpen && history.length > 0 ? (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
+                  <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <History className="size-3" aria-hidden />
+                      {t('searchHistoryTitle')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleHistoryClear}
+                      className="text-2xs text-muted-foreground hover:text-foreground"
+                    >
+                      {t('searchHistoryClear')}
+                    </button>
+                  </div>
+                  <ul className="max-h-48 overflow-y-auto">
+                    {history.map((entry) => (
+                      <li key={entry}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            // Use mousedown so we beat the input's blur,
+                            // which would close the popup before click fires.
+                            e.preventDefault()
+                            handleHistoryPick(entry)
+                          }}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Search
+                            className="size-3 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                          <span className="truncate">{entry}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <Select value={library.sort} onValueChange={handleSortChange}>
               <SelectTrigger
@@ -443,6 +568,7 @@ function CivitaiCommunityBranch({
           }
           onUse={handleUse}
           onFavorite={handleFavoriteToggle}
+          onCopyTryPrompt={handleCopyTryPrompt}
           onPreviewCover={(item) =>
             item.coverImageUrl
               ? setCoverPreview({
@@ -587,6 +713,7 @@ interface CivitaiLoraInspectorProps {
   isFavorited: boolean
   onUse: (item: CivitaiLoraLibraryItem) => void
   onFavorite: (item: CivitaiLoraLibraryItem) => void
+  onCopyTryPrompt: (item: CivitaiLoraLibraryItem) => Promise<void>
   onPreviewCover: (item: CivitaiLoraLibraryItem) => void
 }
 
@@ -595,6 +722,7 @@ function CivitaiLoraInspector({
   isFavorited,
   onUse,
   onFavorite,
+  onCopyTryPrompt,
   onPreviewCover,
 }: CivitaiLoraInspectorProps) {
   const t = useTranslations('LoraWorkbench')
@@ -691,6 +819,25 @@ function CivitaiLoraInspector({
           ) : null}
         </dl>
 
+        <div className="rounded-lg border border-border/60 bg-background/60 p-2">
+          <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Wand2 className="size-3" aria-hidden />
+              {t('tryPromptLabel')}
+            </span>
+            <button
+              type="button"
+              onClick={() => void onCopyTryPrompt(item)}
+              className="text-2xs font-medium text-foreground hover:text-primary"
+            >
+              {t('tryPromptCopy')}
+            </button>
+          </div>
+          <p className="mt-1.5 break-words font-mono text-2xs leading-relaxed text-foreground">
+            {buildTryPromptTemplate(item)}
+          </p>
+        </div>
+
         <div className="grid gap-2 pt-2">
           <Button type="button" onClick={() => onUse(item)}>
             <Sparkles className="size-4" aria-hidden />
@@ -746,4 +893,60 @@ function TrainingBranch() {
       <LoraTrainingForm showHeading />
     </section>
   )
+}
+
+interface BaseModelChipRowProps {
+  value: CivitaiLoraBaseModel
+  onChange: (value: CivitaiLoraBaseModel) => void
+}
+
+function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t('baseModelFilterLabel')}
+      className="flex flex-wrap items-center gap-1.5"
+    >
+      {CIVITAI_LORA_BASE_MODEL_VALUES.map((option) => {
+        const isActive = option === value
+        const label = option === 'all' ? t('baseModelFilterAll') : option
+        return (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            onClick={() => {
+              if (isCivitaiLoraBaseModel(option)) onChange(option)
+            }}
+            className={cn(
+              'h-7 rounded-full border px-2.5 text-2xs font-medium transition-colors',
+              isActive
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Compose a sensible "show me what this LoRA can do" prompt template.
+ * Subject-type LoRAs get a portrait scaffold; style-type LoRAs get a
+ * scenery scaffold. Both lead with the trigger word so the LoRA fires —
+ * exactly the gap Wave 4.5's chip patches inside the canvas, applied
+ * here on the discovery side so users can ship a prompt-ready phrase
+ * to the clipboard before they even leave the library.
+ */
+function buildTryPromptTemplate(item: CivitaiLoraLibraryItem): string {
+  const trigger = item.triggerWord.trim()
+  if (item.type === 'style') {
+    return `${trigger}, beautiful scenery, soft cinematic lighting, highly detailed`
+  }
+  return `${trigger}, portrait, dynamic pose, soft cinematic lighting, masterpiece, best quality`
 }

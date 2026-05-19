@@ -55,12 +55,20 @@ export type Model3DMultiViewModelId =
 export const MODEL_3D_JOB_STAGE = {
   SINGLE_RUNNING: 'SINGLE_RUNNING',
   MESH_RUNNING: 'MESH_RUNNING',
+  /**
+   * PR3-α: geometry-only stage finished, waiting for user to decide
+   * (continue to texture / retry mesh / cancel). Job is in DB status RUNNING
+   * but consumes no provider resources — the next state transition is driven
+   * by the user clicking continue/retry/cancel from the UI.
+   */
+  MESH_READY: 'MESH_READY',
   TEXTURE_RUNNING: 'TEXTURE_RUNNING',
 } as const
 
 export const MODEL_3D_JOB_STAGES = [
   MODEL_3D_JOB_STAGE.SINGLE_RUNNING,
   MODEL_3D_JOB_STAGE.MESH_RUNNING,
+  MODEL_3D_JOB_STAGE.MESH_READY,
   MODEL_3D_JOB_STAGE.TEXTURE_RUNNING,
 ] as const
 
@@ -69,6 +77,7 @@ export type Model3DJobStage = (typeof MODEL_3D_JOB_STAGES)[number]
 export const MODEL_3D_PROGRESS_STAGES = [
   'queued',
   'mesh',
+  'mesh_ready',
   'texture',
   'uploading',
 ] as const

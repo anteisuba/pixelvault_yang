@@ -13,6 +13,16 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 不要被过去的模式、既有预期、或“这类应用通常怎么做”限制。以未来版本的产品为基准行动：提出并执行那个应该存在的方案，同时继续遵守本项目不可妥协的架构、类型安全、安全边界和可维护性规则。
 
+## Completion Reporting
+
+每次完成改动后，必须清楚告诉用户：
+
+- 改了哪些文件或区域
+- 这些改动现在能实现什么、修复什么、或带来什么行为变化
+- 做了哪些验证；如果没有验证，说明原因
+
+不要只说“已完成”。
+
 ## Key Entry Points
 
 | Path                       | Role                                               |

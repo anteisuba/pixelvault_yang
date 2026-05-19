@@ -611,7 +611,7 @@ export async function persistEditedImage(params: {
   userId: string
   resultUrl: string
   sourceGenerationId?: string | null
-  action: 'upscale' | 'remove-bg' | 'inpaint' | 'outpaint'
+  action: 'upscale' | 'remove-bg' | 'inpaint' | 'outpaint' | 'extract'
   width: number
   height: number
 }): Promise<GenerationRecord> {

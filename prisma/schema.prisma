@@ -125,6 +125,7 @@ model User {
   creativePreference UserCreativePreference?
   videoPipelines     VideoPipeline[]
   loraTrainingJobs   LoraTrainingJob[]
+  loraAssets         LoraAsset[]
   videoScripts       VideoScript[]
 
   @@index([username])
@@ -807,7 +808,49 @@ model LoraTrainingJob {
   characterCardId String?
   characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
 
+  loraAsset LoraAsset?
+
   @@index([userId, status, createdAt(sort: Desc)])
+}
+
+// ─── LoRA Asset (reusable, style-code addressable) ────────────────
+
+model LoraAsset {
+  id String @id @default(uuid())
+
+  // userId is nullable so curated/platform LoRAs can exist without an owner
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Human-facing label + URL-safe short code for cross-tool sharing
+  name      String
+  styleCode String @unique // e.g. "pv-ghibli-soft-7k2x"
+
+  source          String @default("trained") // "curated" | "trained" | "imported"
+  type            String @default("subject") // "subject" | "style"
+  baseModelFamily String @default("flux") // "flux" | "sdxl" | ...
+  provider        String @default("fal") // adapter routing hint
+
+  triggerWord      String
+  loraUrl          String // direct download URL passed to provider
+  storageKey       String? // R2 key (null for curated/external)
+  previewImageUrls Json? // string[] — auto-generated preview gallery
+  coverImageUrl    String? // single hero image for cards
+
+  defaultScale Float @default(1.0)
+
+  trainingJobId String?          @unique
+  trainingJob   LoraTrainingJob? @relation(fields: [trainingJobId], references: [id], onDelete: SetNull)
+
+  isPublic   Boolean   @default(false)
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([source, isPublic, createdAt(sort: Desc)])
 }
 
 // ─── Video Script (VS1-VS11) ──────────────────────────────────────

@@ -41,6 +41,16 @@ Implementation time is not the primary constraint.
 Do not be limited by past patterns, inherited expectations, or "how this type of app is usually built" when they hold back the better product.
 Act from the future version of the product: propose and execute the solution that should exist, while still preserving this project's non-negotiable architecture, type-safety, security, and maintainability rules.
 
+## Completion Reporting Rule
+
+After every completed change, Codex must clearly tell the user:
+
+- what files or areas were changed
+- what the change enables or fixes
+- what validation was run, or why validation was not run
+
+Do not merely say that the work is done.
+
 ## Agent Role Division
 
 This repository operates with two agent surfaces. They are not interchangeable.

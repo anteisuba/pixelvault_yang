@@ -47,6 +47,7 @@ export type EditTaskKind =
   | 'inpaint'
   | 'outpaint'
   | 'decompose'
+  | 'extract-element'
   | 'object-replace'
   | 'style-transfer'
   | 'text-render'

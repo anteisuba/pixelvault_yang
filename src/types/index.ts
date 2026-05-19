@@ -505,6 +505,27 @@ export const OutpaintRequestSchema = z.object({
 export type OutpaintRequest = z.infer<typeof OutpaintRequestSchema>
 export type OutpaintPadding = z.infer<typeof OutpaintPaddingSchema>
 
+// ─── Element Extraction (text-guided cutout) ────────────────────
+
+/**
+ * Extract a single element from an image based on a free-text prompt. The
+ * server runs grounded segmentation (fal lang-segment-anything by default),
+ * inverts the mask when the prompt implies background, and returns a PNG
+ * with alpha so the user gets a transparent cutout.
+ */
+export const ImageExtractSchema = z.object({
+  imageUrl: z.string().url(),
+  /** Short English phrase describing the element ("clothing", "hair", "the cat"). */
+  prompt: z.string().trim().min(1).max(200),
+  /** When true, invert the segmentation mask — used by the "background" preset. */
+  invert: z.boolean().optional(),
+  sourceGenerationId: z.string().trim().min(1).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  modelId: z.string().trim().min(1).max(200).optional(),
+})
+
+export type ImageExtractRequest = z.infer<typeof ImageExtractSchema>
+
 // ─── Image Layer Decomposition (See-Through) ────────────────────
 
 export const ImageDecomposeSchema = z.object({

@@ -18,6 +18,7 @@ import {
   checkFalLoraTrainingStatus,
 } from '@/services/providers/fal.adapter'
 import { withRetry } from '@/lib/with-retry'
+import { ensureLoraAssetFromTrainingJob } from '@/services/lora-asset.service'
 
 // ─── Tar → Safetensors extraction ─────────────────────────────────
 
@@ -290,6 +291,7 @@ export async function checkLoraTrainingStatus(
           jobId,
           storageKey,
         })
+        await ensureLoraAssetFromTrainingJob(jobId)
         return toRecord(updated)
       } catch (err) {
         logger.warn('Failed to retroactively transfer LoRA to R2', {
@@ -297,6 +299,9 @@ export async function checkLoraTrainingStatus(
           error: err instanceof Error ? err.message : 'Unknown',
         })
       }
+    }
+    if (job.status === 'COMPLETED') {
+      await ensureLoraAssetFromTrainingJob(jobId)
     }
     return toRecord(job)
   }
@@ -429,6 +434,10 @@ export async function checkLoraTrainingStatus(
     })
   }
 
+  if (newStatus === 'COMPLETED') {
+    await ensureLoraAssetFromTrainingJob(jobId)
+  }
+
   return toRecord(updated)
 }
 
@@ -474,6 +483,9 @@ export async function listLoraTrainingJobs(
           error: err instanceof Error ? err.message : 'Unknown',
         })
       }
+    }
+    if (job.status === 'COMPLETED' && job.loraUrl) {
+      await ensureLoraAssetFromTrainingJob(job.id)
     }
   }
 

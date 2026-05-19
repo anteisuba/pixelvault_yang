@@ -99,6 +99,9 @@ export const API_ENDPOINTS = {
   /** 3D generation (image-to-3D) */
   GENERATE_3D: '/api/generate-3d',
   GENERATE_3D_STATUS: '/api/generate-3d/status',
+  GENERATE_3D_CONTINUE: '/api/generate-3d/continue',
+  GENERATE_3D_RETRY_MESH: '/api/generate-3d/retry-mesh',
+  GENERATE_3D_CANCEL: '/api/generate-3d/cancel',
 
   /** Multi-view generation (reference-edit chain for 3D inputs) */
   GENERATE_MULTIVIEW: '/api/generate-multiview',
@@ -180,6 +183,11 @@ export const API_ENDPOINTS = {
 
   /** LoRA Training */
   LORA_TRAINING: '/api/lora-training',
+
+  /** LoRA Asset library (curated + user-trained) */
+  LORA_ASSETS: '/api/lora-assets',
+  /** Resolve a style-code share-link → LoraAsset */
+  LORA_ASSET_BY_CODE: '/api/lora-assets/by-code',
 } as const
 
 /**

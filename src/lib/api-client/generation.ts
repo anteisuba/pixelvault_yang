@@ -12,6 +12,8 @@ import type {
   GenerateResponse,
   GenerateVariationsRequest,
   GenerateVariationsResponse,
+  Cancel3DRequest,
+  Continue3DRequest,
   Generate3DRequest,
   GenerateVideoRequest,
   GenerationFeedbackRequest,
@@ -26,6 +28,7 @@ import type {
   PromptFeedbackRequest,
   PromptFeedbackResponse,
   ImageDecomposeResult,
+  RetryMesh3DRequest,
   StudioGenerateRequest,
   ToggleVisibilityResponse,
   Model3DStatusResponse,
@@ -221,6 +224,96 @@ export async function check3DStatusAPI(
         error: await getErrorMessage(
           response,
           `3D status check failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function continue3DAPI(
+  params: Continue3DRequest,
+): Promise<Model3DStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_3D_CONTINUE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `3D continuation failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function retryMesh3DAPI(
+  params: RetryMesh3DRequest,
+): Promise<Model3DStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_3D_RETRY_MESH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `3D mesh retry failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export async function cancel3DAPI(
+  params: Cancel3DRequest,
+): Promise<Model3DStatusResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.GENERATE_3D_CANCEL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `3D cancellation failed with status ${response.status}`,
         ),
       }
     }

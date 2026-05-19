@@ -34,6 +34,8 @@ import {
   checkVideoStatusAPI,
   generateAudioAPI,
 } from '@/lib/api-client'
+import { mergeStackLoras } from '@/lib/merge-stack-loras'
+import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -183,6 +185,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   // the other intl hooks so the order is stable across re-renders.
   const router = useRouter()
   const locale = useLocale()
+
+  // Active LoRA stack — read at generate() time via a ref so the
+  // useCallback identity stays stable across stack edits.
+  const loraStack = useActiveLoraStack()
+  const loraStackRef = useRef(loraStack)
+  loraStackRef.current = loraStack
 
   // ── Timer/polling lifecycle ────────────────────────────────────
 
@@ -843,13 +851,26 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (input: UnifiedGenerateInput): Promise<GenerationRecord | null> => {
       lastRequestRef.current = input
       if (input.mode === 'image' && input.image) {
+        const stack = loraStackRef.current
+        const mergedAdvancedParams = mergeStackLoras(
+          input.image.advancedParams,
+          stack.toActiveLoras(),
+          (assetId) =>
+            stack.items.find((entry) => entry.asset.id === assetId)?.asset
+              .loraUrl,
+        )
+        const image: StudioGenerateRequest =
+          mergedAdvancedParams === input.image.advancedParams
+            ? input.image
+            : { ...input.image, advancedParams: mergedAdvancedParams }
+
         if (input.runMode === 'variant') {
-          return generateVariants(input.image)
+          return generateVariants(image)
         }
         if (input.runMode === 'compare' && input.compareModels?.length) {
-          return generateCompare(input.image, input.compareModels)
+          return generateCompare(image, input.compareModels)
         }
-        return generateImage(input.image)
+        return generateImage(image)
       }
       if (input.mode === 'video' && input.video) {
         return generateVideo(input.video)

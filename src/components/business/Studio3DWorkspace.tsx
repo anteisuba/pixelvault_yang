@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  ArrowRight,
+  Ban,
   Box,
   Check,
   Dices,
   Download,
   FolderOpen,
+  HelpCircle,
   ImageIcon,
   Loader2,
   Sparkles,
@@ -49,6 +52,7 @@ import { ApiKeyDrawerTrigger } from '@/components/business/ApiKeyDrawerTrigger'
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ModelViewer } from '@/components/business/ModelViewer'
+import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -105,6 +109,18 @@ const TRELLIS_DECIMATION_OPTIONS = [
 ]
 
 type Preset3DId = 'fidelity' | 'detail' | 'fast'
+
+/**
+ * PR3-α: diagnosis reasons surfaced when the user hits "问题诊断" at
+ * MESH_READY. Each maps to a specific retry strategy executed by the
+ * Studio3DWorkspace `executeDiagnose` handler.
+ */
+type DiagnoseReason =
+  | 'face' // → retry-mesh with fresh seed
+  | 'silhouette' // → user regenerates side views first, then retry mesh
+  | 'proportions' // → mesh can't be saved; suggest new source image
+  | 'faces' // → bump face count + retry mesh
+  | 'unknown' // → reroll seed
 
 interface Preset3D {
   id: Preset3DId
@@ -311,9 +327,20 @@ export function Studio3DWorkspace({
     provisionalModelUrl,
     uploadProgress,
     generatedGeneration,
+    jobId: activeJobId,
     generate,
+    continueRun,
+    retryMesh,
+    cancelRun,
     reset,
   } = useGenerate3D()
+
+  // PR3-α: staged-mode UI state. `diagnoseOpen` flips the decision dock
+  // between the default 3-button layout and the diagnose-and-retry radio
+  // list. `cancelConfirmOpen` gates the cancel button behind a confirm.
+  const [diagnoseOpen, setDiagnoseOpen] = useState(false)
+  const [diagnoseChoice, setDiagnoseChoice] = useState<DiagnoseReason>('face')
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
 
   // Fetch + hydrate a MODEL_3D row from the deeplink. Runs once per id so
   // changing models in the picker doesn't refetch. Silent on failure —
@@ -547,6 +574,11 @@ export function Studio3DWorkspace({
         generateType: MODEL_3D_GENERATE_TYPE.NORMAL,
         ...(MESH_FIRST_PREVIEW_MODEL_IDS.has(targetModelId) && {
           previewMode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+          // PR3-α: pause at MESH_READY between Stage 1 and Stage 2 so the
+          // user can decide whether to commit to texture or retry geometry
+          // cheaply. Backwards-compatible: service treats `staged: false`
+          // (the previous behaviour) as auto-chain.
+          staged: true,
         }),
         ...(multiViewImages && { multiViewImages }),
       }),
@@ -612,6 +644,69 @@ export function Studio3DWorkspace({
       modelId: displayGeneration.model,
       seed: newSeed,
     })
+  }
+
+  // PR3-α: staged-mode decision handlers. `handleContinueToTexture` kicks off
+  // Stage 2; `handleExecuteDiagnose` routes the user-selected diagnosis
+  // reason to the appropriate retry strategy; `handleConfirmCancel` aborts.
+  const handleContinueToTexture = async () => {
+    if (!activeJobId) return
+    setDiagnoseOpen(false)
+    await continueRun()
+  }
+
+  const handleOpenDiagnose = () => {
+    setDiagnoseChoice('face')
+    setDiagnoseOpen(true)
+  }
+
+  const handleExecuteDiagnose = async () => {
+    if (!activeJobId) return
+    setDiagnoseOpen(false)
+    const newSeed = Math.floor(Math.random() * 10000)
+
+    if (diagnoseChoice === 'face' || diagnoseChoice === 'unknown') {
+      await retryMesh({ seed: newSeed })
+      return
+    }
+    if (diagnoseChoice === 'silhouette') {
+      // Reuse the existing multi-view regeneration UI — point the user at it
+      // and let them confirm what to do next. We don't auto-regenerate
+      // because each side view costs money and the user may want to inspect
+      // / hand-upload instead.
+      toast.info(t('diagnoseSilhouetteSuggestion'))
+      setManualMultiViewOpen(true)
+      return
+    }
+    if (diagnoseChoice === 'faces') {
+      // Bump face count one tier (DEFAULT → HIGH, HIGH → MAX). MAX stays
+      // MAX — the user already maxed out, retry with the same budget.
+      const nextFaceCount =
+        faceCount < HUNYUAN3D_FACE_COUNT.HIGH
+          ? HUNYUAN3D_FACE_COUNT.HIGH
+          : faceCount < HUNYUAN3D_FACE_COUNT.MAX
+            ? HUNYUAN3D_FACE_COUNT.MAX
+            : HUNYUAN3D_FACE_COUNT.MAX
+      setFaceCount(nextFaceCount)
+      await retryMesh({ seed: newSeed, faceCount: nextFaceCount })
+      return
+    }
+    if (diagnoseChoice === 'proportions') {
+      // Geometry can't fix proportions/likeness — they're inherited from the
+      // source image. Surface the suggestion and let the user act.
+      toast.info(t('diagnoseProportionsSuggestion'))
+    }
+  }
+
+  const handleRequestCancel = () => {
+    setCancelConfirmOpen(true)
+  }
+
+  const handleConfirmCancel = async () => {
+    setCancelConfirmOpen(false)
+    setDiagnoseOpen(false)
+    await cancelRun()
+    toast.success(t('cancelled3DToast'))
   }
 
   const handleClearSource = () => {
@@ -900,6 +995,180 @@ export function Studio3DWorkspace({
                 )}
               </div>
             </div>
+          ) : isGenerating && stage === 'mesh_ready' && previewModelUrl ? (
+            /*
+             * PR3-α: staged-mode pause between Stage 1 (Geometry) and Stage
+             * 2 (Texture). The user just got a grey-shaded mesh back from
+             * fal and needs to choose: continue to texture, retry the mesh
+             * (cheap), or abandon. No fal resources are being consumed
+             * during this state — polling is stopped client-side.
+             */
+            <div className="relative size-full">
+              <ModelViewer
+                src={previewModelUrl}
+                poster={sourceImage?.url}
+                alt={t('stageMeshReadyTitle')}
+                className="h-full w-full"
+              />
+              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm dark:text-amber-300">
+                <Check className="size-3.5" />
+                <span>{t('stageMeshReadyTitle')}</span>
+              </div>
+              {/*
+               * Decision dock — main 3-button layout, or the diagnose
+               * radio list when the user picks "问题诊断", or the cancel
+               * confirmation. All three live in the same dock so the
+               * mesh stays visible during decision-making.
+               */}
+              <div className="absolute bottom-6 left-1/2 w-[min(420px,calc(100%-3rem))] -translate-x-1/2 rounded-2xl border border-border/40 bg-background/95 p-4 shadow-xl backdrop-blur-md">
+                {cancelConfirmOpen ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="font-serif text-sm leading-6 text-foreground">
+                      {t('cancel3DConfirm')}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => void handleConfirmCancel()}
+                      >
+                        <Ban className="mr-1.5 size-3.5" />
+                        {t('cancel3DConfirmYes')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setCancelConfirmOpen(false)}
+                      >
+                        {t('cancel3DConfirmNo')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : diagnoseOpen ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm font-medium text-foreground">
+                      {t('diagnoseRetryTitle')}
+                    </p>
+                    <div role="radiogroup" className="flex flex-col gap-1.5">
+                      {(
+                        [
+                          {
+                            value: 'face',
+                            label: t('diagnoseFace'),
+                            hint: t('diagnoseFaceSuggestion'),
+                          },
+                          {
+                            value: 'silhouette',
+                            label: t('diagnoseSilhouette'),
+                            hint: t('diagnoseSilhouetteSuggestion'),
+                          },
+                          {
+                            value: 'proportions',
+                            label: t('diagnoseProportions'),
+                            hint: t('diagnoseProportionsSuggestion'),
+                          },
+                          {
+                            value: 'faces',
+                            label: t('diagnoseFaces'),
+                            hint: t('diagnoseFacesSuggestion'),
+                          },
+                          {
+                            value: 'unknown',
+                            label: t('diagnoseUnknown'),
+                            hint: t('diagnoseUnknownSuggestion'),
+                          },
+                        ] as const
+                      ).map((opt) => {
+                        const checked = diagnoseChoice === opt.value
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={checked}
+                            onClick={() => setDiagnoseChoice(opt.value)}
+                            className={cn(
+                              'flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors',
+                              checked
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border/60 hover:bg-muted/40',
+                            )}
+                          >
+                            <span className="text-xs font-medium text-foreground">
+                              {opt.label}
+                            </span>
+                            <span className="text-[10px] leading-4 text-muted-foreground">
+                              → {opt.hint}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => void handleExecuteDiagnose()}
+                      >
+                        <Sparkles className="mr-1.5 size-3.5" />
+                        {t('executeRetryLabel')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDiagnoseOpen(false)}
+                      >
+                        {t('cancelDiagnoseLabel')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="font-serif text-xs leading-5 text-muted-foreground">
+                      {t('stageMeshReadyHint')}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleContinueToTexture()}
+                        title={t('continueToTextureHint')}
+                        className="col-span-3"
+                      >
+                        <ArrowRight className="mr-1.5 size-3.5" />
+                        {t('continueToTextureLabel')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenDiagnose}
+                        className="col-span-2"
+                      >
+                        <HelpCircle className="mr-1.5 size-3.5" />
+                        {t('diagnoseRetryLabel')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRequestCancel}
+                        title={t('cancel3DConfirm')}
+                      >
+                        <X className="mr-1 size-3.5" />
+                        {t('cancel3DLabel')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : isGenerating && provisionalModelUrl ? (
             /*
              * PR2-B2: fal returned the finished GLB, R2 ingest is still
@@ -974,42 +1243,42 @@ export function Studio3DWorkspace({
           )}
 
           {isGenerating && (
-            <div className="pointer-events-none absolute bottom-6 left-6 right-6 mx-auto max-w-md rounded-full border border-white/10 bg-neutral-950/85 px-4 py-2 text-neutral-100 shadow-lg backdrop-blur-md">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-medium">{generationStageLabel}</span>
-                <span className="text-neutral-400">
-                  {/*
-                   * PR2-B3: when the worker that's doing the R2 upload is
-                   * also handling this status poll, replace "已等待 752s"
-                   * with "上传 64.2 / 120.3 MB". Otherwise (different worker,
-                   * or pre-upload stages) fall back to the elapsed counter.
-                   */}
-                  {uploadProgress
-                    ? uploadProgress.total > 0
-                      ? t('uploadProgressKnown', {
-                          progress: `${(uploadProgress.loaded / 1024 / 1024).toFixed(1)} / ${(uploadProgress.total / 1024 / 1024).toFixed(1)} MB`,
-                        })
-                      : t('uploadProgressUnknown')
-                    : t('elapsed', { seconds: `${elapsedSeconds}s` })}
-                </span>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1">
-                <span
-                  className={cn(
-                    'h-1 rounded-full',
-                    previewModelUrl || stage === 'mesh' || stage === 'texture'
-                      ? 'bg-emerald-400'
-                      : 'animate-pulse bg-emerald-400/60',
-                  )}
-                />
-                <span
-                  className={cn(
-                    'h-1 rounded-full',
-                    stage === 'texture' ? 'bg-emerald-400' : 'bg-white/20',
-                  )}
-                />
-              </div>
-            </div>
+            /*
+             * PR3-α: three-step progress at the bottom of the canvas.
+             * Geometry ✓ → Texture ✓ → Done. The hook's fine-grained stage
+             * (queued / mesh / mesh_ready / texture / uploading) collapses
+             * into one of the three buckets:
+             *
+             *   queued, mesh, mesh_ready → 'geometry'
+             *   texture, uploading       → 'texture'
+             *
+             * At mesh_ready the geometry step shows ✓ but texture stays
+             * pending (no auto-chain). Detail line surfaces upload bytes
+             * during R2 ingest, falls back to the stage label otherwise.
+             */
+            <StageStepperBar
+              className="absolute bottom-6 left-6 right-6 mx-auto max-w-md"
+              currentStage={
+                stage === 'texture' || stage === 'uploading'
+                  ? 'texture'
+                  : 'geometry'
+              }
+              status={
+                stage === 'mesh_ready'
+                  ? { geometry: 'done', texture: 'pending' }
+                  : undefined
+              }
+              totalElapsedSeconds={elapsedSeconds}
+              detail={
+                uploadProgress
+                  ? uploadProgress.total > 0
+                    ? t('uploadProgressKnown', {
+                        progress: `${(uploadProgress.loaded / 1024 / 1024).toFixed(1)} / ${(uploadProgress.total / 1024 / 1024).toFixed(1)} MB`,
+                      })
+                    : t('uploadProgressUnknown')
+                  : generationStageLabel
+              }
+            />
           )}
         </main>
 

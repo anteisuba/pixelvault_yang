@@ -59,3 +59,6 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local scratch / probe outputs (e.g. fal-probe run dirs)
+/tmp/

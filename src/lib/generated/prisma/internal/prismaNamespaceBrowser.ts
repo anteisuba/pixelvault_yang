@@ -81,6 +81,7 @@ export const ModelName = {
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip',
   LoraTrainingJob: 'LoraTrainingJob',
+  LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene'
 } as const
@@ -652,6 +653,32 @@ export const LoraTrainingJobScalarFieldEnum = {
 } as const
 
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
+
+
+export const LoraAssetScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  styleCode: 'styleCode',
+  source: 'source',
+  type: 'type',
+  baseModelFamily: 'baseModelFamily',
+  provider: 'provider',
+  triggerWord: 'triggerWord',
+  loraUrl: 'loraUrl',
+  storageKey: 'storageKey',
+  previewImageUrls: 'previewImageUrls',
+  coverImageUrl: 'coverImageUrl',
+  defaultScale: 'defaultScale',
+  trainingJobId: 'trainingJobId',
+  isPublic: 'isPublic',
+  usageCount: 'usageCount',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type LoraAssetScalarFieldEnum = (typeof LoraAssetScalarFieldEnum)[keyof typeof LoraAssetScalarFieldEnum]
 
 
 export const VideoScriptScalarFieldEnum = {

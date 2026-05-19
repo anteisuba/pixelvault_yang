@@ -5,6 +5,7 @@ import {
   Layers,
   Palette,
   Replace,
+  Scissors,
   Sparkles,
   Type,
   Wand2,
@@ -52,6 +53,11 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     id: 'xiuruisu/see-through',
     provider: 'fal',
     displayName: 'See-Through (HF)',
+  },
+  'fal-ai/lang-segment-anything': {
+    id: 'fal-ai/lang-segment-anything',
+    provider: 'fal',
+    displayName: 'Lang-SAM (Grounding + SAM 2)',
   },
   'gemini-3-pro-image-preview': {
     id: 'gemini-3-pro-image-preview',
@@ -143,6 +149,13 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
     providers: ['fal'],
     models: ['xiuruisu/see-through'],
     defaultModelId: 'xiuruisu/see-through',
+  },
+  {
+    task: 'extract-element',
+    icon: Scissors,
+    providers: ['fal'],
+    models: ['fal-ai/lang-segment-anything'],
+    defaultModelId: 'fal-ai/lang-segment-anything',
   },
 ]
 

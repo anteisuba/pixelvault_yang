@@ -87,7 +87,10 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  cancel3DGenerationForUserId,
   check3DGenerationStatusForUserId,
+  continue3DGenerationForUserId,
+  retryMesh3DGenerationForUserId,
   submit3DGenerationForUserId,
 } from './generate-3d.service'
 import { db } from '@/lib/db'
@@ -525,5 +528,244 @@ describe('check3DGenerationStatusForUserId', () => {
       vi.clearAllTimers()
       vi.useRealTimers()
     }
+  })
+})
+
+// PR3-α: staged-mode generation. The previous behaviour (auto-chain Stage 1
+// → Stage 2) is preserved when `staged !== true`; these tests cover the new
+// pause-at-mesh-ready path plus the continue / retry / cancel actions that
+// drive the next state transition.
+describe('PR3-α staged-mode 3D generation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUpdateManyJobs.mockResolvedValue({ count: 1 } as never)
+    mockUpdateJob.mockResolvedValue({ id: 'job-submit' } as never)
+  })
+
+  it('stops mesh-first chain at MESH_READY when staged=true', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.MESH_RUNNING,
+        staged: true,
+        mesh: {
+          requestId: 'mesh-req',
+          statusUrl: 'https://queue.fal.run/status/mesh-req',
+          responseUrl: 'https://queue.fal.run/result/mesh-req',
+        },
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: '',
+        apiKeyId: 'fal-key-id',
+      }),
+    } as never)
+    const submitModel3DToQueue = vi.fn()
+    const checkModel3DQueueStatus = vi.fn().mockResolvedValue({
+      status: 'COMPLETED',
+      result: {
+        modelUrl: 'https://fal.run/mesh.glb',
+        contentType: 'model/gltf-binary',
+        fileSize: 200,
+        requestCount: 1,
+      },
+    })
+    mockGetProviderAdapter.mockReturnValue({
+      checkModel3DQueueStatus,
+      submitModel3DToQueue,
+    } as never)
+
+    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'IN_PROGRESS',
+      stage: 'mesh_ready',
+      meshModelUrl: 'https://fal.run/mesh.glb',
+    })
+    // The whole point: no Stage 2 submission until the user clicks continue.
+    expect(submitModel3DToQueue).not.toHaveBeenCalled()
+
+    // The persisted meta should have stage=MESH_READY for the next poll.
+    const updateArg = mockUpdateJob.mock.calls[0][0] as {
+      data: { externalRequestId: string }
+    }
+    const persistedMeta = JSON.parse(updateArg.data.externalRequestId) as {
+      stage: string
+      mesh: { modelUrl: string }
+    }
+    expect(persistedMeta.stage).toBe(MODEL_3D_JOB_STAGE.MESH_READY)
+    expect(persistedMeta.mesh.modelUrl).toBe('https://fal.run/mesh.glb')
+  })
+
+  it('continue3DGenerationForUserId submits Stage 2 from MESH_READY', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.MESH_READY,
+        staged: true,
+        mesh: {
+          requestId: 'mesh-req',
+          statusUrl: 'https://queue.fal.run/status/mesh-req',
+          responseUrl: 'https://queue.fal.run/result/mesh-req',
+          modelUrl: 'https://fal.run/mesh.glb',
+        },
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: '',
+        apiKeyId: 'fal-key-id',
+        options: { enablePbr: true, faceCount: 500_000 },
+      }),
+    } as never)
+    const submitModel3DToQueue = vi.fn().mockResolvedValue({
+      requestId: 'final-req',
+      statusUrl: 'https://queue.fal.run/status/final-req',
+      responseUrl: 'https://queue.fal.run/result/final-req',
+    })
+    mockGetProviderAdapter.mockReturnValue({
+      submitModel3DToQueue,
+    } as never)
+
+    const result = await continue3DGenerationForUserId('user-1', {
+      jobId: 'job-1',
+    })
+
+    expect(submitModel3DToQueue).toHaveBeenCalledTimes(1)
+    expect(submitModel3DToQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ generateType: 'Normal' }),
+    )
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'IN_PROGRESS',
+      stage: 'texture',
+      previewModelUrl: 'https://fal.run/mesh.glb',
+    })
+
+    const updateArg = mockUpdateJob.mock.calls[0][0] as {
+      data: { externalRequestId: string }
+    }
+    const persistedMeta = JSON.parse(updateArg.data.externalRequestId) as {
+      stage: string
+      final: { requestId: string }
+    }
+    expect(persistedMeta.stage).toBe(MODEL_3D_JOB_STAGE.TEXTURE_RUNNING)
+    expect(persistedMeta.final.requestId).toBe('final-req')
+  })
+
+  it('rejects continue3DGenerationForUserId when not at MESH_READY', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.MESH_RUNNING,
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: '',
+        apiKeyId: 'fal-key-id',
+      }),
+    } as never)
+
+    await expect(
+      continue3DGenerationForUserId('user-1', { jobId: 'job-1' }),
+    ).rejects.toThrow()
+  })
+
+  it('retryMesh3DGenerationForUserId re-submits Geometry from MESH_READY', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.MESH_READY,
+        staged: true,
+        mesh: {
+          requestId: 'mesh-req-old',
+          statusUrl: 'https://queue.fal.run/status/mesh-req-old',
+          responseUrl: 'https://queue.fal.run/result/mesh-req-old',
+          modelUrl: 'https://fal.run/mesh-old.glb',
+        },
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: '',
+        apiKeyId: 'fal-key-id',
+        options: { enablePbr: true, faceCount: 500_000, seed: 1 },
+      }),
+    } as never)
+    const submitModel3DToQueue = vi.fn().mockResolvedValue({
+      requestId: 'mesh-req-new',
+      statusUrl: 'https://queue.fal.run/status/mesh-req-new',
+      responseUrl: 'https://queue.fal.run/result/mesh-req-new',
+    })
+    mockGetProviderAdapter.mockReturnValue({
+      submitModel3DToQueue,
+    } as never)
+
+    const result = await retryMesh3DGenerationForUserId('user-1', {
+      jobId: 'job-1',
+      seed: 999,
+    })
+
+    expect(submitModel3DToQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generateType: 'Geometry',
+        seed: 999,
+      }),
+    )
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'IN_PROGRESS',
+      stage: 'mesh',
+    })
+
+    const updateArg = mockUpdateJob.mock.calls[0][0] as {
+      data: { externalRequestId: string }
+    }
+    const persistedMeta = JSON.parse(updateArg.data.externalRequestId) as {
+      stage: string
+      mesh: { requestId: string }
+      options: { seed: number }
+    }
+    expect(persistedMeta.stage).toBe(MODEL_3D_JOB_STAGE.MESH_RUNNING)
+    expect(persistedMeta.mesh.requestId).toBe('mesh-req-new')
+    expect(persistedMeta.options.seed).toBe(999)
+  })
+
+  it('cancel3DGenerationForUserId marks job FAILED with cancelled flag', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      externalRequestId: JSON.stringify({
+        mode: MODEL_3D_PREVIEW_MODE.MESH_FIRST,
+        stage: MODEL_3D_JOB_STAGE.MESH_READY,
+        sourceImageUrl: 'https://cdn.test/source.png',
+        prompt: '',
+        apiKeyId: 'fal-key-id',
+      }),
+    } as never)
+
+    const result = await cancel3DGenerationForUserId('user-1', {
+      jobId: 'job-1',
+    })
+
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'FAILED',
+      cancelled: true,
+    })
+    expect(mockFailJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ errorMessage: 'CANCELLED_BY_USER' }),
+    )
+  })
+
+  it('status check surfaces cancelled flag when errorMessage is the marker', async () => {
+    mockFindJob.mockResolvedValue({
+      ...RUNNING_JOB,
+      status: 'FAILED',
+      errorMessage: 'CANCELLED_BY_USER',
+    } as never)
+
+    const result = await check3DGenerationStatusForUserId('user-1', 'job-1')
+
+    expect(result).toMatchObject({
+      jobId: 'job-1',
+      status: 'FAILED',
+      cancelled: true,
+    })
   })
 })

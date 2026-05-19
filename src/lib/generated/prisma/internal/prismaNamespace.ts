@@ -414,6 +414,7 @@ export const ModelName = {
   VideoPipeline: 'VideoPipeline',
   VideoPipelineClip: 'VideoPipelineClip',
   LoraTrainingJob: 'LoraTrainingJob',
+  LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene'
 } as const
@@ -431,7 +432,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2655,6 +2656,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    LoraAsset: {
+      payload: Prisma.$LoraAssetPayload<ExtArgs>
+      fields: Prisma.LoraAssetFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.LoraAssetFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.LoraAssetFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        findFirst: {
+          args: Prisma.LoraAssetFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.LoraAssetFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        findMany: {
+          args: Prisma.LoraAssetFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>[]
+        }
+        create: {
+          args: Prisma.LoraAssetCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        createMany: {
+          args: Prisma.LoraAssetCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.LoraAssetCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>[]
+        }
+        delete: {
+          args: Prisma.LoraAssetDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        update: {
+          args: Prisma.LoraAssetUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        deleteMany: {
+          args: Prisma.LoraAssetDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.LoraAssetUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.LoraAssetUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>[]
+        }
+        upsert: {
+          args: Prisma.LoraAssetUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LoraAssetPayload>
+        }
+        aggregate: {
+          args: Prisma.LoraAssetAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateLoraAsset>
+        }
+        groupBy: {
+          args: Prisma.LoraAssetGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LoraAssetGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.LoraAssetCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LoraAssetCountAggregateOutputType> | number
+        }
+      }
+    }
     VideoScript: {
       payload: Prisma.$VideoScriptPayload<ExtArgs>
       fields: Prisma.VideoScriptFieldRefs
@@ -3395,6 +3470,32 @@ export const LoraTrainingJobScalarFieldEnum = {
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
 
 
+export const LoraAssetScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  styleCode: 'styleCode',
+  source: 'source',
+  type: 'type',
+  baseModelFamily: 'baseModelFamily',
+  provider: 'provider',
+  triggerWord: 'triggerWord',
+  loraUrl: 'loraUrl',
+  storageKey: 'storageKey',
+  previewImageUrls: 'previewImageUrls',
+  coverImageUrl: 'coverImageUrl',
+  defaultScale: 'defaultScale',
+  trainingJobId: 'trainingJobId',
+  isPublic: 'isPublic',
+  usageCount: 'usageCount',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type LoraAssetScalarFieldEnum = (typeof LoraAssetScalarFieldEnum)[keyof typeof LoraAssetScalarFieldEnum]
+
+
 export const VideoScriptScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3843,6 +3944,7 @@ export type GlobalOmitConfig = {
   videoPipeline?: Prisma.VideoPipelineOmit
   videoPipelineClip?: Prisma.VideoPipelineClipOmit
   loraTrainingJob?: Prisma.LoraTrainingJobOmit
+  loraAsset?: Prisma.LoraAssetOmit
   videoScript?: Prisma.VideoScriptOmit
   videoScriptScene?: Prisma.VideoScriptSceneOmit
 }

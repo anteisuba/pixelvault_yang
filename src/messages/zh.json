@@ -2532,7 +2532,8 @@
       "backToGrid": "返回任务网格"
     },
     "picker": {
-      "noModelsYet": "该任务暂未注册可用模型。"
+      "noModelsYet": "该任务暂未注册可用模型。",
+      "needsKey": "需配置 API key"
     },
     "upscale": {
       "scaleLabel": "目标倍率",

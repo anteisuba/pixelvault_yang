@@ -3,7 +3,7 @@ import { createApiRoute } from '@/lib/api-route-factory'
 import {
   outpaintImage,
   persistEditedImage,
-  resolveFalImageEditApiKey,
+  resolveEditApiKey,
 } from '@/services/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 import { OutpaintRequestSchema } from '@/types'
@@ -16,7 +16,7 @@ export const POST = createApiRoute({
   routeName: 'POST /api/image/outpaint',
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
-    const apiKey = await resolveFalImageEditApiKey(user.id, data.apiKeyId)
+    const apiKey = await resolveEditApiKey(user.id, data.modelId, data.apiKeyId)
     const result = await outpaintImage({
       imageUrl: data.imageUrl,
       padding: data.padding,

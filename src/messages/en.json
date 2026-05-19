@@ -2532,7 +2532,8 @@
       "backToGrid": "Back to tasks"
     },
     "picker": {
-      "noModelsYet": "No model registered for this task yet."
+      "noModelsYet": "No model registered for this task yet.",
+      "needsKey": "Needs API key"
     },
     "upscale": {
       "scaleLabel": "Target scale",

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import sharp from 'sharp'
 import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
@@ -35,6 +36,48 @@ const FAL_DEFAULT_INPAINT_MODEL = 'fal-ai/flux-pro/v1/fill'
 const FAL_DEFAULT_OUTPAINT_MODEL = 'fal-ai/image-apps-v2/outpaint'
 
 export type UpscaleTargetScale = '2x' | '4x'
+
+// ─── Provider routing ───────────────────────────────────────────
+
+type EditProvider = 'fal' | 'openai' | 'gemini'
+
+/**
+ * Infer the provider from the model ID's prefix. Used so the dispatcher
+ * doesn't have to maintain a hand-written allowlist — every fal.ai model is
+ * `fal-ai/…`, every Gemini image model is `gemini-…`, every GPT Image model
+ * starts with `gpt-image-…`. Anything else falls back to fal for backwards
+ * compatibility with the legacy hardcoded paths.
+ */
+function providerForModel(modelId: string): EditProvider {
+  if (modelId.startsWith('gemini-')) return 'gemini'
+  if (modelId.startsWith('gpt-image-')) return 'openai'
+  return 'fal'
+}
+
+const PROVIDER_TO_ADAPTER: Record<EditProvider, AI_ADAPTER_TYPES> = {
+  fal: AI_ADAPTER_TYPES.FAL,
+  openai: AI_ADAPTER_TYPES.OPENAI,
+  gemini: AI_ADAPTER_TYPES.GEMINI,
+}
+
+/**
+ * Read the buffer's intrinsic dimensions. Gemini and OpenAI both return
+ * base64-encoded image data without surfacing width/height fields, so we lean
+ * on sharp's metadata reader (already in use elsewhere in this service).
+ */
+async function readBufferDimensions(
+  buffer: Buffer,
+): Promise<{ width: number; height: number }> {
+  try {
+    const metadata = await sharp(buffer).metadata()
+    return {
+      width: metadata.width ?? 1024,
+      height: metadata.height ?? 1024,
+    }
+  } catch {
+    return { width: 1024, height: 1024 }
+  }
+}
 
 const FalImageEditResponseSchema = z.object({
   image: z.object({
@@ -195,6 +238,202 @@ export async function removeBackground(
 /**
  * Inpaint an image by regenerating the masked region. Defaults to FLUX Pro Fill.
  */
+// ─── Gemini Nano Banana Pro (gemini-3-pro-image-preview) ────────
+
+const GeminiEditResponseSchema = z.object({
+  candidates: z
+    .array(
+      z.object({
+        content: z
+          .object({
+            parts: z.array(
+              z.object({
+                inlineData: z
+                  .object({
+                    mimeType: z.string().min(1),
+                    data: z.string().min(1),
+                  })
+                  .optional(),
+              }),
+            ),
+          })
+          .optional(),
+      }),
+    )
+    .optional(),
+})
+
+async function inlineImagePart(imageUrl: string): Promise<{
+  inlineData: { mimeType: string; data: string }
+}> {
+  const dataUrlMatch = imageUrl.match(/^data:([^;]+);base64,(.+)$/)
+  if (dataUrlMatch) {
+    return {
+      inlineData: { mimeType: dataUrlMatch[1], data: dataUrlMatch[2] },
+    }
+  }
+  const { buffer, mimeType } = await fetchAsBuffer(imageUrl)
+  return {
+    inlineData: { mimeType, data: buffer.toString('base64') },
+  }
+}
+
+/**
+ * Conversational edit via Gemini Nano Banana Pro / Flash Image. Gemini doesn't
+ * accept a separate mask — the prompt describes what to change. Source image
+ * is sent as inlineData, optional references stacked after it.
+ */
+async function editImageWithGemini(params: {
+  modelId: string
+  apiKey: string
+  imageUrl: string
+  prompt: string
+  referenceImages?: string[]
+}): Promise<ImageEditResult> {
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.GEMINI}/${params.modelId}:generateContent`
+  const parts: Array<Record<string, unknown>> = [{ text: params.prompt }]
+  parts.push(await inlineImagePart(params.imageUrl))
+  for (const ref of params.referenceImages ?? []) {
+    parts.push(await inlineImagePart(ref))
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': params.apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    }),
+    signal: AbortSignal.timeout(60_000),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError('Gemini', response.status, errorBody)
+  }
+
+  const parsed = GeminiEditResponseSchema.parse(await response.json())
+  const imagePart = parsed.candidates?.[0]?.content?.parts?.find(
+    (p) => p.inlineData,
+  )
+  if (!imagePart?.inlineData) {
+    throw new ProviderError('Gemini', 502, 'No image data returned')
+  }
+
+  const buffer = Buffer.from(imagePart.inlineData.data, 'base64')
+  const { width, height } = await readBufferDimensions(buffer)
+  return {
+    imageUrl: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`,
+    width,
+    height,
+  }
+}
+
+// ─── OpenAI gpt-image-2 ─────────────────────────────────────────
+
+const OpenAiEditResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      b64_json: z.string().min(1).optional(),
+      url: z.string().url().optional(),
+    }),
+  ),
+})
+
+/**
+ * OpenAI image edits via `/v1/images/edits`. Accepts an optional mask (soft
+ * mask — the model regenerates the whole image but biases toward the masked
+ * area). Returns base64; we re-read the buffer for dimensions.
+ */
+async function editImageWithOpenAI(params: {
+  modelId: string
+  apiKey: string
+  imageUrl: string
+  prompt: string
+  maskImageUrl?: string
+  referenceImages?: string[]
+}): Promise<ImageEditResult> {
+  const baseUrl = AI_PROVIDER_ENDPOINTS.OPENAI.replace(/\/$/, '').replace(
+    /\/(generations|edits)$/,
+    '',
+  )
+  const endpoint = `${baseUrl}/edits`
+
+  const formData = new FormData()
+  formData.append('model', params.modelId)
+  formData.append('prompt', params.prompt)
+  formData.append('size', '1024x1024')
+
+  const { buffer: imageBuffer, mimeType: imageMime } = await fetchAsBuffer(
+    params.imageUrl,
+  )
+  formData.append(
+    'image',
+    new Blob([Uint8Array.from(imageBuffer)], { type: imageMime }),
+    `source.${imageMime.split('/')[1] ?? 'png'}`,
+  )
+
+  // Additional reference images stack as `image[]` per OpenAI's multi-input
+  // contract (gpt-image-2 supports multi-reference compositing).
+  for (const ref of params.referenceImages ?? []) {
+    const { buffer, mimeType } = await fetchAsBuffer(ref)
+    formData.append(
+      'image[]',
+      new Blob([Uint8Array.from(buffer)], { type: mimeType }),
+      `ref.${mimeType.split('/')[1] ?? 'png'}`,
+    )
+  }
+
+  if (params.maskImageUrl) {
+    const { buffer: maskBuffer } = await fetchAsBuffer(params.maskImageUrl)
+    formData.append(
+      'mask',
+      new Blob([Uint8Array.from(maskBuffer)], { type: 'image/png' }),
+      'mask.png',
+    )
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${params.apiKey}` },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw new ProviderError('OpenAI', response.status, errorBody)
+  }
+
+  const parsed = OpenAiEditResponseSchema.parse(await response.json())
+  const item = parsed.data[0]
+
+  if (item?.b64_json) {
+    const buffer = Buffer.from(item.b64_json, 'base64')
+    const { width, height } = await readBufferDimensions(buffer)
+    return {
+      imageUrl: `data:image/png;base64,${item.b64_json}`,
+      width,
+      height,
+    }
+  }
+  if (item?.url) {
+    const { buffer } = await fetchAsBuffer(item.url)
+    const { width, height } = await readBufferDimensions(buffer)
+    return { imageUrl: item.url, width, height }
+  }
+
+  throw new ProviderError('OpenAI', 502, 'No image data returned')
+}
+
+// ─── Inpaint / Outpaint dispatchers ─────────────────────────────
+
+/**
+ * Inpaint dispatcher. Routes to fal (mask-based), Gemini (prompt-only,
+ * conversational), or OpenAI (`/v1/images/edits` with optional mask).
+ */
 export async function inpaintImage(params: {
   imageUrl: string
   maskImageUrl: string
@@ -203,8 +442,29 @@ export async function inpaintImage(params: {
   negativePrompt?: string
   modelId?: string
 }): Promise<ImageEditResult> {
+  const modelId = params.modelId ?? FAL_DEFAULT_INPAINT_MODEL
+  const provider = providerForModel(modelId)
+
+  if (provider === 'gemini') {
+    return editImageWithGemini({
+      modelId,
+      apiKey: params.apiKey,
+      imageUrl: params.imageUrl,
+      prompt: params.prompt,
+    })
+  }
+  if (provider === 'openai') {
+    return editImageWithOpenAI({
+      modelId,
+      apiKey: params.apiKey,
+      imageUrl: params.imageUrl,
+      prompt: params.prompt,
+      maskImageUrl: params.maskImageUrl,
+    })
+  }
+
   return await postFalImageEdit(
-    params.modelId ?? FAL_DEFAULT_INPAINT_MODEL,
+    modelId,
     params.apiKey,
     {
       image_url: params.imageUrl,
@@ -218,9 +478,24 @@ export async function inpaintImage(params: {
   )
 }
 
+function describeOutpaintDirections(padding: {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}): string {
+  const parts: string[] = []
+  if (padding.top > 0) parts.push(`${padding.top}px upward`)
+  if (padding.right > 0) parts.push(`${padding.right}px to the right`)
+  if (padding.bottom > 0) parts.push(`${padding.bottom}px downward`)
+  if (padding.left > 0) parts.push(`${padding.left}px to the left`)
+  return parts.length > 0 ? parts.join(', ') : 'on every side'
+}
+
 /**
- * Outpaint an image by asking fal.ai to expand selected edges. Defaults to
- * the image-apps-v2 outpaint pipeline.
+ * Outpaint dispatcher. fal owns the precise per-edge expansion; Gemini gets a
+ * prompt-rewrite (its native API has no padding concept) so the model
+ * extends the scene as instructed.
  */
 export async function outpaintImage(params: {
   imageUrl: string
@@ -230,12 +505,33 @@ export async function outpaintImage(params: {
   negativePrompt?: string
   modelId?: string
 }): Promise<ImageEditResult> {
+  const modelId = params.modelId ?? FAL_DEFAULT_OUTPAINT_MODEL
+  const provider = providerForModel(modelId)
   const prompt = params.negativePrompt
     ? `${params.prompt}. Avoid: ${params.negativePrompt}`
     : params.prompt
 
+  if (provider === 'gemini') {
+    const directions = describeOutpaintDirections(params.padding)
+    return editImageWithGemini({
+      modelId,
+      apiKey: params.apiKey,
+      imageUrl: params.imageUrl,
+      prompt: `Extend this image ${directions}. ${prompt}`.trim(),
+    })
+  }
+  // OpenAI has no native outpaint endpoint — picker hides this combo, so
+  // hitting it is a programming error, not a user error.
+  if (provider === 'openai') {
+    throw new ProviderError(
+      'OpenAI',
+      400,
+      'OpenAI does not support outpaint. Pick fal or Gemini.',
+    )
+  }
+
   return await postFalImageEdit(
-    params.modelId ?? FAL_DEFAULT_OUTPAINT_MODEL,
+    modelId,
     params.apiKey,
     {
       image_url: params.imageUrl,
@@ -252,41 +548,60 @@ export async function outpaintImage(params: {
   )
 }
 
-export async function resolveFalImageEditApiKey(
+/**
+ * Generic API key resolver that picks the right adapter based on `modelId`.
+ * Prefer this in new code; `resolveFalImageEditApiKey` stays as a thin alias
+ * so legacy callers (the four route files written before Phase 4) compile
+ * untouched.
+ */
+export async function resolveEditApiKey(
   userId: string,
+  modelId: string | undefined,
   apiKeyId?: string,
 ): Promise<string> {
+  const provider = providerForModel(modelId ?? '')
+  const adapterType = PROVIDER_TO_ADAPTER[provider]
+
   if (apiKeyId) {
     const selectedApiKey = await getApiKeyValueById(apiKeyId, userId)
 
-    if (
-      !selectedApiKey ||
-      selectedApiKey.adapterType !== AI_ADAPTER_TYPES.FAL
-    ) {
+    if (!selectedApiKey || selectedApiKey.adapterType !== adapterType) {
       throw new ApiKeyError(
         'invalid',
-        'Selected API key is unavailable for fal.ai image editing.',
+        `Selected API key is not valid for ${adapterType} image editing.`,
       )
     }
 
     return selectedApiKey.keyValue
   }
 
-  const userKeyRecord = await findActiveKeyForAdapter(
-    userId,
-    AI_ADAPTER_TYPES.FAL,
-  )
-  const apiKey =
-    userKeyRecord?.keyValue ?? getSystemApiKey(AI_ADAPTER_TYPES.FAL)
-
-  if (!apiKey) {
-    throw new ApiKeyError(
-      'missing',
-      'No fal.ai API key available. Add one in API Keys.',
-    )
+  const userKeyRecord = await findActiveKeyForAdapter(userId, adapterType)
+  if (userKeyRecord?.keyValue) {
+    return userKeyRecord.keyValue
   }
 
-  return apiKey
+  // BYOK enforcement: Gemini and OpenAI never fall back to platform keys.
+  // The cost would silently land on the project owner — surface a clear
+  // "go configure your key" error instead. fal keeps the platform fallback
+  // for backwards compatibility with the existing upscale / remove-bg /
+  // inpaint / outpaint flows that shipped before Phase 4.
+  if (provider === 'fal') {
+    const platformKey = getSystemApiKey(adapterType)
+    if (platformKey) return platformKey
+  }
+
+  throw new ApiKeyError(
+    'missing',
+    `No ${adapterType} API key configured. Add one in API Keys to use this model.`,
+  )
+}
+
+/** @deprecated Phase 4: use {@link resolveEditApiKey} with the model ID. */
+export async function resolveFalImageEditApiKey(
+  userId: string,
+  apiKeyId?: string,
+): Promise<string> {
+  return resolveEditApiKey(userId, FAL_DEFAULT_UPSCALE_MODEL, apiKeyId)
 }
 
 /**

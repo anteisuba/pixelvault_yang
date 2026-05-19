@@ -1,12 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
 import { Link } from '@/i18n/navigation'
 
 import { EditProviderPicker } from './EditProviderPicker'
+import { EditQuickSetupDialog } from './EditQuickSetupDialog'
 
 interface EditTaskHeaderProps {
   task: EditTaskKind
@@ -15,7 +18,17 @@ interface EditTaskHeaderProps {
   disabled?: boolean
 }
 
-/** Per-task title + provider picker pair reused at the top of each task page. */
+interface SetupRequest {
+  modelId: string
+  modelLabel: string
+  adapterType: AI_ADAPTER_TYPES
+}
+
+/**
+ * Per-task title + provider picker pair. Owns the BYOK setup dialog so any
+ * task that needs Gemini/OpenAI keys gets the popup for free without each
+ * task page reinventing the modal state.
+ */
 export function EditTaskHeader({
   task,
   modelId,
@@ -23,6 +36,8 @@ export function EditTaskHeader({
   disabled,
 }: EditTaskHeaderProps) {
   const t = useTranslations('StudioImageEdit')
+  const [setupRequest, setSetupRequest] = useState<SetupRequest | null>(null)
+
   return (
     <div className="mb-3 space-y-2">
       <Link
@@ -46,8 +61,24 @@ export function EditTaskHeader({
           value={modelId}
           onChange={onModelChange}
           disabled={disabled}
+          onRequestSetup={setSetupRequest}
         />
       </div>
+
+      {setupRequest ? (
+        <EditQuickSetupDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setSetupRequest(null)
+          }}
+          modelId={setupRequest.modelId}
+          modelLabel={setupRequest.modelLabel}
+          adapterType={setupRequest.adapterType}
+          onVerified={(verifiedModelId) => {
+            onModelChange(verifiedModelId)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

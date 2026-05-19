@@ -53,6 +53,16 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     provider: 'fal',
     displayName: 'See-Through (HF)',
   },
+  'gemini-3-pro-image-preview': {
+    id: 'gemini-3-pro-image-preview',
+    provider: 'gemini',
+    displayName: 'Nano Banana Pro',
+  },
+  'gpt-image-2': {
+    id: 'gpt-image-2',
+    provider: 'openai',
+    displayName: 'GPT Image 2',
+  },
 }
 
 /**
@@ -92,14 +102,18 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
     task: 'inpaint',
     icon: Sparkles,
     providers: ['fal', 'gemini', 'openai'],
-    models: ['fal-ai/flux-pro/v1/fill'],
+    models: [
+      'fal-ai/flux-pro/v1/fill',
+      'gemini-3-pro-image-preview',
+      'gpt-image-2',
+    ],
     defaultModelId: 'fal-ai/flux-pro/v1/fill',
   },
   {
     task: 'outpaint',
     icon: Expand,
     providers: ['fal', 'gemini'],
-    models: ['fal-ai/image-apps-v2/outpaint'],
+    models: ['fal-ai/image-apps-v2/outpaint', 'gemini-3-pro-image-preview'],
     defaultModelId: 'fal-ai/image-apps-v2/outpaint',
   },
   {

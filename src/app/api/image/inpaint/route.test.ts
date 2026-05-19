@@ -17,21 +17,21 @@ vi.mock('@/services/user.service', () => ({
 vi.mock('@/services/image-edit.service', () => ({
   inpaintImage: vi.fn(),
   persistEditedImage: vi.fn(),
-  resolveFalImageEditApiKey: vi.fn(),
+  resolveEditApiKey: vi.fn(),
 }))
 
 import { POST } from './route'
 import {
   inpaintImage,
   persistEditedImage,
-  resolveFalImageEditApiKey,
+  resolveEditApiKey,
 } from '@/services/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)
 const mockInpaintImage = vi.mocked(inpaintImage)
 const mockPersistEditedImage = vi.mocked(persistEditedImage)
-const mockResolveFalImageEditApiKey = vi.mocked(resolveFalImageEditApiKey)
+const mockResolveEditApiKey = vi.mocked(resolveEditApiKey)
 
 const VALID_BODY = {
   imageUrl: 'https://example.com/source.png',
@@ -54,7 +54,7 @@ describe('POST /api/image/inpaint', () => {
     mockAuthenticated()
     mockRateLimitAllowed()
     mockEnsureUser.mockResolvedValue(FAKE_DB_USER)
-    mockResolveFalImageEditApiKey.mockResolvedValue('fal-key')
+    mockResolveEditApiKey.mockResolvedValue('fal-key')
     mockInpaintImage.mockResolvedValue(EDIT_RESULT)
     mockPersistEditedImage.mockResolvedValue(FAKE_GENERATION)
   })
@@ -102,8 +102,9 @@ describe('POST /api/image/inpaint', () => {
         url: FAKE_GENERATION.url,
       },
     })
-    expect(mockResolveFalImageEditApiKey).toHaveBeenCalledWith(
+    expect(mockResolveEditApiKey).toHaveBeenCalledWith(
       FAKE_DB_USER.id,
+      undefined,
       'key-1',
     )
     expect(mockInpaintImage).toHaveBeenCalledWith({
@@ -112,6 +113,7 @@ describe('POST /api/image/inpaint', () => {
       prompt: VALID_BODY.prompt,
       apiKey: 'fal-key',
       negativePrompt: VALID_BODY.negativePrompt,
+      modelId: undefined,
     })
     expect(mockPersistEditedImage).toHaveBeenCalledWith({
       userId: FAKE_DB_USER.id,

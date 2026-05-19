@@ -1,13 +1,16 @@
 'use client'
 
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   EDIT_MODELS,
   getEditTaskMeta,
+  type EditModelOption,
   type EditTaskProvider,
 } from '@/constants/edit-tasks'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -24,28 +27,73 @@ const PROVIDER_LABEL: Record<EditTaskProvider, string> = {
   openai: 'GPT',
 }
 
+const PROVIDER_ADAPTER: Record<EditTaskProvider, AI_ADAPTER_TYPES> = {
+  fal: AI_ADAPTER_TYPES.FAL,
+  gemini: AI_ADAPTER_TYPES.GEMINI,
+  openai: AI_ADAPTER_TYPES.OPENAI,
+}
+
 interface EditProviderPickerProps {
   task: EditTaskKind
   value: string
   onChange: (modelId: string) => void
   disabled?: boolean
+  /**
+   * Invoked when the user clicks a model whose provider is BYOK-only and they
+   * haven't configured a key yet. The picker doesn't switch the selection in
+   * that case — it just signals upward so the host page can open the setup
+   * dialog. fal models never trigger this (they have a platform fallback).
+   */
+  onRequestSetup?: (request: {
+    modelId: string
+    modelLabel: string
+    adapterType: AI_ADAPTER_TYPES
+  }) => void
+}
+
+function isProviderUnlocked(
+  provider: EditTaskProvider,
+  hasUserKey: (adapter: AI_ADAPTER_TYPES) => boolean,
+): boolean {
+  // fal has a platform fallback in resolveEditApiKey so its picker entries
+  // never require BYOK. Gemini/OpenAI must show a lock until a user key
+  // exists for that adapter.
+  if (provider === 'fal') return true
+  return hasUserKey(PROVIDER_ADAPTER[provider])
 }
 
 /**
- * Provider/model picker rendered above each task's tools. Phase 3 each task
- * registers only one (fal) model so the trigger collapses to a non-interactive
- * badge; Phase 4 brings Gemini + GPT and the dropdown lights up.
+ * Provider/model picker rendered above each task's tools. Phase 4 lights the
+ * dropdown up with Gemini + GPT entries; entries whose adapter the user hasn't
+ * configured show a lock icon and route to a setup flow instead of selecting.
  */
 export function EditProviderPicker({
   task,
   value,
   onChange,
   disabled,
+  onRequestSetup,
 }: EditProviderPickerProps) {
   const t = useTranslations('StudioImageEdit')
+  const { keys } = useApiKeysContext()
   const meta = getEditTaskMeta(task)
   const models = meta?.models ?? []
   const current = EDIT_MODELS[value] ?? EDIT_MODELS[models[0] ?? '']
+
+  const hasUserKey = (adapter: AI_ADAPTER_TYPES) =>
+    keys.some((k) => k.adapterType === adapter && k.isActive)
+
+  const handleSelect = (option: EditModelOption) => {
+    if (isProviderUnlocked(option.provider, hasUserKey)) {
+      onChange(option.id)
+      return
+    }
+    onRequestSetup?.({
+      modelId: option.id,
+      modelLabel: option.displayName,
+      adapterType: PROVIDER_ADAPTER[option.provider],
+    })
+  }
 
   if (!current) {
     return (
@@ -94,10 +142,11 @@ export function EditProviderPicker({
           const option = EDIT_MODELS[modelId]
           if (!option) return null
           const isActive = modelId === value
+          const unlocked = isProviderUnlocked(option.provider, hasUserKey)
           return (
             <DropdownMenuItem
               key={modelId}
-              onSelect={() => onChange(modelId)}
+              onSelect={() => handleSelect(option)}
               className="flex items-center justify-between gap-3"
             >
               <span className="inline-flex items-center gap-2">
@@ -107,6 +156,12 @@ export function EditProviderPicker({
                 <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                   {PROVIDER_LABEL[option.provider]}
                 </span>
+                {!unlocked ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-300">
+                    <Lock className="size-3" />
+                    {t('picker.needsKey')}
+                  </span>
+                ) : null}
               </span>
               <Check
                 className={cn(

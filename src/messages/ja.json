@@ -2532,7 +2532,8 @@
       "backToGrid": "タスク一覧に戻る"
     },
     "picker": {
-      "noModelsYet": "このタスクにはまだ利用可能なモデルが登録されていません。"
+      "noModelsYet": "このタスクにはまだ利用可能なモデルが登録されていません。",
+      "needsKey": "API key が必要"
     },
     "upscale": {
       "scaleLabel": "出力倍率",

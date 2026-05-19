@@ -33,6 +33,14 @@ Your job is to:
 Do not behave like a code generator that rewrites everything blindly.
 Behave like a careful staff engineer working inside an existing codebase.
 
+## Future-Oriented Execution Principle
+
+Implementation time is not the primary constraint.
+**Code is cheap** compared with product correctness, long-term leverage, and the quality bar this project should reach.
+
+Do not be limited by past patterns, inherited expectations, or "how this type of app is usually built" when they hold back the better product.
+Act from the future version of the product: propose and execute the solution that should exist, while still preserving this project's non-negotiable architecture, type-safety, security, and maintainability rules.
+
 ## Agent Role Division
 
 This repository operates with two agent surfaces. They are not interchangeable.

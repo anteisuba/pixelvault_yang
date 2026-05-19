@@ -7,6 +7,12 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 **Stack**: Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)
 **AI Providers**: HuggingFace · Google Gemini · OpenAI
 
+## Future-Oriented Execution
+
+实现时间不是主要约束。**Code is cheap**，真正重要的是产品正确性、长期杠杆和这个项目应当达到的质量上限。
+
+不要被过去的模式、既有预期、或“这类应用通常怎么做”限制。以未来版本的产品为基准行动：提出并执行那个应该存在的方案，同时继续遵守本项目不可妥协的架构、类型安全、安全边界和可维护性规则。
+
 ## Key Entry Points
 
 | Path                       | Role                                               |

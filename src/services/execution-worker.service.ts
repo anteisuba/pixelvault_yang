@@ -29,6 +29,13 @@ function getAppBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 }
 
+export function isExecutionWorkerDispatchConfigured(): boolean {
+  return Boolean(
+    process.env.EXECUTION_WORKER_BASE_URL &&
+    process.env.INTERNAL_CALLBACK_SECRET,
+  )
+}
+
 function getWorkerBaseUrl(): string {
   const workerBaseUrl = process.env.EXECUTION_WORKER_BASE_URL
 

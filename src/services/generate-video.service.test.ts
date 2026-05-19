@@ -212,6 +212,30 @@ describe('generate-video.service worker dispatch', () => {
     expect(fetch).toHaveBeenCalled()
   })
 
+  it('falls back to the inline queue path when the execution worker URL is not configured', async () => {
+    delete process.env.EXECUTION_WORKER_BASE_URL
+    mockSubmitVideoToQueue.mockResolvedValue({
+      requestId: 'provider-request-1',
+      statusUrl: 'https://queue.fal.run/status',
+      responseUrl: 'https://queue.fal.run/response',
+    })
+
+    const result = await submitVideoGeneration('clerk-1', buildVideoRequest())
+
+    expect(result).toEqual({
+      jobId: 'job-1',
+      requestId: 'provider-request-1',
+    })
+    expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'cinematic camera move over a neon city',
+        modelId: AI_MODELS.KLING_VIDEO,
+        apiKey: 'plain-key',
+      }),
+    )
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('keeps routes without worker-resolvable keys on the existing inline queue path', async () => {
     mockResolveGenerationRoute.mockResolvedValueOnce({
       modelId: AI_MODELS.KLING_VIDEO,

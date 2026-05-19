@@ -40,6 +40,7 @@ import {
 import {
   buildInternalUrl,
   dispatchWorkerRun,
+  isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -59,6 +60,7 @@ function canSubmitVideoViaExecutionWorker(route: {
   isFreeGeneration?: boolean
 }): boolean {
   return (
+    isExecutionWorkerDispatchConfigured() &&
     route.adapterType === AI_ADAPTER_TYPES.FAL &&
     (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
   )

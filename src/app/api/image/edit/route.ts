@@ -38,8 +38,13 @@ export const POST = createApiRoute({
 
     const result =
       data.action === 'upscale'
-        ? await upscaleImage(data.imageUrl, apiKey)
-        : await removeBackground(data.imageUrl, apiKey)
+        ? await upscaleImage(
+            data.imageUrl,
+            apiKey,
+            data.modelId,
+            data.targetScale,
+          )
+        : await removeBackground(data.imageUrl, apiKey, data.modelId)
 
     // Persist by default — fal.ai's CDN URL is temporary, so the only safe
     // path is to copy into R2 + create a Generation row immediately. Callers

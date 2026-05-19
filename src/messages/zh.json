@@ -2487,6 +2487,58 @@
       "outpaint": "扩展画布",
       "decompose": "图层分解"
     },
+    "taskGrid": {
+      "title": "选择一个任务",
+      "subtitleReady": "源图已就绪，点击下面任一卡片开始编辑。",
+      "subtitleLoadFirst": "请先在上方加载源图，再选择任务。"
+    },
+    "tasks": {
+      "upscale": {
+        "label": "超分辨率",
+        "description": "智能放大并补回细节。"
+      },
+      "remove-background": {
+        "label": "去背景",
+        "description": "一键抠出主体，去除背景。"
+      },
+      "inpaint": {
+        "label": "局部重绘",
+        "description": "用蒙版或描述替换图片局部。"
+      },
+      "outpaint": {
+        "label": "扩展画布",
+        "description": "向四周延展画面，AI 补全新区域。"
+      },
+      "object-replace": {
+        "label": "物体替换",
+        "description": "用参考图替换画面中的物体。"
+      },
+      "style-transfer": {
+        "label": "风格迁移",
+        "description": "用参考图的风格重新绘制画面。"
+      },
+      "text-render": {
+        "label": "文本/海报",
+        "description": "高保真文字渲染与海报排版。"
+      },
+      "decompose": {
+        "label": "图层分解",
+        "description": "拆成可编辑的 PSD 图层。"
+      }
+    },
+    "placeholder": {
+      "title": "{task} 还在搭建",
+      "subtitle": "该任务等接通对应模型后即上线。源图状态会保留，可随时切回。",
+      "backToGrid": "返回任务网格"
+    },
+    "picker": {
+      "noModelsYet": "该任务暂未注册可用模型。"
+    },
+    "upscale": {
+      "scaleLabel": "目标倍率",
+      "scale2x": "2× (Clarity)",
+      "scale4x": "4× (Aura SR)"
+    },
     "resultActionsTitle": "结果",
     "downloadResult": "下载结果",
     "saveResult": "保存到画廊",

@@ -417,6 +417,13 @@ export interface AudioStatusResponse {
 // ─── Image Edit ──────────────────────────────────────────────────
 // Moved from /api/image/edit/route.ts to centralize all schemas
 
+/**
+ * Provider model identifier (e.g. `fal-ai/aura-sr`, `gemini-3-pro-image-preview`).
+ * Plain string at the schema level — the picker passes the concrete ID for the
+ * task; servers validate that the ID is registered for the requested task.
+ */
+const EditModelIdSchema = z.string().trim().min(1).max(200)
+
 export const ImageEditSchema = z.object({
   action: z.enum(['upscale', 'remove-background']),
   imageUrl: z.string().url(),
@@ -428,6 +435,14 @@ export const ImageEditSchema = z.object({
   persist: z.boolean().optional().default(true),
   /** Optional source generation ID — when provided, the persisted row links back. */
   generationId: z.string().trim().min(1).optional(),
+  /** Optional model override; service uses task-level default when omitted. */
+  modelId: EditModelIdSchema.optional(),
+  /**
+   * Upscale-only: target multiplier. 4x = the default Aura SR pipeline; 2x
+   * routes to Clarity Upscaler with `scale_factor: 2`. Ignored for the
+   * remove-background action.
+   */
+  targetScale: z.enum(['2x', '4x']).optional(),
 })
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
@@ -439,6 +454,7 @@ export const InpaintRequestSchema = z.object({
   negativePrompt: z.string().max(500).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   sourceGenerationId: z.string().trim().min(1).optional(),
+  modelId: EditModelIdSchema.optional(),
 })
 
 export type InpaintRequest = z.infer<typeof InpaintRequestSchema>
@@ -457,6 +473,7 @@ export const OutpaintRequestSchema = z.object({
   negativePrompt: z.string().max(500).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   sourceGenerationId: z.string().trim().min(1).optional(),
+  modelId: EditModelIdSchema.optional(),
 })
 
 export type OutpaintRequest = z.infer<typeof OutpaintRequestSchema>
@@ -483,6 +500,8 @@ export const ImageDecomposeSchema = z.object({
   persist: z.boolean().optional(),
   /** Source generation ID (required when persist is true) */
   generationId: z.string().optional(),
+  /** Optional model override (e.g. a different HF Space). Default in service. */
+  modelId: EditModelIdSchema.optional(),
 })
 
 export type ImageDecomposeRequest = z.infer<typeof ImageDecomposeSchema>
@@ -674,9 +693,49 @@ export const Generate3DRequestSchema = z.object({
    * Defaults to true. Set false to send the user's raw image straight in.
    */
   prep3D: z.boolean().optional(),
+  /**
+   * PR3-α: when true and previewMode === MESH_FIRST, the job pauses at
+   * MESH_READY after Stage 1 (Geometry) completes — the user must explicitly
+   * call /api/generate-3d/continue to kick off Stage 2 (Normal / texture).
+   * When false the existing auto-chain behaviour is preserved.
+   */
+  staged: z.boolean().optional(),
 })
 
 export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
+
+// ─── PR3-α: Staged-generation user actions ──────────────────────────
+
+export const Continue3DRequestSchema = z.object({
+  jobId: z.string().trim().min(1),
+  /** Optional override of the Stage 2 seed; defaults to the original. */
+  seed: z.number().int().min(-1).optional(),
+})
+
+export type Continue3DRequest = z.infer<typeof Continue3DRequestSchema>
+
+export const RetryMesh3DRequestSchema = z.object({
+  jobId: z.string().trim().min(1),
+  /** Optional new seed for Stage 1. Omit to let fal pick one. */
+  seed: z.number().int().min(-1).optional(),
+  /** Optional replacement multi-view side images (e.g. after regeneration). */
+  multiViewImages: Model3DMultiViewImagesSchema.optional(),
+  /** Optional new face budget if user dialled it up after seeing the mesh. */
+  faceCount: z
+    .number()
+    .int()
+    .min(HUNYUAN3D_FACE_COUNT.MIN)
+    .max(HUNYUAN3D_FACE_COUNT.MAX)
+    .optional(),
+})
+
+export type RetryMesh3DRequest = z.infer<typeof RetryMesh3DRequestSchema>
+
+export const Cancel3DRequestSchema = z.object({
+  jobId: z.string().trim().min(1),
+})
+
+export type Cancel3DRequest = z.infer<typeof Cancel3DRequestSchema>
 
 export const Model3DStatusRequestSchema = AudioStatusRequestSchema
 export type Model3DSubmitResponseData = AsyncJobSubmitResponseData

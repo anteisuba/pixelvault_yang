@@ -46,18 +46,24 @@ export async function decomposeImage(
   resolution: number = 1280,
   seed: number = 42,
   hfToken?: string,
+  /**
+   * HuggingFace Space identifier. Defaults to xiuruisu/see-through; callers
+   * can pass a fork or upgraded space ID through the provider picker.
+   */
+  modelId: string = SEE_THROUGH_SPACE,
 ): Promise<ImageDecomposeResult> {
   logger.info('[image-decompose] Starting decomposition', {
     imageUrl: imageUrl.slice(0, 80),
     resolution,
     seed,
+    modelId,
   })
 
   let result
   try {
     result = await withRetry(
       async () => {
-        const client = await Client.connect(SEE_THROUGH_SPACE, {
+        const client = await Client.connect(modelId, {
           token: (hfToken as `hf_${string}`) ?? undefined,
         })
 

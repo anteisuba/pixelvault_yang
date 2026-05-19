@@ -23,10 +23,18 @@ import type { GenerationRecord } from '@/types'
 
 // ─── fal.ai image editing endpoints ──────────────────────────────
 
-const FAL_UPSCALE_MODEL = 'fal-ai/aura-sr'
-const FAL_REMOVE_BG_MODEL = 'fal-ai/birefnet/v2'
-const FAL_INPAINT_MODEL = 'fal-ai/flux-pro/v1/fill'
-const FAL_OUTPAINT_MODEL = 'fal-ai/image-apps-v2/outpaint'
+/**
+ * Default fal.ai model IDs per task. The Workspace's provider picker can
+ * override these by passing a specific `modelId` — the legacy callers that
+ * omit it fall back to these defaults.
+ */
+const FAL_DEFAULT_UPSCALE_MODEL = 'fal-ai/aura-sr'
+const FAL_CLARITY_UPSCALER_MODEL = 'fal-ai/clarity-upscaler'
+const FAL_DEFAULT_REMOVE_BG_MODEL = 'fal-ai/birefnet/v2'
+const FAL_DEFAULT_INPAINT_MODEL = 'fal-ai/flux-pro/v1/fill'
+const FAL_DEFAULT_OUTPAINT_MODEL = 'fal-ai/image-apps-v2/outpaint'
+
+export type UpscaleTargetScale = '2x' | '4x'
 
 const FalImageEditResponseSchema = z.object({
   image: z.object({
@@ -109,22 +117,43 @@ async function postFalImageEdit(
 }
 
 /**
- * Upscale an image using fal.ai Aura SR (4x super-resolution).
+ * Resolve which fal model to call for an upscale request. `modelId` wins when
+ * the caller picked one explicitly; otherwise `targetScale` decides between
+ * Aura SR (4x, fixed) and Clarity Upscaler (configurable, defaulted to 2x).
+ */
+function resolveUpscaleModel(
+  modelId: string | undefined,
+  targetScale: UpscaleTargetScale | undefined,
+): string {
+  if (modelId) return modelId
+  if (targetScale === '2x') return FAL_CLARITY_UPSCALER_MODEL
+  return FAL_DEFAULT_UPSCALE_MODEL
+}
+
+/**
+ * Upscale an image. Aura SR uses its fixed 4x pipeline; Clarity Upscaler reads
+ * `scale_factor` so 2x output is possible.
  */
 export async function upscaleImage(
   imageUrl: string,
   apiKey: string,
+  modelId?: string,
+  targetScale?: UpscaleTargetScale,
 ): Promise<ImageEditResult> {
-  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${FAL_UPSCALE_MODEL}`
+  const resolvedModel = resolveUpscaleModel(modelId, targetScale)
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${resolvedModel}`
+  const body: Record<string, unknown> = { image_url: imageUrl }
+  if (resolvedModel === FAL_CLARITY_UPSCALER_MODEL) {
+    body.scale_factor = targetScale === '4x' ? 4 : 2
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Key ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      image_url: imageUrl,
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -136,13 +165,14 @@ export async function upscaleImage(
 }
 
 /**
- * Remove background from an image using fal.ai BiRefNet V2.
+ * Remove background using a fal.ai matting model. Defaults to BiRefNet V2.
  */
 export async function removeBackground(
   imageUrl: string,
   apiKey: string,
+  modelId: string = FAL_DEFAULT_REMOVE_BG_MODEL,
 ): Promise<ImageEditResult> {
-  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${FAL_REMOVE_BG_MODEL}`
+  const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -163,7 +193,7 @@ export async function removeBackground(
 }
 
 /**
- * Inpaint an image by regenerating the masked region.
+ * Inpaint an image by regenerating the masked region. Defaults to FLUX Pro Fill.
  */
 export async function inpaintImage(params: {
   imageUrl: string
@@ -171,9 +201,10 @@ export async function inpaintImage(params: {
   prompt: string
   apiKey: string
   negativePrompt?: string
+  modelId?: string
 }): Promise<ImageEditResult> {
   return await postFalImageEdit(
-    FAL_INPAINT_MODEL,
+    params.modelId ?? FAL_DEFAULT_INPAINT_MODEL,
     params.apiKey,
     {
       image_url: params.imageUrl,
@@ -188,7 +219,8 @@ export async function inpaintImage(params: {
 }
 
 /**
- * Outpaint an image by asking fal.ai to expand selected edges.
+ * Outpaint an image by asking fal.ai to expand selected edges. Defaults to
+ * the image-apps-v2 outpaint pipeline.
  */
 export async function outpaintImage(params: {
   imageUrl: string
@@ -196,13 +228,14 @@ export async function outpaintImage(params: {
   prompt: string
   apiKey: string
   negativePrompt?: string
+  modelId?: string
 }): Promise<ImageEditResult> {
   const prompt = params.negativePrompt
     ? `${params.prompt}. Avoid: ${params.negativePrompt}`
     : params.prompt
 
   return await postFalImageEdit(
-    FAL_OUTPAINT_MODEL,
+    params.modelId ?? FAL_DEFAULT_OUTPAINT_MODEL,
     params.apiKey,
     {
       image_url: params.imageUrl,

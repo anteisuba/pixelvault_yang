@@ -23,6 +23,7 @@ export const POST = createApiRoute({
       prompt: data.prompt,
       apiKey,
       negativePrompt: data.negativePrompt,
+      modelId: data.modelId,
     })
     const generation = await persistEditedImage({
       userId: user.id,

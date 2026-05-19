@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { StudioImageEditWorkspace } from '@/components/business/studio/StudioImageEditWorkspace'
+import { EditTaskGrid } from '@/components/business/studio/edit/EditTaskGrid'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioEditPageProps {
@@ -20,6 +20,7 @@ export async function generateMetadata({
   }
 }
 
+/** Overview = source card (from layout) + 8-task grid below. */
 export default function StudioEditPage() {
-  return <StudioImageEditWorkspace />
+  return <EditTaskGrid />
 }

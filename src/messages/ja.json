@@ -2487,6 +2487,58 @@
       "outpaint": "アウトペイント",
       "decompose": "レイヤー分解"
     },
+    "taskGrid": {
+      "title": "タスクを選択",
+      "subtitleReady": "元画像は読み込み済み — 下のカードから選んで編集を開始してください。",
+      "subtitleLoadFirst": "まず上で元画像を読み込んでから、タスクを選択してください。"
+    },
+    "tasks": {
+      "upscale": {
+        "label": "超解像",
+        "description": "ディテールを補いつつ拡大。"
+      },
+      "remove-background": {
+        "label": "背景除去",
+        "description": "ワンクリックで被写体だけを切り抜き。"
+      },
+      "inpaint": {
+        "label": "インペイント",
+        "description": "マスクやプロンプトで部分を差し替え。"
+      },
+      "outpaint": {
+        "label": "キャンバス拡張",
+        "description": "周囲を拡張し、AI が新しい領域を補完。"
+      },
+      "object-replace": {
+        "label": "オブジェクト差し替え",
+        "description": "参照画像で対象オブジェクトを差し替え。"
+      },
+      "style-transfer": {
+        "label": "スタイル転写",
+        "description": "参照スタイルで画面を描き直し。"
+      },
+      "text-render": {
+        "label": "テキスト/ポスター",
+        "description": "高精度な文字レンダリングとレイアウト。"
+      },
+      "decompose": {
+        "label": "レイヤー分解",
+        "description": "編集可能な PSD レイヤーに分解。"
+      }
+    },
+    "placeholder": {
+      "title": "{task} は構築中",
+      "subtitle": "対応プロバイダーが接続され次第リリースします。元画像の状態は保持され、いつでも切り替え可能です。",
+      "backToGrid": "タスク一覧に戻る"
+    },
+    "picker": {
+      "noModelsYet": "このタスクにはまだ利用可能なモデルが登録されていません。"
+    },
+    "upscale": {
+      "scaleLabel": "出力倍率",
+      "scale2x": "2× (Clarity)",
+      "scale4x": "4× (Aura SR)"
+    },
     "resultActionsTitle": "結果",
     "downloadResult": "結果をダウンロード",
     "saveResult": "ギャラリーに保存",

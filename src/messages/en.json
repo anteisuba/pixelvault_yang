@@ -2487,6 +2487,58 @@
       "outpaint": "Outpaint",
       "decompose": "Layer decompose"
     },
+    "taskGrid": {
+      "title": "Choose a task",
+      "subtitleReady": "Pick any card below to start editing your source.",
+      "subtitleLoadFirst": "Load a source image above first, then pick a task."
+    },
+    "tasks": {
+      "upscale": {
+        "label": "Super resolution",
+        "description": "Enlarge with detail recovery."
+      },
+      "remove-background": {
+        "label": "Remove background",
+        "description": "One-click cutout, subject only."
+      },
+      "inpaint": {
+        "label": "Inpaint",
+        "description": "Replace a region with a mask or a prompt."
+      },
+      "outpaint": {
+        "label": "Outpaint",
+        "description": "Extend the canvas; AI fills new pixels."
+      },
+      "object-replace": {
+        "label": "Object replace",
+        "description": "Swap an object using a reference image."
+      },
+      "style-transfer": {
+        "label": "Style transfer",
+        "description": "Repaint the scene in a reference style."
+      },
+      "text-render": {
+        "label": "Text & posters",
+        "description": "High-fidelity typography and layout."
+      },
+      "decompose": {
+        "label": "Layer decompose",
+        "description": "Split into editable PSD layers."
+      }
+    },
+    "placeholder": {
+      "title": "{task} is being wired up",
+      "subtitle": "This task ships once its providers are connected. Source state is kept — switch back any time.",
+      "backToGrid": "Back to tasks"
+    },
+    "picker": {
+      "noModelsYet": "No model registered for this task yet."
+    },
+    "upscale": {
+      "scaleLabel": "Target scale",
+      "scale2x": "2× (Clarity)",
+      "scale4x": "4× (Aura SR)"
+    },
     "resultActionsTitle": "Result",
     "downloadResult": "Download result",
     "saveResult": "Save to gallery",

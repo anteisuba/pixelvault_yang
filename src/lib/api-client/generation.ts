@@ -528,7 +528,14 @@ export async function generateVariationsAPI(
 export async function editImageAPI(
   action: 'upscale' | 'remove-background',
   imageUrl: string,
-  options?: { persist?: boolean; generationId?: string },
+  options?: {
+    persist?: boolean
+    generationId?: string
+    /** Provider model ID — picker passes it; server falls back to task default. */
+    modelId?: string
+    /** Upscale-only: 2x routes to Clarity Upscaler; 4x stays on Aura SR. */
+    targetScale?: '2x' | '4x'
+  },
 ): Promise<{
   success: boolean
   data?: {
@@ -553,6 +560,8 @@ export async function editImageAPI(
         imageUrl,
         ...(options?.persist === false && { persist: false }),
         ...(options?.generationId && { generationId: options.generationId }),
+        ...(options?.modelId && { modelId: options.modelId }),
+        ...(options?.targetScale && { targetScale: options.targetScale }),
       }),
     })
     if (!response.ok) {
@@ -584,6 +593,8 @@ export async function decomposeImageAPI(
     seed?: number
     persist?: boolean
     generationId?: string
+    /** HuggingFace Space override; server falls back to task default. */
+    modelId?: string
   },
 ): Promise<{
   success: boolean
@@ -604,6 +615,7 @@ export async function decomposeImageAPI(
           persist: true,
           generationId: options.generationId,
         }),
+        ...(options?.modelId && { modelId: options.modelId }),
       }),
     })
     if (!response.ok) {

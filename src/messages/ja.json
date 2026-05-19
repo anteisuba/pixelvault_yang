@@ -885,7 +885,8 @@
     "bannerUnsupported": "現在のモデル「{model}」はLoRA非対応 — {family} LoRAは無視されます。",
     "bannerFamilyMismatch": "現在のモデル「{model}」は {family} LoRAと互換性がありません — 効果は反映されません。",
     "pickModel": "{model} に切り替え",
-    "pickModelHint": "LoRAのベース構造に合うモデルを選びます"
+    "pickModelHint": "LoRAのベース構造に合うモデルを選びます",
+    "needsApiKey": "推奨: 「{model}」 — まだ {provider} の API キーを追加していません。高度な設定 → API ルートで追加してください。"
   },
   "LoraWorkbench": {
     "tabs": {

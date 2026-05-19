@@ -24,6 +24,7 @@ import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   Popover,
@@ -67,12 +68,17 @@ interface Compatibility {
   neededFamily: string | null
   /**
    * Concrete route to switch to. `optionId` is the keyId+modelId composite
-   * the studio reducer expects; `modelName` is for display. Null when the
-   * user has no configured route for the recommended model — they need to
-   * add an API key themselves.
+   * the studio reducer expects; we only fill this when the user actually
+   * has a usable route (saved key OR free-tier). If null but
+   * `recommendedModelName` is set, the user needs to add an API key —
+   * the banner surfaces this explicitly rather than silently routing to
+   * a workspace placeholder that can't generate.
    */
   recommendedOptionId: string | null
   recommendedModelName: string | null
+  /** Provider label ("FAL", "Replicate") of the recommended model — shown
+   *  in the "needs API key" hint so users know what to configure. */
+  recommendedProviderLabel: string | null
   currentModelName: string | null
 }
 
@@ -172,6 +178,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         neededFamily: null,
         recommendedOptionId: null,
         recommendedModelName: null,
+        recommendedProviderLabel: null,
         currentModelName,
       }
     }
@@ -188,23 +195,38 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
             ? 'anima-pencil-xl'
             : null
 
-    // Find a configured route the user can actually use (saved key OR free).
-    // Workspace routes without a saved key won't generate, so prefer 'saved'
-    // first, then any 'workspace' option as a last resort. This way the
-    // "Switch to X" button only fires when it leads somewhere generateable.
+    // The model itself (label + provider label) is always known from the
+    // static IMAGE_MODEL_OPTIONS table — we want to show "推荐 X (需要 Y key)"
+    // even when the user has no route configured yet.
+    const recommendedStaticOption = recommendedModelId
+      ? (IMAGE_MODEL_OPTIONS.find(
+          (m) => m.id === recommendedModelId && m.available,
+        ) ?? null)
+      : null
+    const recommendedModelName = recommendedStaticOption
+      ? getTranslatedModelLabel(tModels, recommendedStaticOption.id)
+      : null
+    const recommendedProviderLabel = recommendedStaticOption
+      ? getProviderLabel(recommendedStaticOption.providerConfig)
+      : null
+
+    // Find a route the user can actually generate with: saved API key first,
+    // then free-tier. We deliberately do NOT fall back to a workspace
+    // placeholder because that route has no key and `dispatch SET_OPTION_ID`
+    // to it leaves the user staring at a "fake selected" model that silently
+    // fails on generate.
     const candidates = recommendedModelId
       ? modelOptions.filter((o) => o.modelId === recommendedModelId)
       : []
     const recommendedRoute =
       candidates.find((o) => o.sourceType === 'saved') ??
       candidates.find((o) => o.freeTier) ??
-      candidates[0] ??
       null
 
     const recommended = recommendedRoute
       ? {
           optionId: recommendedRoute.optionId,
-          name: getTranslatedModelLabel(tModels, recommendedRoute.modelId),
+          name: recommendedModelName ?? recommendedRoute.modelId,
         }
       : null
 
@@ -213,7 +235,8 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         kind: 'no-model',
         neededFamily: items[0]!.asset.baseModelFamily,
         recommendedOptionId: recommended?.optionId ?? null,
-        recommendedModelName: recommended?.name ?? null,
+        recommendedModelName: recommendedModelName ?? null,
+        recommendedProviderLabel,
         currentModelName: null,
       }
     }
@@ -223,7 +246,8 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         kind: 'unsupported',
         neededFamily: items[0]!.asset.baseModelFamily,
         recommendedOptionId: recommended?.optionId ?? null,
-        recommendedModelName: recommended?.name ?? null,
+        recommendedModelName: recommendedModelName ?? null,
+        recommendedProviderLabel,
         currentModelName,
       }
     }
@@ -233,7 +257,8 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         kind: 'family-mismatch',
         neededFamily: items[0]!.asset.baseModelFamily,
         recommendedOptionId: recommended?.optionId ?? null,
-        recommendedModelName: recommended?.name ?? null,
+        recommendedModelName: recommendedModelName ?? null,
+        recommendedProviderLabel,
         currentModelName,
       }
     }
@@ -243,6 +268,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
       neededFamily: items[0]!.asset.baseModelFamily,
       recommendedOptionId: null,
       recommendedModelName: null,
+      recommendedProviderLabel: null,
       currentModelName,
     }
   }, [items, modelOptions, selectedModel, tModels])
@@ -492,6 +518,17 @@ function CompatibilityBanner({
           </TooltipTrigger>
           <TooltipContent side="bottom">{t('pickModelHint')}</TooltipContent>
         </Tooltip>
+      ) : compatibility.recommendedModelName &&
+        compatibility.recommendedProviderLabel ? (
+        // No saved key + no free-tier route → don't silently dispatch to a
+        // workspace placeholder. Tell the user exactly which API key
+        // they're missing so they can go add it in Settings / Advanced.
+        <p className="self-start rounded-md border border-current/50 bg-current/5 px-2 py-1 text-2xs leading-snug">
+          {t('needsApiKey', {
+            model: compatibility.recommendedModelName,
+            provider: compatibility.recommendedProviderLabel,
+          })}
+        </p>
       ) : null}
     </div>
   )

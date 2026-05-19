@@ -885,7 +885,8 @@
     "bannerUnsupported": "Current model \"{model}\" doesn't support LoRA — your {family} LoRAs will be ignored.",
     "bannerFamilyMismatch": "Current model \"{model}\" is not compatible with {family} LoRAs — they won't take effect.",
     "pickModel": "Switch to {model}",
-    "pickModelHint": "Pick a model that matches the LoRA's base architecture"
+    "pickModelHint": "Pick a model that matches the LoRA's base architecture",
+    "needsApiKey": "Recommended: {model} — but you haven't added a {provider} API key yet. Add one under Advanced → API routes first."
   },
   "LoraWorkbench": {
     "tabs": {

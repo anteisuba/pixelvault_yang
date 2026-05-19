@@ -885,7 +885,8 @@
     "bannerUnsupported": "当前模型「{model}」不支持 LoRA — 这些 {family} LoRA 将被忽略。",
     "bannerFamilyMismatch": "当前模型「{model}」与 {family} LoRA 不兼容 — 生成结果不会带 LoRA 风格。",
     "pickModel": "切到 {model}",
-    "pickModelHint": "用 LoRA 的基础架构选一个能跑的模型"
+    "pickModelHint": "用 LoRA 的基础架构选一个能跑的模型",
+    "needsApiKey": "推荐用「{model}」，但你还没配置 {provider} 的 API key — 先去高级 → API 路由里添加。"
   },
   "LoraWorkbench": {
     "tabs": {

@@ -42,6 +42,19 @@ const SCALE_MIN = 0
 const SCALE_MAX = 1.5
 const SCALE_STEP = 0.05
 
+/**
+ * Whole-word, case-insensitive check for whether the user has already
+ * written the LoRA's trigger word in their prompt. Without this we'd
+ * insert "concept" on every click and end up with "concept, concept,
+ * concept, a girl" — Civitai-style triggers are common English words
+ * so substring matching would over-fire ("concept" in "conceptual").
+ */
+function promptIncludesTrigger(prompt: string, trigger: string): boolean {
+  const escaped = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`(^|[^A-Za-z0-9_])${escaped}([^A-Za-z0-9_]|$)`, 'i')
+  return re.test(prompt)
+}
+
 type CompatibilityKind =
   | 'ok' // model supports LoRA and family matches (or stack is empty)
   | 'family-mismatch' // model supports LoRA but stack family does not match
@@ -117,6 +130,20 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
       toast.error(t('shareCopyFailed'))
     }
   }, [getShareUrl, t])
+
+  const handleInsertTrigger = useCallback(
+    (triggerWord: string) => {
+      const trimmed = triggerWord.trim()
+      if (!trimmed) return
+      if (promptIncludesTrigger(state.prompt, trimmed)) return
+      const next = state.prompt.trim()
+        ? `${trimmed}, ${state.prompt.trim()}`
+        : trimmed
+      dispatch({ type: 'SET_PROMPT', payload: next })
+      toast.success(t('triggerInserted', { word: trimmed }))
+    },
+    [dispatch, state.prompt, t],
+  )
   const count = items.length
 
   const compatibility = useMemo<Compatibility>(() => {
@@ -257,6 +284,10 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
           <ul className="space-y-2.5">
             {items.map((entry) => {
               const scale = entry.scale ?? entry.asset.defaultScale
+              const triggerInPrompt = promptIncludesTrigger(
+                state.prompt,
+                entry.asset.triggerWord,
+              )
               return (
                 <li
                   key={entry.asset.id}
@@ -267,8 +298,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                       <p className="truncate text-sm font-medium">
                         {entry.asset.name}
                       </p>
-                      <p className="truncate font-mono text-2xs text-muted-foreground">
-                        {entry.asset.triggerWord} ·{' '}
+                      <p className="truncate text-2xs text-muted-foreground">
                         {entry.asset.baseModelFamily}
                       </p>
                     </div>
@@ -281,6 +311,37 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                       <X className="size-3.5" aria-hidden />
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleInsertTrigger(entry.asset.triggerWord)}
+                    disabled={triggerInPrompt}
+                    className={cn(
+                      'mt-2 inline-flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-2xs font-mono transition-colors',
+                      triggerInPrompt
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                        : 'border-border/60 text-foreground hover:bg-muted',
+                    )}
+                    aria-label={
+                      triggerInPrompt
+                        ? t('triggerAlreadyInPrompt')
+                        : t('insertTrigger', {
+                            word: entry.asset.triggerWord,
+                          })
+                    }
+                    title={
+                      triggerInPrompt
+                        ? t('triggerAlreadyInPrompt')
+                        : t('insertTriggerHint')
+                    }
+                  >
+                    <span className="truncate">{entry.asset.triggerWord}</span>
+                    <span className="shrink-0 text-2xs">
+                      {triggerInPrompt
+                        ? t('triggerInPromptBadge')
+                        : t('insertTriggerBadge')}
+                    </span>
+                  </button>
 
                   <div className="mt-2 flex items-center gap-3">
                     <Slider

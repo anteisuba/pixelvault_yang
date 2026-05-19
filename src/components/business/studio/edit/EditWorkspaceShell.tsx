@@ -12,6 +12,8 @@ import { useTranslations } from 'next-intl'
 
 import { USER_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import { ImageEditProvider, useImageEdit } from '@/contexts/image-edit-context'
+import { usePathname } from '@/i18n/navigation'
+import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { Button } from '@/components/ui/button'
 
@@ -22,6 +24,11 @@ import { Button } from '@/components/ui/button'
  */
 function EditShellInner({ children }: { children: React.ReactNode }) {
   const t = useTranslations('StudioImageEdit')
+  // `usePathname` from next-intl strips the locale prefix, so /zh/studio/edit
+  // and /en/studio/edit both surface as /studio/edit. Overview = exactly that;
+  // anything under /studio/edit/<task> is a task subpage with a tools panel.
+  const pathname = usePathname()
+  const isTaskPage = /^\/studio\/edit\/[^/]+/.test(pathname)
   const {
     source,
     bannerError,
@@ -76,7 +83,14 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
           disabled={isUploadingSource || isBusy}
         />
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div
+          className={cn(
+            'gap-4',
+            isTaskPage
+              ? 'grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start'
+              : 'flex flex-col',
+          )}
+        >
           <section
             ref={pasteTargetRef}
             tabIndex={0}

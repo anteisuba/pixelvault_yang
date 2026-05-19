@@ -35,6 +35,14 @@ export const POST = createApiRoute({
       height: result.height,
     })
 
-    return { ...result, generation }
+    // Replace the in-memory data URL with the permanent R2 URL — Chrome
+    // refuses to download multi-MB base64 strings, and we want both the
+    // download button and the preview <img> to point at storage.
+    return {
+      imageUrl: generation.url,
+      width: result.width,
+      height: result.height,
+      generation,
+    }
   },
 })

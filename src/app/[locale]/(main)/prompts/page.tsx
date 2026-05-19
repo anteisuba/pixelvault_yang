@@ -91,31 +91,11 @@ export default async function PromptsPage({
     )
   }
 
-  const { recipes, total } = await listRecipes(clerkId, 1, 50)
+  const { recipes } = await listRecipes(clerkId, 1, 50)
 
   return (
     <main className="editorial-page">
       <div className="editorial-container space-y-8">
-        <header className="flex flex-col gap-5 border-b border-border/60 pb-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <p className="editorial-eyebrow">{t('templatePicker')}</p>
-            <h1 className="font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-              {t('title')}
-            </h1>
-            <p className="font-serif text-base leading-8 text-muted-foreground">
-              {t('description')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="rounded-full px-3 py-1">
-              {t('templateCount', { count: total })}
-            </Badge>
-            <Button asChild className="rounded-full px-5">
-              <Link href={ROUTES.ASSETS}>{t('openAssets')}</Link>
-            </Button>
-          </div>
-        </header>
-
         <PromptTemplateCreatePanel
           initialOpen={createQuery?.create === '1'}
           initialValues={{

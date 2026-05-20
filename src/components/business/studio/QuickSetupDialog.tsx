@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
 import { createApiKey, deleteApiKey } from '@/lib/api-client'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { useStudioForm } from '@/contexts/studio-context'
+import { useStudioFormOptional } from '@/contexts/studio-context'
 import { getDefaultProviderConfig } from '@/constants/providers'
 import {
   Dialog,
@@ -109,7 +109,12 @@ export function QuickSetupDialog({
   const [step, setStep] = useState<SetupStep>('guide')
   const [errorMsg, setErrorMsg] = useState('')
   const { refresh, verify } = useApiKeysContext()
-  const { dispatch } = useStudioForm()
+  // Optional so we don't crash on pages without StudioProvider (e.g.
+  // /studio/lora — LoraTrainingForm shows this dialog from its provider
+  // buttons). If null, we skip the auto-select dispatch; the page that
+  // doesn't have the Studio form context doesn't care which model was
+  // auto-picked anyway.
+  const studioForm = useStudioFormOptional()
   const t = useTranslations('QuickSetup')
 
   const guide = getAdapterApiGuide(adapterType)
@@ -167,9 +172,10 @@ export function QuickSetupDialog({
 
     await refresh()
     setStep('success')
-    // Auto-select the newly created key's model option.
+    // Auto-select the newly created key's model option (only when we're
+    // inside a Studio provider tree — see useStudioFormOptional above).
     // The saved route option ID format is `saved:<keyId>`.
-    dispatch({
+    studioForm?.dispatch({
       type: 'SET_OPTION_ID',
       payload: `saved:${keyId}`,
     })
@@ -190,7 +196,7 @@ export function QuickSetupDialog({
     optionId,
     refresh,
     verify,
-    dispatch,
+    studioForm,
     onOpenChange,
     t,
   ])

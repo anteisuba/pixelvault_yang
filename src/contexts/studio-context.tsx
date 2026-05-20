@@ -645,6 +645,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 // CONSUMER HOOKS — each component only subscribes to what it needs
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Form state escape hatch for components that legitimately render both
+ * inside and outside the Studio workspace tree — e.g. QuickSetupDialog
+ * appears in StudioPromptArea (inside StudioProvider) AND in
+ * LoraTrainingForm on /studio/lora (outside StudioProvider). Returns
+ * null when no provider is present so the caller can decide what to do
+ * (typically: skip the dispatch that only makes sense inside Studio).
+ * Use the throwing useStudioForm() unless you have this dual-context need.
+ */
+export function useStudioFormOptional(): StudioFormContextValue | null {
+  return useContext(StudioFormContext)
+}
+
 /** Form state (prompt, mode, panels, aspect ratio) — re-renders on keystrokes */
 export function useStudioForm(): StudioFormContextValue {
   const ctx = useContext(StudioFormContext)

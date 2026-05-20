@@ -44,7 +44,8 @@ describe('listCivitaiLoras', () => {
                 id: 135867,
                 name: 'v1.0',
                 baseModel: 'SDXL 1.0',
-                publishedAt: '2023-08-07T14:55:02.627Z',
+                publishedAt: null,
+                createdAt: '2023-08-07T14:55:02.627Z',
                 trainedWords: ['add detail'],
                 stats: { downloadCount: 8, thumbsUpCount: 3 },
                 files: [
@@ -85,7 +86,9 @@ describe('listCivitaiLoras', () => {
     expect(requestUrl.searchParams.get('page')).toBeNull()
     expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
     expect(requestUrl.searchParams.get('query')).toBe('detail')
-    expect(requestUrl.searchParams.get('baseModels')).toBe('SDXL 1.0')
+    // We don't forward baseModels to Civitai (their filter drops matching
+    // LoRAs). Client-side filtering happens after fetch.
+    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
     expect(requestUrl.searchParams.get('sort')).toBe('Most Downloaded')
     expect(result.items).toHaveLength(1)
     expect(result.items[0]).toMatchObject({
@@ -101,13 +104,14 @@ describe('listCivitaiLoras', () => {
       creatorName: 'w4r10ck',
       downloadCount: 8,
       thumbsUpCount: 3,
+      createdAt: '2023-08-07T14:55:02.627Z',
     })
     expect(result.total).toBe(1)
     expect(result.hasNextPage).toBe(true)
     expect(result.nextCursor).toBe('cursor-3')
   })
 
-  it('keeps page pagination for non-search library requests', async () => {
+  it('passes cursor for non-search library pagination', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [],
@@ -115,13 +119,223 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ page: 3 })
+    const result = await listCivitaiLoras({
+      page: 3,
+      cursor: 'cursor-2',
+      baseModel: 'Anima',
+    })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('page')).toBe('3')
     expect(requestUrl.searchParams.get('query')).toBeNull()
-    expect(requestUrl.searchParams.get('cursor')).toBeNull()
+    expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
+    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
     expect(result.nextCursor).toBeNull()
+  })
+
+  it('over-fetches and client-side filters by base model family bucket', async () => {
+    const versionFor = (baseModel: string, id: number) => ({
+      id,
+      name: 'v1',
+      baseModel,
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: ['trigger'],
+    })
+
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Illustrious LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Illustrious', 101)],
+          },
+          {
+            id: 2,
+            name: 'NoobAI LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('NoobAI', 102)],
+          },
+          {
+            id: 3,
+            name: 'SDXL LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('SDXL 1.0', 103)],
+          },
+          {
+            id: 4,
+            name: 'Anima LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Anima', 104)],
+          },
+        ],
+        metadata: { nextCursor: 'cursor-next' },
+      }),
+    )
+
+    const result = await listCivitaiLoras({
+      baseModel: 'Illustrious',
+      pageSize: 10,
+    })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    // Over-fetch: pageSize 10 × 4 = 40
+    expect(requestUrl.searchParams.get('limit')).toBe('40')
+    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
+
+    // Illustrious bucket admits NoobAI (shared weight structure).
+    expect(result.items.map((item) => item.baseModelFamily)).toEqual([
+      'Illustrious',
+      'NoobAI',
+    ])
+    expect(result.hasNextPage).toBe(true)
+  })
+
+  it('forwards Civitai license fields to library items', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 9,
+            name: 'Licensed LoRA',
+            type: 'LORA',
+            allowCommercialUse: ['Image', 'Rent', 'Sell'],
+            allowDerivatives: true,
+            modelVersions: [
+              {
+                id: 99,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/99',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items[0]).toMatchObject({
+      allowCommercialUse: ['Image', 'Rent', 'Sell'],
+      allowDerivatives: true,
+    })
+  })
+
+  it('parses Civitai PostgreSQL array literal allowCommercialUse strings', async () => {
+    // Civitai's REAL response shape — PG array literal, not JSON array.
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 11,
+            name: 'PG-literal LoRA',
+            type: 'LORA',
+            allowCommercialUse: '{Image,RentCivit,Rent}',
+            allowDerivatives: true,
+            modelVersions: [
+              {
+                id: 111,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/111',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 12,
+            name: 'Empty PG-literal LoRA',
+            type: 'LORA',
+            allowCommercialUse: '{}',
+            allowDerivatives: false,
+            modelVersions: [
+              {
+                id: 112,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/112',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items[0]?.allowCommercialUse).toEqual([
+      'Image',
+      'RentCivit',
+      'Rent',
+    ])
+    expect(result.items[1]?.allowCommercialUse).toEqual([])
+  })
+
+  it('defaults license fields when Civitai omits them', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 10,
+            name: 'No License Info',
+            type: 'LORA',
+            modelVersions: [
+              {
+                id: 100,
+                name: 'v1',
+                baseModel: 'Illustrious',
+                trainedWords: ['trigger'],
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/100',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items[0]).toMatchObject({
+      allowCommercialUse: [],
+      allowDerivatives: false,
+    })
   })
 
   it('skips LoRA entries without a downloadable model version', async () => {

@@ -207,11 +207,13 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
   //      empty: Anima LoRAs are trained against the Anima checkpoint
   //      with vocab/layer names that don't map to NoobAI's structure.
   //
-  // Until a confirmed Anima checkpoint mirror is identified (search
-  // Replicate Explore for "anima" or check fal.ai's model registry),
-  // this entry stays available:false so the StudioLoraChip compatibility
-  // banner can fall back to its "needs API key / no available model"
-  // hint rather than dispatching users into a guaranteed-failure path.
+  // We also tried fal-ai/qwen-image based on a misreading of "Anima"
+  // LoRA file headers — Qwen-Image is a different MMDiT architecture and
+  // shares zero weight structure with Anima Pencil XL (SDXL finetune).
+  // Until a confirmed Anima checkpoint mirror is identified, this entry
+  // stays available:false. The Civitai LoRA library now routes Anima
+  // baseModel LoRAs to "open in Civitai" instead of trying to generate
+  // locally, so no user is dispatched into a guaranteed-failure path.
   {
     id: AI_MODELS.ANIMA_PENCIL_XL,
     cost: 2,

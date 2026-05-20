@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { toast } from 'sonner'
@@ -20,14 +20,16 @@ import {
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
+import { AI_MODELS } from '@/constants/models'
 import { IMAGE_MODEL_OPTIONS } from '@/constants/models/image'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { getProviderLabel } from '@/constants/providers'
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import {
   Popover,
   PopoverContent,
@@ -64,6 +66,13 @@ type CompatibilityKind =
   | 'unsupported' // current model has supportsLora: false
   | 'no-model' // user has not picked a model yet
 
+interface QuickSetupTarget {
+  modelId: string
+  modelLabel: string
+  adapterType: AI_ADAPTER_TYPES
+  optionId: string
+}
+
 interface Compatibility {
   kind: CompatibilityKind
   /** What family the loaded LoRAs need (e.g. "Flux.1 D", "SDXL 1.0"). */
@@ -72,15 +81,19 @@ interface Compatibility {
    * Concrete route to switch to. `optionId` is the keyId+modelId composite
    * the studio reducer expects; we only fill this when the user actually
    * has a usable route (saved key OR free-tier). If null but
-   * `recommendedModelName` is set, the user needs to add an API key —
-   * the banner surfaces this explicitly rather than silently routing to
-   * a workspace placeholder that can't generate.
+   * `quickSetupTarget` is set, the user needs to add an API key — we
+   * open QuickSetupDialog instead of dispatching a placeholder route.
    */
   recommendedOptionId: string | null
   recommendedModelName: string | null
   /** Provider label ("FAL", "Replicate") of the recommended model — shown
    *  in the "needs API key" hint so users know what to configure. */
   recommendedProviderLabel: string | null
+  /** When the user has no saved key for the recommended model but the
+   *  model itself exists, this carries the modelId + adapter info needed
+   *  to launch QuickSetupDialog directly from the "切到 X" button — no
+   *  intermediate "needs API key" copy step. */
+  quickSetupTarget: QuickSetupTarget | null
   currentModelName: string | null
 }
 
@@ -95,10 +108,6 @@ type FamilyBucket = 'flux' | 'sdxl' | 'anima' | 'other'
 function familyBucket(raw: string): FamilyBucket {
   const v = raw.toLowerCase()
   if (v.includes('flux')) return 'flux'
-  // Anima is technically an SDXL finetune, but it has its own checkpoint
-  // and Civitai LoRAs marked "Anima" are tuned against it specifically —
-  // route them to the dedicated anima-pencil-xl model rather than the
-  // Illustrious/NoobAI path so users get LoRA effects as authored.
   if (v.includes('anima')) return 'anima'
   if (
     v.includes('sdxl') ||
@@ -115,10 +124,11 @@ function modelBucket(modelId: string | null): FamilyBucket | null {
   if (!modelId) return null
   const option = IMAGE_MODEL_OPTIONS.find((m) => m.id === modelId)
   if (!option?.supportsLora) return 'other'
-  // FLUX_2_DEV + FLUX_LORA → flux; ILLUSTRIOUS_XL → sdxl; ANIMA_PENCIL_XL → anima
-  if (option.id === 'flux-2-dev' || option.id === 'flux-lora') return 'flux'
-  if (option.id === 'illustrious-xl') return 'sdxl'
-  if (option.id === 'anima-pencil-xl') return 'anima'
+  if (option.id === AI_MODELS.FLUX_2_DEV || option.id === AI_MODELS.FLUX_LORA) {
+    return 'flux'
+  }
+  if (option.id === AI_MODELS.ILLUSTRIOUS_XL) return 'sdxl'
+  if (option.id === AI_MODELS.ANIMA_PENCIL_XL) return 'anima'
   return 'other'
 }
 
@@ -194,6 +204,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         recommendedOptionId: null,
         recommendedModelName: null,
         recommendedProviderLabel: null,
+        quickSetupTarget: null,
         currentModelName,
       }
     }
@@ -203,11 +214,11 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
     // endpoint — flux-2-dev's LoRA injection is less reliable.
     const recommendedModelId =
       family === 'flux'
-        ? 'flux-lora'
+        ? AI_MODELS.FLUX_LORA
         : family === 'sdxl'
-          ? 'illustrious-xl'
+          ? AI_MODELS.ILLUSTRIOUS_XL
           : family === 'anima'
-            ? 'anima-pencil-xl'
+            ? AI_MODELS.ANIMA_PENCIL_XL
             : null
 
     // The model itself (label + provider label) is always known from the
@@ -245,6 +256,24 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         }
       : null
 
+    // If there's no usable route (no saved key, no free tier) but the model
+    // exists as a workspace placeholder, capture enough info to launch
+    // QuickSetupDialog directly from the "切到 X" button — skip the
+    // intermediate "needs API key" copy step the user reported.
+    const quickSetupTarget: QuickSetupTarget | null =
+      !recommended && recommendedStaticOption && recommendedModelName
+        ? (() => {
+            const placeholder = candidates[0]
+            if (!placeholder) return null
+            return {
+              modelId: recommendedStaticOption.id,
+              modelLabel: recommendedModelName,
+              adapterType: recommendedStaticOption.adapterType,
+              optionId: placeholder.optionId,
+            }
+          })()
+        : null
+
     if (!currentImageModel) {
       return {
         kind: 'no-model',
@@ -252,6 +281,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         recommendedOptionId: recommended?.optionId ?? null,
         recommendedModelName: recommendedModelName ?? null,
         recommendedProviderLabel,
+        quickSetupTarget,
         currentModelName: null,
       }
     }
@@ -263,6 +293,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         recommendedOptionId: recommended?.optionId ?? null,
         recommendedModelName: recommendedModelName ?? null,
         recommendedProviderLabel,
+        quickSetupTarget,
         currentModelName,
       }
     }
@@ -274,6 +305,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
         recommendedOptionId: recommended?.optionId ?? null,
         recommendedModelName: recommendedModelName ?? null,
         recommendedProviderLabel,
+        quickSetupTarget,
         currentModelName,
       }
     }
@@ -284,196 +316,226 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
       recommendedOptionId: null,
       recommendedModelName: null,
       recommendedProviderLabel: null,
+      quickSetupTarget: null,
       currentModelName,
     }
   }, [items, modelOptions, selectedModel, tModels])
 
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    target: QuickSetupTarget | null
+  }>({ open: false, target: null })
+
   const handlePickRecommended = () => {
+    // Prefer dispatching a real route the user already has (saved key /
+    // free tier). If none exists but the model is wired up, jump straight
+    // into QuickSetupDialog so the user can paste their key + auto-select
+    // the model in one step (skipping the old "needs API key" copy block).
     if (compatibility.recommendedOptionId) {
       dispatch({
         type: 'SET_OPTION_ID',
         payload: compatibility.recommendedOptionId,
       })
+      return
+    }
+    if (compatibility.quickSetupTarget) {
+      setQuickSetup({ open: true, target: compatibility.quickSetupTarget })
     }
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Toolbar.Button
-          type="button"
-          disabled={disabled}
-          aria-label={
-            count > 0 ? t('triggerWithCount', { count }) : t('trigger')
-          }
-          className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-            count > 0 ? 'bg-muted/30 text-primary' : 'text-muted-foreground',
-          )}
-        >
-          <Palette className="size-4" aria-hidden />
-          <span className="hidden sm:inline">{t('label')}</span>
-          {count > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
-              {count}
-            </span>
-          ) : null}
-        </Toolbar.Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 space-y-3" align="end" side="top">
-        <CompatibilityBanner
-          compatibility={compatibility}
-          loadedCount={items.length}
-          onPickRecommended={handlePickRecommended}
+    <>
+      {quickSetup.target ? (
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(open) => setQuickSetup((prev) => ({ ...prev, open }))}
+          modelId={quickSetup.target.modelId}
+          modelLabel={quickSetup.target.modelLabel}
+          adapterType={quickSetup.target.adapterType}
+          optionId={quickSetup.target.optionId}
         />
+      ) : null}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Toolbar.Button
+            type="button"
+            disabled={disabled}
+            aria-label={
+              count > 0 ? t('triggerWithCount', { count }) : t('trigger')
+            }
+            className={cn(
+              'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition-all duration-200',
+              'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+              count > 0 ? 'bg-muted/30 text-primary' : 'text-muted-foreground',
+            )}
+          >
+            <Palette className="size-4" aria-hidden />
+            <span className="hidden sm:inline">{t('label')}</span>
+            {count > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
+                {count}
+              </span>
+            ) : null}
+          </Toolbar.Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 space-y-3" align="end" side="top">
+          <CompatibilityBanner
+            compatibility={compatibility}
+            loadedCount={items.length}
+            onPickRecommended={handlePickRecommended}
+          />
 
-        {items.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-center text-xs text-muted-foreground">
-            {t('emptyHint')}
-          </div>
-        ) : (
-          <ul className="space-y-2.5">
-            {items.map((entry) => {
-              const scale = entry.scale ?? entry.asset.defaultScale
-              const triggerInPrompt = promptIncludesTrigger(
-                state.prompt,
-                entry.asset.triggerWord,
-              )
-              return (
-                <li
-                  key={entry.asset.id}
-                  className="rounded-lg border border-border/60 bg-card/40 p-2.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {entry.asset.name}
-                      </p>
-                      <p className="truncate text-2xs text-muted-foreground">
-                        {entry.asset.baseModelFamily}
-                      </p>
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-center text-xs text-muted-foreground">
+              {t('emptyHint')}
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {items.map((entry) => {
+                const scale = entry.scale ?? entry.asset.defaultScale
+                const triggerInPrompt = promptIncludesTrigger(
+                  state.prompt,
+                  entry.asset.triggerWord,
+                )
+                return (
+                  <li
+                    key={entry.asset.id}
+                    className="rounded-lg border border-border/60 bg-card/40 p-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {entry.asset.name}
+                        </p>
+                        <p className="truncate text-2xs text-muted-foreground">
+                          {entry.asset.baseModelFamily}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => remove(entry.asset.id)}
+                        className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label={t('removeAria', { name: entry.asset.name })}
+                      >
+                        <X className="size-3.5" aria-hidden />
+                      </button>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => remove(entry.asset.id)}
-                      className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label={t('removeAria', { name: entry.asset.name })}
+                      onClick={() =>
+                        handleInsertTrigger(entry.asset.triggerWord)
+                      }
+                      disabled={triggerInPrompt}
+                      className={cn(
+                        'mt-2 inline-flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-2xs font-mono transition-colors',
+                        triggerInPrompt
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                          : 'border-border/60 text-foreground hover:bg-muted',
+                      )}
+                      aria-label={
+                        triggerInPrompt
+                          ? t('triggerAlreadyInPrompt')
+                          : t('insertTrigger', {
+                              word: entry.asset.triggerWord,
+                            })
+                      }
+                      title={
+                        triggerInPrompt
+                          ? t('triggerAlreadyInPrompt')
+                          : t('insertTriggerHint')
+                      }
                     >
-                      <X className="size-3.5" aria-hidden />
+                      <span className="truncate">
+                        {entry.asset.triggerWord}
+                      </span>
+                      <span className="shrink-0 text-2xs">
+                        {triggerInPrompt
+                          ? t('triggerInPromptBadge')
+                          : t('insertTriggerBadge')}
+                      </span>
                     </button>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleInsertTrigger(entry.asset.triggerWord)}
-                    disabled={triggerInPrompt}
-                    className={cn(
-                      'mt-2 inline-flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-2xs font-mono transition-colors',
-                      triggerInPrompt
-                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                        : 'border-border/60 text-foreground hover:bg-muted',
-                    )}
-                    aria-label={
-                      triggerInPrompt
-                        ? t('triggerAlreadyInPrompt')
-                        : t('insertTrigger', {
-                            word: entry.asset.triggerWord,
-                          })
-                    }
-                    title={
-                      triggerInPrompt
-                        ? t('triggerAlreadyInPrompt')
-                        : t('insertTriggerHint')
-                    }
-                  >
-                    <span className="truncate">{entry.asset.triggerWord}</span>
-                    <span className="shrink-0 text-2xs">
-                      {triggerInPrompt
-                        ? t('triggerInPromptBadge')
-                        : t('insertTriggerBadge')}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleUseTemplate({
+                          triggerWord: entry.asset.triggerWord,
+                          type: entry.asset.type,
+                          name: entry.asset.name,
+                        })
+                      }
+                      className="mt-1.5 inline-flex w-full items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs transition-colors hover:bg-muted"
+                      aria-label={t('useTemplate', { name: entry.asset.name })}
+                      title={t('useTemplateHint')}
+                    >
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Wand2 className="size-3" aria-hidden />
+                        {t('useTemplate', { name: entry.asset.name })}
+                      </span>
+                      <span className="shrink-0 text-2xs text-muted-foreground">
+                        {t('useTemplateBadge')}
+                      </span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleUseTemplate({
-                        triggerWord: entry.asset.triggerWord,
-                        type: entry.asset.type,
-                        name: entry.asset.name,
-                      })
-                    }
-                    className="mt-1.5 inline-flex w-full items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs transition-colors hover:bg-muted"
-                    aria-label={t('useTemplate', { name: entry.asset.name })}
-                    title={t('useTemplateHint')}
-                  >
-                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      <Wand2 className="size-3" aria-hidden />
-                      {t('useTemplate', { name: entry.asset.name })}
-                    </span>
-                    <span className="shrink-0 text-2xs text-muted-foreground">
-                      {t('useTemplateBadge')}
-                    </span>
-                  </button>
+                    <div className="mt-2 flex items-center gap-3">
+                      <Slider
+                        min={SCALE_MIN}
+                        max={SCALE_MAX}
+                        step={SCALE_STEP}
+                        value={[scale]}
+                        onValueChange={(next) => {
+                          const v = next[0]
+                          if (typeof v === 'number') setScale(entry.asset.id, v)
+                        }}
+                        className="flex-1"
+                      />
+                      <span className="w-12 shrink-0 text-right font-mono text-xs">
+                        ×{scale.toFixed(2)}
+                      </span>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
 
-                  <div className="mt-2 flex items-center gap-3">
-                    <Slider
-                      min={SCALE_MIN}
-                      max={SCALE_MAX}
-                      step={SCALE_STEP}
-                      value={[scale]}
-                      onValueChange={(next) => {
-                        const v = next[0]
-                        if (typeof v === 'number') setScale(entry.asset.id, v)
-                      }}
-                      className="flex-1"
-                    />
-                    <span className="w-12 shrink-0 text-right font-mono text-xs">
-                      ×{scale.toFixed(2)}
-                    </span>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-
-        <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-          <Link
-            href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
-            className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-primary"
-          >
-            <ArrowUpRight className="size-3.5" aria-hidden />
-            {t('openLibrary')}
-          </Link>
-          <div className="flex items-center gap-3 text-xs">
-            {items.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => void handleShare()}
-                className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
-                aria-label={t('share')}
-                title={t('share')}
-              >
-                <Share2 className="size-3.5" aria-hidden />
-                {t('share')}
-              </button>
-            ) : null}
-            {items.length > 0 ? (
-              <button
-                type="button"
-                onClick={clear}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {t('clearAll')}
-              </button>
-            ) : null}
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+            <Link
+              href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-primary"
+            >
+              <ArrowUpRight className="size-3.5" aria-hidden />
+              {t('openLibrary')}
+            </Link>
+            <div className="flex items-center gap-3 text-xs">
+              {items.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void handleShare()}
+                  className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
+                  aria-label={t('share')}
+                  title={t('share')}
+                >
+                  <Share2 className="size-3.5" aria-hidden />
+                  {t('share')}
+                </button>
+              ) : null}
+              {items.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  {t('clearAll')}
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </>
   )
 }
 
@@ -489,6 +551,13 @@ function CompatibilityBanner({
   onPickRecommended,
 }: CompatibilityBannerProps) {
   const t = useTranslations('StudioLoraChip')
+  // Either path leads through onPickRecommended — directly dispatch when
+  // recommendedOptionId is set (saved key / free tier), otherwise open
+  // QuickSetupDialog via quickSetupTarget. UI label differs based on which.
+  const isReadyToSwitch = Boolean(compatibility.recommendedOptionId)
+  const canTakeAction =
+    (isReadyToSwitch || Boolean(compatibility.quickSetupTarget)) &&
+    Boolean(compatibility.recommendedModelName)
 
   if (loadedCount === 0) {
     return (
@@ -541,8 +610,7 @@ function CompatibilityBanner({
                 })}
         </span>
       </div>
-      {compatibility.recommendedOptionId &&
-      compatibility.recommendedModelName ? (
+      {canTakeAction ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -550,26 +618,22 @@ function CompatibilityBanner({
               onClick={onPickRecommended}
               className="self-start rounded-md border border-current px-2 py-0.5 text-2xs font-medium hover:bg-current/10"
             >
-              {t('pickModel', { model: compatibility.recommendedModelName })}
+              {isReadyToSwitch
+                ? t('pickModel', {
+                    model: compatibility.recommendedModelName ?? '',
+                  })
+                : t('pickModelSetup', {
+                    model: compatibility.recommendedModelName ?? '',
+                  })}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">{t('pickModelHint')}</TooltipContent>
+          <TooltipContent side="bottom">
+            {isReadyToSwitch ? t('pickModelHint') : t('pickModelSetupHint')}
+          </TooltipContent>
         </Tooltip>
-      ) : compatibility.recommendedModelName &&
-        compatibility.recommendedProviderLabel ? (
-        // No saved key + no free-tier route → don't silently dispatch to a
-        // workspace placeholder. Tell the user exactly which API key
-        // they're missing so they can go add it in Settings / Advanced.
-        <p className="self-start rounded-md border border-current/50 bg-current/5 px-2 py-1 text-2xs leading-snug">
-          {t('needsApiKey', {
-            model: compatibility.recommendedModelName,
-            provider: compatibility.recommendedProviderLabel,
-          })}
-        </p>
       ) : compatibility.neededFamily ? (
-        // No recommended model wired up for this family at all (e.g. Anima
-        // until we identify a real endpoint, SD 1.5 indefinitely). Tell
-        // users it's a platform-side gap, not a misconfiguration.
+        // No recommended model wired up for this family at all (e.g. SD 1.5).
+        // Tell users it's a platform-side gap, not a misconfiguration.
         <p className="self-start rounded-md border border-current/50 bg-current/5 px-2 py-1 text-2xs leading-snug">
           {t('bannerNoEndpoint', {
             family: compatibility.neededFamily,

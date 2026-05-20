@@ -3,6 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import {
+  CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
   CIVITAI_LORA_PAGE_SIZE,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
@@ -45,8 +46,8 @@ const CivitaiModelVersionSchema = z
     id: z.number(),
     name: z.string(),
     baseModel: z.string().nullable().optional(),
-    publishedAt: z.string().optional(),
-    createdAt: z.string().optional(),
+    publishedAt: z.string().nullable().optional(),
+    createdAt: z.string().nullable().optional(),
     trainedWords: z.array(z.string()).optional(),
     downloadUrl: z.string().url().optional(),
     files: z.array(CivitaiFileSchema).optional(),
@@ -54,6 +55,22 @@ const CivitaiModelVersionSchema = z
     stats: CivitaiStatsSchema.optional(),
   })
   .passthrough()
+
+// Civitai 把 allowCommercialUse 序列化成 PostgreSQL array literal 字符串，例如
+// '{Image,RentCivit,Rent}' 或空集合 '{}'，不是 JSON array。preprocess 在 Zod
+// 校验前把它归一成 string[]，同时兼容未来 Civitai 改成真正 JSON array 的可能。
+function parseAllowCommercialUse(value: unknown): unknown {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return value
+  const inner = trimmed.slice(1, -1).trim()
+  if (inner === '') return []
+  return inner
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
 
 const CivitaiModelSchema = z
   .object({
@@ -70,6 +87,11 @@ const CivitaiModelSchema = z
       .optional(),
     stats: CivitaiStatsSchema.optional(),
     modelVersions: z.array(CivitaiModelVersionSchema).optional(),
+    allowCommercialUse: z.preprocess(
+      parseAllowCommercialUse,
+      z.array(z.string()).optional(),
+    ),
+    allowDerivatives: z.boolean().optional(),
   })
   .passthrough()
 
@@ -185,6 +207,8 @@ function toLibraryItem(
       version.stats?.downloadCount ?? model.stats?.downloadCount ?? 0,
     thumbsUpCount:
       version.stats?.thumbsUpCount ?? model.stats?.thumbsUpCount ?? 0,
+    allowCommercialUse: model.allowCommercialUse ?? [],
+    allowDerivatives: model.allowDerivatives ?? false,
   }
 }
 
@@ -234,6 +258,11 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   }
 }
 
+// 用 baseModel filter 时把 upstream limit 放大，因为客户端过滤会丢掉一部分。
+// 4× 是经验值：搜 "Wuthering Waves" 时 Illustrious 占比 ~30%（9/30），4× 能让
+// 客户端在一次 upstream 请求里大概率攒满 pageSize。
+const UPSTREAM_OVERFETCH_MULTIPLIER = 4
+
 export async function listCivitaiLoras({
   page = 1,
   pageSize = CIVITAI_LORA_PAGE_SIZE,
@@ -245,18 +274,22 @@ export async function listCivitaiLoras({
   const url = new URL(CIVITAI_MODELS_API)
   const normalizedSearch = search?.trim() ?? ''
   const nextPageCursor = cursor?.trim() ?? ''
+  const upstreamLimit =
+    baseModel === 'all' ? pageSize : pageSize * UPSTREAM_OVERFETCH_MULTIPLIER
 
   url.searchParams.set('types', 'LORA')
-  url.searchParams.set('limit', String(pageSize))
+  url.searchParams.set('limit', String(upstreamLimit))
   url.searchParams.set('sort', sort)
   url.searchParams.set('nsfw', 'false')
   if (normalizedSearch) {
     url.searchParams.set('query', normalizedSearch)
-    if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
   } else {
     url.searchParams.set('page', String(page))
   }
-  if (baseModel !== 'all') url.searchParams.set('baseModels', baseModel)
+  if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
+  // Intentionally not setting `baseModels` — Civitai's filter has a coverage
+  // bug that drops most matching LoRAs (see CIVITAI_BASE_MODEL_FAMILY_MEMBERS).
+  // We over-fetch and filter on baseModelFamily below.
 
   try {
     // Civitai's public API blips with intermittent 5xx/timeouts — withRetry
@@ -270,9 +303,21 @@ export async function listCivitaiLoras({
       label: 'civitai.listLoras',
     })
     const parsed = CivitaiModelsResponseSchema.parse(payload)
-    const items = parsed.items
+    const allItems = parsed.items
       .map(toLibraryItem)
       .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
+
+    const filteredItems =
+      baseModel === 'all'
+        ? allItems
+        : (() => {
+            const accepted = new Set<string>(
+              CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel],
+            )
+            return allItems.filter((item) => accepted.has(item.baseModelFamily))
+          })()
+
+    const items = filteredItems.slice(0, pageSize)
     const nextCursor =
       parsed.metadata?.nextCursor === undefined ||
       parsed.metadata.nextCursor === null
@@ -284,17 +329,20 @@ export async function listCivitaiLoras({
       page,
       pageSize,
       total: parsed.metadata?.totalItems ?? null,
+      // When a filter is on, upstream pagination is the only reliable signal —
+      // even if this page yielded 0 filtered items, the next upstream page
+      // might still have matches. Trust upstream's nextCursor / nextPage.
       hasNextPage:
         Boolean(nextCursor) ||
         Boolean(parsed.metadata?.nextPage) ||
-        (!normalizedSearch && items.length >= pageSize),
+        (!normalizedSearch && allItems.length >= upstreamLimit),
       nextCursor,
     }
   } catch (error) {
     logger.warn('Civitai LoRA library request failed', {
       error: error instanceof Error ? error.message : 'Unknown',
       page,
-      cursor: normalizedSearch ? nextPageCursor || null : null,
+      cursor: nextPageCursor || null,
       search: normalizedSearch || undefined,
       baseModel,
       sort,

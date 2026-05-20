@@ -890,8 +890,9 @@
     "bannerFamilyMismatch": "当前模型「{model}」与 {family} LoRA 不兼容 — 生成结果不会带 LoRA 风格。",
     "pickModel": "切到 {model}",
     "pickModelHint": "用 LoRA 的基础架构选一个能跑的模型",
-    "needsApiKey": "推荐用「{model}」，但你还没配置 {provider} 的 API key — 先去高级 → API 路由里添加。",
-    "bannerNoEndpoint": "{family} 暂无内置推理 endpoint — 我们还在找稳定的镜像。可以先用 Illustrious XL 兼容跑，效果会偏离 base 模型。"
+    "pickModelSetup": "配置 {model} 解锁",
+    "pickModelSetupHint": "你还没配这个模型的 API key — 点开后 2 分钟搞定",
+    "bannerNoEndpoint": "目前还没有稳定 endpoint 能跑 Civitai 原始 {family} LoRA。请移除这个 LoRA，或换用其他 LoRA 系列。"
   },
   "LoraWorkbench": {
     "tabs": {
@@ -962,7 +963,12 @@
     "favoriteAdded": "已加入收藏 — 可以在「我的 → 收藏」找到。",
     "favoriteRemoved": "已取消收藏",
     "favoriteFailed": "收藏失败",
-    "viewCover": "查看封面大图"
+    "viewCover": "查看封面大图",
+    "useExternal": "在 Civitai 打开",
+    "externalBadgeHint": "这个基础模型在 PixelVault 不支持，需要去 Civitai 生成",
+    "externalInspectorHint": "{family} 系列 LoRA 在 PixelVault 暂无可用推理端点，点击下方按钮跳转 Civitai 生成。",
+    "communityOpenInCivitai": "在 Civitai 生成",
+    "externalUseRedirect": "正在跳转 Civitai：{name}"
   },
   "UseLoraButton": {
     "action": "使用 LoRA",
@@ -1891,8 +1897,8 @@
       "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
     },
     "animaPencilXl": {
-      "label": "Anima Pencil XL",
-      "description": "（暂未上线）Anima 检查点专属 LoRA 需要 Anima ckpt 推理 — Replicate / fal 上还没找到稳定镜像。等接入后会自动启用。"
+      "label": "Anima Base LoRA",
+      "description": "通过 fal.ai Qwen Image 运行 Anima/Qwen LoRA，支持使用 Qwen-Image 模块命名的 Civitai Anima LoRA 权重。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -2307,6 +2313,7 @@
       "modelRequired": "请先选择模型",
       "promptRequired": "请输入提示词后再生成",
       "referenceRequired": "这个模型需要参考图",
+      "referenceUnsupported": "当前模型不会读取参考图。请先移除参考图，或切换到支持参考图的模型。",
       "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
       "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。"
     },

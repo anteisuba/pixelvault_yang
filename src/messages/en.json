@@ -890,8 +890,9 @@
     "bannerFamilyMismatch": "Current model \"{model}\" is not compatible with {family} LoRAs — they won't take effect.",
     "pickModel": "Switch to {model}",
     "pickModelHint": "Pick a model that matches the LoRA's base architecture",
-    "needsApiKey": "Recommended: {model} — but you haven't added a {provider} API key yet. Add one under Advanced → API routes first.",
-    "bannerNoEndpoint": "No built-in inference endpoint for {family} yet — we're still hunting a stable mirror. You can try running it on Illustrious XL as a compatibility shim; results will drift from the intended base model."
+    "pickModelSetup": "Set up {model}",
+    "pickModelSetupHint": "You don't have an API key for this model yet — 2 minutes to configure",
+    "bannerNoEndpoint": "No stable endpoint can run raw Civitai {family} LoRAs yet. Remove this LoRA or choose a different LoRA family."
   },
   "LoraWorkbench": {
     "tabs": {
@@ -962,7 +963,12 @@
     "favoriteAdded": "Added to favorites — find it under Mine → Favorites.",
     "favoriteRemoved": "Removed from favorites",
     "favoriteFailed": "Couldn't add favorite",
-    "viewCover": "View full cover"
+    "viewCover": "View full cover",
+    "useExternal": "Open in Civitai",
+    "externalBadgeHint": "This base model isn't supported in PixelVault — generate on Civitai instead",
+    "externalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to generate on Civitai.",
+    "communityOpenInCivitai": "Generate on Civitai",
+    "externalUseRedirect": "Opening on Civitai: {name}"
   },
   "UseLoraButton": {
     "action": "Use LoRA",
@@ -1891,8 +1897,8 @@
       "description": "Anime/illustration-specialized model with the largest LoRA ecosystem on Civitai. Supports dual LoRA."
     },
     "animaPencilXl": {
-      "label": "Anima Pencil XL",
-      "description": "(Not yet available) Anima LoRAs require the Anima checkpoint for inference — no stable Replicate / fal mirror confirmed yet. Will activate once a real endpoint is wired up."
+      "label": "Anima Base LoRA",
+      "description": "Anima/Qwen LoRA route via fal.ai Qwen Image. Supports Civitai Anima LoRA weights that use Qwen-Image modules."
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -2307,6 +2313,7 @@
       "modelRequired": "Pick a model first",
       "promptRequired": "Type a prompt to generate",
       "referenceRequired": "This model needs a reference image",
+      "referenceUnsupported": "The selected model will not read reference images. Remove the reference image or switch to a reference-aware model.",
       "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
       "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating."
     },

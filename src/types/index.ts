@@ -2926,6 +2926,11 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   tags: z.array(z.string()),
   downloadCount: z.number(),
   thumbsUpCount: z.number(),
+  // Civitai 的作者声明：哪些商用场景被允许。常见值：'Image'（卖生成图）、
+  // 'RentCivit'（仅 Civitai 平台租 GPU）、'Rent'（任意第三方推理服务）、
+  // 'Sell'（出售模型本身）。我们在 UI 上用这个字段做 license 徽章 + 过滤。
+  allowCommercialUse: z.array(z.string()),
+  allowDerivatives: z.boolean(),
 })
 
 export type CivitaiLoraLibraryItem = z.infer<

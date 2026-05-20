@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Compass,
   Download,
+  ExternalLink,
   GraduationCap,
   Heart,
   History,
@@ -26,6 +27,7 @@ import {
   DEFAULT_LORA_WORKBENCH_SECTION,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
+  isCivitaiBaseModelGeneratable,
   isCivitaiLoraBaseModel,
   isCivitaiLoraSort,
   isLoraWorkbenchSection,
@@ -343,6 +345,15 @@ function CivitaiCommunityBranch({
 
   const handleUse = useCallback(
     (item: CivitaiLoraLibraryItem) => {
+      // External base models (Pony / SD 1.5 / Anima): PixelVault has no
+      // working inference endpoint or the license forbids third-party
+      // hosted generation. Send the user to Civitai to generate there
+      // rather than dispatching them into a guaranteed-failure path.
+      if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
+        window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
+        toast.info(t('externalUseRedirect', { name: item.name }))
+        return
+      }
       stack.push(item)
       toast.success(t('addedToStack', { name: item.name }))
       router.push(ROUTES.STUDIO_IMAGE)
@@ -625,6 +636,7 @@ function CivitaiLoraRow({
   onFavorite,
 }: CivitaiLoraRowProps) {
   const t = useTranslations('LoraWorkbench')
+  const isGeneratable = isCivitaiBaseModelGeneratable(item.baseModelFamily)
 
   return (
     <div
@@ -646,7 +658,18 @@ function CivitaiLoraRow({
             <span className="truncate text-sm font-medium text-foreground">
               {item.name}
             </span>
-            <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs',
+                isGeneratable
+                  ? 'bg-muted/60 text-muted-foreground'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+              )}
+              title={isGeneratable ? undefined : t('externalBadgeHint')}
+            >
+              {!isGeneratable ? (
+                <ExternalLink className="size-3" aria-hidden />
+              ) : null}
               {item.baseModelFamily}
             </span>
           </div>
@@ -676,12 +699,29 @@ function CivitaiLoraRow({
       </Button>
       <Button
         type="button"
-        variant={isActive ? 'secondary' : 'ghost'}
+        variant={isActive && isGeneratable ? 'secondary' : 'ghost'}
         size="icon-sm"
         onClick={() => onUse(item)}
-        aria-label={isActive ? t('alreadyInUse') : t('use')}
+        aria-label={
+          !isGeneratable
+            ? t('useExternal')
+            : isActive
+              ? t('alreadyInUse')
+              : t('use')
+        }
+        title={
+          !isGeneratable
+            ? t('useExternal')
+            : isActive
+              ? t('alreadyInUse')
+              : t('use')
+        }
       >
-        <Sparkles className="size-3.5" aria-hidden />
+        {!isGeneratable ? (
+          <ExternalLink className="size-3.5" aria-hidden />
+        ) : (
+          <Sparkles className="size-3.5" aria-hidden />
+        )}
       </Button>
     </div>
   )
@@ -727,6 +767,9 @@ function CivitaiLoraInspector({
   onPreviewCover,
 }: CivitaiLoraInspectorProps) {
   const t = useTranslations('LoraWorkbench')
+  const isGeneratable = item
+    ? isCivitaiBaseModelGeneratable(item.baseModelFamily)
+    : true
 
   if (!item) {
     return (
@@ -839,10 +882,22 @@ function CivitaiLoraInspector({
           </p>
         </div>
 
+        {!isGeneratable ? (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-2xs leading-relaxed text-amber-700 dark:text-amber-300">
+            {t('externalInspectorHint', { family: item.baseModelFamily })}
+          </div>
+        ) : null}
+
         <div className="grid gap-2 pt-2">
           <Button type="button" onClick={() => onUse(item)}>
-            <Sparkles className="size-4" aria-hidden />
-            {t('communityUseInStudio')}
+            {isGeneratable ? (
+              <Sparkles className="size-4" aria-hidden />
+            ) : (
+              <ExternalLink className="size-4" aria-hidden />
+            )}
+            {isGeneratable
+              ? t('communityUseInStudio')
+              : t('communityOpenInCivitai')}
           </Button>
           <Button
             type="button"
@@ -858,12 +913,14 @@ function CivitaiLoraInspector({
             />
             {isFavorited ? t('unfavorite') : t('favorite')}
           </Button>
-          <Button type="button" variant="ghost" asChild>
-            <a href={item.modelPageUrl} target="_blank" rel="noreferrer">
-              <ArrowUpRight className="size-4" aria-hidden />
-              {t('communityOpenSource')}
-            </a>
-          </Button>
+          {isGeneratable ? (
+            <Button type="button" variant="ghost" asChild>
+              <a href={item.modelPageUrl} target="_blank" rel="noreferrer">
+                <ArrowUpRight className="size-4" aria-hidden />
+                {t('communityOpenSource')}
+              </a>
+            </Button>
+          ) : null}
         </div>
       </div>
     </aside>
@@ -903,35 +960,60 @@ interface BaseModelChipRowProps {
 
 function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
   const t = useTranslations('LoraWorkbench')
+
+  // Split chips by generatability so the user sees "things I can run here"
+  // vs "things that send me to Civitai" at a glance. The separator anchors
+  // the visual grouping; external chips also pick up the ExternalLink icon
+  // + amber active color used elsewhere on LoRA cards for the same families.
+  const generatableChips = CIVITAI_LORA_BASE_MODEL_VALUES.filter(
+    (v) => v !== 'all' && isCivitaiBaseModelGeneratable(v),
+  )
+  const externalChips = CIVITAI_LORA_BASE_MODEL_VALUES.filter(
+    (v) => v !== 'all' && !isCivitaiBaseModelGeneratable(v),
+  )
+
+  const renderChip = (option: CivitaiLoraBaseModel) => {
+    const isActive = option === value
+    const isExternal =
+      option !== 'all' && !isCivitaiBaseModelGeneratable(option)
+    const label = option === 'all' ? t('baseModelFilterAll') : option
+    return (
+      <button
+        key={option}
+        type="button"
+        role="radio"
+        aria-checked={isActive}
+        onClick={() => {
+          if (isCivitaiLoraBaseModel(option)) onChange(option)
+        }}
+        title={isExternal ? t('externalBadgeHint') : undefined}
+        className={cn(
+          'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-2xs font-medium transition-colors',
+          isActive
+            ? isExternal
+              ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+              : 'border-primary/40 bg-primary/10 text-primary'
+            : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+        )}
+      >
+        {isExternal ? <ExternalLink className="size-3" aria-hidden /> : null}
+        {label}
+      </button>
+    )
+  }
+
   return (
     <div
       role="radiogroup"
       aria-label={t('baseModelFilterLabel')}
       className="flex flex-wrap items-center gap-1.5"
     >
-      {CIVITAI_LORA_BASE_MODEL_VALUES.map((option) => {
-        const isActive = option === value
-        const label = option === 'all' ? t('baseModelFilterAll') : option
-        return (
-          <button
-            key={option}
-            type="button"
-            role="radio"
-            aria-checked={isActive}
-            onClick={() => {
-              if (isCivitaiLoraBaseModel(option)) onChange(option)
-            }}
-            className={cn(
-              'h-7 rounded-full border px-2.5 text-2xs font-medium transition-colors',
-              isActive
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
-            )}
-          >
-            {label}
-          </button>
-        )
-      })}
+      {renderChip('all')}
+      {generatableChips.map(renderChip)}
+      {externalChips.length > 0 ? (
+        <span className="mx-1 h-4 w-px shrink-0 bg-border/60" aria-hidden />
+      ) : null}
+      {externalChips.map(renderChip)}
     </div>
   )
 }

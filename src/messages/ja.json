@@ -890,8 +890,9 @@
     "bannerFamilyMismatch": "現在のモデル「{model}」は {family} LoRAと互換性がありません — 効果は反映されません。",
     "pickModel": "{model} に切り替え",
     "pickModelHint": "LoRAのベース構造に合うモデルを選びます",
-    "needsApiKey": "推奨: 「{model}」 — まだ {provider} の API キーを追加していません。高度な設定 → API ルートで追加してください。",
-    "bannerNoEndpoint": "{family} 用の組み込み推論エンドポイントはまだありません — 安定したミラーを探しています。当面は Illustrious XL で互換実行できますが、本来のベースモデルとは結果が異なります。"
+    "pickModelSetup": "{model} を設定して解除",
+    "pickModelSetupHint": "このモデルの API キー未設定 — 2 分で設定完了",
+    "bannerNoEndpoint": "Civitai の元の {family} LoRA を安定して実行できるエンドポイントはまだありません。この LoRA を外すか、別の LoRA ファミリーを選んでください。"
   },
   "LoraWorkbench": {
     "tabs": {
@@ -962,7 +963,12 @@
     "favoriteAdded": "お気に入りに追加しました — マイ → お気に入りで確認できます。",
     "favoriteRemoved": "お気に入りから外しました",
     "favoriteFailed": "お気に入りに追加できませんでした",
-    "viewCover": "カバー画像を拡大"
+    "viewCover": "カバー画像を拡大",
+    "useExternal": "Civitaiで開く",
+    "externalBadgeHint": "このベースモデルは PixelVault では非対応です — Civitai で生成してください",
+    "externalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Civitai で生成してください。",
+    "communityOpenInCivitai": "Civitai で生成",
+    "externalUseRedirect": "Civitai に移動します：{name}"
   },
   "UseLoraButton": {
     "action": "LoRAを使う",
@@ -1891,8 +1897,8 @@
       "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
     },
     "animaPencilXl": {
-      "label": "Anima Pencil XL",
-      "description": "（未公開）Anima LoRA の推論には Anima チェックポイントが必要 — 安定した Replicate / fal ミラーが未確認です。エンドポイント接続後に自動的に有効化されます。"
+      "label": "Anima Base LoRA",
+      "description": "fal.ai Qwen Image で Anima/Qwen LoRA を実行します。Qwen-Image モジュール名を使う Civitai の Anima LoRA 重みに対応します。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",
@@ -2307,6 +2313,7 @@
       "modelRequired": "先にモデルを選択してください",
       "promptRequired": "生成するにはプロンプトを入力してください",
       "referenceRequired": "このモデルには参照画像が必要です",
+      "referenceUnsupported": "選択中のモデルは参照画像を読み取りません。参照画像を外すか、参照画像対応モデルに切り替えてください。",
       "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください",
       "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。"
     },

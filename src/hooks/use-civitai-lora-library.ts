@@ -67,9 +67,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     setIsLoading(true)
     setError(null)
     const activeSearch = debouncedSearch.trim()
-    const cursor = activeSearch
-      ? (cursorByPageRef.current.get(page) ?? null)
-      : null
+    const cursor = cursorByPageRef.current.get(page) ?? null
 
     const response = await listCivitaiLoraAssetsAPI({
       page,
@@ -82,12 +80,10 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     if (requestIdRef.current !== requestId) return
 
     if (response.success && response.data) {
-      if (activeSearch) {
-        if (response.data.nextCursor) {
-          cursorByPageRef.current.set(page + 1, response.data.nextCursor)
-        } else {
-          cursorByPageRef.current.delete(page + 1)
-        }
+      if (response.data.nextCursor) {
+        cursorByPageRef.current.set(page + 1, response.data.nextCursor)
+      } else {
+        cursorByPageRef.current.delete(page + 1)
       }
       applyResult(response.data)
     } else {

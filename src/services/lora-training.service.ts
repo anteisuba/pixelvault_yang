@@ -225,6 +225,16 @@ export async function submitLoraTraining(
 ): Promise<LoraTrainingRecord> {
   const dbUser = await ensureUser(clerkId)
 
+  // Service-side gate against bypass — the UI disables SDXL/Illustrious
+  // dropdown items, but anyone calling the API directly would slip past
+  // that. Fail fast with a clear message so we don't take money and dump
+  // a guaranteed-failure job into the queue.
+  if (data.baseModel !== 'flux-1-d') {
+    throw new Error(
+      `Base model "${data.baseModel}" is not yet supported — only flux-1-d is wired up to a trainer today.`,
+    )
+  }
+
   // Check per-user limit
   const existingCount = await db.loraTrainingJob.count({
     where: { userId: dbUser.id },

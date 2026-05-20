@@ -2837,6 +2837,12 @@ export const SubmitLoraTrainingSchema = z.object({
   characterCardId: z.string().uuid().optional(),
   apiKeyId: z.string().uuid(),
   provider: z.enum(['replicate', 'fal']).default('replicate'),
+  // User-selected base model. Only 'flux-1-d' has a wired-up trainer today;
+  // 'sdxl-1.0' / 'illustrious' are accepted by the schema for UI completeness
+  // but the service rejects them until a real trainer endpoint lands.
+  baseModel: z
+    .enum(['flux-1-d', 'sdxl-1.0', 'illustrious'])
+    .default('flux-1-d'),
 })
 export type SubmitLoraTrainingRequest = z.infer<typeof SubmitLoraTrainingSchema>
 
@@ -2968,6 +2974,59 @@ export const ReplayPayloadSchema = z.object({
 })
 
 export type ReplayPayload = z.infer<typeof ReplayPayloadSchema>
+
+// ─── Extracted Element (reusable cutout asset) ───────────────────
+
+/**
+ * A previously-extracted element saved to the user's asset library. Produced
+ * by /studio/edit/extract-element and consumed by the Studio reference-image
+ * picker so the same cutout can be reused across generations without rerunning
+ * the (slow, paid) extract step. The full record is what /api/extracted-elements
+ * returns; the request shape that persists a new one is ExtractedElementCreateRequestSchema.
+ */
+export const ExtractedElementRecordSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prompt: z.string(),
+  invert: z.boolean(),
+  provider: z.enum(['fal', 'gemini', 'openai']),
+  modelId: z.string(),
+  sourceGenerationId: z.string().nullable(),
+  sourceImageUrl: z.string().url(),
+  extractedUrl: z.string().url(),
+  thumbnailUrl: z.string().url().nullable(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  createdAt: z.string(),
+})
+
+export type ExtractedElementRecord = z.infer<
+  typeof ExtractedElementRecordSchema
+>
+
+/**
+ * POST body for /api/extracted-elements — what the "Save to assets" button on
+ * the extract result panel sends. `extractedImageUrl` is the in-memory data
+ * URL or R2 URL of the cutout the user just produced; the server re-hosts it
+ * to R2 under the user's namespace and creates the record. Optional `name`
+ * overrides the default (the prompt) for a friendlier label.
+ */
+export const ExtractedElementCreateRequestSchema = z.object({
+  extractedImageUrl: z
+    .string()
+    .min(1)
+    .max(10 * 1024 * 1024),
+  sourceImageUrl: z.string().url(),
+  sourceGenerationId: z.string().trim().min(1).optional(),
+  prompt: z.string().trim().min(1).max(200),
+  invert: z.boolean().optional(),
+  modelId: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1).max(120).optional(),
+})
+
+export type ExtractedElementCreateRequest = z.infer<
+  typeof ExtractedElementCreateRequestSchema
+>
 
 // ─── Video Script (VS1-VS11) ─────────────────────────────────────
 export * from './video-script'

@@ -7,6 +7,7 @@ import {
   ImagePlus,
   Loader2,
   Sparkles,
+  Star,
   Upload,
   X,
   XCircle,
@@ -14,6 +15,24 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 import {
   Dialog,
@@ -29,6 +48,11 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
 import { LORA_TRAINING } from '@/constants/config'
+import {
+  DEFAULT_LORA_TRAINING_BASE_MODEL,
+  LORA_TRAINING_BASE_MODELS,
+  type LoraTrainingBaseModel,
+} from '@/constants/lora'
 import { uploadLoraTrainingImageAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
@@ -53,6 +77,9 @@ export function LoraTrainingForm({
   const [triggerWord, setTriggerWord] = useState('')
   const [loraType, setLoraType] = useState<'subject' | 'style'>('subject')
   const [provider, setProvider] = useState<'replicate' | 'fal'>('replicate')
+  const [baseModel, setBaseModel] = useState<LoraTrainingBaseModel>(
+    DEFAULT_LORA_TRAINING_BASE_MODEL,
+  )
   const [images, setImages] = useState<string[]>([])
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false)
   const [uploadsInFlight, setUploadsInFlight] = useState(0)
@@ -126,6 +153,41 @@ export function LoraTrainingForm({
     setImages((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
+  // Promote any image to position 0 — that's the slot ensureLoraAssetFrom-
+  // TrainingJob picks as the LoRA card cover. Pure UX: trainer itself
+  // doesn't care about order (SGD shuffles the dataset).
+  const setAsCover = useCallback((url: string) => {
+    setImages((prev) => {
+      const idx = prev.indexOf(url)
+      if (idx <= 0) return prev
+      const next = [...prev]
+      const [picked] = next.splice(idx, 1)
+      if (picked !== undefined) next.unshift(picked)
+      return next
+    })
+  }, [])
+
+  // dnd-kit drag-end: reorder the images array by the active/over URL ids.
+  // useSortable wants stable, unique IDs — URLs work because we dedupe on
+  // insert (handleFileChange and addImagesFromAssets both check membership).
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setImages((prev) => {
+      const from = prev.indexOf(String(active.id))
+      const to = prev.indexOf(String(over.id))
+      if (from < 0 || to < 0) return prev
+      return arrayMove(prev, from, to)
+    })
+  }, [])
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
   // Asset-library multi-pick: take what the dialog hands back, dedupe
   // against the URLs we already hold (assets the user picks twice are a
   // common misclick), and cap the total to MAX_IMAGES so the API can't
@@ -156,6 +218,7 @@ export function LoraTrainingForm({
       characterCardId,
       apiKeyId: selectedKeyId,
       provider,
+      baseModel,
     })
     if (result) {
       setName('')
@@ -170,6 +233,7 @@ export function LoraTrainingForm({
     triggerWord,
     loraType,
     provider,
+    baseModel,
     images,
     characterCardId,
     submit,
@@ -241,6 +305,43 @@ export function LoraTrainingForm({
       </div>
 
       <div className="space-y-1.5">
+        <label className="text-sm font-medium">{t('baseModel')}</label>
+        <div className="grid grid-cols-3 gap-2">
+          {LORA_TRAINING_BASE_MODELS.map((option) => {
+            const isActive = baseModel === option.id
+            const isComingSoon = !option.available
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  if (option.available) setBaseModel(option.id)
+                }}
+                disabled={isComingSoon}
+                title={isComingSoon ? t('baseModelComingSoon') : undefined}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-2 text-xs transition-colors',
+                  isActive
+                    ? 'border-primary/40 bg-primary/5 text-foreground'
+                    : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                  isComingSoon &&
+                    'cursor-not-allowed opacity-50 hover:border-border/50',
+                )}
+              >
+                <span className="font-medium">{option.label}</span>
+                {isComingSoon && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('baseModelComingSoonBadge')}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-2xs text-muted-foreground">{t('baseModelHint')}</p>
+      </div>
+
+      <div className="space-y-1.5">
         <label className="text-sm font-medium">{t('selectApiKey')}</label>
         <div className="flex gap-2">
           <button
@@ -287,9 +388,29 @@ export function LoraTrainingForm({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium">{t('uploadImages')}</label>
-          <span className="text-2xs text-muted-foreground">
-            {t('imageCount', { count: images.length })}
-          </span>
+          {(() => {
+            // Real-time progress hint — green inside the recommended 15-30
+            // range, amber too few, blue plenty. Drives "is my dataset
+            // good enough yet?" intuition without parsing the long
+            // uploadHint paragraph.
+            const n = images.length
+            const tone =
+              n < LORA_TRAINING.MIN_IMAGES
+                ? 'text-destructive'
+                : n < 15
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : n <= 30
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-sky-600 dark:text-sky-400'
+            return (
+              <span className={cn('text-2xs font-medium', tone)}>
+                {t('imageCountWithMax', {
+                  count: n,
+                  max: LORA_TRAINING.MAX_IMAGES,
+                })}
+              </span>
+            )
+          })()}
         </div>
         <p className="text-2xs text-muted-foreground">{t('uploadHint')}</p>
 
@@ -325,24 +446,33 @@ export function LoraTrainingForm({
           </button>
         </div>
 
-        <div className="grid grid-cols-5 gap-1.5">
-          {images.map((img, i) => (
-            <div
-              key={i}
-              className="group relative aspect-square overflow-hidden rounded-md border border-border/40"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- mixed base64 + R2 URLs */}
-              <img src={img} alt="" className="size-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removeImage(i)}
-                className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <X className="size-2.5" />
-              </button>
+        {images.length > 0 && (
+          <p className="text-2xs text-muted-foreground">
+            {t('dragToReorderHint')}
+          </p>
+        )}
+        <DndContext
+          sensors={dndSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={images} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-4 gap-2">
+              {images.map((img, i) => (
+                <TrainingImageTile
+                  key={img}
+                  url={img}
+                  isCover={i === 0}
+                  onRemove={() => removeImage(i)}
+                  onSetAsCover={() => setAsCover(img)}
+                  coverBadgeLabel={t('coverBadge')}
+                  setAsCoverLabel={t('setAsCover')}
+                  removeLabel={t('removeImage')}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         <input
           ref={fileInputRef}
@@ -475,6 +605,112 @@ export function LoraTrainingForm({
         maxSelection={LORA_TRAINING.MAX_IMAGES - images.length}
         onConfirmMany={addImagesFromAssets}
       />
+    </div>
+  )
+}
+
+interface TrainingImageTileProps {
+  url: string
+  isCover: boolean
+  onRemove: () => void
+  onSetAsCover: () => void
+  coverBadgeLabel: string
+  setAsCoverLabel: string
+  removeLabel: string
+}
+
+/**
+ * Sortable thumbnail for the training image grid. URL doubles as the
+ * dnd-kit item id since training images are deduped on insert. Cover-slot
+ * (index 0) gets the persistent ⭐ badge; every other tile gets a hover-
+ * revealed "set as cover" action. Pointer activation distance keeps a
+ * regular click on the remove/cover buttons from being mistaken for the
+ * start of a drag.
+ */
+function TrainingImageTile({
+  url,
+  isCover,
+  onRemove,
+  onSetAsCover,
+  coverBadgeLabel,
+  setAsCoverLabel,
+  removeLabel,
+}: TrainingImageTileProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: url })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'group relative aspect-square cursor-grab overflow-hidden rounded-md border bg-muted active:cursor-grabbing',
+        isCover
+          ? 'border-primary/50 ring-1 ring-primary/30'
+          : 'border-border/40',
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- mixed base64 + R2 URLs */}
+      <img
+        src={url}
+        alt=""
+        className="size-full object-cover"
+        draggable={false}
+      />
+      {isCover && (
+        <span
+          className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground"
+          aria-label={coverBadgeLabel}
+        >
+          <Star className="size-2.5 fill-current" aria-hidden />
+          {coverBadgeLabel}
+        </span>
+      )}
+      {!isCover && (
+        <button
+          type="button"
+          // Stop propagation so the dnd-kit pointer listener doesn't claim
+          // the click as a drag-start gesture.
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSetAsCover()
+          }}
+          aria-label={setAsCoverLabel}
+          title={setAsCoverLabel}
+          className="absolute left-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+        >
+          <Star className="size-3" />
+        </button>
+      )}
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove()
+        }}
+        aria-label={removeLabel}
+        title={removeLabel}
+        className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-destructive group-hover:opacity-100"
+      >
+        <X className="size-3" />
+      </button>
     </div>
   )
 }

@@ -17,6 +17,41 @@ export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 
 export const CIVITAI_LORA_PAGE_SIZE = 10
 
+// Base model options exposed in the LoRA training form. `available: false`
+// shows the option as "Coming Soon" so users see the roadmap but can't
+// submit a job we don't have a trainer for. Add a Replicate/fal trainer
+// route in lora-training.service.ts when flipping `available: true`.
+export const LORA_TRAINING_BASE_MODELS = [
+  {
+    id: 'flux-1-d',
+    label: 'FLUX.1 D',
+    available: true,
+    descriptionKey: 'baseModelFluxDescription',
+  },
+  {
+    id: 'sdxl-1.0',
+    label: 'SDXL 1.0',
+    available: false,
+    descriptionKey: 'baseModelSdxlDescription',
+  },
+  {
+    id: 'illustrious',
+    label: 'Illustrious',
+    available: false,
+    descriptionKey: 'baseModelIllustriousDescription',
+  },
+] as const
+
+export type LoraTrainingBaseModel =
+  (typeof LORA_TRAINING_BASE_MODELS)[number]['id']
+
+export const LORA_TRAINING_BASE_MODEL_VALUES = LORA_TRAINING_BASE_MODELS.map(
+  (m) => m.id,
+) as readonly LoraTrainingBaseModel[]
+
+export const DEFAULT_LORA_TRAINING_BASE_MODEL: LoraTrainingBaseModel =
+  'flux-1-d'
+
 export const CIVITAI_LORA_SORT_VALUES = [
   'Highest Rated',
   'Most Downloaded',

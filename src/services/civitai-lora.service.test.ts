@@ -380,12 +380,12 @@ describe('listCivitaiLoras', () => {
         }),
     )
 
-    const promise = listCivitaiLoras()
+    const promise = expect(listCivitaiLoras()).rejects.toThrow(/timed out/)
     // Run all pending fake timers (8s service timeout + withRetry's backoff
     // delays between retries). Using runAllTimersAsync instead of a single
     // advanceTimersByTimeAsync(8000) so we don't have to predict the exact
     // schedule across multiple retry attempts.
     await vi.runAllTimersAsync()
-    await expect(promise).rejects.toThrow(/timed out/)
+    await promise
   })
 })

@@ -216,8 +216,54 @@ function toWorkerUrl(url: string): string {
   return url
 }
 
-async function resolveCivitaiUrl(url: string): Promise<string> {
+/**
+ * Resolve a Civitai download URL to something Replicate can actually GET.
+ *
+ * Civitai's /api/download endpoint now 401s without auth even for public
+ * models. Two-step resolution:
+ *   1. HEAD with Authorization header → grab the signed CDN redirect.
+ *      CDN URLs work without further auth, so this is the cleanest path.
+ *   2. If the HEAD fails or doesn't yield a CDN URL, fall back to
+ *      appending `?token=<x>` to the original URL — Replicate's
+ *      downloader can't send headers but it does follow query params.
+ *
+ * Without a token we degrade to the original URL (Replicate will then
+ * 401, surfacing a clear "missing key" failure rather than a silent
+ * mis-download).
+ */
+async function resolveCivitaiUrl(
+  url: string,
+  civitaiToken: string | null | undefined,
+): Promise<string> {
   if (!url.includes('civitai.com/api/download')) return url
+
+  if (civitaiToken) {
+    try {
+      const res = await fetch(url, {
+        method: 'HEAD',
+        redirect: 'manual',
+        headers: { Authorization: `Bearer ${civitaiToken}` },
+      })
+      const cdnUrl = res.headers.get('location')
+      if (cdnUrl?.includes('.safetensors')) return cdnUrl
+    } catch {
+      /* fall through to token-in-URL fallback */
+    }
+
+    // Replicate's downloader can't send headers — append the token to the
+    // URL so the eventual GET still authenticates.
+    try {
+      const parsed = new URL(url)
+      if (!parsed.searchParams.has('token')) {
+        parsed.searchParams.set('token', civitaiToken)
+      }
+      return parsed.toString()
+    } catch {
+      return url
+    }
+  }
+
+  // No token — preserve old behaviour (anonymous HEAD).
   try {
     const res = await fetch(url, { method: 'HEAD', redirect: 'manual' })
     const cdnUrl = res.headers.get('location')
@@ -233,11 +279,12 @@ async function applyLoraParams(
   input: Record<string, unknown>,
   loras: Array<{ url: string; scale?: number | null }>,
   isCommunitySdxl: boolean,
+  civitaiToken: string | null | undefined,
 ): Promise<void> {
   if (isCommunitySdxl) {
     const resolved = await Promise.all(
       loras.map(async (lora) => {
-        let url = await resolveCivitaiUrl(lora.url)
+        let url = await resolveCivitaiUrl(lora.url, civitaiToken)
         url = toWorkerUrl(url)
         return { url, strength: lora.scale ?? 1.0 }
       }),
@@ -304,6 +351,7 @@ export const replicateAdapter: ProviderAdapter = {
     referenceImage,
     referenceImages,
     advancedParams,
+    civitaiToken,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
@@ -334,7 +382,12 @@ export const replicateAdapter: ProviderAdapter = {
         ),
         isCommunitySdxl,
       })
-      await applyLoraParams(input, advancedParams.loras, isCommunitySdxl)
+      await applyLoraParams(
+        input,
+        advancedParams.loras,
+        isCommunitySdxl,
+        civitaiToken,
+      )
     }
 
     const effectiveRefImage = referenceImages?.[0] ?? referenceImage

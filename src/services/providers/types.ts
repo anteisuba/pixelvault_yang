@@ -26,6 +26,10 @@ export interface ProviderGenerationInput {
   /** Multiple reference images for character/style consistency */
   referenceImages?: string[]
   advancedParams?: AdvancedParams
+  /** User's Civitai API token (when known) — adapters that resolve
+   *  Civitai LoRA download URLs need it because civitai.com/api/download
+   *  now 401s without authentication, even for public models. */
+  civitaiToken?: string | null
 }
 
 export interface ProviderGenerationResult {

@@ -36,6 +36,7 @@ import {
   createGenerationJob,
   failGenerationJob,
 } from '@/services/usage.service'
+import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import { ensureUser } from '@/services/user.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
@@ -306,6 +307,12 @@ async function callProviderWithFallback(params: {
   const breaker = getCircuitBreaker(route.adapterType)
   const startedAt = Date.now()
 
+  // Civitai's download endpoint now 401s without auth, even for public
+  // models — fetch the user's stored token so Replicate (and any other
+  // adapter that resolves civitai URLs) can authenticate the download.
+  // Null is fine: adapters fall back to the original URL when absent.
+  const civitaiToken = await getCivitaiTokenByInternalUserId(userId)
+
   try {
     const asset = await breaker.call(() =>
       withRetry(
@@ -319,6 +326,7 @@ async function callProviderWithFallback(params: {
             referenceImage: input.referenceImage,
             referenceImages: input.referenceImages,
             advancedParams: input.advancedParams,
+            civitaiToken,
           }),
         {
           maxAttempts: 2,

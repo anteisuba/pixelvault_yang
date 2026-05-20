@@ -878,6 +878,10 @@
     "triggerInserted": "トリガー「{word}」を挿入しました",
     "triggerAlreadyInPrompt": "トリガーは既にプロンプトに含まれています",
     "triggerInPromptBadge": "✓ 反映済み",
+    "useTemplate": "「{name}」のお手本プロンプトを使う",
+    "useTemplateHint": "現在のプロンプトをこのLoRAの推奨お手本に置き換えます",
+    "useTemplateBadge": "上書き",
+    "templateApplied": "「{name}」のお手本プロンプトを適用しました",
     "clearAll": "すべて解除",
     "bannerEmpty": "LoRAライブラリから選んでから生成してください。",
     "bannerOk": "現在のモデル「{model}」でこれらのLoRAを実行できます。",
@@ -1887,7 +1891,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "Illustrious派生のfinetune。アニメキャラクターと鉛筆/線画スタイルに特化。CivitaiのAnimaタグLoRA向け。"
+      "description": "（実験的 · 現在はNoobAIベースで動作）CivitaiのAnimaタグLoRA向け — LoRAは正常に読み込まれますが、出力スタイルは純粋なAnima PencilではなくNoobAI寄りになります。安定したAnimaミラーが見つかり次第切り替えます。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

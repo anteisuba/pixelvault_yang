@@ -56,6 +56,7 @@ import {
   readSearchHistory,
   recordSearchTerm,
 } from '@/lib/civitai-search-history'
+import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 
@@ -391,7 +392,7 @@ function CivitaiCommunityBranch({
 
   const handleCopyTryPrompt = useCallback(
     async (item: CivitaiLoraLibraryItem) => {
-      const template = buildTryPromptTemplate(item)
+      const template = buildLoraPromptTemplate(item)
       try {
         await navigator.clipboard.writeText(template)
         toast.success(t('tryPromptCopied'))
@@ -834,7 +835,7 @@ function CivitaiLoraInspector({
             </button>
           </div>
           <p className="mt-1.5 break-words font-mono text-2xs leading-relaxed text-foreground">
-            {buildTryPromptTemplate(item)}
+            {buildLoraPromptTemplate(item)}
           </p>
         </div>
 
@@ -933,20 +934,4 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
       })}
     </div>
   )
-}
-
-/**
- * Compose a sensible "show me what this LoRA can do" prompt template.
- * Subject-type LoRAs get a portrait scaffold; style-type LoRAs get a
- * scenery scaffold. Both lead with the trigger word so the LoRA fires —
- * exactly the gap Wave 4.5's chip patches inside the canvas, applied
- * here on the discovery side so users can ship a prompt-ready phrase
- * to the clipboard before they even leave the library.
- */
-function buildTryPromptTemplate(item: CivitaiLoraLibraryItem): string {
-  const trigger = item.triggerWord.trim()
-  if (item.type === 'style') {
-    return `${trigger}, beautiful scenery, soft cinematic lighting, highly detailed`
-  }
-  return `${trigger}, portrait, dynamic pose, soft cinematic lighting, masterpiece, best quality`
 }

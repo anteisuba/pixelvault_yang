@@ -200,22 +200,24 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'anime',
     supportsLora: true,
   },
-  // #9d — Anima (AnimaPencil-XL) — SDXL-architecture finetune popular on
-  // Civitai. Routes through Replicate's lucataco/animapencil-xl-v4 image.
-  // The community has newer Anima checkpoints (v5/v6) but lucataco's v4 is
-  // the most consistently maintained on Replicate. If output quality drifts
-  // or LoRA injection misbehaves, swap externalModelId here — schema
-  // expectations match the Illustrious XL (NoobAI) family because both
-  // are community SDXL pushes routed via the version-hash path.
+  // #9d — Anima — SDXL-architecture finetune popular on Civitai.
+  // FALLBACK ROUTE: my first guess `lucataco/animapencil-xl-v4` 404'd —
+  // that exact mirror isn't published. Until a confirmed Anima mirror is
+  // identified, we route through delta-lock/noobai-xl. Both NoobAI and
+  // Anima are Illustrious-derived SDXL finetunes, so LoRA layers load
+  // correctly through the same multi-LoRA JSON path; the trade-off is
+  // that output style leans NoobAI rather than Anima Pencil's pencil/
+  // lineart aesthetic. TODO: swap externalModelId once a stable
+  // Anima-specific Replicate mirror is identified.
   {
     id: AI_MODELS.ANIMA_PENCIL_XL,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.REPLICATE,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
-    externalModelId: 'lucataco/animapencil-xl-v4',
+    externalModelId: 'delta-lock/noobai-xl',
     outputType: 'IMAGE',
     available: true,
-    officialUrl: 'https://replicate.com/lucataco/animapencil-xl-v4',
+    officialUrl: 'https://replicate.com/delta-lock/noobai-xl',
     qualityTier: 'standard',
     styleTag: 'anime',
     supportsLora: true,

@@ -11,6 +11,7 @@ import {
   CircleSlash,
   Palette,
   Share2,
+  Wand2,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -25,6 +26,7 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { getProviderLabel } from '@/constants/providers'
+import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   Popover,
@@ -157,6 +159,19 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
       toast.success(t('triggerInserted', { word: trimmed }))
     },
     [dispatch, state.prompt, t],
+  )
+
+  const handleUseTemplate = useCallback(
+    (asset: {
+      triggerWord: string
+      type: 'subject' | 'style'
+      name: string
+    }) => {
+      const template = buildLoraPromptTemplate(asset)
+      dispatch({ type: 'SET_PROMPT', payload: template })
+      toast.success(t('templateApplied', { name: asset.name }))
+    },
+    [dispatch, t],
   )
   const count = items.length
 
@@ -378,6 +393,28 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                       {triggerInPrompt
                         ? t('triggerInPromptBadge')
                         : t('insertTriggerBadge')}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUseTemplate({
+                        triggerWord: entry.asset.triggerWord,
+                        type: entry.asset.type,
+                        name: entry.asset.name,
+                      })
+                    }
+                    className="mt-1.5 inline-flex w-full items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1 text-2xs transition-colors hover:bg-muted"
+                    aria-label={t('useTemplate', { name: entry.asset.name })}
+                    title={t('useTemplateHint')}
+                  >
+                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <Wand2 className="size-3" aria-hidden />
+                      {t('useTemplate', { name: entry.asset.name })}
+                    </span>
+                    <span className="shrink-0 text-2xs text-muted-foreground">
+                      {t('useTemplateBadge')}
                     </span>
                   </button>
 

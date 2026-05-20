@@ -878,6 +878,10 @@
     "triggerInserted": "已插入触发词「{word}」",
     "triggerAlreadyInPrompt": "触发词已在提示词中",
     "triggerInPromptBadge": "✓ 已在",
+    "useTemplate": "用「{name}」的示例提示词",
+    "useTemplateHint": "替换当前提示词为这个 LoRA 的推荐起手式",
+    "useTemplateBadge": "覆盖",
+    "templateApplied": "已应用「{name}」的示例提示词",
     "clearAll": "全部清除",
     "bannerEmpty": "先从 LoRA 库挑一个 LoRA，再回来生成。",
     "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",
@@ -1887,7 +1891,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "Illustrious 衍生 finetune，专精动漫角色与铅笔线稿。适合 Civitai 上 Anima 标签的 LoRA。"
+      "description": "（实验性 · 暂跑在 NoobAI 底座上）适合 Civitai 上 Anima 标签的 LoRA — LoRA 能加载，但出图风格会偏 NoobAI 而不是纯 Anima Pencil。等找到稳定 Anima 镜像再换。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

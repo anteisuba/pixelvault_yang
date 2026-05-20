@@ -878,6 +878,10 @@
     "triggerInserted": "Inserted trigger \"{word}\"",
     "triggerAlreadyInPrompt": "Trigger already in prompt",
     "triggerInPromptBadge": "✓ In prompt",
+    "useTemplate": "Use {name}'s starter prompt",
+    "useTemplateHint": "Replaces the current prompt with this LoRA's recommended starter",
+    "useTemplateBadge": "Replace",
+    "templateApplied": "Applied {name}'s starter prompt",
     "clearAll": "Clear all",
     "bannerEmpty": "Pick a LoRA from the library, then come back to generate.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",
@@ -1887,7 +1891,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "Illustrious-derived finetune tuned for anime characters and pencil/lineart aesthetics. Use this for Civitai LoRAs tagged Anima."
+      "description": "(Experimental · routes through NoobAI mirror for now) For Civitai LoRAs tagged Anima — LoRA loads correctly but output style leans NoobAI rather than pure Anima Pencil. Will swap once a stable Anima mirror is found."
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

@@ -13,6 +13,7 @@ import {
   Copy,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import {
   Dialog,
@@ -28,6 +29,7 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
 import { LORA_TRAINING } from '@/constants/config'
+import { uploadLoraTrainingImageAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +55,7 @@ export function LoraTrainingForm({
   const [provider, setProvider] = useState<'replicate' | 'fal'>('replicate')
   const [images, setImages] = useState<string[]>([])
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false)
+  const [uploadsInFlight, setUploadsInFlight] = useState(0)
 
   const providerKeys = keys.filter(
     (k) => k.adapterType === provider && k.isActive,
@@ -69,26 +72,54 @@ export function LoraTrainingForm({
     triggerWord.trim() &&
     images.length >= LORA_TRAINING.MIN_IMAGES &&
     selectedKeyId &&
-    !isSubmitting
+    !isSubmitting &&
+    uploadsInFlight === 0
 
+  // Stream each picked file straight to R2 instead of FileReader→base64.
+  // Uploads run in parallel (Promise.all) so the user sees the count climb
+  // as they finish, not as a single blocking submit. `uploadsInFlight`
+  // gates the submit button so users can't kick off training with a half-
+  // uploaded dataset.
   const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? [])
-      for (const file of files) {
-        if (images.length >= LORA_TRAINING.MAX_IMAGES) break
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          setImages((prev) => {
-            if (prev.length >= LORA_TRAINING.MAX_IMAGES) return prev
-            return [...prev, result]
-          })
-        }
-        reader.readAsDataURL(file)
-      }
       e.target.value = ''
+      if (files.length === 0) return
+
+      // Trim against the current count *and* the in-flight uploads so a
+      // user mashing the upload button can't overrun MAX_IMAGES.
+      const slotsLeft =
+        LORA_TRAINING.MAX_IMAGES - images.length - uploadsInFlight
+      if (slotsLeft <= 0) {
+        toast.warning(t('uploadMaxReached', { max: LORA_TRAINING.MAX_IMAGES }))
+        return
+      }
+      const batch = files.slice(0, slotsLeft)
+
+      setUploadsInFlight((n) => n + batch.length)
+      const results = await Promise.all(
+        batch.map((file) => uploadLoraTrainingImageAPI(file)),
+      )
+      setUploadsInFlight((n) => n - batch.length)
+
+      const urls: string[] = []
+      for (const r of results) {
+        if (r.success && r.data) {
+          urls.push(r.data.url)
+        } else {
+          toast.error(r.error ?? t('uploadFailed'))
+        }
+      }
+      if (urls.length > 0) {
+        setImages((prev) => {
+          // Re-check the cap on the freshest state — another in-flight
+          // batch may have landed between our slotsLeft calc and now.
+          const room = LORA_TRAINING.MAX_IMAGES - prev.length
+          return [...prev, ...urls.slice(0, room)]
+        })
+      }
     },
-    [images.length],
+    [images.length, uploadsInFlight, t],
   )
 
   const removeImage = useCallback((index: number) => {
@@ -269,11 +300,19 @@ export function LoraTrainingForm({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={images.length >= LORA_TRAINING.MAX_IMAGES}
+            disabled={
+              images.length >= LORA_TRAINING.MAX_IMAGES || uploadsInFlight > 0
+            }
             className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
           >
-            <Upload className="size-3.5" />
-            {t('uploadFromLocal')}
+            {uploadsInFlight > 0 ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Upload className="size-3.5" />
+            )}
+            {uploadsInFlight > 0
+              ? t('uploadInProgress', { count: uploadsInFlight })
+              : t('uploadFromLocal')}
           </button>
           <button
             type="button"

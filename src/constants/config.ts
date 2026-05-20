@@ -81,6 +81,9 @@ export const API_ENDPOINTS = {
   /** Element extraction (text-guided cutout via lang-SAM) */
   IMAGE_EXTRACT: '/api/image/extract',
 
+  /** Extracted-element asset library (saved cutouts users can reuse) */
+  EXTRACTED_ELEMENTS: '/api/extracted-elements',
+
   /** Image transform (style / pose / background — Phase 1: style only) */
   IMAGE_TRANSFORM: '/api/image-transform',
 
@@ -186,6 +189,8 @@ export const API_ENDPOINTS = {
 
   /** LoRA Training */
   LORA_TRAINING: '/api/lora-training',
+  /** Per-image upload for LoRA training (stage-3 base64 → R2 URL path) */
+  LORA_TRAINING_UPLOADS: '/api/lora-training/uploads',
 
   /** LoRA Asset library (curated + user-trained) */
   LORA_ASSETS: '/api/lora-assets',
@@ -419,10 +424,10 @@ export const RATE_LIMIT_CONFIGS = {
 
 /** Centralized maxDuration configs for serverless functions */
 export const MAX_DURATION_CONFIGS = {
-  /** Image generation — 4 min (some models are slow) */
-  generate: 240,
+  /** Image generation — 5 min (Qwen/Anima LoRA cold starts can run past 4 min) */
+  generate: 300,
   /** Studio generation — same as generate */
-  studioGenerate: 240,
+  studioGenerate: 300,
   /** Video submission — 4 min (queue submission + initial processing) */
   generateVideo: 240,
   /** Long video pipeline — 4 min */

@@ -1,14 +1,29 @@
 import 'server-only'
 
+import { randomBytes } from 'node:crypto'
+
 import JSZip from 'jszip'
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { decryptApiKey } from '@/lib/crypto'
-import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
+import {
+  detectTrustedImageMime,
+  fetchAsBuffer,
+  uploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LORA_TRAINING } from '@/constants/config'
 import type { LoraTrainingRecord, SubmitLoraTrainingRequest } from '@/types'
+
+/**
+ * Per-image cap for client-uploaded training images. Streaming each pick
+ * to R2 instead of round-tripping a 30-image base64 payload (which would
+ * blow past Next.js's body size limit) is the whole point of stage 3.
+ * Anything under this still goes through `detectTrustedImageMime` so we
+ * never store a buffer the renderer can't decode.
+ */
+export const LORA_TRAINING_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 import {
   submitReplicateLoraTraining,
   checkReplicateLoraTrainingStatus,
@@ -145,6 +160,61 @@ async function getDecryptedApiKey(
     throw new Error('API key not found or access denied')
   }
   return decryptApiKey(record.encryptedKey)
+}
+
+// ─── Training Image Upload ────────────────────────────────────────
+
+export interface UploadedTrainingImage {
+  url: string
+  storageKey: string
+  mimeType: string
+  width: number
+  height: number
+  sizeBytes: number
+}
+
+/**
+ * Persist a single client-uploaded training image to R2 under the user's
+ * namespace and return its public URL. Called by the LoRA training form
+ * one file at a time so the user sees per-image progress and we sidestep
+ * the body-size limit a 30-image base64 POST would hit.
+ *
+ * `detectTrustedImageMime` re-derives the format from libvips magic bytes
+ * — never trust the client-supplied MIME — and rejects anything that isn't
+ * a real raster image. The storage key shape mirrors the one
+ * `submitLoraTraining` produces, so this file is a drop-in replacement
+ * for the in-line upload that submit does today.
+ */
+export async function uploadTrainingImage(params: {
+  userId: string
+  fileBuffer: Buffer
+  claimedMimeType: string
+}): Promise<UploadedTrainingImage> {
+  if (params.fileBuffer.byteLength > LORA_TRAINING_IMAGE_MAX_BYTES) {
+    throw new Error(
+      `Image exceeds the ${Math.round(
+        LORA_TRAINING_IMAGE_MAX_BYTES / 1024 / 1024,
+      )} MB limit`,
+    )
+  }
+  const detected = await detectTrustedImageMime(params.fileBuffer)
+  const ext = detected.format === 'jpeg' ? 'jpg' : detected.format
+  const storageKey = `lora-training/${params.userId}/${Date.now()}-${randomBytes(
+    6,
+  ).toString('hex')}.${ext}`
+  const url = await uploadToR2({
+    data: params.fileBuffer,
+    key: storageKey,
+    mimeType: detected.mimeType,
+  })
+  return {
+    url,
+    storageKey,
+    mimeType: detected.mimeType,
+    width: detected.width,
+    height: detected.height,
+    sizeBytes: params.fileBuffer.byteLength,
+  }
 }
 
 // ─── Submit Training ──────────────────────────────────────────────

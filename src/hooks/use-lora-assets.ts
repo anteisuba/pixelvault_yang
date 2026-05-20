@@ -25,6 +25,7 @@ export interface UseLoraAssetsReturn {
   discoverAssets: LoraAssetRecord[]
   isLoadingMine: boolean
   isLoadingDiscover: boolean
+  errorMine: string | null
   refresh: () => Promise<void>
   setVisibility: (assetId: string, isPublic: boolean) => Promise<boolean>
   favoriteCivitaiLora: (
@@ -52,15 +53,23 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   const [discoverAssets, setDiscoverAssets] = useState<LoraAssetRecord[]>([])
   const [isLoadingMine, setIsLoadingMine] = useState(true)
   const [isLoadingDiscover, setIsLoadingDiscover] = useState(true)
+  // 把 mine 的失败原因暴露给 UI，否则一次网络错误会变成「假阴性空状态」
+  // — 用户会以为自己的 LoRA 全没了。错误清晰显示 + 重试入口比静默更诚实。
+  const [errorMine, setErrorMine] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setIsLoadingMine(true)
     setIsLoadingDiscover(true)
+    setErrorMine(null)
     const [mine, discover] = await Promise.all([
       listLoraAssetsAPI(),
       listDiscoverLoraAssetsAPI(),
     ])
-    if (mine.success && mine.data) setMyAssets(mine.data)
+    if (mine.success && mine.data) {
+      setMyAssets(mine.data)
+    } else if (!mine.success) {
+      setErrorMine(mine.error ?? 'Failed to load LoRA assets')
+    }
     if (discover.success && discover.data) setDiscoverAssets(discover.data)
     setIsLoadingMine(false)
     setIsLoadingDiscover(false)
@@ -164,6 +173,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     discoverAssets,
     isLoadingMine,
     isLoadingDiscover,
+    errorMine,
     refresh,
     setVisibility,
     favoriteCivitaiLora,

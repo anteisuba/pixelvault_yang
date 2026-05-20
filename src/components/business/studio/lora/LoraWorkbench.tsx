@@ -1,9 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
+  ArrowRight,
   ArrowUpRight,
   Compass,
   Download,
@@ -17,6 +25,7 @@ import {
   Search,
   Sparkles,
   Wand2,
+  X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -44,7 +53,10 @@ import {
   LoraTrainingForm,
   LoraTrainingHistorySidebar,
 } from '@/components/business/LoraTrainingDialog'
-import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
+import {
+  LoraAssetCard,
+  isRecentlyTrained,
+} from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -74,6 +86,7 @@ export function LoraWorkbench() {
     trainedAssets,
     favoriteAssets,
     isLoadingMine,
+    errorMine,
     refresh,
     setVisibility,
     favoriteCivitaiLora,
@@ -149,7 +162,9 @@ export function LoraWorkbench() {
           trained={trainedAssets}
           favorites={favoriteAssets}
           isLoading={isLoadingMine}
+          error={errorMine}
           onRefresh={refresh}
+          onSwitchSection={setActiveSection}
           onVisibilityChange={setVisibility}
           onUnfavorite={unfavoriteAsset}
         />
@@ -166,11 +181,15 @@ export function LoraWorkbench() {
   )
 }
 
+type MineSort = 'newest' | 'oldest' | 'nameAsc'
+
 interface MyLoraBranchProps {
   trained: LoraAssetRecord[]
   favorites: LoraAssetRecord[]
   isLoading: boolean
+  error: string | null
   onRefresh: () => Promise<void>
+  onSwitchSection: (section: LoraWorkbenchSection) => void
   onVisibilityChange: (assetId: string, isPublic: boolean) => Promise<boolean>
   onUnfavorite: (assetId: string) => Promise<boolean>
 }
@@ -179,95 +198,472 @@ function MyLoraBranch({
   trained,
   favorites,
   isLoading,
+  error,
   onRefresh,
+  onSwitchSection,
   onVisibilityChange,
   onUnfavorite,
 }: MyLoraBranchProps) {
   const t = useTranslations('LoraWorkbench')
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<MineSort>('newest')
+
   const totalCount = trained.length + favorites.length
+
+  // 「最近训练完成」hero strip — 7 天内 source==='trained' 最新一个。
+  // 把训练 → 使用闭环从 3 步压成 1 步：从 train tab 跳回 mine tab
+  // 的用户第一眼看到自己刚做的东西，旁边一个大按钮直达 Studio。
+  // 始终从原始 trained 数组算（忽略当前 search/sort 状态），
+  // 不然搜索过滤后会把刚训完的隐藏掉。
+  const recentlyTrained = useMemo(() => {
+    const fresh = trained
+      .filter(isRecentlyTrained)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+    return fresh[0] ?? null
+  }, [trained])
+
+  const { filteredTrained, filteredFavorites } = useMemo(() => {
+    const trimmedQuery = query.trim().toLowerCase()
+    const matchQuery = (a: LoraAssetRecord) =>
+      !trimmedQuery ||
+      a.name.toLowerCase().includes(trimmedQuery) ||
+      a.triggerWord.toLowerCase().includes(trimmedQuery)
+
+    const sortFn = (a: LoraAssetRecord, b: LoraAssetRecord) => {
+      switch (sort) {
+        case 'oldest':
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        case 'nameAsc':
+          return a.name.localeCompare(b.name)
+        case 'newest':
+        default:
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+      }
+    }
+
+    return {
+      filteredTrained: trained.filter(matchQuery).sort(sortFn),
+      filteredFavorites: favorites.filter(matchQuery).sort(sortFn),
+    }
+  }, [trained, favorites, query, sort])
+
+  const hasSearchHit =
+    !query.trim() || filteredTrained.length + filteredFavorites.length > 0
 
   return (
     <section className="space-y-6">
-      <header className="flex items-center justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => void onRefresh()}
-        >
-          <RefreshCw className="size-3.5" aria-hidden />
-          {t('refresh')}
-        </Button>
-      </header>
+      <MineHeader
+        totalCount={totalCount}
+        isLoading={isLoading}
+        onRefresh={onRefresh}
+      />
 
-      {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-card/40 py-12 text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" aria-hidden />
-        </div>
+      {error ? (
+        <ErrorBlock error={error} onRetry={onRefresh} />
+      ) : isLoading ? (
+        <SkeletonGrid />
       ) : totalCount === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
-          <p className="text-sm text-muted-foreground">{t('myLorasEmpty')}</p>
-        </div>
+        <EmptyHero onSwitchSection={onSwitchSection} />
       ) : (
         <>
-          <AssetSection
-            title={t('myLorasTrainedSection')}
-            count={trained.length}
-          >
-            {trained.length === 0 ? (
-              <EmptyHint text={t('myLorasEmpty')} />
-            ) : (
-              <AssetGrid>
-                {trained.map((asset) => (
-                  <LoraAssetCard
-                    key={asset.id}
-                    asset={asset}
-                    showVisibilityToggle={asset.isOwn}
-                    onVisibilityChange={onVisibilityChange}
-                  />
-                ))}
-              </AssetGrid>
-            )}
-          </AssetSection>
+          {recentlyTrained ? (
+            <RecentlyTrainedStrip asset={recentlyTrained} />
+          ) : null}
 
-          <AssetSection
-            title={t('myLorasFavoritesSection')}
-            count={favorites.length}
-          >
-            {favorites.length === 0 ? (
-              <EmptyHint text={t('myLorasFavoritesEmpty')} />
-            ) : (
-              <AssetGrid>
-                {favorites.map((asset) => (
-                  <LoraAssetCard
-                    key={asset.id}
-                    asset={asset}
-                    onUnfavorite={onUnfavorite}
-                  />
-                ))}
-              </AssetGrid>
-            )}
-          </AssetSection>
+          <MineToolbar
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={setSort}
+          />
+
+          {!hasSearchHit ? (
+            <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-10 text-center text-sm text-muted-foreground">
+              {t('myLorasSearchEmpty', { query: query.trim() })}
+            </div>
+          ) : (
+            <>
+              <AssetSection
+                title={t('myLorasTrainedSection')}
+                count={filteredTrained.length}
+                originalCount={trained.length}
+              >
+                {filteredTrained.length === 0 && trained.length === 0 ? (
+                  <EmptyHint text={t('myLorasEmpty')} />
+                ) : filteredTrained.length === 0 ? null : (
+                  <AssetGrid>
+                    {filteredTrained.map((asset) => (
+                      <LoraAssetCard
+                        key={asset.id}
+                        asset={asset}
+                        showVisibilityToggle={asset.isOwn}
+                        onVisibilityChange={onVisibilityChange}
+                      />
+                    ))}
+                  </AssetGrid>
+                )}
+              </AssetSection>
+
+              <AssetSection
+                title={t('myLorasFavoritesSection')}
+                count={filteredFavorites.length}
+                originalCount={favorites.length}
+              >
+                {filteredFavorites.length === 0 && favorites.length === 0 ? (
+                  <EmptyHint text={t('myLorasFavoritesEmpty')} />
+                ) : filteredFavorites.length === 0 ? null : (
+                  <AssetGrid>
+                    {filteredFavorites.map((asset) => (
+                      <LoraAssetCard
+                        key={asset.id}
+                        asset={asset}
+                        onUnfavorite={onUnfavorite}
+                      />
+                    ))}
+                  </AssetGrid>
+                )}
+              </AssetSection>
+            </>
+          )}
         </>
       )}
     </section>
   )
 }
 
+interface MineHeaderProps {
+  totalCount: number
+  isLoading: boolean
+  onRefresh: () => Promise<void>
+}
+
+function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-1">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">
+            {t('myLorasTitle')}
+          </h2>
+          {!isLoading && totalCount > 0 ? (
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {totalCount}
+            </span>
+          ) : null}
+        </div>
+        <p className="text-sm text-muted-foreground">{t('myLorasSubtitle')}</p>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => void onRefresh()}
+        disabled={isLoading}
+        className="shrink-0 self-start sm:self-auto"
+      >
+        <RefreshCw
+          className={cn('size-3.5', isLoading && 'animate-spin')}
+          aria-hidden
+        />
+        {t('refresh')}
+      </Button>
+    </header>
+  )
+}
+
+interface MineToolbarProps {
+  query: string
+  onQueryChange: (next: string) => void
+  sort: MineSort
+  onSortChange: (next: MineSort) => void
+}
+
+function MineToolbar({
+  query,
+  onQueryChange,
+  sort,
+  onSortChange,
+}: MineToolbarProps) {
+  const t = useTranslations('LoraWorkbench')
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="relative min-w-0 flex-1">
+        <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder={t('myLorasSearchPlaceholder')}
+          className="h-9 pl-9 pr-9 text-xs"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => onQueryChange('')}
+            className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="clear"
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+      <Select value={sort} onValueChange={(v) => onSortChange(v as MineSort)}>
+        <SelectTrigger
+          size="sm"
+          className="w-full border-border/60 text-xs sm:w-40"
+          aria-label={t('myLorasSortLabel')}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="newest">{t('myLorasSortNewest')}</SelectItem>
+          <SelectItem value="oldest">{t('myLorasSortOldest')}</SelectItem>
+          <SelectItem value="nameAsc">{t('myLorasSortNameAsc')}</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+interface ErrorBlockProps {
+  error: string
+  onRetry: () => Promise<void>
+}
+
+function ErrorBlock({ error, onRetry }: ErrorBlockProps) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+      <AlertCircle
+        className="mt-0.5 size-4 shrink-0 text-destructive"
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-sm font-medium text-foreground">
+          {t('myLorasErrorTitle')}
+        </p>
+        <p className="text-xs text-muted-foreground">{error}</p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void onRetry()}
+        className="shrink-0"
+      >
+        <RefreshCw className="size-3.5" aria-hidden />
+        {t('myLorasErrorRetry')}
+      </Button>
+    </div>
+  )
+}
+
+function SkeletonGrid() {
+  // 8 张 skeleton card — 模拟 trained + favorites 各 4 张的常见形态，
+  // 让用户对「内容长什么样」有视觉预期，比空 spinner 体感专业。
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={`s-trained-${i}`} />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={`s-fav-${i}`} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+      <div className="aspect-square animate-pulse bg-muted" />
+      <div className="space-y-2 p-3">
+        <div className="h-3.5 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-muted/70" />
+        <div className="h-7 w-full animate-pulse rounded bg-muted/60" />
+      </div>
+    </div>
+  )
+}
+
+interface EmptyHeroProps {
+  onSwitchSection: (section: LoraWorkbenchSection) => void
+}
+
+function EmptyHero({ onSwitchSection }: EmptyHeroProps) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-primary/5 via-card to-card px-6 py-14 text-center sm:px-12 sm:py-20 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* 抽象装饰 — 大圈柔光在右上，配合品牌色，给空状态一点温度，
+          不抢主视觉。fixed 单层渐变，不是 AI slop 的 floating blob 阵。 */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/10 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-32 -left-24 size-64 rounded-full bg-primary/5 blur-3xl"
+      />
+
+      <div className="relative mx-auto flex max-w-lg flex-col items-center gap-4">
+        <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <Sparkles className="size-7" strokeWidth={1.5} />
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            {t('myLorasEmptyTitle')}
+          </h3>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            {t('myLorasEmptyDescription')}
+          </p>
+        </div>
+
+        <div className="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.TRAIN)}
+            className="gap-2"
+          >
+            <Sparkles className="size-4" aria-hidden />
+            {t('myLorasEmptyCtaTrain')}
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="outline"
+            onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
+            className="gap-2"
+          >
+            <Compass className="size-4" aria-hidden />
+            {t('myLorasEmptyCtaBrowse')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface RecentlyTrainedStripProps {
+  asset: LoraAssetRecord
+}
+
+function RecentlyTrainedStrip({ asset }: RecentlyTrainedStripProps) {
+  const t = useTranslations('LoraWorkbench')
+  const tStack = useTranslations('LoraStack')
+  const router = useRouter()
+  const pathname = usePathname()
+  const stack = useActiveLoraStack()
+
+  const alreadyInStack = stack.items.some(
+    (entry) => entry.asset.id === asset.id,
+  )
+
+  const handleUse = useCallback(() => {
+    if (!alreadyInStack) stack.push(asset)
+    if (pathname === ROUTES.STUDIO_IMAGE) {
+      toast.success(tStack('alreadyHere', { name: asset.name }))
+      return
+    }
+    toast.success(t('addedToStack', { name: asset.name }))
+    router.push(ROUTES.STUDIO_IMAGE)
+  }, [alreadyInStack, asset, pathname, stack, router, t, tStack])
+
+  return (
+    <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 animate-in fade-in slide-in-from-top-2 duration-500 sm:gap-4 sm:p-4">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-primary/20 sm:size-20">
+        {asset.coverImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={asset.coverImageUrl}
+            alt={asset.name}
+            className="size-full object-cover"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center text-primary">
+            <Sparkles className="size-6" aria-hidden />
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-primary-foreground">
+            <Sparkles className="size-2.5 fill-current" aria-hidden />
+            {t('recentlyTrainedBadge')}
+          </span>
+        </div>
+        <p className="truncate font-display text-base font-semibold tracking-tight text-foreground sm:text-lg">
+          {asset.name}
+        </p>
+        <p className="hidden truncate text-xs text-muted-foreground sm:block">
+          {t('recentlyTrainedSubtitle')} ·{' '}
+          <span className="font-mono">{asset.triggerWord}</span>
+        </p>
+      </div>
+
+      <Button
+        type="button"
+        size="sm"
+        onClick={handleUse}
+        className="shrink-0 gap-1.5"
+      >
+        {alreadyInStack ? t('alreadyInUse') : t('recentlyTrainedUse')}
+        {!alreadyInStack ? (
+          <ArrowRight className="size-3.5" aria-hidden />
+        ) : null}
+      </Button>
+    </div>
+  )
+}
+
 interface AssetSectionProps {
   title: string
   count: number
+  originalCount?: number
   children: ReactNode
 }
 
-function AssetSection({ title, count, children }: AssetSectionProps) {
+function AssetSection({
+  title,
+  count,
+  originalCount,
+  children,
+}: AssetSectionProps) {
+  // 标题降级（页面已有 h2「我的 LoRA」做主标题）— 这里改成 h3，
+  // 用更小的 uppercase tracking-wide 风格让 section 之间的层级
+  // 比 page header 弱，但又比 card row 强。
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h2 className="font-display text-lg font-semibold tracking-tight">
+      <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {title}
-        </h2>
-        <span className="text-xs text-muted-foreground">({count})</span>
+        </h3>
+        <span className="text-xs tabular-nums text-muted-foreground/70">
+          {count}
+          {originalCount !== undefined && originalCount !== count
+            ? ` / ${originalCount}`
+            : null}
+        </span>
       </div>
       {children}
     </div>
@@ -276,7 +672,7 @@ function AssetSection({ title, count, children }: AssetSectionProps) {
 
 function AssetGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {children}
     </div>
   )

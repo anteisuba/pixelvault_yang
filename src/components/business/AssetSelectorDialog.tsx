@@ -15,7 +15,10 @@ import type { GenerationRecord } from '@/types'
 interface AssetSelectorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSelect: (generation: GenerationRecord) => void
+  /** Single-select callback. Required unless `multiSelect` is true (in which
+   *  case `onConfirmMany` takes over). Keep both behaviours mutually
+   *  exclusive at the call site so the dialog has one resolution path. */
+  onSelect?: (generation: GenerationRecord) => void
   initialGenerations?: GenerationRecord[]
   initialTotal?: number
   initialHasMore?: boolean
@@ -30,6 +33,17 @@ interface AssetSelectorDialogProps {
    * (e.g. the Image reference chip) can never receive a video/audio asset.
    */
   mediaType?: 'image' | 'video' | 'audio' | 'model_3d'
+  /** Multi-select mode — tiles toggle a selection set, a confirmation bar
+   *  at the bottom commits the batch via `onConfirmMany`. Single-select
+   *  `onSelect` is ignored in this mode. Used by LoRA training to pick
+   *  many existing assets in one go. */
+  multiSelect?: boolean
+  /** Fires when the user clicks "Add N" in multi-select mode. The dialog
+   *  closes itself afterwards. */
+  onConfirmMany?: (generations: GenerationRecord[]) => void
+  /** Hard cap for multi-select mode. Picker rejects toggles past this
+   *  limit with a toast. */
+  maxSelection?: number
 }
 
 /**
@@ -60,6 +74,9 @@ export function AssetSelectorDialog({
   title,
   description,
   mediaType,
+  multiSelect = false,
+  onConfirmMany,
+  maxSelection,
 }: AssetSelectorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,18 +93,35 @@ export function AssetSelectorDialog({
           >
             <X className="size-4" />
           </DialogClose>
-          <KreaAssetBrowser
-            onSelect={(gen) => {
-              onSelect(gen)
-              onOpenChange(false)
-            }}
-            initialGenerations={initialGenerations}
-            initialTotal={initialTotal}
-            initialHasMore={initialHasMore}
-            initialNextCursor={initialNextCursor}
-            mediaType={mediaType}
-            className="!h-full !bg-transparent"
-          />
+          {multiSelect ? (
+            <KreaAssetBrowser
+              pickerMultiSelect
+              onPickerConfirmMany={(gens) => {
+                onConfirmMany?.(gens)
+                onOpenChange(false)
+              }}
+              pickerMaxSelection={maxSelection}
+              initialGenerations={initialGenerations}
+              initialTotal={initialTotal}
+              initialHasMore={initialHasMore}
+              initialNextCursor={initialNextCursor}
+              mediaType={mediaType}
+              className="!h-full !bg-transparent"
+            />
+          ) : (
+            <KreaAssetBrowser
+              onSelect={(gen) => {
+                onSelect?.(gen)
+                onOpenChange(false)
+              }}
+              initialGenerations={initialGenerations}
+              initialTotal={initialTotal}
+              initialHasMore={initialHasMore}
+              initialNextCursor={initialNextCursor}
+              mediaType={mediaType}
+              className="!h-full !bg-transparent"
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

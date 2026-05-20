@@ -96,6 +96,20 @@ interface KreaAssetBrowserProps {
    */
   onSelect?: (generation: GenerationRecord) => void
   /**
+   * Picker multi-select mode (independent of the gallery's own bulk-ops
+   * selectionMode). When true: tile clicks toggle a selection set, bulk-op
+   * action bars (delete/publish/favorite/move) stay hidden, and a dedicated
+   * "Add N" confirmation bar appears at the bottom. Used by LoRA training
+   * to let users grab multiple assets in one go.
+   */
+  pickerMultiSelect?: boolean
+  /** Confirmation callback for picker multi-select. Receives the full
+   *  selected generations in click order. */
+  onPickerConfirmMany?: (generations: GenerationRecord[]) => void
+  /** Optional hard cap on the picker selection. Toggling beyond this limit
+   *  is rejected with a toast. Default: no limit. */
+  pickerMaxSelection?: number
+  /**
    * Lock the browser to a single media type. The Tools sidebar group is
    * hidden, sections always reset to this type instead of 'all', and
    * initialFilters.type is overridden. Used by ReferenceImageChip so a
@@ -271,6 +285,9 @@ export function KreaAssetBrowser({
   initialFilters = DEFAULT_FILTERS,
   onSelect,
   mediaType,
+  pickerMultiSelect = false,
+  onPickerConfirmMany,
+  pickerMaxSelection,
   className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
@@ -280,7 +297,7 @@ export function KreaAssetBrowser({
     : initialFilters
 
   const [searchInput, setSearchInput] = useState(effectiveInitialFilters.search)
-  const isPickerMode = !!onSelect
+  const isPickerMode = !!onSelect || pickerMultiSelect
   const {
     generations,
     total,
@@ -362,11 +379,20 @@ export function KreaAssetBrowser({
   }, [initialSelectedGeneration, isPickerMode])
 
   // ── Multi-select state ────────────────────────────────────────
-  // Picker mode (asset selector dialog) intentionally does NOT support
-  // bulk selection — its click target must always resolve onSelect.
+  // Single-select picker mode (onSelect callback only) intentionally does
+  // NOT support bulk selection — its click target must always resolve
+  // onSelect. Multi-select picker mode (`pickerMultiSelect`) reuses this
+  // state but keeps bulk-op action bars hidden; see the effect below.
   const [selectionMode, setSelectionMode] = useState(false)
   const [mobileSectionPickerOpen, setMobileSectionPickerOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+
+  // Picker multi-select keeps selectionMode latched on so checkboxes stay
+  // visible. There's no "exit selection" UI in picker mode — the user
+  // either confirms (and we close) or cancels (and we drop the set).
+  useEffect(() => {
+    if (pickerMultiSelect) setSelectionMode(true)
+  }, [pickerMultiSelect])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
@@ -390,14 +416,31 @@ export function KreaAssetBrowser({
     null,
   )
 
-  const toggleSelection = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
+  const toggleSelection = useCallback(
+    (id: string) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) {
+          next.delete(id)
+        } else {
+          // Picker multi-select can cap selection (e.g. LoRA training tops out
+          // at 50 images). Adding past the limit no-ops + toasts so the user
+          // sees why nothing happened.
+          if (
+            pickerMultiSelect &&
+            pickerMaxSelection != null &&
+            next.size >= pickerMaxSelection
+          ) {
+            toast.warning(t('pickerMaxReached', { max: pickerMaxSelection }))
+            return prev
+          }
+          next.add(id)
+        }
+        return next
+      })
+    },
+    [pickerMultiSelect, pickerMaxSelection, t],
+  )
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
@@ -1169,6 +1212,13 @@ export function KreaAssetBrowser({
                         />
                       )
                     const handleTileClick = () => {
+                      // Picker multi-select wins over single-select onSelect:
+                      // tile click toggles membership in the selection set
+                      // instead of immediately resolving the picker.
+                      if (pickerMultiSelect) {
+                        toggleSelection(gen.id)
+                        return
+                      }
                       if (onSelect) {
                         onSelect(gen)
                         return
@@ -1182,7 +1232,7 @@ export function KreaAssetBrowser({
                     const handleTileContextMenu = (
                       e: React.MouseEvent<HTMLButtonElement>,
                     ) => {
-                      if (onSelect) return
+                      if (onSelect || pickerMultiSelect) return
                       e.preventDefault()
                       if (selectionMode) toggleSelection(gen.id)
                       else enterSelectionWith(gen.id)
@@ -1199,7 +1249,8 @@ export function KreaAssetBrowser({
                         title={gen.prompt || undefined}
                       >
                         {tileChildren}
-                        {!isPickerMode && selectionMode && (
+                        {(pickerMultiSelect ||
+                          (!isPickerMode && selectionMode)) && (
                           <span
                             className={cn(
                               'pointer-events-none absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full',
@@ -1421,6 +1472,52 @@ export function KreaAssetBrowser({
           onUpdated={handleAssetUpdated}
         />
       )}
+      {/* ─── Picker confirmation bar (multi-select picker mode) ── */}
+      {pickerMultiSelect && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-4 md:pb-6">
+          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
+            <span className="px-2 text-xs font-medium tabular-nums">
+              {pickerMaxSelection != null
+                ? t('pickerSelectedWithMax', {
+                    count: selectedIds.size,
+                    max: pickerMaxSelection,
+                  })
+                : t('selectedCount', { count: selectedIds.size })}
+            </span>
+            {selectedIds.size > 0 && (
+              <>
+                <span className="h-4 w-px bg-border/60" />
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                >
+                  {t('selectClear')}
+                </button>
+              </>
+            )}
+            <span className="h-4 w-px bg-border/60" />
+            <button
+              type="button"
+              disabled={selectedIds.size === 0}
+              onClick={() => {
+                const picked: GenerationRecord[] = []
+                for (const id of selectedIds) {
+                  const found = generations.find((g) => g.id === id)
+                  if (found) picked.push(found)
+                }
+                onPickerConfirmMany?.(picked)
+                clearSelection()
+              }}
+              className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              <CheckCircle2 className="size-3.5" />
+              {t('pickerConfirmAdd', { count: selectedIds.size })}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Bulk selection action bar ─────────────────────────── */}
       {!isPickerMode && selectionMode && selectedIds.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-4 md:pb-6">

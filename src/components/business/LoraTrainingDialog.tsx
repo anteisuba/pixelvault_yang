@@ -4,8 +4,8 @@ import { useState, useCallback, useRef } from 'react'
 import {
   CheckCircle2,
   Clock,
+  ImagePlus,
   Loader2,
-  Plus,
   Sparkles,
   Upload,
   X,
@@ -24,9 +24,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
 import { LORA_TRAINING } from '@/constants/config'
+import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface LoraTrainingFormProps {
@@ -50,6 +52,7 @@ export function LoraTrainingForm({
   const [loraType, setLoraType] = useState<'subject' | 'style'>('subject')
   const [provider, setProvider] = useState<'replicate' | 'fal'>('replicate')
   const [images, setImages] = useState<string[]>([])
+  const [assetSelectorOpen, setAssetSelectorOpen] = useState(false)
 
   const providerKeys = keys.filter(
     (k) => k.adapterType === provider && k.isActive,
@@ -90,6 +93,26 @@ export function LoraTrainingForm({
 
   const removeImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  // Asset-library multi-pick: take what the dialog hands back, dedupe
+  // against the URLs we already hold (assets the user picks twice are a
+  // common misclick), and cap the total to MAX_IMAGES so the API can't
+  // 400 us later. Prefer the original-quality output URL; fall back to
+  // previewUrl when (e.g. legacy rows) outputUrl is missing.
+  const addImagesFromAssets = useCallback((generations: GenerationRecord[]) => {
+    setImages((prev) => {
+      const seen = new Set(prev)
+      const next = [...prev]
+      for (const gen of generations) {
+        if (next.length >= LORA_TRAINING.MAX_IMAGES) break
+        const url = gen.url ?? gen.previewUrl
+        if (!url || seen.has(url)) continue
+        next.push(url)
+        seen.add(url)
+      }
+      return next
+    })
   }, [])
 
   const handleSubmit = useCallback(async () => {
@@ -239,13 +262,37 @@ export function LoraTrainingForm({
         </div>
         <p className="text-2xs text-muted-foreground">{t('uploadHint')}</p>
 
+        {/* Two equal entry points: local disk vs PixelVault asset library.
+            Picking from the library skips the base64 round-trip — assets
+            already live in R2 as URLs we can hand straight to the trainer. */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={images.length >= LORA_TRAINING.MAX_IMAGES}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+          >
+            <Upload className="size-3.5" />
+            {t('uploadFromLocal')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAssetSelectorOpen(true)}
+            disabled={images.length >= LORA_TRAINING.MAX_IMAGES}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+          >
+            <ImagePlus className="size-3.5" />
+            {t('uploadFromAssetLibrary')}
+          </button>
+        </div>
+
         <div className="grid grid-cols-5 gap-1.5">
           {images.map((img, i) => (
             <div
               key={i}
               className="group relative aspect-square overflow-hidden rounded-md border border-border/40"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URLs */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- mixed base64 + R2 URLs */}
               <img src={img} alt="" className="size-full object-cover" />
               <button
                 type="button"
@@ -256,16 +303,6 @@ export function LoraTrainingForm({
               </button>
             </div>
           ))}
-
-          {images.length < LORA_TRAINING.MAX_IMAGES && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex aspect-square items-center justify-center rounded-md border-2 border-dashed border-border/50 text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
-            >
-              <Plus className="size-5" />
-            </button>
-          )}
         </div>
 
         <input
@@ -385,6 +422,20 @@ export function LoraTrainingForm({
           </>
         )}
       </Button>
+
+      {/* Asset library picker — lives outside the form flow because it's a
+          full-screen modal. Restricts to images (the only thing trainers
+          consume) and respects the same MAX_IMAGES cap as local uploads. */}
+      <AssetSelectorDialog
+        open={assetSelectorOpen}
+        onOpenChange={setAssetSelectorOpen}
+        title={t('assetSelectorTitle')}
+        description={t('assetSelectorDescription')}
+        mediaType="image"
+        multiSelect
+        maxSelection={LORA_TRAINING.MAX_IMAGES - images.length}
+        onConfirmMany={addImagesFromAssets}
+      />
     </div>
   )
 }

@@ -40,7 +40,10 @@ import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
-import { LoraTrainingForm } from '@/components/business/LoraTrainingDialog'
+import {
+  LoraTrainingForm,
+  LoraTrainingHistorySidebar,
+} from '@/components/business/LoraTrainingDialog'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -946,9 +949,20 @@ function Metric({ icon, label, value }: MetricProps) {
 }
 
 function TrainingBranch() {
+  // Two-column page layout (Krea-inspired): left rail surfaces the user's
+  // training history + dataset-reuse placeholder so they stay in view as
+  // the user fills the form, right pane is the form itself. Form's
+  // built-in recent-jobs block is suppressed (hideRecentJobs) since the
+  // sidebar owns that responsibility here. Collapses to single column
+  // on mobile so the sidebar doesn't squeeze the form.
   return (
-    <section className="mx-auto max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <LoraTrainingForm showHeading />
+    <section className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[280px_1fr]">
+      <div className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-12rem)] lg:sticky lg:top-4">
+        <LoraTrainingHistorySidebar />
+      </div>
+      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <LoraTrainingForm showHeading hideRecentJobs />
+      </div>
     </section>
   )
 }

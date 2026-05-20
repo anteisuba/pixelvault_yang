@@ -61,12 +61,18 @@ interface LoraTrainingFormProps {
   characterCardId?: string
   onSubmitted?: () => void
   showHeading?: boolean
+  /** Hide the in-form recent-jobs list. The Studio /lora?section=train page
+   *  surfaces the same data in its left sidebar via LoraTrainingHistorySidebar,
+   *  so we don't want it duplicated below the submit button there. The dialog
+   *  variant (no sidebar) keeps the default so users still see job status. */
+  hideRecentJobs?: boolean
 }
 
 export function LoraTrainingForm({
   characterCardId,
   onSubmitted,
   showHeading = false,
+  hideRecentJobs = false,
 }: LoraTrainingFormProps) {
   const t = useTranslations('LoraTraining')
   const { keys } = useApiKeysContext()
@@ -107,10 +113,12 @@ export function LoraTrainingForm({
   // as they finish, not as a single blocking submit. `uploadsInFlight`
   // gates the submit button so users can't kick off training with a half-
   // uploaded dataset.
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? [])
-      e.target.value = ''
+  //
+  // Extracted so both the <input type="file"> change and drop-zone drop
+  // event funnel through the same logic — no duplicated cap math, no
+  // dropped errors.
+  const handleFiles = useCallback(
+    async (files: File[]) => {
       if (files.length === 0) return
 
       // Trim against the current count *and* the in-flight uploads so a
@@ -147,6 +155,36 @@ export function LoraTrainingForm({
       }
     },
     [images.length, uploadsInFlight, t],
+  )
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? [])
+      e.target.value = ''
+      await handleFiles(files)
+    },
+    [handleFiles],
+  )
+
+  // Drop zone wrappers. dataTransfer.files may include non-image files
+  // (folders, text drags); filter to images so we don't toast a confusing
+  // "Upload failed" for the trash an OS file manager leaks in.
+  const [isDragOver, setIsDragOver] = useState(false)
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+  const handleDragLeave = useCallback(() => setIsDragOver(false), [])
+  const handleDrop = useCallback(
+    async (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      setIsDragOver(false)
+      const files = Array.from(e.dataTransfer.files ?? []).filter((f) =>
+        f.type.startsWith('image/'),
+      )
+      await handleFiles(files)
+    },
+    [handleFiles],
   )
 
   const removeImage = useCallback((index: number) => {
@@ -414,36 +452,62 @@ export function LoraTrainingForm({
         </div>
         <p className="text-2xs text-muted-foreground">{t('uploadHint')}</p>
 
-        {/* Two equal entry points: local disk vs PixelVault asset library.
-            Picking from the library skips the base64 round-trip — assets
-            already live in R2 as URLs we can hand straight to the trainer. */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={
-              images.length >= LORA_TRAINING.MAX_IMAGES || uploadsInFlight > 0
-            }
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
-          >
-            {uploadsInFlight > 0 ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Upload className="size-3.5" />
-            )}
-            {uploadsInFlight > 0
-              ? t('uploadInProgress', { count: uploadsInFlight })
-              : t('uploadFromLocal')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setAssetSelectorOpen(true)}
-            disabled={images.length >= LORA_TRAINING.MAX_IMAGES}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
-          >
-            <ImagePlus className="size-3.5" />
-            {t('uploadFromAssetLibrary')}
-          </button>
+        {/* Drop zone wrapper — drag images directly here, or use the two
+            buttons inside for explicit OS file picker / asset-library
+            picker. The dashed border + center hint is the visual anchor
+            for "this is where training images go". */}
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            'flex flex-col items-center gap-3 rounded-lg border-2 border-dashed px-4 transition-colors',
+            isDragOver ? 'border-primary/60 bg-primary/5' : 'border-border/60',
+            images.length === 0 ? 'py-8' : 'py-3',
+          )}
+        >
+          {images.length === 0 && (
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <Upload className="size-6 text-muted-foreground" aria-hidden />
+              <p className="text-sm font-medium text-foreground">
+                {t('dropZoneHint', {
+                  min: LORA_TRAINING.MIN_IMAGES,
+                  max: LORA_TRAINING.MAX_IMAGES,
+                })}
+              </p>
+              <p className="text-2xs text-muted-foreground">
+                {t('dropZoneOr')}
+              </p>
+            </div>
+          )}
+          <div className="flex w-full gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={
+                images.length >= LORA_TRAINING.MAX_IMAGES || uploadsInFlight > 0
+              }
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+            >
+              {uploadsInFlight > 0 ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Upload className="size-3.5" />
+              )}
+              {uploadsInFlight > 0
+                ? t('uploadInProgress', { count: uploadsInFlight })
+                : t('uploadFromLocal')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAssetSelectorOpen(true)}
+              disabled={images.length >= LORA_TRAINING.MAX_IMAGES}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+            >
+              <ImagePlus className="size-3.5" />
+              {t('uploadFromAssetLibrary')}
+            </button>
+          </div>
         </div>
 
         {images.length > 0 && (
@@ -499,7 +563,7 @@ export function LoraTrainingForm({
         <span>{t('estimatedTime')}</span>
       </div>
 
-      {recentJobs.length > 0 && (
+      {!hideRecentJobs && recentJobs.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">
             {t('viewJobs')}
@@ -606,6 +670,114 @@ export function LoraTrainingForm({
         onConfirmMany={addImagesFromAssets}
       />
     </div>
+  )
+}
+
+/**
+ * Sidebar variant of the training-jobs panel — used by the Studio
+ * /lora?section=train two-column page layout where history lives in a
+ * persistent left rail instead of below the form. Shares useLoraTraining
+ * with the adjacent LoraTrainingForm; both hooks talk to the same API
+ * and the small list payload makes the extra fetch a non-issue.
+ *
+ * Dataset reuse is a placeholder until the backend exposes a "saved
+ * dataset" concept (PixAI ships this; we don't yet — punted from this
+ * UI revamp).
+ */
+export function LoraTrainingHistorySidebar() {
+  const t = useTranslations('LoraTraining')
+  const { jobs, isLoading } = useLoraTraining()
+
+  return (
+    <aside className="flex h-full min-h-0 flex-col gap-3">
+      <div className="space-y-1">
+        <h3 className="font-display text-sm font-semibold tracking-tight">
+          {t('historyTitle')}
+        </h3>
+        <p className="text-2xs text-muted-foreground">{t('historyHint')}</p>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        ) : jobs.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-2xs text-muted-foreground">
+            {t('historyEmpty')}
+          </p>
+        ) : (
+          jobs.map((job) => (
+            <div
+              key={job.id}
+              className={cn(
+                'space-y-1 rounded-md border px-2.5 py-2',
+                job.status === 'COMPLETED'
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  : job.status === 'FAILED'
+                    ? 'border-destructive/30 bg-destructive/5'
+                    : job.status === 'CANCELED'
+                      ? 'border-border/60 bg-muted/30'
+                      : 'border-primary/20 bg-primary/5',
+              )}
+            >
+              <div className="flex items-center gap-1.5">
+                {job.status === 'COMPLETED' && (
+                  <CheckCircle2 className="size-3 shrink-0 text-emerald-500" />
+                )}
+                {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
+                  <Loader2 className="size-3 shrink-0 animate-spin text-primary" />
+                )}
+                {job.status === 'FAILED' && (
+                  <XCircle className="size-3 shrink-0 text-destructive" />
+                )}
+                {job.status === 'CANCELED' && (
+                  <Clock className="size-3 shrink-0 text-muted-foreground" />
+                )}
+                <span className="flex-1 truncate text-2xs font-medium">
+                  {job.name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span className="truncate">
+                  {job.status === 'COMPLETED'
+                    ? t('statusCompleted')
+                    : job.status === 'FAILED'
+                      ? t('statusFailed')
+                      : job.status === 'CANCELED'
+                        ? t('statusCanceled')
+                        : job.status === 'QUEUED'
+                          ? t('statusQueued')
+                          : t('statusTraining')}
+                </span>
+                {job.status === 'COMPLETED' && job.loraUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(job.loraUrl!)
+                    }}
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    title={t('copyLoraUrl')}
+                  >
+                    <Copy className="size-2.5" />
+                    {t('copyLoraUrl')}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="shrink-0 space-y-1.5 rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2.5">
+        <p className="text-2xs font-medium text-foreground">
+          {t('datasetReuseTitle')}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          {t('datasetReuseHint')}
+        </p>
+      </div>
+    </aside>
   )
 }
 

@@ -114,6 +114,12 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.RUNWAY_GEN3,
   AI_MODELS.FAL_F5_TTS,
   AI_MODELS.HUNYUAN3D_2_1,
+  // ANIMA_PENCIL_XL is `available: false` while we hunt for a real anime
+  // checkpoint endpoint (lucataco mirror 404'd, NoobAI fallback has incompat
+  // weight structure, Qwen-Image experiment was reverted). Listed here to
+  // satisfy the "every unavailable catalog model must be retired" invariant;
+  // remove once a working endpoint lands.
+  AI_MODELS.ANIMA_PENCIL_XL,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)

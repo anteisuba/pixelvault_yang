@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { ApiKeyError } from '@/lib/errors'
+import { ApiKeyError, SafetyFilterError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { withRetry } from '@/lib/with-retry'
@@ -239,6 +239,28 @@ export async function removeBackground(
 /**
  * Inpaint an image by regenerating the masked region. Defaults to FLUX Pro Fill.
  */
+/**
+ * Detect whether a provider's error body indicates a content-moderation
+ * refusal vs. an outage / quota / malformed-request error. Matches against
+ * the strings every major provider tends to return (OpenAI's "safety system",
+ * Gemini's "SAFETY" / "blocked", generic "content policy" / "moderation").
+ * Used so we can surface a SafetyFilterError with a "try another provider"
+ * suggestion instead of a generic 500.
+ */
+function isSafetyFilterMessage(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('safety system') ||
+    lower.includes('safety filter') ||
+    lower.includes('content policy') ||
+    lower.includes('content_policy') ||
+    lower.includes('moderation_blocked') ||
+    lower.includes('moderation blocked') ||
+    lower.includes('was filtered') ||
+    lower.includes('content was filtered')
+  )
+}
+
 // ─── Gemini Nano Banana Pro (gemini-3-pro-image-preview) ────────
 
 const GeminiEditResponseSchema = z.object({
@@ -313,14 +335,32 @@ async function editImageWithGemini(params: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
+    if (isSafetyFilterMessage(errorBody)) {
+      throw new SafetyFilterError('Gemini', errorBody)
+    }
     throw new ProviderError('Gemini', response.status, errorBody)
   }
 
-  const parsed = GeminiEditResponseSchema.parse(await response.json())
+  const rawResponse = (await response.json()) as Record<string, unknown>
+  const parsed = GeminiEditResponseSchema.parse(rawResponse)
   const imagePart = parsed.candidates?.[0]?.content?.parts?.find(
     (p) => p.inlineData,
   )
   if (!imagePart?.inlineData) {
+    // Gemini swallows safety blocks into a 200 OK with no inlineData; the
+    // refusal lives in candidates[0].finishReason (SAFETY / PROHIBITED_CONTENT
+    // / IMAGE_SAFETY) or in promptFeedback.blockReason. Treat any of these as
+    // a SafetyFilterError so the client gets the "try the other provider"
+    // toast instead of a generic 502.
+    const serialized = JSON.stringify(rawResponse).toLowerCase()
+    if (
+      serialized.includes('"safety"') ||
+      serialized.includes('prohibited_content') ||
+      serialized.includes('image_safety') ||
+      serialized.includes('blockreason')
+    ) {
+      throw new SafetyFilterError('Gemini', 'Gemini refused due to safety.')
+    }
     throw new ProviderError('Gemini', 502, 'No image data returned')
   }
 
@@ -405,6 +445,9 @@ async function editImageWithOpenAI(params: {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
+    if (isSafetyFilterMessage(errorBody)) {
+      throw new SafetyFilterError('OpenAI', errorBody)
+    }
     throw new ProviderError('OpenAI', response.status, errorBody)
   }
 
@@ -733,8 +776,87 @@ async function applyMaskToImage(
 }
 
 /**
- * Text-guided element extraction. fal lang-segment-anything maps the prompt
- * to a binary mask; we then composite source × mask into a transparent PNG.
+ * Build the instruction we send to Gemini / GPT-Image. They aren't segmentation
+ * models — they regenerate the image from scratch — so the prompt is the only
+ * lever to (a) keep only the requested element, (b) ditch everything else, and
+ * (c) emit a transparent background. Invert flips the meaning ("background"
+ * preset = drop the named subject, keep the rest).
+ */
+function buildGenerativeExtractPrompt(
+  element: string,
+  invert: boolean,
+): string {
+  const subject = element.trim() || 'subject'
+  // Both variants describe the task as an isolation / masking operation rather
+  // than "remove" — softer language is less likely to trip OpenAI's image
+  // moderation, which is unusually strict on figure-removal phrasings.
+  if (invert) {
+    return [
+      `Produce a clean cutout that keeps everything except the ${subject}.`,
+      `In the output, the area previously occupied by the ${subject} should be fully transparent (PNG alpha = 0).`,
+      'Keep all other pixels with their original lighting, colors, materials, and details.',
+      'Do not add shadows, halos, decorations, watermarks, or text.',
+      'Do not stylize, smooth, or recolor the kept regions.',
+      'Return only the edited image, no commentary.',
+    ].join(' ')
+  }
+  return [
+    `Produce a clean cutout that isolates the ${subject} from this image.`,
+    `Only the ${subject} should remain visible; everything else should be fully transparent (PNG alpha = 0), not white, checker, or any solid color.`,
+    `Keep the ${subject}'s original lighting, colors, materials, edges, and fine details.`,
+    'Include the full extent of the subject — do not crop limbs, accessories, or trailing edges.',
+    'Do not add shadows, halos, decorations, watermarks, or text.',
+    'Do not stylize, smooth, or recolor the subject.',
+    'Return only the edited image, no commentary.',
+  ].join(' ')
+}
+
+/**
+ * Generative-model extract path (Gemini Nano Banana Pro, GPT Image 2). These
+ * models redraw the image with the requested element isolated on transparent
+ * background — they sidestep fal's mask + sharp composite pipeline entirely,
+ * which means they also avoid the "all-white mask → looks like the original"
+ * failure mode of text-guided SAM when the prompt doesn't match anything.
+ */
+async function extractElementWithGenerativeModel(
+  provider: 'gemini' | 'openai',
+  modelId: string,
+  apiKey: string,
+  imageUrl: string,
+  prompt: string,
+  invert: boolean,
+): Promise<ImageEditResult> {
+  const instruction = buildGenerativeExtractPrompt(prompt, invert)
+  if (provider === 'gemini') {
+    return editImageWithGemini({
+      modelId,
+      apiKey,
+      imageUrl,
+      prompt: instruction,
+    })
+  }
+  return editImageWithOpenAI({
+    modelId,
+    apiKey,
+    imageUrl,
+    prompt: instruction,
+  })
+}
+
+/**
+ * Text-guided element extraction.
+ *
+ * Two execution paths share the same input shape so the API route doesn't have
+ * to branch:
+ *
+ *   - **fal (SAM 3 / EVF-SAM / Lang-SAM / BiRefNet)** — segmentation models
+ *     return a binary mask; we composite source × mask into a transparent PNG.
+ *     The `invert` flag negates the mask (powering the "background" preset).
+ *
+ *   - **Gemini / OpenAI (gpt-image-2, gemini-3-pro-image-preview)** —
+ *     generative edit models redraw the image with the named subject isolated
+ *     on transparent background. `invert` flips the prompt to remove the
+ *     subject instead of keeping it.
  */
 export async function extractElement(params: {
   imageUrl: string
@@ -744,6 +866,18 @@ export async function extractElement(params: {
   modelId?: string
 }): Promise<ImageEditResult> {
   const modelId = params.modelId ?? FAL_DEFAULT_EXTRACT_MODEL
+  const provider = providerForModel(modelId)
+
+  if (provider === 'gemini' || provider === 'openai') {
+    return extractElementWithGenerativeModel(
+      provider,
+      modelId,
+      params.apiKey,
+      params.imageUrl,
+      params.prompt,
+      params.invert === true,
+    )
+  }
 
   const maskUrl = await callExtractionModel(
     modelId,

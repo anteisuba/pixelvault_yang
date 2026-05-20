@@ -47,6 +47,7 @@ import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
@@ -402,6 +403,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
   const hasRefImage = imageUpload.referenceImages.length > 0
+  const currentAdapterType = usesStyleCardForModel
+    ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
+    : selectedModel?.adapterType
+  const currentMaxReferenceImages =
+    currentAdapterType && currentModelId
+      ? getMaxReferenceImages(currentAdapterType, currentModelId)
+      : 1
+  const modelRejectsRefImages =
+    hasRefImage && !isAudioMode && currentMaxReferenceImages === 0
   // A half-filled reference (audio without transcript) would 400 at the API
   // boundary; gate the generate button before it gets there.
   const isAudioReferenceIncomplete =
@@ -413,6 +423,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       ? !!styles.activeCardId && !!selectedStyleCard?.modelId
       : !!selectedModel?.modelId && !!trimmedPrompt) &&
     (!modelRequiresRef || hasRefImage) &&
+    !modelRejectsRefImages &&
     !isAudioPromptOverLimit &&
     !isAudioReferenceIncomplete
 
@@ -835,6 +846,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
         dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+      } else if (modelRejectsRefImages) {
+        toast.info(tPromptArea('blocked.referenceUnsupported'))
       }
       return
     }
@@ -871,6 +884,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     selectedModel?.modelId,
     modelRequiresRef,
     hasRefImage,
+    modelRejectsRefImages,
     isAudioMode,
     isVideoMode,
     isAudioPromptOverLimit,

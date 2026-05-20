@@ -163,14 +163,16 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
   {
     task: 'extract-element',
     icon: Scissors,
-    providers: ['fal'],
+    providers: ['openai', 'gemini', 'fal'],
     models: [
+      'gpt-image-2',
+      'gemini-3-pro-image-preview',
       'fal-ai/sam-3/image',
       'fal-ai/evf-sam',
       'fal-ai/lang-segment-anything',
       'fal-ai/birefnet/v2',
     ],
-    defaultModelId: 'fal-ai/sam-3/image',
+    defaultModelId: 'gpt-image-2',
   },
 ]
 

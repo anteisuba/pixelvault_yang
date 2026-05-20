@@ -1,8 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { SafetyFilterError } from '@/lib/errors'
 import { ProviderError } from '@/services/providers/types'
 
 import {
+  extractElement,
   inpaintImage,
   outpaintImage,
   removeBackground,
@@ -209,5 +211,153 @@ describe('image-edit.service', () => {
         }),
       }),
     )
+  })
+
+  // 1x1 transparent PNG. Tiny but a real decodable PNG so sharp can read
+  // its metadata, which is what readBufferDimensions does at the end of the
+  // Gemini path (and what we'd otherwise have to mock out).
+  const TINY_PNG_BASE64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
+  it('routes GPT extract requests to the OpenAI /edits endpoint with a transparent-output prompt', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [{ b64_json: TINY_PNG_BASE64 }] }),
+    })
+    global.fetch = fetchSpy as unknown as typeof fetch
+
+    const result = await extractElement({
+      imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+      prompt: 'the red dress',
+      apiKey: 'sk-test',
+      modelId: 'gpt-image-2',
+    })
+
+    expect(result.imageUrl.startsWith('data:image/png;base64,')).toBe(true)
+    const [calledUrl, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(calledUrl).toContain('/edits')
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      'Bearer sk-test',
+    )
+    // FormData body — verify the prompt the model receives carries the
+    // transparent-background instruction (the whole point of routing here).
+    const formData = init.body as FormData
+    const prompt = formData.get('prompt') as string
+    expect(prompt).toContain('the red dress')
+    expect(prompt).toMatch(/transparent/i)
+    expect(prompt).not.toMatch(/Remove only the/) // not the invert variant
+  })
+
+  it('flips the extract prompt when invert=true so the subject is removed instead', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: [{ b64_json: TINY_PNG_BASE64 }] }),
+    })
+    global.fetch = fetchSpy as unknown as typeof fetch
+
+    await extractElement({
+      imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+      prompt: 'person',
+      apiKey: 'sk-test',
+      modelId: 'gpt-image-2',
+      invert: true,
+    })
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const formData = init.body as FormData
+    const prompt = formData.get('prompt') as string
+    // Inverse variant should describe keeping everything EXCEPT the subject —
+    // exact phrasing is intentionally softer than "remove" to avoid tripping
+    // OpenAI's image moderation. Just check the semantics, not the wording.
+    expect(prompt).toMatch(
+      /except the person|previously occupied by the person/i,
+    )
+    expect(prompt).toMatch(/transparent/i)
+  })
+
+  it('routes Gemini extract requests to generateContent with inlineData parts', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: 'image/png',
+                      data: TINY_PNG_BASE64,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+    })
+    global.fetch = fetchSpy as unknown as typeof fetch
+
+    const result = await extractElement({
+      imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+      prompt: 'hair',
+      apiKey: 'gem-key',
+      modelId: 'gemini-3-pro-image-preview',
+    })
+
+    expect(result.imageUrl).toBe(`data:image/png;base64,${TINY_PNG_BASE64}`)
+    const [calledUrl, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(calledUrl).toContain('gemini-3-pro-image-preview:generateContent')
+    expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe(
+      'gem-key',
+    )
+    const body = JSON.parse((init.body as string) ?? '{}') as {
+      contents: Array<{ parts: unknown[] }>
+    }
+    expect(body.contents[0].parts.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('translates an OpenAI safety refusal into a SafetyFilterError, not a generic 500', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            error: {
+              code: 'moderation_blocked',
+              message: 'Content was filtered by the safety system.',
+            },
+          }),
+        ),
+    }) as unknown as typeof fetch
+
+    await expect(
+      extractElement({
+        imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+        prompt: 'person',
+        apiKey: 'sk-test',
+        modelId: 'gpt-image-2',
+      }),
+    ).rejects.toBeInstanceOf(SafetyFilterError)
+  })
+
+  it('detects Gemini safety blocks even when the response is 200 OK with no image', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
+        }),
+    }) as unknown as typeof fetch
+
+    await expect(
+      extractElement({
+        imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+        prompt: 'person',
+        apiKey: 'gem-key',
+        modelId: 'gemini-3-pro-image-preview',
+      }),
+    ).rejects.toBeInstanceOf(SafetyFilterError)
   })
 })

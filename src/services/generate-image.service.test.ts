@@ -42,6 +42,10 @@ vi.mock('@/services/usage.service', () => ({
 }))
 vi.mock('@/lib/platform-keys', () => ({
   getSystemApiKey: vi.fn(),
+  getSystemCivitaiToken: vi.fn(() => null),
+}))
+vi.mock('@/services/civitai-token.service', () => ({
+  getCivitaiTokenByInternalUserId: vi.fn(() => Promise.resolve(null)),
 }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -587,6 +591,24 @@ describe('generateImageForUser', () => {
         referenceImages: undefined,
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR' }))
+  })
+
+  it('throws VALIDATION_ERROR when selected model does not support reference images', async () => {
+    vi.mocked(getApiKeyValueById).mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      keyValue: 'fal-key',
+      modelId: AI_MODELS.FLUX_LORA,
+    } as never)
+
+    await expect(
+      generateImageForUser('clerk-1', {
+        ...BYOK_INPUT,
+        modelId: AI_MODELS.FLUX_LORA,
+        referenceImages: ['https://cdn.example.com/reference.png'],
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR' }))
+    expect(getProviderAdapter).not.toHaveBeenCalled()
   })
 
   it('throws UNSUPPORTED_MODEL when no provider adapter found', async () => {

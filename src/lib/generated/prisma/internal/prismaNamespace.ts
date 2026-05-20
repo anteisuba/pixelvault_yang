@@ -416,7 +416,8 @@ export const ModelName = {
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
-  VideoScriptScene: 'VideoScriptScene'
+  VideoScriptScene: 'VideoScriptScene',
+  ExtractedElement: 'ExtractedElement'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -432,7 +433,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene"
+    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2878,6 +2879,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ExtractedElement: {
+      payload: Prisma.$ExtractedElementPayload<ExtArgs>
+      fields: Prisma.ExtractedElementFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ExtractedElementFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ExtractedElementFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        findFirst: {
+          args: Prisma.ExtractedElementFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ExtractedElementFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        findMany: {
+          args: Prisma.ExtractedElementFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>[]
+        }
+        create: {
+          args: Prisma.ExtractedElementCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        createMany: {
+          args: Prisma.ExtractedElementCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ExtractedElementCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>[]
+        }
+        delete: {
+          args: Prisma.ExtractedElementDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        update: {
+          args: Prisma.ExtractedElementUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        deleteMany: {
+          args: Prisma.ExtractedElementDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ExtractedElementUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ExtractedElementUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>[]
+        }
+        upsert: {
+          args: Prisma.ExtractedElementUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExtractedElementPayload>
+        }
+        aggregate: {
+          args: Prisma.ExtractedElementAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateExtractedElement>
+        }
+        groupBy: {
+          args: Prisma.ExtractedElementGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExtractedElementGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ExtractedElementCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExtractedElementCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3535,6 +3610,28 @@ export const VideoScriptSceneScalarFieldEnum = {
 export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
 
 
+export const ExtractedElementScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sourceGenerationId: 'sourceGenerationId',
+  sourceImageUrl: 'sourceImageUrl',
+  extractedUrl: 'extractedUrl',
+  extractedStorageKey: 'extractedStorageKey',
+  thumbnailUrl: 'thumbnailUrl',
+  thumbnailStorageKey: 'thumbnailStorageKey',
+  width: 'width',
+  height: 'height',
+  name: 'name',
+  prompt: 'prompt',
+  invert: 'invert',
+  provider: 'provider',
+  modelId: 'modelId',
+  createdAt: 'createdAt'
+} as const
+
+export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3947,6 +4044,7 @@ export type GlobalOmitConfig = {
   loraAsset?: Prisma.LoraAssetOmit
   videoScript?: Prisma.VideoScriptOmit
   videoScriptScene?: Prisma.VideoScriptSceneOmit
+  extractedElement?: Prisma.ExtractedElementOmit
 }
 
 /* Types for Logging */

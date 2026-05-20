@@ -83,7 +83,8 @@ export const ModelName = {
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
-  VideoScriptScene: 'VideoScriptScene'
+  VideoScriptScene: 'VideoScriptScene',
+  ExtractedElement: 'ExtractedElement'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -718,6 +719,28 @@ export const VideoScriptSceneScalarFieldEnum = {
 } as const
 
 export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
+
+
+export const ExtractedElementScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sourceGenerationId: 'sourceGenerationId',
+  sourceImageUrl: 'sourceImageUrl',
+  extractedUrl: 'extractedUrl',
+  extractedStorageKey: 'extractedStorageKey',
+  thumbnailUrl: 'thumbnailUrl',
+  thumbnailStorageKey: 'thumbnailStorageKey',
+  width: 'width',
+  height: 'height',
+  name: 'name',
+  prompt: 'prompt',
+  invert: 'invert',
+  provider: 'provider',
+  modelId: 'modelId',
+  createdAt: 'createdAt'
+} as const
+
+export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -232,6 +232,10 @@ function humanizeProviderError(
   // Map common patterns to user-friendly messages
   const patterns: [RegExp, string][] = [
     [
+      /pget|weights-cache|LoRA download failed/i,
+      'LoRA model file could not be loaded. Refresh the LoRA URL or try another LoRA source.',
+    ],
+    [
       REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
       getUnsupportedReferenceImageMessage(provider),
     ],
@@ -276,11 +280,11 @@ function humanizeProviderError(
       'LoRA file URL is not accessible. Please check the URL or re-train the LoRA.',
     ],
     [
-      /billing|credit|payment/i,
-      `${provider} account has insufficient credits. Please top up your account.`,
+      /billing|credit|payment|exhausted\s+balance|top\s+up.*balance|insufficient.*(?:balance|credits?)|账户余额不足|余额不足|余额已耗尽|充值/i,
+      `${provider} 账户余额不足，请充值或切换到有余额的 API Key。`,
     ],
     [
-      /unauthorized|invalid.*key|auth/i,
+      /unauthorized|invalid.*key|authentication failed|invalid token|api key/i,
       `${provider} API key is invalid or expired. Please update it in the sidebar.`,
     ],
   ]

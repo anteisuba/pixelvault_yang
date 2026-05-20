@@ -2,6 +2,7 @@ import 'server-only'
 
 import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById } from '@/constants/models'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -348,6 +349,12 @@ async function callProviderWithFallback(params: {
           isRetryable: (error: unknown) => {
             const status = (error as { status?: number })?.status
             if (error instanceof ProviderError && status === 504) return false
+            if (
+              error instanceof ProviderError &&
+              error.message.includes('LoRA model file could not be loaded')
+            ) {
+              return false
+            }
             if (status === 503) return false
             if (typeof status === 'number') {
               return status >= 500 || status === 429
@@ -739,16 +746,27 @@ export async function generateImageForUser(
       const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
 
       const builtInModel = getModelByIdFn(input.modelId)
+      const hasReferenceImage =
+        Boolean(input.referenceImage) ||
+        (input.referenceImages?.length ?? 0) > 0
       if (builtInModel?.requiresReferenceImage) {
-        const hasRef =
-          input.referenceImage || (input.referenceImages?.length ?? 0) > 0
-        if (!hasRef) {
+        if (!hasReferenceImage) {
           throw new GenerateImageServiceError(
             'VALIDATION_ERROR',
             'This model requires at least one reference image',
             400,
           )
         }
+      }
+      if (
+        hasReferenceImage &&
+        getMaxReferenceImages(resolvedRoute.adapterType, input.modelId) === 0
+      ) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'The selected model does not support reference images',
+          400,
+        )
       }
 
       const resolvedProvider = getProviderLabel(resolvedRoute.providerConfig)

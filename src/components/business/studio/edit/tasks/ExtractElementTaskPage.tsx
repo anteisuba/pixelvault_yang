@@ -7,14 +7,17 @@ import { toast } from 'sonner'
 
 import { getEditTaskMeta } from '@/constants/edit-tasks'
 import { useImageEdit } from '@/contexts/image-edit-context'
+import { useExtractedElements } from '@/hooks/use-extracted-elements'
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { extractElementAPI } from '@/lib/api-client'
+import { createExtractedElementAPI, extractElementAPI } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 import { EditResultActions } from '../EditResultActions'
 import { EditTaskHeader } from '../EditTaskHeader'
+import { ExtractedElementsGrid } from '../ExtractedElementsGrid'
 
 const TASK = 'extract-element' as const
 
@@ -59,6 +62,12 @@ export function ExtractElementTaskPage() {
   const [activePresetKey, setActivePresetKey] = useState<string | null>(
     'clothing',
   )
+  const {
+    items: extractedItems,
+    isLoading: isLoadingExtracted,
+    prepend: prependExtracted,
+    remove: removeExtracted,
+  } = useExtractedElements()
 
   const applyPreset = useCallback((preset: (typeof PRESETS)[number]) => {
     setPrompt(preset.prompt)
@@ -86,9 +95,9 @@ export function ExtractElementTaskPage() {
       sourceGenerationId: source.generationId,
       modelId,
     })
-    setRunningTask(null)
 
     if (!response.success || !response.data) {
+      setRunningTask(null)
       toast.error(getApiErrorMessage(tErrors, response, t('extractFailed')))
       return
     }
@@ -101,12 +110,38 @@ export function ExtractElementTaskPage() {
       generation: response.data.generation,
     })
     setLayerResult(null)
-    toast.success(t('extract.success'))
+
+    // Auto-persist to the user's materials library. The cutout is only
+    // valuable as a reusable asset, so we don't make the user click twice —
+    // the save failure is non-fatal (the extract result is still on screen
+    // and downloadable via EditResultActions).
+    const saveResponse = await createExtractedElementAPI({
+      extractedImageUrl: response.data.imageUrl,
+      sourceImageUrl: source.imageUrl,
+      sourceGenerationId: source.generationId ?? undefined,
+      prompt: effectivePrompt,
+      invert,
+      modelId,
+    })
+    setRunningTask(null)
+
+    if (saveResponse.success && saveResponse.data) {
+      prependExtracted(saveResponse.data)
+      toast.success(t('extract.success'))
+    } else {
+      logger.warn('[extract] auto-save to materials failed', {
+        error: saveResponse.error,
+      })
+      toast.warning(t('extract.success'), {
+        description: t('extract.saveFailed'),
+      })
+    }
   }, [
     invert,
     isBusy,
     isPromptless,
     modelId,
+    prependExtracted,
     prompt,
     setBannerError,
     setLayerResult,
@@ -219,6 +254,23 @@ export function ExtractElementTaskPage() {
           {t('extract.run')}
         </Button>
       </section>
+      {extractedItems.length > 0 || isLoadingExtracted ? (
+        <section className="rounded-xl border border-border/70 bg-card p-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-foreground">
+              {t('extract.materialsTitle')}
+            </h2>
+            <span className="text-2xs text-muted-foreground">
+              {extractedItems.length}
+            </span>
+          </div>
+          <ExtractedElementsGrid
+            items={extractedItems}
+            isLoading={isLoadingExtracted}
+            onRemove={removeExtracted}
+          />
+        </section>
+      ) : null}
       <EditResultActions />
     </>
   )

@@ -8,7 +8,11 @@ import {
   IMAGE_SIZES,
   VIDEO_GENERATION,
 } from '@/constants/config'
-import { getExecutionModelId } from '@/constants/models'
+import {
+  AI_MODELS,
+  getExecutionModelId,
+  normalizeModelId,
+} from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import { invertReferenceStrength } from '@/lib/utils'
@@ -48,6 +52,9 @@ function sleep(ms: number): Promise<void> {
 
 /** Classify raw Replicate errors into user-friendly messages */
 function classifyReplicateError(raw: string): string {
+  if (raw.includes("'pget'") || raw.includes('weights-cache')) {
+    return 'LoRA download failed: Replicate could not load the LoRA weights. Refresh the LoRA URL or try another LoRA source.'
+  }
   // LoRA incompatible with model
   if (raw.includes('not in the list of present adapters')) {
     return 'LoRA incompatible: This LoRA was trained for a different model. On Civitai, filter by Base Model = "Illustrious" or "SDXL" to find compatible LoRAs.'
@@ -153,8 +160,29 @@ function extractImageUrl(output: unknown): string {
 
 // ─── Private helpers ────────────────────────────────────────────
 
-/** Build input payload for community SDXL finetunes on Replicate
- *  (NoobAI/Illustrious XL, AnimaPencil XL — share schema). */
+type ReplicateImageSchema = 'flux' | 'delta-lock-sdxl'
+
+function getReplicateImageSchema(
+  modelId: string,
+  externalModelId: string,
+): ReplicateImageSchema {
+  const normalizedModelId = normalizeModelId(modelId)
+
+  if (
+    normalizedModelId === AI_MODELS.ILLUSTRIOUS_XL ||
+    externalModelId.includes('noobai')
+  ) {
+    return 'delta-lock-sdxl'
+  }
+
+  return 'flux'
+}
+
+function needsVersionHash(schema: ReplicateImageSchema): boolean {
+  return schema === 'delta-lock-sdxl'
+}
+
+/** Build input payload for delta-lock's NoobAI / Illustrious XL Replicate schema. */
 function buildCommunitySdxlInput(
   prompt: string,
   width: number,
@@ -190,13 +218,9 @@ function buildFluxInput(
 }
 
 /**
- * Resolve Civitai download URLs to CDN URLs with .safetensors extension.
- * NoobAI requires the file extension in the URL.
- */
-/**
  * Rewrite R2 storage URLs to go through the Worker proxy.
- * Replicate's GPU servers can't download from r2.dev or custom CDN domains
- * (Cloudflare blocks datacenter IPs), but Workers serve files directly from R2.
+ * Delta-lock's downloader accepts the Worker path for LoRA files already
+ * stored in our bucket.
  */
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
 const R2_WORKER_BASE = 'https://r2.anteisuba.com'
@@ -278,10 +302,10 @@ async function resolveCivitaiUrl(
 async function applyLoraParams(
   input: Record<string, unknown>,
   loras: Array<{ url: string; scale?: number | null }>,
-  isCommunitySdxl: boolean,
+  schema: ReplicateImageSchema,
   civitaiToken: string | null | undefined,
 ): Promise<void> {
-  if (isCommunitySdxl) {
+  if (schema === 'delta-lock-sdxl') {
     const resolved = await Promise.all(
       loras.map(async (lora) => {
         let url = await resolveCivitaiUrl(lora.url, civitaiToken)
@@ -294,10 +318,16 @@ async function applyLoraParams(
     logger.info('[Replicate] Final LoRA payload', {
       loras: input.loras,
     })
-  } else {
-    const url = toWorkerUrl(loras[0].url)
+    return
+  }
+
+  const first = loras[0]
+  if (!first) return
+
+  {
+    const url = toWorkerUrl(first.url)
     input.hf_lora = url
-    if (loras[0].scale != null) input.lora_scale = loras[0].scale
+    if (first.scale != null) input.lora_scale = first.scale
   }
 }
 
@@ -307,12 +337,12 @@ async function applyLoraParams(
  */
 async function resolveModelBody(
   externalModelId: string,
-  isCommunitySdxl: boolean,
+  schema: ReplicateImageSchema,
   input: Record<string, unknown>,
   apiKey: string,
   baseUrl: string,
 ): Promise<Record<string, unknown>> {
-  if (!isCommunitySdxl) return { model: externalModelId, input }
+  if (!needsVersionHash(schema)) return { model: externalModelId, input }
 
   const modelRes = await fetch(`${baseUrl}/models/${externalModelId}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -357,18 +387,12 @@ export const replicateAdapter: ProviderAdapter = {
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.REPLICATE
     const externalModelId = getExecutionModelId(modelId)
     const endpoint = `${baseUrl}/predictions`
-    // Community SDXL finetunes pushed to Replicate need version-hash
-    // resolution AND multi-LoRA JSON schema. NoobAI (Illustrious XL) and
-    // AnimaPencil share these expectations — both expect width/height
-    // dimensions + a stringified `loras` array, not the flux-style
-    // aspect_ratio + single hf_lora payload.
-    const isCommunitySdxl =
-      externalModelId.includes('noobai') ||
-      externalModelId.includes('animapencil')
+    const imageSchema = getReplicateImageSchema(modelId, externalModelId)
 
-    const input: Record<string, unknown> = isCommunitySdxl
-      ? buildCommunitySdxlInput(prompt, width, height, advancedParams)
-      : buildFluxInput(prompt, aspectRatio, advancedParams)
+    const input: Record<string, unknown> =
+      imageSchema === 'delta-lock-sdxl'
+        ? buildCommunitySdxlInput(prompt, width, height, advancedParams)
+        : buildFluxInput(prompt, aspectRatio, advancedParams)
 
     if (advancedParams?.seed != null && advancedParams.seed >= 0) {
       input.seed = advancedParams.seed
@@ -380,12 +404,12 @@ export const replicateAdapter: ProviderAdapter = {
         urls: advancedParams.loras.map((l: { url: string }) =>
           l.url.slice(0, 80),
         ),
-        isCommunitySdxl,
+        imageSchema,
       })
       await applyLoraParams(
         input,
         advancedParams.loras,
-        isCommunitySdxl,
+        imageSchema,
         civitaiToken,
       )
     }
@@ -402,7 +426,7 @@ export const replicateAdapter: ProviderAdapter = {
 
     const predBody = await resolveModelBody(
       externalModelId,
-      isCommunitySdxl,
+      imageSchema,
       input,
       apiKey,
       baseUrl,
@@ -411,7 +435,7 @@ export const replicateAdapter: ProviderAdapter = {
     logger.debug('[Replicate] generateImage request', {
       endpoint,
       modelId: externalModelId,
-      isCommunitySdxl,
+      imageSchema,
     })
 
     const response = await fetch(endpoint, {

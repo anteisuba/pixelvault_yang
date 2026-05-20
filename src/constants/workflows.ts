@@ -162,7 +162,8 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     recommendedModelIds: [
       AI_MODELS.ANIMAGINE_XL_4,
       AI_MODELS.ILLUSTRIOUS_XL,
-      AI_MODELS.ANIMA_PENCIL_XL,
+      // ANIMA_PENCIL_XL omitted: model is currently disabled pending a real
+      // endpoint. Re-add when an Anima checkpoint mirror is wired up.
       AI_MODELS.NOVELAI_V45_CURATED,
     ],
   },

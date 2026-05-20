@@ -249,14 +249,32 @@ function handleRouteError(
     errorMessage.includes('high demand') ||
     errorMessage.includes('rate limit')
 
+  if (isTransientUpstream) {
+    // Hand the upstream message through verbatim. We deliberately OMIT
+    // i18nKey here because `getApiErrorMessage` resolves i18nKey > error
+    // field — setting it would mean the user sees the generic "unexpected
+    // error" translation instead of the provider's specific reason
+    // (Gemini "high demand", OpenAI "rate limit", etc.). The whitelist
+    // above is what makes this safe — only known transient patterns reach
+    // this branch, so we can't leak SQL fragments or internal paths.
+    // Status 503 (Service Unavailable) is semantically correct for
+    // "upstream is temporarily down" and lets clients retry sensibly.
+    return NextResponse.json<ErrorResponse>(
+      {
+        success: false,
+        error: errorMessage,
+        errorCode: 'PROVIDER_TRANSIENT',
+      },
+      { status: 503 },
+    )
+  }
+
   return buildJsonErrorResponse(
     new ApiRequestError(
       'INTERNAL_ERROR',
       500,
       'errors.common.unexpected',
-      isTransientUpstream
-        ? errorMessage
-        : 'An unexpected error occurred. Please try again.',
+      'An unexpected error occurred. Please try again.',
     ),
   )
 }

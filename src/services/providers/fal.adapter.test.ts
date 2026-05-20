@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 
 vi.mock('server-only', () => ({}))
 
@@ -65,6 +66,75 @@ describe('falAdapter.generateImage', () => {
     )
     const body = JSON.parse((init as RequestInit).body as string)
     expect(body.prompt).toBe(BASE_INPUT.prompt)
+  })
+
+  // Removed: 'routes Anima LoRA generation through the Qwen Image LoRA endpoint'
+  // The qwen-image route was reverted (architecture mismatch — Anima is SDXL,
+  // Qwen is MMDiT). ANIMA_PENCIL_XL stays disabled until a real anime
+  // checkpoint endpoint is identified; the Civitai LoRA library routes Anima
+  // baseModel LoRAs to "open in Civitai" instead.
+
+  it('does not send reference images to the text-to-image FLUX LoRA endpoint', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            request_id: 'req-flux-lora',
+            status_url: 'https://queue.fal.run/status/req-flux-lora',
+            response_url: 'https://queue.fal.run/result/req-flux-lora',
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: 'COMPLETED' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [
+              {
+                url: 'https://fal.run/output/flux-lora.png',
+                width: 1024,
+                height: 1024,
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: AI_MODELS.FLUX_LORA,
+      referenceImages: ['https://cdn.example.com/reference.png'],
+      advancedParams: {
+        loras: [
+          {
+            url: 'https://example.com/lora.safetensors',
+            scale: 1,
+          },
+        ],
+      },
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toBe(
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/flux-lora`,
+    )
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.image_url).toBeUndefined()
+    expect(body.image_urls).toBeUndefined()
+    expect(body.loras).toEqual([
+      {
+        path: 'https://example.com/lora.safetensors',
+        scale: 1,
+      },
+    ])
   })
 
   it('throws ProviderError with content_policy_violation message on policy error', async () => {

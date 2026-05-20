@@ -42,7 +42,10 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
     }))
     const saved = buildSavedModelOptions(
       keys.filter((k) => k.isActive),
-      (k) => imageModels.some((m) => m.id === k.modelId),
+      (k) =>
+        imageModels.some(
+          (m) => m.id === k.modelId && m.adapterType === k.adapterType,
+        ),
     )
     return mergeModelOptionsWithPreferredSavedRoutes(saved, builtIn, healthMap)
   }, [healthMap, imageModels, keys])

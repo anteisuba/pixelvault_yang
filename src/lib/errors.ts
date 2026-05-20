@@ -146,6 +146,30 @@ export class NotImplementedError extends GenerationError {
   }
 }
 
+/**
+ * Thrown when a generative provider's content-moderation layer refuses the
+ * request — distinct from a generic ProviderError because it's caused by the
+ * input (image or prompt), not by an outage. OpenAI's gpt-image-* is famously
+ * aggressive here, especially on anime / character / face content; Gemini
+ * also occasionally returns SAFETY finishReason. We surface a dedicated code
+ * so the client can suggest switching providers rather than telling the user
+ * to "try again".
+ */
+export class SafetyFilterError extends GenerationError {
+  readonly errorCode = 'SAFETY_FILTER_BLOCKED' as const
+  readonly httpStatus = 422
+  readonly i18nKey = 'errors.provider.safetyBlocked' as const
+  readonly provider: string
+
+  constructor(provider: string, detail?: string) {
+    super(
+      detail ??
+        `${provider} refused to process the request due to its content safety policy.`,
+    )
+    this.provider = provider
+  }
+}
+
 // ─── Type Guard ──────────────────────────────────────────────────
 
 export function isGenerationError(error: unknown): error is GenerationError {

@@ -127,6 +127,7 @@ model User {
   loraTrainingJobs   LoraTrainingJob[]
   loraAssets         LoraAsset[]
   videoScripts       VideoScript[]
+  extractedElements  ExtractedElement[]
 
   @@index([username])
   @@index([isDeleted])
@@ -252,6 +253,7 @@ model Generation {
   likes           UserLike[]
   collectionItems CollectionItem[]
   videoPipeline   VideoPipeline?
+  extractedElements ExtractedElement[] @relation("ExtractedElementSource")
 
   @@index([userId])
   @@index([isPublic, createdAt(sort: Desc)])
@@ -896,4 +898,42 @@ model VideoScriptScene {
   @@unique([scriptId, orderIndex])
   @@index([scriptId, orderIndex])
   @@index([status, createdAt(sort: Desc)])
+}
+
+// ─── Extracted Element (reusable subject/material cutout) ────────
+//
+// Stores the result of /studio/edit/extract-element runs so the user can drop
+// them into future generations as reference material. The cutout PNG lives in
+// R2 (extractedStorageKey); the optional sourceGenerationId links back to the
+// internal source image when the extract came from an existing Generation,
+// otherwise sourceImageUrl alone holds the input reference.
+
+model ExtractedElement {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sourceGenerationId String?
+  sourceGeneration   Generation? @relation("ExtractedElementSource", fields: [sourceGenerationId], references: [id], onDelete: SetNull)
+  sourceImageUrl     String      @db.Text
+
+  extractedUrl        String  @db.Text
+  extractedStorageKey String
+  thumbnailUrl        String? @db.Text
+  thumbnailStorageKey String?
+
+  width  Int @default(1024)
+  height Int @default(1024)
+
+  name   String
+  prompt String  @db.Text
+  invert Boolean @default(false)
+
+  provider String // "fal" | "gemini" | "openai"
+  modelId  String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([sourceGenerationId])
 }

@@ -65,15 +65,15 @@ src/
 
 7 adapters, all in `src/services/providers/`:
 
-| Adapter     | Models                                                | Capabilities  |
-| ----------- | ----------------------------------------------------- | ------------- |
-| huggingface | SDXL, Animagine, SD 3.5                               | Image         |
-| gemini      | Gemini Flash/Pro                                      | Image         |
-| openai      | GPT Image 1.5                                         | Image         |
-| fal         | FLUX variants, Ideogram, Recraft, Kling, MiniMax, etc | Image + Video |
-| replicate   | Illustrious XL                                        | Image + LoRA  |
-| novelai     | NAI Diffusion 3/4/4.5                                 | Image         |
-| volcengine  | Seedream, Seedance                                    | Image + Video |
+| Adapter     | Models                                                                 | Capabilities         |
+| ----------- | ---------------------------------------------------------------------- | -------------------- |
+| huggingface | SDXL, Animagine, SD 3.5                                                | Image                |
+| gemini      | Gemini Flash/Pro                                                       | Image                |
+| openai      | GPT Image 1.5                                                          | Image                |
+| fal         | FLUX variants, Anima/Qwen LoRA, Ideogram, Recraft, Kling, MiniMax, etc | Image + Video + LoRA |
+| replicate   | Illustrious XL                                                         | Image + LoRA         |
+| novelai     | NAI Diffusion 3/4/4.5                                                  | Image                |
+| volcengine  | Seedream, Seedance                                                     | Image + Video        |
 
 **Adding a new model checklist:**
 

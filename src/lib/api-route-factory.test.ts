@@ -403,6 +403,52 @@ describe('createApiRoute', () => {
     expect(json.error).toBe('An unexpected error occurred. Please try again.')
   })
 
+  it('passes the upstream message through verbatim for transient provider errors', async () => {
+    // The whole point of the transient passthrough: the toast must show the
+    // actual provider reason (Gemini "high demand", OpenAI "rate limit") so
+    // the user can take action — not a generic "try again". So we ASSERT no
+    // i18nKey is set, otherwise the client's getApiErrorMessage would resolve
+    // it and override the message.
+    mockHandler.mockRejectedValue(
+      new Error(
+        'The selected Gemini model is temporarily unavailable because Google is experiencing high demand.',
+      ),
+    )
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode?: string
+      i18nKey?: string
+    }>(res)
+
+    expect(res.status).toBe(503)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('PROVIDER_TRANSIENT')
+    expect(json.i18nKey).toBeUndefined()
+    expect(json.error).toContain('high demand')
+  })
+
+  it('also surfaces rate-limit upstream messages verbatim', async () => {
+    mockHandler.mockRejectedValue(
+      new Error('OpenAI returned: rate limit exceeded, try again in 20s'),
+    )
+    const req = createPOST('/api/test', { name: 'a', count: 1 })
+    const res = await POST(req)
+    const json = await parseJSON<{
+      success: boolean
+      error: string
+      errorCode?: string
+      i18nKey?: string
+    }>(res)
+
+    expect(res.status).toBe(503)
+    expect(json.errorCode).toBe('PROVIDER_TRANSIENT')
+    expect(json.i18nKey).toBeUndefined()
+    expect(json.error).toContain('rate limit')
+  })
+
   it('returns 503 for database quota errors', async () => {
     mockHandler.mockRejectedValue(
       new Error(

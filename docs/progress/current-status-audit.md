@@ -1,6 +1,6 @@
 # Current Status Audit
 
-> Last updated: 2026-05-03
+> Last updated: 2026-05-20
 > This file replaces the older MVP-era audit snapshot.
 
 ## Executive Summary
@@ -44,6 +44,7 @@ Current Studio capabilities include:
 - audio generation (TTS) with outbox-backed async + transactional finalize
 - voice library selection
 - private voice cloning
+- Civitai LoRA route guidance for FLUX, Illustrious / NoobAI, and Anima/Qwen; recent Civitai Anima LoRAs use Qwen-Image module keys, so raw Civitai Anima LoRA inference routes through FAL `fal-ai/qwen-image` rather than the generic Stable Diffusion `fal-ai/lora` endpoint
 - gallery filter tabs (`all` / `favorites` / `today`) — fully functional
 - gallery `Heart` action wired to `useLike`
 - preview Super Res / Remove BG / Save Edited — all connected to `image-edit.service`

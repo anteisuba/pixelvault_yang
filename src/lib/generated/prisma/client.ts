@@ -206,3 +206,8 @@ export type VideoScript = Prisma.VideoScriptModel
  * 
  */
 export type VideoScriptScene = Prisma.VideoScriptSceneModel
+/**
+ * Model ExtractedElement
+ *
+ */
+export type ExtractedElement = Prisma.ExtractedElementModel

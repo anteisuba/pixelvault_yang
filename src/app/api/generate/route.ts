@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 
 // Next.js segment config exports must stay statically analyzable.
-export const maxDuration = 240
+export const maxDuration = 300
 
 function scheduleImagePreviewDerivativeProcessing() {
   const task = async () => {

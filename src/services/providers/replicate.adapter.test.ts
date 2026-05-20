@@ -7,12 +7,15 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 vi.mock('server-only', () => ({}))
 
 import { replicateAdapter } from './replicate.adapter'
+import { ProviderError } from './types'
 
 const PROMPT = 'A precise cinematic prompt'
 const API_KEY = 'r8-test-key'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  vi.clearAllMocks()
 })
 
 describe('replicate video payloads', () => {
@@ -66,5 +69,19 @@ describe('replicate video payloads', () => {
         duration: 5,
       },
     })
+  })
+})
+
+describe('replicate image payloads', () => {
+  it('does not report Civitai signed download URLs as invalid Replicate API keys', () => {
+    const error = new ProviderError(
+      'Replicate',
+      502,
+      "Command '['pget', '-x', 'https://b2.civitai.com/file/model.safetensors?Authorization=signed', '/src/weights-cache/abc']' returned non-zero exit status 1.",
+    )
+
+    expect(error.message).toBe(
+      'LoRA model file could not be loaded. Refresh the LoRA URL or try another LoRA source.',
+    )
   })
 })

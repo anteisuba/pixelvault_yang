@@ -15,6 +15,7 @@ import { HUNYUAN3D_FACE_COUNT } from '@/constants/model-3d-generation'
 
 import { invertReferenceStrength } from '@/lib/utils'
 import { logger } from '@/lib/logger'
+import { injectCivitaiToken } from '@/services/civitai-token.service'
 
 /**
  * Normalize fal.ai error responses into user-friendly messages.
@@ -472,6 +473,7 @@ export const falAdapter: ProviderAdapter = {
     referenceImage,
     referenceImages,
     advancedParams,
+    civitaiToken,
   }: ProviderGenerationInput) {
     const { width, height } = IMAGE_SIZES[aspectRatio] ?? IMAGE_SIZES['1:1']
     const externalModelId = getExecutionModelId(modelId)
@@ -499,7 +501,9 @@ export const falAdapter: ProviderAdapter = {
     // LoRA models: pass loras array to fal.ai
     if (advancedParams?.loras?.length) {
       body.loras = advancedParams.loras.map((lora) => ({
-        path: lora.url,
+        path: civitaiToken
+          ? injectCivitaiToken(lora.url, civitaiToken)
+          : lora.url,
         scale: lora.scale ?? 1,
       }))
     }
@@ -507,6 +511,7 @@ export const falAdapter: ProviderAdapter = {
     // Kontext models: native reference image handling (no strength/denoising)
     const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
     const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
+    const TEXT_TO_IMAGE_ONLY_MODELS = new Set(['fal-ai/flux-lora'])
 
     if (KONTEXT_MULTI_MODELS.has(externalModelId)) {
       // Kontext Max: multiple reference images
@@ -519,7 +524,7 @@ export const falAdapter: ProviderAdapter = {
       if (ref) {
         body.image_url = ref
       }
-    } else {
+    } else if (!TEXT_TO_IMAGE_ONLY_MODELS.has(externalModelId)) {
       // Standard FAL img2img: reference image with denoising strength
       const effectiveRefImage = referenceImages?.[0] ?? referenceImage
       if (effectiveRefImage) {

@@ -201,23 +201,26 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
   },
   // #9d — Anima — SDXL-architecture finetune popular on Civitai.
-  // FALLBACK ROUTE: my first guess `lucataco/animapencil-xl-v4` 404'd —
-  // that exact mirror isn't published. Until a confirmed Anima mirror is
-  // identified, we route through delta-lock/noobai-xl. Both NoobAI and
-  // Anima are Illustrious-derived SDXL finetunes, so LoRA layers load
-  // correctly through the same multi-LoRA JSON path; the trade-off is
-  // that output style leans NoobAI rather than Anima Pencil's pencil/
-  // lineart aesthetic. TODO: swap externalModelId once a stable
-  // Anima-specific Replicate mirror is identified.
+  // DISABLED pending a real endpoint. Two attempted routes both failed:
+  //   1. lucataco/animapencil-xl-v4 → 404 (mirror doesn't exist on Replicate)
+  //   2. delta-lock/noobai-xl       → loads file but adapter set() is
+  //      empty: Anima LoRAs are trained against the Anima checkpoint
+  //      with vocab/layer names that don't map to NoobAI's structure.
+  //
+  // Until a confirmed Anima checkpoint mirror is identified (search
+  // Replicate Explore for "anima" or check fal.ai's model registry),
+  // this entry stays available:false so the StudioLoraChip compatibility
+  // banner can fall back to its "needs API key / no available model"
+  // hint rather than dispatching users into a guaranteed-failure path.
   {
     id: AI_MODELS.ANIMA_PENCIL_XL,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.REPLICATE,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
-    externalModelId: 'delta-lock/noobai-xl',
+    externalModelId: 'lucataco/animapencil-xl-v4', // placeholder until real endpoint
     outputType: 'IMAGE',
-    available: true,
-    officialUrl: 'https://replicate.com/delta-lock/noobai-xl',
+    available: false,
+    officialUrl: 'https://replicate.com/explore?query=anima',
     qualityTier: 'standard',
     styleTag: 'anime',
     supportsLora: true,

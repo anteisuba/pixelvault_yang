@@ -566,6 +566,15 @@ function CompatibilityBanner({
             provider: compatibility.recommendedProviderLabel,
           })}
         </p>
+      ) : compatibility.neededFamily ? (
+        // No recommended model wired up for this family at all (e.g. Anima
+        // until we identify a real endpoint, SD 1.5 indefinitely). Tell
+        // users it's a platform-side gap, not a misconfiguration.
+        <p className="self-start rounded-md border border-current/50 bg-current/5 px-2 py-1 text-2xs leading-snug">
+          {t('bannerNoEndpoint', {
+            family: compatibility.neededFamily,
+          })}
+        </p>
       ) : null}
     </div>
   )

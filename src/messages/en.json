@@ -890,7 +890,8 @@
     "bannerFamilyMismatch": "Current model \"{model}\" is not compatible with {family} LoRAs — they won't take effect.",
     "pickModel": "Switch to {model}",
     "pickModelHint": "Pick a model that matches the LoRA's base architecture",
-    "needsApiKey": "Recommended: {model} — but you haven't added a {provider} API key yet. Add one under Advanced → API routes first."
+    "needsApiKey": "Recommended: {model} — but you haven't added a {provider} API key yet. Add one under Advanced → API routes first.",
+    "bannerNoEndpoint": "No built-in inference endpoint for {family} yet — we're still hunting a stable mirror. You can try running it on Illustrious XL as a compatibility shim; results will drift from the intended base model."
   },
   "LoraWorkbench": {
     "tabs": {
@@ -1891,7 +1892,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "(Experimental · routes through NoobAI mirror for now) For Civitai LoRAs tagged Anima — LoRA loads correctly but output style leans NoobAI rather than pure Anima Pencil. Will swap once a stable Anima mirror is found."
+      "description": "(Not yet available) Anima LoRAs require the Anima checkpoint for inference — no stable Replicate / fal mirror confirmed yet. Will activate once a real endpoint is wired up."
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

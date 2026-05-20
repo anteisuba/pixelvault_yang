@@ -890,7 +890,8 @@
     "bannerFamilyMismatch": "現在のモデル「{model}」は {family} LoRAと互換性がありません — 効果は反映されません。",
     "pickModel": "{model} に切り替え",
     "pickModelHint": "LoRAのベース構造に合うモデルを選びます",
-    "needsApiKey": "推奨: 「{model}」 — まだ {provider} の API キーを追加していません。高度な設定 → API ルートで追加してください。"
+    "needsApiKey": "推奨: 「{model}」 — まだ {provider} の API キーを追加していません。高度な設定 → API ルートで追加してください。",
+    "bannerNoEndpoint": "{family} 用の組み込み推論エンドポイントはまだありません — 安定したミラーを探しています。当面は Illustrious XL で互換実行できますが、本来のベースモデルとは結果が異なります。"
   },
   "LoraWorkbench": {
     "tabs": {
@@ -1891,7 +1892,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "（実験的 · 現在はNoobAIベースで動作）CivitaiのAnimaタグLoRA向け — LoRAは正常に読み込まれますが、出力スタイルは純粋なAnima PencilではなくNoobAI寄りになります。安定したAnimaミラーが見つかり次第切り替えます。"
+      "description": "（未公開）Anima LoRA の推論には Anima チェックポイントが必要 — 安定した Replicate / fal ミラーが未確認です。エンドポイント接続後に自動的に有効化されます。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

@@ -890,7 +890,8 @@
     "bannerFamilyMismatch": "当前模型「{model}」与 {family} LoRA 不兼容 — 生成结果不会带 LoRA 风格。",
     "pickModel": "切到 {model}",
     "pickModelHint": "用 LoRA 的基础架构选一个能跑的模型",
-    "needsApiKey": "推荐用「{model}」，但你还没配置 {provider} 的 API key — 先去高级 → API 路由里添加。"
+    "needsApiKey": "推荐用「{model}」，但你还没配置 {provider} 的 API key — 先去高级 → API 路由里添加。",
+    "bannerNoEndpoint": "{family} 暂无内置推理 endpoint — 我们还在找稳定的镜像。可以先用 Illustrious XL 兼容跑，效果会偏离 base 模型。"
   },
   "LoraWorkbench": {
     "tabs": {
@@ -1891,7 +1892,7 @@
     },
     "animaPencilXl": {
       "label": "Anima Pencil XL",
-      "description": "（实验性 · 暂跑在 NoobAI 底座上）适合 Civitai 上 Anima 标签的 LoRA — LoRA 能加载，但出图风格会偏 NoobAI 而不是纯 Anima Pencil。等找到稳定 Anima 镜像再换。"
+      "description": "（暂未上线）Anima 检查点专属 LoRA 需要 Anima ckpt 推理 — Replicate / fal 上还没找到稳定镜像。等接入后会自动启用。"
     },
     "gemini25FlashImage": {
       "label": "Gemini 2.5 Flash",

@@ -34,3 +34,18 @@ export function getSystemApiKey(adapterType: string): string | null {
 export function getFishAudioVoiceLibraryApiKey(): string | null {
   return process.env.FISH_AUDIO_VOICE_LIBRARY_API_KEY ?? null
 }
+
+/**
+ * Platform-level Civitai token used to authenticate LoRA downloads when
+ * the user hasn't configured a personal one. Civitai's /api/download
+ * now 401s anonymous requests, so without this fallback Replicate
+ * (which fetches LoRA URLs server-side) can't load any Civitai LoRA.
+ *
+ * The token is only used by `resolveCivitaiToken` in
+ * generate-image.service as a fallback after the per-user token check —
+ * we still prefer the user's own token when present so per-account rate
+ * limits and download history live with them, not the platform.
+ */
+export function getSystemCivitaiToken(): string | null {
+  return process.env.CIVITAI_API_TOKEN ?? null
+}

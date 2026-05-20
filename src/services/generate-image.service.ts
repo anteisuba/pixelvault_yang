@@ -38,7 +38,7 @@ import {
 } from '@/services/usage.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import { ensureUser } from '@/services/user.service'
-import { getSystemApiKey } from '@/lib/platform-keys'
+import { getSystemApiKey, getSystemCivitaiToken } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
@@ -308,10 +308,16 @@ async function callProviderWithFallback(params: {
   const startedAt = Date.now()
 
   // Civitai's download endpoint now 401s without auth, even for public
-  // models — fetch the user's stored token so Replicate (and any other
-  // adapter that resolves civitai URLs) can authenticate the download.
-  // Null is fine: adapters fall back to the original URL when absent.
-  const civitaiToken = await getCivitaiTokenByInternalUserId(userId)
+  // models. Resolution order:
+  //   1. User's stored token — preferred so per-account rate limits and
+  //      download history stay with the user.
+  //   2. Platform-level CIVITAI_API_TOKEN env var — zero-config fallback
+  //      so new users can pull Civitai LoRAs without setting up their own
+  //      token first.
+  //   3. null — adapters fall back to the original URL (will surface a
+  //      clear 401 from Replicate rather than silently mis-loading).
+  const civitaiToken =
+    (await getCivitaiTokenByInternalUserId(userId)) ?? getSystemCivitaiToken()
 
   try {
     const asset = await breaker.call(() =>

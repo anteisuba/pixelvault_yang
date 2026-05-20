@@ -11,7 +11,6 @@ import {
 import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
-  ArrowRight,
   ArrowUpRight,
   Compass,
   Download,
@@ -53,10 +52,21 @@ import {
   LoraTrainingForm,
   LoraTrainingHistorySidebar,
 } from '@/components/business/LoraTrainingDialog'
-import {
-  LoraAssetCard,
-  isRecentlyTrained,
-} from '@/components/business/studio/lora/LoraAssetCard'
+import { PresetGrid } from '@/components/business/studio/lora/training/PresetGrid'
+import dynamic from 'next/dynamic'
+import { useIsMobile } from '@/hooks/use-mobile'
+import type { LoraTrainingPresetId } from '@/constants/lora'
+
+// Lazy-loaded so the Vaul-backed Drawer doesn't bloat the desktop SSR
+// payload. Mobile-only entry point.
+const MobileTrainingSheet = dynamic(
+  () =>
+    import('@/components/business/studio/lora/training/MobileTrainingSheet').then(
+      (m) => m.MobileTrainingSheet,
+    ),
+  { ssr: false },
+)
+import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -92,6 +102,7 @@ export function LoraWorkbench() {
     favoriteCivitaiLora,
     unfavoriteAsset,
     unfavoriteByUrl,
+    deleteAsset,
     isFavorited,
   } = useLoraAssets()
 
@@ -167,6 +178,7 @@ export function LoraWorkbench() {
           onSwitchSection={setActiveSection}
           onVisibilityChange={setVisibility}
           onUnfavorite={unfavoriteAsset}
+          onDelete={deleteAsset}
         />
       ) : null}
 
@@ -192,6 +204,7 @@ interface MyLoraBranchProps {
   onSwitchSection: (section: LoraWorkbenchSection) => void
   onVisibilityChange: (assetId: string, isPublic: boolean) => Promise<boolean>
   onUnfavorite: (assetId: string) => Promise<boolean>
+  onDelete: (assetId: string) => Promise<boolean>
 }
 
 function MyLoraBranch({
@@ -203,27 +216,13 @@ function MyLoraBranch({
   onSwitchSection,
   onVisibilityChange,
   onUnfavorite,
+  onDelete,
 }: MyLoraBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<MineSort>('newest')
 
   const totalCount = trained.length + favorites.length
-
-  // 「最近训练完成」hero strip — 7 天内 source==='trained' 最新一个。
-  // 把训练 → 使用闭环从 3 步压成 1 步：从 train tab 跳回 mine tab
-  // 的用户第一眼看到自己刚做的东西，旁边一个大按钮直达 Studio。
-  // 始终从原始 trained 数组算（忽略当前 search/sort 状态），
-  // 不然搜索过滤后会把刚训完的隐藏掉。
-  const recentlyTrained = useMemo(() => {
-    const fresh = trained
-      .filter(isRecentlyTrained)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-    return fresh[0] ?? null
-  }, [trained])
 
   const { filteredTrained, filteredFavorites } = useMemo(() => {
     const trimmedQuery = query.trim().toLowerCase()
@@ -273,10 +272,6 @@ function MyLoraBranch({
         <EmptyHero onSwitchSection={onSwitchSection} />
       ) : (
         <>
-          {recentlyTrained ? (
-            <RecentlyTrainedStrip asset={recentlyTrained} />
-          ) : null}
-
           <MineToolbar
             query={query}
             onQueryChange={setQuery}
@@ -305,6 +300,7 @@ function MyLoraBranch({
                         asset={asset}
                         showVisibilityToggle={asset.isOwn}
                         onVisibilityChange={onVisibilityChange}
+                        onDelete={onDelete}
                       />
                     ))}
                   </AssetGrid>
@@ -559,79 +555,6 @@ function EmptyHero({ onSwitchSection }: EmptyHeroProps) {
           </Button>
         </div>
       </div>
-    </div>
-  )
-}
-
-interface RecentlyTrainedStripProps {
-  asset: LoraAssetRecord
-}
-
-function RecentlyTrainedStrip({ asset }: RecentlyTrainedStripProps) {
-  const t = useTranslations('LoraWorkbench')
-  const tStack = useTranslations('LoraStack')
-  const router = useRouter()
-  const pathname = usePathname()
-  const stack = useActiveLoraStack()
-
-  const alreadyInStack = stack.items.some(
-    (entry) => entry.asset.id === asset.id,
-  )
-
-  const handleUse = useCallback(() => {
-    if (!alreadyInStack) stack.push(asset)
-    if (pathname === ROUTES.STUDIO_IMAGE) {
-      toast.success(tStack('alreadyHere', { name: asset.name }))
-      return
-    }
-    toast.success(t('addedToStack', { name: asset.name }))
-    router.push(ROUTES.STUDIO_IMAGE)
-  }, [alreadyInStack, asset, pathname, stack, router, t, tStack])
-
-  return (
-    <div className="relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 animate-in fade-in slide-in-from-top-2 duration-500 sm:gap-4 sm:p-4">
-      <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-primary/20 sm:size-20">
-        {asset.coverImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={asset.coverImageUrl}
-            alt={asset.name}
-            className="size-full object-cover"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center text-primary">
-            <Sparkles className="size-6" aria-hidden />
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-primary-foreground">
-            <Sparkles className="size-2.5 fill-current" aria-hidden />
-            {t('recentlyTrainedBadge')}
-          </span>
-        </div>
-        <p className="truncate font-display text-base font-semibold tracking-tight text-foreground sm:text-lg">
-          {asset.name}
-        </p>
-        <p className="hidden truncate text-xs text-muted-foreground sm:block">
-          {t('recentlyTrainedSubtitle')} ·{' '}
-          <span className="font-mono">{asset.triggerWord}</span>
-        </p>
-      </div>
-
-      <Button
-        type="button"
-        size="sm"
-        onClick={handleUse}
-        className="shrink-0 gap-1.5"
-      >
-        {alreadyInStack ? t('alreadyInUse') : t('recentlyTrainedUse')}
-        {!alreadyInStack ? (
-          <ArrowRight className="size-3.5" aria-hidden />
-        ) : null}
-      </Button>
     </div>
   )
 }
@@ -1344,21 +1267,106 @@ function Metric({ icon, label, value }: MetricProps) {
   )
 }
 
-function TrainingBranch() {
-  // Two-column page layout (Krea-inspired): left rail surfaces the user's
-  // training history + dataset-reuse placeholder so they stay in view as
-  // the user fills the form, right pane is the form itself. Form's
-  // built-in recent-jobs block is suppressed (hideRecentJobs) since the
-  // sidebar owns that responsibility here. Collapses to single column
-  // on mobile so the sidebar doesn't squeeze the form.
+interface PresetRailPanelProps {
+  presetId: LoraTrainingPresetId | null
+  onSelect: (preset: { id: LoraTrainingPresetId }) => void
+}
+
+/**
+ * Right-rail wrapper around PresetGrid. Adds the "Presets" heading +
+ * subtitle that the standalone grid doesn't render, and applies the
+ * sticky / scroll constraints shared with the history rail so the two
+ * columns visually balance at lg+ breakpoints.
+ */
+function PresetRailPanel({ presetId, onSelect }: PresetRailPanelProps) {
+  const t = useTranslations('LoraTraining')
   return (
-    <section className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[280px_1fr]">
-      <div className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-12rem)] lg:sticky lg:top-4">
-        <LoraTrainingHistorySidebar />
+    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
+      <div className="mb-3 space-y-0.5">
+        <h3 className="font-display text-sm font-semibold tracking-tight">
+          {t('presetRailTitle')}
+        </h3>
+        <p className="text-2xs text-muted-foreground">
+          {t('presetRailSubtitle')}
+        </p>
       </div>
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <LoraTrainingForm showHeading hideRecentJobs />
-      </div>
+      <PresetGrid layout="compact" selectedId={presetId} onSelect={onSelect} />
+    </aside>
+  )
+}
+
+function TrainingBranch() {
+  // Three-column page layout (lg+): training history rail · main form ·
+  // preset rail. Presets used to sit above the form, which dragged the
+  // main column off-screen and left the history rail mostly empty —
+  // splitting them across siblings balances the columns and keeps the
+  // form short. On md the preset rail folds below the form (still wide
+  // grid via PresetGrid's wide layout). On sm the form moves into a
+  // Vaul bottom-sheet with both rails stacked above.
+  const isMobile = useIsMobile()
+  const [presetId, setPresetId] = useState<LoraTrainingPresetId | null>(null)
+
+  const handleSelectPreset = useCallback(
+    (preset: { id: LoraTrainingPresetId }) => {
+      setPresetId(preset.id)
+    },
+    [],
+  )
+
+  const handleClearPreset = useCallback(() => {
+    setPresetId(null)
+  }, [])
+
+  const historyRail = (
+    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
+      <LoraTrainingHistorySidebar />
+    </aside>
+  )
+
+  const presetRail = (
+    <PresetRailPanel presetId={presetId} onSelect={handleSelectPreset} />
+  )
+
+  // Form column is just the form. EmptyState + the page heading both
+  // got cut — the preset rail next to the form is its own empty state,
+  // and the tabs above already say "train", so an h2 saying the same
+  // thing is noise.
+  const formColumn = (
+    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <LoraTrainingForm
+        hideRecentJobs
+        selectedPresetId={presetId}
+        onPresetClear={handleClearPreset}
+      />
+    </div>
+  )
+
+  if (isMobile) {
+    // Mobile: history + presets stack above; form lives in a Vaul sheet
+    // triggered by the floating FAB.
+    return (
+      <section className="mx-auto max-w-5xl space-y-4 pb-24">
+        {historyRail}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <PresetGrid
+            layout="wide"
+            selectedId={presetId}
+            onSelect={handleSelectPreset}
+          />
+        </div>
+        <MobileTrainingSheet>{formColumn}</MobileTrainingSheet>
+      </section>
+    )
+  }
+
+  // Desktop: 3-column on lg+, 2-column on md (preset rail folds below).
+  // max-w-7xl gives the 3-column layout room to breathe without the
+  // form column getting squeezed under 480px.
+  return (
+    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_280px]">
+      {historyRail}
+      {formColumn}
+      <div className="md:col-span-2 lg:col-span-1">{presetRail}</div>
     </section>
   )
 }

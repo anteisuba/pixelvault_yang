@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
 import {
+  deleteLoraAssetAPI,
   favoriteLoraAPI,
   listLoraAssetsAPI,
   listDiscoverLoraAssetsAPI,
@@ -33,6 +34,7 @@ export interface UseLoraAssetsReturn {
   ) => Promise<LoraAssetRecord | null>
   unfavoriteAsset: (assetId: string) => Promise<boolean>
   unfavoriteByUrl: (loraUrl: string) => Promise<boolean>
+  deleteAsset: (assetId: string) => Promise<boolean>
   isFavorited: (loraUrl: string) => boolean
 }
 
@@ -151,6 +153,32 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     [myAssets, t],
   )
 
+  // 永久删除自训 LoRA — 乐观从 myAssets 移除，失败回滚。
+  // toast 包含资产名让用户能识别「是哪个被删了」。后端只接受
+  // source==='trained' 且 owner 匹配，UI 调用方有责任只在
+  // 满足条件的卡片上挂这个 callback（LoraAssetCard 已经做了
+  // 菜单条件渲染）。
+  const deleteAsset = useCallback(
+    async (assetId: string): Promise<boolean> => {
+      const target = myAssets.find((a) => a.id === assetId)
+      const previous = myAssets
+      setMyAssets((prev) => prev.filter((a) => a.id !== assetId))
+      const result = await deleteLoraAssetAPI(assetId)
+      if (!result.success) {
+        setMyAssets(previous)
+        toast.error(result.error ?? t('assetDeleteFailed'))
+        return false
+      }
+      toast.success(
+        target
+          ? t('assetDeleted', { name: target.name })
+          : t('assetDeleted', { name: '' }),
+      )
+      return true
+    },
+    [myAssets, t],
+  )
+
   const isFavorited = useCallback(
     (loraUrl: string): boolean =>
       favoriteAssets.some((a) => a.loraUrl === loraUrl),
@@ -179,6 +207,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     favoriteCivitaiLora,
     unfavoriteAsset,
     unfavoriteByUrl,
+    deleteAsset,
     isFavorited,
   }
 }

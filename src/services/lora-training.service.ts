@@ -7,6 +7,7 @@ import JSZip from 'jszip'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { decryptApiKey } from '@/lib/crypto'
+import { GenerationError } from '@/lib/errors'
 import {
   detectTrustedImageMime,
   fetchAsBuffer,
@@ -14,7 +15,158 @@ import {
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LORA_TRAINING } from '@/constants/config'
-import type { LoraTrainingRecord, SubmitLoraTrainingRequest } from '@/types'
+import type {
+  LoraTrainingRecord,
+  LoraTrainingSubmitErrorCode,
+  SubmitLoraTrainingRequest,
+} from '@/types'
+
+/**
+ * Typed error the training flow throws so the API route can marshal a
+ * structured `{code, fieldKey, messageKey}` body for the UI. Use
+ * `mapLoraTrainingError` at the API boundary to derive the i18n
+ * `messageKey` — services should only know `code`.
+ *
+ * `fieldKey` (optional) names the form field this error belongs to
+ * (e.g. `'name'` for NAMING_CONFLICT) so the UI can highlight the right
+ * input. Leave undefined for non-field-bound errors.
+ */
+export class LoraTrainingError extends GenerationError {
+  readonly code: LoraTrainingSubmitErrorCode
+  readonly fieldKey?: string
+  readonly errorCode: string
+  readonly httpStatus: number
+  readonly i18nKey: string
+
+  constructor(
+    code: LoraTrainingSubmitErrorCode,
+    message: string,
+    fieldKey?: string,
+  ) {
+    super(message)
+    this.code = code
+    this.fieldKey = fieldKey
+    this.errorCode = `LORA_TRAINING_${code}`
+    this.httpStatus = LORA_TRAINING_ERROR_HTTP_STATUS[code]
+    this.i18nKey = `LoraTraining.${SUBMIT_ERROR_MESSAGE_KEYS[code]}`
+  }
+
+  // The factory calls toJSON() to serialize. Inject `code` (short alias the
+  // client switches on), `fieldKey` (for inline form highlight) and
+  // `messageKey` (so the UI can `t('LoraTraining.<key>')` without parsing
+  // the i18nKey path). Keep `error` + `errorCode` + `i18nKey` so existing
+  // `getApiErrorMessage` consumers still work.
+  toJSON() {
+    return {
+      ...super.toJSON(),
+      code: this.code,
+      fieldKey: this.fieldKey,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS[this.code],
+    }
+  }
+}
+
+const LORA_TRAINING_ERROR_HTTP_STATUS: Record<
+  LoraTrainingSubmitErrorCode,
+  number
+> = {
+  INSUFFICIENT_CREDITS: 402,
+  IMAGE_TOO_LARGE: 413,
+  BASE_MODEL_UNSUPPORTED: 400,
+  NAMING_CONFLICT: 409,
+  UPSTREAM_TIMEOUT: 504,
+  RATE_LIMIT: 429,
+  QUOTA_EXCEEDED: 403,
+  API_KEY_INVALID: 401,
+  INTERNAL: 500,
+}
+
+/**
+ * Translate any `unknown` error caught at the API boundary into a stable
+ * shape the client can render. Known providers errors (timeout, 429,
+ * invalid key) get mapped to their respective codes; everything else
+ * falls through to INTERNAL.
+ *
+ * Provider error matching is string-based by necessity — Replicate and
+ * fal.ai don't expose typed error classes. The substrings here are
+ * conservative; bias toward INTERNAL (which logs to Sentry) over guessing.
+ */
+export function mapLoraTrainingError(err: unknown): {
+  code: LoraTrainingSubmitErrorCode
+  message: string
+  fieldKey?: string
+  messageKey: string
+} {
+  if (err instanceof LoraTrainingError) {
+    return {
+      code: err.code,
+      message: err.message,
+      fieldKey: err.fieldKey,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS[err.code],
+    }
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  const lower = message.toLowerCase()
+  if (lower.includes('timeout') || lower.includes('timed out')) {
+    return {
+      code: 'UPSTREAM_TIMEOUT',
+      message,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS.UPSTREAM_TIMEOUT,
+    }
+  }
+  if (
+    lower.includes('429') ||
+    lower.includes('rate limit') ||
+    lower.includes('too many requests')
+  ) {
+    return {
+      code: 'RATE_LIMIT',
+      message,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS.RATE_LIMIT,
+    }
+  }
+  if (
+    lower.includes('401') ||
+    lower.includes('unauthorized') ||
+    lower.includes('invalid api key') ||
+    lower.includes('invalid token')
+  ) {
+    return {
+      code: 'API_KEY_INVALID',
+      message,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS.API_KEY_INVALID,
+    }
+  }
+  if (lower.includes('quota') || lower.includes('insufficient balance')) {
+    return {
+      code: 'QUOTA_EXCEEDED',
+      message,
+      messageKey: SUBMIT_ERROR_MESSAGE_KEYS.QUOTA_EXCEEDED,
+    }
+  }
+  return {
+    code: 'INTERNAL',
+    message,
+    messageKey: SUBMIT_ERROR_MESSAGE_KEYS.INTERNAL,
+  }
+}
+
+/**
+ * i18n key map — string values live under `LoraTraining.errors.*` in the
+ * locale files. Each enum member must have a key; switch-coverage is
+ * enforced at compile time via the `Record` type.
+ */
+const SUBMIT_ERROR_MESSAGE_KEYS: Record<LoraTrainingSubmitErrorCode, string> = {
+  INSUFFICIENT_CREDITS: 'errorInsufficientCredits',
+  IMAGE_TOO_LARGE: 'errorImageTooLarge',
+  BASE_MODEL_UNSUPPORTED: 'errorBaseModelUnsupported',
+  NAMING_CONFLICT: 'errorNamingConflict',
+  UPSTREAM_TIMEOUT: 'errorUpstreamTimeout',
+  RATE_LIMIT: 'errorRateLimit',
+  QUOTA_EXCEEDED: 'errorQuotaExceeded',
+  API_KEY_INVALID: 'errorApiKeyInvalid',
+  INTERNAL: 'errorGeneric',
+}
 
 /**
  * Per-image cap for client-uploaded training images. Streaming each pick
@@ -135,6 +287,7 @@ function toRecord(job: {
   characterCardId: string | null
   createdAt: Date
   completedAt: Date | null
+  loraAsset?: { styleCode: string } | null
 }): LoraTrainingRecord {
   return {
     id: job.id,
@@ -148,6 +301,7 @@ function toRecord(job: {
     characterCardId: job.characterCardId,
     createdAt: job.createdAt,
     completedAt: job.completedAt,
+    loraStyleCode: job.loraAsset?.styleCode ?? null,
   }
 }
 
@@ -191,7 +345,8 @@ export async function uploadTrainingImage(params: {
   claimedMimeType: string
 }): Promise<UploadedTrainingImage> {
   if (params.fileBuffer.byteLength > LORA_TRAINING_IMAGE_MAX_BYTES) {
-    throw new Error(
+    throw new LoraTrainingError(
+      'IMAGE_TOO_LARGE',
       `Image exceeds the ${Math.round(
         LORA_TRAINING_IMAGE_MAX_BYTES / 1024 / 1024,
       )} MB limit`,
@@ -230,8 +385,10 @@ export async function submitLoraTraining(
   // that. Fail fast with a clear message so we don't take money and dump
   // a guaranteed-failure job into the queue.
   if (data.baseModel !== 'flux-1-d') {
-    throw new Error(
+    throw new LoraTrainingError(
+      'BASE_MODEL_UNSUPPORTED',
       `Base model "${data.baseModel}" is not yet supported — only flux-1-d is wired up to a trainer today.`,
+      'baseModel',
     )
   }
 
@@ -240,8 +397,24 @@ export async function submitLoraTraining(
     where: { userId: dbUser.id },
   })
   if (existingCount >= LORA_TRAINING.MAX_PER_USER) {
-    throw new Error(
+    throw new LoraTrainingError(
+      'QUOTA_EXCEEDED',
       `Maximum ${LORA_TRAINING.MAX_PER_USER} LoRA training jobs per user`,
+    )
+  }
+
+  // Naming conflict — same user + same training name = collision. The UI
+  // surfaces this on the `name` field so the user can rename without
+  // losing the rest of the form state.
+  const existingByName = await db.loraTrainingJob.findFirst({
+    where: { userId: dbUser.id, name: data.name },
+    select: { id: true },
+  })
+  if (existingByName) {
+    throw new LoraTrainingError(
+      'NAMING_CONFLICT',
+      `A LoRA training job named "${data.name}" already exists`,
+      'name',
     )
   }
 
@@ -271,36 +444,45 @@ export async function submitLoraTraining(
     mimeType: 'application/zip',
   })
 
-  // Submit to provider
+  // Submit to provider. Wrap so any raw provider error (fal 429, Replicate
+  // 401, network timeout) gets remapped to a typed LoraTrainingError —
+  // otherwise the generic factory catch-all would 500 and the UI would
+  // show "unexpected error" instead of the real cause.
   let externalId: string
   let statusUrl: string | undefined
 
-  if (data.provider === 'fal') {
-    const result = await withRetry(
-      () =>
-        submitFalLoraTraining({
-          apiKey,
-          inputImagesUrl: zipUrl,
-          triggerWord: data.triggerWord,
-          isStyle: data.loraType === 'style',
-        }),
-      { maxAttempts: 3, label: 'submitFalLoraTraining' },
-    )
-    externalId = result.requestId
-    statusUrl = result.statusUrl
-    // fal returns response_url via the submit schema; store in externalTrainingId as JSON
-  } else {
-    const result = await withRetry(
-      () =>
-        submitReplicateLoraTraining({
-          apiKey,
-          inputImagesUrl: zipUrl,
-          triggerWord: data.triggerWord,
-          loraType: data.loraType,
-        }),
-      { maxAttempts: 3, label: 'submitReplicateLoraTraining' },
-    )
-    externalId = result.trainingId
+  try {
+    if (data.provider === 'fal') {
+      const result = await withRetry(
+        () =>
+          submitFalLoraTraining({
+            apiKey,
+            inputImagesUrl: zipUrl,
+            triggerWord: data.triggerWord,
+            isStyle: data.loraType === 'style',
+          }),
+        { maxAttempts: 3, label: 'submitFalLoraTraining' },
+      )
+      externalId = result.requestId
+      statusUrl = result.statusUrl
+      // fal returns response_url via the submit schema; store in externalTrainingId as JSON
+    } else {
+      const result = await withRetry(
+        () =>
+          submitReplicateLoraTraining({
+            apiKey,
+            inputImagesUrl: zipUrl,
+            triggerWord: data.triggerWord,
+            loraType: data.loraType,
+          }),
+        { maxAttempts: 3, label: 'submitReplicateLoraTraining' },
+      )
+      externalId = result.trainingId
+    }
+  } catch (err) {
+    if (err instanceof LoraTrainingError) throw err
+    const mapped = mapLoraTrainingError(err)
+    throw new LoraTrainingError(mapped.code, mapped.message, mapped.fieldKey)
   }
 
   // Create DB record
@@ -340,7 +522,10 @@ export async function checkLoraTrainingStatus(
 ): Promise<LoraTrainingRecord> {
   const dbUser = await ensureUser(clerkId)
 
-  const job = await db.loraTrainingJob.findUnique({ where: { id: jobId } })
+  const job = await db.loraTrainingJob.findUnique({
+    where: { id: jobId },
+    include: { loraAsset: { select: { styleCode: true } } },
+  })
   if (!job || job.userId !== dbUser.id) {
     throw new Error('Training job not found')
   }
@@ -366,6 +551,7 @@ export async function checkLoraTrainingStatus(
         const updated = await db.loraTrainingJob.update({
           where: { id: jobId },
           data: { loraUrl: publicUrl, loraStorageKey: storageKey },
+          include: { loraAsset: { select: { styleCode: true } } },
         })
         logger.info('LoRA weights retroactively transferred to R2', {
           jobId,
@@ -497,6 +683,7 @@ export async function checkLoraTrainingStatus(
   const updated = await db.loraTrainingJob.update({
     where: { id: jobId },
     data: updateData,
+    include: { loraAsset: { select: { styleCode: true } } },
   })
 
   // If completed and linked to a character card, auto-bind the LoRA
@@ -532,6 +719,7 @@ export async function listLoraTrainingJobs(
     where: { userId: dbUser.id },
     orderBy: { createdAt: 'desc' },
     take: 50,
+    include: { loraAsset: { select: { styleCode: true } } },
   })
 
   // Auto-transfer completed jobs that still have provider URLs (not R2)
@@ -580,7 +768,10 @@ export async function getLoraTrainingJob(
 ): Promise<LoraTrainingRecord> {
   const dbUser = await ensureUser(clerkId)
 
-  const job = await db.loraTrainingJob.findUnique({ where: { id: jobId } })
+  const job = await db.loraTrainingJob.findUnique({
+    where: { id: jobId },
+    include: { loraAsset: { select: { styleCode: true } } },
+  })
   if (!job || job.userId !== dbUser.id) {
     throw new Error('Training job not found')
   }

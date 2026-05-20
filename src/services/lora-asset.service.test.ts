@@ -49,6 +49,7 @@ import {
   updateLoraAssetCover,
   favoriteExternalLora,
   unfavoriteLora,
+  deleteOwnedLoraAsset,
 } from '@/services/lora-asset.service'
 
 const OWNER = { id: 'user_owner', clerkId: 'clerk_owner' }
@@ -543,6 +544,59 @@ describe('unfavoriteLora', () => {
     )
     mockAssetDelete.mockResolvedValue({})
     const result = await unfavoriteLora(OWNER.clerkId, 'asset_1')
+    expect(result).toBe(true)
+    expect(mockAssetDelete).toHaveBeenCalledWith({ where: { id: 'asset_1' } })
+  })
+})
+
+describe('deleteOwnedLoraAsset', () => {
+  it('returns false when the asset does not exist', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(null)
+    const result = await deleteOwnedLoraAsset(OWNER.clerkId, 'missing')
+    expect(result).toBe(false)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('returns false when the asset belongs to another user', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'trained', userId: VIEWER.id }),
+    )
+    const result = await deleteOwnedLoraAsset(OWNER.clerkId, 'asset_1')
+    expect(result).toBe(false)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('refuses to delete a curated platform asset', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'curated', userId: OWNER.id }),
+    )
+    await expect(
+      deleteOwnedLoraAsset(OWNER.clerkId, 'asset_1'),
+    ).rejects.toThrow(/self-trained/i)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('refuses to delete an imported favorite (use unfavoriteLora)', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'imported', userId: OWNER.id }),
+    )
+    await expect(
+      deleteOwnedLoraAsset(OWNER.clerkId, 'asset_1'),
+    ).rejects.toThrow(/self-trained/i)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+  })
+
+  it('deletes a trained asset owned by the caller', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'trained', userId: OWNER.id }),
+    )
+    mockAssetDelete.mockResolvedValue({})
+    const result = await deleteOwnedLoraAsset(OWNER.clerkId, 'asset_1')
     expect(result).toBe(true)
     expect(mockAssetDelete).toHaveBeenCalledWith({ where: { id: 'asset_1' } })
   })

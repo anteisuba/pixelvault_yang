@@ -152,6 +152,102 @@ export function isCivitaiBaseModelGeneratable(rawBaseModel: string): boolean {
   return false
 }
 
+// 训练预设 — 给「我想训一个 X」的用户一个不用调任何 dial 的入口。点一张卡，
+// 表单的 loraType / baseModel / 默认 triggerWord 一起被填上，用户只需要上传图
+// 和起名字。3 列 × 2 行 = 6 张刚好填满桌面端。
+//
+// id 是稳定 key（i18n 名字按 nameKey 取）。`available: false` 的卡渲染成
+// Coming Soon tooltip，点击不会触发 onSelect — 跟 LORA_TRAINING_BASE_MODELS
+// 同一套门控逻辑。新增 preset 时如果 baseModel 不是 'flux-1-d'，要先把
+// service 层的 trainer 端点接上再 flip available。
+export const LORA_TRAINING_PRESETS = [
+  {
+    id: 'anime-character',
+    available: true,
+    loraType: 'subject',
+    baseModel: 'flux-1-d',
+    suggestedTriggerWord: 'sks_character',
+    nameKey: 'presetAnimeCharacterName',
+    descriptionKey: 'presetAnimeCharacterDescription',
+    explanationKey: 'presetAnimeCharacterExplanation',
+    icon: 'sparkles',
+  },
+  {
+    id: 'realistic-portrait',
+    available: true,
+    loraType: 'subject',
+    baseModel: 'flux-1-d',
+    suggestedTriggerWord: 'sks_person',
+    nameKey: 'presetRealisticPortraitName',
+    descriptionKey: 'presetRealisticPortraitDescription',
+    explanationKey: 'presetRealisticPortraitExplanation',
+    icon: 'user',
+  },
+  {
+    id: 'art-style',
+    available: true,
+    loraType: 'style',
+    baseModel: 'flux-1-d',
+    suggestedTriggerWord: 'sks_style',
+    nameKey: 'presetArtStyleName',
+    descriptionKey: 'presetArtStyleDescription',
+    explanationKey: 'presetArtStyleExplanation',
+    icon: 'palette',
+  },
+  {
+    id: 'object',
+    available: true,
+    loraType: 'subject',
+    baseModel: 'flux-1-d',
+    suggestedTriggerWord: 'sks_object',
+    nameKey: 'presetObjectName',
+    descriptionKey: 'presetObjectDescription',
+    explanationKey: 'presetObjectExplanation',
+    icon: 'box',
+  },
+  {
+    id: 'sdxl-coming-soon',
+    available: false,
+    loraType: 'subject',
+    baseModel: 'sdxl-1.0',
+    suggestedTriggerWord: '',
+    nameKey: 'presetSdxlName',
+    descriptionKey: 'presetSdxlDescription',
+    explanationKey: 'presetSdxlExplanation',
+    icon: 'image',
+  },
+  {
+    id: 'illustrious-coming-soon',
+    available: false,
+    loraType: 'subject',
+    baseModel: 'illustrious',
+    suggestedTriggerWord: '',
+    nameKey: 'presetIllustriousName',
+    descriptionKey: 'presetIllustriousDescription',
+    explanationKey: 'presetIllustriousExplanation',
+    icon: 'wand',
+  },
+] as const satisfies readonly {
+  id: string
+  available: boolean
+  loraType: 'subject' | 'style'
+  baseModel: LoraTrainingBaseModel
+  suggestedTriggerWord: string
+  nameKey: string
+  descriptionKey: string
+  explanationKey: string
+  icon: 'sparkles' | 'user' | 'palette' | 'box' | 'image' | 'wand'
+}[]
+
+export type LoraTrainingPreset = (typeof LORA_TRAINING_PRESETS)[number]
+export type LoraTrainingPresetId = LoraTrainingPreset['id']
+
+export function getLoraTrainingPreset(
+  id: LoraTrainingPresetId,
+): LoraTrainingPreset | undefined {
+  return LORA_TRAINING_PRESETS.find((p) => p.id === id)
+}
+
 export function isLoraWorkbenchSection(
   value: string | null,
 ): value is LoraWorkbenchSection {

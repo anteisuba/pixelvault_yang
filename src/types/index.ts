@@ -2829,6 +2829,54 @@ export type SelectVariantWinnerRequest = z.infer<
 
 // ─── LoRA Training ────────────────────────────────────────────────
 
+/**
+ * Typed error codes the LoRA training service throws so the UI can render
+ * a friendly message via i18n instead of leaking provider strings (e.g. a
+ * raw fal.ai 429 or a Replicate "PEFT weight mismatch"). The API route
+ * marshals these into `{code, fieldKey, messageKey}` response bodies; the
+ * `useLoraTraining` hook reads `messageKey` and runs it through `t(...)`.
+ *
+ * Order matters for switch-coverage exhaustiveness — keep this enum and
+ * the service-side mapper in `lora-training.service.ts` in sync.
+ */
+export const LORA_TRAINING_SUBMIT_ERROR_CODES = [
+  'INSUFFICIENT_CREDITS',
+  'IMAGE_TOO_LARGE',
+  'BASE_MODEL_UNSUPPORTED',
+  'NAMING_CONFLICT',
+  'UPSTREAM_TIMEOUT',
+  'RATE_LIMIT',
+  'QUOTA_EXCEEDED',
+  'API_KEY_INVALID',
+  'INTERNAL',
+] as const
+
+export const LoraTrainingSubmitErrorCodeSchema = z.enum(
+  LORA_TRAINING_SUBMIT_ERROR_CODES,
+)
+export type LoraTrainingSubmitErrorCode = z.infer<
+  typeof LoraTrainingSubmitErrorCodeSchema
+>
+
+/**
+ * Wire shape the API route returns when training submission fails. The
+ * route always writes `{success: false, error, code, messageKey}` so the
+ * client-side `submitLoraTrainingAPI` wrapper can stay generic — UI reads
+ * `messageKey` and runs it through `t('LoraTraining.<key>')`. `fieldKey`
+ * is optional so the form can highlight the offending input (e.g. the
+ * "name" field for NAMING_CONFLICT).
+ */
+export const LoraTrainingErrorResponseSchema = z.object({
+  success: z.literal(false),
+  error: z.string(),
+  code: LoraTrainingSubmitErrorCodeSchema,
+  messageKey: z.string(),
+  fieldKey: z.string().optional(),
+})
+export type LoraTrainingErrorResponse = z.infer<
+  typeof LoraTrainingErrorResponseSchema
+>
+
 export const SubmitLoraTrainingSchema = z.object({
   name: z.string().trim().min(1).max(100),
   triggerWord: z.string().trim().min(1).max(50),
@@ -2858,6 +2906,14 @@ export interface LoraTrainingRecord {
   characterCardId: string | null
   createdAt: Date
   completedAt: Date | null
+  /**
+   * Style code of the auto-created LoraAsset for COMPLETED jobs. Used by
+   * the post-train "去使用" deeplink — `/studio/image?style=<code>` reuses
+   * the existing LoraStackProvider URL-resolver to auto-activate the
+   * trained LoRA on the canvas. Null until the COMPLETED transition
+   * runs (or for non-COMPLETED statuses).
+   */
+  loraStyleCode: string | null
 }
 
 export interface LoraTrainingResponse {

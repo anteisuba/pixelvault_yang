@@ -338,6 +338,48 @@ export async function unfavoriteLora(
 }
 
 /**
+ * Permanently delete a user's owned, self-trained LoRA asset.
+ *
+ * Authorization:
+ *   - Caller must own the row (userId match).
+ *   - Only `source === 'trained'` is deletable here. `curated` is a system
+ *     seed (no DELETE path), `imported` flows through `unfavoriteLora`.
+ *
+ * Side effects (intentional / not):
+ *   - DB row removed.
+ *   - LoraTrainingJob.loraAssetId is set to NULL by Prisma's onDelete:
+ *     SetNull rule — the training job history stays intact.
+ *   - R2 storage (the .safetensors weights at `storageKey`) is NOT removed
+ *     here. Storage GC is a separate concern — punting until we have a
+ *     scheduled cleanup job. Worst case: orphan R2 objects, no user impact.
+ *   - Past Generation rows reference LoRAs by `styleCode` / `loraUrl` in
+ *     embedded JSON, not by FK, so previously generated images are
+ *     unaffected.
+ *
+ * Return: true on success, false when the row is missing or not owned.
+ * Throws when the caller tries to delete a non-trained source (programmer
+ * error — the UI should never offer the menu item for those).
+ */
+export async function deleteOwnedLoraAsset(
+  clerkId: string,
+  loraAssetId: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row || row.userId !== user.id) return false
+  if (row.source !== 'trained') {
+    throw new Error('Only self-trained LoRA assets can be deleted this way')
+  }
+  await db.loraAsset.delete({ where: { id: loraAssetId } })
+  logger.info('LoraAsset deleted', {
+    userId: user.id,
+    loraAssetId,
+    name: row.name,
+  })
+  return true
+}
+
+/**
  * Map the LoraTrainingJob.baseModel column (a provider-routed string like
  * 'flux-dev', 'flux-dev-fal', 'sdxl', 'illustrious') onto the
  * baseModelFamily bucket used by the Studio LoRA chip + capability matching.

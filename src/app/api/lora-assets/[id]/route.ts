@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import {
+  deleteOwnedLoraAsset,
   setLoraAssetVisibility,
   updateLoraAssetCover,
 } from '@/services/lora-asset.service'
@@ -121,6 +122,67 @@ export async function PATCH(
       {
         success: false,
         error: isAuth ? 'Forbidden' : 'Failed to update LoRA',
+        errorCode: isAuth ? 'FORBIDDEN' : undefined,
+      },
+      { status: isAuth ? 403 : 500 },
+    )
+  }
+}
+
+interface DeleteSuccessBody {
+  success: true
+}
+
+/**
+ * DELETE /api/lora-assets/[id]
+ *
+ * Permanently remove a self-trained LoRA owned by the caller.
+ * Only `source === 'trained'` rows are deletable here — imported favorites
+ * flow through POST /api/lora-assets/favorite + DELETE there; curated
+ * platform LoRAs have no delete path by design.
+ */
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+): Promise<NextResponse<DeleteSuccessBody | ErrorBody>> {
+  const startedAt = Date.now()
+  try {
+    const { id } = await context.params
+    const { userId: clerkId } = await auth()
+    if (!clerkId) {
+      return NextResponse.json<ErrorBody>(
+        { success: false, error: 'Unauthorized', errorCode: 'UNAUTHORIZED' },
+        { status: 401 },
+      )
+    }
+
+    const deleted = await deleteOwnedLoraAsset(clerkId, id)
+    if (!deleted) {
+      return NextResponse.json<ErrorBody>(
+        { success: false, error: 'Not found', errorCode: 'NOT_FOUND' },
+        { status: 404 },
+      )
+    }
+
+    logger.info('DELETE /api/lora-assets/[id]', {
+      id,
+      viewer: clerkId,
+      durationMs: Date.now() - startedAt,
+    })
+
+    return NextResponse.json<DeleteSuccessBody>({ success: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown'
+    // 「Only self-trained LoRA assets can be deleted this way」 is the
+    // service's authorization signal — surface it as 403 so the UI can
+    // distinguish from genuine 500s.
+    const isAuth =
+      message.includes('self-trained') || message.includes('Not authorized')
+    logger.error('DELETE /api/lora-assets/[id] failed', { error: message })
+    return NextResponse.json<ErrorBody>(
+      {
+        success: false,
+        error: isAuth ? 'Forbidden' : 'Failed to delete LoRA',
         errorCode: isAuth ? 'FORBIDDEN' : undefined,
       },
       { status: isAuth ? 403 : 500 },

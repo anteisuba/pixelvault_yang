@@ -229,6 +229,37 @@ export async function unfavoriteLoraAPI(
   }
 }
 
+/**
+ * Permanently delete a self-trained LoRA asset.
+ * Only owner + source==='trained' is allowed by the backend; UI must
+ * gate the call so users never see a 403.
+ */
+export async function deleteLoraAssetAPI(
+  assetId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(assetId)}`,
+      { method: 'DELETE' },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
 export async function getLoraAssetByCodeAPI(
   code: string,
 ): Promise<SingleResponse> {

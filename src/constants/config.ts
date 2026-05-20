@@ -227,6 +227,13 @@ export const LORA_TRAINING = {
   MAX_PER_USER: 10,
   POLL_INTERVAL_MS: 5000,
   TIMEOUT_MS: 600_000,
+  RECOMMENDED_MIN: 15,
+  RECOMMENDED_MAX: 30,
+  ESTIMATED_COST_USD: '$1.20',
+  ESTIMATED_TIME_MIN: 18,
+  MOBILE_SNAP_POINTS: [0.4, 0.95] as readonly number[],
+  NAME_MAX_LENGTH: 100,
+  TRIGGER_MAX_LENGTH: 50,
 } as const
 
 /** Project configuration */

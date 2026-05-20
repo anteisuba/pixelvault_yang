@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Palette,
   Sparkles,
+  Trash2,
   User,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -18,6 +19,16 @@ import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,10 +43,15 @@ interface LoraAssetCardProps {
   showVisibilityToggle?: boolean
   onVisibilityChange?: (assetId: string, isPublic: boolean) => Promise<boolean>
   onUnfavorite?: (assetId: string) => Promise<boolean>
+  /**
+   * Permanently delete the asset. Only meaningful for `source === 'trained'`
+   * + `isOwn` — the card itself gates the menu entry on those flags, the
+   * parent can pass it for every trained-section card without extra checks.
+   */
+  onDelete?: (assetId: string) => Promise<boolean>
 }
 
-// 7 天阈值用于「刚训练好」标签 — 跟 hero strip 共享，定义在一处
-// 方便以后调整。只有 source === 'trained' 的资产会显示，
+// 7 天阈值用于「刚训练好」标签。只有 source === 'trained' 的资产会显示，
 // curated（系统种子）和 imported（收藏）不算「训练」。
 const RECENTLY_TRAINED_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -50,6 +66,7 @@ export function LoraAssetCard({
   showVisibilityToggle = false,
   onVisibilityChange,
   onUnfavorite,
+  onDelete,
 }: LoraAssetCardProps) {
   const t = useTranslations('LoraWorkbench')
   const tStack = useTranslations('LoraStack')
@@ -57,6 +74,15 @@ export function LoraAssetCard({
   const pathname = usePathname()
   const stack = useActiveLoraStack()
   const [isToggling, setIsToggling] = useState(false)
+  // Delete is a two-step (menu → confirm) flow with the dialog mounted
+  // outside the dropdown — Radix doesn't like AlertDialog as a direct
+  // child of DropdownMenuItem (focus traps fight each other), so we
+  // control open state ourselves and trigger from the menu's onSelect.
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const canDelete =
+    Boolean(onDelete) && asset.source === 'trained' && asset.isOwn
 
   const alreadyInStack = stack.items.some(
     (entry) => entry.asset.id === asset.id,
@@ -99,7 +125,18 @@ export function LoraAssetCard({
     [asset.id, isToggling, onVisibilityChange],
   )
 
-  const hasMenu = showVisibilityToggle || Boolean(onUnfavorite)
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!onDelete || isDeleting) return
+    setIsDeleting(true)
+    try {
+      await onDelete(asset.id)
+    } finally {
+      setIsDeleting(false)
+      setDeleteConfirmOpen(false)
+    }
+  }, [asset.id, isDeleting, onDelete])
+
+  const hasMenu = showVisibilityToggle || Boolean(onUnfavorite) || canDelete
 
   return (
     <article
@@ -254,6 +291,21 @@ export function LoraAssetCard({
                     </DropdownMenuItem>
                   </>
                 ) : null}
+                {canDelete ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setDeleteConfirmOpen(true)
+                      }}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                      {t('assetActionDelete')}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -294,6 +346,50 @@ export function LoraAssetCard({
           </div>
         ) : null}
       </div>
+
+      {/* 删除确认对话框 — Radix AlertDialog 必须挂在 DropdownMenu 之外，
+          否则两个 focus trap 会互相打架。controlled open 让 menu 关闭后
+          dialog 才出现，过渡更稳定。 */}
+      {canDelete ? (
+        <AlertDialog
+          open={deleteConfirmOpen}
+          onOpenChange={(open) => {
+            if (isDeleting) return
+            setDeleteConfirmOpen(open)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('assetDeleteConfirmTitle')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('assetDeleteConfirmDescription', { name: asset.name })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                {t('assetDeleteConfirmCancel')}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={(e) => {
+                  // Prevent the Action's default close-on-click so we can
+                  // await the network call and surface any error before
+                  // tearing down the dialog. handleDeleteConfirm closes it
+                  // on success/failure via setDeleteConfirmOpen(false).
+                  e.preventDefault()
+                  void handleDeleteConfirm()
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                {t('assetDeleteConfirmAction')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </article>
   )
 }

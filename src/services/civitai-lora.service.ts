@@ -233,9 +233,18 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
       controller.abort()
-      reject(new CivitaiFetchError('Civitai request timed out'))
+      // Message must contain the substring 'timeout' so withRetry's
+      // defaultIsRetryable treats this as transient and retries (~3×).
+      // Without it ("timed out" ≠ "timeout"), retry silently no-ops and
+      // a single Civitai blip surfaces to the user as 502.
+      reject(new CivitaiFetchError('Civitai request timeout (timed out)'))
     }, CIVITAI_REQUEST_TIMEOUT_MS)
   })
+  // When fetch wins the race, Promise.race ignores timeoutPromise but the
+  // rejection still fires later and surfaces as "unhandled rejection".
+  // The race result is the authoritative outcome; this catch just absorbs
+  // the late reject so it doesn't pollute logs / test runners.
+  timeoutPromise.catch(() => {})
 
   const requestPromise = fetch(url, {
     headers: { Accept: 'application/json' },

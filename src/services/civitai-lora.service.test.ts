@@ -4,6 +4,13 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+// Bypass withRetry so tests assert the service's own logic without the
+// 3-attempt backoff chain. Production behavior of retry-on-timeout is
+// already covered by with-retry.ts's own tests.
+vi.mock('@/lib/with-retry', () => ({
+  withRetry: <T>(fn: () => Promise<T>) => fn(),
+}))
+
 import { listCivitaiLoras } from '@/services/civitai-lora.service'
 
 const mockFetch = vi.fn<typeof fetch>()
@@ -373,9 +380,12 @@ describe('listCivitaiLoras', () => {
         }),
     )
 
-    const assertion = expect(listCivitaiLoras()).rejects.toThrow(/timed out/)
-
-    await vi.advanceTimersByTimeAsync(8000)
-    await assertion
+    const promise = listCivitaiLoras()
+    // Run all pending fake timers (8s service timeout + withRetry's backoff
+    // delays between retries). Using runAllTimersAsync instead of a single
+    // advanceTimersByTimeAsync(8000) so we don't have to predict the exact
+    // schedule across multiple retry attempts.
+    await vi.runAllTimersAsync()
+    await expect(promise).rejects.toThrow(/timed out/)
   })
 })

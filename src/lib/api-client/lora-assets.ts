@@ -145,6 +145,37 @@ export async function setLoraAssetVisibilityAPI(
   }
 }
 
+export async function updateLoraAssetCoverAPI(
+  loraAssetId: string,
+  coverImageUrl: string,
+): Promise<SingleAssetResponse> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(loraAssetId)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverImageUrl }),
+      },
+    )
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return (await response.json()) as SingleAssetResponse
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
+}
+
 export async function favoriteLoraAPI(
   input: FavoriteLoraRequest,
 ): Promise<SingleAssetResponse> {

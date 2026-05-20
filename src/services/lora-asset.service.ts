@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { isOwnedStorageUrl } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import type {
   LoraAssetRecord,
@@ -231,6 +232,42 @@ export async function setLoraAssetVisibility(
 }
 
 /**
+ * Replace a LoraAsset's `coverImageUrl` — typically swapping the default
+ * (first training image) for a generated sample or a different training
+ * image. Only the owner can do this. The cover must be hosted on our own
+ * R2 bucket (training images, generation outputs, uploaded assets) so we
+ * don't display attacker-controlled URLs in LoRA cards.
+ */
+export async function updateLoraAssetCover(
+  clerkId: string,
+  loraAssetId: string,
+  coverImageUrl: string,
+): Promise<LoraAssetRecord | null> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row) return null
+  if (row.userId !== user.id) {
+    throw new Error('Not authorized to modify this LoRA')
+  }
+  if (!isOwnedStorageUrl(coverImageUrl)) {
+    throw new Error('Cover image must be hosted on our storage bucket')
+  }
+
+  const updated = await db.loraAsset.update({
+    where: { id: loraAssetId },
+    data: { coverImageUrl },
+  })
+
+  logger.info('LoraAsset cover updated', {
+    loraAssetId,
+    userId: user.id,
+    coverImageUrl,
+  })
+
+  return toRecord(updated, user.id)
+}
+
+/**
  * Import a Civitai LoRA into the viewer's "Favorites" (source = 'imported').
  * Idempotent on (userId, loraUrl): returns the existing row if present.
  * Visible only to the owner — favorites are personal, not republished.
@@ -301,6 +338,36 @@ export async function unfavoriteLora(
 }
 
 /**
+ * Map the LoraTrainingJob.baseModel column (a provider-routed string like
+ * 'flux-dev', 'flux-dev-fal', 'sdxl', 'illustrious') onto the
+ * baseModelFamily bucket used by the Studio LoRA chip + capability matching.
+ * Trainers we support today land in flux or sdxl families; this helper is the
+ * single place to extend when new trainer base options come online.
+ */
+function inferBaseModelFamily(jobBaseModel: string): LoraAssetBaseFamily {
+  const v = jobBaseModel.toLowerCase()
+  if (v.includes('flux')) return 'flux'
+  // Illustrious and Pony are both SDXL-architecture finetunes — Studio's
+  // SDXL family bucket already groups them with NoobAI / delta-lock.
+  if (
+    v.includes('sdxl') ||
+    v.includes('illustrious') ||
+    v.includes('pony') ||
+    v.includes('noobai')
+  ) {
+    return 'sdxl'
+  }
+  return 'flux'
+}
+
+/** Resolve an R2 storage key (e.g. `lora-training/{userId}/{ts}-0.png`) to
+ *  the public CDN URL. Mirrors the join used in `uploadToR2`'s return value
+ *  so cover / preview URLs stay in sync with where the bytes actually live. */
+function storageKeyToPublicUrl(key: string): string {
+  return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${key}`
+}
+
+/**
  * Idempotently create a LoraAsset from a completed LoraTrainingJob.
  * Called by lora-training.service when a job reaches COMPLETED.
  */
@@ -318,6 +385,12 @@ export async function ensureLoraAssetFromTrainingJob(
   const type: LoraAssetType = job.loraType === 'style' ? 'style' : 'subject'
   const styleCode = await reserveUniqueStyleCode(job.name, type)
 
+  // First training image is the default cover; the full list seeds the LoRA
+  // card's preview gallery. Both fields are nullable in the DB so older jobs
+  // without trainingImageKeys still get a valid (no-cover) asset record.
+  const imageUrls = (job.trainingImageKeys ?? []).map(storageKeyToPublicUrl)
+  const coverImageUrl = imageUrls[0] ?? null
+
   await db.loraAsset.create({
     data: {
       userId: job.userId,
@@ -325,11 +398,13 @@ export async function ensureLoraAssetFromTrainingJob(
       styleCode,
       source: 'trained',
       type,
-      baseModelFamily: 'flux',
+      baseModelFamily: inferBaseModelFamily(job.baseModel),
       provider: job.baseModel.endsWith('-fal') ? 'fal' : 'replicate',
       triggerWord: job.triggerWord,
       loraUrl: job.loraUrl,
       storageKey: job.loraStorageKey,
+      coverImageUrl,
+      previewImageUrls: imageUrls,
       defaultScale: 1.0,
       isPublic: false,
       trainingJobId: job.id,
@@ -340,6 +415,8 @@ export async function ensureLoraAssetFromTrainingJob(
     jobId,
     styleCode,
     userId: job.userId,
+    coverImageUrl,
+    previewCount: imageUrls.length,
   })
 }
 

@@ -33,6 +33,11 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+const mockIsOwnedStorageUrl = vi.fn<(url: string) => boolean>()
+vi.mock('@/services/storage/r2', () => ({
+  isOwnedStorageUrl: (url: string) => mockIsOwnedStorageUrl(url),
+}))
+
 import {
   generateStyleCode,
   getLoraAssetByStyleCode,
@@ -41,6 +46,7 @@ import {
   findLoraAssetsByUrls,
   listDiscoverLoraAssets,
   setLoraAssetVisibility,
+  updateLoraAssetCover,
   favoriteExternalLora,
   unfavoriteLora,
 } from '@/services/lora-asset.service'
@@ -228,6 +234,8 @@ describe('ensureLoraAssetFromTrainingJob', () => {
   })
 
   it('creates an asset for a completed job that has none', async () => {
+    const STORAGE_BASE = 'https://cdn.test'
+    process.env.NEXT_PUBLIC_STORAGE_BASE_URL = STORAGE_BASE
     mockJobFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: OWNER.id,
@@ -238,6 +246,11 @@ describe('ensureLoraAssetFromTrainingJob', () => {
       status: 'COMPLETED',
       loraUrl: 'https://r2.example.com/x.safetensors',
       loraStorageKey: 'lora-weights/owner/job_1.safetensors',
+      trainingImageKeys: [
+        'lora-training/owner/1-0.png',
+        'lora-training/owner/1-1.png',
+        'lora-training/owner/1-2.png',
+      ],
       loraAsset: null,
     })
     mockAssetFindUnique.mockResolvedValue(null) // styleCode is unique on first try
@@ -254,12 +267,142 @@ describe('ensureLoraAssetFromTrainingJob', () => {
       name: 'Forest',
       source: 'trained',
       type: 'subject',
+      // flux-dev-fal → flux family bucket
+      baseModelFamily: 'flux',
       provider: 'fal',
       triggerWord: 'pv_forest',
       loraUrl: 'https://r2.example.com/x.safetensors',
       trainingJobId: 'job_1',
+      // First training image becomes the default cover; full list seeds the
+      // preview gallery on the LoRA library card.
+      coverImageUrl: `${STORAGE_BASE}/lora-training/owner/1-0.png`,
+      previewImageUrls: [
+        `${STORAGE_BASE}/lora-training/owner/1-0.png`,
+        `${STORAGE_BASE}/lora-training/owner/1-1.png`,
+        `${STORAGE_BASE}/lora-training/owner/1-2.png`,
+      ],
     })
     expect(callArg.data.styleCode).toMatch(/^pv-c-forest-[a-f0-9]{4}$/)
+  })
+
+  it('maps SDXL-family trainer base models to the sdxl bucket', async () => {
+    process.env.NEXT_PUBLIC_STORAGE_BASE_URL = 'https://cdn.test'
+    mockJobFindUnique.mockResolvedValue({
+      id: 'job_2',
+      userId: OWNER.id,
+      name: 'IllustriousChar',
+      triggerWord: 'pv_char',
+      loraType: 'subject',
+      baseModel: 'illustrious-xl',
+      status: 'COMPLETED',
+      loraUrl: 'https://r2.example.com/illust.safetensors',
+      loraStorageKey: 'lora-weights/owner/job_2.safetensors',
+      trainingImageKeys: ['lora-training/owner/2-0.png'],
+      loraAsset: null,
+    })
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue({ id: 'asset_2' })
+
+    await ensureLoraAssetFromTrainingJob('job_2')
+
+    const data = (
+      mockAssetCreate.mock.calls[0][0] as { data: Record<string, unknown> }
+    ).data
+    expect(data.baseModelFamily).toBe('sdxl')
+    // illustrious-xl doesn't end with '-fal', so falls through to replicate.
+    expect(data.provider).toBe('replicate')
+  })
+
+  it('tolerates jobs without trainingImageKeys (cover/preview empty)', async () => {
+    process.env.NEXT_PUBLIC_STORAGE_BASE_URL = 'https://cdn.test'
+    mockJobFindUnique.mockResolvedValue({
+      id: 'job_3',
+      userId: OWNER.id,
+      name: 'Legacy',
+      triggerWord: 'pv_legacy',
+      loraType: 'subject',
+      baseModel: 'flux-dev',
+      status: 'COMPLETED',
+      loraUrl: 'https://r2.example.com/legacy.safetensors',
+      loraStorageKey: null,
+      trainingImageKeys: [],
+      loraAsset: null,
+    })
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue({ id: 'asset_3' })
+
+    await ensureLoraAssetFromTrainingJob('job_3')
+
+    const data = (
+      mockAssetCreate.mock.calls[0][0] as { data: Record<string, unknown> }
+    ).data
+    expect(data.coverImageUrl).toBeNull()
+    expect(data.previewImageUrls).toEqual([])
+  })
+})
+
+describe('updateLoraAssetCover', () => {
+  beforeEach(() => {
+    mockIsOwnedStorageUrl.mockReset()
+  })
+
+  it('updates cover when the caller is the owner and url is owned', async () => {
+    const newCover = 'https://cdn.test/lora-training/owner/new-cover.png'
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(buildRow())
+    mockIsOwnedStorageUrl.mockReturnValue(true)
+    mockAssetUpdate.mockResolvedValue(buildRow({ coverImageUrl: newCover }))
+
+    const result = await updateLoraAssetCover(
+      OWNER.clerkId,
+      'asset_1',
+      newCover,
+    )
+
+    expect(mockAssetUpdate).toHaveBeenCalledWith({
+      where: { id: 'asset_1' },
+      data: { coverImageUrl: newCover },
+    })
+    expect(result?.coverImageUrl).toBe(newCover)
+  })
+
+  it('returns null when the asset does not exist', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(null)
+
+    const result = await updateLoraAssetCover(
+      OWNER.clerkId,
+      'missing',
+      'https://cdn.test/x.png',
+    )
+
+    expect(result).toBeNull()
+    expect(mockAssetUpdate).not.toHaveBeenCalled()
+  })
+
+  it('throws when the caller does not own the asset', async () => {
+    mockEnsureUser.mockResolvedValue(VIEWER)
+    mockAssetFindUnique.mockResolvedValue(buildRow()) // owned by OWNER
+
+    await expect(
+      updateLoraAssetCover(VIEWER.clerkId, 'asset_1', 'https://cdn.test/x.png'),
+    ).rejects.toThrow(/Not authorized/)
+    expect(mockAssetUpdate).not.toHaveBeenCalled()
+  })
+
+  it('rejects covers hosted outside our storage bucket', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(buildRow())
+    mockIsOwnedStorageUrl.mockReturnValue(false)
+
+    await expect(
+      updateLoraAssetCover(
+        OWNER.clerkId,
+        'asset_1',
+        'https://attacker.example.com/x.png',
+      ),
+    ).rejects.toThrow(/storage bucket/)
+    expect(mockAssetUpdate).not.toHaveBeenCalled()
   })
 })
 

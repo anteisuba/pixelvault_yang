@@ -23,6 +23,33 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 
 不要只说“已完成”。
 
+## Command Output Safety
+
+保护上下文使用。任何输出未知或可能很大的命令都必须按字节限制输出。
+
+默认模式：
+
+```bash
+COMMAND 2>&1 | head -c 4000
+```
+
+## AI Agent 执行纪律
+
+所有重要的 AI 协作任务都必须遵守以下规则：
+
+1. **写代码前先思考** — 先说明假设，不要猜。模型不会读心，别指望它能自动知道你的意思。
+2. **简单优先** — 最少代码，不做投机式抽象。一旦为“未来灵活性”加东西，可能就多出 200 行下季度要删的代码。
+3. **外科手术式修改** — 只改必须改的地方。不要顺手优化旁边的代码，PR 就是这么膨胀的。
+4. **目标驱动执行** — 先定义成功标准，然后循环直到验证通过。没有成功标准，要么无限循环，要么过早停止。
+5. **只把模型用于判断型任务** — 比如分类、草稿、总结、抽取。不要让模型处理路由、重试、状态码处理、确定性转换。代码能回答的，就让代码回答。
+6. **Token 预算不是建议** — 单任务 4000，单会话 30000。长时间调试到第 40 条消息时，模型会重新建议第 5 条消息已经否掉的修复方案。
+7. **暴露冲突，不要折中平均** — 代码库里有两种模式时，要明确选一种。把两种混在一起，错误就会被吞两次。
+8. **先读再写** — 先读 exports、调用方、共享工具。避免在已有相同函数旁边再加一个重复函数。
+9. **测试要验证意图，而不只是行为** — 如果业务逻辑变了测试却不会失败，这个测试就是错的。测试都通过不代表函数没有退化成常量返回。
+10. **每个重要步骤都要 checkpoint** — 不要在第 4 步已经坏掉的状态上继续完成第 5、6 步。重要阶段都要有可观察状态或验证点。
+11. **匹配代码库约定** — 项目用 class components，就不要默默改成 hooks。测试模式、生命周期和调用约定可能依赖现有范式。
+12. **失败要大声暴露** — 不要“成功完成”但静默跳过部分记录。要暴露不确定性、部分失败和降级路径，不要藏起来。
+
 ## Key Entry Points
 
 | Path                       | Role                                               |
@@ -46,16 +73,7 @@ Personal AI Gallery (PixelVault) — multi-model AI image generation + permanent
 6. **Feature dev order** — constants → types → services → hooks → components
 7. **Import order** — React/Next → third-party → internal constants/types → components/hooks → styles
 
-## Karpathy 开发原则
-
-所有代码改动必须遵循以下 4 条（完整版：调用 `andrej-karpathy-skills:karpathy-guidelines` skill）：
-
-1. **Think Before Coding** — 显式说明假设；存在多种解读时全部呈现，不要默默选一个；有更简方案就指出来；不清楚就停下来问
-2. **Simplicity First** — 解决问题的最少代码：不写未要求的功能/抽象/灵活性/不可能场景的错误处理；200 行能压到 50 行就重写
-3. **Surgical Changes** — 只动该动的；不"顺手优化"相邻代码/注释/格式；匹配现有风格；只清理自己改动产生的孤儿，已有死代码只提及不删除；每一行改动都要能追溯到用户请求
-4. **Goal-Driven Execution** — 把任务转成可验证目标（"加校验"→"先写无效输入测试再让其通过"）；多步任务先列「步骤→验证标准」计划
-
-冲突时的优先级：用户明确指令 > 本项目 Hard Rules > Karpathy 原则 > 默认行为。
+冲突时的优先级：用户明确指令 > 本项目 Hard Rules > AI Agent 执行纪律 > 默认行为。
 
 ## Design Language
 

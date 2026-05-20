@@ -51,6 +51,33 @@ After every completed change, Codex must clearly tell the user:
 
 Do not merely say that the work is done.
 
+## Command Output Safety Rule
+
+Protect context usage. Any command with unknown or potentially large output must be byte-capped.
+
+Default pattern:
+
+```bash
+COMMAND 2>&1 | head -c 4000
+```
+
+## AI Agent Execution Discipline
+
+All meaningful AI-assisted work in this repository must follow these rules:
+
+1. **Think before coding** — state assumptions first; do not guess silently. The model cannot read minds, so unclear intent must be surfaced.
+2. **Simplicity first** — use the least code that solves the task. Do not add speculative abstractions or "future flexibility" that creates code likely to be deleted later.
+3. **Surgical changes** — change only what must change. Do not casually optimize neighboring code; that is how PRs inflate.
+4. **Goal-driven execution** — define success criteria first, then iterate until validation passes. Without success criteria, agents either loop too long or stop too early.
+5. **Use models only for judgment tasks** — classification, drafting, summarization, extraction, and similar tasks are appropriate. Do not use models for routing, retries, status-code handling, or deterministic transformations. If code can answer it, let code answer it.
+6. **Token budget is not a suggestion** — target 4000 tokens per task and 30000 tokens per session. Long sessions degrade decision consistency and can reintroduce fixes that were already rejected earlier.
+7. **Expose conflicts instead of averaging them** — if the codebase has two patterns, choose one deliberately. Mixing both can hide errors twice.
+8. **Read before writing** — inspect exports, callers, and shared utilities first. Avoid creating duplicate helpers beside existing ones just because they were not read.
+9. **Tests must verify intent, not just behavior** — if business logic changes but tests would still pass, the tests are wrong.
+10. **Checkpoint every important step** — do not keep building on top of a broken step without noticing. Each important stage needs an observable state or validation point.
+11. **Match codebase conventions** — follow the existing implementation style unless there is a clear reason to change it. Do not silently switch paradigms that tests or lifecycle behavior may depend on.
+12. **Failures must be loud** — expose uncertainty, skipped records, partial failures, and degraded paths. Do not report success while silently dropping important work.
+
 ## Agent Role Division
 
 This repository operates with two agent surfaces. They are not interchangeable.

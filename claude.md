@@ -72,6 +72,7 @@ COMMAND 2>&1 | head -c 4000
 5. **No Tailwind arbitrary values** — extend `tailwind.config.ts` instead
 6. **Feature dev order** — constants → types → services → hooks → components
 7. **Import order** — React/Next → third-party → internal constants/types → components/hooks → styles
+8. **API key gates** — never just disable a UI element that needs a missing API key; route the click through `QuickSetupDialog` so the user can configure inline. Applies to every entry point (model picker, LoRA trainer, future provider-gated features). See `src/components/business/studio/QuickSetupDialog.tsx` JSDoc for the reuse pattern.
 
 冲突时的优先级：用户明确指令 > 本项目 Hard Rules > AI Agent 执行纪律 > 默认行为。
 

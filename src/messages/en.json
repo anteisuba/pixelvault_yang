@@ -3016,6 +3016,7 @@
     "selectApiKey": "Replicate API key",
     "noApiKey": "No Replicate API key configured",
     "addApiKeyHint": "Add a Replicate API key in the sidebar to use this feature",
+    "configureApiKey": "Click to configure",
     "submit": "Start Training",
     "submitting": "Submitting...",
     "cost": "~$1–2 per training",

@@ -53,6 +53,9 @@ import {
   LORA_TRAINING_BASE_MODELS,
   type LoraTrainingBaseModel,
 } from '@/constants/lora'
+import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import { uploadLoraTrainingImageAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 import { cn } from '@/lib/utils'
@@ -89,6 +92,20 @@ export function LoraTrainingForm({
   const [images, setImages] = useState<string[]>([])
   const [assetSelectorOpen, setAssetSelectorOpen] = useState(false)
   const [uploadsInFlight, setUploadsInFlight] = useState(0)
+
+  // QuickSetup target for the API Key buttons. Set when the user clicks a
+  // provider without a saved key — we open the same dialog the Studio
+  // model picker uses (consistent UX: any API key gate launches setup,
+  // never just disables). adapterType drives which guide + verifier
+  // QuickSetup runs; modelId picks the inference model used for the test
+  // call (FLUX_LORA for fal, ILLUSTRIOUS_XL for Replicate — both share
+  // the same key as their respective trainers).
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    adapterType: AI_ADAPTER_TYPES
+    modelId: string
+    modelLabel: string
+  } | null>(null)
 
   const providerKeys = keys.filter(
     (k) => k.adapterType === provider && k.isActive,
@@ -384,39 +401,57 @@ export function LoraTrainingForm({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setProvider('replicate')}
+            onClick={() => {
+              if (hasReplicateKey) {
+                setProvider('replicate')
+              } else {
+                setQuickSetup({
+                  open: true,
+                  adapterType: AI_ADAPTER_TYPES.REPLICATE,
+                  modelId: AI_MODELS.ILLUSTRIOUS_XL,
+                  modelLabel: 'Replicate',
+                })
+              }
+            }}
             className={cn(
               'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
-              provider === 'replicate'
+              provider === 'replicate' && hasReplicateKey
                 ? 'border-primary/40 bg-primary/5 text-foreground'
                 : 'border-border/50 text-muted-foreground hover:border-primary/20',
-              !hasReplicateKey && 'opacity-50',
             )}
-            disabled={!hasReplicateKey}
           >
             Replicate
             {!hasReplicateKey && (
-              <span className="ml-1 text-2xs text-muted-foreground">
-                (no key)
+              <span className="ml-1 text-2xs text-primary">
+                {t('configureApiKey')}
               </span>
             )}
           </button>
           <button
             type="button"
-            onClick={() => setProvider('fal')}
+            onClick={() => {
+              if (hasFalKey) {
+                setProvider('fal')
+              } else {
+                setQuickSetup({
+                  open: true,
+                  adapterType: AI_ADAPTER_TYPES.FAL,
+                  modelId: AI_MODELS.FLUX_LORA,
+                  modelLabel: 'fal.ai',
+                })
+              }
+            }}
             className={cn(
               'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
-              provider === 'fal'
+              provider === 'fal' && hasFalKey
                 ? 'border-primary/40 bg-primary/5 text-foreground'
                 : 'border-border/50 text-muted-foreground hover:border-primary/20',
-              !hasFalKey && 'opacity-50',
             )}
-            disabled={!hasFalKey}
           >
             fal.ai
             {!hasFalKey && (
-              <span className="ml-1 text-2xs text-muted-foreground">
-                (no key)
+              <span className="ml-1 text-2xs text-primary">
+                {t('configureApiKey')}
               </span>
             )}
           </button>
@@ -669,6 +704,23 @@ export function LoraTrainingForm({
         maxSelection={LORA_TRAINING.MAX_IMAGES - images.length}
         onConfirmMany={addImagesFromAssets}
       />
+
+      {/* API key gate — opened by either provider button when the user
+          has no saved key for that provider. After QuickSetup verifies
+          and refreshes useApiKeysContext, hasReplicateKey/hasFalKey
+          flip true on the next render and the form unlocks. */}
+      {quickSetup && (
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(open) =>
+            setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+          }
+          modelId={quickSetup.modelId}
+          modelLabel={quickSetup.modelLabel}
+          adapterType={quickSetup.adapterType}
+          optionId={`workspace:${quickSetup.modelId}`}
+        />
+      )}
     </div>
   )
 }

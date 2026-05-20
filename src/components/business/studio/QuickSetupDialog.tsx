@@ -34,8 +34,67 @@ interface QuickSetupDialogProps {
 type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
 
 /**
- * QuickSetupDialog — guides user to get an API key, verifies it, and auto-selects the model.
- * Flow: show guide link → user pastes key → verify → auto-select model.
+ * QuickSetupDialog — guides user to get an API key, verifies it, and
+ * auto-selects the model. Flow: show guide link → user pastes key →
+ * verify → auto-select model.
+ *
+ * ── Reuse pattern ─────────────────────────────────────────────────
+ *
+ * This dialog is the canonical "API key gate" UX (CLAUDE.md Hard Rule
+ * #8). Any UI element that depends on a provider key MUST route the
+ * no-key click through this dialog instead of going disabled. The
+ * pattern is the same everywhere:
+ *
+ *   const [quickSetup, setQuickSetup] = useState<{
+ *     open: boolean
+ *     adapterType: AI_ADAPTER_TYPES
+ *     modelId: string
+ *     modelLabel: string
+ *   } | null>(null)
+ *
+ *   <button
+ *     onClick={() => {
+ *       if (hasReplicateKey) {
+ *         // ...normal action when key is present
+ *       } else {
+ *         setQuickSetup({
+ *           open: true,
+ *           adapterType: AI_ADAPTER_TYPES.REPLICATE,
+ *           modelId: AI_MODELS.ILLUSTRIOUS_XL, // any image model on that adapter
+ *           modelLabel: 'Replicate',
+ *         })
+ *       }
+ *     }}
+ *   >
+ *     Replicate {!hasReplicateKey && <span>{t('configureApiKey')}</span>}
+ *   </button>
+ *
+ *   {quickSetup && (
+ *     <QuickSetupDialog
+ *       open={quickSetup.open}
+ *       onOpenChange={(open) =>
+ *         setQuickSetup((prev) => (prev ? { ...prev, open } : prev))
+ *       }
+ *       modelId={quickSetup.modelId}
+ *       modelLabel={quickSetup.modelLabel}
+ *       adapterType={quickSetup.adapterType}
+ *       optionId={`workspace:${quickSetup.modelId}`}
+ *     />
+ *   )}
+ *
+ * Notes for non-Studio callers (e.g. LoRA trainer): the dispatch at the
+ * end of handleVerify will set the Studio main form's selectedOptionId
+ * to the freshly-created key. That's harmless side-effect noise for
+ * users who aren't on the Studio canvas; if it ever becomes a problem,
+ * gate it behind a new `skipAutoSelect` prop rather than skipping the
+ * dialog itself. Consistency of the gate UX matters more than purity
+ * of the dispatch.
+ *
+ * Live consumers:
+ * - `StudioLoraChip` — "switch to X" recommended-model button
+ * - `LoraTrainingForm` — Replicate / fal.ai provider buttons
+ * - `EditQuickSetupDialog` — image-edit task's adapter wrapper
+ * - `StudioPromptArea` — main model picker capsule
  */
 export function QuickSetupDialog({
   open,

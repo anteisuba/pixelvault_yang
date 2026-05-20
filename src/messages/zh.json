@@ -3016,6 +3016,7 @@
     "selectApiKey": "Replicate API Key",
     "noApiKey": "未配置 Replicate API Key",
     "addApiKeyHint": "在侧边栏添加 Replicate API Key 以使用此功能",
+    "configureApiKey": "点击配置",
     "submit": "开始训练",
     "submitting": "提交中...",
     "cost": "约 $1-2/次",

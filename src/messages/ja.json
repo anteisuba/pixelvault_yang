@@ -3016,6 +3016,7 @@
     "selectApiKey": "Replicate APIキー",
     "noApiKey": "Replicate APIキーが未設定です",
     "addApiKeyHint": "サイドバーでReplicate APIキーを追加してください",
+    "configureApiKey": "クリックして設定",
     "submit": "トレーニング開始",
     "submitting": "送信中...",
     "cost": "〜$1〜2/回",

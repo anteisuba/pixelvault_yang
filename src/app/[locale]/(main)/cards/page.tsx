@@ -40,9 +40,9 @@ export default async function CardsPage({ params }: CardsPageProps) {
                 {t('cardManagement')}
               </h1>
               <p className="font-serif text-sm leading-7 text-muted-foreground">
-                {tNav('signIn')}
+                {t('cardManagementSignInDescription')}
               </p>
-              <Button asChild className="rounded-full px-5">
+              <Button asChild size="lg" className="h-11 rounded-full px-6">
                 <Link href={ROUTES.SIGN_IN}>{tNav('signIn')}</Link>
               </Button>
             </div>

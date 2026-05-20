@@ -218,10 +218,16 @@ export default async function AssetsPage({
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {t('signedOutDescription')}
               </p>
-              <div className="mt-5 flex justify-center">
-                <Button asChild className="rounded-full px-6">
-                  <Link href={ROUTES.STUDIO}>{t('signedOutAction')}</Link>
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <Button asChild size="lg" className="h-11 rounded-full px-6">
+                  <Link href={ROUTES.SIGN_IN}>{t('signedOutAction')}</Link>
                 </Button>
+                <Link
+                  href={ROUTES.STUDIO}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  {t('signedOutSecondary')}
+                </Link>
               </div>
             </div>
           </div>

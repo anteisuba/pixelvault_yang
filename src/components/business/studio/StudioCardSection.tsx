@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useMemo } from 'react'
-import { Settings2 } from 'lucide-react'
+import { Settings2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
@@ -12,8 +12,8 @@ import { StyleCardManager } from '@/components/business/StyleCardManager'
 import { StudioErrorBoundary } from './StudioErrorBoundary'
 import {
   Sheet,
+  SheetClose,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
@@ -34,6 +34,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tBg = useTranslations('BackgroundCard')
+  const tCommon = useTranslations('Common')
   const projectHistory = projects.history
 
   const cardUsage = useMemo(
@@ -111,15 +112,22 @@ export const StudioCardSection = memo(function StudioCardSection() {
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="dark w-full overflow-y-auto border-l border-white/10 bg-sidebar px-0 text-sidebar-foreground sm:max-w-2xl"
+          className="dark flex w-full flex-col border-l border-white/10 bg-sidebar p-0 text-sidebar-foreground sm:max-w-2xl"
+          showCloseButton={false}
         >
-          <SheetHeader className="gap-3 border-b border-white/10 px-6 pb-5 pt-6">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-white/10 bg-sidebar/95 px-6 pb-5 pt-6 backdrop-blur supports-[backdrop-filter]:bg-sidebar/80">
             <SheetTitle className="font-display text-lg font-medium text-sidebar-foreground">
               {t('cardManagement')}
             </SheetTitle>
-          </SheetHeader>
+            <SheetClose
+              aria-label={tCommon('close')}
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-sidebar-foreground/70 transition-colors hover:bg-white/10 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <X className="size-5" />
+            </SheetClose>
+          </div>
           <StudioErrorBoundary section={t('cardManagement')}>
-            <div className="p-6 space-y-6">
+            <div className="flex-1 space-y-6 overflow-y-auto p-6">
               <CharacterCardManager
                 cards={characters.cards}
                 activeCardIds={characters.activeCardIds}

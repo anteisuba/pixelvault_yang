@@ -1015,7 +1015,8 @@
     "description": "你的所有作品集中管理 — 按项目和文件夹组织。",
     "signedOutTitle": "需要登录",
     "signedOutDescription": "登录后才能查看你的素材。",
-    "signedOutAction": "打开工作台",
+    "signedOutAction": "登录",
+    "signedOutSecondary": "或先去工作台试用",
     "search": "搜索素材...",
     "uploadButton": "上传",
     "uploadInputLabel": "上传图片到本地素材",
@@ -1311,6 +1312,7 @@
     "triggerCount": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
     "sheetTitle": "管理 API 路由",
     "sheetDescription": "按模型保存 provider 路由，自定义提供商名称和 Base URL，并只启用你希望出现在 Studio 里的路由。",
+    "closeLabel": "关闭路由面板",
     "title": "已保存的 provider 路由",
     "description": "每个保存的路由都由适配器、provider 配置、模型 ID 和密钥组成。内置工作区路由默认保留，启用后的已保存路由会一起出现在 Studio 中。",
     "loading": "正在加载你保存的路由...",
@@ -2379,6 +2381,7 @@
   "StudioTools": {
     "groupLabel": "工具",
     "comingSoon": "敬请期待",
+    "backToImage": "回到图像工作台",
     "tools": {
       "image": {
         "label": "图像"
@@ -2479,6 +2482,7 @@
     "removeToken": "删除",
     "cardManagement": "卡片管理",
     "cardManagementHint": "集中管理角色卡、画风卡和背景卡的素材。",
+    "cardManagementSignInDescription": "登录后即可创建、编辑和重用你的角色卡、画风卡和背景卡。",
     "projectHistory": "项目与历史",
     "proModeNudge": "解锁风格卡片和角色预设，获得更精细的控制",
     "tryProMode": "试试看",

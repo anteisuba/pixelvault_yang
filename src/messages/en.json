@@ -1015,7 +1015,8 @@
     "description": "All your generations in one place — organised by project and folder.",
     "signedOutTitle": "Sign in required",
     "signedOutDescription": "Sign in to view your assets.",
-    "signedOutAction": "Open Studio",
+    "signedOutAction": "Sign in",
+    "signedOutSecondary": "Or try Studio first",
     "search": "Search assets...",
     "uploadButton": "Upload",
     "uploadInputLabel": "Upload image to local assets",
@@ -1311,6 +1312,7 @@
     "triggerCount": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
     "sheetTitle": "Manage API routes",
     "sheetDescription": "Save provider routes per model, customize the provider label and base URL, and enable only the routes you want to surface in Studio.",
+    "closeLabel": "Close API routes panel",
     "title": "Saved provider routes",
     "description": "Each saved route combines an adapter, provider config, model ID, and key. Built-in workspace routes stay available by default, while enabled saved routes appear alongside them in Studio.",
     "loading": "Loading your saved routes...",
@@ -2379,6 +2381,7 @@
   "StudioTools": {
     "groupLabel": "Tools",
     "comingSoon": "Coming Soon",
+    "backToImage": "Back to image studio",
     "tools": {
       "image": {
         "label": "Image"
@@ -2479,6 +2482,7 @@
     "removeToken": "Remove",
     "cardManagement": "Card Management",
     "cardManagementHint": "Manage your character, style, and background card assets in one place.",
+    "cardManagementSignInDescription": "Sign in to create, edit, and reuse your character, style, and background cards.",
     "projectHistory": "Project & History",
     "proModeNudge": "Unlock style cards and character presets for more control",
     "tryProMode": "Try it",

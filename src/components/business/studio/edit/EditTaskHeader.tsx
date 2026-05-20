@@ -1,12 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
-import { Link } from '@/i18n/navigation'
 
 import { EditProviderPicker } from './EditProviderPicker'
 import { EditQuickSetupDialog } from './EditQuickSetupDialog'
@@ -40,13 +38,6 @@ export function EditTaskHeader({
 
   return (
     <div className="mb-3 space-y-2">
-      <Link
-        href="/studio/edit"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-3" />
-        {t('placeholder.backToGrid')}
-      </Link>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-foreground">

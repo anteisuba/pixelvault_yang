@@ -1015,7 +1015,8 @@
     "description": "あなたのすべての生成物をひとつの場所で。プロジェクトとフォルダで整理。",
     "signedOutTitle": "サインインが必要です",
     "signedOutDescription": "アセットを表示するにはサインインしてください。",
-    "signedOutAction": "スタジオへ",
+    "signedOutAction": "サインイン",
+    "signedOutSecondary": "またはスタジオを試す",
     "search": "アセットを検索...",
     "uploadButton": "アップロード",
     "uploadInputLabel": "画像をローカル素材にアップロード",
@@ -1311,6 +1312,7 @@
     "triggerCount": "{count, plural, =0 {有効なルートなし} one {# 個の有効ルート} other {# 個の有効ルート}}",
     "sheetTitle": "API ルート管理",
     "sheetDescription": "モデルごとにプロバイダールートを保存し、表示名と Base URL を調整し、Studio に出すルートだけを有効化できます。",
+    "closeLabel": "ルートパネルを閉じる",
     "title": "保存済みプロバイダールート",
     "description": "各保存済みルートは、アダプター、プロバイダー設定、モデル ID、キーで構成されます。組み込みのワークスペースルートは常に残り、有効化した保存済みルートは Studio に並んで表示されます。",
     "loading": "保存済みルートを読み込んでいます...",
@@ -2379,6 +2381,7 @@
   "StudioTools": {
     "groupLabel": "ツール",
     "comingSoon": "近日公開",
+    "backToImage": "画像スタジオに戻る",
     "tools": {
       "image": {
         "label": "画像"
@@ -2471,6 +2474,7 @@
     "removeToken": "削除",
     "cardManagement": "カード管理",
     "cardManagementHint": "キャラクター、スタイル、背景カードの素材をまとめて管理。",
+    "cardManagementSignInDescription": "サインインすると、キャラクター・スタイル・背景カードを作成、編集、再利用できます。",
     "projectHistory": "プロジェクトと履歴",
     "character": "キャラクター",
     "background": "背景",

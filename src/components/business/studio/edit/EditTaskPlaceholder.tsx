@@ -1,12 +1,10 @@
 'use client'
 
-import { ArrowLeft, Construction } from 'lucide-react'
+import { Construction } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { EDIT_TASKS, type EditTaskProvider } from '@/constants/edit-tasks'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
-import { Link } from '@/i18n/navigation'
-import { Button } from '@/components/ui/button'
 
 const PROVIDER_LABEL: Record<EditTaskProvider, string> = {
   fal: 'Fal',
@@ -47,17 +45,6 @@ export function EditTaskPlaceholder({ task }: { task: EditTaskKind }) {
           ))}
         </div>
       ) : null}
-      <Button
-        type="button"
-        variant="outline"
-        className="mt-4 rounded-lg"
-        asChild
-      >
-        <Link href="/studio/edit">
-          <ArrowLeft className="size-4" />
-          {t('placeholder.backToGrid')}
-        </Link>
-      </Button>
     </section>
   )
 }

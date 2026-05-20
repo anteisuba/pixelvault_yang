@@ -1153,6 +1153,33 @@ If a command cannot be run, say so clearly.
 
 Do not claim verification you did not perform.
 
+23.1 Browser / Mobile QA Evidence Rules
+
+When Codex performs browser QA, mobile QA, visual QA, or report-only testing, it must avoid screenshot-only conclusions.
+
+Before reporting a page as blank, corrupted, crashed, or visually broken:
+
+- capture objective browser evidence, such as `page.evaluate(() => document.body.innerText.length)`, visible DOM counts, screenshot evidence, and `pageerror` / console listeners
+- state whether the issue is fixable in application code before assigning a bug category
+- classify OS, browser chrome, font loading, network transients, local compile delays, or test-environment artifacts as environment issues, not product bugs
+
+Before using a screenshot as final evidence for animated or loading states:
+
+- wait for the page to settle with `waitForLoadState('networkidle')` when applicable
+- add an extra stabilization wait, such as `waitForTimeout(1500)`
+- prefer disabling or reducing motion in browser context, such as `prefersReducedMotion: 'reduce'`, when the animation itself is not under test
+
+Severity must use objective user-impact standards:
+
+- Critical: the user cannot complete a core task
+- High: the issue blocks a main flow
+- Medium: the flow can be completed, but the experience is poor or confusing
+- Low: polish, clarity, or minor visual quality issues
+
+A hook-order warning, console error, or transient browser error is not Critical by itself when the UI remains usable and the core task still works.
+
+Before writing a QA issue, Codex must inspect the relevant source quickly. For example, grep component names, route files, and visible strings before claiming that an effect such as `HyperText` is corrupted UI rather than intentional decorative animation.
+
 24. Change Scope Rules
     24.1 Stay within task scope
 

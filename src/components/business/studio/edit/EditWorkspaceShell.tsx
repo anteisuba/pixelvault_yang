@@ -3,6 +3,7 @@
 
 import {
   AlertCircle,
+  ArrowLeft,
   Clipboard,
   ImageIcon,
   Loader2,
@@ -12,7 +13,7 @@ import { useTranslations } from 'next-intl'
 
 import { USER_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import { ImageEditProvider, useImageEdit } from '@/contexts/image-edit-context'
-import { usePathname } from '@/i18n/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,16 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-svh bg-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+        {isTaskPage ? (
+          <Link
+            href="/studio/edit"
+            className="-mx-2 inline-flex h-11 items-center gap-2 self-start rounded-md px-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            {t('placeholder.backToGrid')}
+          </Link>
+        ) : null}
+
         {activeError ? (
           <div
             role="alert"

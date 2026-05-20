@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  ArrowLeft,
   Palette,
   ScanSearch,
   Sparkles,
@@ -10,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/i18n/navigation'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type ToolKey = 'edit' | 'enhance' | 'analyze' | 'lora' | 'node'
@@ -63,6 +66,14 @@ export function ToolPlaceholder({ toolKey, className }: ToolPlaceholderProps) {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
           {tShared('comingSoon')}
         </span>
+        <div className="mt-8 flex justify-center">
+          <Button asChild size="lg" className="h-11 rounded-full px-6">
+            <Link href="/studio/image">
+              <ArrowLeft className="size-4" />
+              {tShared('backToImage')}
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -45,6 +45,7 @@ const FAL_EXTENDED_ASPECT_RATIOS = [
 ] as const
 const WAN_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
 const HUNYUAN_ASPECT_RATIOS = ['16:9', '9:16'] as const
+const VIDU_Q3_ASPECT_RATIOS = ['16:9', '9:16', '4:3', '3:4', '1:1'] as const
 
 function pickString(
   value: string | undefined,
@@ -78,6 +79,15 @@ function pickClampedStringDuration(
 ): string {
   const value = duration ?? FAL_VIDEO_DURATION_DEFAULT
   return String(Math.min(max, Math.max(min, Math.round(value))))
+}
+
+function pickClampedNumberDuration(
+  duration: number | undefined,
+  min: number,
+  max: number,
+): number {
+  const value = duration ?? FAL_VIDEO_DURATION_DEFAULT
+  return Math.min(max, Math.max(min, Math.round(value)))
 }
 
 function pickVeoDuration(duration: number | undefined): string {
@@ -206,6 +216,36 @@ function buildVeo31(
 
   if (mode === 'image-to-video') {
     body.image_urls = [requireReferenceImage(input)]
+  }
+
+  return body
+}
+
+function buildViduQ3Pro(
+  input: FalVideoRequestBuilderInput,
+  mode: FalVideoMode,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    prompt: input.prompt,
+    duration: pickClampedNumberDuration(input.duration, 1, 16),
+    resolution:
+      pickResolution(
+        input.resolution,
+        input.videoDefaults,
+        ['360p', '540p', '720p', '1080p'],
+        '720p',
+      ) ?? '720p',
+    audio: input.videoDefaults?.generateAudio ?? true,
+  }
+
+  if (mode === 'image-to-video') {
+    body.image_url = requireReferenceImage(input)
+  } else {
+    body.aspect_ratio = pickString(
+      input.aspectRatio,
+      VIDU_Q3_ASPECT_RATIOS,
+      '16:9',
+    )
   }
 
   return body
@@ -440,6 +480,8 @@ function buildBody(
       return buildKlingV3Pro(input, mode)
     case AI_MODELS.VEO_31:
       return buildVeo31(input, mode)
+    case AI_MODELS.VIDU_Q3_PRO:
+      return buildViduQ3Pro(input, mode)
     case AI_MODELS.SEEDANCE_20:
       return buildSeedance20(input, mode, ['480p', '720p', '1080p'])
     case AI_MODELS.SEEDANCE_20_FAST:

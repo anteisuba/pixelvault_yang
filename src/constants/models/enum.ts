@@ -53,6 +53,7 @@ export enum AI_MODELS {
   SEEDANCE_15_PRO = 'seedance-1.5-pro',
   SEEDANCE_10_PRO = 'seedance-1.0-pro',
   VEO_31 = 'veo-3.1',
+  VIDU_Q3_PRO = 'vidu-q3-pro',
   PIKA_V25 = 'pika-v2.5',
   RUNWAY_GEN45 = 'runway-gen4.5',
   RUNWAY_GEN4_TURBO = 'runway-gen4-turbo',

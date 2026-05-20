@@ -62,6 +62,24 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       maxTotalDuration: 148,
     },
   },
+  // #2.5 — Vidu Q3 Pro, latest API-accessible Vidu with audio-video output
+  {
+    id: AI_MODELS.VIDU_Q3_PRO,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/vidu/q3/text-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/fal-ai/vidu/q3/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    i2vModelId: 'fal-ai/vidu/q3/image-to-video',
+    videoDefaults: {
+      resolution: '720p',
+      generateAudio: true,
+    },
+  },
 
   // ═══ Video Models — Standard Tier ════════════════════════════════
 

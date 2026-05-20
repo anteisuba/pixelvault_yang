@@ -211,7 +211,7 @@
       "gallery": "画廊"
     },
     "hero": {
-      "eyebrow": "38 个模型。自带 API key。按用量付费。",
+      "eyebrow": "39 个模型。自带 API key。按用量付费。",
       "title": "把想法做成画面、镜头和声音。",
       "subtitle": "PixelVault 是你的个人 AI 创作画廊。在一处生成图像、视频和配音；作品、prompt 和 seed 自动保存。"
     },
@@ -225,7 +225,7 @@
     "bottomCta": {
       "eyebrow": "开始建档",
       "title": "你的下一张图，应该属于你自己。",
-      "description": "5 分钟接好你的第一把 API key，让 38 个模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
+      "description": "5 分钟接好你的第一把 API key，让 39 个模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
       "primary": "免费开始建档",
       "secondary": "查看模型阵容"
     },
@@ -256,9 +256,9 @@
         "cta": "试试编辑"
       },
       "video": {
-        "eyebrow": "15 个视频模型",
+        "eyebrow": "16 个视频模型",
         "title": "视频生成",
-        "description": "Kling、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 15 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
+        "description": "Kling、Vidu Q3、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 16 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
         "cta": "生成视频"
       },
       "lora": {
@@ -322,7 +322,7 @@
     },
     "modelLineup": {
       "title": "精选 AI 模型，即开即用",
-      "description": "38 个模型，覆盖 OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
+      "description": "39 个模型，覆盖 OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
       "groups": {
         "image": "图像模型",
         "video": "视频模型",
@@ -1921,6 +1921,10 @@
     "veo31": {
       "label": "Veo 3.1",
       "description": "Google 最新 — 4K、原生音频、对话同步"
+    },
+    "viduQ3Pro": {
+      "label": "Vidu Q3 Pro",
+      "description": "当前可通过 API 接入的最新 Vidu Q3 模型，支持原生音画同出、文生视频和图生视频。"
     },
     "klingV3Pro": {
       "label": "可灵 3.0 Pro",

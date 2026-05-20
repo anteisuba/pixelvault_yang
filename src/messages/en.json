@@ -211,7 +211,7 @@
       "gallery": "Gallery"
     },
     "hero": {
-      "eyebrow": "38 models. Bring your own API key. Pay as you go.",
+      "eyebrow": "39 models. Bring your own API key. Pay as you go.",
       "title": "Turn ideas into images, footage, and voice.",
       "subtitle": "PixelVault is your personal AI creative gallery. Generate images, video, and voice in one place — every render, prompt, and seed is saved automatically."
     },
@@ -225,7 +225,7 @@
     "bottomCta": {
       "eyebrow": "Start archiving",
       "title": "Your next image should belong to you.",
-      "description": "Five minutes to wire your first API key — then generate across 38 models and keep every image, clip, prompt, and seed in your own R2.",
+      "description": "Five minutes to wire your first API key — then generate across 39 models and keep every image, clip, prompt, and seed in your own R2.",
       "primary": "Start your archive",
       "secondary": "See the model lineup"
     },
@@ -256,9 +256,9 @@
         "cta": "Try editing"
       },
       "video": {
-        "eyebrow": "15 video models",
+        "eyebrow": "16 video models",
         "title": "Video Generation",
-        "description": "Kling, LumaRay, Veo 3.1, Runway Gen-4.5, Seedance — 15 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
+        "description": "Kling, Vidu Q3, LumaRay, Veo 3.1, Runway Gen-4.5, Seedance — 16 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
         "cta": "Generate video"
       },
       "lora": {
@@ -322,7 +322,7 @@
     },
     "modelLineup": {
       "title": "The best AI models, ready when you are",
-      "description": "38 models from OpenAI, Google, fal.ai, NovelAI, Replicate and VolcEngine. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
+      "description": "39 models from OpenAI, Google, fal.ai, NovelAI, Replicate and VolcEngine. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
       "groups": {
         "image": "Image Models",
         "video": "Video Models",
@@ -1921,6 +1921,10 @@
     "veo31": {
       "label": "Veo 3.1",
       "description": "Google's latest — 4K, native audio, dialogue sync"
+    },
+    "viduQ3Pro": {
+      "label": "Vidu Q3 Pro",
+      "description": "Latest API-accessible Vidu Q3 model with native audio-video output, text-to-video, and image-to-video."
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",

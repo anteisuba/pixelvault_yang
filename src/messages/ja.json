@@ -211,7 +211,7 @@
       "gallery": "ギャラリー"
     },
     "hero": {
-      "eyebrow": "38 モデル。BYO API キー。従量課金。",
+      "eyebrow": "39 モデル。BYO API キー。従量課金。",
       "title": "アイデアを、絵と映像と声に。",
       "subtitle": "PixelVault はあなただけの AI 創作ギャラリー。画像も動画もボイスもひとつの場所で。作品・プロンプト・シードはすべて自動保存。"
     },
@@ -225,7 +225,7 @@
     "bottomCta": {
       "eyebrow": "アーカイブを始める",
       "title": "次の 1 枚は、あなた自身のものに。",
-      "description": "5 分で最初の API キーを接続 — 38 モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
+      "description": "5 分で最初の API キーを接続 — 39 モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
       "primary": "無料でアーカイブを始める",
       "secondary": "モデル一覧を見る"
     },
@@ -256,9 +256,9 @@
         "cta": "編集してみる"
       },
       "video": {
-        "eyebrow": "15 の動画モデル",
+        "eyebrow": "16 の動画モデル",
         "title": "動画生成",
-        "description": "Kling、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 15 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
+        "description": "Kling、Vidu Q3、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 16 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
         "cta": "動画を生成"
       },
       "lora": {
@@ -322,7 +322,7 @@
     },
     "modelLineup": {
       "title": "主要な AI モデル、すぐ使える",
-      "description": "OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine など 38 モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
+      "description": "OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine など 39 モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
       "groups": {
         "image": "画像モデル",
         "video": "動画モデル",
@@ -1921,6 +1921,10 @@
     "veo31": {
       "label": "Veo 3.1",
       "description": "Google最新 — 4K、ネイティブ音声、対話同期"
+    },
+    "viduQ3Pro": {
+      "label": "Vidu Q3 Pro",
+      "description": "API で接続できる最新の Vidu Q3 モデル。ネイティブ音声付き動画、text-to-video、image-to-video に対応します。"
     },
     "klingV3Pro": {
       "label": "Kling 3.0 Pro",

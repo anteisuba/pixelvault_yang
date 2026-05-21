@@ -5,7 +5,6 @@ import { useEffect } from 'react'
 import { OnboardingTooltip } from '@/components/business/OnboardingTooltip'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import {
-  StudioTopBar,
   StudioCanvas,
   StudioBottomDock,
   StudioFlowLayout,
@@ -76,7 +75,6 @@ export function StudioWorkspaceUI() {
         aria-labelledby={`studio-tab-${state.outputType}`}
         className="studio-layout-v2"
       >
-        <StudioTopBar />
         {/*
          * Unified canvas-centric layout for image / video / audio. The
          * inline gallery strip was removed in Phase 5.5d — users now
@@ -85,8 +83,9 @@ export function StudioWorkspaceUI() {
          * Projects + API key management used to live in a Studio-local
          * sidebar but that sidebar had no trigger after the Phase 3.1
          * toggle removal — Projects moved to /assets and API keys to
-         * the global user menu, so the workspace now renders inside
-         * the (main) layout's SidebarProvider directly.
+         * the sidebar's Card section (single source of truth, no
+         * duplicate entry in the top bar), so the workspace now renders
+         * inside the (main) layout's SidebarProvider directly.
          */}
         <StudioFlowLayout
           canvas={<StudioCanvas />}

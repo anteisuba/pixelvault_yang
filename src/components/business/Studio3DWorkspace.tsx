@@ -74,6 +74,10 @@ import {
   uploadGenerationPosterAPI,
   uploadImageAPI,
 } from '@/lib/api-client'
+import {
+  compressImageToLimit,
+  ImageCompressionError,
+} from '@/lib/compress-image'
 import { cn } from '@/lib/utils'
 import type {
   Generate3DRequest,
@@ -786,6 +790,42 @@ export function Studio3DWorkspace({
     return t('viewRightFront')
   }
 
+  // Shared by both upload entry points (manual side-view and source image).
+  // Returns the file ready for upload (possibly compressed) or null if the
+  // user should be bounced — in which case a toast has already been shown.
+  const prepareUploadFile = async (file: File): Promise<File | null> => {
+    if (file.size <= USER_UPLOAD_MAX_BYTES) return file
+
+    const compressingToastId = toast.loading(t('uploadCompressing'))
+    try {
+      const result = await compressImageToLimit(file, {
+        maxBytes: USER_UPLOAD_MAX_BYTES,
+      })
+      toast.dismiss(compressingToastId)
+      if (result.wasCompressed) {
+        toast.message(
+          t('uploadCompressed', {
+            from: (result.originalBytes / 1024 / 1024).toFixed(1),
+            to: (result.compressedBytes / 1024 / 1024).toFixed(1),
+          }),
+        )
+      }
+      return result.file
+    } catch (compressionError) {
+      toast.dismiss(compressingToastId)
+      const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+      if (
+        compressionError instanceof ImageCompressionError &&
+        compressionError.code === 'UNSUPPORTED_FORMAT'
+      ) {
+        toast.error(t('errorGifTooLarge', { maxMb }))
+      } else {
+        toast.error(t('errorFileTooLarge', { maxMb }))
+      }
+      return null
+    }
+  }
+
   const handleManualViewFileChange = async (
     view: GeneratedSideView,
     event: React.ChangeEvent<HTMLInputElement>,
@@ -797,18 +837,12 @@ export function Studio3DWorkspace({
       toast.error(t('errorUnsupportedFile'))
       return
     }
-    if (file.size > USER_UPLOAD_MAX_BYTES) {
-      toast.error(
-        t('errorFileTooLarge', {
-          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
-        }),
-      )
-      return
-    }
 
     setUploadingManualView(view)
     try {
-      const dataUrl = await readFileAsDataUrl(file)
+      const uploadFile = await prepareUploadFile(file)
+      if (!uploadFile) return
+      const dataUrl = await readFileAsDataUrl(uploadFile)
       const response = await uploadImageAPI({
         imageDataUrl: dataUrl,
         note: t('manualViewUploadNote', { view: getViewLabel(view) }),
@@ -854,18 +888,12 @@ export function Studio3DWorkspace({
       toast.error(t('errorUnsupportedFile'))
       return
     }
-    if (file.size > USER_UPLOAD_MAX_BYTES) {
-      toast.error(
-        t('errorFileTooLarge', {
-          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
-        }),
-      )
-      return
-    }
 
     setUploading(true)
     try {
-      const dataUrl = await readFileAsDataUrl(file)
+      const uploadFile = await prepareUploadFile(file)
+      if (!uploadFile) return
+      const dataUrl = await readFileAsDataUrl(uploadFile)
       const response = await uploadImageAPI({ imageDataUrl: dataUrl })
       if (!response.success || !response.data) {
         toast.error(response.error ?? t('errorFallback'))

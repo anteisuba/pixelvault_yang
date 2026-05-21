@@ -65,10 +65,7 @@ import {
   fetchGalleryImages,
 } from '@/lib/api-client/gallery'
 import { uploadImageAPI } from '@/lib/api-client/generation'
-import {
-  compressImageToLimit,
-  ImageCompressionError,
-} from '@/lib/compress-image'
+import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import {
   clearGalleryCache,
   makeGalleryCacheKey,
@@ -791,48 +788,21 @@ export function KreaAssetBrowser({
       }
 
       setIsUploading(true)
-      let uploadFile = file
-      let compressingToastId: string | number | undefined
       try {
         // Over-cap files get squeezed client-side instead of bouncing, so
         // pasting a Retina screenshot or dragging in a phone photo just
         // works. Server still enforces the same cap as a safety net.
-        if (file.size > USER_UPLOAD_MAX_BYTES) {
-          compressingToastId = toast.loading(t('uploadCompressing'))
-          try {
-            const result = await compressImageToLimit(file, {
-              maxBytes: USER_UPLOAD_MAX_BYTES,
-            })
-            uploadFile = result.file
-            if (compressingToastId !== undefined) {
-              toast.dismiss(compressingToastId)
-              compressingToastId = undefined
-            }
-            if (result.wasCompressed) {
-              toast.message(
-                t('uploadCompressed', {
-                  from: (result.originalBytes / 1024 / 1024).toFixed(1),
-                  to: (result.compressedBytes / 1024 / 1024).toFixed(1),
-                }),
-              )
-            }
-          } catch (compressionError) {
-            if (compressingToastId !== undefined) {
-              toast.dismiss(compressingToastId)
-              compressingToastId = undefined
-            }
-            const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
-            if (
-              compressionError instanceof ImageCompressionError &&
-              compressionError.code === 'UNSUPPORTED_FORMAT'
-            ) {
-              toast.error(t('uploadGifTooLarge', { maxMb }))
-            } else {
-              toast.error(t('uploadFileTooLarge', { maxMb }))
-            }
-            return
-          }
-        }
+        const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+        const uploadFile = await prepareImageUpload(file, {
+          maxBytes: USER_UPLOAD_MAX_BYTES,
+          messages: {
+            compressing: t('uploadCompressing'),
+            compressed: ({ from, to }) => t('uploadCompressed', { from, to }),
+            gifTooLarge: t('uploadGifTooLarge', { maxMb }),
+            tooLarge: t('uploadFileTooLarge', { maxMb }),
+          },
+        })
+        if (!uploadFile) return // helper already toasted the error
 
         const imageDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
@@ -856,9 +826,6 @@ export function KreaAssetBrowser({
       } catch (error) {
         toast.error(error instanceof Error ? error.message : t('uploadFailed'))
       } finally {
-        if (compressingToastId !== undefined) {
-          toast.dismiss(compressingToastId)
-        }
         setIsUploading(false)
       }
     },

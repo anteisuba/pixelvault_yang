@@ -23,10 +23,7 @@ import {
 } from '@/constants/uploads'
 import { useInpaint } from '@/hooks/use-inpaint'
 import { uploadImageAPI } from '@/lib/api-client'
-import {
-  compressImageToLimit,
-  ImageCompressionError,
-} from '@/lib/compress-image'
+import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import type {
   GenerationRecord,
   ImageDecomposeResult,
@@ -270,44 +267,21 @@ export function ImageEditProvider({ children }: { children: ReactNode }) {
 
       setIsUploadingSource(true)
       setBannerError(null)
-      let uploadFile = file
-      let compressingToastId: string | number | undefined
       try {
-        if (file.size > USER_UPLOAD_MAX_BYTES) {
-          compressingToastId = toast.loading(t('uploadCompressing'))
-          try {
-            const result = await compressImageToLimit(file, {
-              maxBytes: USER_UPLOAD_MAX_BYTES,
-            })
-            uploadFile = result.file
-            if (compressingToastId !== undefined) {
-              toast.dismiss(compressingToastId)
-              compressingToastId = undefined
-            }
-            if (result.wasCompressed) {
-              toast.message(
-                t('uploadCompressed', {
-                  from: (result.originalBytes / 1024 / 1024).toFixed(1),
-                  to: (result.compressedBytes / 1024 / 1024).toFixed(1),
-                }),
-              )
-            }
-          } catch (compressionError) {
-            if (compressingToastId !== undefined) {
-              toast.dismiss(compressingToastId)
-              compressingToastId = undefined
-            }
-            const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
-            const message =
-              compressionError instanceof ImageCompressionError &&
-              compressionError.code === 'UNSUPPORTED_FORMAT'
-                ? t('uploadGifTooLarge', { maxMb })
-                : t('uploadTooLarge', { maxMb })
-            setBannerError(message)
-            toast.error(message)
-            return
-          }
-        }
+        const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+        const uploadFile = await prepareImageUpload(file, {
+          maxBytes: USER_UPLOAD_MAX_BYTES,
+          messages: {
+            compressing: t('uploadCompressing'),
+            compressed: ({ from, to }) => t('uploadCompressed', { from, to }),
+            gifTooLarge: t('uploadGifTooLarge', { maxMb }),
+            tooLarge: t('uploadTooLarge', { maxMb }),
+          },
+          // Mirror the toast into the persistent in-canvas banner so the
+          // error stays visible after the toast auto-dismisses.
+          onError: setBannerError,
+        })
+        if (!uploadFile) return // helper already toasted + set banner
 
         const imageDataUrl = await readFileAsDataUrl(uploadFile)
         const response = await uploadImageAPI({
@@ -329,9 +303,6 @@ export function ImageEditProvider({ children }: { children: ReactNode }) {
         setBannerError(message)
         toast.error(message)
       } finally {
-        if (compressingToastId !== undefined) {
-          toast.dismiss(compressingToastId)
-        }
         setIsUploadingSource(false)
       }
     },

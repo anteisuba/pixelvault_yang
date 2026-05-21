@@ -102,6 +102,7 @@ export async function submitVideoGenerationForUserId(
         aspectRatio: input.aspectRatio,
         duration: input.duration,
         referenceImage: input.referenceImage ?? input.referenceImages?.[0],
+        referenceImages: input.referenceImages,
         resolution: input.resolution,
       })
 

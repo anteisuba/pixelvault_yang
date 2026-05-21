@@ -1662,6 +1662,8 @@
     "referenceCounter": "{current} / {max} 枚",
     "referencePreviewAlt": "参考画像プレビュー",
     "referenceRemoveLabel": "参考画像を削除",
+    "referenceDisabledOverLimit": "このモデルの最大 {max} 枚を超えています",
+    "referenceDisabledUnsupported": "現在のモデルは参照画像を受け付けません",
     "reverseTitle": "画像リバースエンジニアリング",
     "reverseDescription": "画像をアップロードしてプロンプトを生成",
     "battleButton": "バトル！",

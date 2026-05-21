@@ -2,6 +2,10 @@ import 'server-only'
 
 import type { AspectRatio } from '@/constants/config'
 import { AI_MODELS, getModelById } from '@/constants/models'
+import {
+  getReferenceCapabilityMax,
+  getVideoReferenceCapability,
+} from '@/constants/reference-image-capabilities'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import type { VideoResolution } from '@/constants/video-options'
 import { GenerateImageServiceError } from '@/services/generate-image.service'
@@ -11,6 +15,7 @@ interface ValidateVideoGenerationInput {
   aspectRatio: AspectRatio
   duration?: number
   referenceImage?: string
+  referenceImages?: string[]
   resolution?: VideoResolution
 }
 
@@ -30,6 +35,7 @@ export function validateVideoGenerationInput({
   aspectRatio,
   duration,
   referenceImage,
+  referenceImages,
   resolution,
 }: ValidateVideoGenerationInput): void {
   const modelConfig = getModelById(modelId)
@@ -49,7 +55,22 @@ export function validateVideoGenerationInput({
 
   const capabilities = getVideoModelCapabilities(modelId)
 
-  if (capabilities.requiresReferenceImage && !referenceImage) {
+  // Defence-in-depth: front-end already caps reference count via the
+  // capability layer, but a malicious / out-of-date client could still post
+  // an over-cap array. Reject before sending to fal so the user gets a
+  // structured error instead of a 4xx from the provider.
+  const refCount = referenceImages?.length ?? (referenceImage ? 1 : 0)
+  const refCap = getReferenceCapabilityMax(getVideoReferenceCapability(modelId))
+  if (refCount > refCap) {
+    throw new GenerateImageServiceError(
+      'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+      `This model accepts at most ${refCap} reference ${refCap === 1 ? 'image' : 'images'} (got ${refCount}).`,
+      400,
+    )
+  }
+
+  const hasReferenceImage = refCount > 0
+  if (capabilities.requiresReferenceImage && !hasReferenceImage) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       'This video model requires a reference image',
@@ -94,7 +115,7 @@ export function validateVideoGenerationInput({
 
   if (
     modelConfig.id === AI_MODELS.RUNWAY_GEN45 &&
-    !referenceImage &&
+    !hasReferenceImage &&
     !RUNWAY_GEN45_TEXT_TO_VIDEO_ASPECT_RATIOS.includes(aspectRatio)
   ) {
     throw new GenerateImageServiceError(

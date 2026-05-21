@@ -77,4 +77,62 @@ describe('video-generation-validation.service', () => {
       }),
     ).not.toThrow()
   })
+
+  describe('reference image cap (capability layer)', () => {
+    it('accepts 3 references for Veo 3.1', () => {
+      expect(() =>
+        validateVideoGenerationInput({
+          modelId: AI_MODELS.VEO_31,
+          aspectRatio: '16:9',
+          duration: 5,
+          referenceImages: ['a', 'b', 'c'],
+        }),
+      ).not.toThrow()
+    })
+
+    it('rejects 4 references for Veo 3.1 with REFERENCE_IMAGE_LIMIT_EXCEEDED', () => {
+      try {
+        validateVideoGenerationInput({
+          modelId: AI_MODELS.VEO_31,
+          aspectRatio: '16:9',
+          duration: 5,
+          referenceImages: ['a', 'b', 'c', 'd'],
+        })
+        throw new Error('expected validation to throw')
+      } catch (err) {
+        expect(err).toBeInstanceOf(GenerateImageServiceError)
+        expect((err as GenerateImageServiceError).code).toBe(
+          'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+        )
+      }
+    })
+
+    it('rejects 2 references for a single-image model (Kling V3 Pro)', () => {
+      try {
+        validateVideoGenerationInput({
+          modelId: AI_MODELS.KLING_V3_PRO,
+          aspectRatio: '16:9',
+          duration: 5,
+          referenceImages: ['a', 'b'],
+        })
+        throw new Error('expected validation to throw')
+      } catch (err) {
+        expect(err).toBeInstanceOf(GenerateImageServiceError)
+        expect((err as GenerateImageServiceError).code).toBe(
+          'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+        )
+      }
+    })
+
+    it('treats a singular referenceImage as count=1 for cap checks', () => {
+      expect(() =>
+        validateVideoGenerationInput({
+          modelId: AI_MODELS.KLING_V3_PRO,
+          aspectRatio: '16:9',
+          duration: 5,
+          referenceImage: 'a',
+        }),
+      ).not.toThrow()
+    })
+  })
 })

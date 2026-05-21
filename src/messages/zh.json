@@ -1662,6 +1662,8 @@
     "referenceCounter": "{current} / {max} 张",
     "referencePreviewAlt": "参考图片预览",
     "referenceRemoveLabel": "移除参考图片",
+    "referenceDisabledOverLimit": "超出当前模型最多 {max} 张参考图的限制",
+    "referenceDisabledUnsupported": "当前模型不支持参考图",
     "reverseTitle": "图片反向工程",
     "reverseDescription": "上传图片，自动生成提示词",
     "battleButton": "开战！",

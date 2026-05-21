@@ -458,6 +458,10 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
             current: referenceImages.length,
             max: arenaMaxRefImages,
           })}
+          overLimitTooltip={t('referenceDisabledOverLimit', {
+            max: arenaMaxRefImages,
+          })}
+          unsupportedTooltip={t('referenceDisabledUnsupported')}
         />
       </CollapsiblePanel>
 

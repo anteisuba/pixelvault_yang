@@ -2,7 +2,10 @@ import 'server-only'
 
 import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById } from '@/constants/models'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import {
+  getImageReferenceCapability,
+  getReferenceCapabilityMax,
+} from '@/constants/reference-image-capabilities'
 import {
   AI_ADAPTER_TYPES,
   getProviderLabel,
@@ -71,6 +74,7 @@ type GenerateImageServiceErrorCode =
   | 'NOVELAI_TIER_LIMIT'
   | 'PLATFORM_KEY_MISSING'
   | 'PROVIDER_ERROR'
+  | 'REFERENCE_IMAGE_LIMIT_EXCEEDED'
   | 'UNSUPPORTED_MODEL'
   | 'USER_NOT_FOUND'
   | 'VALIDATION_ERROR'
@@ -746,25 +750,34 @@ export async function generateImageForUser(
       const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
 
       const builtInModel = getModelByIdFn(input.modelId)
-      const hasReferenceImage =
-        Boolean(input.referenceImage) ||
-        (input.referenceImages?.length ?? 0) > 0
-      if (builtInModel?.requiresReferenceImage) {
-        if (!hasReferenceImage) {
-          throw new GenerateImageServiceError(
-            'VALIDATION_ERROR',
-            'This model requires at least one reference image',
-            400,
-          )
-        }
+      const refCount =
+        input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
+      const hasReferenceImage = refCount > 0
+      if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'This model requires at least one reference image',
+          400,
+        )
       }
-      if (
-        hasReferenceImage &&
-        getMaxReferenceImages(resolvedRoute.adapterType, input.modelId) === 0
-      ) {
+      // Defence-in-depth: front-end already caps reference count via the
+      // capability layer, but a stale / malicious client could still POST an
+      // over-cap array. Reject before reaching the provider so users get a
+      // structured error rather than a 4xx from the upstream service.
+      const refCap = getReferenceCapabilityMax(
+        getImageReferenceCapability(resolvedRoute.adapterType, input.modelId),
+      )
+      if (hasReferenceImage && refCap === 0) {
         throw new GenerateImageServiceError(
           'VALIDATION_ERROR',
           'The selected model does not support reference images',
+          400,
+        )
+      }
+      if (refCount > refCap) {
+        throw new GenerateImageServiceError(
+          'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+          `This model accepts at most ${refCap} reference ${refCap === 1 ? 'image' : 'images'} (got ${refCount}).`,
           400,
         )
       }

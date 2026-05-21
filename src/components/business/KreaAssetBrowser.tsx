@@ -66,6 +66,10 @@ import {
 } from '@/lib/api-client/gallery'
 import { uploadImageAPI } from '@/lib/api-client/generation'
 import {
+  compressImageToLimit,
+  ImageCompressionError,
+} from '@/lib/compress-image'
+import {
   clearGalleryCache,
   makeGalleryCacheKey,
   readGalleryCache,
@@ -776,56 +780,127 @@ export function KreaAssetBrowser({
     fileInputRef.current?.click()
   }
 
+  const processUploadFile = useCallback(
+    async (file: File) => {
+      const isAcceptedType = (
+        USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
+      ).includes(file.type)
+      if (!isAcceptedType) {
+        toast.error(t('uploadUnsupportedFile'))
+        return
+      }
+
+      setIsUploading(true)
+      let uploadFile = file
+      let compressingToastId: string | number | undefined
+      try {
+        // Over-cap files get squeezed client-side instead of bouncing, so
+        // pasting a Retina screenshot or dragging in a phone photo just
+        // works. Server still enforces the same cap as a safety net.
+        if (file.size > USER_UPLOAD_MAX_BYTES) {
+          compressingToastId = toast.loading(t('uploadCompressing'))
+          try {
+            const result = await compressImageToLimit(file, {
+              maxBytes: USER_UPLOAD_MAX_BYTES,
+            })
+            uploadFile = result.file
+            if (compressingToastId !== undefined) {
+              toast.dismiss(compressingToastId)
+              compressingToastId = undefined
+            }
+            if (result.wasCompressed) {
+              toast.message(
+                t('uploadCompressed', {
+                  from: (result.originalBytes / 1024 / 1024).toFixed(1),
+                  to: (result.compressedBytes / 1024 / 1024).toFixed(1),
+                }),
+              )
+            }
+          } catch (compressionError) {
+            if (compressingToastId !== undefined) {
+              toast.dismiss(compressingToastId)
+              compressingToastId = undefined
+            }
+            const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+            if (
+              compressionError instanceof ImageCompressionError &&
+              compressionError.code === 'UNSUPPORTED_FORMAT'
+            ) {
+              toast.error(t('uploadGifTooLarge', { maxMb }))
+            } else {
+              toast.error(t('uploadFileTooLarge', { maxMb }))
+            }
+            return
+          }
+        }
+
+        const imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            if (typeof reader.result === 'string') resolve(reader.result)
+            else reject(new Error(t('uploadFailed')))
+          }
+          reader.onerror = () =>
+            reject(reader.error ?? new Error(t('uploadFailed')))
+          reader.readAsDataURL(uploadFile)
+        })
+        const response = await uploadImageAPI({ imageDataUrl })
+        if (!response.success || !response.data) {
+          toast.error(response.error ?? t('uploadFailed'))
+          return
+        }
+        clearGalleryCache()
+        prependGeneration(response.data.generation)
+        void refreshCounts()
+        toast.success(t('uploadSuccess'))
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : t('uploadFailed'))
+      } finally {
+        if (compressingToastId !== undefined) {
+          toast.dismiss(compressingToastId)
+        }
+        setIsUploading(false)
+      }
+    },
+    [t, prependGeneration, refreshCounts],
+  )
+
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-
-    const isAcceptedType = (
-      USER_UPLOAD_ACCEPTED_MIME_TYPES as readonly string[]
-    ).includes(file.type)
-    if (!isAcceptedType) {
-      toast.error(t('uploadUnsupportedFile'))
-      return
-    }
-    if (file.size > USER_UPLOAD_MAX_BYTES) {
-      toast.error(
-        t('uploadFileTooLarge', {
-          maxMb: String(USER_UPLOAD_MAX_BYTES / 1024 / 1024),
-        }),
-      )
-      return
-    }
-
-    setIsUploading(true)
-    try {
-      const imageDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          if (typeof reader.result === 'string') resolve(reader.result)
-          else reject(new Error(t('uploadFailed')))
-        }
-        reader.onerror = () =>
-          reject(reader.error ?? new Error(t('uploadFailed')))
-        reader.readAsDataURL(file)
-      })
-      const response = await uploadImageAPI({ imageDataUrl })
-      if (!response.success || !response.data) {
-        toast.error(response.error ?? t('uploadFailed'))
-        return
-      }
-      clearGalleryCache()
-      prependGeneration(response.data.generation)
-      void refreshCounts()
-      toast.success(t('uploadSuccess'))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('uploadFailed'))
-    } finally {
-      setIsUploading(false)
-    }
+    await processUploadFile(file)
   }
+
+  // Paste-to-upload: when viewing Local assets, ⌘V / Ctrl+V uploads any image
+  // sitting on the clipboard. Mirrors the Edit workspace pattern. Skipped when
+  // the user is typing in a field so the search/rename inputs still work.
+  useEffect(() => {
+    if (isPickerMode || section.kind !== 'uploads') return
+
+    const handlePaste = (event: globalThis.ClipboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) {
+          return
+        }
+      }
+      const clipboard = event.clipboardData
+      if (!clipboard) return
+      const imageFile = Array.from(clipboard.files).find((file) =>
+        file.type.startsWith('image/'),
+      )
+      if (!imageFile) return
+      event.preventDefault()
+      void processUploadFile(imageFile)
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [isPickerMode, section.kind, processUploadFile])
 
   const startRenameProject = (id: string, currentName: string) => {
     setEditingProjectId(id)

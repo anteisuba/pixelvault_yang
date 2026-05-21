@@ -1,14 +1,41 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
+
+/**
+ * One reference image in the upload store.
+ *
+ * - `disabledReason: null` → currently usable; included in `referenceImages`
+ *   and sent to generation.
+ * - `disabledReason: 'over_limit'` → the active model accepts reference
+ *   images, but this entry sits beyond the model's max. Kept in state so
+ *   switching back to a higher-capacity model restores it as enabled.
+ * - `disabledReason: 'unsupported'` → the active model takes no reference
+ *   images at all. Same preservation contract.
+ *
+ * Both disabled states are surfaced via `referenceEntries` for the UI to
+ * render greyed-out thumbnails — generation code only ever sees the enabled
+ * urls through `referenceImages` / `referenceImage`.
+ */
+export interface ReferenceImageEntry {
+  url: string
+  disabledReason: 'over_limit' | 'unsupported' | null
+}
 
 interface UseImageUploadReturn {
-  /** First reference image (backward compat for single-image adapters) */
+  /** First enabled reference image (back-compat for single-image adapters) */
   referenceImage: string | undefined
   setReferenceImage: (image: string | undefined) => void
-  /** All reference images (for multi-image adapters like Gemini) */
+  /** All enabled reference image urls (multi-image adapters) */
   referenceImages: string[]
+  /** Full state including disabled entries — for UI rendering only. */
+  referenceEntries: ReadonlyArray<ReferenceImageEntry>
   addReferenceImage: (image: string) => void
+  /**
+   * Remove an entry by its index in `referenceEntries`. The UI iterates that
+   * list directly so its `idx` lines up here; callers that only have
+   * `referenceImages` would need to translate first.
+   */
   removeReferenceImage: (index: number) => void
   clearAllImages: () => void
   /**
@@ -17,7 +44,14 @@ interface UseImageUploadReturn {
    * inputs, so we no longer fetch + base64 the asset on the client.
    */
   addFromUrl: (url: string) => Promise<void>
-  /** Set the max number of reference images allowed. Enforced in addReferenceImage/addFromUrl. */
+  /**
+   * Update the active model's reference-image capacity.
+   * - `max <= 0` → all entries flip to `unsupported`.
+   * - `max > 0` → first `max` entries stay enabled, rest become `over_limit`.
+   *
+   * No entry is ever removed: state is rebuilt by toggling `disabledReason`
+   * so switching back to a higher-capacity model restores them automatically.
+   */
   setMaxImages: (max: number) => void
   isDragging: boolean
   setIsDragging: (dragging: boolean) => void
@@ -31,22 +65,57 @@ interface UseImageUploadReturn {
   clearImage: () => void
 }
 
+function computeDisabledReason(
+  idx: number,
+  max: number,
+): ReferenceImageEntry['disabledReason'] {
+  if (max <= 0) return 'unsupported'
+  if (idx >= max) return 'over_limit'
+  return null
+}
+
 /**
  * Shared hook for image upload via file picker or drag-and-drop.
- * Supports multiple reference images — new images are appended to the list.
- * `referenceImage` returns the first image for backward compatibility.
+ *
+ * Internally stores `ReferenceImageEntry[]` so we can preserve images across
+ * model switches and just toggle a `disabledReason` flag. Externally the
+ * legacy `referenceImages: string[]` getter still exists for downstream
+ * generation code — it's now derived (enabled entries only).
  */
 export function useImageUpload(): UseImageUploadReturn {
-  const [referenceImages, setReferenceImages] = useState<string[]>([])
+  const [referenceEntries, setReferenceEntries] = useState<
+    ReferenceImageEntry[]
+  >([])
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // "Unlimited until configured" — protects first-mount additions from
+  // getting auto-disabled before StudioDockPanelArea runs its effect.
   const maxImagesRef = useRef<number>(Infinity)
+
+  const referenceImages = useMemo(
+    () =>
+      referenceEntries
+        .filter((entry) => entry.disabledReason === null)
+        .map((entry) => entry.url),
+    [referenceEntries],
+  )
+  const referenceImage = referenceImages[0] as string | undefined
 
   const setMaxImages = useCallback((max: number) => {
     maxImagesRef.current = max
+    setReferenceEntries((prev) => {
+      const recomputed = prev.map((entry, idx) => {
+        const reason = computeDisabledReason(idx, max)
+        return entry.disabledReason === reason
+          ? entry
+          : { ...entry, disabledReason: reason }
+      })
+      // Bail out when no entry's reason actually changed — avoids a re-render
+      // cascade through the studio dock on every unrelated state change.
+      const changed = recomputed.some((entry, idx) => entry !== prev[idx])
+      return changed ? recomputed : prev
+    })
   }, [])
-
-  const referenceImage = referenceImages[0] as string | undefined
 
   const loadImageAsBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -58,16 +127,44 @@ export function useImageUpload(): UseImageUploadReturn {
   }, [])
 
   const addReferenceImage = useCallback((image: string) => {
-    setReferenceImages((prev) => {
+    setReferenceEntries((prev) => {
       const max = maxImagesRef.current
-      if (max <= 1) return [image] // single-image mode: replace
-      if (prev.length >= max) return prev // multi-image mode: enforce limit
-      return [...prev, image]
+      // Active model takes no refs — drop the add silently, keep existing
+      // entries (they may already be flagged 'unsupported').
+      if (max <= 0) return prev
+      if (max === 1) {
+        return [{ url: image, disabledReason: null }]
+      }
+      const enabledCount = prev.reduce(
+        (n, e) => (e.disabledReason === null ? n + 1 : n),
+        0,
+      )
+      if (enabledCount >= max) return prev
+      const newIdx = prev.length
+      return [
+        ...prev,
+        {
+          url: image,
+          disabledReason: computeDisabledReason(newIdx, max),
+        },
+      ]
     })
   }, [])
 
   const removeReferenceImage = useCallback((index: number) => {
-    setReferenceImages((prev) => prev.filter((_, i) => i !== index))
+    setReferenceEntries((prev) => {
+      if (index < 0 || index >= prev.length) return prev
+      const next = prev.filter((_, i) => i !== index)
+      // Indexes shift after removal — recompute so a previously over_limit
+      // entry can graduate to enabled.
+      const max = maxImagesRef.current
+      return next.map((entry, idx) => {
+        const reason = computeDisabledReason(idx, max)
+        return entry.disabledReason === reason
+          ? entry
+          : { ...entry, disabledReason: reason }
+      })
+    })
   }, [])
 
   const addFromUrl = useCallback(
@@ -84,15 +181,24 @@ export function useImageUpload(): UseImageUploadReturn {
   )
 
   const clearAllImages = useCallback(() => {
-    setReferenceImages([])
+    setReferenceEntries([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }, [])
 
-  // Legacy setter — replaces all images with a single one (or clears)
+  // Legacy setter — replaces all entries with a single one (or clears).
   const setReferenceImage = useCallback((image: string | undefined) => {
-    setReferenceImages(image ? [image] : [])
+    if (!image) {
+      setReferenceEntries([])
+      return
+    }
+    setReferenceEntries([
+      {
+        url: image,
+        disabledReason: computeDisabledReason(0, maxImagesRef.current),
+      },
+    ])
   }, [])
 
   const handleFileChange = useCallback(
@@ -173,6 +279,7 @@ export function useImageUpload(): UseImageUploadReturn {
     referenceImage,
     setReferenceImage,
     referenceImages,
+    referenceEntries,
     addReferenceImage,
     removeReferenceImage,
     clearAllImages,

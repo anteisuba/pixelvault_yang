@@ -1013,6 +1013,8 @@
     "upload": "上传",
     "selectAsset": "选择素材",
     "removeReferenceImage": "移除第 {index} 张参考图",
+    "disabledOverLimit": "超出当前模型的参考图数量限制",
+    "disabledUnsupported": "当前模型不支持参考图",
     "back": "返回",
     "selectAssetEmpty": "还没有保存的素材",
     "selectFromArchive": "从档案选择",
@@ -2526,6 +2528,8 @@
   },
   "StudioPanels": {
     "reference": "参考图",
+    "referenceDisabledOverLimit": "超出当前模型最多 {max} 张参考图的限制",
+    "referenceDisabledUnsupported": "当前模型不支持参考图",
     "reverse": "图片反向工程",
     "layers": "图层分解",
     "transform": "图像变换",

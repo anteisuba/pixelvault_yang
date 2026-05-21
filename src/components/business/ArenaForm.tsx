@@ -208,6 +208,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
   const {
     referenceImage,
     referenceImages,
+    referenceEntries,
     removeReferenceImage,
     clearAllImages,
     isDragging,
@@ -438,7 +439,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
         }
       >
         <ReferenceImageSection
-          referenceImages={referenceImages}
+          entries={referenceEntries}
           maxImages={arenaMaxRefImages}
           isDragging={isDragging}
           fileInputRef={fileInputRef}

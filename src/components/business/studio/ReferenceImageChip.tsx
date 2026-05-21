@@ -41,7 +41,10 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Badge + chip "active" treatment track the *enabled* count — entries that
+  // the current model can't use shouldn't make the chip look populated.
   const referenceCount = imageUpload.referenceImages.length
+  const totalEntries = imageUpload.referenceEntries.length
   const isActive = referenceCount > 0
 
   const handleUploadClick = () => {
@@ -113,27 +116,47 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
              * above the action CTAs. Each thumbnail carries its own × so a
              * user can drop one reference without clearing the rest.
              */}
-            {referenceCount > 0 && (
+            {totalEntries > 0 && (
               <div className="flex flex-wrap gap-2">
-                {imageUpload.referenceImages.map((src, idx) => (
-                  <div
-                    key={`${idx}-${src.slice(0, 24)}`}
-                    className="group relative size-16 overflow-hidden rounded-lg border border-border/60 bg-muted/40"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="size-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => imageUpload.removeReferenceImage(idx)}
-                      aria-label={t('removeReferenceImage', {
-                        index: idx + 1,
-                      })}
-                      className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition-opacity group-hover:opacity-100"
+                {imageUpload.referenceEntries.map((entry, idx) => {
+                  const disabled = entry.disabledReason !== null
+                  const tooltip =
+                    entry.disabledReason === 'over_limit'
+                      ? t('disabledOverLimit')
+                      : entry.disabledReason === 'unsupported'
+                        ? t('disabledUnsupported')
+                        : undefined
+                  return (
+                    <div
+                      key={`${idx}-${entry.url.slice(0, 24)}`}
+                      title={tooltip}
+                      className={cn(
+                        'group relative size-16 overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-opacity',
+                        disabled && 'opacity-50',
+                      )}
                     >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                ))}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={entry.url}
+                        alt=""
+                        className={cn(
+                          'size-full object-cover',
+                          disabled && 'grayscale',
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageUpload.removeReferenceImage(idx)}
+                        aria-label={t('removeReferenceImage', {
+                          index: idx + 1,
+                        })}
+                        className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition-opacity group-hover:opacity-100"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )}
             <p className="text-xs leading-relaxed text-muted-foreground">

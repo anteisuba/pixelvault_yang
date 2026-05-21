@@ -3,11 +3,15 @@
 import { Plus, X } from 'lucide-react'
 
 import { ImageDropZone } from '@/components/ui/image-drop-zone'
+import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
 import { cn } from '@/lib/utils'
 
 interface ReferenceImageSectionProps {
-  /** All reference images (multi-image mode) */
-  referenceImages: string[]
+  /**
+   * Full reference-image state including entries the active model can't use.
+   * Disabled entries are kept in place so a model switch back restores them.
+   */
+  entries: ReadonlyArray<ReferenceImageEntry>
   /** Maximum number of images allowed (from provider capabilities) */
   maxImages: number
   isDragging: boolean
@@ -26,10 +30,14 @@ interface ReferenceImageSectionProps {
   inputAriaLabel?: string
   /** i18n: "{current} / {max}" counter text */
   counterLabel?: string
+  /** Tooltip on a thumbnail whose entry is over the active model's max */
+  overLimitTooltip?: string
+  /** Tooltip on a thumbnail when the active model accepts no reference images */
+  unsupportedTooltip?: string
 }
 
 export function ReferenceImageSection({
-  referenceImages,
+  entries,
   maxImages,
   isDragging,
   fileInputRef,
@@ -46,9 +54,15 @@ export function ReferenceImageSection({
   formatsLabel,
   inputAriaLabel,
   counterLabel,
+  overLimitTooltip,
+  unsupportedTooltip,
 }: ReferenceImageSectionProps) {
-  const hasImages = referenceImages.length > 0
-  const canAddMore = referenceImages.length < maxImages
+  const hasImages = entries.length > 0
+  const enabledCount = entries.reduce(
+    (n, e) => (e.disabledReason === null ? n + 1 : n),
+    0,
+  )
+  const canAddMore = maxImages > 0 && enabledCount < maxImages
 
   return (
     <>
@@ -56,29 +70,45 @@ export function ReferenceImageSection({
         <div className="space-y-3">
           {/* Thumbnail grid */}
           <div className="flex flex-wrap gap-2.5">
-            {referenceImages.map((img, index) => (
-              <div
-                key={index}
-                className="group relative overflow-hidden rounded-xl border border-border/75 bg-background"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img}
-                  alt={`${previewAlt} ${index + 1}`}
-                  className="h-24 w-auto object-cover sm:h-28"
-                />
-                <button
-                  type="button"
-                  onClick={() => onRemoveImage(index)}
-                  className="absolute right-1.5 top-1.5 rounded-full border border-border/75 bg-background/92 p-1 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
-                  aria-label={removeLabel}
+            {entries.map((entry, index) => {
+              const disabled = entry.disabledReason !== null
+              const tooltip =
+                entry.disabledReason === 'over_limit'
+                  ? overLimitTooltip
+                  : entry.disabledReason === 'unsupported'
+                    ? unsupportedTooltip
+                    : undefined
+              return (
+                <div
+                  key={index}
+                  title={tooltip}
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl border border-border/75 bg-background transition-opacity',
+                    disabled && 'opacity-50',
+                  )}
                 >
-                  <X className="size-3" />
-                </button>
-              </div>
-            ))}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={entry.url}
+                    alt={`${previewAlt} ${index + 1}`}
+                    className={cn(
+                      'h-24 w-auto object-cover sm:h-28',
+                      disabled && 'grayscale',
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveImage(index)}
+                    className="absolute right-1.5 top-1.5 rounded-full border border-border/75 bg-background/92 p-1 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
+                    aria-label={removeLabel}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              )
+            })}
 
-            {/* Add more button (inline) */}
+            {/* Add more button — only when the active model still has room */}
             {canAddMore && (
               <button
                 type="button"
@@ -90,7 +120,7 @@ export function ReferenceImageSection({
               >
                 <Plus className="size-5" />
                 <span className="text-2xs font-medium">
-                  {referenceImages.length}/{maxImages}
+                  {enabledCount}/{maxImages}
                 </span>
               </button>
             )}
@@ -101,7 +131,7 @@ export function ReferenceImageSection({
             {counterLabel && (
               <p className="text-xs text-muted-foreground">{counterLabel}</p>
             )}
-            {referenceImages.length > 1 && (
+            {entries.length > 1 && (
               <button
                 type="button"
                 onClick={onClearAll}

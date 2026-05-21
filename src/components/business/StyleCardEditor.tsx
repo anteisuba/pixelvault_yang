@@ -214,7 +214,7 @@ export function StyleCardEditor({
             {t('sourceImageHint')}
           </p>
           <ReferenceImageSection
-            referenceImages={imageUpload.referenceImages}
+            entries={imageUpload.referenceEntries}
             maxImages={1}
             isDragging={imageUpload.isDragging}
             fileInputRef={imageUpload.fileInputRef}

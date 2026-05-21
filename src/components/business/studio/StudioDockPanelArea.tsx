@@ -12,7 +12,10 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import {
+  getReferenceCapability,
+  getReferenceCapabilityMax,
+} from '@/constants/reference-image-capabilities'
 import {
   Dialog,
   DialogContent,
@@ -140,7 +143,15 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     state.workflowMode === 'quick' && selectedModel
       ? selectedModel.modelId
       : (selectedStyleCard?.modelId ?? undefined)
-  const maxRefImages = getMaxReferenceImages(adapterType, modelId)
+  // Step 2 wires the dock to the unified capability layer; surface stays
+  // 'image' here because this panel is the image-generation reference dock.
+  // Video gets its own slot-aware UI in Step 3.
+  const referenceCapability = getReferenceCapability(
+    'image',
+    adapterType,
+    modelId,
+  )
+  const maxRefImages = getReferenceCapabilityMax(referenceCapability)
 
   useEffect(() => {
     imageUpload.setMaxImages(maxRefImages)
@@ -281,7 +292,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           </DialogDescription>
           <div className={DIALOG_BODY}>
             <ReferenceImageSection
-              referenceImages={imageUpload.referenceImages}
+              entries={imageUpload.referenceEntries}
               maxImages={maxRefImages}
               isDragging={imageUpload.isDragging}
               fileInputRef={imageUpload.fileInputRef}
@@ -297,6 +308,10 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
               uploadLabel={t('referenceImage')}
               formatsLabel="JPG · PNG · WEBP"
               counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
+              overLimitTooltip={tPanels('referenceDisabledOverLimit', {
+                max: maxRefImages,
+              })}
+              unsupportedTooltip={tPanels('referenceDisabledUnsupported')}
             />
           </div>
         </DialogContent>

@@ -1013,6 +1013,8 @@
     "upload": "Upload",
     "selectAsset": "Select asset",
     "removeReferenceImage": "Remove reference image {index}",
+    "disabledOverLimit": "Exceeds the current model's image limit",
+    "disabledUnsupported": "Current model doesn't accept reference images",
     "back": "Back",
     "selectAssetEmpty": "No saved assets yet",
     "selectFromArchive": "Pick from archive",
@@ -2526,6 +2528,8 @@
   },
   "StudioPanels": {
     "reference": "Reference Images",
+    "referenceDisabledOverLimit": "Exceeds the current model's {max}-image limit",
+    "referenceDisabledUnsupported": "Current model doesn't accept reference images",
     "reverse": "Image Reverse Engineer",
     "layers": "Layer Decompose",
     "transform": "Image Transform",

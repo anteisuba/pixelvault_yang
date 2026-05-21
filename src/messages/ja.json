@@ -1013,6 +1013,8 @@
     "upload": "アップロード",
     "selectAsset": "アーカイブから選ぶ",
     "removeReferenceImage": "参照画像 {index} を削除",
+    "disabledOverLimit": "現在のモデルが受け付ける枚数を超えています",
+    "disabledUnsupported": "現在のモデルは参照画像を受け付けません",
     "back": "戻る",
     "selectAssetEmpty": "保存済みの画像がありません",
     "selectFromArchive": "アーカイブから選ぶ",
@@ -2526,6 +2528,8 @@
   },
   "StudioPanels": {
     "reference": "参照画像",
+    "referenceDisabledOverLimit": "このモデルの最大 {max} 枚を超えています",
+    "referenceDisabledUnsupported": "現在のモデルは参照画像を受け付けません",
     "reverse": "画像リバースエンジニア",
     "layers": "レイヤー分解",
     "transform": "画像変換",

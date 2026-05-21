@@ -101,7 +101,7 @@ export async function submitVideoGenerationForUserId(
         modelId: input.modelId,
         aspectRatio: input.aspectRatio,
         duration: input.duration,
-        referenceImage: input.referenceImage,
+        referenceImage: input.referenceImage ?? input.referenceImages?.[0],
         resolution: input.resolution,
       })
 
@@ -159,19 +159,23 @@ export async function submitVideoGenerationForUserId(
   // detaches the rejection so the orphan path (when submit throws
   // first) doesn't trigger unhandledRejection; the await further down
   // still surfaces the real error if the upload itself failed.
-  const referenceImageUrlPromise: Promise<string | undefined> =
-    input.referenceImage
-      ? timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
-          const refKey = generateStorageKey('IMAGE', userId)
-          const { buffer: refBuffer, mimeType: refMimeType } =
-            await fetchAsBuffer(input.referenceImage!)
-          return uploadToR2({
-            data: refBuffer,
-            key: refKey,
-            mimeType: refMimeType,
-          })
+  //
+  // Multi-reference models (Veo 3.1) supply `referenceImages`; we still
+  // only persist the first one as the poster reference because metadata
+  // is for callback / record-keeping only, not for re-generation.
+  const posterReference = input.referenceImage ?? input.referenceImages?.[0]
+  const referenceImageUrlPromise: Promise<string | undefined> = posterReference
+    ? timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, async () => {
+        const refKey = generateStorageKey('IMAGE', userId)
+        const { buffer: refBuffer, mimeType: refMimeType } =
+          await fetchAsBuffer(posterReference)
+        return uploadToR2({
+          data: refBuffer,
+          key: refKey,
+          mimeType: refMimeType,
         })
-      : Promise.resolve(undefined)
+      })
+    : Promise.resolve(undefined)
   referenceImageUrlPromise.catch(() => {
     /* swallowed; re-awaited below */
   })
@@ -192,6 +196,7 @@ export async function submitVideoGenerationForUserId(
               apiKey: executionRoute.apiKey,
               duration: input.duration,
               referenceImage: input.referenceImage,
+              referenceImages: input.referenceImages,
               negativePrompt: input.negativePrompt,
               resolution: input.resolution,
               i2vModelId: modelConfig?.i2vModelId,
@@ -288,23 +293,33 @@ async function submitFalVideoWorkerRun(params: {
     )
   }
 
-  let referenceImageUrl: string | undefined
-  if (input.referenceImage) {
-    const sourceReferenceImage = input.referenceImage
-    referenceImageUrl = await timer.measure(
-      GENERATION_STAGE.REFERENCE_UPLOAD,
-      async () => {
-        const refKey = generateStorageKey('IMAGE', userId)
-        const { buffer: refBuffer, mimeType: refMimeType } =
-          await fetchAsBuffer(sourceReferenceImage)
-        return uploadToR2({
-          data: refBuffer,
-          key: refKey,
-          mimeType: refMimeType,
-        })
-      },
-    )
-  }
+  // Multi-reference models (Veo 3.1) supply `referenceImages`; for everything
+  // else we just upload the singular `referenceImage`. Parallel uploads keep
+  // multi-image latency under the slowest single image, not their sum.
+  const sourceRefs: string[] =
+    input.referenceImages && input.referenceImages.length > 0
+      ? input.referenceImages
+      : input.referenceImage
+        ? [input.referenceImage]
+        : []
+  const uploadedRefUrls: string[] =
+    sourceRefs.length > 0
+      ? await timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, () =>
+          Promise.all(
+            sourceRefs.map(async (ref) => {
+              const refKey = generateStorageKey('IMAGE', userId)
+              const { buffer: refBuffer, mimeType: refMimeType } =
+                await fetchAsBuffer(ref)
+              return uploadToR2({
+                data: refBuffer,
+                key: refKey,
+                mimeType: refMimeType,
+              })
+            }),
+          ),
+        )
+      : []
+  const referenceImageUrl: string | undefined = uploadedRefUrls[0]
 
   const { width, height } =
     IMAGE_SIZES[input.aspectRatio] ?? IMAGE_SIZES['16:9']
@@ -349,6 +364,7 @@ async function submitFalVideoWorkerRun(params: {
       aspectRatio: input.aspectRatio,
       duration: input.duration,
       referenceImage: referenceImageUrl,
+      referenceImages: uploadedRefUrls.length > 1 ? uploadedRefUrls : undefined,
       negativePrompt: input.negativePrompt,
       resolution: input.resolution,
       i2vModelId: modelConfig.i2vModelId,

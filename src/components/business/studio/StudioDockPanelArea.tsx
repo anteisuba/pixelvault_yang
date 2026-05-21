@@ -11,6 +11,7 @@ import {
   type PanelName,
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getReferenceCapability,
@@ -129,25 +130,33 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const tBar = useTranslations('StudioToolbar')
-  const { selectedModel } = useImageModelOptions()
+  const { selectedModel: imageModel } = useImageModelOptions()
+  const { selectedModel: videoModel } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
+  const isVideoMode = state.outputType === 'video'
+  // Surface drives both the capability lookup *and* which model pool we read.
+  // Video models live in useVideoModelOptions; otherwise we stay on the
+  // image pool (style cards retain image-only semantics).
+  const surfaceSelectedModel = isVideoMode ? videoModel : imageModel
   const [speakerVoiceSelectionTarget, setSpeakerVoiceSelectionTarget] =
     useState<SpeakerVoiceSelectionTarget>(null)
 
   const selectedStyleCard = styles.activeCard
   const adapterType =
-    state.workflowMode === 'quick' && selectedModel
-      ? selectedModel.adapterType
+    state.workflowMode === 'quick' && surfaceSelectedModel
+      ? surfaceSelectedModel.adapterType
       : ((selectedStyleCard?.adapterType as AI_ADAPTER_TYPES) ??
         AI_ADAPTER_TYPES.FAL)
   const modelId =
-    state.workflowMode === 'quick' && selectedModel
-      ? selectedModel.modelId
+    state.workflowMode === 'quick' && surfaceSelectedModel
+      ? surfaceSelectedModel.modelId
       : (selectedStyleCard?.modelId ?? undefined)
-  // Step 2 wires the dock to the unified capability layer; surface stays
-  // 'image' here because this panel is the image-generation reference dock.
-  // Video gets its own slot-aware UI in Step 3.
+  // Step 3 routes by outputType: video models go through the video surface so
+  // Veo 3.1 reference-to-video gets its real 3-image capacity instead of the
+  // FAL adapter default (1).
   const referenceCapability = getReferenceCapability(
-    'image',
+    isVideoMode ? 'video' : 'image',
     adapterType,
     modelId,
   )

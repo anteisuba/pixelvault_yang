@@ -74,6 +74,15 @@ describe('reference-image-capabilities', () => {
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
       expect(cap.min).toBe(1)
     })
+
+    it('Veo 3.1 reference-to-video exposes 3 subject reference slots', () => {
+      const cap = getVideoReferenceCapability(AI_MODELS.VEO_31)
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.min).toBe(0)
+      expect(cap.max).toBe(3)
+      expect(cap.defaultRole).toBe('subject')
+      expect(cap.mode).toBe('native')
+    })
   })
 
   describe('getReferenceCapability surface routing', () => {

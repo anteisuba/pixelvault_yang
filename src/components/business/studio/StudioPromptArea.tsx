@@ -47,7 +47,10 @@ import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { getModelById, modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import {
+  getReferenceCapability,
+  getReferenceCapabilityMax,
+} from '@/constants/reference-image-capabilities'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
@@ -406,9 +409,17 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const currentAdapterType = usesStyleCardForModel
     ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
     : selectedModel?.adapterType
+  // Surface-aware capability lookup: video mode reads from the video pool
+  // (Veo 3.1 exposes 3, others 1); image stays on the image pool.
   const currentMaxReferenceImages =
     currentAdapterType && currentModelId
-      ? getMaxReferenceImages(currentAdapterType, currentModelId)
+      ? getReferenceCapabilityMax(
+          getReferenceCapability(
+            isVideoMode ? 'video' : 'image',
+            currentAdapterType,
+            currentModelId,
+          ),
+        )
       : 1
   const modelRejectsRefImages =
     hasRefImage && !isAudioMode && currentMaxReferenceImages === 0
@@ -527,11 +538,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   // ── Video input builder ──────────────────────────────────────
   const buildVideoInput = useCallback(() => {
     if (!selectedModel) return null
-    // Video accepts a single reference image (i2v); pick the first if present.
-    const firstRef =
-      imageUpload.referenceImages.length > 0
-        ? imageUpload.referenceImages[0]
-        : undefined
+    // Video reference capacity is per-model: Veo 3.1 accepts up to 3 subject
+    // references, everything else takes the single i2v starting frame.
+    const videoCap = getReferenceCapability(
+      'video',
+      selectedModel.adapterType as AI_ADAPTER_TYPES,
+      selectedModel.modelId,
+    )
+    const videoMax = getReferenceCapabilityMax(videoCap)
+    const refs = imageUpload.referenceImages.slice(0, videoMax)
+    const firstRef = refs[0]
 
     // When workflowMode='card' with character cards applied, prepend character prompt.
     let finalPrompt = composePrompt(state.prompt) ?? ''
@@ -571,6 +587,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       aspectRatio: state.aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
       duration: state.videoDuration,
       referenceImage: firstRef,
+      // Only emit the array form when the model genuinely takes multiple —
+      // single-image i2v models keep their existing payload shape so we
+      // don't accidentally send unused fields to fal.
+      ...(videoMax > 1 && refs.length > 0 ? { referenceImages: refs } : {}),
       negativePrompt: state.advancedParams.negativePrompt ?? undefined,
       resolution: (state.videoResolution ?? undefined) as
         | '480p'

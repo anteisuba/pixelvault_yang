@@ -269,6 +269,13 @@ export const GenerateVideoRequestSchema = z.object({
     .max(VIDEO_GENERATION.MAX_DURATION)
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
+  /**
+   * Multi-reference video models (e.g. Veo 3.1 reference-to-video) take an
+   * array of subject/scene references. When omitted, the service falls back
+   * to wrapping the singular `referenceImage` so existing single-image
+   * callers keep working unchanged.
+   */
+  referenceImages: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -983,6 +990,8 @@ const WorkerVideoProviderInputSchema = z.object({
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
   duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
   referenceImage: z.string().optional(),
+  /** Multi-reference array for Veo 3.1 reference-to-video. */
+  referenceImages: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   i2vModelId: z.string().optional(),

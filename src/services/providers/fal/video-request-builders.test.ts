@@ -488,4 +488,60 @@ describe('buildFalWorkerQueueRequest', () => {
 
     expect(worker).toEqual(inline)
   })
+
+  describe('Veo 3.1 multi-reference', () => {
+    const REF_A = 'https://example.com/a.png'
+    const REF_B = 'https://example.com/b.png'
+    const REF_C = 'https://example.com/c.png'
+    const REF_D = 'https://example.com/d.png'
+
+    function buildVeoInput(referenceImages: string[]) {
+      const model = getModel(AI_MODELS.VEO_31)
+      const input: FalVideoRequestBuilderInput = {
+        prompt: PROMPT,
+        modelId: AI_MODELS.VEO_31,
+        externalModelId: model.externalModelId,
+        aspectRatio: '16:9',
+        duration: 5,
+        // Singular field is required by the fall-back path; it's the first
+        // member of the array in real usage too.
+        referenceImage: referenceImages[0],
+        referenceImages,
+        i2vModelId: model.i2vModelId,
+        videoDefaults: model.videoDefaults,
+      }
+      return input
+    }
+
+    it('passes the full referenceImages array through to image_urls', () => {
+      const result = buildFalVideoQueueRequest(
+        buildVeoInput([REF_A, REF_B, REF_C]),
+      )
+      expect(result.mode).toBe('image-to-video')
+      expect(result.input.image_urls).toEqual([REF_A, REF_B, REF_C])
+    })
+
+    it('caps image_urls at 3 even when more references are supplied', () => {
+      const result = buildFalVideoQueueRequest(
+        buildVeoInput([REF_A, REF_B, REF_C, REF_D]),
+      )
+      expect(result.input.image_urls).toEqual([REF_A, REF_B, REF_C])
+    })
+
+    it('falls back to [referenceImage] when referenceImages is empty', () => {
+      const model = getModel(AI_MODELS.VEO_31)
+      const result = buildFalVideoQueueRequest({
+        prompt: PROMPT,
+        modelId: AI_MODELS.VEO_31,
+        externalModelId: model.externalModelId,
+        aspectRatio: '16:9',
+        duration: 5,
+        referenceImage: REF_A,
+        referenceImages: [],
+        i2vModelId: model.i2vModelId,
+        videoDefaults: model.videoDefaults,
+      })
+      expect(result.input.image_urls).toEqual([REF_A])
+    })
+  })
 })

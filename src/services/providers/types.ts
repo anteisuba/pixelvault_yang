@@ -68,7 +68,15 @@ export interface ProviderQueueSubmitInput {
   providerConfig: ProviderConfig
   apiKey: string
   duration?: number
+  /**
+   * Single reference image — kept for back-compat with the bulk of video
+   * models that only accept one i2v starting frame. New multi-reference
+   * models (Veo 3.1) should read `referenceImages` instead; the adapter
+   * normalises one to the other.
+   */
   referenceImage?: string
+  /** Multi-reference array for models like Veo 3.1 reference-to-video. */
+  referenceImages?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string

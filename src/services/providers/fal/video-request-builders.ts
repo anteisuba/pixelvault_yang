@@ -18,7 +18,14 @@ export interface FalVideoRequestBuilderInput {
   externalModelId: string
   aspectRatio: AspectRatio
   duration?: number
+  /** Single reference image for single-frame i2v models (Kling, Seedance...) */
   referenceImage?: string
+  /**
+   * Multi-reference array — only consumed by builders for models whose fal
+   * endpoint takes `image_urls: string[]` (Veo 3.1 reference-to-video).
+   * Other builders ignore this and read `referenceImage`.
+   */
+  referenceImages?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string
@@ -215,7 +222,15 @@ function buildVeo31(
   applyNegativePrompt(body, input)
 
   if (mode === 'image-to-video') {
-    body.image_urls = [requireReferenceImage(input)]
+    // Veo 3.1 reference-to-video takes up to 3 subject/scene refs via
+    // `image_urls`. Pull from `referenceImages` when present; fall back to
+    // wrapping the single `referenceImage` so older single-image callers
+    // (e.g. video-pipeline scene-by-scene generation) keep working.
+    const refs =
+      input.referenceImages && input.referenceImages.length > 0
+        ? input.referenceImages
+        : [requireReferenceImage(input)]
+    body.image_urls = refs.slice(0, 3)
   }
 
   return body

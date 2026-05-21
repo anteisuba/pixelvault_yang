@@ -11,6 +11,7 @@
  * 'slotted' variant for first/last-frame video models.
  */
 
+import { AI_MODELS } from '@/constants/models'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getMaxReferenceImages,
@@ -80,13 +81,38 @@ export function getImageReferenceCapability(
 }
 
 /**
- * Video surface: every video model takes at most one reference image today
- * (i2v first frame). `requiresReferenceImage` flips `min` from 0 → 1. Step 3
- * will switch first/last-frame models to the 'slotted' shape.
+ * Per-model overrides for the video surface.
+ *
+ * Most video models accept a single i2v "starting frame", so the default of
+ * `{max: 1}` is right for them. Models listed here have richer endpoints that
+ * really do accept more — the previous code wrapped a single image in `[x]`,
+ * hiding the underlying capability.
+ */
+const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
+  Record<string, ReferenceImageCapability>
+> = {
+  // fal-ai/veo3.1/reference-to-video already posts `image_urls: string[]`.
+  // Google's Veo 3.1 reference-to-video docs cap subject/scene references at
+  // 3 images, so 3 is the right ceiling to expose to users.
+  [AI_MODELS.VEO_31]: {
+    kind: 'flexible',
+    min: 0,
+    max: 3,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+}
+
+/**
+ * Video surface: most models take one i2v reference frame. Per-model overrides
+ * (see VIDEO_MODEL_REFERENCE_OVERRIDES) expose richer endpoints — Veo 3.1
+ * accepts up to 3 subject references, etc.
  */
 export function getVideoReferenceCapability(
   modelId: string,
 ): ReferenceImageCapability {
+  const override = VIDEO_MODEL_REFERENCE_OVERRIDES[modelId]
+  if (override) return override
   const caps = getVideoModelCapabilities(modelId)
   return {
     kind: 'flexible',

@@ -74,10 +74,7 @@ import {
   uploadGenerationPosterAPI,
   uploadImageAPI,
 } from '@/lib/api-client'
-import {
-  compressImageToLimit,
-  ImageCompressionError,
-} from '@/lib/compress-image'
+import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { cn } from '@/lib/utils'
 import type {
   Generate3DRequest,
@@ -791,39 +788,18 @@ export function Studio3DWorkspace({
   }
 
   // Shared by both upload entry points (manual side-view and source image).
-  // Returns the file ready for upload (possibly compressed) or null if the
-  // user should be bounced — in which case a toast has already been shown.
-  const prepareUploadFile = async (file: File): Promise<File | null> => {
-    if (file.size <= USER_UPLOAD_MAX_BYTES) return file
-
-    const compressingToastId = toast.loading(t('uploadCompressing'))
-    try {
-      const result = await compressImageToLimit(file, {
-        maxBytes: USER_UPLOAD_MAX_BYTES,
-      })
-      toast.dismiss(compressingToastId)
-      if (result.wasCompressed) {
-        toast.message(
-          t('uploadCompressed', {
-            from: (result.originalBytes / 1024 / 1024).toFixed(1),
-            to: (result.compressedBytes / 1024 / 1024).toFixed(1),
-          }),
-        )
-      }
-      return result.file
-    } catch (compressionError) {
-      toast.dismiss(compressingToastId)
-      const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
-      if (
-        compressionError instanceof ImageCompressionError &&
-        compressionError.code === 'UNSUPPORTED_FORMAT'
-      ) {
-        toast.error(t('errorGifTooLarge', { maxMb }))
-      } else {
-        toast.error(t('errorFileTooLarge', { maxMb }))
-      }
-      return null
-    }
+  // Wraps the lib helper with Model3DGenerate-namespace i18n keys.
+  const prepareUploadFile = (file: File): Promise<File | null> => {
+    const maxMb = String(USER_UPLOAD_MAX_BYTES / 1024 / 1024)
+    return prepareImageUpload(file, {
+      maxBytes: USER_UPLOAD_MAX_BYTES,
+      messages: {
+        compressing: t('uploadCompressing'),
+        compressed: ({ from, to }) => t('uploadCompressed', { from, to }),
+        gifTooLarge: t('errorGifTooLarge', { maxMb }),
+        tooLarge: t('errorFileTooLarge', { maxMb }),
+      },
+    })
   }
 
   const handleManualViewFileChange = async (

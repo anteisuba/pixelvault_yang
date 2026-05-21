@@ -194,6 +194,7 @@ export function LoraWorkbench() {
 }
 
 type MineSort = 'newest' | 'oldest' | 'nameAsc'
+type MineSection = 'trained' | 'favorites'
 
 interface MyLoraBranchProps {
   trained: LoraAssetRecord[]
@@ -221,6 +222,12 @@ function MyLoraBranch({
   const t = useTranslations('LoraWorkbench')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<MineSort>('newest')
+  // section toggle 替换之前两段堆叠展示。默认开在「自训」—— 那是
+  // 用户最自己的东西，读起来也匹配从左到右的自然顺序。如果用户
+  // 完全没有自训只有收藏，把默认翻到「收藏」避免一进来就是空。
+  const [section, setSection] = useState<MineSection>(() =>
+    trained.length === 0 && favorites.length > 0 ? 'favorites' : 'trained',
+  )
 
   const totalCount = trained.length + favorites.length
 
@@ -253,8 +260,17 @@ function MyLoraBranch({
     }
   }, [trained, favorites, query, sort])
 
-  const hasSearchHit =
-    !query.trim() || filteredTrained.length + filteredFavorites.length > 0
+  // 用户在某个 section 搜索没结果时不直接显示「无匹配」整页空，
+  // 而是显示当前 section 内的「无匹配」迷你空状态，让 toggle 的
+  // 计数对照仍然可见。
+  const activeAssets =
+    section === 'trained' ? filteredTrained : filteredFavorites
+  const activeOriginalCount =
+    section === 'trained' ? trained.length : favorites.length
+  const activeSectionEmptyKey =
+    section === 'trained'
+      ? 'myLorasTrainedSectionEmpty'
+      : 'myLorasFavoritesSectionEmpty'
 
   return (
     <section className="space-y-6">
@@ -271,66 +287,144 @@ function MyLoraBranch({
       ) : totalCount === 0 ? (
         <EmptyHero onSwitchSection={onSwitchSection} />
       ) : (
-        <>
-          <MineToolbar
-            query={query}
-            onQueryChange={setQuery}
-            sort={sort}
-            onSortChange={setSort}
-          />
+        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <MineSectionToggle
+              section={section}
+              onSectionChange={setSection}
+              trainedCount={trained.length}
+              favoritesCount={favorites.length}
+            />
+            <MineToolbar
+              query={query}
+              onQueryChange={setQuery}
+              sort={sort}
+              onSortChange={setSort}
+            />
+          </div>
 
-          {!hasSearchHit ? (
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-10 text-center text-sm text-muted-foreground">
-              {t('myLorasSearchEmpty', { query: query.trim() })}
-            </div>
-          ) : (
-            <>
-              <AssetSection
-                title={t('myLorasTrainedSection')}
-                count={filteredTrained.length}
-                originalCount={trained.length}
-              >
-                {filteredTrained.length === 0 && trained.length === 0 ? (
-                  <EmptyHint text={t('myLorasEmpty')} />
-                ) : filteredTrained.length === 0 ? null : (
-                  <AssetGrid>
-                    {filteredTrained.map((asset) => (
-                      <LoraAssetCard
-                        key={asset.id}
-                        asset={asset}
-                        showVisibilityToggle={asset.isOwn}
-                        onVisibilityChange={onVisibilityChange}
-                        onDelete={onDelete}
-                      />
-                    ))}
-                  </AssetGrid>
+          {/* 用 section 当 key 强制 React 重新挂载，避免 grid 在切换时
+              用旧节点动画过去（card 是 keyed 的，复用会造成错位）。
+              section 切换时整组淡入。 */}
+          <div
+            key={section}
+            className="animate-in fade-in slide-in-from-top-1 duration-300"
+          >
+            {activeOriginalCount === 0 ? (
+              <EmptyHint text={t(activeSectionEmptyKey)} />
+            ) : activeAssets.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-10 text-center text-sm text-muted-foreground">
+                {t('myLorasSearchEmpty', { query: query.trim() })}
+              </div>
+            ) : (
+              <AssetGrid>
+                {activeAssets.map((asset) =>
+                  section === 'trained' ? (
+                    <LoraAssetCard
+                      key={asset.id}
+                      asset={asset}
+                      showVisibilityToggle={asset.isOwn}
+                      onVisibilityChange={onVisibilityChange}
+                      onDelete={onDelete}
+                    />
+                  ) : (
+                    <LoraAssetCard
+                      key={asset.id}
+                      asset={asset}
+                      onUnfavorite={onUnfavorite}
+                    />
+                  ),
                 )}
-              </AssetSection>
-
-              <AssetSection
-                title={t('myLorasFavoritesSection')}
-                count={filteredFavorites.length}
-                originalCount={favorites.length}
-              >
-                {filteredFavorites.length === 0 && favorites.length === 0 ? (
-                  <EmptyHint text={t('myLorasFavoritesEmpty')} />
-                ) : filteredFavorites.length === 0 ? null : (
-                  <AssetGrid>
-                    {filteredFavorites.map((asset) => (
-                      <LoraAssetCard
-                        key={asset.id}
-                        asset={asset}
-                        onUnfavorite={onUnfavorite}
-                      />
-                    ))}
-                  </AssetGrid>
-                )}
-              </AssetSection>
-            </>
-          )}
-        </>
+              </AssetGrid>
+            )}
+          </div>
+        </div>
       )}
     </section>
+  )
+}
+
+interface MineSectionToggleProps {
+  section: MineSection
+  onSectionChange: (next: MineSection) => void
+  trainedCount: number
+  favoritesCount: number
+}
+
+/**
+ * 分段切换控件 —— 把原本两段堆叠的 section 改成单视图 + toggle。
+ * pill 风格的 rounded-full segmented control，配合品牌色高亮选中态。
+ * 跟顶部主 Tabs (我的/训练/LoRA 库) 在视觉上不冲突 ——
+ * 主 Tabs 是 height-9 / text-xs / 灰 muted；这里是 height-10 / text-sm /
+ * 选中态浮起阴影，作为「内容一级导航」的存在感。
+ */
+function MineSectionToggle({
+  section,
+  onSectionChange,
+  trainedCount,
+  favoritesCount,
+}: MineSectionToggleProps) {
+  const t = useTranslations('LoraWorkbench')
+  return (
+    <div
+      role="tablist"
+      aria-label={t('mineSectionToggleLabel')}
+      className="inline-flex h-10 items-center gap-1 rounded-full bg-muted/40 p-1"
+    >
+      <SectionToggleButton
+        active={section === 'trained'}
+        onClick={() => onSectionChange('trained')}
+        label={t('myLorasTrainedSection')}
+        count={trainedCount}
+      />
+      <SectionToggleButton
+        active={section === 'favorites'}
+        onClick={() => onSectionChange('favorites')}
+        label={t('myLorasFavoritesSection')}
+        count={favoritesCount}
+      />
+    </div>
+  )
+}
+
+interface SectionToggleButtonProps {
+  active: boolean
+  onClick: () => void
+  label: string
+  count: number
+}
+
+function SectionToggleButton({
+  active,
+  onClick,
+  label,
+  count,
+}: SectionToggleButtonProps) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        'group inline-flex h-8 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors',
+        active
+          ? 'bg-background text-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          'inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-2xs tabular-nums transition-colors',
+          active
+            ? 'bg-primary/15 text-primary'
+            : 'bg-muted/60 text-muted-foreground group-hover:bg-muted',
+        )}
+      >
+        {count}
+      </span>
+    </button>
   )
 }
 
@@ -559,40 +653,6 @@ function EmptyHero({ onSwitchSection }: EmptyHeroProps) {
   )
 }
 
-interface AssetSectionProps {
-  title: string
-  count: number
-  originalCount?: number
-  children: ReactNode
-}
-
-function AssetSection({
-  title,
-  count,
-  originalCount,
-  children,
-}: AssetSectionProps) {
-  // 标题降级（页面已有 h2「我的 LoRA」做主标题）— 这里改成 h3，
-  // 用更小的 uppercase tracking-wide 风格让 section 之间的层级
-  // 比 page header 弱，但又比 card row 强。
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </h3>
-        <span className="text-xs tabular-nums text-muted-foreground/70">
-          {count}
-          {originalCount !== undefined && originalCount !== count
-            ? ` / ${originalCount}`
-            : null}
-        </span>
-      </div>
-      {children}
-    </div>
-  )
-}
-
 function AssetGrid({ children }: { children: ReactNode }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -602,8 +662,12 @@ function AssetGrid({ children }: { children: ReactNode }) {
 }
 
 function EmptyHint({ text }: { text: string }) {
+  // Section 内空状态用同款 card/40 + rounded-2xl 表面（无 dashed），
+  // 让两类空状态在同一份视觉语言里：page-empty 是大号版，
+  // section-empty 是迷你版。dashed 给人「未实现 / 占位」的暗示，
+  // 这里我们要的是「这格暂时是空的，不要紧」。
   return (
-    <div className="rounded-xl border border-dashed border-border/60 bg-card/30 px-4 py-6 text-center text-xs text-muted-foreground">
+    <div className="rounded-2xl border border-border/60 bg-card/40 px-4 py-8 text-center text-sm text-muted-foreground">
       {text}
     </div>
   )

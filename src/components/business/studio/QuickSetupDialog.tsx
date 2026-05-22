@@ -29,6 +29,14 @@ interface QuickSetupDialogProps {
   adapterType: AI_ADAPTER_TYPES
   /** Option ID to auto-select after key creation */
   optionId: string
+  /**
+   * Invoked after the key has been created AND verified upstream. Pages that
+   * live outside `<StudioProvider>` (e.g. image-edit task pages) should use
+   * this to flip their picker selection — the optional Studio dispatch below
+   * is a no-op for them since `useStudioFormOptional()` returns null. Studio
+   * callers can leave this unset and rely on the dispatch alone.
+   */
+  onVerified?: (modelId: string, keyId: string) => void
 }
 
 type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
@@ -82,19 +90,17 @@ type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
  *     />
  *   )}
  *
- * Notes for non-Studio callers (e.g. LoRA trainer): the dispatch at the
- * end of handleVerify will set the Studio main form's selectedOptionId
- * to the freshly-created key. That's harmless side-effect noise for
- * users who aren't on the Studio canvas; if it ever becomes a problem,
- * gate it behind a new `skipAutoSelect` prop rather than skipping the
- * dialog itself. Consistency of the gate UX matters more than purity
- * of the dispatch.
+ * Notes for non-Studio callers: pass `onVerified` to receive the
+ * (modelId, keyId) of the freshly-created key — this is the hook image-edit
+ * task pages use to flip their picker selection. The Studio dispatch above
+ * is a no-op there (the optional hook returns null outside the provider),
+ * so non-Studio pages won't get spurious selection changes.
  *
  * Live consumers:
- * - `StudioLoraChip` — "switch to X" recommended-model button
- * - `LoraTrainingForm` — Replicate / fal.ai provider buttons
- * - `EditQuickSetupDialog` — image-edit task's adapter wrapper
- * - `StudioPromptArea` — main model picker capsule
+ * - `StudioLoraChip` — "switch to X" recommended-model button (Studio)
+ * - `LoraTrainingForm` — Replicate / fal.ai provider buttons (Studio)
+ * - `StudioPromptArea` — main model picker capsule (Studio)
+ * - `EditTaskHeader` — image-edit task picker (non-Studio, uses onVerified)
  */
 export function QuickSetupDialog({
   open,
@@ -103,6 +109,7 @@ export function QuickSetupDialog({
   modelLabel,
   adapterType,
   optionId,
+  onVerified,
 }: QuickSetupDialogProps) {
   const [labelValue, setLabelValue] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -180,6 +187,7 @@ export function QuickSetupDialog({
       payload: `saved:${keyId}`,
     })
     void optionId
+    onVerified?.(modelId, keyId)
     setTimeout(() => {
       onOpenChange(false)
       setStep('guide')
@@ -198,6 +206,7 @@ export function QuickSetupDialog({
     verify,
     studioForm,
     onOpenChange,
+    onVerified,
     t,
   ])
 

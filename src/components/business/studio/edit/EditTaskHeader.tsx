@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { EditTaskKind } from '@/contexts/image-edit-context'
 
+import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+
 import { EditProviderPicker } from './EditProviderPicker'
-import { EditQuickSetupDialog } from './EditQuickSetupDialog'
 
 interface EditTaskHeaderProps {
   task: EditTaskKind
@@ -57,7 +58,7 @@ export function EditTaskHeader({
       </div>
 
       {setupRequest ? (
-        <EditQuickSetupDialog
+        <QuickSetupDialog
           open
           onOpenChange={(next) => {
             if (!next) setSetupRequest(null)
@@ -65,6 +66,7 @@ export function EditTaskHeader({
           modelId={setupRequest.modelId}
           modelLabel={setupRequest.modelLabel}
           adapterType={setupRequest.adapterType}
+          optionId={`workspace:${setupRequest.modelId}`}
           onVerified={(verifiedModelId) => {
             onModelChange(verifiedModelId)
           }}

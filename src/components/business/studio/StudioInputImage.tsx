@@ -5,11 +5,13 @@ import { ImagePlus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { useStableDragState } from '@/hooks/use-stable-drag-state'
+import { readImageFileAsBase64 } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_DIMENSION = 2048
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 interface StudioInputImageProps {
   imageData: string | null
@@ -28,41 +30,31 @@ export const StudioInputImage = memo(function StudioInputImage({
 }: StudioInputImageProps) {
   const t = useTranslations('Transform')
   const inputRef = useRef<HTMLInputElement>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const {
+    isDragging: isDragOver,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    resetDragging,
+  } = useStableDragState()
 
   const processFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setError(null)
-
-      if (!ACCEPTED_TYPES.includes(file.type)) {
+      const result = await readImageFileAsBase64(file, {
+        acceptedTypes: ACCEPTED_TYPES,
+        maxFileSize: MAX_FILE_SIZE,
+        maxDimension: MAX_DIMENSION,
+      })
+      if (!result.ok) {
+        // All failure modes share one message here — the user just needs to
+        // know the file isn't usable. Callers that want distinct strings per
+        // reason can switch on result.reason instead.
         setError(t('errors.inputTooLarge'))
         return
       }
-
-      if (file.size > MAX_FILE_SIZE) {
-        setError(t('errors.inputTooLarge'))
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        if (!result) return
-
-        // Validate dimensions
-        const img = new Image()
-        img.onload = () => {
-          if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-            setError(t('errors.inputTooLarge'))
-            return
-          }
-          onImageSelect(result)
-        }
-        img.onerror = () => setError(t('errors.inputTooLarge'))
-        img.src = result
-      }
-      reader.readAsDataURL(file)
+      onImageSelect(result.base64)
     },
     [onImageSelect, t],
   )
@@ -70,17 +62,17 @@ export const StudioInputImage = memo(function StudioInputImage({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
-      setIsDragOver(false)
+      resetDragging()
       const file = e.dataTransfer.files[0]
-      if (file) processFile(file)
+      if (file) void processFile(file)
     },
-    [processFile],
+    [processFile, resetDragging],
   )
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file) processFile(file)
+      if (file) void processFile(file)
       if (inputRef.current) inputRef.current.value = ''
     },
     [processFile],
@@ -126,11 +118,9 @@ export const StudioInputImage = memo(function StudioInputImage({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click()
         }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setIsDragOver(true)
-        }}
-        onDragLeave={() => setIsDragOver(false)}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         <ImagePlus className="size-8 text-muted-foreground" />

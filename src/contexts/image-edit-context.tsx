@@ -23,6 +23,11 @@ import {
 } from '@/constants/uploads'
 import { useInpaint } from '@/hooks/use-inpaint'
 import { uploadImageAPI } from '@/lib/api-client'
+import {
+  getImageFileFromDataTransfer,
+  getRemoteImageUrlFromDataTransfer,
+  isRemoteImageUrl,
+} from '@/lib/image-input'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import type {
   GenerationRecord,
@@ -117,15 +122,6 @@ function parseDimension(value: string | null): number {
   return Number.isFinite(parsed) && parsed > 0
     ? Math.round(parsed)
     : DEFAULT_IMAGE_SIZE
-}
-
-function isRemoteImageUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:'
-  } catch {
-    return false
-  }
 }
 
 function getSourceFromQuery(queryString: string): EditableSource | null {
@@ -320,19 +316,17 @@ export function ImageEditProvider({ children }: { children: ReactNode }) {
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
-      const imageFile = Array.from(event.clipboardData.files).find((file) =>
-        file.type.startsWith('image/'),
-      )
+      const imageFile = getImageFileFromDataTransfer(event.clipboardData)
       if (imageFile) {
         event.preventDefault()
         void uploadSourceFile(imageFile)
         return
       }
 
-      const pastedText = event.clipboardData.getData('text').trim()
-      if (pastedText && isRemoteImageUrl(pastedText)) {
+      const pastedUrl = getRemoteImageUrlFromDataTransfer(event.clipboardData)
+      if (pastedUrl) {
         event.preventDefault()
-        void setSourceFromUrl(pastedText)
+        void setSourceFromUrl(pastedUrl)
       }
     },
     [setSourceFromUrl, uploadSourceFile],

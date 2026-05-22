@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef, useMemo } from 'react'
 
+import { useStableDragState } from '@/hooks/use-stable-drag-state'
+
 /**
  * One reference image in the upload store.
  *
@@ -58,8 +60,9 @@ interface UseImageUploadReturn {
   fileInputRef: React.RefObject<HTMLInputElement | null>
   handleFileChange: (file: File) => Promise<void>
   handleDrop: (e: React.DragEvent<HTMLDivElement>) => Promise<void>
-  handleDragOver: (e: React.DragEvent) => void
-  handleDragLeave: () => void
+  handleDragEnter: (e: React.DragEvent<Element>) => void
+  handleDragOver: (e: React.DragEvent<Element>) => void
+  handleDragLeave: (e: React.DragEvent<Element>) => void
   openFilePicker: () => void
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>
   clearImage: () => void
@@ -86,7 +89,14 @@ export function useImageUpload(): UseImageUploadReturn {
   const [referenceEntries, setReferenceEntries] = useState<
     ReferenceImageEntry[]
   >([])
-  const [isDragging, setIsDragging] = useState(false)
+  const {
+    isDragging,
+    setDragging,
+    resetDragging,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+  } = useStableDragState()
   const fileInputRef = useRef<HTMLInputElement>(null)
   // "Unlimited until configured" — protects first-mount additions from
   // getting auto-disabled before StudioDockPanelArea runs its effect.
@@ -129,17 +139,9 @@ export function useImageUpload(): UseImageUploadReturn {
   const addReferenceImage = useCallback((image: string) => {
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current
-      // Active model takes no refs — drop the add silently, keep existing
-      // entries (they may already be flagged 'unsupported').
-      if (max <= 0) return prev
       if (max === 1) {
         return [{ url: image, disabledReason: null }]
       }
-      const enabledCount = prev.reduce(
-        (n, e) => (e.disabledReason === null ? n + 1 : n),
-        0,
-      )
-      if (enabledCount >= max) return prev
       const newIdx = prev.length
       return [
         ...prev,
@@ -213,7 +215,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
-      setIsDragging(false)
+      resetDragging()
 
       // Handle studio gallery image drops (drag from gallery → reference)
       if (e.dataTransfer.types.includes('application/x-studio-ref')) {
@@ -238,17 +240,8 @@ export function useImageUpload(): UseImageUploadReturn {
         addReferenceImage(base64)
       }
     },
-    [loadImageAsBase64, addReferenceImage, addFromUrl],
+    [loadImageAsBase64, addReferenceImage, addFromUrl, resetDragging],
   )
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
-
-  const handleDragLeave = useCallback(() => {
-    setIsDragging(false)
-  }, [])
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click()
@@ -286,10 +279,11 @@ export function useImageUpload(): UseImageUploadReturn {
     addFromUrl,
     setMaxImages,
     isDragging,
-    setIsDragging,
+    setIsDragging: setDragging,
     fileInputRef,
     handleFileChange,
     handleDrop,
+    handleDragEnter,
     handleDragOver,
     handleDragLeave,
     openFilePicker,

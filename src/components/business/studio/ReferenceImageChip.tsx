@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { FolderOpen, Image as ImageIcon, Plus, X } from 'lucide-react'
+import { useState } from 'react'
+import { Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
+import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
 import {
   Popover,
   PopoverContent,
@@ -29,36 +30,22 @@ interface ReferenceImageChipProps {
  *                     (Krea-style sidebar + grid). Picking a tile fetches
  *                     the asset via addFromUrl and dismisses the dialog.
  *
- * Both paths feed the same useImageUpload store, so downstream generation
- * code is unchanged. Uploads use a chip-local hidden file input rather
- * than useImageUpload's shared fileInputRef so the legacy "参照画像"
- * panel can keep mounting its own input without ref collisions.
+ * Both paths feed the same useImageUpload store through ImageSourcePicker, so
+ * downstream generation code is unchanged.
  */
 export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const t = useTranslations('ImageChip')
   const { imageUpload } = useStudioData()
   const [popoverOpen, setPopoverOpen] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Badge + chip "active" treatment track the *enabled* count — entries that
-  // the current model can't use shouldn't make the chip look populated.
-  const referenceCount = imageUpload.referenceImages.length
+  const enabledReferenceCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
-  const isActive = referenceCount > 0
+  const isActive = totalEntries > 0
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = '' // allow picking the same file twice in a row
-    if (!file || !file.type.startsWith('image/')) return
+  const handleFileSelect = (file: File) => {
     const reader = new FileReader()
     reader.onload = () => {
       imageUpload.addReferenceImage(reader.result as string)
-      setPopoverOpen(false)
     }
     reader.readAsDataURL(file)
   }
@@ -74,13 +61,6 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
   return (
     <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger asChild>
           <Toolbar.Button
@@ -96,9 +76,16 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           >
             <ImageIcon className="size-4 shrink-0" />
             <span className="hidden sm:inline">{t('label')}</span>
-            {referenceCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
-                {referenceCount}
+            {totalEntries > 0 && (
+              <span
+                className={cn(
+                  'absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full text-[10px]',
+                  enabledReferenceCount > 0
+                    ? 'bg-primary text-white'
+                    : 'bg-muted-foreground text-background',
+                )}
+              >
+                {totalEntries}
               </span>
             )}
           </Toolbar.Button>
@@ -110,90 +97,32 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           align="center"
           sideOffset={12}
         >
-          <div className="space-y-3">
-            {/*
-             * Selected-reference preview row — Krea shows the picked asset
-             * above the action CTAs. Each thumbnail carries its own × so a
-             * user can drop one reference without clearing the rest.
-             */}
-            {totalEntries > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {imageUpload.referenceEntries.map((entry, idx) => {
-                  const disabled = entry.disabledReason !== null
-                  const tooltip =
-                    entry.disabledReason === 'over_limit'
-                      ? t('disabledOverLimit')
-                      : entry.disabledReason === 'unsupported'
-                        ? t('disabledUnsupported')
-                        : undefined
-                  return (
-                    <div
-                      key={`${idx}-${entry.url.slice(0, 24)}`}
-                      title={tooltip}
-                      className={cn(
-                        'group relative size-16 overflow-hidden rounded-lg border border-border/60 bg-muted/40 transition-opacity',
-                        disabled && 'opacity-50',
-                      )}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={entry.url}
-                        alt=""
-                        className={cn(
-                          'size-full object-cover',
-                          disabled && 'grayscale',
-                        )}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => imageUpload.removeReferenceImage(idx)}
-                        aria-label={t('removeReferenceImage', {
-                          index: idx + 1,
-                        })}
-                        className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition-opacity group-hover:opacity-100"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t('description')}
-            </p>
-            <button
-              type="button"
-              onClick={handleUploadClick}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-            >
-              <Plus className="size-4" />
-              {t('upload')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                // Close the small popover before opening the full-screen
-                // dialog so they don't stack with conflicting focus traps.
-                setPopoverOpen(false)
-                setDialogOpen(true)
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-border/60 bg-card/70 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-card"
-            >
-              <FolderOpen className="size-4" />
-              {t('selectAsset')}
-            </button>
-          </div>
+          <ImageSourcePicker
+            description={t('description')}
+            uploadLabel={t('upload')}
+            uploadHint={t('uploadHint')}
+            selectAssetLabel={t('selectAsset')}
+            assetDialogTitle={t('selectAsset')}
+            assetDialogDescription={t('description')}
+            pasteHint={t('pasteHint')}
+            onFileSelect={handleFileSelect}
+            onAssetSelect={handleSelectAsset}
+            onRequestClose={() => setPopoverOpen(false)}
+            preview={
+              totalEntries > 0 ? (
+                <ImageAttachmentPreviewStrip
+                  entries={imageUpload.referenceEntries}
+                  previewAlt={t('label')}
+                  removeLabel={(index) => t('removeReferenceImage', { index })}
+                  onRemove={imageUpload.removeReferenceImage}
+                  overLimitTooltip={t('disabledOverLimit')}
+                  unsupportedTooltip={t('disabledUnsupported')}
+                />
+              ) : null
+            }
+          />
         </PopoverContent>
       </Popover>
-      <AssetSelectorDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSelect={handleSelectAsset}
-        title={t('selectAsset')}
-        description={t('description')}
-        mediaType="image"
-      />
     </>
   )
 }

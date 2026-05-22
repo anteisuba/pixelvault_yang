@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- data URL images from file upload */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Check,
   ImageIcon,
@@ -10,14 +10,18 @@ import {
   RotateCcw,
   Sparkles,
   Trees,
-  Upload,
   User,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
-import type { AnalysisDimension, GenerateVariationsModel } from '@/types'
+import type {
+  AnalysisDimension,
+  GenerationRecord,
+  GenerateVariationsModel,
+} from '@/types'
+import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VariationGrid } from '@/components/business/VariationGrid'
@@ -26,32 +30,57 @@ import { cn } from '@/lib/utils'
 
 const MAX_IMAGE_DIMENSION = 2048
 
-function resizeImageToBase64(file: File): Promise<string> {
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => {
-      const img = new Image()
-      img.onload = () => {
-        let { width, height } = img
-        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-          const scale = MAX_IMAGE_DIMENSION / Math.max(width, height)
-          width = Math.round(width * scale)
-          height = Math.round(height * scale)
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return reject(new Error('Canvas not supported'))
-        ctx.drawImage(img, 0, 0, width, height)
-        resolve(canvas.toDataURL('image/jpeg', 0.85))
-      }
-      img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = reader.result as string
-    }
-    reader.onerror = () => reject(new Error('Failed to read file'))
-    reader.readAsDataURL(file)
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
   })
+}
+
+function loadImageElement(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = url
+  })
+}
+
+async function resizeImageToBase64(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const img = await loadImageElement(objectUrl)
+    let { width, height } = img
+    if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+      const scale = MAX_IMAGE_DIMENSION / Math.max(width, height)
+      width = Math.round(width * scale)
+      height = Math.round(height * scale)
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas not supported')
+    ctx.drawImage(img, 0, 0, width, height)
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (nextBlob) => {
+          if (nextBlob) {
+            resolve(nextBlob)
+          } else {
+            reject(new Error('Failed to encode image'))
+          }
+        },
+        'image/jpeg',
+        0.85,
+      )
+    })
+    return await readBlobAsDataUrl(blob)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 // ── Dimension config ────────────────────────────────────────────
@@ -97,39 +126,41 @@ export function ReverseEngineerPanel({
   } = useReverseImage()
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
   const [aspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT_RATIO)
   const [selectedDims, setSelectedDims] = useState<Set<AnalysisDimension>>(
     new Set(),
   )
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewObjectUrlRef = useRef<string | null>(null)
+
+  const revokePreviewObjectUrl = useCallback(() => {
+    if (!previewObjectUrlRef.current) return
+    URL.revokeObjectURL(previewObjectUrlRef.current)
+    previewObjectUrlRef.current = null
+  }, [])
+
+  useEffect(() => revokePreviewObjectUrl, [revokePreviewObjectUrl])
 
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) return
+      revokePreviewObjectUrl()
+      const objectUrl = URL.createObjectURL(file)
+      previewObjectUrlRef.current = objectUrl
+      setPreviewUrl(objectUrl)
       const base64 = await resizeImageToBase64(file)
-      setPreviewUrl(base64)
       uploadImage(base64)
     },
-    [uploadImage],
+    [revokePreviewObjectUrl, uploadImage],
   )
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault()
-      setIsDragging(false)
-      const file = e.dataTransfer.files[0]
-      if (file) handleFile(file)
+  const handleSelectAsset = useCallback(
+    (generation: GenerationRecord) => {
+      if (generation.outputType !== 'IMAGE') return
+      revokePreviewObjectUrl()
+      setPreviewUrl(generation.url)
+      uploadImage(generation.url)
     },
-    [handleFile],
-  )
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) handleFile(file)
-    },
-    [handleFile],
+    [revokePreviewObjectUrl, uploadImage],
   )
 
   const toggleDimension = useCallback((dim: AnalysisDimension) => {
@@ -155,44 +186,28 @@ export function ReverseEngineerPanel({
   }, [generateVariations, aspectRatio, selectedModels])
 
   const handleReset = useCallback(() => {
+    revokePreviewObjectUrl()
     setPreviewUrl(null)
     setSelectedDims(new Set())
     reset()
-  }, [reset])
+  }, [reset, revokePreviewObjectUrl])
 
   // ── Step 1: Upload ──────────────────────────────────────────
 
   if (step === 'idle' || step === 'uploading') {
     return (
-      <div className="studio-step-animate">
-        <div
-          onDragOver={(e) => {
-            e.preventDefault()
-            setIsDragging(true)
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={cn(
-            'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
-            isDragging
-              ? 'border-primary/50 bg-primary/5'
-              : 'border-border/60 bg-background/60 hover:border-primary/30 hover:bg-primary/3',
-          )}
-        >
-          <Upload className="size-5 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">
-            {t('uploadTitle')}
-          </p>
-          <p className="text-xs text-muted-foreground">{t('uploadHint')}</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
+      <div className="studio-step-animate space-y-3">
+        <ImageSourcePicker
+          description={t('sourceDescription')}
+          uploadLabel={t('uploadTitle')}
+          uploadHint={t('uploadHint')}
+          selectAssetLabel={t('selectAsset')}
+          assetDialogTitle={t('selectAsset')}
+          assetDialogDescription={t('sourceDescription')}
+          pasteHint={t('pasteHint')}
+          onFileSelect={handleFile}
+          onAssetSelect={handleSelectAsset}
+        />
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       </div>

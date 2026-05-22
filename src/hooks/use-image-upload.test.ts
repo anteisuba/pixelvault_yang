@@ -32,14 +32,17 @@ describe('useImageUpload', () => {
       expect(result.current.referenceImages).toEqual(['a', 'b', 'c'])
     })
 
-    it('silently refuses adds once the enabled count hits max', () => {
+    it('keeps extra adds disabled once the enabled count hits max', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(2))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
       act(() => result.current.addReferenceImage('c'))
       expect(result.current.referenceImages).toEqual(['a', 'b'])
-      expect(result.current.referenceEntries).toHaveLength(2)
+      expect(result.current.referenceEntries).toHaveLength(3)
+      expect(result.current.referenceEntries[2]?.disabledReason).toBe(
+        'over_limit',
+      )
     })
 
     it('removeReferenceImage uses the entries index and shifts disabled flags', () => {
@@ -119,11 +122,18 @@ describe('useImageUpload', () => {
       ).toBe(true)
     })
 
-    it('refuses new adds while in unsupported mode', () => {
+    it('keeps new adds unsupported while in unsupported mode', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(0))
       act(() => result.current.addReferenceImage('a'))
-      expect(result.current.referenceEntries).toHaveLength(0)
+      expect(result.current.referenceImages).toEqual([])
+      expect(result.current.referenceEntries).toHaveLength(1)
+      expect(result.current.referenceEntries[0]?.disabledReason).toBe(
+        'unsupported',
+      )
+
+      act(() => result.current.setMaxImages(1))
+      expect(result.current.referenceImages).toEqual(['a'])
     })
 
     it('does not churn state when setMaxImages is a no-op', () => {

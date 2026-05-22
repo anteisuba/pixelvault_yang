@@ -1,5 +1,5 @@
-import { ToolPlaceholder } from '@/components/business/studio/ToolPlaceholder'
+import { StudioNodeWorkbench } from '@/components/business/studio/node/StudioNodeWorkbench'
 
 export default function StudioNodePage() {
-  return <ToolPlaceholder toolKey="node" />
+  return <StudioNodeWorkbench />
 }

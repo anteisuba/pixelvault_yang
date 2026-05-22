@@ -94,7 +94,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="dark border-r border-sidebar-border text-sidebar-foreground"
+      className="z-40 dark border-r border-sidebar-border text-sidebar-foreground"
     >
       <AppSidebarHeader />
       <AppSidebarContent />
@@ -694,14 +694,19 @@ function SidebarFooterUserMenu() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-sidebar-border/60 bg-sidebar/95 backdrop-blur-xl shadow-lg py-1"
+            className={cn(
+              'absolute z-50 rounded-xl border border-sidebar-border/60 bg-sidebar/95 py-1 shadow-lg backdrop-blur-xl',
+              isCollapsed
+                ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
+                : 'bottom-full left-0 right-0 mb-2 origin-bottom',
+            )}
           >
             <button
               type="button"
               onClick={handleViewProfile}
               disabled={isProfileNavigationPending}
               aria-busy={isProfileNavigationPending}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent disabled:cursor-wait disabled:opacity-70"
+              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent disabled:cursor-wait disabled:opacity-70"
             >
               {isProfileNavigationPending ? (
                 <Loader2 className="size-4 animate-spin text-sidebar-foreground/70" />
@@ -713,7 +718,7 @@ function SidebarFooterUserMenu() {
             <button
               type="button"
               onClick={handleOpenApiKeys}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
             >
               <KeyRound className="size-4 text-sidebar-foreground/70" />
               {t('apiKeys')}
@@ -722,7 +727,7 @@ function SidebarFooterUserMenu() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <LogOut className="size-4" />
               {t('signOut')}

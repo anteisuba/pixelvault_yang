@@ -11,22 +11,10 @@ import {
 } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
-import {
-  Check,
-  ChevronDown,
-  Dices,
-  GitCompareArrows,
-  Key,
-  Loader2,
-  Sparkles,
-} from 'lucide-react'
+import { Check, ChevronDown, Key, Loader2, Send, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import {
-  STUDIO_PROMPT_TEXTAREA_ID,
-  VARIANT_COUNT,
-  COMPARE_MAX_MODELS,
-} from '@/constants/studio'
+import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   getWorkflowById,
   WORKFLOW_IDS,
@@ -66,6 +54,7 @@ import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
+import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
 import type { RecipeRecord } from '@/types'
@@ -74,13 +63,6 @@ import {
   PromptInputTextarea,
   PromptInputActions,
 } from '@/components/ui/prompt-input'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Popover,
   PopoverContent,
@@ -94,7 +76,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { ModelSelector } from '@/components/business/ModelSelector'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 
 /**
@@ -224,25 +205,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     [dispatch],
   )
 
-  const handleReplaceRecipePrompt = useCallback(
-    (recipe: RecipeRecord) => {
-      dispatch({ type: 'SET_PROMPT', payload: getRecipePrompt(recipe) })
-      setRecipeLineage(recipe, 'replace')
-    },
-    [dispatch, getRecipePrompt, setRecipeLineage],
-  )
-
-  const handleInsertRecipePrompt = useCallback(
-    (recipe: RecipeRecord) => {
-      const nextPrompt = [state.prompt.trim(), getRecipePrompt(recipe)]
-        .filter(Boolean)
-        .join('\n\n')
-      dispatch({ type: 'SET_PROMPT', payload: nextPrompt })
-      setRecipeLineage(recipe, 'insert')
-    },
-    [dispatch, getRecipePrompt, setRecipeLineage, state.prompt],
-  )
-
   const handleApplyRecipe = useCallback(
     (recipe: RecipeRecord) => {
       const workflowId =
@@ -281,23 +243,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       setRecipeLineage,
     ],
   )
-
-  // B4: Compare mode state
-  const [compareMode, setCompareMode] = useState(false)
-  const [compareSelectedIds, setCompareSelectedIds] = useState<Set<string>>(
-    () => new Set(),
-  )
-  const toggleCompareModel = useCallback((optionId: string) => {
-    setCompareSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(optionId)) {
-        next.delete(optionId)
-      } else {
-        next.add(optionId)
-      }
-      return next
-    })
-  }, [])
 
   // ── Quick Setup Dialog state ────────────────────────────────────
   const [quickSetup, setQuickSetup] = useState<{
@@ -473,6 +418,42 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
     return undefined
   }, [state.audioPace])
+  const composerContainerRef = useRef<HTMLDivElement>(null)
+  const [isComposerExpanded, setComposerExpanded] = useState(false)
+
+  useEffect(() => {
+    if (!isComposerExpanded) return
+
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+
+      if (composerContainerRef.current?.contains(target)) {
+        return
+      }
+
+      const targetElement =
+        target instanceof Element
+          ? target
+          : target.parentNode instanceof Element
+            ? target.parentNode
+            : null
+      if (
+        targetElement?.closest(
+          '[data-radix-popper-content-wrapper], [role="dialog"], [data-slot="popover-content"]',
+        )
+      ) {
+        return
+      }
+
+      setComposerExpanded(false)
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown)
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown)
+    }
+  }, [isComposerExpanded])
 
   /** Prepend style preset prefix to user prompt */
   const composePrompt = useCallback(
@@ -849,30 +830,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     void handleGenerate()
   }, [state.generateRequestId, handleGenerate])
 
-  const handleGenerateVariants = useCallback(async () => {
-    if (!canGenerate) return
-    const image = buildImageInput()
-    if (!image) return
-    await generate({ mode: 'image', image, runMode: 'variant' })
-  }, [canGenerate, buildImageInput, generate])
-
-  const handleGenerateCompare = useCallback(async () => {
-    if (compareSelectedIds.size < 2) return
-    const image = buildImageInput()
-    if (!image) return
-    const compareModels = modelOptions
-      .filter((o) => compareSelectedIds.has(o.optionId))
-      .map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
-    setCompareMode(false)
-    setCompareSelectedIds(new Set())
-    await generate({ mode: 'image', image, runMode: 'compare', compareModels })
-  }, [compareSelectedIds, buildImageInput, modelOptions, generate])
-
-  const handleEnterCompareMode = useCallback(() => {
-    setCompareMode(true)
-    setCompareSelectedIds(new Set())
-  }, [])
-
   const handlePromptPaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
       const imageFile = getImageFileFromDataTransfer(event.clipboardData)
@@ -924,392 +881,348 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         />
       )}
 
-      <PromptInput
-        id="studio-prompt"
-        isLoading={isGenerating}
-        value={state.prompt}
-        onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
-        maxHeight={
-          typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 320
-        }
-        onSubmit={handleGenerate}
-        data-slot="input-group"
-        role="group"
-        disabled={isGenerating}
-        className={cn(
-          'group/input-group relative w-full overflow-hidden rounded-[2rem] border border-border/60 bg-background/60 p-2 shadow-sm outline-none transition-[color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-          'has-[textarea:focus-visible]:border-primary/40 has-[textarea:focus-visible]:shadow-md has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-primary/15',
-        )}
-      >
-        <ImageAttachmentPreviewStrip
-          entries={imageUpload.referenceEntries}
-          previewAlt={tImageChip('label')}
-          removeLabel={(index) => tImageChip('removeReferenceImage', { index })}
-          onRemove={imageUpload.removeReferenceImage}
-          overLimitTooltip={tImageChip('disabledOverLimit')}
-          unsupportedTooltip={tImageChip('disabledUnsupported')}
-          variant="composer"
-        />
-        <PromptInputTextarea
-          id={STUDIO_PROMPT_TEXTAREA_ID}
-          aria-label={tForm('promptLabel')}
-          placeholder={placeholder}
-          onPaste={handlePromptPaste}
-          className="min-h-12 px-2 py-1.5 font-serif text-sm leading-6 text-foreground placeholder:text-muted-foreground/60"
-        />
-        {isAudioMode && (
-          <div
-            className={cn(
-              'flex justify-end px-2 pb-1 text-2xs tabular-nums',
-              isAudioPromptOverLimit
-                ? 'text-destructive'
-                : isAudioPromptNearLimit
-                  ? 'text-amber-600'
-                  : 'text-muted-foreground/70',
-            )}
-          >
-            {audioPromptMeta}
-          </div>
-        )}
-        <PromptInputActions className="items-center justify-between gap-3 px-1.5 pb-1 pt-1">
-          <div className="flex min-w-0 items-center gap-1.5">
-            {state.workflowMode === 'quick' && (
-              <Popover
-                open={modelPickerOpen}
-                onOpenChange={handleModelPickerOpenChange}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t('selectModel')}
-                    aria-expanded={modelPickerOpen}
-                    className={cn(
-                      'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
-                      'transition-[color,background-color,border-color,box-shadow] duration-200',
-                      'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
-                      'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
-                      'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
-                    )}
-                  >
-                    {selectedModel?.keyId && (
-                      <ApiKeyHealthDot
-                        status={healthMap[selectedModel.keyId]}
-                      />
-                    )}
-                    {!selectedModel?.keyId && selectedModel?.freeTier && (
-                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                    )}
-                    <span className="max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]">
-                      {selectedModel
-                        ? (selectedModel.keyLabel ??
-                          getTranslatedModelLabel(
-                            tModels,
-                            selectedModel.modelId,
-                          ))
-                        : t('noModelHint')}
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        'size-3 shrink-0 transition-transform duration-300 ease-out',
-                        modelPickerOpen && 'rotate-180',
-                      )}
-                    />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="start"
-                  side="top"
-                  sideOffset={10}
-                  collisionPadding={12}
-                  className="origin-bottom w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl data-[side=top]:slide-in-from-bottom-2"
-                >
-                  <Command className="bg-transparent">
-                    <CommandInput
-                      placeholder={tForm('modelSelector.searchPlaceholder')}
-                      className="h-10 text-sm"
-                    />
-                    <CommandList className="max-h-80 overscroll-contain">
-                      <CommandEmpty>
-                        {tForm('modelSelector.emptySearch')}
-                      </CommandEmpty>
-                      {availableModels.length > 0 && (
-                        <CommandGroup heading={tSetup('available')}>
-                          {availableModels.map((option) => {
-                            const isSelected =
-                              option.optionId === state.selectedOptionId
-                            const optionLabel =
-                              option.keyLabel ??
-                              getTranslatedModelLabel(tModels, option.modelId)
-                            const optionModelLabel = getTranslatedModelLabel(
-                              tModels,
-                              option.modelId,
-                            )
-                            const providerLabel = getProviderLabel(
-                              option.providerConfig,
-                            )
-                            const optionMeta = option.keyLabel
-                              ? `${optionModelLabel} · ${providerLabel}`
-                              : providerLabel
-                            const searchValue = [
-                              option.optionId,
-                              optionLabel,
-                              optionModelLabel,
-                              providerLabel,
-                              option.maskedKey,
-                            ]
-                              .filter((v): v is string => Boolean(v))
-                              .join(' ')
-
-                            return (
-                              <CommandItem
-                                key={option.optionId}
-                                value={searchValue}
-                                onSelect={() =>
-                                  handleSelectModel(option.optionId)
-                                }
-                                className="group min-h-12 gap-3 px-3 py-2.5"
-                              >
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-                                  <Sparkles className="size-3.5" />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="flex min-w-0 items-center gap-2">
-                                    {option.keyId ? (
-                                      <ApiKeyHealthDot
-                                        status={healthMap[option.keyId]}
-                                      />
-                                    ) : option.freeTier ? (
-                                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                    ) : null}
-                                    <span className="truncate text-sm font-semibold">
-                                      {optionLabel}
-                                    </span>
-                                  </span>
-                                  <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-                                    {optionMeta}
-                                  </span>
-                                </span>
-                                {isSelected ? (
-                                  <Check className="size-4 shrink-0 text-foreground" />
-                                ) : null}
-                              </CommandItem>
-                            )
-                          })}
-                        </CommandGroup>
-                      )}
-
-                      {lockedModels.length > 0 && (
-                        <CommandGroup heading={tSetup('needsKey')}>
-                          {lockedModels.map((option) => {
-                            const optionModelLabel = getTranslatedModelLabel(
-                              tModels,
-                              option.modelId,
-                            )
-                            const providerLabel = getProviderLabel(
-                              option.providerConfig,
-                            )
-                            const searchValue = [
-                              option.optionId,
-                              optionModelLabel,
-                              providerLabel,
-                            ]
-                              .filter(Boolean)
-                              .join(' ')
-
-                            return (
-                              <CommandItem
-                                key={option.optionId}
-                                value={searchValue}
-                                onSelect={() => handleOpenQuickSetup(option)}
-                                className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
-                              >
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-                                  <Key className="size-3.5" />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-semibold">
-                                    {optionModelLabel}
-                                  </span>
-                                  <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-                                    {providerLabel}
-                                  </span>
-                                </span>
-                              </CommandItem>
-                            )
-                          })}
-                        </CommandGroup>
-                      )}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-            <PromptTemplatePicker
-              onReplace={handleReplaceRecipePrompt}
-              onInsert={handleInsertRecipePrompt}
-              onApply={handleApplyRecipe}
-            />
-          </div>
-          {/* Generate split button + variant dropdown (hidden in audio mode) */}
-          <div
-            className={cn(
-              'inline-flex isolate shrink-0 items-stretch overflow-hidden rounded-full bg-primary text-primary-foreground',
-              'shadow-sm shadow-primary/20 ring-1 ring-primary/10 transition-shadow duration-200',
-              !isGenerating && 'hover:shadow-md hover:shadow-primary/25',
-              (isGenerating || isAudioPromptOverLimit) &&
-                'bg-muted text-muted-foreground',
-            )}
-          >
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                void handleGenerate()
-              }}
-              disabled={isGenerating || isAudioPromptOverLimit}
-              aria-busy={isGenerating}
-              aria-disabled={!canGenerate}
-              className={cn(
-                'flex h-10 items-center gap-1.5 px-4 text-sm font-semibold',
-                'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                isGenerating
-                  ? 'cursor-not-allowed studio-generating'
-                  : isAudioPromptOverLimit
-                    ? 'cursor-not-allowed'
-                    : 'active:scale-[0.97]',
-              )}
-              style={{
-                transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-              }}
-            >
-              <AnimatePresence initial={false} mode="wait">
-                {isGenerating ? (
-                  <motion.span
-                    key="generating"
-                    className="flex items-center gap-1.5"
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                  >
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>{t('generating')}</span>
-                    {elapsedSeconds > 0 && (
-                      <span className="text-2xs opacity-70 tabular-nums">
-                        {elapsedSeconds}s
-                      </span>
-                    )}
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="idle"
-                    className="flex items-center"
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                  >
-                    <kbd
-                      aria-label={t('generate')}
-                      className="inline-flex items-center gap-0.5 rounded border border-primary-foreground/25 bg-primary-foreground/10 px-1.5 py-0.5 font-sans text-xs font-medium tracking-tight text-primary-foreground/80"
-                    >
-                      <span aria-hidden>⌘</span>
-                      <span aria-hidden>↵</span>
-                    </kbd>
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-            {!isAudioMode && !isVideoMode && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(event) => event.stopPropagation()}
-                    disabled={isGenerating}
-                    className={cn(
-                      'flex h-10 w-10 items-center justify-center border-l border-primary-foreground/15 text-sm',
-                      'transition-[background-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                      isGenerating
-                        ? 'cursor-not-allowed'
-                        : 'bg-primary-foreground/10 hover:bg-primary-foreground/15 active:scale-[0.95]',
-                    )}
-                  >
-                    <ChevronDown className="size-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-48">
-                  <DropdownMenuItem onClick={handleGenerate}>
-                    <Sparkles className="size-4" />
-                    <span>{t('generate')}</span>
-                    <span className="ml-auto text-2xs text-muted-foreground">
-                      {t('variantRequests', {
-                        count: selectedModel?.requestCount ?? 1,
-                      })}
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleGenerateVariants}>
-                    <Dices className="size-4" />
-                    <span>{t('variantGenerate')}</span>
-                    <span className="ml-auto text-2xs text-muted-foreground">
-                      {t('variantRequests', { count: VARIANT_COUNT })}
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleEnterCompareMode}>
-                    <GitCompareArrows className="size-4" />
-                    <span>{t('compareGenerate')}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </PromptInputActions>
-      </PromptInput>
-      {/* B4: Compare mode — inline model multi-select */}
-      {compareMode && !isAudioMode && !isVideoMode && (
-        <div className="mt-2 rounded-xl border border-primary/20 bg-primary/3 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">
-              {t('compareSelectModels')}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setCompareMode(false)
-                setCompareSelectedIds(new Set())
-              }}
-              className="text-2xs text-muted-foreground hover:text-foreground"
-            >
-              {t('cancel')}
-            </button>
-          </div>
-          <ModelSelector
-            value=""
-            onChange={() => {}}
-            options={modelOptions}
-            multiSelect
-            selectedValues={compareSelectedIds}
-            onMultiChange={toggleCompareModel}
-            maxSelections={COMPARE_MAX_MODELS}
+      <div ref={composerContainerRef}>
+        <PromptInput
+          id="studio-prompt"
+          isLoading={isGenerating}
+          value={state.prompt}
+          onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+          maxHeight={
+            typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 320
+          }
+          onSubmit={handleGenerate}
+          onClick={() => setComposerExpanded(true)}
+          onFocusCapture={() => setComposerExpanded(true)}
+          data-slot="input-group"
+          data-expanded={isComposerExpanded}
+          role="group"
+          disabled={isGenerating}
+          className={cn(
+            'group/input-group relative mx-auto w-full max-w-4xl rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
+          )}
+        >
+          <ImageAttachmentPreviewStrip
+            entries={imageUpload.referenceEntries}
+            previewAlt={tImageChip('label')}
+            removeLabel={(index) =>
+              tImageChip('removeReferenceImage', { index })
+            }
+            onRemove={imageUpload.removeReferenceImage}
+            overLimitTooltip={tImageChip('disabledOverLimit')}
+            unsupportedTooltip={tImageChip('disabledUnsupported')}
+            variant="composer"
           />
-          <button
-            type="button"
-            onClick={() => void handleGenerateCompare()}
-            disabled={compareSelectedIds.size < 2 || isGenerating}
-            className={cn(
-              'mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-all',
-              compareSelectedIds.size >= 2 && !isGenerating
-                ? 'bg-primary text-primary-foreground shadow-sm hover:shadow-md active:scale-[0.97]'
-                : 'bg-muted text-muted-foreground cursor-not-allowed',
+          <AnimatePresence initial={false}>
+            {isComposerExpanded && (
+              <motion.div
+                key="composer-quick-controls"
+                className="overflow-hidden"
+                initial={{ height: 0, opacity: 0, y: 8, marginBottom: 0 }}
+                animate={{ height: 'auto', opacity: 1, y: 0, marginBottom: 8 }}
+                exit={{ height: 0, opacity: 0, y: 6, marginBottom: 0 }}
+                transition={{ duration: 0.36, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {state.workflowMode === 'quick' && (
+                      <Popover
+                        open={modelPickerOpen}
+                        onOpenChange={handleModelPickerOpenChange}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={t('selectModel')}
+                            aria-expanded={modelPickerOpen}
+                            className={cn(
+                              'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
+                              'transition-[color,background-color,border-color,box-shadow] duration-200',
+                              'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
+                              'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
+                              'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
+                            )}
+                          >
+                            {selectedModel?.keyId && (
+                              <ApiKeyHealthDot
+                                status={healthMap[selectedModel.keyId]}
+                              />
+                            )}
+                            {!selectedModel?.keyId &&
+                              selectedModel?.freeTier && (
+                                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                              )}
+                            <span className="max-w-[7.5rem] truncate font-medium text-foreground sm:max-w-[10rem]">
+                              {selectedModel
+                                ? (selectedModel.keyLabel ??
+                                  getTranslatedModelLabel(
+                                    tModels,
+                                    selectedModel.modelId,
+                                  ))
+                                : t('noModelHint')}
+                            </span>
+                            <ChevronDown
+                              className={cn(
+                                'size-3 shrink-0 transition-transform duration-300 ease-out',
+                                modelPickerOpen && 'rotate-180',
+                              )}
+                            />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="start"
+                          side="top"
+                          sideOffset={10}
+                          collisionPadding={12}
+                          className="origin-bottom w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl data-[side=top]:slide-in-from-bottom-2"
+                        >
+                          <Command className="bg-transparent">
+                            <CommandInput
+                              placeholder={tForm(
+                                'modelSelector.searchPlaceholder',
+                              )}
+                              className="h-10 text-sm"
+                            />
+                            <CommandList className="max-h-80 overscroll-contain">
+                              <CommandEmpty>
+                                {tForm('modelSelector.emptySearch')}
+                              </CommandEmpty>
+                              {availableModels.length > 0 && (
+                                <CommandGroup heading={tSetup('available')}>
+                                  {availableModels.map((option) => {
+                                    const isSelected =
+                                      option.optionId === state.selectedOptionId
+                                    const optionLabel =
+                                      option.keyLabel ??
+                                      getTranslatedModelLabel(
+                                        tModels,
+                                        option.modelId,
+                                      )
+                                    const optionModelLabel =
+                                      getTranslatedModelLabel(
+                                        tModels,
+                                        option.modelId,
+                                      )
+                                    const providerLabel = getProviderLabel(
+                                      option.providerConfig,
+                                    )
+                                    const optionMeta = option.keyLabel
+                                      ? `${optionModelLabel} · ${providerLabel}`
+                                      : providerLabel
+                                    const searchValue = [
+                                      option.optionId,
+                                      optionLabel,
+                                      optionModelLabel,
+                                      providerLabel,
+                                      option.maskedKey,
+                                    ]
+                                      .filter((v): v is string => Boolean(v))
+                                      .join(' ')
+
+                                    return (
+                                      <CommandItem
+                                        key={option.optionId}
+                                        value={searchValue}
+                                        onSelect={() =>
+                                          handleSelectModel(option.optionId)
+                                        }
+                                        className="group min-h-12 gap-3 px-3 py-2.5"
+                                      >
+                                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+                                          <Sparkles className="size-3.5" />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                          <span className="flex min-w-0 items-center gap-2">
+                                            {option.keyId ? (
+                                              <ApiKeyHealthDot
+                                                status={healthMap[option.keyId]}
+                                              />
+                                            ) : option.freeTier ? (
+                                              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                            ) : null}
+                                            <span className="truncate text-sm font-semibold">
+                                              {optionLabel}
+                                            </span>
+                                          </span>
+                                          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+                                            {optionMeta}
+                                          </span>
+                                        </span>
+                                        {isSelected ? (
+                                          <Check className="size-4 shrink-0 text-foreground" />
+                                        ) : null}
+                                      </CommandItem>
+                                    )
+                                  })}
+                                </CommandGroup>
+                              )}
+
+                              {lockedModels.length > 0 && (
+                                <CommandGroup heading={tSetup('needsKey')}>
+                                  {lockedModels.map((option) => {
+                                    const optionModelLabel =
+                                      getTranslatedModelLabel(
+                                        tModels,
+                                        option.modelId,
+                                      )
+                                    const providerLabel = getProviderLabel(
+                                      option.providerConfig,
+                                    )
+                                    const searchValue = [
+                                      option.optionId,
+                                      optionModelLabel,
+                                      providerLabel,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' ')
+
+                                    return (
+                                      <CommandItem
+                                        key={option.optionId}
+                                        value={searchValue}
+                                        onSelect={() =>
+                                          handleOpenQuickSetup(option)
+                                        }
+                                        className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
+                                      >
+                                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+                                          <Key className="size-3.5" />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                          <span className="block truncate text-sm font-semibold">
+                                            {optionModelLabel}
+                                          </span>
+                                          <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
+                                            {providerLabel}
+                                          </span>
+                                        </span>
+                                      </CommandItem>
+                                    )
+                                  })}
+                                </CommandGroup>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    <PromptTemplatePicker onApply={handleApplyRecipe} />
+                  </div>
+                </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+          <motion.div
+            layout
+            animate={{
+              borderRadius: isComposerExpanded ? 24 : 999,
+              paddingTop: isComposerExpanded ? 8 : 6,
+              paddingBottom: isComposerExpanded ? 8 : 6,
+              paddingLeft: 8,
+              paddingRight: 8,
+            }}
+            className={cn(
+              'overflow-hidden border border-white/90 bg-white text-neutral-950 shadow-2xl shadow-black/25 ring-1 ring-black/10',
+              'has-[textarea:focus-visible]:border-white has-[textarea:focus-visible]:shadow-black/30 has-[textarea:focus-visible]:ring-black/20',
+            )}
+            transition={{ duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
           >
-            <GitCompareArrows className="size-4" />
-            {t('compareGenerate')} ({compareSelectedIds.size})
-          </button>
-        </div>
-      )}
+            <div className="flex min-h-11 items-center gap-2">
+              <PromptInputTextarea
+                id={STUDIO_PROMPT_TEXTAREA_ID}
+                aria-label={tForm('promptLabel')}
+                placeholder={placeholder}
+                onPaste={handlePromptPaste}
+                onClick={() => setComposerExpanded(true)}
+                onFocus={() => setComposerExpanded(true)}
+                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black placeholder:text-neutral-400"
+              />
+              <PromptInputActions className="shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void handleGenerate()
+                  }}
+                  disabled={isGenerating || isAudioPromptOverLimit}
+                  aria-label={t('generate')}
+                  aria-busy={isGenerating}
+                  aria-disabled={!canGenerate}
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm transition-[background-color,transform,box-shadow]',
+                    'hover:bg-neutral-800 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400',
+                    (isGenerating || isAudioPromptOverLimit) &&
+                      'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted hover:shadow-none',
+                  )}
+                  style={{
+                    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                >
+                  <AnimatePresence initial={false} mode="wait">
+                    {isGenerating ? (
+                      <motion.span
+                        key="generating"
+                        className="flex items-center justify-center"
+                        initial={{ opacity: 0, scale: 0.92 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.92 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                      >
+                        <Loader2 className="size-4 animate-spin" />
+                        {elapsedSeconds > 0 && (
+                          <span className="sr-only">
+                            {t('generating')} {elapsedSeconds}s
+                          </span>
+                        )}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="idle"
+                        className="flex items-center justify-center"
+                        initial={{ opacity: 0, scale: 0.92 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.92 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                      >
+                        <Send className="size-4 -rotate-12" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              </PromptInputActions>
+            </div>
+            <AnimatePresence initial={false}>
+              {isComposerExpanded && (
+                <motion.div
+                  key="composer-tools"
+                  className="overflow-hidden"
+                  initial={{ height: 0, opacity: 0, y: -4 }}
+                  animate={{ height: 'auto', opacity: 1, y: 0 }}
+                  exit={{ height: 0, opacity: 0, y: -4 }}
+                  transition={{ duration: 0.36, ease: [0.4, 0, 0.2, 1] }}
+                >
+                  <div className="mt-2 overflow-x-auto border-t border-neutral-200 pt-2 text-black [&_button]:text-black [&_svg]:text-black">
+                    <StudioToolbarPanels compact />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          {isAudioMode && (
+            <div
+              className={cn(
+                'flex justify-end px-3 pt-1 text-2xs tabular-nums',
+                isAudioPromptOverLimit
+                  ? 'text-destructive'
+                  : isAudioPromptNearLimit
+                    ? 'text-amber-600'
+                    : 'text-muted-foreground/70',
+              )}
+            >
+              {audioPromptMeta}
+            </div>
+          )}
+        </PromptInput>
+      </div>
     </>
   )
 })

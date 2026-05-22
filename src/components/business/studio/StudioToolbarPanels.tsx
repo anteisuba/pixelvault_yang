@@ -24,6 +24,10 @@ import { ReferenceImageChip } from './ReferenceImageChip'
 import { StudioAspectRatioPopover } from './StudioAspectRatioPopover'
 import { StudioEnhanceButton } from './StudioEnhanceButton'
 
+interface StudioToolbarPanelsProps {
+  compact?: boolean
+}
+
 /**
  * StudioToolbarRow — renders ONLY the toolbar button row. Each interactive
  * tool (enhance, reverse, transform, cards, refImage, style, aspect ratio)
@@ -31,7 +35,9 @@ import { StudioEnhanceButton } from './StudioEnhanceButton'
  * trigger; only inline panels (advanced, civitai, layer decompose)
  * are still routed via dispatch + StudioDockPanelArea.
  */
-export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
+export const StudioToolbarPanels = memo(function StudioToolbarPanels({
+  compact = false,
+}: StudioToolbarPanelsProps) {
   const { state, dispatch } = useStudioForm()
   const { civitai } = useStudioData()
   const { isGenerating } = useStudioGen()
@@ -50,7 +56,12 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       // StudioAspectRatioPopover, StudioEnhanceButton) — which use Radix
       // Toolbar.Button under the hood — can find their roving-focus
       // context. Plain `button` children stay valid inside Toolbar.Root.
-      <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+      <Toolbar.Root
+        className={cn(
+          'flex items-center gap-1.5',
+          compact ? 'flex-nowrap' : 'flex-wrap',
+        )}
+      >
         <StudioEnhanceButton disabled={isGenerating} />
         {/* Reference image: same Krea-style chip as image mode (upload + select asset popover). */}
         <ReferenceImageChip disabled={isGenerating} />
@@ -96,7 +107,12 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
     return (
       // Wrap in Toolbar.Root for StudioEnhanceButton (Toolbar.Button under
       // the hood); plain `button` children remain valid inside.
-      <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+      <Toolbar.Root
+        className={cn(
+          'flex items-center gap-1.5',
+          compact ? 'flex-nowrap' : 'flex-wrap',
+        )}
+      >
         <StudioEnhanceButton disabled={isGenerating} />
         <button
           type="button"
@@ -167,6 +183,7 @@ export const StudioToolbarPanels = memo(function StudioToolbarPanels() {
       hasToken={civitai.hasToken}
       disabled={isGenerating}
       quickMode={state.workflowMode === 'quick'}
+      compact={compact}
     />
   )
 })

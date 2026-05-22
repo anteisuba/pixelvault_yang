@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type PointerEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { FileText, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -25,16 +25,10 @@ import type { RecipeRecord } from '@/types'
 const RECENT_TEMPLATE_COUNT = 5
 
 interface PromptTemplatePickerProps {
-  onReplace: (recipe: RecipeRecord) => void
-  onInsert: (recipe: RecipeRecord) => void
   onApply: (recipe: RecipeRecord) => void
 }
 
-export function PromptTemplatePicker({
-  onReplace,
-  onInsert,
-  onApply,
-}: PromptTemplatePickerProps) {
+export function PromptTemplatePicker({ onApply }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
   const [open, setOpen] = useState(false)
   const { recipes, isLoading } = useRecipes(open)
@@ -51,17 +45,9 @@ export function PromptTemplatePicker({
     }
   }, [recipes])
 
-  const runAction = (
-    recipe: RecipeRecord,
-    action: (recipe: RecipeRecord) => void,
-  ) => {
-    action(recipe)
+  const runAction = (recipe: RecipeRecord) => {
+    onApply(recipe)
     setOpen(false)
-  }
-
-  const stopSelectPropagation = (event: PointerEvent<HTMLDivElement>) => {
-    event.stopPropagation()
-    event.preventDefault()
   }
 
   const renderItem = (recipe: RecipeRecord) => {
@@ -79,64 +65,16 @@ export function PromptTemplatePicker({
       <CommandItem
         key={recipe.id}
         value={searchValue}
-        onSelect={() => runAction(recipe, onApply)}
-        className="group items-start gap-3 px-3 py-2.5"
+        onSelect={() => runAction(recipe)}
+        className="group min-h-11 items-center gap-3 px-3 py-2.5"
       >
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
           <FileText className="size-3.5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-start justify-between gap-2">
-            <span className="line-clamp-1 min-w-0 text-sm font-semibold">
-              {recipe.name || recipe.modelId}
-            </span>
-            <span className="shrink-0 rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {recipe.modelId}
-            </span>
+          <span className="line-clamp-1 min-w-0 text-sm font-semibold">
+            {recipe.name || recipe.modelId}
           </span>
-          <span className="mt-0.5 line-clamp-2 block font-serif text-xs leading-5 text-muted-foreground">
-            {recipe.compiledPrompt}
-          </span>
-          <div
-            className="mt-2 flex flex-wrap items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-data-[selected=true]:opacity-100 focus-within:opacity-100"
-            onPointerDownCapture={stopSelectPropagation}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 rounded-full px-2.5 text-[11px]"
-              onClick={(event) => {
-                event.stopPropagation()
-                runAction(recipe, onReplace)
-              }}
-            >
-              {t('replacePrompt')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 rounded-full px-2.5 text-[11px]"
-              onClick={(event) => {
-                event.stopPropagation()
-                runAction(recipe, onInsert)
-              }}
-            >
-              {t('insertPrompt')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="ml-auto h-7 rounded-full px-3 text-[11px]"
-              onClick={(event) => {
-                event.stopPropagation()
-                runAction(recipe, onApply)
-              }}
-            >
-              {t('applyRecipe')}
-            </Button>
-          </div>
         </span>
       </CommandItem>
     )

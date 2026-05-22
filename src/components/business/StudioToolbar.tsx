@@ -28,6 +28,7 @@ interface StudioToolbarProps {
   disabled?: boolean
   /** Quick mode hides advanced tools */
   quickMode?: boolean
+  compact?: boolean
 }
 
 interface ToolButtonProps {
@@ -86,13 +87,19 @@ export function StudioToolbar({
   hasToken,
   disabled,
   quickMode,
+  compact,
 }: StudioToolbarProps) {
   const t = useTranslations('StudioV2')
 
   return (
     <TooltipProvider delayDuration={300}>
       <Toolbar.Root
-        className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5"
+        className={cn(
+          'flex items-center gap-1.5',
+          compact
+            ? 'flex-nowrap border-t-0 pt-0'
+            : 'flex-wrap border-t border-border/60 pt-2.5',
+        )}
         aria-label={t('toolbarLabel')}
       >
         {/* Group 1 — Prompt modifiers: enhance / reverse-engineer / style */}

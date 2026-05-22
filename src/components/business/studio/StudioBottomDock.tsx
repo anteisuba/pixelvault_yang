@@ -7,7 +7,6 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { StudioCardSection } from './StudioCardSection'
 import { StudioKeepChangePanel } from './StudioKeepChangePanel'
 import { StudioPromptArea } from './StudioPromptArea'
-import { StudioToolbarPanels } from './StudioToolbarPanels'
 import { StudioDockPanelArea } from './StudioDockPanelArea'
 
 function buildRefinePrompt(
@@ -63,7 +62,6 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
             <StudioCardSection />
           )}
           <StudioPromptArea />
-          <StudioToolbarPanels />
         </div>
       </div>
       <StudioDockPanelArea />

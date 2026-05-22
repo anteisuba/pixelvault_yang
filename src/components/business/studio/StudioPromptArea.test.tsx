@@ -145,8 +145,17 @@ vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
   ),
 }))
 
+vi.mock('@/components/business/studio/StudioToolbarPanels', () => ({
+  StudioToolbarPanels: () => <div data-testid="studio-toolbar-panels" />,
+}))
+
 vi.mock('@/components/ui/prompt-input', () => ({
-  PromptInput: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PromptInput: ({
+    children,
+    ...props
+  }: { children: ReactNode } & ComponentProps<'div'>) => (
+    <div {...props}>{children}</div>
+  ),
   PromptInputTextarea: (props: ComponentProps<'textarea'>) => (
     <textarea {...props} />
   ),
@@ -330,6 +339,37 @@ describe('StudioPromptArea', () => {
     render(<StudioPromptArea />)
 
     expect(getSetPromptActions()).toEqual([])
+  })
+
+  it('collapses the composer when pointer down happens outside', async () => {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: null,
+    })
+
+    render(
+      <>
+        <StudioPromptArea />
+        <button type="button">outside target</button>
+      </>,
+    )
+
+    const promptGroup = screen.getByRole('group')
+    expect(promptGroup).toHaveAttribute('data-expanded', 'false')
+
+    fireEvent.focus(screen.getByRole('textbox', { name: 'promptLabel' }))
+
+    await waitFor(() =>
+      expect(promptGroup).toHaveAttribute('data-expanded', 'true'),
+    )
+
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'outside target' }),
+    )
+
+    await waitFor(() =>
+      expect(promptGroup).toHaveAttribute('data-expanded', 'false'),
+    )
   })
 
   it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {

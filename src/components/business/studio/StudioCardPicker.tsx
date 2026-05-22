@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl'
 
 import { useStudioData } from '@/contexts/studio-context'
 import { modelSupportsLora } from '@/constants/models'
+import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
 type CardKind = 'character' | 'style' | 'background'
@@ -130,24 +131,18 @@ export function StudioCardPicker() {
   ] satisfies [CardPickerGroup, CardPickerGroup, CardPickerGroup]
   const activeGroup =
     groups.find((group) => group.kind === activeKind) ?? groups[0]
-  const normalizedQuery = query.trim().toLowerCase()
-  const visibleCards = activeGroup.cards
-    .filter((card) => {
-      if (!normalizedQuery) return true
-      return [card.name, ...(card.tags ?? [])]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery)
-    })
-    .sort((left, right) => {
-      const rightUsed = toTimestampMs(right.lastUsedAt)
-      const leftUsed = toTimestampMs(left.lastUsedAt)
-      if (rightUsed !== leftUsed) return rightUsed - leftUsed
-      return (
-        toTimestampMs(right.createdAt) - toTimestampMs(left.createdAt) ||
-        left.name.localeCompare(right.name)
-      )
-    })
+  const visibleCards = filterByQuery(activeGroup.cards, query, (card) => [
+    card.name,
+    ...(card.tags ?? []),
+  ]).sort((left, right) => {
+    const rightUsed = toTimestampMs(right.lastUsedAt)
+    const leftUsed = toTimestampMs(left.lastUsedAt)
+    if (rightUsed !== leftUsed) return rightUsed - leftUsed
+    return (
+      toTimestampMs(right.createdAt) - toTimestampMs(left.createdAt) ||
+      left.name.localeCompare(right.name)
+    )
+  })
   const selectedCardCount = groups.reduce(
     (total, group) => total + group.selectedIds.length,
     0,
@@ -227,7 +222,7 @@ export function StudioCardPicker() {
           </div>
         ) : visibleCards.length === 0 ? (
           <p className="px-3 py-10 text-center font-serif text-sm text-muted-foreground">
-            {normalizedQuery ? t('cardSearchEmpty') : t('noCards')}
+            {query.trim() ? t('cardSearchEmpty') : t('noCards')}
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">

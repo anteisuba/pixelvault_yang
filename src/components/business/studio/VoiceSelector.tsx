@@ -36,6 +36,7 @@ import {
   deleteVoiceCardAPI,
   listVoicesAPI,
 } from '@/lib/api-client'
+import { filterByQuery } from '@/lib/search-utils'
 import { cn } from '@/lib/utils'
 
 import { Input } from '@/components/ui/input'
@@ -69,13 +70,10 @@ function getVoiceInitial(title: string): string {
   return title.trim().charAt(0).toUpperCase() || 'V'
 }
 
-function matchesVoiceCardSearch(
+function voiceCardSearchFields(
   card: VoiceCardRecord,
-  normalizedSearch: string,
-): boolean {
-  if (!normalizedSearch) return true
-
-  const searchableText = [
+): Array<string | null | undefined> {
+  return [
     card.name,
     card.voiceId,
     card.provider,
@@ -84,11 +82,6 @@ function matchesVoiceCardSearch(
     card.pitch,
     ...card.tone,
   ]
-    .filter((value): value is string => Boolean(value))
-    .join(' ')
-    .toLowerCase()
-
-  return searchableText.includes(normalizedSearch)
 }
 
 function isClonedVoiceCard(card: VoiceCardRecord): boolean {
@@ -334,14 +327,13 @@ export const VoiceSelector = memo(function VoiceSelector({
   const isLocalCardsTab = !isPublicTab
   const usesExternalSelection = Boolean(onSelectVoiceId)
   const activeVoiceId = usesExternalSelection ? selectedVoiceId : state.voiceId
-  const normalizedVoiceCardSearch = debouncedSearch.toLowerCase()
-  const localVoiceCards = voiceCards.cards.filter((card) => {
-    const isCloned = isClonedVoiceCard(card)
-    return (
-      (tab === 'cloned' ? isCloned : !isCloned) &&
-      matchesVoiceCardSearch(card, normalizedVoiceCardSearch)
-    )
-  })
+  const localVoiceCards = filterByQuery(
+    voiceCards.cards.filter((card) =>
+      tab === 'cloned' ? isClonedVoiceCard(card) : !isClonedVoiceCard(card),
+    ),
+    debouncedSearch,
+    voiceCardSearchFields,
+  )
   const listIsLoading = isLocalCardsTab ? voiceCards.isLoading : isLoading
   const listError =
     isLocalCardsTab && voiceCards.error

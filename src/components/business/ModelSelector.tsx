@@ -25,6 +25,7 @@ import {
 import { hasCapability } from '@/constants/provider-capabilities'
 
 import { Badge } from '@/components/ui/badge'
+import { filterByQuery } from '@/lib/search-utils'
 import { cn } from '@/lib/utils'
 
 export interface StudioModelOption {
@@ -134,15 +135,14 @@ export function ModelSelector({
   const [searchQuery, setSearchQuery] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
-  const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return options
-    const q = searchQuery.toLowerCase()
-    return options.filter((option) => {
-      const label = getModelLabel(option, tModels).toLowerCase()
-      const provider = getProviderLabel(option.providerConfig).toLowerCase()
-      return label.includes(q) || provider.includes(q)
-    })
-  }, [options, searchQuery, tModels])
+  const filteredOptions = useMemo(
+    () =>
+      filterByQuery(options, searchQuery, (option) => [
+        getModelLabel(option, tModels),
+        getProviderLabel(option.providerConfig),
+      ]),
+    [options, searchQuery, tModels],
+  )
 
   const needsScroll = filteredOptions.length > MAX_VISIBLE_ITEMS
   const groups = useMemo(

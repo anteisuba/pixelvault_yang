@@ -1334,18 +1334,36 @@ function Metric({ icon, label, value }: MetricProps) {
 interface PresetRailPanelProps {
   presetId: LoraTrainingPresetId | null
   onSelect: (preset: { id: LoraTrainingPresetId }) => void
+  /**
+   * 'rail' (default): xl+ 右侧 sticky 列,内部用 compact 2-col grid。
+   * 'panel': 折叠在主区下方占满宽度,sticky 关闭,内部用 wide 2/3-col grid
+   * 以利用横向空间。
+   */
+  variant?: 'rail' | 'panel'
 }
 
 /**
- * Right-rail wrapper around PresetGrid. Adds the "Presets" heading +
- * subtitle that the standalone grid doesn't render, and applies the
+ * Wrapper around PresetGrid. Adds the "Presets" heading + subtitle that
+ * the standalone grid doesn't render. In 'rail' variant applies the
  * sticky / scroll constraints shared with the history rail so the two
- * columns visually balance at lg+ breakpoints.
+ * columns visually balance at xl+ breakpoints. In 'panel' variant
+ * renders as a static full-width block — used when the form column
+ * doesn't have horizontal room for a third rail.
  */
-function PresetRailPanel({ presetId, onSelect }: PresetRailPanelProps) {
+function PresetRailPanel({
+  presetId,
+  onSelect,
+  variant = 'rail',
+}: PresetRailPanelProps) {
   const t = useTranslations('LoraTraining')
   return (
-    <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
+    <aside
+      className={cn(
+        'rounded-2xl border border-border bg-card p-4',
+        variant === 'rail' &&
+          'xl:max-h-[calc(100vh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
+      )}
+    >
       <div className="mb-3 space-y-0.5">
         <h3 className="font-display text-sm font-semibold tracking-tight">
           {t('presetRailTitle')}
@@ -1354,19 +1372,33 @@ function PresetRailPanel({ presetId, onSelect }: PresetRailPanelProps) {
           {t('presetRailSubtitle')}
         </p>
       </div>
-      <PresetGrid layout="compact" selectedId={presetId} onSelect={onSelect} />
+      <PresetGrid
+        layout={variant === 'rail' ? 'compact' : 'wide'}
+        selectedId={presetId}
+        onSelect={onSelect}
+      />
     </aside>
   )
 }
 
 function TrainingBranch() {
-  // Three-column page layout (lg+): training history rail · main form ·
+  // Three-column page layout (xl+): training history rail · main form ·
   // preset rail. Presets used to sit above the form, which dragged the
   // main column off-screen and left the history rail mostly empty —
   // splitting them across siblings balances the columns and keeps the
-  // form short. On md the preset rail folds below the form (still wide
-  // grid via PresetGrid's wide layout). On sm the form moves into a
-  // Vaul bottom-sheet with both rails stacked above.
+  // form short.
+  //
+  // Breakpoint history: 3-col used to trigger at lg (1024px) but the
+  // outer LoraWorkbench wrapper caps at max-w-6xl, and Studio pages
+  // also reserve space for the left site sidebar. In the lg..xl- band
+  // the form column was getting squeezed under ~280px, which forced
+  // the training-type radio labels into vertical CJK columns and
+  // generally made the form unusable. Now 3-col only fires at xl+
+  // where the form column actually has 400px+ of breathing room.
+  //
+  // md..xl-: 2-col (history + form), preset folds below both columns
+  // as a wide panel (not a thin rail) to use the horizontal space.
+  // sm-: form moves into a Vaul bottom-sheet with both rails stacked.
   const isMobile = useIsMobile()
   const [presetId, setPresetId] = useState<LoraTrainingPresetId | null>(null)
 
@@ -1385,10 +1417,6 @@ function TrainingBranch() {
     <aside className="rounded-2xl border border-border bg-card p-4 lg:max-h-[calc(100vh-7rem)] lg:sticky lg:top-4 lg:overflow-y-auto">
       <LoraTrainingHistorySidebar />
     </aside>
-  )
-
-  const presetRail = (
-    <PresetRailPanel presetId={presetId} onSelect={handleSelectPreset} />
   )
 
   // Form column is just the form. EmptyState + the page heading both
@@ -1423,14 +1451,28 @@ function TrainingBranch() {
     )
   }
 
-  // Desktop: 3-column on lg+, 2-column on md (preset rail folds below).
-  // max-w-7xl gives the 3-column layout room to breathe without the
-  // form column getting squeezed under 480px.
+  // Desktop: 3-col at xl+ (rail preset), 2-col at md..xl- (wide preset
+  // panel folded below). Two preset panels are rendered, toggled with
+  // CSS hidden — keeps the JSX flat and lets Tailwind pick the variant
+  // based on viewport without a JS resize listener.
   return (
-    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_280px]">
+    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_280px]">
       {historyRail}
       {formColumn}
-      <div className="md:col-span-2 lg:col-span-1">{presetRail}</div>
+      <div className="hidden xl:block">
+        <PresetRailPanel
+          presetId={presetId}
+          onSelect={handleSelectPreset}
+          variant="rail"
+        />
+      </div>
+      <div className="md:col-span-2 xl:hidden">
+        <PresetRailPanel
+          presetId={presetId}
+          onSelect={handleSelectPreset}
+          variant="panel"
+        />
+      </div>
     </section>
   )
 }

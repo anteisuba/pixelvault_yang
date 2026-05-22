@@ -2970,7 +2970,12 @@ export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
 
 export const FavoriteLoraRequestSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  triggerWord: z.string().trim().min(1).max(80),
+  // Civitai 上很多 LoRA 把整段推荐 prompt 当作 trigger word（多到几十个
+  // tag 用逗号串起来），实测 80 字符卡掉了一批热门角色卡。数据库列是
+  // 无长度的 text，所以这里放宽到 500 既不破坏存储也避免吞下整段乱填
+  // 的 prompt 模板。LoraTrainingPayloadSchema 那边 max(50) 不动 ——
+  // 用户自训练 trigger 是自己造的短词。
+  triggerWord: z.string().trim().min(1).max(500),
   loraUrl: z.string().url(),
   type: LoraAssetTypeSchema,
   baseModelFamily: LoraAssetBaseFamilySchema,

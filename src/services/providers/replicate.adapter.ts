@@ -6,11 +6,13 @@ import {
   API_USAGE,
   AI_PROVIDER_ENDPOINTS,
   IMAGE_SIZES,
+  MAX_DURATION_CONFIGS,
   VIDEO_GENERATION,
 } from '@/constants/config'
 import {
   AI_MODELS,
   getExecutionModelId,
+  getModelById,
   normalizeModelId,
 } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -44,7 +46,25 @@ const REPLICATE_ASPECT_RATIOS: Record<string, string> = {
 
 const POLL_INITIAL_DELAY_MS = 1000
 const POLL_MAX_DELAY_MS = 8000
-const POLL_TIMEOUT_MS = 180_000
+// 180s 旧默认会在 SDXL/Illustrious + LoRA cold start 时被切——Replicate
+// 端首次拉权重文件 + 加载 LoRA 经常 2-3 分钟,加推理就过 3 分钟。270s 给
+// cold start 留足空间,且仍低于 image 路由 5 分钟的 Vercel 函数超时,留
+// 30s 余量做错误传播。MAX 由路由超时减去 margin 算出,不能超过它,否则
+// 函数被切时连错误都返回不出来。
+const REPLICATE_IMAGE_POLL_DEFAULT_TIMEOUT_MS = 270_000
+const REPLICATE_IMAGE_POLL_ROUTE_MARGIN_MS = 20_000
+const REPLICATE_IMAGE_POLL_MAX_TIMEOUT_MS =
+  MAX_DURATION_CONFIGS.generate * 1000 - REPLICATE_IMAGE_POLL_ROUTE_MARGIN_MS
+
+function getReplicateImagePollTimeoutMs(modelId: string): number {
+  const modelTimeoutMs = getModelById(modelId)?.timeoutMs
+  const requestedTimeoutMs =
+    modelTimeoutMs && modelTimeoutMs > 0
+      ? modelTimeoutMs
+      : REPLICATE_IMAGE_POLL_DEFAULT_TIMEOUT_MS
+
+  return Math.min(requestedTimeoutMs, REPLICATE_IMAGE_POLL_MAX_TIMEOUT_MS)
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -79,10 +99,48 @@ function classifyReplicateError(raw: string): string {
   return `Generation failed: ${raw}`
 }
 
+/**
+ * Best-effort cancel of a still-running Replicate prediction.
+ * Called when our polling gives up — without this, the prediction keeps
+ * running on Replicate's side and continues billing the caller's quota
+ * even though we've already returned 504. Capped at 2s so a slow ack
+ * can't push us past the route ceiling; errors are logged but never
+ * thrown because the caller is already in an error-propagation path.
+ */
+const REPLICATE_CANCEL_TIMEOUT_MS = 2_000
+
+async function cancelPrediction(
+  predictionUrl: string,
+  apiKey: string,
+): Promise<void> {
+  try {
+    const response = await fetch(`${predictionUrl}/cancel`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(REPLICATE_CANCEL_TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      logger.warn('Replicate prediction cancel returned non-ok', {
+        predictionUrl,
+        status: response.status,
+      })
+      return
+    }
+    logger.info('Replicate prediction cancelled after polling timeout', {
+      predictionUrl,
+    })
+  } catch (error) {
+    logger.warn('Replicate prediction cancel failed', {
+      predictionUrl,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+  }
+}
+
 async function pollPrediction(
   predictionUrl: string,
   apiKey: string,
-  timeoutMs: number = POLL_TIMEOUT_MS,
+  timeoutMs: number = REPLICATE_IMAGE_POLL_DEFAULT_TIMEOUT_MS,
 ): Promise<z.infer<typeof REPLICATE_PREDICTION_SCHEMA>> {
   const startTime = Date.now()
   let delay = POLL_INITIAL_DELAY_MS
@@ -127,6 +185,8 @@ async function pollPrediction(
     // Exponential backoff
     delay = Math.min(delay * 2, POLL_MAX_DELAY_MS)
   }
+
+  await cancelPrediction(predictionUrl, apiKey)
 
   throw new ProviderError(
     'Replicate',
@@ -470,9 +530,15 @@ export const replicateAdapter: ProviderAdapter = {
       }
     }
 
-    // Poll for completion
+    // Poll for completion. Per-model override via modelConfig.timeoutMs,
+    // clamped to the route's Vercel function ceiling so we still get a
+    // chance to surface a 504 instead of being hard-cut mid-response.
     const pollUrl = `${baseUrl}/predictions/${prediction.id}`
-    const completed = await pollPrediction(pollUrl, apiKey)
+    const completed = await pollPrediction(
+      pollUrl,
+      apiKey,
+      getReplicateImagePollTimeoutMs(modelId),
+    )
 
     return {
       imageUrl: extractImageUrl(completed.output),

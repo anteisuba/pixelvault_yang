@@ -7,8 +7,10 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 const mockProjectFindMany = vi.fn()
+const mockProjectFindFirst = vi.fn()
 const mockProjectCreate = vi.fn()
 const mockProjectUpdate = vi.fn()
+const mockProjectUpdateMany = vi.fn()
 const mockProjectCount = vi.fn()
 const mockTransaction = vi.fn()
 const mockGenUpdateMany = vi.fn()
@@ -19,8 +21,10 @@ vi.mock('@/lib/db', () => ({
   db: {
     project: {
       findMany: (...a: unknown[]) => mockProjectFindMany(...a),
+      findFirst: (...a: unknown[]) => mockProjectFindFirst(...a),
       create: (...a: unknown[]) => mockProjectCreate(...a),
       update: (...a: unknown[]) => mockProjectUpdate(...a),
+      updateMany: (...a: unknown[]) => mockProjectUpdateMany(...a),
       count: (...a: unknown[]) => mockProjectCount(...a),
     },
     generation: {
@@ -37,6 +41,7 @@ import {
   createProject,
   deleteProject,
   getProjectHistory,
+  updateProject,
 } from '@/services/project.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
@@ -44,6 +49,7 @@ const FAKE_PROJECT_ROW = {
   id: 'proj_1',
   name: 'Design Sprint',
   description: null,
+  parentId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   _count: { generations: 3 },
@@ -84,6 +90,7 @@ describe('listProjects', () => {
     mockProjectFindMany.mockResolvedValue([FAKE_PROJECT_ROW])
     const result = await listProjects('clerk_1')
     expect(result[0].name).toBe('Design Sprint')
+    expect(result[0].parentId).toBeNull()
     expect(result[0].generationCount).toBe(3)
     expect(result[0].latestGenerationUrl).toBe('https://example.com/thumb.png')
   })
@@ -103,6 +110,24 @@ describe('createProject', () => {
     expect(mockProjectCreate).toHaveBeenCalled()
   })
 
+  it('creates a child project when parentId belongs to the user', async () => {
+    mockProjectFindFirst.mockResolvedValue({ id: 'parent_1', parentId: null })
+    await createProject('clerk_1', {
+      name: 'Child',
+      parentId: 'parent_1',
+    })
+
+    expect(mockProjectFindFirst).toHaveBeenCalledWith({
+      where: { id: 'parent_1', userId: FAKE_USER.id, isDeleted: false },
+      select: { id: true, parentId: true },
+    })
+    expect(mockProjectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ parentId: 'parent_1' }),
+      }),
+    )
+  })
+
   it('throws when project limit is reached', async () => {
     mockProjectCount.mockResolvedValue(999)
     await expect(createProject('clerk_1', { name: 'Extra' })).rejects.toThrow(
@@ -111,14 +136,55 @@ describe('createProject', () => {
   })
 })
 
+describe('updateProject', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockProjectUpdate.mockResolvedValue({
+      ...FAKE_PROJECT_ROW,
+      parentId: 'parent_1',
+    })
+  })
+
+  it('updates parentId when moving a project under another folder', async () => {
+    mockProjectFindFirst.mockResolvedValue({ id: 'parent_1', parentId: null })
+
+    const result = await updateProject('clerk_1', 'proj_1', {
+      parentId: 'parent_1',
+    })
+
+    expect(result.parentId).toBe('parent_1')
+    expect(mockProjectUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ parentId: 'parent_1' }),
+      }),
+    )
+  })
+
+  it('rejects moving a project into itself', async () => {
+    await expect(
+      updateProject('clerk_1', 'proj_1', { parentId: 'proj_1' }),
+    ).rejects.toThrow('itself')
+  })
+})
+
 describe('deleteProject', () => {
   it('runs in a transaction that nulls generation projectId then soft-deletes', async () => {
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockGenUpdateMany.mockResolvedValue({})
+    mockProjectUpdateMany.mockResolvedValue({})
     mockProjectUpdate.mockResolvedValue({})
     mockTransaction.mockResolvedValue([{}, {}])
     await deleteProject('clerk_1', 'proj_1')
     expect(mockTransaction).toHaveBeenCalled()
+    expect(mockProjectUpdateMany).toHaveBeenCalledWith({
+      where: {
+        parentId: 'proj_1',
+        userId: FAKE_USER.id,
+        isDeleted: false,
+      },
+      data: { parentId: null },
+    })
   })
 })
 

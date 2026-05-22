@@ -13,21 +13,20 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { SCRIPT_BREAKDOWN_LIMITS } from '@/constants/script-breakdown'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import type { NodeWorkflowNode } from '@/types'
+import type { NodeWorkflowNode, ScriptBreakdownResult } from '@/types'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { WorkflowModelPicker } from '../WorkflowModelPicker'
-import { NODE_ICONS } from './shared'
+import { NODE_ACCENTS, NODE_HANDLE_CLASS, NODE_ICONS } from './shared'
 
-const HANDLE_CLASS =
-  '!size-3 !border !border-border !bg-card !shadow-sm hover:!border-primary'
+const SCRIPT_ACCENT = NODE_ACCENTS.script
 
 export function ScriptNode({
   id,
@@ -69,17 +68,25 @@ export function ScriptNode({
   return (
     <article
       className={cn(
-        'w-[28rem] rounded-lg border bg-card/95 shadow-xl backdrop-blur transition-colors',
+        'group relative w-[28rem] overflow-hidden rounded-xl border bg-card/95 shadow-[0_18px_38px_-22px_rgba(20,20,19,0.32)] backdrop-blur transition-colors',
         selected
-          ? 'border-primary/70 ring-2 ring-primary/20'
-          : 'border-border/70 hover:border-border',
+          ? SCRIPT_ACCENT.selectedRing
+          : 'border-border/70 hover:border-foreground/30',
       )}
     >
-      <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
+      <span
+        aria-hidden
+        className={cn('absolute inset-y-0 left-0 w-[3px]', SCRIPT_ACCENT.spine)}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className={NODE_HANDLE_CLASS}
+      />
       <Handle
         type="source"
         position={Position.Right}
-        className={HANDLE_CLASS}
+        className={NODE_HANDLE_CLASS}
       />
 
       <ScriptNodeHeader
@@ -93,33 +100,15 @@ export function ScriptNode({
 
       <div className="nodrag grid cursor-default gap-4 p-4">
         {breakdown ? (
-          <>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {breakdown.logline}
-            </p>
-            <div className="grid grid-cols-5 gap-2">
-              <NodeMetric icon={Users} value={breakdown.characters.length} />
-              <NodeMetric icon={MapPinned} value={breakdown.scenes.length} />
-              <NodeMetric icon={Activity} value={breakdown.actions.length} />
-              <NodeMetric icon={Clapperboard} value={breakdown.beats.length} />
-              <NodeMetric icon={Film} value={breakdown.shots.length} />
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-              <div className="min-w-0 text-xs text-muted-foreground">
-                {data.plannerLabel && (
-                  <p className="font-medium text-foreground">
-                    {data.plannerLabel}
-                  </p>
-                )}
-                {data.plannerModelId && (
-                  <p className="truncate">{data.plannerModelId}</p>
-                )}
-              </div>
-              <Badge variant="outline">
-                {t(`copyRisk.${breakdown.referenceIntent.copyRisk}`)}
-              </Badge>
-            </div>
-          </>
+          <ScriptBreakdownSummary
+            breakdown={breakdown}
+            plannerLabel={data.plannerLabel}
+            plannerModelId={data.plannerModelId}
+            copyRiskLabel={t(`copyRisk.${breakdown.referenceIntent.copyRisk}`)}
+            countersLabel={t('breakdownCountersLabel')}
+            timelineLabel={t('breakdownTimelineLabel')}
+            beatDurationLabel={(seconds) => t('duration', { seconds })}
+          />
         ) : (
           <>
             <Textarea
@@ -135,9 +124,9 @@ export function ScriptNode({
               onChange={(model) => updateNodeModel(id, model)}
             />
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {t('modelRouteCount', { count: modelOptions.length })}
-              </div>
+              </span>
               <Button
                 type="button"
                 disabled={!canGenerate}
@@ -159,6 +148,115 @@ export function ScriptNode({
   )
 }
 
+interface ScriptBreakdownSummaryProps {
+  breakdown: ScriptBreakdownResult
+  plannerLabel?: string
+  plannerModelId?: string
+  copyRiskLabel: string
+  countersLabel: string
+  timelineLabel: string
+  beatDurationLabel: (seconds: number) => string
+}
+
+function ScriptBreakdownSummary({
+  breakdown,
+  plannerLabel,
+  plannerModelId,
+  copyRiskLabel,
+  countersLabel,
+  timelineLabel,
+  beatDurationLabel,
+}: ScriptBreakdownSummaryProps) {
+  const counters = useMemo(
+    () => [
+      { icon: Users, value: breakdown.characters.length, key: 'characters' },
+      { icon: MapPinned, value: breakdown.scenes.length, key: 'scenes' },
+      { icon: Activity, value: breakdown.actions.length, key: 'actions' },
+      { icon: Clapperboard, value: breakdown.beats.length, key: 'beats' },
+      { icon: Film, value: breakdown.shots.length, key: 'shots' },
+    ],
+    [breakdown],
+  )
+
+  const totalDuration = useMemo(
+    () =>
+      breakdown.beats.reduce(
+        (total, beat) => total + Math.max(0, beat.durationSec),
+        0,
+      ),
+    [breakdown.beats],
+  )
+
+  return (
+    <>
+      <p className="font-serif text-sm leading-6 text-foreground/80">
+        {breakdown.logline}
+      </p>
+
+      <section aria-label={countersLabel} className="grid grid-cols-5 gap-2">
+        {counters.map(({ icon: CounterIcon, value, key }) => (
+          <div
+            key={key}
+            className="rounded-md border border-border/60 bg-background/60 p-2"
+          >
+            <div className="flex items-center justify-center text-muted-foreground">
+              <CounterIcon className="size-3" />
+            </div>
+            <p className="mt-1 text-center font-display text-sm font-semibold tabular-nums text-foreground">
+              {value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      {breakdown.beats.length > 0 && totalDuration > 0 && (
+        <section className="grid gap-2">
+          <div className="flex items-center justify-between text-3xs font-medium uppercase tracking-nav text-muted-foreground">
+            <span className="font-display">{timelineLabel}</span>
+            <span className="tabular-nums">
+              {beatDurationLabel(totalDuration)}
+            </span>
+          </div>
+          <div className="flex h-2 overflow-hidden rounded-full bg-muted/60">
+            {breakdown.beats.map((beat, index) => {
+              const ratio =
+                Math.max(0, beat.durationSec) / Math.max(1, totalDuration)
+              return (
+                <div
+                  key={beat.id}
+                  title={`${beat.title} · ${beatDurationLabel(beat.durationSec)}`}
+                  className={cn(
+                    'h-full',
+                    index % 2 === 0 ? 'bg-orange-400/85' : 'bg-orange-300/85',
+                    index > 0 && 'border-l border-card/95',
+                  )}
+                  style={{ flex: `${ratio} 1 0%` }}
+                />
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="min-w-0 text-xs text-muted-foreground">
+          {plannerLabel && (
+            <p className="font-display font-medium text-foreground">
+              {plannerLabel}
+            </p>
+          )}
+          {plannerModelId && (
+            <p className="truncate font-mono text-3xs">{plannerModelId}</p>
+          )}
+        </div>
+        <Badge variant="outline" className="rounded-full">
+          {copyRiskLabel}
+        </Badge>
+      </div>
+    </>
+  )
+}
+
 interface ScriptNodeHeaderProps {
   icon: LucideIcon
   typeLabel: string
@@ -177,51 +275,35 @@ function ScriptNodeHeader({
   onEdit,
 }: ScriptNodeHeaderProps) {
   return (
-    <div className="border-b border-border/60 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <Icon className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">{typeLabel}</p>
-            <h2 className="truncate text-sm font-semibold text-foreground">
-              {title}
-            </h2>
-          </div>
-        </div>
-        {showEdit && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="nodrag h-8 rounded-full"
-            onClick={onEdit}
-          >
-            <PencilLine className="size-3.5" />
-            {editLabel}
-          </Button>
+    <header className="flex items-start gap-3 border-b border-border/60 px-4 py-3">
+      <div
+        className={cn(
+          'flex size-9 items-center justify-center rounded-md',
+          SCRIPT_ACCENT.iconPlate,
         )}
+      >
+        <Icon className="size-4" />
       </div>
-    </div>
-  )
-}
-
-function NodeMetric({
-  icon: Icon,
-  value,
-}: {
-  icon: LucideIcon
-  value: number
-}) {
-  return (
-    <div className="rounded-md border border-border/60 bg-background/60 p-2">
-      <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-        <Icon className="size-3" />
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-3xs font-medium uppercase tracking-nav text-muted-foreground">
+          {typeLabel}
+        </p>
+        <h2 className="truncate font-display text-sm font-semibold text-foreground">
+          {title}
+        </h2>
       </div>
-      <p className="mt-1 text-center text-sm font-semibold text-foreground">
-        {value}
-      </p>
-    </div>
+      {showEdit && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="nodrag h-8 rounded-full"
+          onClick={onEdit}
+        >
+          <PencilLine className="size-3.5" />
+          {editLabel}
+        </Button>
+      )}
+    </header>
   )
 }

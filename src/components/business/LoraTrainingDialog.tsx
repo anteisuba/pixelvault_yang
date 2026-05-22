@@ -53,6 +53,7 @@ import { Badge } from '@/components/ui/badge'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
+import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { useTrainingSubmitGate } from '@/hooks/use-training-submit-gate'
 import { LORA_TRAINING } from '@/constants/config'
 import {
@@ -154,10 +155,9 @@ export function LoraTrainingForm({
     if (!preset) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (preset.available) setBaseModel(preset.baseModel)
-     
+
     setLoraType(preset.loraType)
     if (preset.suggestedTriggerWord) {
-       
       setTriggerWord(preset.suggestedTriggerWord)
     }
   }, [selectedPresetId])
@@ -219,22 +219,23 @@ export function LoraTrainingForm({
   // Drop zone wrappers. dataTransfer.files may include non-image files
   // (folders, text drags); filter to images so we don't toast a confusing
   // "Upload failed" for the trash an OS file manager leaks in.
-  const [isDragOver, setIsDragOver] = useState(false)
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-  const handleDragLeave = useCallback(() => setIsDragOver(false), [])
+  const {
+    isDragging: isDragOver,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    resetDragging,
+  } = useStableDragState()
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
-      setIsDragOver(false)
+      resetDragging()
       const files = Array.from(e.dataTransfer.files ?? []).filter((f) =>
         f.type.startsWith('image/'),
       )
       await uploadImages(files)
     },
-    [uploadImages],
+    [resetDragging, uploadImages],
   )
 
   // dnd-kit drag-end: reorder the uploaded images by the active/over URL
@@ -568,6 +569,7 @@ export function LoraTrainingForm({
               picker. Shrinks once the user has any image; the buttons
               alone carry the affordance from then on. */}
           <div
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}

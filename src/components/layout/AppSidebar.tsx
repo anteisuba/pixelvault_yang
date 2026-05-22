@@ -264,7 +264,7 @@ function AppSidebarContent() {
       href: ROUTES.STUDIO_NODE,
       label: tTools('tools.node.label'),
       icon: Workflow,
-      comingSoon: true,
+      comingSoon: false,
       activePaths: [ROUTES.STUDIO_NODE],
     },
   ] as const

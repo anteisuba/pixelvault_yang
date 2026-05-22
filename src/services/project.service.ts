@@ -16,6 +16,7 @@ function toProjectRecord(project: {
   id: string
   name: string
   description: string | null
+  parentId: string | null
   createdAt: Date
   updatedAt: Date
   _count: { generations: number }
@@ -25,6 +26,7 @@ function toProjectRecord(project: {
     id: project.id,
     name: project.name,
     description: project.description,
+    parentId: project.parentId,
     generationCount: project._count.generations,
     latestGenerationUrl: project.generations[0]?.url ?? null,
     createdAt: project.createdAt,
@@ -36,6 +38,7 @@ const projectSelect = {
   id: true,
   name: true,
   description: true,
+  parentId: true,
   createdAt: true,
   updatedAt: true,
   _count: { select: { generations: true } },
@@ -45,6 +48,46 @@ const projectSelect = {
     take: 1,
   },
 } as const
+
+async function resolveProjectParentId(
+  userId: string,
+  parentId: string | null | undefined,
+  projectId?: string,
+): Promise<string | null | undefined> {
+  if (parentId === undefined) return undefined
+  if (parentId === null) return null
+
+  if (parentId === projectId) {
+    throw new Error('A folder cannot be moved into itself')
+  }
+
+  let cursor = await db.project.findFirst({
+    where: { id: parentId, userId, isDeleted: false },
+    select: { id: true, parentId: true },
+  })
+
+  if (!cursor) {
+    throw new Error('Parent folder not found')
+  }
+
+  let depth = 0
+  while (cursor.parentId) {
+    if (cursor.parentId === projectId) {
+      throw new Error('A folder cannot be moved into its own child')
+    }
+    depth += 1
+    if (depth > PROJECT.MAX_PROJECTS_PER_USER) {
+      throw new Error('Folder hierarchy is invalid')
+    }
+    cursor = await db.project.findFirst({
+      where: { id: cursor.parentId, userId, isDeleted: false },
+      select: { id: true, parentId: true },
+    })
+    if (!cursor) break
+  }
+
+  return parentId
+}
 
 // ─── CRUD ────────────────────────────────────────────────────────
 
@@ -72,11 +115,13 @@ export async function createProject(
     throw new Error(`Maximum ${PROJECT.MAX_PROJECTS_PER_USER} projects allowed`)
   }
 
+  const parentId = await resolveProjectParentId(dbUser.id, data.parentId)
   const project = await db.project.create({
     data: {
       userId: dbUser.id,
       name: data.name,
       description: data.description,
+      parentId: parentId ?? null,
     },
     select: projectSelect,
   })
@@ -89,11 +134,17 @@ export async function updateProject(
   data: UpdateProjectRequest,
 ): Promise<ProjectRecord> {
   const dbUser = await ensureUser(clerkId)
+  const parentId = await resolveProjectParentId(
+    dbUser.id,
+    data.parentId,
+    projectId,
+  )
   const project = await db.project.update({
     where: { id: projectId, userId: dbUser.id, isDeleted: false },
     data: {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.description !== undefined && { description: data.description }),
+      ...(parentId !== undefined && { parentId }),
     },
     select: projectSelect,
   })
@@ -110,6 +161,10 @@ export async function deleteProject(
     db.generation.updateMany({
       where: { projectId, userId: dbUser.id },
       data: { projectId: null },
+    }),
+    db.project.updateMany({
+      where: { parentId: projectId, userId: dbUser.id, isDeleted: false },
+      data: { parentId: null },
     }),
     db.project.update({
       where: { id: projectId, userId: dbUser.id, isDeleted: false },

@@ -8,8 +8,8 @@ import {
   useEffect,
   useState,
   type ClipboardEvent,
-  type DragEvent,
 } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
 import {
   Check,
@@ -18,7 +18,6 @@ import {
   GitCompareArrows,
   Key,
   Loader2,
-  Search,
   Sparkles,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -87,8 +86,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { ModelSelector } from '@/components/business/ModelSelector'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
  * Uses prompt-kit PromptInput compound component.
@@ -306,7 +314,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     optionId: '',
   })
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
-  const [modelSearchQuery, setModelSearchQuery] = useState('')
 
   const tSetup = useTranslations('QuickSetup')
 
@@ -325,42 +332,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     return { availableModels: available, lockedModels: locked }
   }, [modelOptions])
 
-  const modelSearchResults = useMemo(() => {
-    const query = modelSearchQuery.trim().toLowerCase()
-    if (!query) {
-      return {
-        available: availableModels,
-        locked: lockedModels,
-      }
-    }
-
-    const matchesQuery = (option: (typeof modelOptions)[number]) => {
-      const label = getTranslatedModelLabel(tModels, option.modelId)
-      const provider = getProviderLabel(option.providerConfig)
-      const searchable = [label, provider, option.keyLabel, option.maskedKey]
-        .filter((value): value is string => Boolean(value))
-        .join(' ')
-        .toLowerCase()
-
-      return searchable.includes(query)
-    }
-
-    return {
-      available: availableModels.filter(matchesQuery),
-      locked: lockedModels.filter(matchesQuery),
-    }
-  }, [availableModels, lockedModels, modelSearchQuery, tModels])
-
   const closeModelPicker = useCallback(() => {
     setModelPickerOpen(false)
-    setModelSearchQuery('')
   }, [])
 
   const handleModelPickerOpenChange = useCallback((open: boolean) => {
     setModelPickerOpen(open)
-    if (!open) {
-      setModelSearchQuery('')
-    }
   }, [])
 
   const handleSelectModel = useCallback(
@@ -384,10 +361,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     },
     [closeModelPicker, tModels],
   )
-
-  const hasModelSearchResults =
-    modelSearchResults.available.length > 0 ||
-    modelSearchResults.locked.length > 0
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -910,43 +883,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     [imageUpload],
   )
 
-  const hasPromptImagePayload = useCallback((dataTransfer: DataTransfer) => {
-    const types = Array.from(dataTransfer.types)
-    return types.includes('Files') || types.includes('application/x-studio-ref')
-  }, [])
-
-  const handlePromptDragEnter = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!hasPromptImagePayload(event.dataTransfer)) return
-      imageUpload.handleDragEnter(event)
-    },
-    [hasPromptImagePayload, imageUpload],
-  )
-
-  const handlePromptDragOver = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!hasPromptImagePayload(event.dataTransfer)) return
-      imageUpload.handleDragOver(event)
-    },
-    [hasPromptImagePayload, imageUpload],
-  )
-
-  const handlePromptDragLeave = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!hasPromptImagePayload(event.dataTransfer)) return
-      imageUpload.handleDragLeave(event)
-    },
-    [hasPromptImagePayload, imageUpload],
-  )
-
-  const handlePromptDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!hasPromptImagePayload(event.dataTransfer)) return
-      void imageUpload.handleDrop(event)
-    },
-    [hasPromptImagePayload, imageUpload],
-  )
-
   useStudioShortcuts({
     onGenerate: () => {
       void handleGenerate()
@@ -997,15 +933,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 320
         }
         onSubmit={handleGenerate}
+        data-slot="input-group"
+        role="group"
         disabled={isGenerating}
-        onDragEnter={handlePromptDragEnter}
-        onDragOver={handlePromptDragOver}
-        onDragLeave={handlePromptDragLeave}
-        onDrop={handlePromptDrop}
         className={cn(
-          'relative overflow-hidden rounded-2xl border-border/60 bg-background/60 p-2 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20',
-          imageUpload.isDragging &&
-            'border-primary/55 bg-primary/5 ring-1 ring-primary/20',
+          'group/input-group relative w-full overflow-hidden rounded-[2rem] border border-border/60 bg-background/60 p-2 shadow-sm outline-none transition-[color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+          'has-[textarea:focus-visible]:border-primary/40 has-[textarea:focus-visible]:shadow-md has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-primary/15',
         )}
       >
         <ImageAttachmentPreviewStrip
@@ -1017,11 +950,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           unsupportedTooltip={tImageChip('disabledUnsupported')}
           variant="composer"
         />
-        {imageUpload.isDragging ? (
-          <div className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-xl border border-primary/40 bg-background/80 text-sm font-semibold text-foreground shadow-sm backdrop-blur-sm">
-            {tImageChip('dropComposerHint')}
-          </div>
-        ) : null}
         <PromptInputTextarea
           id={STUDIO_PROMPT_TEXTAREA_ID}
           aria-label={tForm('promptLabel')}
@@ -1055,7 +983,13 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     type="button"
                     aria-label={t('selectModel')}
                     aria-expanded={modelPickerOpen}
-                    className="flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm transition-colors hover:border-primary/20 hover:bg-muted/45 hover:text-foreground"
+                    className={cn(
+                      'flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 text-xs text-muted-foreground shadow-sm',
+                      'transition-[color,background-color,border-color,box-shadow] duration-200',
+                      'hover:border-primary/20 hover:bg-muted/45 hover:text-foreground',
+                      'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
+                      'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55 data-[state=open]:text-foreground data-[state=open]:shadow-md',
+                    )}
                   >
                     {selectedModel?.keyId && (
                       <ApiKeyHealthDot
@@ -1076,7 +1010,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                     </span>
                     <ChevronDown
                       className={cn(
-                        'size-3 shrink-0 transition-transform duration-200',
+                        'size-3 shrink-0 transition-transform duration-300 ease-out',
                         modelPickerOpen && 'rotate-180',
                       )}
                     />
@@ -1089,31 +1023,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                   collisionPadding={12}
                   className="origin-bottom w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl data-[side=top]:slide-in-from-bottom-2"
                 >
-                  <div className="border-b border-border/55 px-3 py-2.5">
-                    <div className="relative rounded-full border border-border/60 bg-background/70">
-                      <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/55" />
-                      <input
-                        type="text"
-                        value={modelSearchQuery}
-                        onChange={(event) =>
-                          setModelSearchQuery(event.currentTarget.value)
-                        }
-                        placeholder={tForm('modelSelector.searchPlaceholder')}
-                        aria-label={tForm('modelSelector.searchPlaceholder')}
-                        className="h-9 w-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/65"
-                        autoComplete="off"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto overscroll-contain px-2 py-2">
-                    {modelSearchResults.available.length > 0 && (
-                      <section>
-                        <div className="px-2 pb-1.5 pt-1 text-xs font-medium text-muted-foreground/75">
-                          {tSetup('available')}
-                        </div>
-                        <div className="overflow-hidden rounded-xl border border-border/50 bg-background/35">
-                          {modelSearchResults.available.map((option) => {
+                  <Command className="bg-transparent">
+                    <CommandInput
+                      placeholder={tForm('modelSelector.searchPlaceholder')}
+                      className="h-10 text-sm"
+                    />
+                    <CommandList className="max-h-80 overscroll-contain">
+                      <CommandEmpty>
+                        {tForm('modelSelector.emptySearch')}
+                      </CommandEmpty>
+                      {availableModels.length > 0 && (
+                        <CommandGroup heading={tSetup('available')}>
+                          {availableModels.map((option) => {
                             const isSelected =
                               option.optionId === state.selectedOptionId
                             const optionLabel =
@@ -1129,23 +1050,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                             const optionMeta = option.keyLabel
                               ? `${optionModelLabel} · ${providerLabel}`
                               : providerLabel
+                            const searchValue = [
+                              option.optionId,
+                              optionLabel,
+                              optionModelLabel,
+                              providerLabel,
+                              option.maskedKey,
+                            ]
+                              .filter((v): v is string => Boolean(v))
+                              .join(' ')
 
                             return (
-                              <button
+                              <CommandItem
                                 key={option.optionId}
-                                type="button"
-                                onClick={() =>
+                                value={searchValue}
+                                onSelect={() =>
                                   handleSelectModel(option.optionId)
                                 }
-                                aria-pressed={isSelected}
-                                className={cn(
-                                  'group flex min-h-12 w-full items-center gap-3 border-b border-border/45 px-3 py-2.5 text-left transition-colors last:border-b-0',
-                                  isSelected
-                                    ? 'bg-muted/80 text-foreground'
-                                    : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
-                                )}
+                                className="group min-h-12 gap-3 px-3 py-2.5"
                               >
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground">
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
                                   <Sparkles className="size-3.5" />
                                 </span>
                                 <span className="min-w-0 flex-1">
@@ -1168,56 +1092,55 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                                 {isSelected ? (
                                   <Check className="size-4 shrink-0 text-foreground" />
                                 ) : null}
-                              </button>
+                              </CommandItem>
                             )
                           })}
-                        </div>
-                      </section>
-                    )}
+                        </CommandGroup>
+                      )}
 
-                    {modelSearchResults.locked.length > 0 && (
-                      <section
-                        className={cn(
-                          modelSearchResults.available.length > 0 && 'mt-2',
-                        )}
-                      >
-                        <div className="px-2 pb-1.5 pt-1 text-xs font-medium text-muted-foreground/75">
-                          {tSetup('needsKey')}
-                        </div>
-                        <div className="overflow-hidden rounded-xl border border-border/50 bg-background/25">
-                          {modelSearchResults.locked.map((option) => (
-                            <button
-                              key={option.optionId}
-                              type="button"
-                              onClick={() => handleOpenQuickSetup(option)}
-                              className="group flex min-h-12 w-full items-center gap-3 border-b border-border/45 px-3 py-2.5 text-left text-muted-foreground/65 transition-colors last:border-b-0 hover:bg-muted/40 hover:text-foreground"
-                            >
-                              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground">
-                                <Key className="size-3.5" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-semibold">
-                                  {getTranslatedModelLabel(
-                                    tModels,
-                                    option.modelId,
-                                  )}
-                                </span>
-                                <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
-                                  {getProviderLabel(option.providerConfig)}
-                                </span>
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                    )}
+                      {lockedModels.length > 0 && (
+                        <CommandGroup heading={tSetup('needsKey')}>
+                          {lockedModels.map((option) => {
+                            const optionModelLabel = getTranslatedModelLabel(
+                              tModels,
+                              option.modelId,
+                            )
+                            const providerLabel = getProviderLabel(
+                              option.providerConfig,
+                            )
+                            const searchValue = [
+                              option.optionId,
+                              optionModelLabel,
+                              providerLabel,
+                            ]
+                              .filter(Boolean)
+                              .join(' ')
 
-                    {!hasModelSearchResults ? (
-                      <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-                        {tForm('modelSelector.emptySearch')}
-                      </div>
-                    ) : null}
-                  </div>
+                            return (
+                              <CommandItem
+                                key={option.optionId}
+                                value={searchValue}
+                                onSelect={() => handleOpenQuickSetup(option)}
+                                className="group min-h-12 gap-3 px-3 py-2.5 text-muted-foreground/65"
+                              >
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/75 transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+                                  <Key className="size-3.5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold">
+                                    {optionModelLabel}
+                                  </span>
+                                  <span className="mt-0.5 block truncate text-xs text-muted-foreground/70">
+                                    {providerLabel}
+                                  </span>
+                                </span>
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
                 </PopoverContent>
               </Popover>
             )}
@@ -1259,22 +1182,43 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
               }}
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>{t('generating')}</span>
-                  {elapsedSeconds > 0 && (
-                    <span className="text-2xs opacity-70 tabular-nums">
-                      {elapsedSeconds}s
-                    </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-4" />
-                  <span>{t('generate')}</span>
-                </>
-              )}
+              <AnimatePresence initial={false} mode="wait">
+                {isGenerating ? (
+                  <motion.span
+                    key="generating"
+                    className="flex items-center gap-1.5"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                  >
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>{t('generating')}</span>
+                    {elapsedSeconds > 0 && (
+                      <span className="text-2xs opacity-70 tabular-nums">
+                        {elapsedSeconds}s
+                      </span>
+                    )}
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="idle"
+                    className="flex items-center"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                  >
+                    <kbd
+                      aria-label={t('generate')}
+                      className="inline-flex items-center gap-0.5 rounded border border-primary-foreground/25 bg-primary-foreground/10 px-1.5 py-0.5 font-sans text-xs font-medium tracking-tight text-primary-foreground/80"
+                    >
+                      <span aria-hidden>⌘</span>
+                      <span aria-hidden>↵</span>
+                    </kbd>
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
             {!isAudioMode && !isVideoMode && (
               <DropdownMenu>
@@ -1323,7 +1267,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           </div>
         </PromptInputActions>
       </PromptInput>
-
       {/* B4: Compare mode — inline model multi-select */}
       {compareMode && !isAudioMode && !isVideoMode && (
         <div className="mt-2 rounded-xl border border-primary/20 bg-primary/3 p-3">

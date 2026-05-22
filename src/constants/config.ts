@@ -63,6 +63,8 @@ export const API_ENDPOINTS = {
   PROMPT_FEEDBACK: '/api/prompt/feedback',
   /** Prompt assistant (chat-based prompt generation) */
   PROMPT_ASSISTANT: '/api/prompt/assistant',
+  /** Node canvas script breakdown planner */
+  SCRIPT_BREAKDOWN: '/api/script-breakdown',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
@@ -417,6 +419,7 @@ export const RATE_LIMIT_CONFIGS = {
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
+  scriptBreakdown: { limit: 12, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────
   /** Authenticated list/read endpoints (cards, recipes, history) */

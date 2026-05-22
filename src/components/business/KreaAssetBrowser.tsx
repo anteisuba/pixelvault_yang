@@ -16,7 +16,6 @@ import {
   Mic,
   Pencil,
   Plus,
-  Search,
   Box,
   Trash2,
   UploadCloud,
@@ -38,6 +37,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +47,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { TreeView, type TreeNode } from '@/components/ui/tree-view'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useProjects } from '@/hooks/use-projects'
@@ -138,7 +141,6 @@ type Section =
   | { kind: 'favorites' }
   | { kind: 'published' }
   | { kind: 'uploads' }
-  | { kind: 'type'; type: 'image' | 'video' | 'audio' | 'model_3d' }
   | { kind: 'unassigned' }
   | { kind: 'project'; id: string }
 
@@ -156,57 +158,66 @@ const DENSITY_IMAGE_SIZES: Record<Density, string> = {
   compact: '(max-width: 640px) 33vw, (max-width: 1024px) 16vw, 12vw',
 }
 const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')
+const UNASSIGNED_FOLDER_NODE_ID = 'unassigned'
 const DENSITY_XL_COLS: Record<Density, number> = {
   comfortable: 4,
   normal: 6,
   compact: 8,
 }
 
+type FolderTreeNodeData =
+  | { kind: 'unassigned'; count?: number }
+  | { kind: 'project'; project: ProjectRecord; count?: number }
+
+function collectExpandedFolderIds(
+  nodes: TreeNode<FolderTreeNodeData>[],
+): string[] {
+  const ids: string[] = []
+  const visit = (node: TreeNode<FolderTreeNodeData>) => {
+    if (node.children && node.children.length > 0) {
+      ids.push(node.id)
+      node.children.forEach(visit)
+    }
+  }
+  nodes.forEach(visit)
+  return ids
+}
+
 function isDensity(value: string | null): value is Density {
   return value === 'comfortable' || value === 'normal' || value === 'compact'
 }
 
-function sectionFromFilters(
+function isMediaTypeFilter(
+  value: GalleryFilters['type'],
+): value is LockedMediaType {
+  return (
+    value === 'image' ||
+    value === 'video' ||
+    value === 'audio' ||
+    value === 'model_3d'
+  )
+}
+
+function getActiveMediaType(
   filters: GalleryFilters,
   lockedMediaType?: LockedMediaType,
-): Section {
+): LockedMediaType | null {
+  if (lockedMediaType) return lockedMediaType
+  return isMediaTypeFilter(filters.type) ? filters.type : null
+}
+
+function sectionFromFilters(filters: GalleryFilters): Section {
   if (filters.liked) return { kind: 'favorites' }
   if (filters.published) return { kind: 'published' }
   if (filters.provider === USER_UPLOAD_PROVIDER) return { kind: 'uploads' }
   if (filters.projectId === 'none') return { kind: 'unassigned' }
   if (filters.projectId) return { kind: 'project', id: filters.projectId }
-  if (
-    !lockedMediaType &&
-    (filters.type === 'image' ||
-      filters.type === 'video' ||
-      filters.type === 'audio' ||
-      filters.type === 'model_3d')
-  ) {
-    return { kind: 'type', type: filters.type }
-  }
   return { kind: 'all' }
 }
 
-function shouldKeepAssetAfterProjectMove(
-  section: Section,
-  projectId: string | null,
-): boolean {
-  if (
-    section.kind === 'all' ||
-    section.kind === 'favorites' ||
-    section.kind === 'published' ||
-    section.kind === 'uploads' ||
-    section.kind === 'type'
-  ) {
-    return true
-  }
-  if (section.kind === 'unassigned') return projectId === null
-  return section.id === projectId
-}
-
-function outputTypeMatchesSection(
+function outputTypeMatchesMediaType(
   outputType: GenerationRecord['outputType'],
-  type: Extract<Section, { kind: 'type' }>['type'],
+  type: LockedMediaType,
 ): boolean {
   if (outputType === 'IMAGE') return type === 'image'
   if (outputType === 'VIDEO') return type === 'video'
@@ -218,7 +229,15 @@ function outputTypeMatchesSection(
 function shouldKeepAssetAfterPatch(
   section: Section,
   generation: GenerationRecord,
+  activeMediaType: LockedMediaType | null,
 ): boolean {
+  if (
+    activeMediaType &&
+    !outputTypeMatchesMediaType(generation.outputType, activeMediaType)
+  ) {
+    return false
+  }
+
   switch (section.kind) {
     case 'all':
       return true
@@ -228,13 +247,27 @@ function shouldKeepAssetAfterPatch(
       return generation.isPublic
     case 'uploads':
       return generation.provider === USER_UPLOAD_PROVIDER
-    case 'type':
-      return outputTypeMatchesSection(generation.outputType, section.type)
     case 'unassigned':
       return generation.projectId == null
     case 'project':
       return generation.projectId === section.id
   }
+}
+
+function shouldKeepAssetAfterProjectMove(
+  section: Section,
+  projectId: string | null,
+): boolean {
+  if (
+    section.kind === 'all' ||
+    section.kind === 'favorites' ||
+    section.kind === 'published' ||
+    section.kind === 'uploads'
+  ) {
+    return true
+  }
+  if (section.kind === 'unassigned') return projectId === null
+  return section.id === projectId
 }
 
 function getVisibilityDelta(
@@ -271,10 +304,9 @@ function updateCountsAfterAssetPatch(
 /**
  * KreaAssetBrowser — full-page asset browser with a Krea-style right sidebar.
  *
- * Right sidebar sections collapse into existing useGallery filters: type for
- * Tools, liked for Favorites, published for public gallery assets, projectId
- * for Folders. Selecting a section resets the other filter dimensions so the
- * user can't end up in an "ANDed" filter state they didn't ask for.
+ * Asset browsing uses two filter dimensions: the top media switcher controls
+ * output type, while the right sidebar controls scope such as Favorites,
+ * published assets, uploads, and folders.
  */
 export function KreaAssetBrowser({
   initialGenerations = [],
@@ -297,7 +329,6 @@ export function KreaAssetBrowser({
     ? { ...initialFilters, type: mediaType }
     : initialFilters
 
-  const [searchInput, setSearchInput] = useState(effectiveInitialFilters.search)
   const isPickerMode = !!onSelect || pickerMultiSelect
   const {
     generations,
@@ -352,10 +383,8 @@ export function KreaAssetBrowser({
     update: updateProject,
     remove: removeProject,
   } = useProjects({ loadHistoryOnMount: false })
-  const section = useMemo(
-    () => sectionFromFilters(filters, mediaType),
-    [filters, mediaType],
-  )
+  const section = useMemo(() => sectionFromFilters(filters), [filters])
+  const activeMediaType = getActiveMediaType(filters, mediaType)
 
   // Aggregate sidebar counts. One request per page load instead of one
   // per item — and the All count stays stable as the user filters down.
@@ -632,7 +661,9 @@ export function KreaAssetBrowser({
         )
       }
 
-      if (!shouldKeepAssetAfterPatch(section, nextGeneration)) {
+      if (
+        !shouldKeepAssetAfterPatch(section, nextGeneration, activeMediaType)
+      ) {
         removeGeneration(id)
         setSelectedGeneration((prev) => (prev?.id === id ? null : prev))
         void refreshCounts()
@@ -652,6 +683,7 @@ export function KreaAssetBrowser({
       generations,
       selectedGeneration,
       section,
+      activeMediaType,
       updateGeneration,
       removeGeneration,
       refreshCounts,
@@ -683,18 +715,14 @@ export function KreaAssetBrowser({
     (next: Section): GalleryFilters => {
       const base: GalleryFilters = {
         ...filters,
-        // Reset orthogonal dimensions when navigating sections to keep
-        // the mental model simple — sections are mutually exclusive in
-        // Krea.
+        // The right sidebar changes the asset scope only. The top media
+        // switcher remains an independent dimension, so users can browse
+        // "Favorites + Video" or "Folder + Image" without losing context.
         liked: false,
         published: false,
         projectId: '',
         provider: '',
-        // When mediaType is locked the browser is acting as a
-        // single-type picker (e.g. image-only reference selection), so
-        // 'All' inside that mode means "all <mediaType>" rather than
-        // every media kind.
-        type: mediaType ?? 'all',
+        type: mediaType ?? filters.type,
       }
       switch (next.kind) {
         case 'all':
@@ -705,14 +733,20 @@ export function KreaAssetBrowser({
           return { ...base, published: true }
         case 'uploads':
           return { ...base, provider: USER_UPLOAD_PROVIDER }
-        case 'type':
-          return { ...base, type: next.type }
         case 'unassigned':
           return { ...base, projectId: 'none' }
         case 'project':
           return { ...base, projectId: next.id }
       }
     },
+    [filters, mediaType],
+  )
+
+  const filtersForMediaType = useCallback(
+    (next: LockedMediaType): GalleryFilters => ({
+      ...filters,
+      type: mediaType ?? next,
+    }),
     [filters, mediaType],
   )
 
@@ -723,55 +757,67 @@ export function KreaAssetBrowser({
     [filtersForSection, setFilters],
   )
 
+  const setMediaTypeFilter = useCallback(
+    (next: LockedMediaType) => {
+      setFilters(filtersForMediaType(next))
+    },
+    [filtersForMediaType, setFilters],
+  )
+
   const prefetchingCacheKeysRef = useRef<Set<string>>(new Set())
 
-  // Warm the module-level gallery cache for a section the cursor is
+  // Warm the module-level gallery cache for filters the cursor is
   // about to click. By the time setFilters runs there's a cache hit,
   // turning the click → render into a 0ms transition. In-flight keys
   // are tracked outside the cache so a hover cannot poison the real
   // cache with an empty placeholder.
+  const prefetchFilters = useCallback((targetFilters: GalleryFilters) => {
+    const key = makeGalleryCacheKey(targetFilters, true, 24)
+    if (readGalleryCache(key) || prefetchingCacheKeysRef.current.has(key)) {
+      return
+    }
+    prefetchingCacheKeysRef.current.add(key)
+    const filterParams = {
+      search: targetFilters.search || undefined,
+      model: targetFilters.model || undefined,
+      sort: targetFilters.sort,
+      type: targetFilters.type || undefined,
+      timeRange: targetFilters.timeRange || undefined,
+      liked: targetFilters.liked || undefined,
+      published: targetFilters.published || undefined,
+      mine: true,
+      projectId: targetFilters.projectId || undefined,
+      provider: targetFilters.provider || undefined,
+    }
+    void fetchGalleryImages(1, 24, filterParams)
+      .then((response) => {
+        if (response.success && response.data) {
+          writeGalleryCache(key, {
+            generations: response.data.generations ?? [],
+            total: response.data.total ?? 0,
+            hasMore: response.data.hasMore ?? false,
+            nextCursor: response.data.nextCursor ?? null,
+          })
+        }
+      })
+      .finally(() => {
+        prefetchingCacheKeysRef.current.delete(key)
+      })
+  }, [])
+
   const prefetchSection = useCallback(
     (next: Section) => {
-      const targetFilters = filtersForSection(next)
-      const key = makeGalleryCacheKey(targetFilters, true, 24)
-      if (readGalleryCache(key) || prefetchingCacheKeysRef.current.has(key)) {
-        return
-      }
-      prefetchingCacheKeysRef.current.add(key)
-      const filterParams = {
-        search: targetFilters.search || undefined,
-        model: targetFilters.model || undefined,
-        sort: targetFilters.sort,
-        type: targetFilters.type || undefined,
-        timeRange: targetFilters.timeRange || undefined,
-        liked: targetFilters.liked || undefined,
-        published: targetFilters.published || undefined,
-        mine: true,
-        projectId: targetFilters.projectId || undefined,
-        provider: targetFilters.provider || undefined,
-      }
-      void fetchGalleryImages(1, 24, filterParams)
-        .then((response) => {
-          if (response.success && response.data) {
-            writeGalleryCache(key, {
-              generations: response.data.generations ?? [],
-              total: response.data.total ?? 0,
-              hasMore: response.data.hasMore ?? false,
-              nextCursor: response.data.nextCursor ?? null,
-            })
-          }
-        })
-        .finally(() => {
-          prefetchingCacheKeysRef.current.delete(key)
-        })
+      prefetchFilters(filtersForSection(next))
     },
-    [filtersForSection],
+    [filtersForSection, prefetchFilters],
   )
 
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setFilters({ ...filters, search: searchInput.trim() })
-  }
+  const prefetchMediaType = useCallback(
+    (next: LockedMediaType) => {
+      prefetchFilters(filtersForMediaType(next))
+    },
+    [filtersForMediaType, prefetchFilters],
+  )
 
   const handleUploadClick = () => {
     fileInputRef.current?.click()
@@ -935,22 +981,83 @@ export function KreaAssetBrowser({
   const publishedCount =
     counts?.published ?? (section.kind === 'published' ? total : undefined)
   const imageCount =
-    counts?.image ??
-    (section.kind === 'type' && section.type === 'image' ? total : undefined)
+    counts?.image ?? (activeMediaType === 'image' ? total : undefined)
   const videoCount =
-    counts?.video ??
-    (section.kind === 'type' && section.type === 'video' ? total : undefined)
+    counts?.video ?? (activeMediaType === 'video' ? total : undefined)
   const audioCount =
-    counts?.audio ??
-    (section.kind === 'type' && section.type === 'audio' ? total : undefined)
+    counts?.audio ?? (activeMediaType === 'audio' ? total : undefined)
   const model3DCount =
-    counts?.model_3d ??
-    (section.kind === 'type' && section.type === 'model_3d' ? total : undefined)
+    counts?.model_3d ?? (activeMediaType === 'model_3d' ? total : undefined)
   const unassignedCount =
     counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
   const projectCount = (id: string): number | undefined =>
     counts?.byProject[id] ??
     (section.kind === 'project' && section.id === id ? total : undefined)
+
+  const folderTreeData = useMemo<TreeNode<FolderTreeNodeData>[]>(() => {
+    const projectNodes = new Map<string, TreeNode<FolderTreeNodeData>>()
+    const roots: TreeNode<FolderTreeNodeData>[] = []
+
+    projects.forEach((project) => {
+      projectNodes.set(project.id, {
+        id: project.id,
+        label: project.name,
+        children: [],
+        data: {
+          kind: 'project',
+          project,
+          count:
+            counts?.byProject[project.id] ??
+            (section.kind === 'project' && section.id === project.id
+              ? total
+              : undefined),
+        },
+      })
+    })
+
+    projects.forEach((project) => {
+      const node = projectNodes.get(project.id)
+      if (!node) return
+      const parent = project.parentId
+        ? projectNodes.get(project.parentId)
+        : undefined
+      if (parent) parent.children = [...(parent.children ?? []), node]
+      else roots.push(node)
+    })
+
+    return [
+      {
+        id: UNASSIGNED_FOLDER_NODE_ID,
+        label: t('sidebarUnassigned'),
+        icon: <FolderX className="size-4" />,
+        data: { kind: 'unassigned', count: unassignedCount },
+      },
+      ...roots,
+    ]
+  }, [counts?.byProject, projects, section, t, total, unassignedCount])
+
+  const expandedFolderIds = useMemo(
+    () => collectExpandedFolderIds(folderTreeData),
+    [folderTreeData],
+  )
+  const selectedFolderIds =
+    section.kind === 'unassigned'
+      ? [UNASSIGNED_FOLDER_NODE_ID]
+      : section.kind === 'project'
+        ? [section.id]
+        : []
+  const handleFolderTreeNodeClick = useCallback(
+    (node: TreeNode<FolderTreeNodeData>) => {
+      if (node.data?.kind === 'unassigned') {
+        setSection({ kind: 'unassigned' })
+        return
+      }
+      if (node.data?.kind === 'project') {
+        setSection({ kind: 'project', id: node.data.project.id })
+      }
+    },
+    [setSection],
+  )
 
   const primaryMobileSections: MobileSectionOption[] = [
     {
@@ -995,39 +1102,39 @@ export function KreaAssetBrowser({
     : [
         {
           key: 'image',
-          active: section.kind === 'type' && section.type === 'image',
+          active: activeMediaType === 'image',
           icon: <ImageIcon className="size-3.5" />,
           label: t('sidebarImages'),
           count: imageCount,
-          onClick: () => setSection({ kind: 'type', type: 'image' }),
-          onPrefetch: () => prefetchSection({ kind: 'type', type: 'image' }),
+          onClick: () => setMediaTypeFilter('image'),
+          onPrefetch: () => prefetchMediaType('image'),
         },
         {
           key: 'video',
-          active: section.kind === 'type' && section.type === 'video',
+          active: activeMediaType === 'video',
           icon: <Video className="size-3.5" />,
           label: t('sidebarVideos'),
           count: videoCount,
-          onClick: () => setSection({ kind: 'type', type: 'video' }),
-          onPrefetch: () => prefetchSection({ kind: 'type', type: 'video' }),
+          onClick: () => setMediaTypeFilter('video'),
+          onPrefetch: () => prefetchMediaType('video'),
         },
         {
           key: 'audio',
-          active: section.kind === 'type' && section.type === 'audio',
+          active: activeMediaType === 'audio',
           icon: <Mic className="size-3.5" />,
           label: t('sidebarAudio'),
           count: audioCount,
-          onClick: () => setSection({ kind: 'type', type: 'audio' }),
-          onPrefetch: () => prefetchSection({ kind: 'type', type: 'audio' }),
+          onClick: () => setMediaTypeFilter('audio'),
+          onPrefetch: () => prefetchMediaType('audio'),
         },
         {
           key: 'model_3d',
-          active: section.kind === 'type' && section.type === 'model_3d',
+          active: activeMediaType === 'model_3d',
           icon: <Box className="size-3.5" />,
           label: t('sidebarModel3D'),
           count: model3DCount,
-          onClick: () => setSection({ kind: 'type', type: 'model_3d' }),
-          onPrefetch: () => prefetchSection({ kind: 'type', type: 'model_3d' }),
+          onClick: () => setMediaTypeFilter('model_3d'),
+          onPrefetch: () => prefetchMediaType('model_3d'),
         },
       ]
 
@@ -1071,15 +1178,6 @@ export function KreaAssetBrowser({
       label: t('mobileSections'),
       options: primaryMobileSections,
     },
-    ...(!mediaType
-      ? [
-          {
-            key: 'tools',
-            label: t('sidebarTools'),
-            options: toolMobileSections,
-          },
-        ]
-      : []),
     {
       key: 'folders',
       label: t('sidebarFolders'),
@@ -1087,10 +1185,11 @@ export function KreaAssetBrowser({
       action: mobileFolderAction,
     },
   ]
-  const activeMobileSection =
-    mobileSectionGroups
-      .flatMap((group) => group.options)
-      .find((option) => option.active) ?? primaryMobileSections[0]
+  const activeSection =
+    [...primaryMobileSections, ...folderMobileSections].find(
+      (option) => option.active,
+    ) ?? primaryMobileSections[0]
+  const activeSectionCount = activeSection.count
 
   return (
     <div
@@ -1102,85 +1201,106 @@ export function KreaAssetBrowser({
       <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
         {/* ─── Main grid area ────────────────────────────────────── */}
         <main className="flex-1 min-w-0 overflow-y-auto py-4">
-          <div className="mb-4 flex items-center gap-3">
-            <form
-              onSubmit={handleSearchSubmit}
-              className="relative max-w-md flex-1"
-            >
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={t('search')}
-                className="h-10 pl-9 text-sm"
-              />
-            </form>
-            {!isPickerMode && (
-              <>
-                {section.kind === 'uploads' && (
-                  <>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={USER_UPLOAD_ACCEPT}
-                      className="sr-only"
-                      aria-label={t('uploadInputLabel')}
-                      onChange={(event) => {
-                        void handleFileChange(event)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUploadClick}
-                      disabled={isUploading}
-                      className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          <div className="mb-4 rounded-xl border border-border/70 bg-card/75 p-1.5 shadow-sm">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 items-center px-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <h1 className="truncate text-base font-semibold text-foreground">
+                      {t('title')}
+                    </h1>
+                    <Badge
+                      variant="secondary"
+                      className="max-w-36 truncate px-2 py-0.5 text-2xs font-medium text-muted-foreground"
                     >
-                      {isUploading ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <UploadCloud className="size-3.5" />
-                      )}
-                      <span>
-                        {isUploading ? t('uploading') : t('uploadButton')}
+                      {activeSection.label}
+                    </Badge>
+                    {typeof activeSectionCount === 'number' && (
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {activeSectionCount}
                       </span>
-                    </button>
-                  </>
+                    )}
+                  </div>
+                </div>
+                {!mediaType && (
+                  <MediaTypeToggle
+                    label={t('sidebarTools')}
+                    options={toolMobileSections}
+                  />
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectionMode) exitSelectionMode()
-                    else setSelectionMode(true)
-                  }}
-                  className={cn(
-                    'flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
-                    selectionMode
-                      ? 'border-primary/40 bg-primary/10 text-primary'
-                      : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
-                  )}
-                >
-                  {selectionMode ? (
-                    <>
-                      <X className="size-3.5" />
-                      {t('selectExit')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="size-3.5" />
-                      {t('selectMode')}
-                    </>
-                  )}
-                </button>
-                <DensityToggle density={density} onChange={changeDensity} />
-              </>
-            )}
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:shrink-0">
+                {!isPickerMode && (
+                  <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
+                    {section.kind === 'uploads' && (
+                      <>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept={USER_UPLOAD_ACCEPT}
+                          className="sr-only"
+                          aria-label={t('uploadInputLabel')}
+                          onChange={(event) => {
+                            void handleFileChange(event)
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleUploadClick}
+                          disabled={isUploading}
+                          className="h-10 rounded-lg px-3.5"
+                        >
+                          {isUploading ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <UploadCloud className="size-3.5" />
+                          )}
+                          <span>
+                            {isUploading ? t('uploading') : t('uploadButton')}
+                          </span>
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={selectionMode ? 'secondary' : 'outline'}
+                      aria-pressed={selectionMode}
+                      onClick={() => {
+                        if (selectionMode) exitSelectionMode()
+                        else setSelectionMode(true)
+                      }}
+                      className={cn(
+                        'h-10 rounded-lg px-3.5',
+                        selectionMode &&
+                          'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15',
+                      )}
+                    >
+                      {selectionMode ? (
+                        <>
+                          <X className="size-3.5" />
+                          {t('selectExit')}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="size-3.5" />
+                          {t('selectMode')}
+                        </>
+                      )}
+                    </Button>
+                    <DensityToggle density={density} onChange={changeDensity} />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="mb-4 lg:hidden">
             <MobileSectionPicker
               label={t('mobileSections')}
-              activeOption={activeMobileSection}
+              activeOption={activeSection}
               groups={mobileSectionGroups}
               expanded={mobileSectionPickerOpen}
               openLabel={t('mobileSectionPickerOpen')}
@@ -1333,173 +1453,170 @@ export function KreaAssetBrowser({
         </main>
 
         {/* ─── Right sidebar ─────────────────────────────────────── */}
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-l border-border/60 py-4 pl-4 lg:block">
-          <SidebarItem
-            active={section.kind === 'all'}
-            icon={<FolderOpen className="size-4" />}
-            label={t('sidebarAll')}
-            count={allCount}
-            onClick={() => setSection({ kind: 'all' })}
-            onPrefetch={() => prefetchSection({ kind: 'all' })}
-          />
-          <SidebarItem
-            active={section.kind === 'favorites'}
-            icon={<Heart className="size-4" />}
-            label={t('sidebarFavorites')}
-            count={favoritesCount}
-            onClick={() => setSection({ kind: 'favorites' })}
-            onPrefetch={() => prefetchSection({ kind: 'favorites' })}
-          />
-          <SidebarItem
-            active={section.kind === 'published'}
-            icon={<Globe className="size-4" />}
-            label={t('sidebarPublished')}
-            count={publishedCount}
-            onClick={() => setSection({ kind: 'published' })}
-            onPrefetch={() => prefetchSection({ kind: 'published' })}
-          />
-          <SidebarItem
-            active={section.kind === 'uploads'}
-            icon={<UploadCloud className="size-4" />}
-            label={t('sidebarUploads')}
-            onClick={() => setSection({ kind: 'uploads' })}
-            onPrefetch={() => prefetchSection({ kind: 'uploads' })}
-          />
+        <aside className="hidden w-72 shrink-0 overflow-y-auto py-4 lg:block">
+          <div className="grid gap-4 rounded-xl border border-border/70 bg-card/60 p-2 shadow-sm">
+            <SidebarSection label={t('sidebarViews')}>
+              <SidebarItem
+                active={section.kind === 'all'}
+                icon={<FolderOpen className="size-4" />}
+                label={t('sidebarAll')}
+                count={allCount}
+                onClick={() => setSection({ kind: 'all' })}
+                onPrefetch={() => prefetchSection({ kind: 'all' })}
+              />
+              <SidebarItem
+                active={section.kind === 'favorites'}
+                icon={<Heart className="size-4" />}
+                label={t('sidebarFavorites')}
+                count={favoritesCount}
+                onClick={() => setSection({ kind: 'favorites' })}
+                onPrefetch={() => prefetchSection({ kind: 'favorites' })}
+              />
+              <SidebarItem
+                active={section.kind === 'published'}
+                icon={<Globe className="size-4" />}
+                label={t('sidebarPublished')}
+                count={publishedCount}
+                onClick={() => setSection({ kind: 'published' })}
+                onPrefetch={() => prefetchSection({ kind: 'published' })}
+              />
+              <SidebarItem
+                active={section.kind === 'uploads'}
+                icon={<UploadCloud className="size-4" />}
+                label={t('sidebarUploads')}
+                onClick={() => setSection({ kind: 'uploads' })}
+                onPrefetch={() => prefetchSection({ kind: 'uploads' })}
+              />
+            </SidebarSection>
 
-          {/*
-           * Tools section lets the user switch across media types — hide it
-           * when mediaType is locked so a "Select image" picker can't lead
-           * to the video/audio buckets.
-           */}
-          {!mediaType && (
-            <>
-              <SidebarHeading label={t('sidebarTools')} />
-              <SidebarItem
-                active={section.kind === 'type' && section.type === 'image'}
-                icon={<ImageIcon className="size-4" />}
-                label={t('sidebarImages')}
-                count={imageCount}
-                onClick={() => setSection({ kind: 'type', type: 'image' })}
-                onPrefetch={() =>
-                  prefetchSection({ kind: 'type', type: 'image' })
-                }
-              />
-              <SidebarItem
-                active={section.kind === 'type' && section.type === 'video'}
-                icon={<Video className="size-4" />}
-                label={t('sidebarVideos')}
-                count={videoCount}
-                onClick={() => setSection({ kind: 'type', type: 'video' })}
-                onPrefetch={() =>
-                  prefetchSection({ kind: 'type', type: 'video' })
-                }
-              />
-              <SidebarItem
-                active={section.kind === 'type' && section.type === 'audio'}
-                icon={<Mic className="size-4" />}
-                label={t('sidebarAudio')}
-                count={audioCount}
-                onClick={() => setSection({ kind: 'type', type: 'audio' })}
-                onPrefetch={() =>
-                  prefetchSection({ kind: 'type', type: 'audio' })
-                }
-              />
-              <SidebarItem
-                active={section.kind === 'type' && section.type === 'model_3d'}
-                icon={<Box className="size-4" />}
-                label={t('sidebarModel3D')}
-                count={model3DCount}
-                onClick={() => setSection({ kind: 'type', type: 'model_3d' })}
-                onPrefetch={() =>
-                  prefetchSection({ kind: 'type', type: 'model_3d' })
-                }
-              />
-            </>
-          )}
-
-          <div className="mt-4 mb-1 flex items-center justify-between">
-            <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-              {t('sidebarFolders')}
-            </span>
-            <ProjectCreateDialog
-              onCreated={handleProjectCreated}
-              trigger={
-                <button
-                  type="button"
-                  aria-label={t('folderCreate')}
-                  className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                >
-                  <Plus className="size-3.5" />
-                </button>
+            <SidebarSection
+              label={t('sidebarFolders')}
+              action={
+                <ProjectCreateDialog
+                  onCreated={handleProjectCreated}
+                  trigger={
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={t('folderCreate')}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  }
+                />
               }
-            />
+            >
+              <TreeView
+                key={expandedFolderIds.join('|')}
+                data={folderTreeData}
+                selectedIds={selectedFolderIds}
+                defaultExpandedIds={expandedFolderIds}
+                onNodeClick={handleFolderTreeNodeClick}
+                showLines
+                animateExpand
+                className="-mx-1"
+                renderNodeContent={(node, state) => {
+                  const data = node.data
+                  const count = data?.count
+                  if (
+                    data?.kind === 'project' &&
+                    editingProjectId === data.project.id
+                  ) {
+                    return (
+                      <ProjectRenameTreeContent
+                        active={state.isSelected}
+                        value={editingProjectName}
+                        disabled={renamingProjectId === data.project.id}
+                        inputLabel={t('folderRenameInput')}
+                        saveLabel={t('folderRenameSave')}
+                        cancelLabel={t('folderRenameCancel')}
+                        onChange={setEditingProjectName}
+                        onSubmit={() =>
+                          void submitRenameProject(
+                            data.project.id,
+                            data.project.name,
+                          )
+                        }
+                        onCancel={cancelRenameProject}
+                      />
+                    )
+                  }
+
+                  return (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">
+                        {node.label}
+                      </span>
+                      {typeof count === 'number' && (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'min-w-6 justify-center px-1.5 py-0 text-3xs font-medium tabular-nums',
+                            state.isSelected
+                              ? 'bg-background/80 text-primary'
+                              : 'bg-muted/50 text-muted-foreground',
+                          )}
+                        >
+                          {count}
+                        </Badge>
+                      )}
+                      {data?.kind === 'project' && (
+                        <span className="ml-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/tree-node:opacity-100 focus-within:opacity-100">
+                          <ProjectCreateDialog
+                            parentId={data.project.id}
+                            onCreated={handleProjectCreated}
+                            trigger={
+                              <button
+                                type="button"
+                                aria-label={t('folderCreate')}
+                                title={t('folderCreate')}
+                                onClick={(event) => event.stopPropagation()}
+                                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                              >
+                                <Plus className="size-3" />
+                              </button>
+                            }
+                          />
+                          <button
+                            type="button"
+                            aria-label={t('folderRename')}
+                            title={t('folderRename')}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              startRenameProject(
+                                data.project.id,
+                                data.project.name,
+                              )
+                            }}
+                            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={t('folderDelete')}
+                            title={t('folderDelete')}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              requestDeleteProject(
+                                data.project.id,
+                                data.project.name,
+                              )
+                            }}
+                            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </span>
+                      )}
+                    </>
+                  )
+                }}
+              />
+            </SidebarSection>
           </div>
-          <SidebarItem
-            active={section.kind === 'unassigned'}
-            icon={<FolderX className="size-4" />}
-            label={t('sidebarUnassigned')}
-            count={unassignedCount}
-            onClick={() => setSection({ kind: 'unassigned' })}
-            onPrefetch={() => prefetchSection({ kind: 'unassigned' })}
-          />
-          {projects.map((project) =>
-            editingProjectId === project.id ? (
-              <ProjectRenameSidebarItem
-                key={project.id}
-                active={section.kind === 'project' && section.id === project.id}
-                value={editingProjectName}
-                disabled={renamingProjectId === project.id}
-                inputLabel={t('folderRenameInput')}
-                saveLabel={t('folderRenameSave')}
-                cancelLabel={t('folderRenameCancel')}
-                onChange={setEditingProjectName}
-                onSubmit={() =>
-                  void submitRenameProject(project.id, project.name)
-                }
-                onCancel={cancelRenameProject}
-              />
-            ) : (
-              <SidebarItem
-                key={project.id}
-                active={section.kind === 'project' && section.id === project.id}
-                icon={<Folder className="size-4" />}
-                label={project.name}
-                count={projectCount(project.id)}
-                onClick={() => setSection({ kind: 'project', id: project.id })}
-                onPrefetch={() =>
-                  prefetchSection({ kind: 'project', id: project.id })
-                }
-                actions={
-                  <>
-                    <button
-                      type="button"
-                      aria-label={t('folderRename')}
-                      title={t('folderRename')}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        startRenameProject(project.id, project.name)
-                      }}
-                      className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                    >
-                      <Pencil className="size-3" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('folderDelete')}
-                      title={t('folderDelete')}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestDeleteProject(project.id, project.name)
-                      }}
-                      className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </>
-                }
-              />
-            ),
-          )}
         </aside>
       </div>
       {!isPickerMode && (
@@ -1745,28 +1862,31 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
     compact: t('densityCompact'),
   }
   return (
-    <div
-      role="group"
-      aria-label={t('densityLabel')}
-      className="hidden shrink-0 items-center rounded-full border border-border/60 p-0.5 text-xs sm:inline-flex"
-    >
-      {DENSITIES.map((d) => (
-        <button
-          key={d}
-          type="button"
-          onClick={() => onChange(d)}
-          aria-pressed={density === d}
-          title={labels[d]}
-          className={cn(
-            'flex h-7 w-9 items-center justify-center rounded-full font-medium tabular-nums transition-colors',
-            density === d
-              ? 'bg-foreground text-background'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {DENSITY_XL_COLS[d]}
-        </button>
-      ))}
+    <div className="hidden shrink-0 items-center gap-2 sm:inline-flex">
+      <span className="hidden text-2xs font-medium uppercase tracking-wide text-muted-foreground/70 xl:inline">
+        {t('densityLabel')}
+      </span>
+      <ToggleGroup
+        type="single"
+        value={density}
+        onValueChange={(value) => {
+          if (isDensity(value)) onChange(value)
+        }}
+        className="rounded-lg bg-background/80 p-0.5 shadow-inner"
+        aria-label={t('densityLabel')}
+      >
+        {DENSITIES.map((d) => (
+          <ToggleGroupItem
+            key={d}
+            value={d}
+            aria-label={labels[d]}
+            title={labels[d]}
+            className="h-9 w-10 rounded-md px-0 text-sm tabular-nums data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm"
+          >
+            {DENSITY_XL_COLS[d]}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
     </div>
   )
 }
@@ -1779,6 +1899,54 @@ interface MobileSectionOption {
   count?: number
   onClick: () => void
   onPrefetch?: () => void
+}
+
+interface MediaTypeToggleProps {
+  label: string
+  options: MobileSectionOption[]
+}
+
+function MediaTypeToggle({ label, options }: MediaTypeToggleProps) {
+  const activeKey = options.find((option) => option.active)?.key ?? ''
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={activeKey}
+      onValueChange={(value) => {
+        const nextOption = options.find((option) => option.key === value)
+        nextOption?.onClick()
+      }}
+      aria-label={label}
+      className="max-w-full flex-nowrap gap-0 overflow-x-auto rounded-xl border-border/70 bg-background/80 p-0 shadow-sm"
+    >
+      {options.map((option, index) => (
+        <ToggleGroupItem
+          key={option.key}
+          value={option.key}
+          aria-label={option.label}
+          title={option.label}
+          onMouseEnter={option.onPrefetch}
+          onFocus={option.onPrefetch}
+          className={cn(
+            'inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-none border-r border-border/70 px-0 text-sm first:rounded-l-xl last:rounded-r-xl last:border-r-0',
+            'hover:bg-muted/50 hover:text-foreground',
+            'data-[state=on]:z-10 data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:shadow-sm',
+            index > 0 && '-ml-px',
+          )}
+        >
+          <span
+            className={cn(
+              'flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors',
+              option.active && 'text-background',
+            )}
+          >
+            {option.icon}
+          </span>
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
 }
 
 interface MobileSectionGroup {
@@ -1929,7 +2097,27 @@ function MobileSectionRail({
   )
 }
 
-// ─── Sidebar primitives ────────────────────────────────────────
+// ─── Sidebar primitives ─────────────────────────────
+
+interface SidebarSectionProps {
+  label: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}
+
+function SidebarSection({ label, action, children }: SidebarSectionProps) {
+  return (
+    <section className="grid gap-1.5" aria-label={label}>
+      <div className="flex min-h-7 items-center justify-between gap-2 px-2">
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
+          {label}
+        </span>
+        {action}
+      </div>
+      <div className="grid gap-0.5">{children}</div>
+    </section>
+  )
+}
 
 interface SidebarItemProps {
   active: boolean
@@ -1937,19 +2125,7 @@ interface SidebarItemProps {
   label: string
   count?: number
   onClick: () => void
-  /**
-   * Fires when the user moves the pointer onto the row — used to warm
-   * the gallery cache before the click lands, so by the time setFilters
-   * runs there's a cache hit waiting. Should be a no-op when the
-   * destination filter is already cached.
-   */
   onPrefetch?: () => void
-  /**
-   * Optional trailing controls (e.g. rename / delete for project rows).
-   * Rendered after the count and revealed on hover only. The host should
-   * call `stopPropagation` inside any clickable child so it doesn't also
-   * trigger the row's own onClick.
-   */
   actions?: React.ReactNode
 }
 
@@ -1965,17 +2141,17 @@ interface ProjectRenameSidebarItemProps {
   onCancel: () => void
 }
 
-function ProjectRenameSidebarItem({
-  active,
-  value,
-  disabled,
-  inputLabel,
-  saveLabel,
-  cancelLabel,
-  onChange,
-  onSubmit,
-  onCancel,
-}: ProjectRenameSidebarItemProps) {
+function ProjectRenameTreeContent(props: ProjectRenameSidebarItemProps) {
+  const {
+    value,
+    disabled,
+    inputLabel,
+    saveLabel,
+    cancelLabel,
+    onChange,
+    onSubmit,
+    onCancel,
+  } = props
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1985,6 +2161,7 @@ function ProjectRenameSidebarItem({
 
   return (
     <form
+      onClick={(event) => event.stopPropagation()}
       onSubmit={(event) => {
         event.preventDefault()
         onSubmit()
@@ -1995,12 +2172,8 @@ function ProjectRenameSidebarItem({
           onCancel()
         }
       }}
-      className={cn(
-        'flex w-full items-center gap-1 rounded-md py-1 pl-2 pr-1 text-sm transition-colors',
-        active ? 'bg-primary/10 text-primary' : 'text-foreground/80',
-      )}
+      className="flex min-w-0 flex-1 items-center gap-1"
     >
-      <Folder className="size-4 shrink-0 text-muted-foreground/70" />
       <Input
         ref={inputRef}
         value={value}
@@ -2015,7 +2188,7 @@ function ProjectRenameSidebarItem({
         aria-label={saveLabel}
         title={saveLabel}
         disabled={disabled || value.trim().length === 0}
-        className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       >
         {disabled ? (
           <Loader2 className="size-3.5 animate-spin" />
@@ -2029,7 +2202,7 @@ function ProjectRenameSidebarItem({
         title={cancelLabel}
         disabled={disabled}
         onClick={onCancel}
-        className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       >
         <X className="size-3.5" />
       </button>
@@ -2049,10 +2222,10 @@ function SidebarItem({
   return (
     <div
       className={cn(
-        'group/sidebar-item flex w-full items-center gap-1 rounded-md pl-2 pr-1 py-1.5 text-sm transition-colors',
+        'group/sidebar-item relative flex w-full items-center gap-1 rounded-lg py-1.5 pl-3 pr-1 text-sm transition-colors before:absolute before:left-1 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:transition-colors',
         active
-          ? 'bg-primary/10 text-primary'
-          : 'text-foreground/80 hover:bg-muted/40 hover:text-foreground',
+          ? 'bg-primary/10 text-primary before:bg-primary'
+          : 'text-foreground/80 before:bg-transparent hover:bg-muted/50 hover:text-foreground',
       )}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
@@ -2075,9 +2248,17 @@ function SidebarItem({
           <span className="truncate">{label}</span>
         </span>
         {typeof count === 'number' && (
-          <span className="shrink-0 text-2xs text-muted-foreground/70 tabular-nums">
+          <Badge
+            variant="secondary"
+            className={cn(
+              'min-w-6 justify-center px-1.5 py-0 text-3xs font-medium tabular-nums',
+              active
+                ? 'bg-background/80 text-primary'
+                : 'bg-muted/50 text-muted-foreground',
+            )}
+          >
             {count}
-          </span>
+          </Badge>
         )}
       </button>
       {actions ? (
@@ -2085,14 +2266,6 @@ function SidebarItem({
           {actions}
         </span>
       ) : null}
-    </div>
-  )
-}
-
-function SidebarHeading({ label }: { label: string }) {
-  return (
-    <div className="mt-4 mb-1 px-2 text-2xs font-medium uppercase tracking-wide text-muted-foreground/70">
-      {label}
     </div>
   )
 }

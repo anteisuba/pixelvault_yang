@@ -134,14 +134,17 @@ model User {
 }
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
-  description String?  @db.Text
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description String?   @db.Text
+  parentId    String?
+  parent      Project?  @relation("ProjectTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Project[] @relation("ProjectTree")
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   generations     Generation[]
   characterCards  CharacterCard[]
@@ -150,6 +153,7 @@ model Project {
   cardRecipes     CardRecipe[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
+  @@index([userId, parentId, isDeleted, updatedAt(sort: Desc)])
 }
 
 model UserApiKey {
@@ -246,13 +250,13 @@ model Generation {
   isWinner      Boolean @default(false) // Winner flag for compare mode
   seed          BigInt? // Seed for reproducibility
 
-  generationJob   GenerationJob?   @relation("GenerationToJob")
-  apiUsageLedger  ApiUsageLedger[] @relation("GenerationToUsage")
-  arenaEntries    ArenaEntry[]
-  storyPanels     StoryPanel[]
-  likes           UserLike[]
-  collectionItems CollectionItem[]
-  videoPipeline   VideoPipeline?
+  generationJob     GenerationJob?     @relation("GenerationToJob")
+  apiUsageLedger    ApiUsageLedger[]   @relation("GenerationToUsage")
+  arenaEntries      ArenaEntry[]
+  storyPanels       StoryPanel[]
+  likes             UserLike[]
+  collectionItems   CollectionItem[]
+  videoPipeline     VideoPipeline?
   extractedElements ExtractedElement[] @relation("ExtractedElementSource")
 
   @@index([userId])

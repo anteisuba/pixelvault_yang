@@ -16,6 +16,12 @@ import { fetchAsBuffer } from '@/services/storage/r2'
 export interface LlmTextInput {
   systemPrompt: string
   userPrompt: string
+  /** Optional per-call model override for specialized LLM tasks. */
+  modelId?: string
+  /** Optional per-call token budget. */
+  maxTokens?: number
+  /** Request strict JSON where the provider supports it. */
+  responseFormat?: 'json_object'
   /**
    * Image input(s) for multimodal completion. Each entry may be either a
    * `data:` URL or an `http(s)` URL — the implementation normalizes per
@@ -107,6 +113,21 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return AI_PROVIDER_ENDPOINTS.VOLCENGINE
   }
+}
+
+function getOpenAiChatBaseUrl(baseUrl?: string): string {
+  if (!baseUrl) return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+  return baseUrl.endsWith('/images')
+    ? baseUrl.slice(0, -'/images'.length)
+    : baseUrl
+}
+
+function getOpenAiTokenLimit(modelId: string, maxTokens: number) {
+  if (/^(gpt-5|o[134])(?:[.-]|$)/i.test(modelId)) {
+    return { max_completion_tokens: maxTokens }
+  }
+
+  return { max_tokens: maxTokens }
 }
 
 // ─── Route Resolution ────────────────────────────────────────────
@@ -227,7 +248,7 @@ async function toGeminiInlinePart(
 }
 
 async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
-  const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
   const endpoint = `${baseUrl}/${modelId}:generateContent`
 
@@ -256,6 +277,10 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       contents: [{ parts }],
       generationConfig: {
         responseModalities: ['TEXT'],
+        ...(input.maxTokens ? { maxOutputTokens: input.maxTokens } : {}),
+        ...(input.responseFormat === 'json_object'
+          ? { responseMimeType: 'application/json' }
+          : {}),
       },
       ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
     }),
@@ -283,9 +308,8 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
-  const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
-  const baseUrl =
-    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
+  const baseUrl = getOpenAiChatBaseUrl(input.providerConfig.baseUrl)
   const endpoint = `${baseUrl}/chat/completions`
 
   const messages: Array<Record<string, unknown>> = [
@@ -315,7 +339,10 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     body: JSON.stringify({
       model: modelId,
       messages,
-      max_tokens: 1024,
+      ...getOpenAiTokenLimit(modelId, input.maxTokens ?? 1024),
+      ...(input.responseFormat === 'json_object'
+        ? { response_format: { type: 'json_object' } }
+        : {}),
       ...(input.useGrounding
         ? { tools: [{ type: 'web_search_preview' }] }
         : {}),
@@ -342,7 +369,7 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
  * Supports vision (image_url in content) and web search via plugin.
  */
 async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
-  const modelId = LLM_TEXT_MODELS[AI_ADAPTER_TYPES.VOLCENGINE]
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.VOLCENGINE]
   const baseUrl =
     input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.VOLCENGINE
   const endpoint = `${baseUrl}/chat/completions`
@@ -368,7 +395,7 @@ async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
   const body: Record<string, unknown> = {
     model: modelId,
     messages,
-    max_tokens: 1024,
+    max_tokens: input.maxTokens ?? 1024,
   }
 
   // VolcEngine web search: use built-in web_search plugin

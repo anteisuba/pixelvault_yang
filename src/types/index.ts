@@ -1850,6 +1850,7 @@ export type NarrativeTone = GenerateNarrativeRequest['tone']
 export const CreateProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(60),
   description: z.string().trim().max(500).optional(),
+  parentId: z.string().trim().min(1).max(64).nullable().optional(),
 })
 
 export type CreateProjectRequest = z.infer<typeof CreateProjectSchema>
@@ -1857,6 +1858,7 @@ export type CreateProjectRequest = z.infer<typeof CreateProjectSchema>
 export const UpdateProjectSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   description: z.string().trim().max(500).nullable().optional(),
+  parentId: z.string().trim().min(1).max(64).nullable().optional(),
 })
 
 export type UpdateProjectRequest = z.infer<typeof UpdateProjectSchema>
@@ -1865,6 +1867,7 @@ export interface ProjectRecord {
   id: string
   name: string
   description: string | null
+  parentId: string | null
   generationCount: number
   latestGenerationUrl: string | null
   createdAt: Date

@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- layer preview thumbnails */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import {
   Download,
   ImagePlus,
@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { useLayerDecompose } from '@/hooks/use-layer-decompose'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
@@ -68,8 +69,14 @@ export function LayerDecomposePanel({
     reset,
   } = useLayerDecompose()
 
-  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const {
+    isDragging,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    resetDragging,
+  } = useStableDragState()
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -81,13 +88,13 @@ export function LayerDecomposePanel({
   )
 
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
-      setIsDragging(false)
+      resetDragging()
       const file = e.dataTransfer.files[0]
       if (file) void handleFile(file)
     },
-    [handleFile],
+    [handleFile, resetDragging],
   )
 
   const handleFileChange = useCallback(
@@ -123,11 +130,9 @@ export function LayerDecomposePanel({
   if (step === 'idle') {
     return (
       <div
-        onDragOver={(e) => {
-          e.preventDefault()
-          setIsDragging(true)
-        }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         className={cn(

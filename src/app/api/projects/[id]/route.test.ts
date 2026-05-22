@@ -27,6 +27,7 @@ const FAKE_PROJECT = {
   id: 'proj_123',
   name: 'Test Project',
   description: null,
+  parentId: null,
   generationCount: 5,
   latestGenerationUrl: null,
   createdAt: new Date(),

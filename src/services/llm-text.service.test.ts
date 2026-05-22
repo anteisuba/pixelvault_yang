@@ -194,4 +194,50 @@ describe('llmTextCompletion - OpenAI', () => {
 
     expect(result).toBe('openai reply')
   })
+
+  it('uses the chat API root when given the shared OpenAI image base URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"ok":true}' } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: {
+        label: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1/images',
+      },
+      apiKey: 'sk-test',
+      modelId: 'gpt-5.2',
+      maxTokens: 3500,
+      responseFormat: 'json_object',
+    })
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    const body = requestInit?.body
+    if (typeof body !== 'string') {
+      throw new Error('Expected OpenAI request body to be a JSON string')
+    }
+    const payload = JSON.parse(body) as {
+      model: string
+      max_completion_tokens?: number
+      response_format?: { type: string }
+    }
+
+    expect(result).toBe('{"ok":true}')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/chat/completions',
+      expect.any(Object),
+    )
+    expect(payload.model).toBe('gpt-5.2')
+    expect(payload.max_completion_tokens).toBe(3500)
+    expect(payload.response_format?.type).toBe('json_object')
+  })
 })

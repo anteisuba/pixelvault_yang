@@ -214,6 +214,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
     isDragging,
     fileInputRef,
     handleDrop,
+    handleDragEnter,
     handleDragOver,
     handleDragLeave,
     openFilePicker,
@@ -444,6 +445,7 @@ export function ArenaForm({ isCreating, onBattle }: ArenaFormProps) {
           isDragging={isDragging}
           fileInputRef={fileInputRef}
           onDrop={handleDrop}
+          onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onOpenFilePicker={openFilePicker}

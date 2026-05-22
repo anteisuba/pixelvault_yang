@@ -17,8 +17,9 @@ interface ReferenceImageSectionProps {
   isDragging: boolean
   fileInputRef: React.RefObject<HTMLInputElement | null>
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDragLeave: () => void
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void
+  onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void
   onOpenFilePicker: () => void
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onRemoveImage: (index: number) => void
@@ -42,6 +43,7 @@ export function ReferenceImageSection({
   isDragging,
   fileInputRef,
   onDrop,
+  onDragEnter,
   onDragOver,
   onDragLeave,
   onOpenFilePicker,
@@ -146,6 +148,7 @@ export function ReferenceImageSection({
         <ImageDropZone
           isDragging={isDragging}
           onDrop={onDrop}
+          onDragEnter={onDragEnter}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onClick={onOpenFilePicker}

@@ -57,13 +57,21 @@ export default async function AssetsPage({
 }: AssetsPageProps) {
   const { locale: _locale } = await params
   void _locale
-  const filterResult = AssetsPageSearchSchema.safeParse(await searchParams)
+  const rawSearchParams = await searchParams
+  const filterResult = AssetsPageSearchSchema.safeParse(rawSearchParams)
+  const shouldDefaultToImages =
+    !rawSearchParams.type &&
+    !rawSearchParams.search &&
+    !rawSearchParams.model &&
+    !rawSearchParams.projectId &&
+    !rawSearchParams.published &&
+    !rawSearchParams.generationId
   const initialFilters = filterResult.success
     ? {
         search: filterResult.data.search ?? '',
         model: filterResult.data.model ?? '',
         sort: filterResult.data.sort,
-        type: filterResult.data.type,
+        type: shouldDefaultToImages ? 'image' : filterResult.data.type,
         timeRange: filterResult.data.timeRange,
         liked: false,
         published: filterResult.data.published === '1',
@@ -73,7 +81,7 @@ export default async function AssetsPage({
         search: '',
         model: '',
         sort: 'newest' as const,
-        type: 'all' as const,
+        type: 'image' as const,
         timeRange: 'all' as const,
         liked: false,
         published: false,

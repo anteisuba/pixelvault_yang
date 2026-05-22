@@ -1047,6 +1047,7 @@
     "sidebarFavorites": "お気に入り",
     "sidebarPublished": "ギャラリー公開済み",
     "sidebarUploads": "ローカル素材",
+    "sidebarViews": "ビュー",
     "sidebarModel3D": "3D",
     "sidebarTools": "ツール",
     "sidebarImages": "画像",
@@ -1197,6 +1198,8 @@
     "insertPrompt": "Prompt に挿入",
     "applyRecipe": "レシピ全体を適用",
     "recentTemplates": "最近のテンプレート",
+    "allTemplates": "すべてのテンプレート",
+    "searchPlaceholder": "テンプレートを検索...",
     "templateCount": "{count} 件のテンプレート",
     "updateTemplateSuccess": "プロンプトテンプレートを更新しました",
     "updateTemplateFailed": "プロンプトテンプレートの更新に失敗しました"
@@ -2444,6 +2447,189 @@
         "title": "ノードエディター",
         "description": "生成・編集・解析を視覚的にチェーン構築するワークフロー。"
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "ノードワークフロー",
+    "title": "脚本キャンバス",
+    "subtitle": "ラフなアイデアを、生成前に再利用できるキャラクター、シーン、アクション、ビート、ショットへ分解します。",
+    "ideaLabel": "アイデア",
+    "ideaPlaceholder": "三人のキャラクターが廃駅で未来を予言する古いカメラを見つける。",
+    "plannerLabel": "プランナー",
+    "apiKeyLabel": "API Key",
+    "generate": "脚本を分解",
+    "generating": "計画中...",
+    "errorFallback": "脚本計画に失敗しました。別のモデルを選ぶか、アイデアを少し具体化してください。",
+    "configuredKeys": "{count} 個のプランナー Key が利用可能",
+    "noPlannerKeys": "Gemini または OpenAI Key が未設定です",
+    "controlTitle": "制作コントロール",
+    "controlSubtitle": "カードを先に、プロンプトは後で",
+    "plannerUsed": "使用したプランナー",
+    "referenceIntent": "参照意図",
+    "emptyTitle": "アイデアから開始",
+    "emptyBody": "最初の分解後、編集可能な物語構造がキャンバスに表示されます。",
+    "projectUntitled": "未命名プロジェクト",
+    "projectName": "プロジェクト名",
+    "blankCanvasTitle": "脚本からキャンバスを始める",
+    "blankCanvasBody": "ざっくりとしたアイデアを、再利用できるキャラクター・シーン・ビート・ショットに分解。続けて画像・動画・音声ノードをつないで生成していきます。",
+    "blankCanvasCta": "脚本ノードを作成",
+    "blankCanvasExamplesLabel": "またはこちらの例から始める",
+    "addNode": "ノードを追加",
+    "addMenuTitle": "新規ノード",
+    "miniMap": "ミニマップ",
+    "fitViewHint": "デフォルト表示に戻しました。",
+    "canvasCredits": "1.0 k",
+    "modelRouteCount": "{count} 件の利用可能ルート",
+    "modelPicker": {
+      "select": "モデルを選択",
+      "title": "モデルを選択",
+      "description": "すべてのノードで同じ選択 UI を使い、ノード種別ごとに候補モデルと API ルートだけを切り替えます。"
+    },
+    "scriptNodeDraftTitle": "未命名の脚本",
+    "canvasTitle": "ノードキャンバス",
+    "canvasSubtitle": "脚本分解の結果はまず脚本ノードになります。ノードをクリックすると、内部のキャラクター、シーン、アクション、ビート、ショットを編集できます。",
+    "scriptNodeType": "脚本ノード",
+    "openScriptNode": "脚本ノードエディターを開く",
+    "editNode": "ノードを編集",
+    "openEditorHint": "クリックして編集",
+    "editorTitle": "脚本ノードを編集",
+    "editorDescription": "変更内容は現在のキャンバス状態に保存され、後からキャラクターカード、キーフレーム、動画ノードへ接続できます。",
+    "saveNode": "ノードを保存",
+    "closeEditor": "閉じる",
+    "startState": "開始：",
+    "endState": "終了：",
+    "beatIndex": "ビート {index}",
+    "duration": "{seconds} 秒",
+    "planners": {
+      "auto": "自動選択",
+      "gemini": "Gemini 3 Pro",
+      "openai": "GPT-5.2"
+    },
+    "apiKeys": {
+      "auto": "自動 / プラットフォーム Key"
+    },
+    "toolbar": {
+      "pointer": "選択",
+      "add": "ノードを追加",
+      "pan": "キャンバス移動",
+      "fit": "画面に合わせる",
+      "save": "下書きを保存",
+      "zoomOut": "縮小",
+      "nodeCount": "{count} 個のノード"
+    },
+    "breakdownCountersLabel": "分解の概要",
+    "breakdownTimelineLabel": "ビート時間",
+    "nodeTypes": {
+      "script": "脚本",
+      "text": "テキスト",
+      "image": "画像",
+      "video": "動画",
+      "audio": "音声"
+    },
+    "nodeDraftTitles": {
+      "text": "テキスト生成",
+      "image": "画像生成",
+      "video": "動画生成",
+      "audio": "音声生成"
+    },
+    "scriptNodePlaceholder": "作りたい物語、人物関係、シーンの雰囲気、参照したい抽象的な作風を入力...",
+    "placeholderPreview": {
+      "text": "テキスト待機中",
+      "image": "画像待機中",
+      "video": "動画待機中",
+      "audio": "音声待機中"
+    },
+    "placeholderPrompt": {
+      "text": "生成したいテキスト内容を入力...",
+      "image": "生成したい画面を入力...",
+      "video": "生成または編集の要望を入力...",
+      "audio": "合成する文字を入力..."
+    },
+    "placeholderComingSoon": "接続予定",
+    "toasts": {
+      "generated": "脚本ノードを生成しました。",
+      "saved": "脚本ノードを保存しました。",
+      "savedDraft": "キャンバスの下書きを保存しました。",
+      "exampleLoaded": "例を読み込みました。生成ボタンで分解を開始します。"
+    },
+    "examples": {
+      "exampleOne": "三人のキャラクターが廃駅で未来を予言する古いカメラを見つける。",
+      "exampleTwo": "静かなファンタジーの治癒師と無鉄砲な騎士が雪の神社で口論し、隠された扉が開く。",
+      "exampleThree": "サイバーパンクの配達人が、運んでいる荷物が自分の記憶を送信していることに気づく。"
+    },
+    "exampleLabels": {
+      "exampleOne": "ミステリー駅",
+      "exampleTwo": "雪の神社",
+      "exampleThree": "サイバー配達人"
+    },
+    "steps": {
+      "characters": "キャラクター",
+      "scenes": "シーン",
+      "actions": "アクション",
+      "beats": "ビート",
+      "shots": "ショット"
+    },
+    "sections": {
+      "characters": "キャラクター",
+      "scenes": "シーン",
+      "actions": "アクション",
+      "beats": "ビート",
+      "shots": "ショット"
+    },
+    "tabs": {
+      "overview": "概要",
+      "characters": "キャラクター",
+      "scenes": "シーン",
+      "actions": "アクション",
+      "beats": "ビート",
+      "shots": "ショット"
+    },
+    "fields": {
+      "title": "タイトル",
+      "logline": "ログライン",
+      "referenceSummary": "参照意図",
+      "rewriteGuidance": "オリジナル化の方向",
+      "name": "名前",
+      "role": "役割",
+      "visualSeed": "ビジュアル記述",
+      "functionInStory": "物語上の機能",
+      "personality": "性格",
+      "goal": "目標",
+      "label": "ラベル",
+      "locationType": "場所タイプ",
+      "timeOfDay": "時間帯",
+      "mood": "雰囲気",
+      "lighting": "ライティング",
+      "verb": "アクション",
+      "object": "対象",
+      "consequence": "結果",
+      "duration": "尺",
+      "visibleAction": "見える行動",
+      "emotionalTurn": "感情の変化",
+      "cameraMotion": "カメラ動作",
+      "startState": "開始状態",
+      "endState": "終了状態"
+    },
+    "copyRisk": {
+      "low": "低い模倣リスク",
+      "medium": "中程度の模倣リスク",
+      "high": "高い模倣リスク"
+    },
+    "shotTypes": {
+      "establishing": "導入ショット",
+      "wide": "ワイド",
+      "medium": "ミディアム",
+      "closeup": "クローズアップ",
+      "reaction": "リアクション"
+    },
+    "referenceNeeds": {
+      "none": "参照なし",
+      "character": "キャラ参照",
+      "scene": "シーン参照",
+      "first_frame": "始点フレーム",
+      "last_frame": "終点フレーム",
+      "first_and_last_frame": "始点 + 終点",
+      "multi_reference": "複数参照"
     }
   },
   "StudioV2": {

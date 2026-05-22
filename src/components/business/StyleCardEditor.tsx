@@ -219,6 +219,7 @@ export function StyleCardEditor({
             isDragging={imageUpload.isDragging}
             fileInputRef={imageUpload.fileInputRef}
             onDrop={imageUpload.handleDrop}
+            onDragEnter={imageUpload.handleDragEnter}
             onDragOver={imageUpload.handleDragOver}
             onDragLeave={imageUpload.handleDragLeave}
             onOpenFilePicker={imageUpload.openFilePicker}

@@ -24,7 +24,7 @@ export * as $Enums from './enums'
 export * from "./enums"
 /**
  * ## Prisma Client
- *
+ * 
  * Type-safe database client for TypeScript
  * @example
  * ```
@@ -208,6 +208,6 @@ export type VideoScript = Prisma.VideoScriptModel
 export type VideoScriptScene = Prisma.VideoScriptSceneModel
 /**
  * Model ExtractedElement
- *
+ * 
  */
 export type ExtractedElement = Prisma.ExtractedElementModel

@@ -11,7 +11,16 @@ import {
   type NodeTypes,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { FileText, KeyRound, Save, Sparkles } from 'lucide-react'
+import {
+  FileText,
+  Frame,
+  KeyRound,
+  Layers,
+  Maximize2,
+  Plus,
+  Save,
+  Sparkles,
+} from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   useCallback,
@@ -259,9 +268,26 @@ function StudioNodeWorkbenchInner() {
     onConnect,
   } = useNodeWorkflow()
   const modelOptionsByType = useWorkflowModelOptions()
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
   const mainRef = useRef<HTMLDivElement>(null)
   const [addMenu, setAddMenu] = useState<AddMenuState>(DEFAULT_ADD_MENU)
+
+  const handleFitView = useCallback(() => {
+    fitView({ padding: 0.2, duration: 320 })
+  }, [fitView])
+
+  const handleSaveStub = useCallback(() => {
+    toast.success(t('toasts.savedDraft'))
+  }, [t])
+
+  const seedFromExample = useCallback(
+    (idea: string) => {
+      const created = addNode('script', { x: 240, y: 160 })
+      updateNodeData(created.id, { prompt: idea })
+      toast.success(t('toasts.exampleLoaded'))
+    },
+    [addNode, updateNodeData, t],
+  )
 
   const editorNode = nodes.find((node) => node.id === editorNodeId)
   const editorBreakdown = editorNode?.data.breakdown
@@ -398,12 +424,20 @@ function StudioNodeWorkbenchInner() {
     [editorNodeId, updateNodeData],
   )
 
+  const exampleKeys = ['exampleOne', 'exampleTwo', 'exampleThree'] as const
+  const exampleIdeas = exampleKeys.map((key) => t(`examples.${key}`))
+
   return (
     <NodeWorkflowActionsProvider value={actions}>
       <main
         ref={mainRef}
         className="relative h-[calc(100vh-3rem)] overflow-hidden bg-background"
       >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_60%_30%_at_50%_0%,color-mix(in_oklab,var(--primary)_6%,transparent),transparent_70%)]"
+        />
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -416,69 +450,53 @@ function StudioNodeWorkbenchInner() {
           fitView
           fitViewOptions={{ padding: 0.2 }}
           proOptions={{ hideAttribution: true }}
-          className="!bg-background"
+          className="!bg-transparent"
         >
           <Background
             variant={BackgroundVariant.Dots}
-            gap={28}
-            size={1.4}
-            color="hsl(var(--border))"
+            gap={32}
+            size={1.2}
+            color="color-mix(in oklab, var(--border) 70%, transparent)"
           />
-          <Controls position="bottom-right" showInteractive={false} />
+          <Controls
+            position="bottom-right"
+            showInteractive={false}
+            className="!rounded-xl !border !border-border/70 !bg-card/95 !shadow-sm !backdrop-blur"
+          />
           <MiniMap
             position="bottom-left"
             pannable
             zoomable
-            className="!bg-card/80 !border !border-border/70"
+            className="!rounded-xl !border !border-border/70 !bg-card/90 !shadow-sm !backdrop-blur"
+            maskColor="color-mix(in oklab, var(--background) 88%, transparent)"
           />
         </ReactFlow>
 
         {nodes.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="pointer-events-auto text-center">
-              <h1 className="text-2xl font-semibold text-muted-foreground">
-                {t('blankCanvasTitle')}
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t('blankCanvasBody')}
-              </p>
-              <Button
-                type="button"
-                className="mt-5 rounded-full"
-                onClick={handleBlankCanvasAdd}
-              >
-                <KeyRound className="size-4" />
-                {t('addNode')}
-              </Button>
-            </div>
-          </div>
+          <BlankCanvasHero
+            title={t('blankCanvasTitle')}
+            body={t('blankCanvasBody')}
+            startLabel={t('blankCanvasCta')}
+            examplesLabel={t('blankCanvasExamplesLabel')}
+            examples={exampleIdeas}
+            onPickExample={seedFromExample}
+            onAddBlank={handleBlankCanvasAdd}
+          />
         )}
 
-        <div className="pointer-events-none absolute left-5 top-5 z-20 flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-3 py-2 shadow-sm backdrop-blur">
-          <span className="pointer-events-auto text-sm font-semibold text-foreground">
-            {t('projectUntitled')}
-          </span>
-        </div>
-
-        <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-          <Badge variant="secondary" className="h-9 gap-2 px-3">
-            <Sparkles className="size-3.5" />
-            {t('canvasCredits')}
-          </Badge>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 rounded-full"
-            onClick={openToolbarAddMenu}
-          >
-            <KeyRound className="size-4" />
-            {t('toolbar.add')}
-          </Button>
-          <ApiKeyDrawerTrigger className="h-9 rounded-full">
-            <ApiKeyManager />
-          </ApiKeyDrawerTrigger>
-        </div>
+        <CanvasTopBar
+          projectLabel={t('projectUntitled')}
+          modeLabel={t('eyebrow')}
+          addLabel={t('toolbar.add')}
+          fitLabel={t('toolbar.fit')}
+          saveLabel={t('toolbar.save')}
+          creditsLabel={t('canvasCredits')}
+          nodeCount={nodes.length}
+          nodeCountLabel={t('toolbar.nodeCount', { count: nodes.length })}
+          onAdd={openToolbarAddMenu}
+          onFit={handleFitView}
+          onSave={handleSaveStub}
+        />
 
         {addMenu.open && (
           <CanvasAddMenu
@@ -501,6 +519,174 @@ function StudioNodeWorkbenchInner() {
         )}
       </main>
     </NodeWorkflowActionsProvider>
+  )
+}
+
+interface CanvasTopBarProps {
+  projectLabel: string
+  modeLabel: string
+  addLabel: string
+  fitLabel: string
+  saveLabel: string
+  creditsLabel: string
+  nodeCount: number
+  nodeCountLabel: string
+  onAdd: () => void
+  onFit: () => void
+  onSave: () => void
+}
+
+function CanvasTopBar({
+  projectLabel,
+  modeLabel,
+  addLabel,
+  fitLabel,
+  saveLabel,
+  creditsLabel,
+  nodeCount,
+  nodeCountLabel,
+  onAdd,
+  onFit,
+  onSave,
+}: CanvasTopBarProps) {
+  return (
+    <div className="pointer-events-none absolute inset-x-5 top-5 z-20 flex flex-wrap items-center justify-between gap-3">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-border/70 bg-card/95 px-4 py-2 shadow-sm backdrop-blur">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+          <Layers className="size-4" />
+        </div>
+        <div className="flex flex-col leading-tight">
+          <span className="font-display text-3xs font-medium uppercase tracking-nav text-muted-foreground">
+            {modeLabel}
+          </span>
+          <span className="font-display text-sm font-semibold text-foreground">
+            {projectLabel}
+          </span>
+        </div>
+        <span className="hidden h-6 w-px bg-border/70 sm:block" aria-hidden />
+        <span className="hidden font-mono text-3xs tabular-nums text-muted-foreground sm:inline">
+          {nodeCount > 0 ? nodeCountLabel : '—'}
+        </span>
+      </div>
+
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1 rounded-full border border-border/70 bg-card/95 p-1 shadow-sm backdrop-blur">
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 rounded-full px-3"
+            onClick={onAdd}
+          >
+            <Plus className="size-4" />
+            {addLabel}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-full px-3 text-muted-foreground hover:text-foreground"
+            onClick={onFit}
+          >
+            <Maximize2 className="size-4" />
+            <span className="hidden md:inline">{fitLabel}</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-full px-3 text-muted-foreground hover:text-foreground"
+            onClick={onSave}
+          >
+            <Save className="size-4" />
+            <span className="hidden md:inline">{saveLabel}</span>
+          </Button>
+        </div>
+
+        <Badge
+          variant="secondary"
+          className="h-9 gap-2 rounded-full bg-card/95 px-3 font-display text-3xs font-medium uppercase tracking-nav text-muted-foreground shadow-sm backdrop-blur"
+        >
+          <Sparkles className="size-3.5 text-orange-600" />
+          {creditsLabel}
+        </Badge>
+        <ApiKeyDrawerTrigger className="h-9 rounded-full">
+          <ApiKeyManager />
+        </ApiKeyDrawerTrigger>
+      </div>
+    </div>
+  )
+}
+
+interface BlankCanvasHeroProps {
+  title: string
+  body: string
+  startLabel: string
+  examplesLabel: string
+  examples: string[]
+  onPickExample: (idea: string) => void
+  onAddBlank: () => void
+}
+
+function BlankCanvasHero({
+  title,
+  body,
+  startLabel,
+  examplesLabel,
+  examples,
+  onPickExample,
+  onAddBlank,
+}: BlankCanvasHeroProps) {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
+      <div className="pointer-events-auto w-full max-w-xl text-center">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-border/70 bg-card/95 text-orange-600 shadow-sm backdrop-blur">
+          <FileText className="size-5" />
+        </div>
+        <h1 className="mt-5 font-display text-3xl font-semibold leading-tight tracking-hero text-foreground">
+          {title}
+        </h1>
+        <p className="mx-auto mt-3 max-w-md font-serif text-base leading-7 text-muted-foreground">
+          {body}
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <Button
+            type="button"
+            className="h-10 rounded-full"
+            onClick={onAddBlank}
+          >
+            <Plus className="size-4" />
+            {startLabel}
+          </Button>
+        </div>
+
+        <div className="mt-8 grid gap-2 text-left">
+          <p className="text-3xs font-medium uppercase tracking-nav text-muted-foreground">
+            {examplesLabel}
+          </p>
+          <ul className="grid gap-2">
+            {examples.map((example, index) => (
+              <li key={index}>
+                <button
+                  type="button"
+                  onClick={() => onPickExample(example)}
+                  className="group flex w-full items-start gap-3 rounded-xl border border-border/70 bg-card/95 px-4 py-3 text-left shadow-sm backdrop-blur transition-colors hover:border-foreground/40 hover:bg-card"
+                >
+                  <span
+                    aria-hidden
+                    className="mt-2 size-1.5 shrink-0 rounded-full bg-orange-500"
+                  />
+                  <span className="font-serif text-sm leading-6 text-foreground/85 group-hover:text-foreground">
+                    {example}
+                  </span>
+                  <Frame className="ml-auto size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground/60" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
   )
 }
 

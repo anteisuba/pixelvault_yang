@@ -1047,6 +1047,7 @@
     "sidebarFavorites": "Favorites",
     "sidebarPublished": "Published to gallery",
     "sidebarUploads": "Local assets",
+    "sidebarViews": "Views",
     "sidebarModel3D": "3D",
     "sidebarTools": "Tools",
     "sidebarImages": "Images",
@@ -1197,6 +1198,8 @@
     "insertPrompt": "Insert prompt",
     "applyRecipe": "Apply full recipe",
     "recentTemplates": "Recent templates",
+    "allTemplates": "All templates",
+    "searchPlaceholder": "Search templates...",
     "templateCount": "{count} templates",
     "updateTemplateSuccess": "Prompt template updated",
     "updateTemplateFailed": "Failed to update prompt template"
@@ -2444,6 +2447,189 @@
         "title": "Node Editor",
         "description": "Build visual workflows that chain generation, editing, and analysis steps."
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "Node workflow",
+    "title": "Script canvas",
+    "subtitle": "Turn one rough idea into reusable characters, scenes, actions, beats, and shots before generation.",
+    "ideaLabel": "Idea",
+    "ideaPlaceholder": "Three characters discover an old camera that predicts the future inside an abandoned station.",
+    "plannerLabel": "Planner",
+    "apiKeyLabel": "API key",
+    "generate": "Break down script",
+    "generating": "Planning...",
+    "errorFallback": "Script planning failed. Try another model or refine the idea.",
+    "configuredKeys": "{count, plural, one {# planner key ready} other {# planner keys ready}}",
+    "noPlannerKeys": "No Gemini or OpenAI key configured",
+    "controlTitle": "Creative control",
+    "controlSubtitle": "Cards first, prompts later",
+    "plannerUsed": "Planner used",
+    "referenceIntent": "Reference intent",
+    "emptyTitle": "Start from an idea",
+    "emptyBody": "The canvas will fill with editable story structure after the first breakdown.",
+    "projectUntitled": "Untitled project",
+    "projectName": "Project name",
+    "blankCanvasTitle": "Start your canvas from a script",
+    "blankCanvasBody": "Break a rough idea into reusable characters, scenes, beats, and shots — then chain image, video, and audio nodes to keep generating.",
+    "blankCanvasCta": "Create script node",
+    "blankCanvasExamplesLabel": "Or start from these prompts",
+    "addNode": "Add node",
+    "addMenuTitle": "New node",
+    "miniMap": "Minimap",
+    "fitViewHint": "Returned to the default view.",
+    "canvasCredits": "1.0 k",
+    "modelRouteCount": "{count, plural, one {# available route} other {# available routes}}",
+    "modelPicker": {
+      "select": "Choose model",
+      "title": "Choose model",
+      "description": "The same picker is shared by every node; the node type only changes the candidate models and API routes."
+    },
+    "scriptNodeDraftTitle": "Untitled script",
+    "canvasTitle": "Node canvas",
+    "canvasSubtitle": "The breakdown becomes a script node first. Click it to edit characters, scenes, actions, beats, and shots inside the node.",
+    "scriptNodeType": "Script node",
+    "openScriptNode": "Open script node editor",
+    "editNode": "Edit node",
+    "openEditorHint": "Click to edit",
+    "editorTitle": "Edit script node",
+    "editorDescription": "Changes are saved into the current canvas state and can later connect to character cards, keyframes, and video nodes.",
+    "saveNode": "Save node",
+    "closeEditor": "Close",
+    "startState": "Start:",
+    "endState": "End:",
+    "beatIndex": "Beat {index}",
+    "duration": "{seconds}s",
+    "planners": {
+      "auto": "Auto select",
+      "gemini": "Gemini 3 Pro",
+      "openai": "GPT-5.2"
+    },
+    "apiKeys": {
+      "auto": "Auto / platform key"
+    },
+    "toolbar": {
+      "pointer": "Select",
+      "add": "Add node",
+      "pan": "Pan canvas",
+      "fit": "Fit view",
+      "save": "Save draft",
+      "zoomOut": "Zoom out",
+      "nodeCount": "{count, plural, one {# node} other {# nodes}}"
+    },
+    "breakdownCountersLabel": "Breakdown overview",
+    "breakdownTimelineLabel": "Beat timeline",
+    "nodeTypes": {
+      "script": "Script",
+      "text": "Text",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio"
+    },
+    "nodeDraftTitles": {
+      "text": "Text generation",
+      "image": "Image generation",
+      "video": "Video generation",
+      "audio": "Audio generation"
+    },
+    "scriptNodePlaceholder": "Describe the story, character relationship, scene mood, or abstract reference style...",
+    "placeholderPreview": {
+      "text": "Waiting for text",
+      "image": "Waiting for image",
+      "video": "Waiting for video",
+      "audio": "Waiting for audio"
+    },
+    "placeholderPrompt": {
+      "text": "Describe the text you want to generate...",
+      "image": "Describe the image you want to generate...",
+      "video": "Describe your generation or edit request...",
+      "audio": "Enter text to synthesize..."
+    },
+    "placeholderComingSoon": "Pending",
+    "toasts": {
+      "generated": "Script node generated.",
+      "saved": "Script node saved.",
+      "savedDraft": "Canvas draft saved.",
+      "exampleLoaded": "Example loaded — press generate to break it down."
+    },
+    "examples": {
+      "exampleOne": "Three characters discover an old camera that predicts the future inside an abandoned station.",
+      "exampleTwo": "A quiet fantasy healer and a reckless knight argue in a snow-covered shrine before a hidden door opens.",
+      "exampleThree": "A cyberpunk courier realizes the package she is carrying is broadcasting her own memories."
+    },
+    "exampleLabels": {
+      "exampleOne": "Mystery station",
+      "exampleTwo": "Fantasy shrine",
+      "exampleThree": "Cyber courier"
+    },
+    "steps": {
+      "characters": "Characters",
+      "scenes": "Scenes",
+      "actions": "Actions",
+      "beats": "Beats",
+      "shots": "Shots"
+    },
+    "sections": {
+      "characters": "Characters",
+      "scenes": "Scenes",
+      "actions": "Actions",
+      "beats": "Beats",
+      "shots": "Shots"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "characters": "Characters",
+      "scenes": "Scenes",
+      "actions": "Actions",
+      "beats": "Beats",
+      "shots": "Shots"
+    },
+    "fields": {
+      "title": "Title",
+      "logline": "Logline",
+      "referenceSummary": "Reference intent",
+      "rewriteGuidance": "Original rewrite direction",
+      "name": "Name",
+      "role": "Role",
+      "visualSeed": "Visual seed",
+      "functionInStory": "Story function",
+      "personality": "Personality",
+      "goal": "Goal",
+      "label": "Label",
+      "locationType": "Location type",
+      "timeOfDay": "Time",
+      "mood": "Mood",
+      "lighting": "Lighting",
+      "verb": "Action",
+      "object": "Object",
+      "consequence": "Consequence",
+      "duration": "Duration",
+      "visibleAction": "Visible action",
+      "emotionalTurn": "Emotional turn",
+      "cameraMotion": "Camera motion",
+      "startState": "Start state",
+      "endState": "End state"
+    },
+    "copyRisk": {
+      "low": "Low copy risk",
+      "medium": "Medium copy risk",
+      "high": "High copy risk"
+    },
+    "shotTypes": {
+      "establishing": "Establishing",
+      "wide": "Wide",
+      "medium": "Medium",
+      "closeup": "Close-up",
+      "reaction": "Reaction"
+    },
+    "referenceNeeds": {
+      "none": "No ref",
+      "character": "Character ref",
+      "scene": "Scene ref",
+      "first_frame": "First frame",
+      "last_frame": "Last frame",
+      "first_and_last_frame": "First + last",
+      "multi_reference": "Multi-ref"
     }
   },
   "StudioV2": {

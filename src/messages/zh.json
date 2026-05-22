@@ -1047,6 +1047,7 @@
     "sidebarFavorites": "收藏",
     "sidebarPublished": "已发布到画廊",
     "sidebarUploads": "本地素材",
+    "sidebarViews": "视图",
     "sidebarModel3D": "3D",
     "sidebarTools": "工具",
     "sidebarImages": "图像",
@@ -1197,6 +1198,8 @@
     "insertPrompt": "插入提示词",
     "applyRecipe": "应用整套配方",
     "recentTemplates": "最近模板",
+    "allTemplates": "全部模板",
+    "searchPlaceholder": "搜索模板...",
     "templateCount": "{count} 个模板",
     "updateTemplateSuccess": "提示词模板已更新",
     "updateTemplateFailed": "更新提示词模板失败"
@@ -2444,6 +2447,189 @@
         "title": "节点编辑器",
         "description": "可视化工作流，串联生成、编辑、解析等步骤。"
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "节点工作流",
+    "title": "剧本画布",
+    "subtitle": "把一个粗略想法先拆成可复用的角色、场景、行为、段落和镜头，再进入生成。",
+    "ideaLabel": "想法",
+    "ideaPlaceholder": "三个角色在废弃车站里发现一台会预言未来的旧相机。",
+    "plannerLabel": "规划模型",
+    "apiKeyLabel": "API Key",
+    "generate": "拆分剧本",
+    "generating": "规划中...",
+    "errorFallback": "剧本规划失败。可以换一个模型，或把想法描述得更具体。",
+    "configuredKeys": "已配置 {count} 个规划 Key",
+    "noPlannerKeys": "还没有 Gemini 或 OpenAI Key",
+    "controlTitle": "创作控制",
+    "controlSubtitle": "先做卡片，再编提示词",
+    "plannerUsed": "本次规划模型",
+    "referenceIntent": "参考意图",
+    "emptyTitle": "从一个想法开始",
+    "emptyBody": "第一次拆分后，画布会生成可编辑的故事结构。",
+    "projectUntitled": "未命名项目",
+    "projectName": "项目名称",
+    "blankCanvasTitle": "从一个剧本开始你的画布",
+    "blankCanvasBody": "把粗略想法先拆成可复用的角色、场景、段落和镜头，再连接图片、视频、音频节点继续生成。",
+    "blankCanvasCta": "新建剧本节点",
+    "blankCanvasExamplesLabel": "或试试这些起点",
+    "addNode": "添加节点",
+    "addMenuTitle": "新建节点",
+    "miniMap": "小地图",
+    "fitViewHint": "已回到默认视图。",
+    "canvasCredits": "1.0 k",
+    "modelRouteCount": "{count} 个可用路由",
+    "modelPicker": {
+      "select": "请选择模型",
+      "title": "选择模型",
+      "description": "同一个选择器用于所有节点，节点类型只决定候选模型和可用 API 路由。"
+    },
+    "scriptNodeDraftTitle": "未命名剧本",
+    "canvasTitle": "节点画布",
+    "canvasSubtitle": "剧本拆分会先落成一个剧本节点。点击节点即可编辑内部的角色、场景、行为、段落和镜头。",
+    "scriptNodeType": "剧本节点",
+    "openScriptNode": "打开剧本节点编辑器",
+    "editNode": "编辑节点",
+    "openEditorHint": "点击编辑",
+    "editorTitle": "编辑剧本节点",
+    "editorDescription": "修改后的内容会保存在当前画布状态中，后续可继续连接角色卡、关键帧和视频节点。",
+    "saveNode": "保存节点",
+    "closeEditor": "关闭",
+    "startState": "开始：",
+    "endState": "结束：",
+    "beatIndex": "段落 {index}",
+    "duration": "{seconds} 秒",
+    "planners": {
+      "auto": "自动选择",
+      "gemini": "Gemini 3 Pro",
+      "openai": "GPT-5.2"
+    },
+    "apiKeys": {
+      "auto": "自动 / 平台 Key"
+    },
+    "toolbar": {
+      "pointer": "选择",
+      "add": "添加节点",
+      "pan": "移动画布",
+      "fit": "适应屏幕",
+      "save": "保存草稿",
+      "zoomOut": "缩小",
+      "nodeCount": "{count} 个节点"
+    },
+    "breakdownCountersLabel": "拆解概览",
+    "breakdownTimelineLabel": "段落时长",
+    "nodeTypes": {
+      "script": "剧本",
+      "text": "文本",
+      "image": "图片",
+      "video": "视频",
+      "audio": "音频"
+    },
+    "nodeDraftTitles": {
+      "text": "文本生成",
+      "image": "图片生成",
+      "video": "视频生成",
+      "audio": "音频生成"
+    },
+    "scriptNodePlaceholder": "描述你想做的剧情、角色关系、场景氛围或参考作品风格...",
+    "placeholderPreview": {
+      "text": "等待文本结果",
+      "image": "等待图片结果",
+      "video": "等待视频结果",
+      "audio": "等待音频结果"
+    },
+    "placeholderPrompt": {
+      "text": "描述你想生成的文本内容...",
+      "image": "描述你想生成的画面...",
+      "video": "描述你的修改或生成需求...",
+      "audio": "输入要合成的文字..."
+    },
+    "placeholderComingSoon": "待接入",
+    "toasts": {
+      "generated": "剧本节点已生成。",
+      "saved": "剧本节点已保存。",
+      "savedDraft": "画布草稿已保存。",
+      "exampleLoaded": "已加入示例剧本，按生成开始拆解。"
+    },
+    "examples": {
+      "exampleOne": "三个角色在废弃车站里发现一台会预言未来的旧相机。",
+      "exampleTwo": "安静的幻想系治疗师和冲动骑士在雪中的神社争执，随后一扇隐藏的门打开。",
+      "exampleThree": "赛博朋克快递员发现自己护送的包裹正在广播她自己的记忆。"
+    },
+    "exampleLabels": {
+      "exampleOne": "悬疑车站",
+      "exampleTwo": "雪中神社",
+      "exampleThree": "赛博快递"
+    },
+    "steps": {
+      "characters": "角色",
+      "scenes": "场景",
+      "actions": "行为",
+      "beats": "段落",
+      "shots": "镜头"
+    },
+    "sections": {
+      "characters": "角色",
+      "scenes": "场景",
+      "actions": "行为",
+      "beats": "段落",
+      "shots": "镜头"
+    },
+    "tabs": {
+      "overview": "总览",
+      "characters": "角色",
+      "scenes": "场景",
+      "actions": "行为",
+      "beats": "段落",
+      "shots": "镜头"
+    },
+    "fields": {
+      "title": "标题",
+      "logline": "一句话梗概",
+      "referenceSummary": "参考意图",
+      "rewriteGuidance": "原创改写方向",
+      "name": "名称",
+      "role": "角色职责",
+      "visualSeed": "视觉描述",
+      "functionInStory": "剧情功能",
+      "personality": "性格",
+      "goal": "目标",
+      "label": "标签",
+      "locationType": "地点类型",
+      "timeOfDay": "时间",
+      "mood": "氛围",
+      "lighting": "光线",
+      "verb": "动作",
+      "object": "对象",
+      "consequence": "结果",
+      "duration": "时长",
+      "visibleAction": "可见行动",
+      "emotionalTurn": "情绪转折",
+      "cameraMotion": "镜头运动",
+      "startState": "开始状态",
+      "endState": "结束状态"
+    },
+    "copyRisk": {
+      "low": "低复刻风险",
+      "medium": "中等复刻风险",
+      "high": "高复刻风险"
+    },
+    "shotTypes": {
+      "establishing": "定场",
+      "wide": "远景",
+      "medium": "中景",
+      "closeup": "特写",
+      "reaction": "反应"
+    },
+    "referenceNeeds": {
+      "none": "无需参考",
+      "character": "角色参考",
+      "scene": "场景参考",
+      "first_frame": "首帧",
+      "last_frame": "尾帧",
+      "first_and_last_frame": "首尾帧",
+      "multi_reference": "多参考"
     }
   },
   "StudioV2": {

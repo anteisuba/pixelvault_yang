@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 interface ImageDropZoneProps {
   isDragging: boolean
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDragLeave: () => void
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void
+  onDragLeave: (e: React.DragEvent<HTMLDivElement>) => void
   onClick: () => void
   uploadLabel: string
   formatsLabel: string
@@ -19,6 +20,7 @@ interface ImageDropZoneProps {
 export function ImageDropZone({
   isDragging,
   onDrop,
+  onDragEnter,
   onDragOver,
   onDragLeave,
   onClick,
@@ -29,6 +31,7 @@ export function ImageDropZone({
     <div
       role="button"
       tabIndex={0}
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}

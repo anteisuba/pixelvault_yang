@@ -22,6 +22,8 @@ import type { ProjectRecord } from '@/types'
 interface ProjectCreateDialogProps {
   /** Custom trigger element (rendered as the DialogTrigger child). */
   trigger: React.ReactNode
+  /** Optional parent folder for nested asset folders. */
+  parentId?: string | null
   /** Optional callback fired with the created project after a successful create. */
   onCreated?: (project: ProjectRecord) => void
 }
@@ -37,6 +39,7 @@ interface ProjectCreateDialogProps {
  */
 export function ProjectCreateDialog({
   trigger,
+  parentId = null,
   onCreated,
 }: ProjectCreateDialogProps) {
   const t = useTranslations('LibraryPage')
@@ -62,6 +65,7 @@ export function ProjectCreateDialog({
       name: trimmedName,
       description:
         trimmedDescription.length > 0 ? trimmedDescription : undefined,
+      parentId,
     })
     setIsCreating(false)
     if (response.success && response.data) {

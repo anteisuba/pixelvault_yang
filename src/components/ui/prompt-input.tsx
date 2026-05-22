@@ -1,6 +1,7 @@
 'use client'
 
-import { Textarea } from '@/components/ui/textarea'
+import TextareaAutosize from 'react-textarea-autosize'
+
 import {
   Tooltip,
   TooltipContent,
@@ -8,13 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import React, {
-  createContext,
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { createContext, useContext, useRef, useState } from 'react'
 
 type PromptInputContextType = {
   isLoading: boolean
@@ -76,6 +71,10 @@ function PromptInput({
     onClick?.(e)
   }
 
+  const { style: incomingStyle, ...restProps } = props
+  const resolvedMaxHeight =
+    typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight
+
   return (
     <TooltipProvider>
       <PromptInputContext.Provider
@@ -91,12 +90,18 @@ function PromptInput({
       >
         <div
           onClick={handleClick}
+          style={
+            {
+              '--prompt-max-h': resolvedMaxHeight,
+              ...incomingStyle,
+            } as React.CSSProperties
+          }
           className={cn(
             'border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs',
             disabled && 'cursor-not-allowed opacity-60',
             className,
           )}
-          {...props}
+          {...restProps}
         >
           {children}
         </div>
@@ -105,85 +110,79 @@ function PromptInput({
   )
 }
 
-export type PromptInputTextareaProps = {
-  disableAutosize?: boolean
-} & React.ComponentProps<typeof Textarea>
+export type PromptInputTextareaProps = Omit<
+  React.ComponentProps<typeof TextareaAutosize>,
+  'ref' | 'value' | 'onChange'
+>
 
 function PromptInputTextarea({
   className,
   onKeyDown,
-  disableAutosize = false,
+  onCompositionStart,
+  onCompositionEnd,
+  onFocus,
   ...props
 }: PromptInputTextareaProps) {
-  const { value, setValue, maxHeight, onSubmit, disabled, textareaRef } =
-    usePromptInput()
-
-  const adjustHeight = (el: HTMLTextAreaElement | null) => {
-    if (!el || disableAutosize) return
-
-    el.style.height = 'auto'
-
-    if (typeof maxHeight === 'number') {
-      el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
-    } else {
-      el.style.height = `min(${el.scrollHeight}px, ${maxHeight})`
-    }
-  }
-
-  const handleRef = (el: HTMLTextAreaElement | null) => {
-    textareaRef.current = el
-    adjustHeight(el)
-  }
-
-  useLayoutEffect(() => {
-    if (!textareaRef.current || disableAutosize) return
-
-    const el = textareaRef.current
-    el.style.height = 'auto'
-
-    if (typeof maxHeight === 'number') {
-      el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
-    } else {
-      el.style.height = `min(${el.scrollHeight}px, ${maxHeight})`
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, maxHeight, disableAutosize])
+  const { value, setValue, onSubmit, disabled, textareaRef } = usePromptInput()
+  const [isComposing, setIsComposing] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    adjustHeight(e.target)
     setValue(e.target.value)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    onKeyDown?.(e)
+    if (e.defaultPrevented) return
+
+    if (e.key === 'Enter') {
+      // IME guard: don't submit while composing CJK characters. Both the
+      // tracked state and the native flag are checked because some browsers
+      // (Safari) emit keydown without isComposing during the final commit.
+      if (isComposing || e.nativeEvent.isComposing) return
+      if (e.shiftKey) return
       e.preventDefault()
       onSubmit?.()
     }
-    onKeyDown?.(e)
   }
 
-  // On mobile, scroll the input into view when keyboard appears
+  const handleCompositionStart = (
+    e: React.CompositionEvent<HTMLTextAreaElement>,
+  ) => {
+    setIsComposing(true)
+    onCompositionStart?.(e)
+  }
+
+  const handleCompositionEnd = (
+    e: React.CompositionEvent<HTMLTextAreaElement>,
+  ) => {
+    setIsComposing(false)
+    onCompositionEnd?.(e)
+  }
+
   const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    props.onFocus?.(e)
-    // Small delay to let the virtual keyboard finish animating
+    onFocus?.(e)
+    // On mobile, scroll the input into view when virtual keyboard appears.
     setTimeout(() => {
       e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 300)
   }
 
   return (
-    <Textarea
-      ref={handleRef}
+    <TextareaAutosize
+      ref={textareaRef}
       value={value}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
+      onCompositionStart={handleCompositionStart}
+      onCompositionEnd={handleCompositionEnd}
       onFocus={handleFocus}
+      disabled={disabled}
+      minRows={1}
       className={cn(
-        'text-primary min-h-[44px] w-full resize-none border-none bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+        'text-primary placeholder:text-muted-foreground flex min-h-[44px] w-full resize-none border-none bg-transparent px-3 py-2 text-base shadow-none outline-none transition-[color,box-shadow] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+        '[max-height:var(--prompt-max-h)]',
         className,
       )}
-      rows={1}
-      disabled={disabled}
       {...props}
     />
   )

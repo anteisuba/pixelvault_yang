@@ -23,12 +23,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import type {
-  AdvancedParams,
-  GenerationEvaluation,
-  GenerationPlanResponse,
-  RecipeUsage,
-} from '@/types'
+import type { AdvancedParams, GenerationEvaluation, RecipeUsage } from '@/types'
 import {
   DEFAULT_WORKFLOW_ID,
   getWorkflowById,
@@ -96,7 +91,6 @@ export type PanelName =
   | 'videoParams'
   | 'script'
   | 'keepChange'
-  | 'planPreview'
 
 type OutputType = 'image' | 'video' | 'audio'
 type WorkflowMode = 'quick' | 'card'
@@ -253,7 +247,6 @@ const initialPanels: Record<PanelName, boolean> = {
   videoParams: false,
   script: false,
   keepChange: false,
-  planPreview: false,
 }
 
 const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
@@ -531,9 +524,7 @@ const StudioDataContext = createContext<StudioDataContextValue | null>(null)
 // ═══════════════════════════════════════════════════════════════════
 
 interface StudioGenContextValue extends UseUnifiedGenerateReturn {
-  currentPlan: GenerationPlanResponse | null
   lastEvaluation: GenerationEvaluation | null
-  setCurrentPlan: (plan: GenerationPlanResponse | null) => void
   setLastEvaluation: (evaluation: GenerationEvaluation | null) => void
 }
 
@@ -602,20 +593,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // COLD — generation
   const generation = useUnifiedGenerate()
-  const [currentPlan, setCurrentPlan] = useState<GenerationPlanResponse | null>(
-    null,
-  )
   const [lastEvaluation, setLastEvaluation] =
     useState<GenerationEvaluation | null>(null)
   const generationValue = useMemo<StudioGenContextValue>(
     () => ({
       ...generation,
-      currentPlan,
       lastEvaluation,
-      setCurrentPlan,
       setLastEvaluation,
     }),
-    [generation, currentPlan, lastEvaluation],
+    [generation, lastEvaluation],
   )
 
   // Refresh usage summary when a generation completes

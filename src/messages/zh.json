@@ -2476,7 +2476,6 @@
     "generate": "生成",
     "generating": "生成中...",
     "generateSuccess": "图片已生成！",
-    "feed3DStudio": "→ 投喂 3D Studio",
     "generateFailed": "生成失败",
     "variantGenerate": "生成变体",
     "variantGenerating": "正在生成 {count} 个变体...",
@@ -2494,11 +2493,6 @@
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "图层分解",
     "transform": "变换",
-    "make3DReady": "3D 适配",
-    "plan": "规划",
-    "planLoading": "规划中…",
-    "planNeedsPrompt": "先输入提示词再规划",
-    "planFailed": "生成计划失败",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token 已保存",
     "selectModelFirst": "请先选择模型以配置高级设置",
@@ -2549,8 +2543,7 @@
     "characterCard": "角色卡",
     "civitai": "Civitai Token",
     "videoSettings": "视频设置",
-    "keepChange": "保留与改变",
-    "planPreview": "计划预览"
+    "keepChange": "保留与改变"
   },
   "StudioToolbar": {
     "enhance": "增强",
@@ -2559,11 +2552,7 @@
     "voice": "音色",
     "voiceSelected": "✓ 音色",
     "clone": "克隆",
-    "transcribe": "音频转脚本",
-    "make3DReady": "3D 适配",
-    "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
-    "make3DReadyOn": "已套用 3D 适配模板 — 生成后即可投喂 3D Studio。",
-    "make3DReadyOff": "已移除 3D 适配模板。"
+    "transcribe": "音频转脚本"
   },
   "StudioV3": {
     "quickMode": "快速生成",
@@ -3180,17 +3169,6 @@
     "saveFailed": "无法保存场景。",
     "statusDraft": "草稿",
     "statusScriptReady": "已确认"
-  },
-  "StudioGenerationPlan": {
-    "title": "生成计划",
-    "recommendedModels": "推荐模型",
-    "compiledPrompt": "编译后 Prompt",
-    "negativePrompt": "负面提示词",
-    "estimatedCost": "预估消耗",
-    "requests": "{count} 次请求",
-    "confirm": "确认生成",
-    "cancel": "返回修改",
-    "reasonLabel": "原因：{reason}"
   },
   "StudioResultFeedback": {
     "satisfied": "满意",

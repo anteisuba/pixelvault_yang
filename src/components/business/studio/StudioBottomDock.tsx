@@ -2,7 +2,7 @@
 
 import { memo, useCallback } from 'react'
 
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 
 import { StudioCardSection } from './StudioCardSection'
 import { StudioKeepChangePanel } from './StudioKeepChangePanel'
@@ -38,7 +38,6 @@ function buildRefinePrompt(
  */
 export const StudioBottomDock = memo(function StudioBottomDock() {
   const { state, dispatch } = useStudioForm()
-  const { currentPlan } = useStudioGen()
 
   const handleKeepChangeSubmit = useCallback(
     (keepTags: string[], changeTags: string[], freeText: string) => {
@@ -76,7 +75,7 @@ export const StudioBottomDock = memo(function StudioBottomDock() {
             payload: 'keepChange',
           })
         }
-        currentIntent={currentPlan?.intent ?? null}
+        currentIntent={null}
         onSubmit={handleKeepChangeSubmit}
       />
     </>

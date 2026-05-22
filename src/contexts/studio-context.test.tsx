@@ -10,7 +10,7 @@ import {
   type WorkflowId,
 } from '@/constants/workflows'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
-import type { GenerationEvaluation, GenerationPlanResponse } from '@/types'
+import type { GenerationEvaluation } from '@/types'
 
 vi.mock('@/hooks/use-character-cards', () => ({
   useCharacterCards: () => ({}),
@@ -51,17 +51,6 @@ vi.mock('@/hooks/use-onboarding', () => ({
 vi.mock('@/hooks/use-usage-summary', () => ({
   useUsageSummary: () => ({ refresh: vi.fn() }),
 }))
-
-const MOCK_PLAN: GenerationPlanResponse = {
-  intent: {
-    task: 'image',
-    subject: 'cat',
-  },
-  recommendedModels: [],
-  promptDraft: 'a cat portrait',
-  estimatedCost: 1,
-  variationCount: 1,
-}
 
 const MOCK_EVALUATION: GenerationEvaluation = {
   subjectMatch: 8,
@@ -190,16 +179,6 @@ describe('StudioProvider workflow selection', () => {
     expect(result.current.state.panels.videoParams).toBe(true)
   })
 
-  it('setCurrentPlan updates generation plan state', () => {
-    const { result } = renderHook(() => useStudioContext(), { wrapper })
-
-    act(() => {
-      result.current.generation.setCurrentPlan(MOCK_PLAN)
-    })
-
-    expect(result.current.generation.currentPlan).toEqual(MOCK_PLAN)
-  })
-
   it('setLastEvaluation updates evaluation state', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 
@@ -208,15 +187,5 @@ describe('StudioProvider workflow selection', () => {
     })
 
     expect(result.current.generation.lastEvaluation).toEqual(MOCK_EVALUATION)
-  })
-
-  it('toggles the planPreview panel through form dispatch', () => {
-    const { result } = renderHook(() => useStudioContext(), { wrapper })
-
-    act(() => {
-      result.current.dispatch({ type: 'TOGGLE_PANEL', payload: 'planPreview' })
-    })
-
-    expect(result.current.state.panels.planPreview).toBe(true)
   })
 })

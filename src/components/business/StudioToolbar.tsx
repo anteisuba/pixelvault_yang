@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Key, Layers, Cpu, Compass } from 'lucide-react'
+import { Key, Layers, Cpu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -23,19 +23,8 @@ import { StylePresetButton } from '@/components/business/studio/StylePresetButto
 
 interface StudioToolbarProps {
   onLayerDecompose?: () => void
-  onPlan?: () => void
-  planLoading?: boolean
-  planActive?: boolean
   onCivitaiToken?: () => void
   hasToken?: boolean
-  /**
-   * Wrap the user's prompt with a 3D-friendly template
-   * (white background, 3/4 view, A-pose, etc.) so the next
-   * generation produces a Hunyuan3D / TripoSR-ready source image.
-   */
-  onMake3DReady?: () => void
-  /** Visual active state: true while prompt currently carries the [3D-READY] marker. */
-  make3DReadyActive?: boolean
   disabled?: boolean
   /** Quick mode hides advanced tools */
   quickMode?: boolean
@@ -93,13 +82,8 @@ function ToolButton({
  */
 export function StudioToolbar({
   onLayerDecompose,
-  onPlan,
-  planLoading,
-  planActive,
   onCivitaiToken,
   hasToken,
-  onMake3DReady,
-  make3DReadyActive,
   disabled,
   quickMode,
 }: StudioToolbarProps) {
@@ -118,31 +102,9 @@ export function StudioToolbar({
 
         <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />
 
-        {/* Group 2 — Inputs & type switches: reference image / transform / 3D / plan / cards */}
+        {/* Group 2 — Inputs & type switches: reference image / transform / cards */}
         <ReferenceImageChip disabled={disabled} />
         <StudioTransformButton disabled={disabled} />
-        {onMake3DReady && (
-          <ToolButton
-            icon={<Box className="size-4" />}
-            label={t('make3DReady')}
-            onClick={onMake3DReady}
-            active={make3DReadyActive}
-            disabled={disabled}
-          />
-        )}
-        {onPlan && (
-          <ToolButton
-            icon={
-              <Compass
-                className={cn('size-4', planLoading && 'animate-spin')}
-              />
-            }
-            label={planLoading ? t('planLoading') : t('plan')}
-            onClick={onPlan}
-            active={planActive}
-            disabled={disabled || planLoading}
-          />
-        )}
         <StudioCardsButton disabled={disabled} />
         <StudioLoraChip disabled={disabled} />
         {!quickMode && (

@@ -2468,7 +2468,6 @@
     "generate": "生成",
     "generating": "生成中...",
     "generateSuccess": "画像が生成されました！",
-    "feed3DStudio": "→ 3D Studio へ",
     "generateFailed": "生成失敗",
     "variantGenerate": "バリアント生成",
     "variantGenerating": "{count}個のバリアントを生成中...",
@@ -2486,11 +2485,6 @@
     "referenceFormats": "JPG、PNG、WebP",
     "layerDecompose": "レイヤー分解",
     "transform": "変換",
-    "make3DReady": "3D対応",
-    "plan": "計画",
-    "planLoading": "計画中…",
-    "planNeedsPrompt": "プロンプトを入力してください",
-    "planFailed": "計画の生成に失敗しました",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token保存済み",
     "selectModelFirst": "詳細設定を行うにはモデルを選択してください",
@@ -2549,8 +2543,7 @@
     "characterCard": "キャラクターカード",
     "civitai": "Civitai トークン",
     "videoSettings": "ビデオ設定",
-    "keepChange": "保留と変更",
-    "planPreview": "プランプレビュー"
+    "keepChange": "保留と変更"
   },
   "StudioToolbar": {
     "enhance": "強化",
@@ -2559,11 +2552,7 @@
     "voice": "音声",
     "voiceSelected": "✓ 音声",
     "clone": "クローン",
-    "transcribe": "音声を書き起こし",
-    "make3DReady": "3D対応",
-    "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
-    "make3DReadyOn": "3D対応テンプレートを適用しました — 生成画像はそのまま 3D Studio に投入できます。",
-    "make3DReadyOff": "3D対応テンプレートを解除しました。"
+    "transcribe": "音声を書き起こし"
   },
   "StudioV3": {
     "quickMode": "クイック生成",
@@ -3180,17 +3169,6 @@
     "saveFailed": "シーンを保存できませんでした。",
     "statusDraft": "下書き",
     "statusScriptReady": "確定済み"
-  },
-  "StudioGenerationPlan": {
-    "title": "生成プラン",
-    "recommendedModels": "おすすめモデル",
-    "compiledPrompt": "コンパイル済みプロンプト",
-    "negativePrompt": "ネガティブプロンプト",
-    "estimatedCost": "推定コスト",
-    "requests": "{count} リクエスト",
-    "confirm": "確認して生成",
-    "cancel": "編集に戻る",
-    "reasonLabel": "理由: {reason}"
   },
   "StudioResultFeedback": {
     "satisfied": "満足",

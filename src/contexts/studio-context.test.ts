@@ -75,7 +75,6 @@ function makeInitialState(
       videoParams: false,
       script: false,
       keepChange: false,
-      planPreview: false,
     },
     ...overrides,
   }
@@ -660,7 +659,6 @@ describe('studioFormReducer', () => {
     'advanced',
     'refImage',
     'keepChange',
-    'planPreview',
   ])('TOGGLE_PANEL works for panel "%s"', (panel) => {
     const state = makeInitialState()
     const next = studioFormReducer(state, {

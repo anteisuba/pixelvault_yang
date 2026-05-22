@@ -63,7 +63,6 @@ import {
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
-import { fetchGenerationPlanAPI } from '@/lib/api-client/generation'
 import { getStylePresetById } from '@/constants/style-presets'
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
@@ -90,14 +89,6 @@ import {
 } from '@/components/ui/popover'
 import { ModelSelector } from '@/components/business/ModelSelector'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
-import { StudioGenerationPlan } from './StudioGenerationPlan'
-
-interface GenerationPlanOverrides {
-  modelId: string | null
-  compiledPrompt: string
-  negativePrompt?: string
-}
-
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
  * Uses prompt-kit PromptInput compound component.
@@ -106,13 +97,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
   const { styles, characters, backgrounds, imageUpload, projects } =
     useStudioData()
-  const {
-    isGenerating,
-    generate,
-    elapsedSeconds,
-    currentPlan,
-    setCurrentPlan,
-  } = useStudioGen()
+  const { isGenerating, generate, elapsedSeconds } = useStudioGen()
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tForm = useTranslations('StudioForm')
@@ -713,146 +698,126 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     ],
   )
 
-  const executeGenerate = useCallback(
-    async (overrides?: GenerationPlanOverrides) => {
-      if (!canGenerate) return
-      if (isAudioMode && selectedModel) {
-        await generate({
-          mode: 'audio',
-          audio: {
-            modelId: selectedModel.modelId,
-            apiKeyId: selectedModel.keyId,
-            freePrompt: state.prompt || undefined,
-            voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
-            // Preset reference (from a saved voice card) wins; otherwise fall
-            // back to whatever ad-hoc clip the user uploaded for this run.
-            // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
-            // references) takes care of the rest at the provider call site.
-            referenceAudioUrl:
-              selectedVoiceCard?.referenceAudioUrl ??
-              state.audioReferenceUrl ??
-              undefined,
-            referenceText:
-              selectedVoiceCard?.sampleText ??
-              (state.audioReferenceText.trim()
-                ? state.audioReferenceText.trim()
-                : undefined),
-            emotion: state.audioEmotion,
-            pace: state.audioPace,
-            pauseMarkers: state.audioPauseMarkers,
-            pronunciationDictionary: audioPronunciationDictionary,
-            speed: audioSpeed,
-            volume: state.audioVolume,
-            normalizeLoudness: state.audioNormalizeLoudness,
-            normalizeText: state.audioNormalizeText,
-            withTimestamps: state.audioWithTimestamps,
-            format: state.audioFormat,
-            sampleRate: state.audioSampleRate,
-            mp3Bitrate: state.audioMp3Bitrate,
-            opusBitrate: state.audioOpusBitrate,
-            latency: state.audioLatency,
-            temperature: state.audioTemperature,
-            topP: state.audioTopP,
-            chunkLength: state.audioChunkLength,
-            repetitionPenalty: state.audioRepetitionPenalty,
-            speakerVoiceIds:
-              state.audioSpeakerVoiceIds.length > 0
-                ? state.audioSpeakerVoiceIds
-                : undefined,
-          },
-        })
-        return
-      }
-      if (isVideoMode && selectedModel) {
-        const video = buildVideoInput()
-        if (!video) return
-        await generate({ mode: 'video', video })
-        return
-      }
-      const shouldApplyOverrides = !!overrides && state.workflowMode === 'quick'
-      const overrideModel =
-        shouldApplyOverrides && overrides.modelId
-          ? modelOptions.find((option) => option.modelId === overrides.modelId)
-          : undefined
-      if (overrideModel) {
-        dispatch({ type: 'SET_OPTION_ID', payload: overrideModel.optionId })
-      }
-      const image = buildImageInput(
-        shouldApplyOverrides
-          ? {
-              selectedModel: overrideModel,
-              compiledPrompt: overrides.compiledPrompt,
-              negativePrompt: overrides.negativePrompt,
-            }
-          : undefined,
-      )
-      if (!image) return
-      const result = await generate({ mode: 'image', image })
+  const executeGenerate = useCallback(async () => {
+    if (!canGenerate) return
+    if (isAudioMode && selectedModel) {
+      await generate({
+        mode: 'audio',
+        audio: {
+          modelId: selectedModel.modelId,
+          apiKeyId: selectedModel.keyId,
+          freePrompt: state.prompt || undefined,
+          voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+          // Preset reference (from a saved voice card) wins; otherwise fall
+          // back to whatever ad-hoc clip the user uploaded for this run.
+          // The Fish adapter's priority chain (speakerVoiceIds > voiceId >
+          // references) takes care of the rest at the provider call site.
+          referenceAudioUrl:
+            selectedVoiceCard?.referenceAudioUrl ??
+            state.audioReferenceUrl ??
+            undefined,
+          referenceText:
+            selectedVoiceCard?.sampleText ??
+            (state.audioReferenceText.trim()
+              ? state.audioReferenceText.trim()
+              : undefined),
+          emotion: state.audioEmotion,
+          pace: state.audioPace,
+          pauseMarkers: state.audioPauseMarkers,
+          pronunciationDictionary: audioPronunciationDictionary,
+          speed: audioSpeed,
+          volume: state.audioVolume,
+          normalizeLoudness: state.audioNormalizeLoudness,
+          normalizeText: state.audioNormalizeText,
+          withTimestamps: state.audioWithTimestamps,
+          format: state.audioFormat,
+          sampleRate: state.audioSampleRate,
+          mp3Bitrate: state.audioMp3Bitrate,
+          opusBitrate: state.audioOpusBitrate,
+          latency: state.audioLatency,
+          temperature: state.audioTemperature,
+          topP: state.audioTopP,
+          chunkLength: state.audioChunkLength,
+          repetitionPenalty: state.audioRepetitionPenalty,
+          speakerVoiceIds:
+            state.audioSpeakerVoiceIds.length > 0
+              ? state.audioSpeakerVoiceIds
+              : undefined,
+        },
+      })
+      return
+    }
+    if (isVideoMode && selectedModel) {
+      const video = buildVideoInput()
+      if (!video) return
+      await generate({ mode: 'video', video })
+      return
+    }
+    const image = buildImageInput()
+    if (!image) return
+    const result = await generate({ mode: 'image', image })
 
-      // Nudge: after 3 successful quick-mode generations, suggest Pro mode
-      if (result && state.workflowMode === 'quick') {
-        const NUDGE_KEY = 'studio-quick-gen-count'
-        const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
-        if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
-          const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
-          localStorage.setItem(NUDGE_KEY, String(count))
-          if (count === 3) {
-            toast(tV3('cardMode'), {
-              description: t('proModeNudge'),
-              action: {
-                label: t('tryProMode'),
-                onClick: () => {
-                  dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
-                  localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
-                },
+    // Nudge: after 3 successful quick-mode generations, suggest Pro mode
+    if (result && state.workflowMode === 'quick') {
+      const NUDGE_KEY = 'studio-quick-gen-count'
+      const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
+      if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
+        const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
+        localStorage.setItem(NUDGE_KEY, String(count))
+        if (count === 3) {
+          toast(tV3('cardMode'), {
+            description: t('proModeNudge'),
+            action: {
+              label: t('tryProMode'),
+              onClick: () => {
+                dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
+                localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
               },
-              onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
-            })
-          }
+            },
+            onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
+          })
         }
       }
-    },
-    [
-      canGenerate,
-      isAudioMode,
-      isVideoMode,
-      selectedModel,
-      modelOptions,
-      state.prompt,
-      state.voiceId,
-      state.audioEmotion,
-      state.audioPace,
-      state.audioPauseMarkers,
-      state.audioVolume,
-      state.audioNormalizeLoudness,
-      state.audioNormalizeText,
-      state.audioWithTimestamps,
-      state.audioFormat,
-      state.audioSampleRate,
-      state.audioMp3Bitrate,
-      state.audioOpusBitrate,
-      state.audioLatency,
-      state.audioTemperature,
-      state.audioTopP,
-      state.audioChunkLength,
-      state.audioRepetitionPenalty,
-      state.audioSpeakerVoiceIds,
-      state.audioReferenceUrl,
-      state.audioReferenceText,
-      state.workflowMode,
-      selectedVoiceCard?.voiceId,
-      selectedVoiceCard?.referenceAudioUrl,
-      selectedVoiceCard?.sampleText,
-      audioPronunciationDictionary,
-      audioSpeed,
-      buildImageInput,
-      buildVideoInput,
-      generate,
-      dispatch,
-      t,
-      tV3,
-    ],
-  )
+    }
+  }, [
+    canGenerate,
+    isAudioMode,
+    isVideoMode,
+    selectedModel,
+    state.prompt,
+    state.voiceId,
+    state.audioEmotion,
+    state.audioPace,
+    state.audioPauseMarkers,
+    state.audioVolume,
+    state.audioNormalizeLoudness,
+    state.audioNormalizeText,
+    state.audioWithTimestamps,
+    state.audioFormat,
+    state.audioSampleRate,
+    state.audioMp3Bitrate,
+    state.audioOpusBitrate,
+    state.audioLatency,
+    state.audioTemperature,
+    state.audioTopP,
+    state.audioChunkLength,
+    state.audioRepetitionPenalty,
+    state.audioSpeakerVoiceIds,
+    state.audioReferenceUrl,
+    state.audioReferenceText,
+    state.workflowMode,
+    selectedVoiceCard?.voiceId,
+    selectedVoiceCard?.referenceAudioUrl,
+    selectedVoiceCard?.sampleText,
+    audioPronunciationDictionary,
+    audioSpeed,
+    buildImageInput,
+    buildVideoInput,
+    generate,
+    dispatch,
+    t,
+    tV3,
+  ])
 
   const handleGenerate = useCallback(async () => {
     if (isGenerating) return
@@ -883,30 +848,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       }
       return
     }
-    // Plan-then-generate route: only when the user has NOT picked a
-    // specific model. Once they've selected one (Gemini Flash Image,
-    // Flux 2 Pro, ...) we must honour that selection — the plan flow
-    // would overwrite it with `recommendedModels[0]` on confirm.
-    const userPickedModel = !!selectedModel?.modelId
-    if (
-      !isAudioMode &&
-      !isVideoMode &&
-      state.workflowMode === 'quick' &&
-      trimmedPrompt &&
-      !userPickedModel
-    ) {
-      const result = await fetchGenerationPlanAPI({
-        naturalLanguage: state.prompt,
-      })
-      if (result.success && result.data) {
-        setCurrentPlan(result.data)
-        dispatch({ type: 'OPEN_PANEL', payload: 'planPreview' })
-        return
-      }
-
-      await executeGenerate()
-      return
-    }
     await executeGenerate()
   }, [
     canGenerate,
@@ -917,15 +858,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     modelRequiresRef,
     hasRefImage,
     modelRejectsRefImages,
-    isAudioMode,
-    isVideoMode,
     isAudioPromptOverLimit,
     isAudioReferenceIncomplete,
-    state.workflowMode,
-    state.prompt,
     trimmedPrompt,
     executeGenerate,
-    setCurrentPlan,
     dispatch,
     tPromptArea,
   ])
@@ -1429,30 +1365,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             <GitCompareArrows className="size-4" />
             {t('compareGenerate')} ({compareSelectedIds.size})
           </button>
-        </div>
-      )}
-
-      {state.panels.planPreview && currentPlan && (
-        <div className="mt-3">
-          <StudioGenerationPlan
-            plan={currentPlan}
-            onConfirm={() => {
-              dispatch({ type: 'CLOSE_PANEL', payload: 'planPreview' })
-              void executeGenerate({
-                modelId: currentPlan.recommendedModels[0]?.modelId ?? null,
-                compiledPrompt: currentPlan.promptDraft,
-                negativePrompt:
-                  currentPlan.negativePrompt ?? currentPlan.negativePromptDraft,
-              })
-            }}
-            onEditPrompt={(newPrompt) =>
-              setCurrentPlan({ ...currentPlan, promptDraft: newPrompt })
-            }
-            onCancel={() => {
-              dispatch({ type: 'CLOSE_PANEL', payload: 'planPreview' })
-              setCurrentPlan(null)
-            }}
-          />
         </div>
       )}
     </>

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { AUDIO_GENERATION, VIDEO_GENERATION } from '@/constants/config'
@@ -181,10 +180,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const tStudio = useTranslations('StudioV2')
   const tVideo = useTranslations('VideoGenerate')
   const tErrors = useTranslations('Errors')
-  // Router + locale for the 3D-Ready toast jump action. Kept here next to
-  // the other intl hooks so the order is stable across re-renders.
-  const router = useRouter()
-  const locale = useLocale()
 
   // Active LoRA stack — read at generate() time via a ref so the
   // useCallback identity stays stable across stack edits.
@@ -308,27 +303,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           setError(null)
           setLastGeneration(generation)
           markActiveRunItemCompleted(itemId, generation)
-          // 3D-Ready follow-on: when the user generated through the 3D 适配
-          // template, surface a one-click jump to 3D Studio with this
-          // image pre-seeded as the source. Detect by the [3D-READY]
-          // marker that handleMake3DReady wraps into the prompt — safer
-          // than reading state because the prompt is what actually got
-          // sent server-side.
-          const is3DReady =
-            typeof input.freePrompt === 'string' &&
-            input.freePrompt.includes('[3D-READY]')
-          if (is3DReady) {
-            toast.success(tStudio('generateSuccess'), {
-              action: {
-                label: tStudio('feed3DStudio'),
-                onClick: () =>
-                  router.push(`/${locale}/studio/3d?source=${generation.id}`),
-              },
-              duration: 8000,
-            })
-          } else {
-            toast.success(tStudio('generateSuccess'))
-          }
+          toast.success(tStudio('generateSuccess'))
           return generation
         }
         const msg = getApiErrorMessage(
@@ -353,8 +328,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       stopTimer,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
-      locale,
-      router,
     ],
   )
 

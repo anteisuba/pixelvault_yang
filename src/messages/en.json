@@ -2476,7 +2476,6 @@
     "generate": "Generate",
     "generating": "Generating...",
     "generateSuccess": "Image generated!",
-    "feed3DStudio": "→ 3D Studio",
     "generateFailed": "Generation failed",
     "variantGenerate": "Generate Variants",
     "variantGenerating": "Generating {count} variants...",
@@ -2494,11 +2493,6 @@
     "referenceFormats": "JPG, PNG, WebP",
     "layerDecompose": "Layers",
     "transform": "Transform",
-    "make3DReady": "3D Ready",
-    "plan": "Plan",
-    "planLoading": "Planning…",
-    "planNeedsPrompt": "Type a prompt to plan",
-    "planFailed": "Failed to generate plan",
     "civitaiToken": "Civitai Token",
     "tokenSaved": "Token saved",
     "selectModelFirst": "Select a model to configure advanced settings",
@@ -2549,8 +2543,7 @@
     "characterCard": "Character Card",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
-    "keepChange": "Keep & Change",
-    "planPreview": "Plan Preview"
+    "keepChange": "Keep & Change"
   },
   "StudioToolbar": {
     "enhance": "Enhance",
@@ -2559,11 +2552,7 @@
     "voice": "Voice",
     "voiceSelected": "✓ Voice",
     "clone": "Clone",
-    "transcribe": "Transcribe",
-    "make3DReady": "3D Ready",
-    "make3DReadyTemplate": "isolated single character on pure white background, A-pose with arms slightly away from body, full body visible head to toe, centered, 3/4 view, even soft studio lighting, no harsh shadows, no rim light, clean line art, flat shading, 1:1 square composition, no scenery, no environmental effects",
-    "make3DReadyOn": "3D-ready template applied — generation will produce a Hunyuan3D / TripoSR-friendly source.",
-    "make3DReadyOff": "3D-ready template removed."
+    "transcribe": "Transcribe"
   },
   "StudioV3": {
     "quickMode": "Quick Generate",
@@ -3180,17 +3169,6 @@
     "saveFailed": "Couldn't save scenes.",
     "statusDraft": "Draft",
     "statusScriptReady": "Ready"
-  },
-  "StudioGenerationPlan": {
-    "title": "Generation Plan",
-    "recommendedModels": "Recommended Models",
-    "compiledPrompt": "Compiled Prompt",
-    "negativePrompt": "Negative Prompt",
-    "estimatedCost": "Estimated Cost",
-    "requests": "{count} requests",
-    "confirm": "Confirm & Generate",
-    "cancel": "Back to Edit",
-    "reasonLabel": "Why: {reason}"
   },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",

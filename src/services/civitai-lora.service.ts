@@ -308,6 +308,26 @@ function filterByBaseModelFamily(
   return items.filter((item) => accepted.has(item.baseModelFamily))
 }
 
+function appendUniqueLibraryItems(
+  target: CivitaiLoraLibraryItem[],
+  incoming: CivitaiLoraLibraryItem[],
+): void {
+  const seen = new Set(target.map((item) => item.id))
+  for (const item of incoming) {
+    if (seen.has(item.id)) continue
+    seen.add(item.id)
+    target.push(item)
+  }
+}
+
+function dedupeLibraryItems(
+  items: CivitaiLoraLibraryItem[],
+): CivitaiLoraLibraryItem[] {
+  const result: CivitaiLoraLibraryItem[] = []
+  appendUniqueLibraryItems(result, items)
+  return result
+}
+
 function appendBaseModelFamilyParams(
   url: URL,
   baseModel: Exclude<CivitaiLoraBaseModel, 'all'>,
@@ -330,9 +350,11 @@ async function fetchCivitaiLoraPage(url: URL): Promise<{
     label: 'civitai.listLoras',
   })
   const parsed = CivitaiModelsResponseSchema.parse(payload)
-  const items = parsed.items
-    .map(toLibraryItem)
-    .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
+  const items = dedupeLibraryItems(
+    parsed.items
+      .map(toLibraryItem)
+      .filter((item): item is CivitaiLoraLibraryItem => Boolean(item)),
+  )
 
   return {
     items,
@@ -379,7 +401,10 @@ async function listSearchedBaseModelCivitaiLoras({
     appendBaseModelFamilyParams(url, baseModel)
 
     const result = await fetchCivitaiLoraPage(url)
-    collected.push(...filterByBaseModelFamily(result.items, baseModel))
+    appendUniqueLibraryItems(
+      collected,
+      filterByBaseModelFamily(result.items, baseModel),
+    )
     upstreamCursor = result.nextCursor
     upstreamHasNextPage = result.hasNextPage && Boolean(upstreamCursor)
     scannedPages += 1

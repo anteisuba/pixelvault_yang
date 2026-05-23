@@ -205,6 +205,41 @@ describe('listCivitaiLoras', () => {
     expect(result.hasNextPage).toBe(true)
   })
 
+  it('deduplicates repeated Civitai model versions from upstream pages', async () => {
+    const duplicate = {
+      id: 117135,
+      name: 'Duplicated LoRA',
+      type: 'LORA',
+      modelVersions: [
+        {
+          id: 2234652,
+          name: 'v1',
+          baseModel: 'Illustrious',
+          trainedWords: ['duplicate'],
+          files: [
+            {
+              type: 'Model',
+              primary: true,
+              downloadUrl: 'https://civitai.com/api/download/models/2234652',
+            },
+          ],
+        },
+      ],
+    }
+
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [duplicate, duplicate],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.id).toBe('civitai:117135:2234652')
+  })
+
   it('uses an expanded upstream window for searched base model buckets', async () => {
     const versionFor = (baseModel: string, id: number) => ({
       id,

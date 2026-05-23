@@ -79,11 +79,13 @@ export type PanelName =
   | 'civitai'
   | 'cardSelector'
   | 'enhance'
+  | 'stylePreset'
   | 'reverse'
   | 'advanced'
   | 'refImage'
   | 'layerDecompose'
   | 'aspectRatio'
+  | 'loraSelector'
   | 'voiceSelector'
   | 'voiceTrainer'
   | 'audioTranscribe'
@@ -225,6 +227,7 @@ export type StudioAction =
   | { type: 'TOGGLE_PANEL'; payload: PanelName }
   | { type: 'OPEN_PANEL'; payload: PanelName }
   | { type: 'CLOSE_PANEL'; payload: PanelName }
+  | { type: 'CLOSE_TOOL_PANELS' }
   | { type: 'CLOSE_ALL_PANELS' }
   | { type: 'RESET_FORM' }
 
@@ -235,11 +238,13 @@ const initialPanels: Record<PanelName, boolean> = {
   civitai: false,
   cardSelector: false,
   enhance: false,
+  stylePreset: false,
   reverse: false,
   advanced: false,
   refImage: false,
   layerDecompose: false,
   aspectRatio: false,
+  loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
@@ -247,6 +252,42 @@ const initialPanels: Record<PanelName, boolean> = {
   videoParams: false,
   script: false,
   keepChange: false,
+}
+
+export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
+  'enhance',
+  'reverse',
+  'cardSelector',
+  'advanced',
+  'stylePreset',
+  'refImage',
+  'loraSelector',
+  'layerDecompose',
+  'civitai',
+  'aspectRatio',
+  'transform',
+  'videoParams',
+  'script',
+  'voiceSelector',
+  'voiceTrainer',
+  'audioTranscribe',
+]
+
+function openPanel(
+  panels: Record<PanelName, boolean>,
+  target: PanelName,
+): Record<PanelName, boolean> {
+  const nextPanels = { ...panels, [target]: true }
+
+  if (!STUDIO_TOOL_PANEL_NAMES.includes(target)) {
+    return nextPanels
+  }
+
+  for (const panel of STUDIO_TOOL_PANEL_NAMES) {
+    if (panel !== target) nextPanels[panel] = false
+  }
+
+  return nextPanels
 }
 
 const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
@@ -303,7 +344,7 @@ export function studioFormReducer(
       const isChangingMediaGroup = state.outputType !== defaults.outputType
       const panels =
         action.openDefaultPanel !== false && defaults.openPanel
-          ? { ...state.panels, [defaults.openPanel]: true }
+          ? openPanel(state.panels, defaults.openPanel)
           : state.panels
 
       return {
@@ -408,39 +449,28 @@ export function studioFormReducer(
     case 'TOGGLE_PANEL': {
       const target = action.payload
       const isOpening = !state.panels[target]
-      // Toolbar panels are mutually exclusive — opening one closes the others
-      const toolbarPanels: PanelName[] = [
-        'enhance',
-        'reverse',
-        'cardSelector',
-        'advanced',
-        'refImage',
-        'layerDecompose',
-        'civitai',
-        'aspectRatio',
-        'transform',
-        'script',
-      ]
-      const isToolbarPanel = toolbarPanels.includes(target)
-      const newPanels = { ...state.panels }
-      if (isOpening && isToolbarPanel) {
-        for (const p of toolbarPanels) {
-          if (p !== target) newPanels[p] = false
-        }
-      }
-      newPanels[target] = isOpening
-      return { ...state, panels: newPanels }
+      const panels = isOpening
+        ? openPanel(state.panels, target)
+        : { ...state.panels, [target]: false }
+      return { ...state, panels }
     }
     case 'OPEN_PANEL':
       return {
         ...state,
-        panels: { ...state.panels, [action.payload]: true },
+        panels: openPanel(state.panels, action.payload),
       }
     case 'CLOSE_PANEL':
       return {
         ...state,
         panels: { ...state.panels, [action.payload]: false },
       }
+    case 'CLOSE_TOOL_PANELS': {
+      const panels = { ...state.panels }
+      for (const panel of STUDIO_TOOL_PANEL_NAMES) {
+        panels[panel] = false
+      }
+      return { ...state, panels }
+    }
     case 'CLOSE_ALL_PANELS':
       return {
         ...state,

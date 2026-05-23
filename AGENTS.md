@@ -1180,6 +1180,33 @@ A hook-order warning, console error, or transient browser error is not Critical 
 
 Before writing a QA issue, Codex must inspect the relevant source quickly. For example, grep component names, route files, and visible strings before claiming that an effect such as `HyperText` is corrupted UI rather than intentional decorative animation.
 
+23.2 Computer Use Development / Testing / Debug Loop
+
+When the user says any version of:
+
+`实现这个功能，并按项目工作流跑 Computer Use 开发+测试+debug 闭环。不要只跑单测；必须真实打开页面完成主路径，失败就修，修完复测。`
+
+Codex must treat this as a required end-to-end verifier, not as optional QA.
+
+Codex must follow `docs/guides/codex-development-workflow.md` and include a `Computer Use Flow Check` in the task goal or execution plan.
+
+Required loop:
+
+```md
+Implement slice -> Fast check -> Computer Use Flow check -> classify failure -> inspect source/logs -> patch -> rerun same Flow check -> report evidence
+```
+
+Rules:
+
+- do not stop after unit tests, typecheck, or lint when the requested flow is UI-visible
+- open the real target page with Computer Use or the appropriate browser tool
+- complete the main user path with real clicks, typing, scrolling, selection, submission, and waiting where applicable
+- capture objective evidence: URL, visible text/state, screenshot or app state, console/page errors, server/API logs when relevant
+- if the flow fails, classify the failure as application bug or environment issue before fixing
+- for application bugs, make the smallest scoped fix and rerun the same flow check
+- if blocked by login, permissions, third-party services, missing secrets, CAPTCHA, or other environment constraints, stop and report a handoff instead of claiming success
+- do not perform risky Computer Use actions without confirmation, including deleting data, creating API keys, changing account permissions, submitting external forms, uploading sensitive files, or triggering payments
+
 24. Change Scope Rules
     24.1 Stay within task scope
 

@@ -4,14 +4,14 @@ import { Palette } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { useStudioForm } from '@/contexts/studio-context'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { STYLE_PRESETS, NO_STYLE_PRESET_ID } from '@/constants/style-presets'
+import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
+import {
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from './tool-surface'
 
 interface StylePresetButtonProps {
   disabled?: boolean
@@ -29,6 +29,7 @@ interface StylePresetButtonProps {
 export function StylePresetButton({ disabled }: StylePresetButtonProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StylePresets')
+  const open = state.panels.stylePreset
 
   const activePreset = STYLE_PRESETS.find((p) => p.id === state.stylePresetId)
   const isActive = state.stylePresetId !== NO_STYLE_PRESET_ID
@@ -37,43 +38,44 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
     : t('label')
 
   return (
-    <Popover>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) =>
+        dispatch({
+          type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
+          payload: 'stylePreset',
+        })
+      }
+    >
       <PopoverTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
           aria-label={t('label')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-            isActive && 'bg-muted/30 text-primary',
+            studioToolTriggerClass,
+            (isActive || open) && 'bg-muted/30 text-primary',
           )}
         >
           <Palette className="size-4 shrink-0" />
           <span className="hidden truncate sm:inline">{buttonLabel}</span>
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-72 p-3"
-        side="top"
-        align="center"
-        sideOffset={12}
-      >
+      <StudioToolPopoverContent size="small" side="top" align="center">
         <div className="mb-2 text-2xs font-medium text-muted-foreground/70">
           {t('label')}
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               dispatch({
                 type: 'SET_STYLE_PRESET',
                 payload: NO_STYLE_PRESET_ID,
               })
-            }
+            }}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors duration-150',
               state.stylePresetId === NO_STYLE_PRESET_ID
                 ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted',
@@ -85,11 +87,11 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
             <button
               key={preset.id}
               type="button"
-              onClick={() =>
+              onClick={() => {
                 dispatch({ type: 'SET_STYLE_PRESET', payload: preset.id })
-              }
+              }}
               className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-all duration-200',
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors duration-150',
                 state.stylePresetId === preset.id
                   ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
                   : 'bg-muted/50 text-muted-foreground hover:bg-muted',
@@ -100,7 +102,7 @@ export function StylePresetButton({ disabled }: StylePresetButtonProps) {
             </button>
           ))}
         </div>
-      </PopoverContent>
+      </StudioToolPopoverContent>
     </Popover>
   )
 }

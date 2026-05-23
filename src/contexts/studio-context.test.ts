@@ -63,11 +63,13 @@ function makeInitialState(
       civitai: false,
       cardSelector: false,
       enhance: false,
+      stylePreset: false,
       reverse: false,
       advanced: false,
       refImage: false,
       layerDecompose: false,
       aspectRatio: false,
+      loraSelector: false,
       voiceSelector: false,
       voiceTrainer: false,
       audioTranscribe: false,
@@ -116,7 +118,7 @@ describe('studioFormReducer', () => {
     )
   })
 
-  it('SET_SELECTED_WORKFLOW_ID opens default panel without closing existing panels', () => {
+  it('SET_SELECTED_WORKFLOW_ID opens default tool panel and closes existing tool panels', () => {
     const state = makeInitialState()
     state.panels.advanced = true
 
@@ -126,7 +128,7 @@ describe('studioFormReducer', () => {
     })
 
     expect(next.panels.videoParams).toBe(true)
-    expect(next.panels.advanced).toBe(true)
+    expect(next.panels.advanced).toBe(false)
   })
 
   it('SET_SELECTED_WORKFLOW_ID can suppress the default panel for route sync', () => {

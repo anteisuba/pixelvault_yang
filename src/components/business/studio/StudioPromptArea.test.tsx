@@ -27,11 +27,13 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   civitai: false,
   cardSelector: false,
   enhance: false,
+  stylePreset: false,
   reverse: false,
   advanced: false,
   refImage: false,
   layerDecompose: false,
   aspectRatio: false,
+  loraSelector: false,
   voiceSelector: false,
   voiceTrainer: false,
   audioTranscribe: false,
@@ -51,6 +53,24 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/contexts/studio-context', () => ({
+  STUDIO_TOOL_PANEL_NAMES: [
+    'enhance',
+    'reverse',
+    'cardSelector',
+    'advanced',
+    'stylePreset',
+    'refImage',
+    'loraSelector',
+    'layerDecompose',
+    'civitai',
+    'aspectRatio',
+    'transform',
+    'videoParams',
+    'script',
+    'voiceSelector',
+    'voiceTrainer',
+    'audioTranscribe',
+  ],
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
     styles: {

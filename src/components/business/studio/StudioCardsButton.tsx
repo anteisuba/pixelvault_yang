@@ -4,15 +4,15 @@ import { PanelsTopLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
 import { StudioCardPicker } from './StudioCardPicker'
+import {
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from './tool-surface'
 
 interface StudioCardsButtonProps {
   disabled?: boolean
@@ -35,12 +35,12 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
   return (
     <Popover
       open={open}
-      onOpenChange={(nextOpen) =>
+      onOpenChange={(nextOpen) => {
         dispatch({
           type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
           payload: 'cardSelector',
         })
-      }
+      }}
     >
       <PopoverTrigger asChild>
         <Toolbar.Button
@@ -48,9 +48,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
           disabled={disabled}
           aria-label={t('cards')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            studioToolTriggerClass,
             open && 'bg-muted/30 text-primary',
           )}
         >
@@ -63,14 +61,9 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
           ) : null}
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent
-        side="top"
-        align="center"
-        sideOffset={12}
-        className="w-[min(640px,calc(100vw-2rem))] !p-0 overflow-hidden"
-      >
+      <StudioToolPopoverContent size="medium" side="top" align="center">
         <StudioCardPicker />
-      </PopoverContent>
+      </StudioToolPopoverContent>
     </Popover>
   )
 }

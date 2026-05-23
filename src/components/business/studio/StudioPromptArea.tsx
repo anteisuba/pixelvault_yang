@@ -32,6 +32,7 @@ import {
   TTS_PROMPT_WARNING_LENGTH,
 } from '@/constants/audio-options'
 import {
+  STUDIO_TOOL_PANEL_NAMES,
   useStudioForm,
   useStudioData,
   useStudioGen,
@@ -58,7 +59,7 @@ import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplat
 import { StudioToolbarPanels } from '@/components/business/studio/StudioToolbarPanels'
 import { cn } from '@/lib/utils'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
-import type { RecipeRecord } from '@/types'
+import type { OutputType as RecipeOutputType, RecipeRecord } from '@/types'
 import {
   PromptInput,
   PromptInputTextarea,
@@ -78,6 +79,16 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+
+const STUDIO_FLOATING_SURFACE_SELECTOR = [
+  '[data-studio-tool-popover]',
+  '[role="dialog"]',
+  '[data-slot="dialog-content"]',
+  '[data-slot="popover-content"]',
+  '[data-slot="select-content"]',
+  '[data-slot="dropdown-menu-content"]',
+  '[data-slot="dropdown-menu-sub-content"]',
+].join(', ')
 
 /**
  * StudioPromptArea — Prompt textarea with embedded Generate button.
@@ -166,6 +177,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const getRecipePrompt = useCallback(
     (recipe: RecipeRecord) => recipe.compiledPrompt.trim(),
     [],
+  )
+
+  const currentTemplateOutputType = useMemo<RecipeOutputType>(() => {
+    if (state.outputType === 'video') return 'VIDEO'
+    if (state.outputType === 'audio') return 'AUDIO'
+    return 'IMAGE'
+  }, [state.outputType])
+
+  const currentTemplateParams = useMemo<Record<string, unknown>>(
+    () => ({
+      aspectRatio: state.aspectRatio,
+      advancedParams: state.advancedParams,
+    }),
+    [state.advancedParams, state.aspectRatio],
   )
 
   const getRecipeAspectRatio = useCallback((recipe: RecipeRecord) => {
@@ -421,17 +446,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   }, [state.audioPace])
   const composerContainerRef = useRef<HTMLDivElement>(null)
   const [isComposerExpanded, setComposerExpanded] = useState(false)
+  const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
+    (panel) => state.panels[panel],
+  )
 
   useEffect(() => {
-    if (!isComposerExpanded) return
+    if (!isComposerExpanded && !hasOpenToolPanel) return
 
     const handleDocumentPointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
-
-      if (composerContainerRef.current?.contains(target)) {
-        return
-      }
 
       const targetElement =
         target instanceof Element
@@ -439,11 +463,23 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           : target.parentNode instanceof Element
             ? target.parentNode
             : null
-      if (
-        targetElement?.closest(
-          '[data-radix-popper-content-wrapper], [role="dialog"], [data-slot="popover-content"]',
-        )
-      ) {
+
+      if (targetElement?.closest(STUDIO_FLOATING_SURFACE_SELECTOR)) {
+        return
+      }
+
+      const isInsideComposer = Boolean(
+        composerContainerRef.current?.contains(target),
+      )
+      const isToolbarTrigger = Boolean(
+        targetElement?.closest('[role="toolbar"] button'),
+      )
+
+      if (hasOpenToolPanel && (!isInsideComposer || !isToolbarTrigger)) {
+        dispatch({ type: 'CLOSE_TOOL_PANELS' })
+      }
+
+      if (isInsideComposer) {
         return
       }
 
@@ -454,7 +490,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     return () => {
       document.removeEventListener('pointerdown', handleDocumentPointerDown)
     }
-  }, [isComposerExpanded])
+  }, [dispatch, hasOpenToolPanel, isComposerExpanded])
 
   /** Prepend style preset prefix to user prompt */
   const composePrompt = useCallback(
@@ -1136,7 +1172,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                         </PopoverContent>
                       </Popover>
                     )}
-                    <PromptTemplatePicker onApply={handleApplyRecipe} />
+                    <PromptTemplatePicker
+                      currentModelId={selectedModel?.modelId}
+                      currentOutputType={currentTemplateOutputType}
+                      currentParams={currentTemplateParams}
+                      currentPrompt={state.prompt}
+                      currentProvider={
+                        selectedModel
+                          ? getProviderLabel(selectedModel.providerConfig)
+                          : undefined
+                      }
+                      onApply={handleApplyRecipe}
+                    />
                   </div>
                 </div>
               </motion.div>
@@ -1176,7 +1223,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 onPaste={handlePromptPaste}
                 onClick={() => setComposerExpanded(true)}
                 onFocus={() => setComposerExpanded(true)}
-                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black placeholder:text-neutral-400 disabled:opacity-100"
+                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black selection:bg-neutral-950 selection:text-white placeholder:text-neutral-400 disabled:opacity-100"
               />
               <PromptInputActions className="shrink-0 items-center gap-1">
                 <button

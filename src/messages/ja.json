@@ -868,7 +868,10 @@
     "label": "LoRA",
     "trigger": "LoRAを選ぶ",
     "triggerWithCount": "{count} 個のLoRAを適用中",
-    "emptyHint": "まだLoRAがありません。下の「LoRAライブラリを開く」から探してください。",
+    "emptyTitle": "LoRAを選択",
+    "emptyHint": "まだLoRAがありません。ライブラリで探すかお気に入りに追加してから、ここで生成してください。",
+    "emptyAction": "LoRAライブラリを見る",
+    "emptyTrainAction": "自分のLoRAを学習",
     "removeAria": "{name} を解除",
     "openLibrary": "LoRAライブラリを開く",
     "share": "共有",
@@ -886,7 +889,7 @@
     "useTemplateBadge": "上書き",
     "templateApplied": "「{name}」のお手本プロンプトを適用しました",
     "clearAll": "すべて解除",
-    "bannerEmpty": "LoRAライブラリから選んでから生成してください。",
+    "bannerEmpty": "LoRAは現在の画像モデルにキャラクターや画風を重ねます。",
     "bannerOk": "現在のモデル「{model}」でこれらのLoRAを実行できます。",
     "bannerNoModel": "まず {family} 対応のモデルを選んでください。",
     "bannerUnsupported": "現在のモデル「{model}」はLoRA非対応 — {family} LoRAは無視されます。",
@@ -1168,6 +1171,10 @@
     "saveAsTemplate": "プロンプトテンプレートとして保存",
     "saveTemplateSuccess": "プロンプト設計に保存しました",
     "saveTemplateFailed": "プロンプトの保存に失敗しました",
+    "saveCurrentPrompt": "現在のプロンプトを保存",
+    "saveCurrentPromptEmpty": "先にプロンプトを入力すると、テンプレートとして保存できます。",
+    "savingCurrentPrompt": "プロンプトを保存中...",
+    "loadingTemplates": "テンプレートを読み込み中...",
     "createAction": "新規テンプレート",
     "createCollapse": "閉じる",
     "createDescription": "よく使う、または検証済みの Prompt をテンプレート化し、Studio から直接呼び出せます。",
@@ -2468,7 +2475,7 @@
   "StudioNode": {
     "eyebrow": "ノードワークフロー",
     "title": "脚本キャンバス",
-    "subtitle": "ラフなアイデアを、生成前に再利用できるキャラクター、シーン、アクション、ビート、ショットへ分解します。",
+    "subtitle": "1つのショットを中心に、テキスト、キャラクター画像、背景画像、ショット画像、音声を整理し、動画クリップへ仕上げます。",
     "ideaLabel": "アイデア",
     "ideaPlaceholder": "三人のキャラクターが廃駅で未来を予言する古いカメラを見つける。",
     "plannerLabel": "プランナー",
@@ -2487,7 +2494,7 @@
     "projectUntitled": "未命名プロジェクト",
     "projectName": "プロジェクト名",
     "blankCanvasTitle": "脚本からキャンバスを始める",
-    "blankCanvasBody": "ざっくりとしたアイデアを、再利用できるキャラクター・シーン・ビート・ショットに分解。続けて画像・動画・音声ノードをつないで生成していきます。",
+    "blankCanvasBody": "まずショットノードを作り、テキスト、キャラクター画像、背景画像、ショット画像、音声へ分岐し、最後に動画生成へ集約します。",
     "blankCanvasCta": "脚本ノードを作成",
     "blankCanvasExamplesLabel": "またはこちらの例から始める",
     "addNode": "ノードを追加",
@@ -2503,7 +2510,7 @@
     },
     "scriptNodeDraftTitle": "未命名の脚本",
     "canvasTitle": "ノードキャンバス",
-    "canvasSubtitle": "脚本分解の結果はまず脚本ノードになります。ノードをクリックすると、内部のキャラクター、シーン、アクション、ビート、ショットを編集できます。",
+    "canvasSubtitle": "ショットノードがワークフローの中心です。テキスト、画像、音声はショットの依存素材として、最後に Seedance 系動画モデルへ集約されます。",
     "scriptNodeType": "脚本ノード",
     "openScriptNode": "脚本ノードエディターを開く",
     "editNode": "ノードを編集",
@@ -2536,18 +2543,220 @@
     "breakdownCountersLabel": "分解の概要",
     "breakdownTimelineLabel": "ビート時間",
     "nodeTypes": {
-      "script": "脚本",
+      "composer": "コンポーザー",
+      "agent": "Agent",
+      "shot": "ショット",
+      "shotText": "ショット文",
+      "characterImage": "キャラクター画像",
+      "backgroundImage": "背景画像",
+      "frameImage": "ショット画像",
+      "voice": "音声",
+      "seedance": "Seedance 出力",
       "text": "テキスト",
       "image": "画像",
       "video": "動画",
       "audio": "音声"
     },
     "nodeDraftTitles": {
+      "composer": "アイデアを入力",
+      "agent": "Agent 出力",
+      "shot": "ショットノード",
+      "shotText": "ショット説明",
+      "characterImage": "キャラクター設定画像",
+      "backgroundImage": "背景設定画像",
+      "frameImage": "ショットキーフレーム",
+      "voice": "音声トラック",
+      "seedance": "1ショットを生成",
       "text": "テキスト生成",
       "image": "画像生成",
       "video": "動画生成",
       "audio": "音声生成"
     },
+    "nodeTypeChips": {
+      "composer": "⌗ 入力",
+      "agent": "🤖 Agent",
+      "shot": "S ショット",
+      "shotText": "T ショット文",
+      "characterImage": "C キャラ",
+      "backgroundImage": "B 背景",
+      "frameImage": "F フレーム",
+      "voice": "V 音声",
+      "seedance": "O 出力",
+      "text": "T テキスト",
+      "image": "□ 画像",
+      "video": "▱ 動画",
+      "audio": "♪ 音声"
+    },
+    "addMenuHelpers": {
+      "composer": "アイデアを Agent に送る",
+      "agent": "物語構造を分解",
+      "shot": "中心ショットタスク",
+      "shotText": "ショット意図と動き",
+      "characterImage": "キャラ外観の参照",
+      "backgroundImage": "シーン空間の参照",
+      "frameImage": "最終画面の参照",
+      "voice": "音声をアップロード / 生成",
+      "seedance": "素材を統合してショット化"
+    },
+    "nodeBlueprints": {
+      "shot": {
+        "status": "中心",
+        "body": "1つのショットのテキスト、画像、音声、最終動画を同じタスクにまとめます。",
+        "chips": {
+          "primary": "テキスト・画像・音声へ分岐",
+          "secondary": "キャラ・背景・フレーム依存を追跡",
+          "tertiary": "1ショット動画生成へ集約"
+        },
+        "footer": "ショット中心"
+      },
+      "shotText": {
+        "status": "下書き",
+        "body": "ショット説明、動きのテンポ、Seedance 用プロンプトを管理し、画像と音声の分岐を参照できます。",
+        "chips": {
+          "primary": "キャラクター画像を参照",
+          "secondary": "背景画像とショット画像を参照",
+          "tertiary": "音声トラックを紐付け"
+        },
+        "footer": "テキスト分岐"
+      },
+      "characterImage": {
+        "status": "参照",
+        "body": "キャラクターの設定画像を生成または接続し、ショット内の人物同一性を安定させます。",
+        "chips": {
+          "primary": "キャラクター外観",
+          "secondary": "衣装と表情",
+          "tertiary": "キャラクターカード化"
+        },
+        "footer": "画像分岐"
+      },
+      "backgroundImage": {
+        "status": "参照",
+        "body": "ショットの空間、光、時代感を定義し、最終フレームに環境の制約を与えます。",
+        "chips": {
+          "primary": "シーン空間",
+          "secondary": "光とムード",
+          "tertiary": "背景の一貫性"
+        },
+        "footer": "画像分岐"
+      },
+      "frameImage": {
+        "status": "参照",
+        "body": "キャラクターと背景を統合し、最終構図に最も近いキーフレームを作ります。",
+        "chips": {
+          "primary": "ショット構図",
+          "secondary": "人物の配置",
+          "tertiary": "動画の初期フレーム参照"
+        },
+        "footer": "画像分岐"
+      },
+      "voice": {
+        "status": "音声",
+        "body": "MP3 アップロード、ローカル音声、TTS を、セリフ・ナレーション・効果音の参照として扱います。",
+        "chips": {
+          "primary": "MP3 をアップロード",
+          "secondary": "ローカル音声を生成",
+          "tertiary": "セリフ / ナレーション / 音"
+        },
+        "footer": "音声分岐"
+      },
+      "seedance": {
+        "status": "出口",
+        "body": "ショット文、画像、音声を集め、Seedance 系動画モデルで1つのショットクリップを生成します。",
+        "chips": {
+          "primary": "Seedance ルート",
+          "secondary": "参照素材を固定",
+          "tertiary": "ショットクリップを出力"
+        },
+        "footer": "動画出力"
+      },
+      "text": {
+        "status": "下書き",
+        "body": "ショット構造外のメモ、プロンプト断片、テキスト素材に使う汎用テキストノードです。",
+        "chips": {
+          "primary": "テキスト下書き",
+          "secondary": "プロンプト断片",
+          "tertiary": "下流ノードへ接続"
+        },
+        "footer": "汎用ノード"
+      },
+      "image": {
+        "status": "下書き",
+        "body": "ショット専用分岐以外の画像素材を生成または受け取る汎用画像ノードです。",
+        "chips": {
+          "primary": "画像プロンプト",
+          "secondary": "参照素材",
+          "tertiary": "出力を保存"
+        },
+        "footer": "汎用ノード"
+      },
+      "video": {
+        "status": "下書き",
+        "body": "単一ショット生成以外の動画素材を生成または受け取る汎用動画ノードです。",
+        "chips": {
+          "primary": "動画プロンプト",
+          "secondary": "参照フレーム",
+          "tertiary": "生成クリップ"
+        },
+        "footer": "汎用ノード"
+      },
+      "audio": {
+        "status": "下書き",
+        "body": "音声、効果音、音楽生成に使う汎用オーディオノードです。",
+        "chips": {
+          "primary": "テキスト読み上げ",
+          "secondary": "声の参照",
+          "tertiary": "音声を保存"
+        },
+        "footer": "汎用ノード"
+      }
+    },
+    "composer": {
+      "placeholder": "アイデアやリクエストを入力。上流ノードを繋げて参考素材を取り込めます",
+      "agentMode": "Agent モード",
+      "askMode": "質問",
+      "skillLibrary": "スキル",
+      "send": "送信",
+      "sendTooltip": "下流の Agent へ送信",
+      "attachTooltip": "参考画像を追加",
+      "expandTooltip": "展開",
+      "noTargetTip": "まず Agent ノードへ接続してください"
+    },
+    "agent": {
+      "emptyTitle": "コンポーザーの入力を待機中",
+      "emptyBody": "コンポーザーノードをこの Agent に接続して送信すると、ここに分解結果が表示されます。",
+      "running": "Agent 計画中…",
+      "rerun": "再生成",
+      "openEditor": "詳細を開く"
+    },
+    "assistantDock": {
+      "title": "updream",
+      "newChat": "新規対話",
+      "helperLabel": "AI ヘルパー",
+      "collapse": "パネルを折りたたむ",
+      "greetingTitle": "こんにちは！アイデアを入力",
+      "greetingBody": "1つのショットをテキスト、画像、音声、動画出力へ分解できます。",
+      "skillLibrary": "スキル",
+      "skillCommunity": "コミュニティ",
+      "styleGuide": "スタイルガイド",
+      "composerPlaceholder": "ショットを説明、またはキャラ画像・背景画像・音声を依頼…",
+      "askChip": "質問"
+    },
+    "bottomDock": {
+      "pointer": "選択",
+      "hand": "キャンバス移動",
+      "connect": "接続",
+      "cut": "切り取り",
+      "zoomOut": "縮小",
+      "zoomLevel": "{percent}%",
+      "zoomIn": "拡大",
+      "undo": "元に戻す",
+      "redo": "やり直し"
+    },
+    "topbar": {
+      "arrange": "キャンバスを整理",
+      "routeLabel": "API ルート · {count} 件有効"
+    },
+    "minimapTitle": "ミニマップ",
     "scriptNodePlaceholder": "作りたい物語、人物関係、シーンの雰囲気、参照したい抽象的な作風を入力...",
     "placeholderPreview": {
       "text": "テキスト待機中",
@@ -2651,6 +2860,13 @@
   "StudioV2": {
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",
+    "noCharacterCards": "キャラクターカードがまだありません。作成するとここで選択できます。",
+    "noStyleCards": "画風カードがまだありません。作成するとここで選択できます。",
+    "noBackgroundCards": "背景カードがまだありません。作成するとここで選択できます。",
+    "noneCharacterCard": "キャラクターカードなし",
+    "noneStyleCard": "画風カードなし",
+    "noneBackgroundCard": "背景カードなし",
+    "openCardManagement": "カード管理を開く",
     "searchCardsPlaceholder": "カードを検索...",
     "sortCardsLabel": "カードの並び替え",
     "sortCardsRecent": "最近使用",
@@ -3166,6 +3382,11 @@
   "Transform": {
     "title": "画像変換",
     "description": "AIスタイル転送で画像を変換します",
+    "styleLabel": "スタイル",
+    "chooseInputImage": "変換する画像を追加",
+    "uploadImage": "画像をアップロード",
+    "selectAsset": "素材から選択",
+    "selectAssetDescription": "変換する画像素材を選択します。",
     "inputPreviewAlt": "変換する入力画像",
     "removeInputImage": "変換する入力画像を削除",
     "errors": {

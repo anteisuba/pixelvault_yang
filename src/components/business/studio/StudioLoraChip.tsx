@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import Link from 'next/link'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { toast } from 'sonner'
 import {
@@ -27,14 +26,15 @@ import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { Link } from '@/i18n/navigation'
 import { buildLoraPromptTemplate } from '@/lib/lora-prompt-template'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from '@/components/business/studio/tool-surface'
 import { Slider } from '@/components/ui/slider'
 import {
   Tooltip,
@@ -184,6 +184,7 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
     [dispatch, t],
   )
   const count = items.length
+  const open = state.panels.loraSelector
 
   const compatibility = useMemo<Compatibility>(() => {
     // Selected model is resolved via the studio's own route resolver
@@ -355,7 +356,15 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
           optionId={quickSetup.target.optionId}
         />
       ) : null}
-      <Popover>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) =>
+          dispatch({
+            type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
+            payload: 'loraSelector',
+          })
+        }
+      >
         <PopoverTrigger asChild>
           <Toolbar.Button
             type="button"
@@ -364,10 +373,10 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
               count > 0 ? t('triggerWithCount', { count }) : t('trigger')
             }
             className={cn(
-              'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition-all duration-200',
-              'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              count > 0 ? 'bg-muted/30 text-primary' : 'text-muted-foreground',
+              studioToolTriggerClass,
+              count > 0 || open
+                ? 'bg-muted/30 text-primary'
+                : 'text-muted-foreground',
             )}
           >
             <Palette className="size-4" aria-hidden />
@@ -379,7 +388,12 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
             ) : null}
           </Toolbar.Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 space-y-3" align="end" side="top">
+        <StudioToolPopoverContent
+          size="action"
+          className="max-h-[min(560px,72vh)] w-80 space-y-3 overflow-y-auto p-4"
+          align="end"
+          side="top"
+        >
           <CompatibilityBanner
             compatibility={compatibility}
             loadedCount={items.length}
@@ -387,8 +401,35 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
           />
 
           {items.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-center text-xs text-muted-foreground">
-              {t('emptyHint')}
+            <div className="rounded-lg border border-border/60 bg-card/45 p-3">
+              <div className="flex items-start gap-2.5">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                  <Palette className="size-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {t('emptyTitle')}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {t('emptyHint')}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2">
+                <Link
+                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+                  className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-semibold text-background transition-colors hover:bg-foreground/90"
+                >
+                  {t('emptyAction')}
+                  <ArrowUpRight className="size-3.5" aria-hidden />
+                </Link>
+                <Link
+                  href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.TRAIN}`}
+                  className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-muted px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted/80"
+                >
+                  {t('emptyTrainAction')}
+                </Link>
+              </div>
             </div>
           ) : (
             <ul className="space-y-2.5">
@@ -487,7 +528,9 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                         value={[scale]}
                         onValueChange={(next) => {
                           const v = next[0]
-                          if (typeof v === 'number') setScale(entry.asset.id, v)
+                          if (typeof v === 'number') {
+                            setScale(entry.asset.id, v)
+                          }
                         }}
                         className="flex-1"
                       />
@@ -501,16 +544,16 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
             </ul>
           )}
 
-          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-            <Link
-              href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
-              className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-primary"
-            >
-              <ArrowUpRight className="size-3.5" aria-hidden />
-              {t('openLibrary')}
-            </Link>
-            <div className="flex items-center gap-3 text-xs">
-              {items.length > 0 ? (
+          {items.length > 0 ? (
+            <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+              <Link
+                href={`${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.COMMUNITY}`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-primary"
+              >
+                <ArrowUpRight className="size-3.5" aria-hidden />
+                {t('openLibrary')}
+              </Link>
+              <div className="flex items-center gap-3 text-xs">
                 <button
                   type="button"
                   onClick={() => void handleShare()}
@@ -521,8 +564,6 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                   <Share2 className="size-3.5" aria-hidden />
                   {t('share')}
                 </button>
-              ) : null}
-              {items.length > 0 ? (
                 <button
                   type="button"
                   onClick={clear}
@@ -530,10 +571,10 @@ export function StudioLoraChip({ disabled }: StudioLoraChipProps) {
                 >
                   {t('clearAll')}
                 </button>
-              ) : null}
+              </div>
             </div>
-          </div>
-        </PopoverContent>
+          ) : null}
+        </StudioToolPopoverContent>
       </Popover>
     </>
   )

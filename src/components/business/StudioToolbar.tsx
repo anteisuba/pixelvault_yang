@@ -19,6 +19,7 @@ import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceB
 import { StudioLoraChip } from '@/components/business/studio/StudioLoraChip'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
+import { studioToolTriggerClass } from '@/components/business/studio/tool-surface'
 
 interface StudioToolbarProps {
   onLayerDecompose?: () => void
@@ -55,9 +56,7 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            studioToolTriggerClass,
             active && 'bg-muted/30 text-primary',
           )}
         >
@@ -141,11 +140,7 @@ export function StudioToolbar({
                 <Toolbar.Button
                   type="button"
                   disabled={disabled}
-                  className={cn(
-                    'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-                    'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-                  )}
+                  className={cn(studioToolTriggerClass)}
                 >
                   <Cpu className="size-4" />
                   <span className="hidden sm:inline">{t('trainLora')}</span>

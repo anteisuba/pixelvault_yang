@@ -110,6 +110,7 @@ export function ReverseEngineerPanel({
   selectedModels,
 }: ReverseEngineerPanelProps = {}) {
   const t = useTranslations('ReverseEngineer')
+  const tImageChip = useTranslations('ImageChip')
   const {
     step,
     sourceImageUrl,
@@ -199,12 +200,13 @@ export function ReverseEngineerPanel({
       <div className="studio-step-animate space-y-3">
         <ImageSourcePicker
           description={t('sourceDescription')}
-          uploadLabel={t('uploadTitle')}
+          uploadLabel={tImageChip('upload')}
           uploadHint={t('uploadHint')}
           selectAssetLabel={t('selectAsset')}
           assetDialogTitle={t('selectAsset')}
           assetDialogDescription={t('sourceDescription')}
           pasteHint={t('pasteHint')}
+          className="mx-auto w-64 max-w-full"
           onFileSelect={handleFile}
           onAssetSelect={handleSelectAsset}
         />

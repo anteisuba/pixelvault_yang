@@ -5,13 +5,13 @@ import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
+import {
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from './tool-surface'
 
 function PanelLoadingFallback() {
   return (
@@ -60,9 +60,7 @@ export function StudioTransformButton({
           disabled={disabled}
           aria-label={t('transform')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            studioToolTriggerClass,
             open && 'bg-muted/30 text-primary',
           )}
         >
@@ -70,16 +68,16 @@ export function StudioTransformButton({
           <span className="hidden sm:inline">{t('transform')}</span>
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent
+      <StudioToolPopoverContent
+        size="medium"
         side="top"
         align="center"
-        sideOffset={12}
-        className="w-[min(520px,calc(100vw-2rem))] !p-0 overflow-hidden"
+        className="w-[min(600px,calc(100vw-2rem))]"
       >
         <div className="flex max-h-[min(600px,76vh)] flex-col overflow-y-auto p-4">
           <StudioTransformPanel />
         </div>
-      </PopoverContent>
+      </StudioToolPopoverContent>
     </Popover>
   )
 }

@@ -1,11 +1,16 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  CARD_MANAGEMENT_TABS,
+  type CardManagementTab,
+} from '@/constants/routes'
 import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useStyleCards } from '@/hooks/use-style-cards'
 import { useBackgroundCards } from '@/hooks/use-background-cards'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CharacterCardManager } from '@/components/business/CharacterCardManager'
 import { StyleCardManager } from '@/components/business/StyleCardManager'
 import { SimpleCardManager } from '@/components/business/SimpleCardManager'
@@ -18,9 +23,16 @@ import { SimpleCardManager } from '@/components/business/SimpleCardManager'
 export function CardsPageContent() {
   const t = useTranslations('StudioV2')
   const tBg = useTranslations('BackgroundCard')
+  const searchParams = useSearchParams()
   const characters = useCharacterCards()
   const styles = useStyleCards()
   const backgrounds = useBackgroundCards()
+  const requestedTab = searchParams.get('tab')
+  const defaultTab = CARD_MANAGEMENT_TABS.includes(
+    requestedTab as CardManagementTab,
+  )
+    ? (requestedTab as CardManagementTab)
+    : 'characters'
 
   return (
     <main className="dark min-h-[calc(100vh-3rem)] bg-sidebar text-sidebar-foreground">
@@ -35,7 +47,7 @@ export function CardsPageContent() {
         </header>
 
         <Tabs
-          defaultValue="characters"
+          defaultValue={defaultTab}
           className="flex flex-1 flex-col gap-4 min-h-0"
         >
           <TabsList variant="line">

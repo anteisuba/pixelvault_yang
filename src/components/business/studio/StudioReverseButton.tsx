@@ -58,8 +58,8 @@ export function StudioReverseButton({ disabled }: StudioReverseButtonProps) {
           disabled={disabled}
           aria-label={t('reverse')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
+            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150',
+            'hover:bg-muted/30 hover:text-foreground',
             'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
             open && 'bg-muted/30 text-primary',
           )}

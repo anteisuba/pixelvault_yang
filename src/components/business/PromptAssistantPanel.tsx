@@ -460,7 +460,7 @@ function AssistantAnimatedInput({
         <div className="flex h-14 items-center border-t border-border/50 bg-muted/45 px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {llmApiKeys.length > 0 && (
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
@@ -501,7 +501,7 @@ function AssistantAnimatedInput({
               </DropdownMenu>
             )}
 
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"

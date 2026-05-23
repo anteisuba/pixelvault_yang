@@ -56,6 +56,8 @@ next-env.d.ts
 .codex-artifacts/
 .codex-dev.err.log
 .codex-dev.out.log
+.codex/
+/codex
 
 # clerk configuration (can include secrets)
 /.clerk/

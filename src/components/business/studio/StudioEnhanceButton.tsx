@@ -16,6 +16,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { cn } from '@/lib/utils'
+import { studioToolTriggerClass } from './tool-surface'
 
 const LLM_CAPABLE_ADAPTERS = new Set([
   AI_ADAPTER_TYPES.GEMINI,
@@ -86,9 +87,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           disabled={disabled || isEnhancing}
           aria-label={t('enhance')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            studioToolTriggerClass,
             open && 'bg-muted/30 text-primary',
           )}
         >
@@ -96,9 +95,13 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           <span className="hidden sm:inline">{t('enhance')}</span>
         </Toolbar.Button>
       </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] gap-0 overflow-hidden !p-0 sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]">
+      <DialogContent
+        className="w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-2xl !p-0 sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <DialogTitle className="sr-only">{t('enhance')}</DialogTitle>
-        <div className="flex h-[min(720px,84vh)] flex-col overflow-hidden">
+        <div className="flex h-[min(720px,78vh)] flex-col overflow-hidden">
           <PromptAssistantPanel
             currentPrompt={state.prompt}
             modelId={modelId}

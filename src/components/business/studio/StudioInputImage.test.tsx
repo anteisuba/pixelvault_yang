@@ -4,11 +4,19 @@ import { NextIntlClientProvider } from 'next-intl'
 
 import { StudioInputImage } from './StudioInputImage'
 
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: () => null,
+}))
+
 // Minimal messages for tests
 const messages = {
   Transform: {
     inputPreviewAlt: 'Transform input',
     removeInputImage: 'Remove transform input image',
+    chooseInputImage: 'Add an image to transform',
+    uploadImage: 'Upload image',
+    selectAsset: 'Choose from Assets',
+    selectAssetDescription: 'Pick an image asset to transform.',
     errors: {
       uploadRequired: 'Upload an image to transform.',
       inputTooLarge: 'Image must be under 10 MB and 2048×2048.',
@@ -81,7 +89,7 @@ describe('StudioInputImage', () => {
       />,
     )
 
-    const dropZone = screen.getByRole('button')
-    expect(dropZone).toHaveClass('pointer-events-none')
+    const uploadButton = screen.getByRole('button', { name: 'Upload image' })
+    expect(uploadButton).toBeDisabled()
   })
 })

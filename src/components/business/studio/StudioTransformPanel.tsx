@@ -55,8 +55,8 @@ export const StudioTransformPanel = memo(function StudioTransformPanel({
   const isTransforming = status === 'transforming'
 
   // ─── Handlers ─────────────────────────────────────────────────
-  const handleImageSelect = useCallback((base64: string) => {
-    setInputImage(base64)
+  const handleImageSelect = useCallback((nextImageData: string) => {
+    setInputImage(nextImageData)
     setFaceConsented(false)
   }, [])
 
@@ -113,8 +113,13 @@ export const StudioTransformPanel = memo(function StudioTransformPanel({
   return (
     <div className={cn('flex flex-col gap-4', className)}>
       {/* Title */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">{t('title')}</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">{t('title')}</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {t('description')}
+          </p>
+        </div>
         <StudioTransformToggle
           variants={variants}
           onVariantsChange={setVariants}
@@ -133,7 +138,9 @@ export const StudioTransformPanel = memo(function StudioTransformPanel({
       {/* Preset Selector */}
       {inputImage && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Style</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {t('styleLabel')}
+          </p>
           <div className="grid grid-cols-3 gap-1.5">
             {TRANSFORM_PRESETS.map((preset) => (
               <button

@@ -189,3 +189,50 @@ describe('StudioProvider workflow selection', () => {
     expect(result.current.generation.lastEvaluation).toEqual(MOCK_EVALUATION)
   })
 })
+
+describe('StudioProvider panel state', () => {
+  it('opens toolbar panels exclusively through OPEN_PANEL', () => {
+    const { result } = renderHook(() => useStudioContext(), { wrapper })
+
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'reverse' })
+    })
+
+    expect(result.current.state.panels.reverse).toBe(true)
+
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'transform' })
+    })
+
+    expect(result.current.state.panels.reverse).toBe(false)
+    expect(result.current.state.panels.transform).toBe(true)
+
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'stylePreset' })
+    })
+
+    expect(result.current.state.panels.transform).toBe(false)
+    expect(result.current.state.panels.stylePreset).toBe(true)
+
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'loraSelector' })
+    })
+
+    expect(result.current.state.panels.stylePreset).toBe(false)
+    expect(result.current.state.panels.loraSelector).toBe(true)
+  })
+
+  it('keeps non-toolbar panels independent through OPEN_PANEL', () => {
+    const { result } = renderHook(() => useStudioContext(), { wrapper })
+
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'modelSelector' })
+    })
+    act(() => {
+      result.current.dispatch({ type: 'OPEN_PANEL', payload: 'projectHistory' })
+    })
+
+    expect(result.current.state.panels.modelSelector).toBe(true)
+    expect(result.current.state.panels.projectHistory).toBe(true)
+  })
+})

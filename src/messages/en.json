@@ -868,7 +868,10 @@
     "label": "LoRA",
     "trigger": "Pick a LoRA",
     "triggerWithCount": "{count} LoRA active",
-    "emptyHint": "No LoRA yet. Tap \"Open LoRA Library\" below to browse or favorite one.",
+    "emptyTitle": "Choose a LoRA",
+    "emptyHint": "No LoRA yet. Browse or favorite one from the library, then generate here.",
+    "emptyAction": "Browse LoRA Library",
+    "emptyTrainAction": "Train your own LoRA",
     "removeAria": "Remove {name}",
     "openLibrary": "Open LoRA Library",
     "share": "Share",
@@ -886,7 +889,7 @@
     "useTemplateBadge": "Replace",
     "templateApplied": "Applied {name}'s starter prompt",
     "clearAll": "Clear all",
-    "bannerEmpty": "Pick a LoRA from the library, then come back to generate.",
+    "bannerEmpty": "LoRAs add a subject or style layer on top of the current image model.",
     "bannerOk": "Current model \"{model}\" can run these LoRAs.",
     "bannerNoModel": "Pick a model that supports {family} first.",
     "bannerUnsupported": "Current model \"{model}\" doesn't support LoRA — your {family} LoRAs will be ignored.",
@@ -1168,6 +1171,10 @@
     "saveAsTemplate": "Save as prompt template",
     "saveTemplateSuccess": "Saved to Prompt Engineering",
     "saveTemplateFailed": "Failed to save prompt",
+    "saveCurrentPrompt": "Save current prompt",
+    "saveCurrentPromptEmpty": "Write a prompt first, then save it as a template.",
+    "savingCurrentPrompt": "Saving prompt...",
+    "loadingTemplates": "Loading templates...",
     "createAction": "New template",
     "createCollapse": "Collapse",
     "createDescription": "Save proven prompts as reusable templates, then call them directly from Studio.",
@@ -2468,7 +2475,7 @@
   "StudioNode": {
     "eyebrow": "Node workflow",
     "title": "Script canvas",
-    "subtitle": "Turn one rough idea into reusable characters, scenes, actions, beats, and shots before generation.",
+    "subtitle": "Organize text, character frames, backgrounds, shot frames, and voice around one shot before rendering a durable video clip.",
     "ideaLabel": "Idea",
     "ideaPlaceholder": "Three characters discover an old camera that predicts the future inside an abandoned station.",
     "plannerLabel": "Planner",
@@ -2487,7 +2494,7 @@
     "projectUntitled": "Untitled project",
     "projectName": "Project name",
     "blankCanvasTitle": "Start your canvas from a script",
-    "blankCanvasBody": "Break a rough idea into reusable characters, scenes, beats, and shots — then chain image, video, and audio nodes to keep generating.",
+    "blankCanvasBody": "Start with one shot node, branch into text, character art, background art, frame art, and voice, then merge into video generation.",
     "blankCanvasCta": "Create script node",
     "blankCanvasExamplesLabel": "Or start from these prompts",
     "addNode": "Add node",
@@ -2503,7 +2510,7 @@
     },
     "scriptNodeDraftTitle": "Untitled script",
     "canvasTitle": "Node canvas",
-    "canvasSubtitle": "The breakdown becomes a script node first. Click it to edit characters, scenes, actions, beats, and shots inside the node.",
+    "canvasSubtitle": "The shot node is the workflow center. Text, images, and voice are dependencies that merge into a Seedance-style video model.",
     "scriptNodeType": "Script node",
     "openScriptNode": "Open script node editor",
     "editNode": "Edit node",
@@ -2536,18 +2543,220 @@
     "breakdownCountersLabel": "Breakdown overview",
     "breakdownTimelineLabel": "Beat timeline",
     "nodeTypes": {
-      "script": "Script",
+      "composer": "Composer",
+      "agent": "Agent",
+      "shot": "Shot",
+      "shotText": "Shot text",
+      "characterImage": "Character image",
+      "backgroundImage": "Background image",
+      "frameImage": "Shot image",
+      "voice": "Voice",
+      "seedance": "Seedance output",
       "text": "Text",
       "image": "Image",
       "video": "Video",
       "audio": "Audio"
     },
     "nodeDraftTitles": {
+      "composer": "Describe your idea",
+      "agent": "Agent output",
+      "shot": "Shot node",
+      "shotText": "Shot description",
+      "characterImage": "Character look frame",
+      "backgroundImage": "Background frame",
+      "frameImage": "Shot key frame",
+      "voice": "Voice track",
+      "seedance": "Generate one shot",
       "text": "Text generation",
       "image": "Image generation",
       "video": "Video generation",
       "audio": "Audio generation"
     },
+    "nodeTypeChips": {
+      "composer": "⌗ Composer",
+      "agent": "🤖 Agent",
+      "shot": "S Shot",
+      "shotText": "T Shot text",
+      "characterImage": "C Character",
+      "backgroundImage": "B Background",
+      "frameImage": "F Frame",
+      "voice": "V Voice",
+      "seedance": "O Output",
+      "text": "T Text",
+      "image": "□ Image",
+      "video": "▱ Video",
+      "audio": "♪ Audio"
+    },
+    "addMenuHelpers": {
+      "composer": "Send an idea to Agent",
+      "agent": "Break down story structure",
+      "shot": "Central shot task",
+      "shotText": "Shot intent and action",
+      "characterImage": "Character look reference",
+      "backgroundImage": "Scene space reference",
+      "frameImage": "Final frame reference",
+      "voice": "Upload or generate voice",
+      "seedance": "Merge assets into a shot"
+    },
+    "nodeBlueprints": {
+      "shot": {
+        "status": "Center",
+        "body": "Collect one shot's text, images, voice, and final video output under a single task.",
+        "chips": {
+          "primary": "Branch into text, image, and voice",
+          "secondary": "Track character, background, and frame dependencies",
+          "tertiary": "Merge into one-shot video generation"
+        },
+        "footer": "Shot center"
+      },
+      "shotText": {
+        "status": "Draft",
+        "body": "Owns shot description, action timing, and Seedance prompt text, with image and voice branches available as references.",
+        "chips": {
+          "primary": "Call character image",
+          "secondary": "Call background and frame images",
+          "tertiary": "Bind voice track"
+        },
+        "footer": "Text branch"
+      },
+      "characterImage": {
+        "status": "Reference",
+        "body": "Generate or attach the character look frame so identity stays stable across the shot.",
+        "chips": {
+          "primary": "Character appearance",
+          "secondary": "Wardrobe and expression",
+          "tertiary": "Reusable as a character card"
+        },
+        "footer": "Image branch"
+      },
+      "backgroundImage": {
+        "status": "Reference",
+        "body": "Defines the shot space, lighting, and period so the final frame has clear environmental constraints.",
+        "chips": {
+          "primary": "Scene space",
+          "secondary": "Light and mood",
+          "tertiary": "Background continuity"
+        },
+        "footer": "Image branch"
+      },
+      "frameImage": {
+        "status": "Reference",
+        "body": "Combines character and background into the key frame closest to the final shot composition.",
+        "chips": {
+          "primary": "Shot composition",
+          "secondary": "Characters in frame",
+          "tertiary": "Video first-frame reference"
+        },
+        "footer": "Image branch"
+      },
+      "voice": {
+        "status": "Audio",
+        "body": "Accepts MP3 upload, local voice, or TTS as dialogue, narration, or sound reference for the shot.",
+        "chips": {
+          "primary": "Upload MP3",
+          "secondary": "Generate local voice",
+          "tertiary": "Dialogue / narration / sound"
+        },
+        "footer": "Voice branch"
+      },
+      "seedance": {
+        "status": "Output",
+        "body": "Collects shot text, images, and voice, then renders one shot clip through a Seedance-style video model.",
+        "chips": {
+          "primary": "Seedance route",
+          "secondary": "Locked references",
+          "tertiary": "Output shot clip"
+        },
+        "footer": "Video output"
+      },
+      "text": {
+        "status": "Draft",
+        "body": "Generic text node for notes, prompt fragments, or text assets outside the shot structure.",
+        "chips": {
+          "primary": "Text draft",
+          "secondary": "Prompt fragment",
+          "tertiary": "Connect downstream"
+        },
+        "footer": "Generic node"
+      },
+      "image": {
+        "status": "Draft",
+        "body": "Generic image node for creating or receiving image assets outside the shot-specific branches.",
+        "chips": {
+          "primary": "Image prompt",
+          "secondary": "Reference asset",
+          "tertiary": "Archive output"
+        },
+        "footer": "Generic node"
+      },
+      "video": {
+        "status": "Draft",
+        "body": "Generic video node for creating or receiving video assets outside one-shot generation.",
+        "chips": {
+          "primary": "Video prompt",
+          "secondary": "Reference frame",
+          "tertiary": "Generated clip"
+        },
+        "footer": "Generic node"
+      },
+      "audio": {
+        "status": "Draft",
+        "body": "Generic audio node for voice, sound effect, or music generation.",
+        "chips": {
+          "primary": "Text to speech",
+          "secondary": "Voice reference",
+          "tertiary": "Archive audio"
+        },
+        "footer": "Generic node"
+      }
+    },
+    "composer": {
+      "placeholder": "Describe your idea or request — connect upstream nodes to pull in references",
+      "agentMode": "Agent mode",
+      "askMode": "Ask",
+      "skillLibrary": "Skills",
+      "send": "Send",
+      "sendTooltip": "Send to downstream Agent",
+      "attachTooltip": "Attach reference image",
+      "expandTooltip": "Expand",
+      "noTargetTip": "Connect this composer to an Agent node first"
+    },
+    "agent": {
+      "emptyTitle": "Waiting for composer input",
+      "emptyBody": "Connect a Composer node to this Agent, then send. The breakdown will land here.",
+      "running": "Agent planning…",
+      "rerun": "Re-run",
+      "openEditor": "Open full breakdown"
+    },
+    "assistantDock": {
+      "title": "updream",
+      "newChat": "New chat",
+      "helperLabel": "AI helper",
+      "collapse": "Collapse panel",
+      "greetingTitle": "Hi! Drop in your idea",
+      "greetingBody": "I can split one shot into text, image, voice, and video output branches.",
+      "skillLibrary": "Skills",
+      "skillCommunity": "Community",
+      "styleGuide": "Style guide",
+      "composerPlaceholder": "Describe one shot, or ask for character art, background art, or voice…",
+      "askChip": "Ask"
+    },
+    "bottomDock": {
+      "pointer": "Select",
+      "hand": "Pan canvas",
+      "connect": "Connect",
+      "cut": "Cut",
+      "zoomOut": "Zoom out",
+      "zoomLevel": "{percent}%",
+      "zoomIn": "Zoom in",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "topbar": {
+      "arrange": "Arrange canvas",
+      "routeLabel": "API routes · {count} active"
+    },
+    "minimapTitle": "Minimap",
     "scriptNodePlaceholder": "Describe the story, character relationship, scene mood, or abstract reference style...",
     "placeholderPreview": {
       "text": "Waiting for text",
@@ -2651,6 +2860,13 @@
   "StudioV2": {
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",
+    "noCharacterCards": "No character cards yet. Create one, then choose it here.",
+    "noStyleCards": "No style cards yet. Create one, then choose it here.",
+    "noBackgroundCards": "No background cards yet. Create one, then choose it here.",
+    "noneCharacterCard": "No character card",
+    "noneStyleCard": "No style card",
+    "noneBackgroundCard": "No background card",
+    "openCardManagement": "Open Cards",
     "searchCardsPlaceholder": "Search cards...",
     "sortCardsLabel": "Sort cards",
     "sortCardsRecent": "Recently used",
@@ -3166,6 +3382,11 @@
   "Transform": {
     "title": "Image Transform",
     "description": "Transform your images with AI-powered style transfer",
+    "styleLabel": "Style",
+    "chooseInputImage": "Add an image to transform",
+    "uploadImage": "Upload image",
+    "selectAsset": "Choose from Assets",
+    "selectAssetDescription": "Pick an image asset to transform.",
     "inputPreviewAlt": "Transform input",
     "removeInputImage": "Remove transform input image",
     "errors": {

@@ -97,6 +97,59 @@
 
 ---
 
+## Session Handoff 与重新进入
+
+长线程不应只依赖聊天历史续命。任何可能跨 session、跨 compact、跨线程或跨天继续的任务，都必须留下一个短而可执行的 handoff。
+
+### 什么时候必须写 handoff
+
+以下情况必须在完成报告或暂停报告里写 handoff：
+
+- 任务已经持续超过一个明确功能切片
+- 本轮改动涉及 3 个以上文件或跨前后端
+- 用户说“继续”“下次接着做”“先暂停”“换一个线程做”
+- 发生 compact、明显上下文不足、用户中断或方向切换
+- Codex 完成实现但还需要独立 review、浏览器 QA、部署或文档回流
+
+### Handoff 模板
+
+```md
+## Session Handoff
+
+- Goal:
+- Current state:
+- Files touched:
+- Decisions made:
+- Validation run:
+- Validation not run:
+- Known risks:
+- Related plan status:
+- Next exact step:
+```
+
+规则：
+
+- `Current state` 写当前已经真实完成的状态，不写愿望。
+- `Files touched` 只列关键文件或目录，不复制完整 diff。
+- `Decisions made` 记录会影响后续实现的取舍。
+- `Validation run` 必须写具体命令或浏览器证据。
+- `Next exact step` 必须能直接变成下一条 Codex 指令。
+- 如果没有相关计划，写 `Related plan status: No related plan exists`。
+
+### 重新进入协议
+
+从旧 session、compact summary、用户粘贴的 handoff 或“继续”重新进入时，先做这 5 步：
+
+1. 读最近的 handoff 或用户给出的总结。
+2. 运行 `git status --short`，确认工作树是否已经变化。
+3. 只读取 handoff 里列出的关键文件和当前任务切片，不默认重读整个仓库。
+4. 对比 handoff 和当前代码。如果不一致，先说明不一致点，再继续。
+5. 重新给出本轮成功标准和下一步，不把旧计划当成仍然正确。
+
+如果 handoff 缺失，Codex 必须先从当前代码和 git diff 重建最小上下文，不应根据模糊记忆继续写代码。
+
+---
+
 ## 任务包制度
 
 任何非微小任务，在进入实现或 review 前，都应先形成一个清晰的任务包。
@@ -164,6 +217,38 @@
 - `docs/plans/backend/`
 - `docs/plans/product/`
 
+计划必须包含可验证的完成条件。没有完成条件的长期任务，应先收敛成一个目标：
+
+```md
+Goal:
+Verifier:
+Stop condition:
+Out of scope:
+```
+
+示例：
+
+- `Goal`: LoRA stack 真正进入图像生成请求并落库到 generation metadata。
+- `Verifier`: 相关 service test 通过，手动生成请求能看到 LoRA metadata。
+- `Stop condition`: 测试通过并完成一次浏览器生成链路检查。
+- `Out of scope`: 不在本任务内重设计 LoRA 库页面。
+
+对于 UI、端到端流程、登录态流程、跨页面流程，Goal 必须把 Computer Use 或 Browser QA 写进 verifier，而不是只写“看起来正常”：
+
+```md
+Goal:
+完成 <用户可见能力>，并让用户能在 <目标路由/设备> 完成主路径。
+Verifier:
+
+- Fast check: <typecheck/lint/test 命令>
+- Flow check: 使用 Computer Use 按测试流程完成 <具体用户路径>
+- Evidence: URL、关键可见文本、截图或 app state、控制台/页面错误、失败时的复测结果
+  Stop condition:
+  主路径通过；失败路径有明确错误态；没有新增 console/pageerror；相关测试通过。
+  Out of scope:
+  <本轮不处理的功能/UI/数据迁移>
+```
+
 ### 5. 受控实现
 
 实现时必须遵守：
@@ -222,6 +307,43 @@ review 输入应包含：
 
 ---
 
+## Steering 与 Queuing 纪律
+
+用户在任务进行中追加信息时，先判断是 steering 还是 queuing。
+
+### Steering
+
+Steering 是改变当前正在做的事，例如：
+
+- “别这样做，换成 B 方案”
+- “这个 UI 方向不对”
+- “先停一下，检查这个报错”
+
+处理方式：
+
+1. 停止继续扩大当前 diff。
+2. 简短复述新方向和会废弃的旧假设。
+3. 检查已经修改的文件是否仍然适用。
+4. 只保留仍然服务新目标的改动。
+
+### Queuing
+
+Queuing 是把下一件事排到当前任务之后，例如：
+
+- “做完后再 review”
+- “下一步加 URL 分享”
+- “完成后发一个路线图”
+
+处理方式：
+
+1. 不打断当前正在验证的任务。
+2. 在 handoff 的 `Next exact step` 或完成报告里记录。
+3. 如果 queued task 是新功能或跨层任务，必须生成新的任务包。
+
+如果用户追加的内容同时改变当前目标和新增后续目标，优先按 steering 处理当前目标，再把剩余内容放入 queue。
+
+---
+
 ## 计划格式
 
 计划不追求长，追求稳定和可执行。
@@ -277,7 +399,7 @@ review 应优先引用：
 
 “项目运行平稳”不能只靠页面看起来能用。
 
-至少从五个维度判断：
+至少从七个维度判断：
 
 ### 1. 类型与静态门禁
 
@@ -301,7 +423,70 @@ review 应优先引用：
 - `npx vitest run`
 - `npm run build`
 
-### 4. 产品烟雾链路
+### 4. 目标化验证
+
+每个任务包必须把验证分成三层：
+
+- `Fast check`: 和本次改动直接相关的最小命令，例如单个 test file、`tsc --noEmit` 或局部 lint。
+- `Flow check`: 能证明用户路径可用的浏览器或 API 链路。
+- `Release check`: 合并前才需要跑的完整 lint / test / build。
+
+不要用“跑了很多命令”代替验证目标。验证报告必须说明每条命令证明了什么。
+
+### 5. Computer Use 测试流程
+
+当任务涉及真实 UI 交互、Chrome 登录态、本机浏览器状态、文件选择器、拖拽、复制粘贴、滚动抽屉、响应式布局或第三方网页时，Flow check 应优先写成 Computer Use 测试流程。
+
+任务包里的 Computer Use 测试必须包含：
+
+```md
+Computer Use Flow Check:
+App/browser:
+Start URL:
+Locale:
+Viewport/device:
+Preconditions:
+Test data:
+Steps: 1. ... 2. ...
+Expected:
+Evidence to capture:
+Do not do:
+```
+
+推荐默认流程：
+
+1. 启动或复用本地 dev server，记录 URL 和端口。
+2. 用 Computer Use 打开目标页面，确认当前 URL、页面标题、关键文本和登录状态。
+3. 执行主路径：点击、输入、选择模型/素材、提交、等待结果、检查状态变化。
+4. 执行至少一个失败/空态路径：缺 key、缺输入、无权限、加载失败或移动端滚动场景。
+5. 捕获客观证据：截图/app state、关键 DOM 文本、console/pageerror、network/API 状态或服务器日志。
+6. 如果失败，先分类：
+   - app bug：代码逻辑、状态、样式、权限、API、schema、i18n 问题
+   - environment：本地编译、网络、登录态、第三方服务、测试数据、浏览器扩展问题
+7. 对 app bug 做最小修复，重新运行同一条 Computer Use 流程。
+8. 最多循环到主路径通过；若被环境或权限卡住，停止并写 handoff，不假报通过。
+
+Computer Use 安全边界：
+
+- 默认只操作本地开发环境、测试账号和测试数据。
+- 不在未确认时删除云端/本地数据、创建 API key、改账号权限、发帖、发邮件、上传敏感文件、提交支付或提交外部表单。
+- 需要上传文件、传输敏感数据、修改第三方账号状态或触发外部副作用时，必须在动作发生前向用户确认。
+- CAPTCHA、密码修改最终提交、绕过浏览器安全提示等动作不交给 Codex 自动完成。
+
+开发 + 测试 + debug 的闭环应写成：
+
+```md
+Implement slice -> Fast check -> Computer Use Flow check -> classify failure -> inspect source/logs -> patch -> rerun same Flow check -> report evidence
+```
+
+完成报告必须写清：
+
+- Computer Use 测了哪条路径
+- 看到的通过证据是什么
+- 失败过什么，如何修复或为什么归类为环境问题
+- 哪些路径没有测，原因是什么
+
+### 6. 产品烟雾链路
 
 优先检查现有主干路径：
 
@@ -313,7 +498,7 @@ review 应优先引用：
 
 可直接参考现有 `e2e/*.spec.ts`。
 
-### 5. 运行健康与文档健康
+### 7. 运行健康与文档健康
 
 运行健康：
 
@@ -327,6 +512,46 @@ review 应优先引用：
 - 新的长期规则是否已回流到 `docs/guides/` 和 `AGENTS.md`
 
 如果代码已经变化，但地图和规则没有更新，则项目不应被视为真正平稳。
+
+---
+
+## 自动化使用规则
+
+自动化用于守住重复性检查，不用于绕过任务包直接改代码。
+
+### 适合自动化的任务
+
+- 每日检查 `docs/plans/**` 是否可能 stale
+- 定期运行模型文档监控或 provider 可用性巡检
+- 定期做本地/预览环境的轻量 smoke QA
+- 长任务期间回到同一 thread 检查等待中的 review、CI、部署或外部反馈
+- 每周汇总 session compact、中断、未验证任务和未回流计划
+
+### 不适合自动化的任务
+
+- 没有完成条件的开放式重构
+- 自动修改 `src/**`、`prisma/**`、`scripts/**` 后直接宣称完成
+- 需要用户产品判断的 UI 方向选择
+- 需要真实密钥、支付、权限或 destructive 操作的流程
+
+### 选择自动化类型
+
+- 同一个长线程需要回来继续上下文时，用 thread heartbeat。
+- 从工作区定时重新开始的检查，用 scheduled workspace automation。
+- 低于一小时、依赖当前讨论上下文的跟进，优先用 heartbeat。
+
+自动化 prompt 必须自包含，并明确输出格式：
+
+```md
+Task:
+Scope:
+Read first:
+Allowed actions:
+Validation:
+Report format:
+```
+
+自动化发现问题时，应报告证据、影响和建议任务包；除非用户明确授权，不直接扩大实现范围。
 
 ---
 

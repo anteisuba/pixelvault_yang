@@ -4,18 +4,18 @@ import { RatioIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { useStudioForm } from '@/contexts/studio-context'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
+import type { AspectRatio } from '@/constants/config'
 import {
   STUDIO_IMAGE_ASPECT_RATIOS,
   STUDIO_VIDEO_ASPECT_RATIOS,
 } from '@/constants/studio'
+import { useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
-import type { AspectRatio } from '@/constants/config'
+import {
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from './tool-surface'
 
 interface StudioAspectRatioPopoverProps {
   disabled?: boolean
@@ -62,22 +62,29 @@ export function StudioAspectRatioPopover({
 }: StudioAspectRatioPopoverProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV2')
+  const open = state.panels.aspectRatio
   const ratios =
     state.outputType === 'video'
       ? STUDIO_VIDEO_ASPECT_RATIOS
       : STUDIO_IMAGE_ASPECT_RATIOS
 
   return (
-    <Popover>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) =>
+        dispatch({
+          type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
+          payload: 'aspectRatio',
+        })
+      }
+    >
       <PopoverTrigger asChild>
         <Toolbar.Button
           type="button"
           disabled={disabled}
           aria-label={t('aspectRatioLabel')}
           className={cn(
-            'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-            'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            studioToolTriggerClass,
             'data-[state=open]:bg-muted/30 data-[state=open]:text-primary',
           )}
         >
@@ -85,11 +92,11 @@ export function StudioAspectRatioPopover({
           <span className="hidden sm:inline">{state.aspectRatio}</span>
         </Toolbar.Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-auto p-3"
+      <StudioToolPopoverContent
+        size="small"
+        className="w-auto"
         side="top"
         align="center"
-        sideOffset={12}
       >
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1.5">
@@ -99,19 +106,15 @@ export function StudioAspectRatioPopover({
                 type="button"
                 role="radio"
                 aria-checked={state.aspectRatio === r}
-                onClick={() =>
+                onClick={() => {
                   dispatch({ type: 'SET_ASPECT_RATIO', payload: r })
-                }
+                }}
                 className={cn(
-                  'inline-flex min-w-14 items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
-                  'hover:scale-[1.03] active:scale-[0.95]',
+                  'inline-flex min-w-14 items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150',
                   state.aspectRatio === r
                     ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/15'
                     : 'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
                 )}
-                style={{
-                  transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-                }}
               >
                 {r}
               </button>
@@ -119,7 +122,7 @@ export function StudioAspectRatioPopover({
           </div>
           <RatioPreview ratio={state.aspectRatio} />
         </div>
-      </PopoverContent>
+      </StudioToolPopoverContent>
     </Popover>
   )
 }

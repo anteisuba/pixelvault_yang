@@ -5,7 +5,6 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type {
   NodeWorkflowModelSelection,
-  NodeWorkflowNode,
   NodeWorkflowNodeData,
   NodeWorkflowNodeType,
 } from '@/types'
@@ -16,7 +15,8 @@ export interface NodeWorkflowActions {
   updateNodeData: (nodeId: string, patch: Partial<NodeWorkflowNodeData>) => void
   updateNodeModel: (nodeId: string, model: NodeWorkflowModelSelection) => void
   openNodeEditor: (nodeId: string) => void
-  generateScript: (node: NodeWorkflowNode) => Promise<void> | void
+  sendFromComposer: (composerNodeId: string) => Promise<void> | void
+  hasOutgoingAgent: (composerNodeId: string) => boolean
 }
 
 const NodeWorkflowActionsContext = createContext<NodeWorkflowActions | null>(

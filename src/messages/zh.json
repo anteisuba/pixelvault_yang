@@ -868,7 +868,10 @@
     "label": "LoRA",
     "trigger": "选择 LoRA",
     "triggerWithCount": "{count} 个 LoRA 已激活",
-    "emptyHint": "还没有 LoRA。点下方「打开 LoRA 库」浏览或收藏。",
+    "emptyTitle": "选择一个 LoRA",
+    "emptyHint": "还没有 LoRA。打开 LoRA 库浏览或收藏，然后回到这里生成。",
+    "emptyAction": "浏览 LoRA 库",
+    "emptyTrainAction": "训练自己的 LoRA",
     "removeAria": "移除 {name}",
     "openLibrary": "打开 LoRA 库",
     "share": "分享",
@@ -886,7 +889,7 @@
     "useTemplateBadge": "覆盖",
     "templateApplied": "已应用「{name}」的示例提示词",
     "clearAll": "全部清除",
-    "bannerEmpty": "先从 LoRA 库挑一个 LoRA，再回来生成。",
+    "bannerEmpty": "LoRA 会把角色或画风叠加到当前图像模型上。",
     "bannerOk": "当前模型「{model}」可以跑这些 LoRA。",
     "bannerNoModel": "请先选一个支持 {family} 的模型。",
     "bannerUnsupported": "当前模型「{model}」不支持 LoRA — 这些 {family} LoRA 将被忽略。",
@@ -1168,6 +1171,10 @@
     "saveAsTemplate": "保存为提示词模板",
     "saveTemplateSuccess": "已保存到提示词工程",
     "saveTemplateFailed": "保存提示词失败",
+    "saveCurrentPrompt": "保存当前提示词",
+    "saveCurrentPromptEmpty": "先输入提示词，就可以直接保存为模板。",
+    "savingCurrentPrompt": "正在保存提示词...",
+    "loadingTemplates": "正在加载模板...",
     "createAction": "新建模板",
     "createCollapse": "收起",
     "createDescription": "把常用或验证过的 Prompt 保存成模板，之后可以在 Studio 中直接调用。",
@@ -2468,7 +2475,7 @@
   "StudioNode": {
     "eyebrow": "节点工作流",
     "title": "剧本画布",
-    "subtitle": "把一个粗略想法先拆成可复用的角色、场景、行为、段落和镜头，再进入生成。",
+    "subtitle": "以镜头为中心组织文本、角色图、背景图、镜头图和语音，最后合成为可归档的视频片段。",
     "ideaLabel": "想法",
     "ideaPlaceholder": "三个角色在废弃车站里发现一台会预言未来的旧相机。",
     "plannerLabel": "规划模型",
@@ -2487,7 +2494,7 @@
     "projectUntitled": "未命名项目",
     "projectName": "项目名称",
     "blankCanvasTitle": "从一个剧本开始你的画布",
-    "blankCanvasBody": "把粗略想法先拆成可复用的角色、场景、段落和镜头，再连接图片、视频、音频节点继续生成。",
+    "blankCanvasBody": "先建立一个镜头节点，再从它分出文本、角色图、背景图、镜头图和语音，最后汇入视频生成。",
     "blankCanvasCta": "新建剧本节点",
     "blankCanvasExamplesLabel": "或试试这些起点",
     "addNode": "添加节点",
@@ -2503,7 +2510,7 @@
     },
     "scriptNodeDraftTitle": "未命名剧本",
     "canvasTitle": "节点画布",
-    "canvasSubtitle": "剧本拆分会先落成一个剧本节点。点击节点即可编辑内部的角色、场景、行为、段落和镜头。",
+    "canvasSubtitle": "镜头节点是工作流中心。文本、图片、语音都是镜头的依赖，最终汇入 Seedance 类视频模型。",
     "scriptNodeType": "剧本节点",
     "openScriptNode": "打开剧本节点编辑器",
     "editNode": "编辑节点",
@@ -2536,18 +2543,220 @@
     "breakdownCountersLabel": "拆解概览",
     "breakdownTimelineLabel": "段落时长",
     "nodeTypes": {
-      "script": "剧本",
+      "composer": "输入框",
+      "agent": "Agent",
+      "shot": "镜头",
+      "shotText": "镜头文本",
+      "characterImage": "角色图",
+      "backgroundImage": "背景图",
+      "frameImage": "镜头图",
+      "voice": "语音",
+      "seedance": "Seedance 出片",
       "text": "文本",
       "image": "图片",
       "video": "视频",
       "audio": "音频"
     },
     "nodeDraftTitles": {
+      "composer": "输入你的创意",
+      "agent": "Agent 输出",
+      "shot": "镜头节点",
+      "shotText": "镜头描述",
+      "characterImage": "角色定妆图",
+      "backgroundImage": "背景设定图",
+      "frameImage": "镜头关键图",
+      "voice": "语音轨道",
+      "seedance": "生成单个镜头",
       "text": "文本生成",
       "image": "图片生成",
       "video": "视频生成",
       "audio": "音频生成"
     },
+    "nodeTypeChips": {
+      "composer": "⌗ 输入",
+      "agent": "🤖 Agent",
+      "shot": "S 镜头",
+      "shotText": "T 镜头文本",
+      "characterImage": "C 角色图",
+      "backgroundImage": "B 背景图",
+      "frameImage": "F 镜头图",
+      "voice": "V 语音",
+      "seedance": "O 出片",
+      "text": "T 文本",
+      "image": "□ 图片",
+      "video": "▱ 视频",
+      "audio": "♪ 音频"
+    },
+    "addMenuHelpers": {
+      "composer": "向 Agent 发送创意",
+      "agent": "拆解剧本结构",
+      "shot": "镜头中心节点",
+      "shotText": "镜头意图和动作",
+      "characterImage": "角色定妆参考",
+      "backgroundImage": "场景空间参考",
+      "frameImage": "最终画面参考",
+      "voice": "上传或生成语音",
+      "seedance": "汇总素材生成镜头"
+    },
+    "nodeBlueprints": {
+      "shot": {
+        "status": "中心",
+        "body": "把一个镜头的文本、图片、语音和最终视频收束到同一个任务中心。",
+        "chips": {
+          "primary": "分出文本、图片、语音三条支路",
+          "secondary": "追踪角色图、背景图、镜头图依赖",
+          "tertiary": "汇入单镜头视频生成"
+        },
+        "footer": "镜头中心"
+      },
+      "shotText": {
+        "status": "草稿",
+        "body": "负责镜头描述、动作节奏和 Seedance 提示词，可引用图片与语音分支。",
+        "chips": {
+          "primary": "调用角色图",
+          "secondary": "调用背景图和镜头图",
+          "tertiary": "绑定语音轨"
+        },
+        "footer": "文本支路"
+      },
+      "characterImage": {
+        "status": "参考",
+        "body": "生成或接入角色定妆，保证后续镜头里的角色身份稳定。",
+        "chips": {
+          "primary": "角色外观",
+          "secondary": "服装与表情",
+          "tertiary": "可复用为角色卡"
+        },
+        "footer": "图片支路"
+      },
+      "backgroundImage": {
+        "status": "参考",
+        "body": "定义镜头所在空间、光线和时代感，为镜头图提供环境约束。",
+        "chips": {
+          "primary": "场景空间",
+          "secondary": "光线氛围",
+          "tertiary": "背景一致性"
+        },
+        "footer": "图片支路"
+      },
+      "frameImage": {
+        "status": "参考",
+        "body": "整合角色和背景，生成最接近最终镜头构图的关键画面。",
+        "chips": {
+          "primary": "镜头构图",
+          "secondary": "角色入画",
+          "tertiary": "视频首帧参考"
+        },
+        "footer": "图片支路"
+      },
+      "voice": {
+        "status": "音频",
+        "body": "接入 MP3 上传、本地语音或 TTS，作为镜头对白、旁白或音效参考。",
+        "chips": {
+          "primary": "上传 MP3",
+          "secondary": "本地声音生成",
+          "tertiary": "对白 / 旁白 / 音效"
+        },
+        "footer": "语音支路"
+      },
+      "seedance": {
+        "status": "出口",
+        "body": "收集镜头文本、图片和语音后，通过 Seedance 类视频模型生成单个镜头片段。",
+        "chips": {
+          "primary": "Seedance 路由",
+          "secondary": "参考素材锁定",
+          "tertiary": "输出镜头片段"
+        },
+        "footer": "视频出口"
+      },
+      "text": {
+        "status": "草稿",
+        "body": "通用文本节点，用于说明、提示词或镜头之外的文本资产。",
+        "chips": {
+          "primary": "文本草稿",
+          "secondary": "提示词片段",
+          "tertiary": "可连接下游节点"
+        },
+        "footer": "通用节点"
+      },
+      "image": {
+        "status": "草稿",
+        "body": "通用图片节点，用于生成或承接非镜头专属的图片资产。",
+        "chips": {
+          "primary": "图片提示词",
+          "secondary": "参考素材",
+          "tertiary": "产物归档"
+        },
+        "footer": "通用节点"
+      },
+      "video": {
+        "status": "草稿",
+        "body": "通用视频节点，用于生成或承接非单镜头专属的视频资产。",
+        "chips": {
+          "primary": "视频提示词",
+          "secondary": "参考帧",
+          "tertiary": "生成片段"
+        },
+        "footer": "通用节点"
+      },
+      "audio": {
+        "status": "草稿",
+        "body": "通用音频节点，用于语音、音效或音乐生成。",
+        "chips": {
+          "primary": "文本转语音",
+          "secondary": "声音参考",
+          "tertiary": "音频归档"
+        },
+        "footer": "通用节点"
+      }
+    },
+    "composer": {
+      "placeholder": "输入你的创意或请求，可添加上游连线以引入参考素材",
+      "agentMode": "Agent 模式",
+      "askMode": "询问",
+      "skillLibrary": "技能库",
+      "send": "发送",
+      "sendTooltip": "发送给下游 Agent",
+      "attachTooltip": "添加参考图片",
+      "expandTooltip": "展开",
+      "noTargetTip": "请先连接到一个 Agent 节点"
+    },
+    "agent": {
+      "emptyTitle": "等待 Composer 输入",
+      "emptyBody": "把 Composer 节点连接到这里，发送后会在这显示 Agent 拆解的剧本结构。",
+      "running": "Agent 拆解中…",
+      "rerun": "重新生成",
+      "openEditor": "查看完整结构"
+    },
+    "assistantDock": {
+      "title": "updream",
+      "newChat": "新建对话",
+      "helperLabel": "AI 助手",
+      "collapse": "折叠面板",
+      "greetingTitle": "你好！输入你的创意",
+      "greetingBody": "我可以帮你把一个镜头拆成文本、图片、语音和视频出口。",
+      "skillLibrary": "技能库",
+      "skillCommunity": "技能社区",
+      "styleGuide": "风格指导",
+      "composerPlaceholder": "描述一个镜头，或要求我补角色图、背景图、语音…",
+      "askChip": "询问"
+    },
+    "bottomDock": {
+      "pointer": "选择",
+      "hand": "拖动画布",
+      "connect": "连接",
+      "cut": "剪切",
+      "zoomOut": "缩小",
+      "zoomLevel": "{percent}%",
+      "zoomIn": "放大",
+      "undo": "撤销",
+      "redo": "重做"
+    },
+    "topbar": {
+      "arrange": "整理画布",
+      "routeLabel": "API 路由 · {count} 个启用路由"
+    },
+    "minimapTitle": "小地图",
     "scriptNodePlaceholder": "描述你想做的剧情、角色关系、场景氛围或参考作品风格...",
     "placeholderPreview": {
       "text": "等待文本结果",
@@ -2651,6 +2860,13 @@
   "StudioV2": {
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",
+    "noCharacterCards": "还没有角色卡。创建一张后可在这里选择。",
+    "noStyleCards": "还没有画风卡。创建一张后可在这里选择。",
+    "noBackgroundCards": "还没有背景卡。创建一张后可在这里选择。",
+    "noneCharacterCard": "不选择角色卡",
+    "noneStyleCard": "不选择画风卡",
+    "noneBackgroundCard": "不选择背景卡",
+    "openCardManagement": "打开卡片管理",
     "searchCardsPlaceholder": "搜索卡片...",
     "sortCardsLabel": "卡片排序",
     "sortCardsRecent": "最近使用",
@@ -3166,6 +3382,11 @@
   "Transform": {
     "title": "图像变换",
     "description": "使用 AI 风格迁移变换你的图像",
+    "styleLabel": "风格",
+    "chooseInputImage": "添加要变换的图片",
+    "uploadImage": "上传图片",
+    "selectAsset": "从素材库选择",
+    "selectAssetDescription": "选择一张素材图片用于变换。",
     "inputPreviewAlt": "待变换输入图",
     "removeInputImage": "移除待变换输入图",
     "errors": {

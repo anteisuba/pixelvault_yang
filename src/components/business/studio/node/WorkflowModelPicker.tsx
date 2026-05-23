@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import type { NodeWorkflowModelSelection } from '@/types'
 
 function modelSelectionFromOption(
@@ -35,16 +36,19 @@ interface WorkflowModelPickerProps {
   value: string
   options: StudioModelOption[]
   onChange: (model: NodeWorkflowModelSelection) => void
+  variant?: 'full' | 'chip'
 }
 
 export function WorkflowModelPicker({
   value,
   options,
   onChange,
+  variant = 'full',
 }: WorkflowModelPickerProps) {
   const t = useTranslations('StudioNode')
   const [open, setOpen] = useState(false)
   const selectedOption = options.find((option) => option.optionId === value)
+  const isChip = variant === 'chip'
 
   const handleChange = (optionId: string) => {
     const option = options.find((item) => item.optionId === optionId)
@@ -59,15 +63,22 @@ export function WorkflowModelPicker({
       <Button
         type="button"
         variant="outline"
-        className="h-9 w-full justify-between rounded-full px-3"
+        className={cn(
+          isChip
+            ? 'nodrag inline-flex h-7 max-w-[180px] items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#22211f] px-2.5 text-[11px] font-semibold text-[#a6a098] hover:bg-[#2d2b28] hover:text-foreground'
+            : 'h-9 w-full justify-between rounded-full px-3',
+        )}
         onClick={() => setOpen(true)}
       >
+        {isChip && <KeyRound className="size-3 shrink-0 text-[#a6a098]" />}
         <span className="min-w-0 truncate">
           {selectedOption
             ? (selectedOption.keyLabel ?? selectedOption.modelId)
             : t('modelPicker.select')}
         </span>
-        <KeyRound className="size-4 shrink-0 text-muted-foreground" />
+        {!isChip && (
+          <KeyRound className="size-4 shrink-0 text-muted-foreground" />
+        )}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

@@ -5,16 +5,17 @@ import { Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { ImageSourcePicker } from '@/components/business/ImageSourcePicker'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { useStudioData } from '@/contexts/studio-context'
+import { Popover, PopoverTrigger } from '@/components/ui/popover'
+import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import {
+  StudioToolPopoverContent,
+  studioToolTriggerClass,
+} from './tool-surface'
 
 interface ReferenceImageChipProps {
   disabled?: boolean
@@ -35,12 +36,18 @@ interface ReferenceImageChipProps {
  */
 export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const t = useTranslations('ImageChip')
+  const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const popoverOpen = state.panels.refImage
 
   const enabledReferenceCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
   const isActive = totalEntries > 0
+
+  const closePopover = () => {
+    dispatch({ type: 'CLOSE_PANEL', payload: 'refImage' })
+  }
 
   const handleFileSelect = (file: File) => {
     const reader = new FileReader()
@@ -59,19 +66,30 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     await imageUpload.addFromUrl(gen.url)
   }
 
+  const handleRequestAssetDialog = () => {
+    closePopover()
+    setAssetDialogOpen(true)
+  }
+
   return (
     <>
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover
+        open={popoverOpen}
+        onOpenChange={(nextOpen) =>
+          dispatch({
+            type: nextOpen ? 'OPEN_PANEL' : 'CLOSE_PANEL',
+            payload: 'refImage',
+          })
+        }
+      >
         <PopoverTrigger asChild>
           <Toolbar.Button
             type="button"
             disabled={disabled}
             aria-label={t('label')}
             className={cn(
-              'relative inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-all duration-200',
-              'hover:bg-muted/30 hover:text-foreground hover:scale-[1.03] active:scale-[0.95]',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              isActive && 'bg-muted/30 text-primary',
+              studioToolTriggerClass,
+              (isActive || popoverOpen) && 'bg-muted/30 text-primary',
             )}
           >
             <ImageIcon className="size-4 shrink-0" />
@@ -91,12 +109,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           </Toolbar.Button>
         </PopoverTrigger>
 
-        <PopoverContent
-          className="w-[28rem] max-w-[calc(100vw-2rem)] p-3"
-          side="top"
-          align="center"
-          sideOffset={12}
-        >
+        <StudioToolPopoverContent size="action" side="top" align="center">
           <ImageSourcePicker
             description={t('description')}
             uploadLabel={t('upload')}
@@ -107,7 +120,8 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             pasteHint={t('pasteHint')}
             onFileSelect={handleFileSelect}
             onAssetSelect={handleSelectAsset}
-            onRequestClose={() => setPopoverOpen(false)}
+            onRequestClose={closePopover}
+            onRequestAssetDialog={handleRequestAssetDialog}
             preview={
               totalEntries > 0 ? (
                 <ImageAttachmentPreviewStrip
@@ -121,8 +135,17 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
               ) : null
             }
           />
-        </PopoverContent>
+        </StudioToolPopoverContent>
       </Popover>
+
+      <AssetSelectorDialog
+        open={assetDialogOpen}
+        onOpenChange={setAssetDialogOpen}
+        onSelect={handleSelectAsset}
+        title={t('selectAsset')}
+        description={t('description')}
+        mediaType="image"
+      />
     </>
   )
 }

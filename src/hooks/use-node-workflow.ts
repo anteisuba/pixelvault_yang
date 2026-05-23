@@ -25,18 +25,77 @@ function createWorkflowNodeId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
   }
-  return `node_${Date.now()}`
+  return `node_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function createWorkflowEdgeId(source: string, target: string): string {
+  return `edge_${source}_${target}`
 }
 
 function createWorkflowNode(
   type: NodeWorkflowNodeType,
   position: NodeWorkflowPosition,
+  data: Partial<NodeWorkflowNodeData> = {},
 ): NodeWorkflowNode {
   return {
     id: createWorkflowNodeId(),
     type,
     position,
-    data: { prompt: '' },
+    data: { prompt: '', ...data },
+  }
+}
+
+/**
+ * Seed a shot-centered canvas so the first screen shows the intended
+ * relationship between script, image, voice, and final video output.
+ */
+function createSeedState(): NodeWorkflowState {
+  const shot = createWorkflowNode('shot', { x: 240, y: 240 })
+  const shotText = createWorkflowNode('shotText', { x: 680, y: 60 })
+  const characterImage = createWorkflowNode('characterImage', {
+    x: 680,
+    y: 320,
+  })
+  const backgroundImage = createWorkflowNode('backgroundImage', {
+    x: 1060,
+    y: 60,
+  })
+  const frameImage = createWorkflowNode('frameImage', { x: 1060, y: 320 })
+  const voice = createWorkflowNode('voice', { x: 680, y: 580 })
+  const seedance = createWorkflowNode('seedance', { x: 1460, y: 240 })
+
+  const edgePairs: Array<[source: string, target: string]> = [
+    [shot.id, shotText.id],
+    [shot.id, characterImage.id],
+    [shot.id, backgroundImage.id],
+    [shot.id, frameImage.id],
+    [shot.id, voice.id],
+    [shotText.id, seedance.id],
+    [characterImage.id, seedance.id],
+    [backgroundImage.id, seedance.id],
+    [frameImage.id, seedance.id],
+    [voice.id, seedance.id],
+  ]
+
+  const edges: NodeWorkflowEdge[] = edgePairs.map(([source, target]) => ({
+    id: createWorkflowEdgeId(source, target),
+    source,
+    target,
+    animated: true,
+  }))
+
+  return {
+    nodes: [
+      { ...shot, selected: true },
+      shotText,
+      characterImage,
+      backgroundImage,
+      frameImage,
+      voice,
+      seedance,
+    ],
+    edges,
+    editorNodeId: null,
   }
 }
 
@@ -55,17 +114,17 @@ interface UseNodeWorkflowReturn extends NodeWorkflowState {
     breakdown: ScriptBreakdownResult,
     planner: { label: string; modelId: string },
   ) => void
+  getOutgoingTargetByType: (
+    sourceId: string,
+    targetType: NodeWorkflowNodeType,
+  ) => NodeWorkflowNode | null
   onNodesChange: (changes: NodeChange<NodeWorkflowNode>[]) => void
   onEdgesChange: (changes: EdgeChange<NodeWorkflowEdge>[]) => void
   onConnect: (connection: Connection) => void
 }
 
 export function useNodeWorkflow(): UseNodeWorkflowReturn {
-  const [state, setState] = useState<NodeWorkflowState>({
-    nodes: [],
-    edges: [],
-    editorNodeId: null,
-  })
+  const [state, setState] = useState<NodeWorkflowState>(() => createSeedState())
 
   const selectedNodeId = useMemo(
     () => state.nodes.find((node) => node.selected)?.id ?? null,
@@ -133,6 +192,22 @@ export function useNodeWorkflow(): UseNodeWorkflowReturn {
     [updateNodeData],
   )
 
+  const getOutgoingTargetByType = useCallback(
+    (sourceId: string, targetType: NodeWorkflowNodeType) => {
+      const targetIds = new Set(
+        state.edges
+          .filter((edge) => edge.source === sourceId)
+          .map((edge) => edge.target),
+      )
+      return (
+        state.nodes.find(
+          (node) => targetIds.has(node.id) && node.type === targetType,
+        ) ?? null
+      )
+    },
+    [state.edges, state.nodes],
+  )
+
   const onNodesChange = useCallback(
     (changes: NodeChange<NodeWorkflowNode>[]) => {
       setState((current) => ({
@@ -156,7 +231,7 @@ export function useNodeWorkflow(): UseNodeWorkflowReturn {
   const onConnect = useCallback((connection: Connection) => {
     setState((current) => ({
       ...current,
-      edges: addEdge(connection, current.edges),
+      edges: addEdge({ ...connection, animated: true }, current.edges),
     }))
   }, [])
 
@@ -169,6 +244,7 @@ export function useNodeWorkflow(): UseNodeWorkflowReturn {
     updateNodeData,
     updateNodeModel,
     updateScriptBreakdown,
+    getOutgoingTargetByType,
     onNodesChange,
     onEdgesChange,
     onConnect,

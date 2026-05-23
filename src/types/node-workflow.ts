@@ -4,7 +4,15 @@ import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 
 export const NODE_WORKFLOW_NODE_TYPES = [
-  'script',
+  'composer',
+  'agent',
+  'shot',
+  'shotText',
+  'characterImage',
+  'backgroundImage',
+  'frameImage',
+  'voice',
+  'seedance',
   'text',
   'image',
   'video',

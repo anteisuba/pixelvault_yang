@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import {
+  ArrowUpRight,
   ImageIcon,
   Loader2,
   Palette,
@@ -12,8 +13,10 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { useStudioData } from '@/contexts/studio-context'
 import { modelSupportsLora } from '@/constants/models'
+import { cardManagementPath, type CardManagementTab } from '@/constants/routes'
+import { useStudioData } from '@/contexts/studio-context'
+import { Link } from '@/i18n/navigation'
 import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
@@ -31,6 +34,9 @@ interface SelectableCard {
 interface CardPickerGroup {
   kind: CardKind
   label: string
+  noneLabel: string
+  emptyLabel: string
+  managementTab: CardManagementTab
   icon: ReactNode
   cards: SelectableCard[]
   selectedIds: string[]
@@ -71,6 +77,9 @@ export function StudioCardPicker() {
     {
       kind: 'character',
       label: t('characterCards'),
+      noneLabel: t('noneCharacterCard'),
+      emptyLabel: t('noCharacterCards'),
+      managementTab: 'characters',
       icon: <UserRound className="size-4" />,
       cards: characters.cards.map((card) => ({
         id: card.id,
@@ -93,6 +102,9 @@ export function StudioCardPicker() {
     {
       kind: 'style',
       label: t('styleCards'),
+      noneLabel: t('noneStyleCard'),
+      emptyLabel: t('noStyleCards'),
+      managementTab: 'styles',
       icon: <Palette className="size-4" />,
       cards: styles.cards.map((card) => ({
         id: card.id,
@@ -115,6 +127,9 @@ export function StudioCardPicker() {
     {
       kind: 'background',
       label: t('backgroundCards'),
+      noneLabel: t('noneBackgroundCard'),
+      emptyLabel: t('noBackgroundCards'),
+      managementTab: 'backgrounds',
       icon: <ImageIcon className="size-4" />,
       cards: backgrounds.cards.map((card) => ({
         id: card.id,
@@ -147,6 +162,10 @@ export function StudioCardPicker() {
     (total, group) => total + group.selectedIds.length,
     0,
   )
+  const handleSelectKind = (kind: CardKind) => {
+    setActiveKind(kind)
+    setQuery('')
+  }
 
   return (
     <div className="flex max-h-full flex-col overflow-hidden rounded-xl">
@@ -160,17 +179,30 @@ export function StudioCardPicker() {
             </span>
           ) : null}
         </div>
-        <div className="mt-2.5 grid grid-cols-3 gap-1 rounded-xl bg-muted/30 p-1">
+        <div
+          role="tablist"
+          aria-label={t('cards')}
+          className="mt-2.5 grid grid-cols-3 gap-1 rounded-xl bg-muted/30 p-1"
+        >
           {groups.map((group) => {
             const active = group.kind === activeKind
             return (
               <button
                 key={group.kind}
                 type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setActiveKind(group.kind)
-                  setQuery('')
+                role="tab"
+                aria-selected={active}
+                tabIndex={active ? 0 : -1}
+                title={group.label}
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  handleSelectKind(group.kind)
+                }}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  handleSelectKind(group.kind)
                 }}
                 className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs transition-colors ${
                   active
@@ -201,29 +233,46 @@ export function StudioCardPicker() {
       </header>
 
       <div className="max-h-[min(48vh,28rem)] overflow-y-auto p-3">
-        <button
-          type="button"
-          onClick={() => activeGroup.onSelect(null)}
-          className={`mb-2 flex w-full items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/35 ${
-            activeGroup.selectedIds.length === 0
-              ? 'bg-muted/35 text-foreground'
-              : 'bg-background'
-          }`}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            {activeGroup.icon}
-          </span>
-          <span className="font-medium">{t('none')}</span>
-        </button>
+        {activeGroup.cards.length > 0 || activeGroup.selectedIds.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => activeGroup.onSelect(null)}
+            className={`mb-2 flex w-full items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/35 ${
+              activeGroup.selectedIds.length === 0
+                ? 'bg-muted/35 text-foreground'
+                : 'bg-background'
+            }`}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              {activeGroup.icon}
+            </span>
+            <span className="font-medium">{activeGroup.noneLabel}</span>
+          </button>
+        ) : null}
 
         {activeGroup.isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : visibleCards.length === 0 ? (
-          <p className="px-3 py-10 text-center font-serif text-sm text-muted-foreground">
-            {query.trim() ? t('cardSearchEmpty') : t('noCards')}
-          </p>
+          query.trim() ? (
+            <p className="px-3 py-10 text-center font-serif text-sm text-muted-foreground">
+              {t('cardSearchEmpty')}
+            </p>
+          ) : (
+            <div className="flex flex-col items-center gap-3 px-3 py-10 text-center">
+              <p className="max-w-72 text-sm leading-6 text-muted-foreground">
+                {activeGroup.emptyLabel}
+              </p>
+              <Link
+                href={cardManagementPath({ tab: activeGroup.managementTab })}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-semibold text-background transition-colors hover:bg-foreground/90"
+              >
+                {t('openCardManagement')}
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              </Link>
+            </div>
+          )
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {visibleCards.map((card) => {

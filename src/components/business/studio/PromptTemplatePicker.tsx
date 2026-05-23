@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2, Save } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -20,18 +21,52 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useRecipes } from '@/hooks/use-recipes'
-import type { RecipeRecord } from '@/types'
+import { createRecipeAPI } from '@/lib/api-client/recipes'
+import type { CreateRecipeRequest, OutputType, RecipeRecord } from '@/types'
 
 const RECENT_TEMPLATE_COUNT = 5
+const DEFAULT_TEMPLATE_OUTPUT_TYPE: OutputType = 'IMAGE'
+const TEMPLATE_NAME_MAX_LENGTH = 48
 
 interface PromptTemplatePickerProps {
+  currentModelId?: string
+  currentOutputType?: OutputType
+  currentParams?: Record<string, unknown>
+  currentPrompt?: string
+  currentProvider?: string
   onApply: (recipe: RecipeRecord) => void
 }
 
-export function PromptTemplatePicker({ onApply }: PromptTemplatePickerProps) {
+function getDefaultTemplateName(prompt: string): string {
+  const firstLine = prompt
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean)
+
+  if (!firstLine) return ''
+
+  const normalized = firstLine.replace(/\s+/g, ' ')
+  return normalized.length > TEMPLATE_NAME_MAX_LENGTH
+    ? `${normalized.slice(0, TEMPLATE_NAME_MAX_LENGTH)}...`
+    : normalized
+}
+
+export function PromptTemplatePicker({
+  currentModelId,
+  currentOutputType = DEFAULT_TEMPLATE_OUTPUT_TYPE,
+  currentParams,
+  currentPrompt,
+  currentProvider,
+  onApply,
+}: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
   const [open, setOpen] = useState(false)
-  const { recipes, isLoading } = useRecipes(open)
+  const [isSavingCurrent, setIsSavingCurrent] = useState(false)
+  const { recipes, isLoading, addRecipe } = useRecipes()
+  const trimmedCurrentPrompt = currentPrompt?.trim() ?? ''
+  const canSaveCurrent = Boolean(
+    trimmedCurrentPrompt && currentModelId && currentProvider,
+  )
 
   const { recentRecipes, restRecipes } = useMemo(() => {
     if (recipes.length === 0) return { recentRecipes: [], restRecipes: [] }
@@ -48,6 +83,40 @@ export function PromptTemplatePicker({ onApply }: PromptTemplatePickerProps) {
   const runAction = (recipe: RecipeRecord) => {
     onApply(recipe)
     setOpen(false)
+  }
+
+  const handleSaveCurrentPrompt = async () => {
+    if (!trimmedCurrentPrompt) {
+      toast.error(t('createPromptRequired'))
+      return
+    }
+    if (!currentModelId || !currentProvider) {
+      toast.error(t('providerRequired'))
+      return
+    }
+
+    const payload: CreateRecipeRequest = {
+      name: getDefaultTemplateName(trimmedCurrentPrompt),
+      outputType: currentOutputType,
+      compiledPrompt: trimmedCurrentPrompt,
+      modelId: currentModelId,
+      provider: currentProvider,
+      params: currentParams,
+    }
+
+    setIsSavingCurrent(true)
+    try {
+      const result = await createRecipeAPI(payload)
+      if (result.success && result.data) {
+        addRecipe(result.data)
+        toast.success(t('saveTemplateSuccess'))
+        setOpen(false)
+        return
+      }
+      toast.error(result.error ?? t('saveTemplateFailed'))
+    } finally {
+      setIsSavingCurrent(false)
+    }
   }
 
   const renderItem = (recipe: RecipeRecord) => {
@@ -106,16 +175,43 @@ export function PromptTemplatePicker({ onApply }: PromptTemplatePickerProps) {
         collisionPadding={12}
         className="w-[28rem] max-w-[calc(100vw-2rem)] overflow-hidden p-0"
       >
+        <div className="border-b border-border/60 p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!canSaveCurrent || isSavingCurrent}
+            onClick={() => void handleSaveCurrentPrompt()}
+            className={cn(
+              'h-10 w-full justify-start gap-2 rounded-lg px-3 text-sm',
+              'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              'disabled:pointer-events-none disabled:opacity-45',
+            )}
+          >
+            {isSavingCurrent ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {isSavingCurrent
+              ? t('savingCurrentPrompt')
+              : t('saveCurrentPrompt')}
+          </Button>
+          {!trimmedCurrentPrompt && (
+            <p className="px-3 pb-1 text-xs text-muted-foreground/75">
+              {t('saveCurrentPromptEmpty')}
+            </p>
+          )}
+        </div>
         <Command className="bg-transparent">
           <CommandInput
             placeholder={t('searchPlaceholder')}
             className="h-10 text-sm"
           />
           <CommandList className="max-h-96 overscroll-contain">
-            {isLoading ? (
+            {isLoading && recipes.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                <span>{t('recentTemplates')}</span>
+                <span>{t('loadingTemplates')}</span>
               </div>
             ) : (
               <>

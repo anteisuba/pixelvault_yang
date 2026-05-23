@@ -1,13 +1,7 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
-import {
-  Clipboard,
-  ImagePlus,
-  Images,
-  Loader2,
-  UploadCloud,
-} from 'lucide-react'
+import { useId, useRef, useState, type ReactNode } from 'react'
+import { Images, Loader2, UploadCloud } from 'lucide-react'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
@@ -29,6 +23,7 @@ interface ImageSourcePickerProps {
   onFileSelect: (file: File) => void | Promise<void>
   onAssetSelect: (generation: GenerationRecord) => void | Promise<void>
   onRequestClose?: () => void
+  onRequestAssetDialog?: () => void
 }
 
 export function ImageSourcePicker({
@@ -45,9 +40,11 @@ export function ImageSourcePicker({
   onFileSelect,
   onAssetSelect,
   onRequestClose,
+  onRequestAssetDialog,
 }: ImageSourcePickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  const helpId = useId()
   const {
     isDragging,
     resetDragging,
@@ -114,6 +111,10 @@ export function ImageSourcePicker({
 
   const handleOpenAssetDialog = () => {
     if (isDisabled) return
+    if (onRequestAssetDialog) {
+      onRequestAssetDialog()
+      return
+    }
     setDialogOpen(true)
   }
 
@@ -122,6 +123,10 @@ export function ImageSourcePicker({
     await onAssetSelect(generation)
     onRequestClose?.()
   }
+
+  const helpText = [description, uploadHint, pasteHint]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <>
@@ -135,19 +140,14 @@ export function ImageSourcePicker({
           inputRef.current?.click()
         }}
         className={cn(
-          'space-y-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+          'space-y-2 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           className,
         )}
       >
-        {preview}
-        <div className="flex items-start gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground">
-            <ImagePlus className="size-4" />
-          </span>
-          <p className="pt-0.5 text-xs leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        </div>
+        {preview ? <div className="pb-0.5">{preview}</div> : null}
+        <p id={helpId} className="sr-only">
+          {helpText}
+        </p>
         <input
           ref={inputRef}
           type="file"
@@ -156,9 +156,10 @@ export function ImageSourcePicker({
           className="hidden"
           disabled={isDisabled}
         />
-        <div className="overflow-hidden rounded-2xl border border-border/65 bg-background/45 p-1.5 shadow-sm">
+        <div className="space-y-2">
           <button
             type="button"
+            aria-describedby={helpId}
             disabled={isDisabled}
             onClick={() => {
               if (!isDisabled) inputRef.current?.click()
@@ -168,50 +169,25 @@ export function ImageSourcePicker({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              'flex min-h-20 w-full items-center gap-3 rounded-xl border border-dashed border-border/55 bg-muted/20 px-3 py-3 text-left transition-colors',
-              'hover:border-foreground/30 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              'flex h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition-colors',
+              'hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
-              isDragging && 'border-primary/60 bg-primary/10 text-primary',
+              isDragging &&
+                'bg-primary text-primary-foreground ring-2 ring-primary/35',
             )}
           >
-            <span
-              className={cn(
-                'flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground ring-1 ring-border/55 transition-colors',
-                isDragging && 'text-primary ring-primary/35',
-              )}
-            >
-              {isBusy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <UploadCloud className="size-5" />
-              )}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-foreground">
-                {uploadLabel}
-              </span>
-              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                {uploadHint}
-              </span>
-            </span>
-            {pasteHint ? (
-              <span className="hidden shrink-0 items-center gap-1 rounded-full border border-border/55 bg-background/70 px-2 py-1 text-2xs text-muted-foreground sm:inline-flex">
-                <Clipboard className="size-3" />
-                {pasteHint}
-              </span>
-            ) : null}
+            {isBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+            {!isBusy ? <UploadCloud className="size-4" /> : null}
+            <span className="truncate">{uploadLabel}</span>
           </button>
           <button
             type="button"
             disabled={isDisabled}
             onClick={handleOpenAssetDialog}
-            className="mt-1.5 flex min-h-11 w-full items-center justify-between gap-4 rounded-xl bg-card/65 px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-muted/65 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
           >
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <Images className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{selectAssetLabel}</span>
-            </span>
-            <Images className="size-4 shrink-0 text-muted-foreground" />
+            <Images className="size-4 shrink-0" />
+            <span className="truncate">{selectAssetLabel}</span>
           </button>
         </div>
       </div>

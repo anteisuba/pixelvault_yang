@@ -158,19 +158,19 @@ export const StudioCanvas = memo(function StudioCanvas() {
         const url = source.data.url as string
         if (url) {
           void imageUpload.addFromUrl(url).then(() => {
-            dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+            document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
           })
         }
       },
     })
-  }, [imageUpload, dispatch])
+  }, [imageUpload])
 
   const handleUseAsReference = useCallback(
     async (url: string) => {
       await imageUpload.addFromUrl(url)
-      dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+      document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
     },
-    [imageUpload, dispatch],
+    [imageUpload],
   )
 
   const handleRemix = useCallback(

@@ -10,15 +10,9 @@ import {
   RotateCcw,
   Share2,
   Sparkles,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import {
-  TransformWrapper,
-  TransformComponent,
-  useControls,
-} from 'react-zoom-pan-pinch'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -48,6 +42,15 @@ interface GenerationPreviewProps {
   onRetry?: () => void
 }
 
+type GeneratingStageKey = 'preparing' | 'connecting' | 'rendering' | 'waiting'
+
+function getGeneratingStageKey(elapsedSeconds: number): GeneratingStageKey {
+  if (elapsedSeconds < 2) return 'preparing'
+  if (elapsedSeconds < 8) return 'connecting'
+  if (elapsedSeconds < 45) return 'rendering'
+  return 'waiting'
+}
+
 export const GenerationPreview = memo(function GenerationPreview({
   generation,
   onUseAsReference,
@@ -61,6 +64,16 @@ export const GenerationPreview = memo(function GenerationPreview({
   const isMobile = useIsMobile()
   const [detailOpen, setDetailOpen] = useState(false)
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
+  const generatingStageKey = getGeneratingStageKey(elapsedSeconds)
+  const generatingStageLabel = t(
+    `generatingOverlayStages.${generatingStageKey}` as const,
+  )
+  const elapsedLabel =
+    elapsedSeconds > 0
+      ? t('elapsed', {
+          seconds: formatDuration(elapsedSeconds),
+        })
+      : undefined
 
   const dragRef = useStudioDraggable({
     url: generation?.url ?? undefined,
@@ -120,40 +133,6 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Generating (no image yet) ─────────────────────────────────────
   if (isGenerating && !generation) {
-    // Frontend-simulated streaming reveal — we don't have an SSE channel for
-    // partial sample steps yet, so stage + step + progress are derived from
-    // elapsedSeconds against a 30 s nominal-completion budget. The point is
-    // qualitative motion: the user sees something happening every second
-    // instead of staring at a spinner that says "Generating..." until the
-    // final image pops in.
-    const NOMINAL_SECONDS = 30
-    const TOTAL_STEPS = 40
-    const fraction = Math.min(0.97, elapsedSeconds / NOMINAL_SECONDS)
-    const stageKey =
-      elapsedSeconds < 1.2
-        ? 'parsing'
-        : elapsedSeconds < 3.5
-          ? 'loadingModel'
-          : fraction < 0.92
-            ? 'sampling'
-            : 'finalizing'
-    const samplingStep = Math.max(
-      1,
-      Math.min(
-        TOTAL_STEPS,
-        Math.round(
-          ((elapsedSeconds - 3.5) / (NOMINAL_SECONDS - 3.5)) * TOTAL_STEPS,
-        ),
-      ),
-    )
-    const stageLabel =
-      stageKey === 'sampling'
-        ? t('generatingStages.sampling', {
-            step: samplingStep,
-            total: TOTAL_STEPS,
-          })
-        : t(`generatingStages.${stageKey}` as const)
-
     // Height-driven sizing keeps the placeholder visually proportional to the
     // requested aspect ratio without ever growing past the viewport. height is
     // explicit so `aspect-ratio` reverses to compute width — guarantees a
@@ -183,40 +162,12 @@ export const GenerationPreview = memo(function GenerationPreview({
         }}
         aria-live="polite"
       >
-        <div className="flex h-full w-full flex-col">
-          {/* Reveal canvas — shimmer scans across a soft gradient + noise.
-              Reads as "the image is being painted in" without faking a
-              fake preview. */}
-          <div className="studio-reveal-canvas relative flex-1 overflow-hidden">
-            <div className="studio-reveal-shimmer absolute inset-0" />
-          </div>
-          {/* Status strip — stage label + elapsed + thin progress bar */}
-          <div className="flex flex-col gap-2 border-t border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-foreground">
-                {stageLabel}
-              </p>
-              {elapsedSeconds > 0 && (
-                <p className="text-2xs tabular-nums text-muted-foreground">
-                  {t('elapsed', {
-                    seconds: formatDuration(elapsedSeconds),
-                  })}
-                </p>
-              )}
-            </div>
-            <div
-              className="h-0.5 overflow-hidden rounded-full bg-border/60"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(fraction * 100)}
-            >
-              <span
-                className="block h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
-                style={{ width: `${Math.max(2, fraction * 100)}%` }}
-              />
-            </div>
-          </div>
+        <div className="studio-reveal-canvas relative h-full w-full overflow-hidden">
+          <div className="studio-reveal-shimmer absolute inset-0" />
+          <GenerationStatusChrome
+            stageLabel={generatingStageLabel}
+            elapsedLabel={elapsedLabel}
+          />
         </div>
       </div>
     )
@@ -300,28 +251,16 @@ export const GenerationPreview = memo(function GenerationPreview({
               its layout pushes the image past max-h, cropping it.
               `object-contain` + max-h on the img itself = always full picture. */}
           <img
+            key={generation.id}
             src={generation.url}
             alt={generation.prompt ?? ''}
             draggable={false}
             className={cn(
-              'mx-auto block max-w-full object-contain',
+              'studio-generation-image mx-auto block max-w-full object-contain',
               isMobile ? 'max-h-[45vh]' : 'max-h-[60vh]',
             )}
           />
         </TransformComponent>
-
-        {/* Zoom controls — top right */}
-        {!isGenerating && (
-          <ZoomControls
-            onDetailOpen={() => setDetailOpen(true)}
-            labels={{
-              zoomIn: t('zoomIn'),
-              zoomOut: t('zoomOut'),
-              resetZoom: t('resetZoom'),
-              openDetail: t('openDetail'),
-            }}
-          />
-        )}
 
         {/* Drag hint — desktop only */}
         {!isMobile && !isGenerating && generation.outputType === 'IMAGE' && (
@@ -335,19 +274,13 @@ export const GenerationPreview = memo(function GenerationPreview({
 
         {/* Generating overlay */}
         {isGenerating && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 rounded-full bg-background/90 px-3 py-2 backdrop-blur-sm shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-foreground">
-                {t('generating')}
-              </p>
-              {elapsedSeconds > 0 && (
-                <p className="text-2xs text-muted-foreground">
-                  {t('elapsed', {
-                    seconds: formatDuration(elapsedSeconds),
-                  })}
-                </p>
-              )}
-            </div>
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+            <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
+            <div className="studio-generation-scan absolute inset-0" />
+            <GenerationStatusChrome
+              stageLabel={generatingStageLabel}
+              elapsedLabel={elapsedLabel}
+            />
           </div>
         )}
       </div>
@@ -627,55 +560,35 @@ function CanvasToolButton({
   )
 }
 
-// ── Zoom Controls (uses react-zoom-pan-pinch context) ─────────────
-
-interface ZoomControlsProps {
-  onDetailOpen: () => void
-  labels: {
-    zoomIn: string
-    zoomOut: string
-    resetZoom: string
-    openDetail: string
-  }
+interface GenerationStatusChromeProps {
+  stageLabel: string
+  elapsedLabel?: string
 }
 
-function ZoomControls({ onDetailOpen, labels }: ZoomControlsProps) {
-  const { zoomIn, zoomOut, resetTransform } = useControls()
-
+function GenerationStatusChrome({
+  stageLabel,
+  elapsedLabel,
+}: GenerationStatusChromeProps) {
   return (
-    <div className="card-actions absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-      <button
-        type="button"
-        onClick={() => zoomIn(0.5)}
-        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label={labels.zoomIn}
+    <>
+      <div
+        className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-background/40"
+        role="progressbar"
+        aria-label={stageLabel}
       >
-        <ZoomIn className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => zoomOut(0.5)}
-        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label={labels.zoomOut}
-      >
-        <ZoomOut className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => resetTransform()}
-        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label={labels.resetZoom}
-      >
-        <Maximize2 className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={onDetailOpen}
-        className="flex size-7 items-center justify-center rounded-md bg-background/90 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-        aria-label={labels.openDetail}
-      >
-        <Sparkles className="size-3.5" />
-      </button>
-    </div>
+        <span className="studio-generation-status-line block h-full w-1/3 rounded-full bg-primary/70" />
+      </div>
+      <div className="absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-3">
+        <span className="inline-flex h-7 min-w-0 items-center gap-2 rounded-full border border-border/45 bg-background/82 px-3 text-2xs font-medium text-foreground shadow-sm backdrop-blur-md">
+          <span className="studio-generation-dot size-1.5 shrink-0 rounded-full bg-primary" />
+          <span className="truncate">{stageLabel}</span>
+        </span>
+        {elapsedLabel && (
+          <span className="shrink-0 rounded-full border border-border/35 bg-background/68 px-2.5 py-1 text-2xs tabular-nums text-muted-foreground backdrop-blur-md">
+            {elapsedLabel}
+          </span>
+        )}
+      </div>
+    </>
   )
 }

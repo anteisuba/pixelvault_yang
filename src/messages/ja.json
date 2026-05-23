@@ -2364,7 +2364,7 @@
       "styleCardRequired": "先にスタイルカードを選択してください",
       "modelRequired": "先にモデルを選択してください",
       "promptRequired": "生成するにはプロンプトを入力してください",
-      "referenceRequired": "このモデルには参照画像が必要です",
+      "referenceRequired": "参照画像をプロンプト欄にドラッグするか追加してください",
       "referenceUnsupported": "選択中のモデルは参照画像を読み取りません。参照画像を外すか、参照画像対応モデルに切り替えてください。",
       "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください",
       "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。"
@@ -2684,7 +2684,7 @@
     "background": "背景",
     "style": "スタイル",
     "noModel": "モデルが未設定 — カード管理でスタイルカードにモデルを追加してください",
-    "requiresReferenceImage": "このモデルは参照画像が必要です — 参照パネルで追加してください",
+    "requiresReferenceImage": "このモデルは参照画像が必要です — プロンプト欄に追加してください",
     "promptHint": "プロンプトを入力して生成",
     "selectModel": "モデルを選択",
     "noModelHint": "まずモデルを選択してください",
@@ -2765,6 +2765,12 @@
       "loadingModel": "モデルを準備中",
       "sampling": "サンプリング中 {step}/{total}",
       "finalizing": "仕上げ中"
+    },
+    "generatingOverlayStages": {
+      "preparing": "プロンプトを準備中",
+      "connecting": "モデルに接続中",
+      "rendering": "画像を生成中",
+      "waiting": "まだ生成中です。しばらくお待ちください"
     },
     "generateFailed": "生成に失敗しました",
     "elapsed": "経過時間: {seconds}",

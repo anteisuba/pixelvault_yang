@@ -2364,7 +2364,7 @@
       "styleCardRequired": "请先选择一张风格卡",
       "modelRequired": "请先选择模型",
       "promptRequired": "请输入提示词后再生成",
-      "referenceRequired": "这个模型需要参考图",
+      "referenceRequired": "请先把参考图拖入或添加到输入框中",
       "referenceUnsupported": "当前模型不会读取参考图。请先移除参考图，或切换到支持参考图的模型。",
       "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
       "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。"
@@ -2652,7 +2652,7 @@
     "background": "背景",
     "style": "画风",
     "noModel": "未设置模型 — 请在卡片管理中为画风卡添加模型",
-    "requiresReferenceImage": "此模型需要参考图 — 请在参考图面板中上传",
+    "requiresReferenceImage": "此模型需要参考图 — 请添加到输入框中",
     "promptHint": "输入提示词即可生成",
     "selectModel": "选择模型",
     "noModelHint": "请先选择模型",
@@ -2765,6 +2765,12 @@
       "loadingModel": "正在预热模型",
       "sampling": "采样中 {step}/{total}",
       "finalizing": "正在收尾"
+    },
+    "generatingOverlayStages": {
+      "preparing": "正在准备提示词",
+      "connecting": "正在连接模型",
+      "rendering": "正在生成图像",
+      "waiting": "仍在生成，请稍候"
     },
     "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",

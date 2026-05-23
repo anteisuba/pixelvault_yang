@@ -211,13 +211,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               <Settings2 className="size-4 text-muted-foreground" />
               <span>{t('commands.toggleAdvanced')}</span>
             </CommandItem>
-            <CommandItem
-              onSelect={() => togglePanel('refImage')}
-              className="studio-command-item"
-            >
-              <ImageIcon className="size-4 text-muted-foreground" />
-              <span>{t('commands.toggleReference')}</span>
-            </CommandItem>
           </CommandGroup>
 
           <CommandSeparator />

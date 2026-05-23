@@ -40,13 +40,6 @@ function PanelLoadingFallback() {
   )
 }
 
-const ReferenceImageSection = dynamic(
-  () =>
-    import('@/components/ui/reference-image-section').then(
-      (mod) => mod.ReferenceImageSection,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
 const LayerDecomposePanel = dynamic(
   () =>
     import('@/components/business/LayerDecomposePanel').then(
@@ -281,48 +274,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 )}
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Reference Image ──────────────────────────────────── */}
-      <Dialog
-        open={state.panels.refImage}
-        onOpenChange={(open) => {
-          if (!open) closePanel('refImage')
-        }}
-      >
-        <DialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <DialogTitle className={DIALOG_HEADER}>
-            {tPanels('reference')}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {tPanels('reference')}
-          </DialogDescription>
-          <div className={DIALOG_BODY}>
-            <ReferenceImageSection
-              entries={imageUpload.referenceEntries}
-              maxImages={maxRefImages}
-              isDragging={imageUpload.isDragging}
-              fileInputRef={imageUpload.fileInputRef}
-              onDrop={imageUpload.handleDrop}
-              onDragEnter={imageUpload.handleDragEnter}
-              onDragOver={imageUpload.handleDragOver}
-              onDragLeave={imageUpload.handleDragLeave}
-              onOpenFilePicker={imageUpload.openFilePicker}
-              onInputChange={imageUpload.handleInputChange}
-              onRemoveImage={imageUpload.removeReferenceImage}
-              onClearAll={imageUpload.clearAllImages}
-              previewAlt={t('referenceImage')}
-              removeLabel={t('cancel')}
-              uploadLabel={t('referenceImage')}
-              formatsLabel="JPG · PNG · WEBP"
-              counterLabel={`${imageUpload.referenceImages.length} / ${maxRefImages}`}
-              overLimitTooltip={tPanels('referenceDisabledOverLimit', {
-                max: maxRefImages,
-              })}
-              unsupportedTooltip={tPanels('referenceDisabledUnsupported')}
-            />
           </div>
         </DialogContent>
       </Dialog>

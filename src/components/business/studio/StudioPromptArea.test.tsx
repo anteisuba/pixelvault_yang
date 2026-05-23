@@ -16,6 +16,7 @@ const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
 const mockUseAudioModelOptions = vi.hoisted(() => vi.fn())
 const mockUseVoiceCards = vi.hoisted(() => vi.fn())
+const mockImageUploadHandleDrop = vi.hoisted(() => vi.fn())
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
@@ -67,7 +68,12 @@ vi.mock('@/contexts/studio-context', () => ({
       referenceEntries: [],
       referenceImages: [],
       handleFileChange: vi.fn(),
+      handleDragEnter: vi.fn(),
+      handleDragOver: vi.fn(),
+      handleDragLeave: vi.fn(),
+      handleDrop: mockImageUploadHandleDrop,
       removeReferenceImage: vi.fn(),
+      isDragging: false,
     },
     projects: {
       activeProjectId: null,
@@ -295,6 +301,7 @@ describe('StudioPromptArea', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGenerate.mockResolvedValue(null)
+    mockImageUploadHandleDrop.mockResolvedValue(undefined)
     mockUseAudioModelOptions.mockReturnValue({
       selectedModel: null,
       modelOptions: [],
@@ -369,6 +376,32 @@ describe('StudioPromptArea', () => {
 
     await waitFor(() =>
       expect(promptGroup).toHaveAttribute('data-expanded', 'false'),
+    )
+  })
+
+  it('routes dropped reference images through the prompt box', async () => {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+      outputType: 'image',
+      selectedOptionId: null,
+    })
+
+    render(<StudioPromptArea />)
+
+    const promptGroup = screen.getByRole('group')
+    expect(promptGroup).toHaveAttribute('data-expanded', 'false')
+
+    fireEvent.drop(promptGroup, {
+      dataTransfer: {
+        types: ['application/x-studio-ref'],
+        getData: () =>
+          JSON.stringify({ url: 'https://cdn.example.com/reference.png' }),
+        files: [],
+      },
+    })
+
+    expect(mockImageUploadHandleDrop).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(promptGroup).toHaveAttribute('data-expanded', 'true'),
     )
   })
 

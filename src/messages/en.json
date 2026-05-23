@@ -2364,7 +2364,7 @@
       "styleCardRequired": "Pick a style card first",
       "modelRequired": "Pick a model first",
       "promptRequired": "Type a prompt to generate",
-      "referenceRequired": "This model needs a reference image",
+      "referenceRequired": "Drop or attach a reference image in the prompt box first",
       "referenceUnsupported": "The selected model will not read reference images. Remove the reference image or switch to a reference-aware model.",
       "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
       "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating."
@@ -2652,7 +2652,7 @@
     "background": "Background",
     "style": "Style",
     "noModel": "No model set — open Style card management to add a model",
-    "requiresReferenceImage": "This model requires a reference image — add one in the Reference panel",
+    "requiresReferenceImage": "This model requires a reference image — add one in the prompt box",
     "promptHint": "Enter a prompt to generate",
     "selectModel": "Select a model",
     "noModelHint": "Select a model first",
@@ -2765,6 +2765,12 @@
       "loadingModel": "Warming model",
       "sampling": "Sampling {step}/{total}",
       "finalizing": "Finalizing"
+    },
+    "generatingOverlayStages": {
+      "preparing": "Preparing prompt",
+      "connecting": "Connecting model",
+      "rendering": "Generating image",
+      "waiting": "Still generating, please wait"
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",

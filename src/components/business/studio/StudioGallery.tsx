@@ -144,9 +144,9 @@ export const StudioGallery = memo(function StudioGallery() {
   const handleUseAsRef = useCallback(
     async (url: string) => {
       await imageUpload.addFromUrl(url)
-      dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+      document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
     },
-    [imageUpload, dispatch],
+    [imageUpload],
   )
 
   const handleRemix = useCallback(

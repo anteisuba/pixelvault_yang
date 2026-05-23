@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
   type ClipboardEvent,
+  type DragEvent,
 } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { toast } from 'sonner'
@@ -796,7 +797,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         toast.info(tPromptArea('blocked.audioReferenceTextRequired'))
       } else if (modelRequiresRef && !hasRefImage) {
         toast.info(tPromptArea('blocked.referenceRequired'))
-        dispatch({ type: 'OPEN_PANEL', payload: 'refImage' })
+        setComposerExpanded(true)
+        requestAnimationFrame(() => {
+          document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+        })
       } else if (modelRejectsRefImages) {
         toast.info(tPromptArea('blocked.referenceUnsupported'))
       }
@@ -816,7 +820,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     isAudioReferenceIncomplete,
     trimmedPrompt,
     executeGenerate,
-    dispatch,
     tPromptArea,
   ])
 
@@ -836,6 +839,38 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       if (!imageFile) return
       event.preventDefault()
       void imageUpload.handleFileChange(imageFile)
+    },
+    [imageUpload],
+  )
+
+  const handlePromptDragEnter = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      setComposerExpanded(true)
+      imageUpload.handleDragEnter(event)
+    },
+    [imageUpload],
+  )
+
+  const handlePromptDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      imageUpload.handleDragOver(event)
+    },
+    [imageUpload],
+  )
+
+  const handlePromptDragLeave = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      imageUpload.handleDragLeave(event)
+    },
+    [imageUpload],
+  )
+
+  const handlePromptDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      setComposerExpanded(true)
+      void imageUpload.handleDrop(event).then(() => {
+        document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)?.focus()
+      })
     },
     [imageUpload],
   )
@@ -893,25 +928,21 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           onSubmit={handleGenerate}
           onClick={() => setComposerExpanded(true)}
           onFocusCapture={() => setComposerExpanded(true)}
+          onDragEnter={handlePromptDragEnter}
+          onDragOver={handlePromptDragOver}
+          onDragLeave={handlePromptDragLeave}
+          onDrop={handlePromptDrop}
           data-slot="input-group"
           data-expanded={isComposerExpanded}
           role="group"
           disabled={isGenerating}
           className={cn(
             'group/input-group relative mx-auto w-full max-w-4xl rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
+            isGenerating && 'opacity-100',
+            imageUpload.isDragging &&
+              'rounded-3xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
           )}
         >
-          <ImageAttachmentPreviewStrip
-            entries={imageUpload.referenceEntries}
-            previewAlt={tImageChip('label')}
-            removeLabel={(index) =>
-              tImageChip('removeReferenceImage', { index })
-            }
-            onRemove={imageUpload.removeReferenceImage}
-            overLimitTooltip={tImageChip('disabledOverLimit')}
-            unsupportedTooltip={tImageChip('disabledUnsupported')}
-            variant="composer"
-          />
           <AnimatePresence initial={false}>
             {isComposerExpanded && (
               <motion.div
@@ -1126,6 +1157,17 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             )}
             transition={{ duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
           >
+            <ImageAttachmentPreviewStrip
+              entries={imageUpload.referenceEntries}
+              previewAlt={tImageChip('label')}
+              removeLabel={(index) =>
+                tImageChip('removeReferenceImage', { index })
+              }
+              onRemove={imageUpload.removeReferenceImage}
+              overLimitTooltip={tImageChip('disabledOverLimit')}
+              unsupportedTooltip={tImageChip('disabledUnsupported')}
+              variant="composer"
+            />
             <div className="flex min-h-11 items-center gap-2">
               <PromptInputTextarea
                 id={STUDIO_PROMPT_TEXTAREA_ID}
@@ -1134,7 +1176,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 onPaste={handlePromptPaste}
                 onClick={() => setComposerExpanded(true)}
                 onFocus={() => setComposerExpanded(true)}
-                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black placeholder:text-neutral-400"
+                className="min-h-8 flex-1 px-3 py-1 font-sans text-sm leading-5 text-black placeholder:text-neutral-400 disabled:opacity-100"
               />
               <PromptInputActions className="shrink-0 items-center gap-1">
                 <button

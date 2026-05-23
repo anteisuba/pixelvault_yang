@@ -1059,6 +1059,77 @@ html:lang(zh) {
   mix-blend-mode: screen;
 }
 
+.studio-generation-image {
+  animation: studio-generation-image-in 360ms ease-out both;
+}
+
+.studio-generation-status-line {
+  animation: studio-generation-status-sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1)
+    infinite;
+  transform: translateX(-110%);
+}
+
+.studio-generation-scan {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(from var(--primary) l c h / 0.03) 34%,
+    oklch(from var(--primary) l c h / 0.18) 48%,
+    oklch(from var(--background) l c h / 0.2) 52%,
+    oklch(from var(--primary) l c h / 0.08) 62%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.82;
+  transform: translateY(-70%);
+  animation: studio-generation-scan 3.8s ease-in-out infinite;
+}
+
+.studio-generation-dot {
+  animation: studio-generation-dot 1.35s ease-in-out infinite;
+}
+
+@keyframes studio-generation-image-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes studio-generation-status-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes studio-generation-scan {
+  0% {
+    transform: translateY(-78%);
+  }
+  100% {
+    transform: translateY(132%);
+  }
+}
+
+@keyframes studio-generation-dot {
+  0%,
+  100% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 0 oklch(from var(--primary) l c h / 0);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 0 4px oklch(from var(--primary) l c h / 0.14);
+  }
+}
+
 @keyframes studio-reveal-sweep {
   0% {
     background-position: 130% 0;

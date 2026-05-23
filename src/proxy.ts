@@ -25,6 +25,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/clerk',
   '/api/health',
   '/api/health/providers',
+  '/api/internal/civitai-lora/prewarm',
 ])
 
 const isDev = process.env.NODE_ENV === 'development'

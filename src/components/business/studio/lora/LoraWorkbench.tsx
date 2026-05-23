@@ -12,6 +12,8 @@ import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Download,
   ExternalLink,
@@ -141,11 +143,11 @@ export function LoraWorkbench() {
       <Tabs value={activeSection} onValueChange={handleTabChange}>
         <TabsList className="grid h-9 w-full grid-cols-3 bg-muted/40 sm:inline-grid sm:w-auto">
           <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.MINE}
+            value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
             className="h-7 px-3 text-xs"
           >
-            <Library className="size-3.5" aria-hidden />
-            {t('tabs.mine')}
+            <Compass className="size-3.5" aria-hidden />
+            {t('tabs.community')}
           </TabsTrigger>
           <TabsTrigger
             value={LORA_WORKBENCH_SECTIONS.TRAIN}
@@ -155,11 +157,11 @@ export function LoraWorkbench() {
             {t('tabs.train')}
           </TabsTrigger>
           <TabsTrigger
-            value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
+            value={LORA_WORKBENCH_SECTIONS.MINE}
             className="h-7 px-3 text-xs"
           >
-            <Compass className="size-3.5" aria-hidden />
-            {t('tabs.community')}
+            <Library className="size-3.5" aria-hidden />
+            {t('tabs.mine')}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -927,34 +929,14 @@ function CivitaiCommunityBranch({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-2 text-xs text-muted-foreground">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={library.page <= 1 || library.isLoading}
-              onClick={library.previousPage}
-              className="h-7 text-xs"
-            >
-              {t('communityPrevious')}
-            </Button>
-            <span>
-              {library.total
-                ? t('communityPageStatusKnown', {
-                    page: library.page,
-                    total: library.total,
-                  })
-                : t('communityPageStatus', { page: library.page })}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!library.hasNextPage || library.isLoading}
-              onClick={library.nextPage}
-              className="h-7 text-xs"
-            >
-              {t('communityNext')}
-            </Button>
-          </div>
+          <CommunityPagination
+            page={library.page}
+            total={library.total}
+            hasNextPage={library.hasNextPage}
+            isLoading={library.isLoading}
+            onPreviousPage={library.previousPage}
+            onNextPage={library.nextPage}
+          />
         </div>
 
         <CivitaiLoraInspector
@@ -999,6 +981,67 @@ function CivitaiCommunityBranch({
         </DialogContent>
       </Dialog>
     </section>
+  )
+}
+
+interface CommunityPaginationProps {
+  page: number
+  total: number | null
+  hasNextPage: boolean
+  isLoading: boolean
+  onPreviousPage: () => void
+  onNextPage: () => void
+}
+
+function CommunityPagination({
+  page,
+  total,
+  hasNextPage,
+  isLoading,
+  onPreviousPage,
+  onNextPage,
+}: CommunityPaginationProps) {
+  const t = useTranslations('LoraWorkbench')
+  const pageStatus = total
+    ? t('communityPageStatusKnown', { page, total })
+    : t('communityPageStatus', { page })
+
+  return (
+    <nav
+      aria-label={pageStatus}
+      className="mt-1 flex shrink-0 flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 p-2 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={page <= 1 || isLoading}
+        onClick={onPreviousPage}
+        className="h-9 justify-center text-xs sm:min-w-24"
+      >
+        <ChevronLeft className="size-3.5" aria-hidden />
+        {t('communityPrevious')}
+      </Button>
+
+      <span
+        className="inline-flex h-9 items-center justify-center rounded-lg bg-background px-3 text-xs font-medium text-foreground ring-1 ring-border/60"
+        aria-live="polite"
+      >
+        {pageStatus}
+      </span>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!hasNextPage || isLoading}
+        onClick={onNextPage}
+        className="h-9 justify-center text-xs sm:min-w-24"
+      >
+        {t('communityNext')}
+        <ChevronRight className="size-3.5" aria-hidden />
+      </Button>
+    </nav>
   )
 }
 

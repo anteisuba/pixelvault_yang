@@ -4,7 +4,9 @@ import { z } from 'zod'
 
 import {
   CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
+  CIVITAI_LORA_BASE_MODEL_VALUES,
   CIVITAI_LORA_PAGE_SIZE,
+  CIVITAI_LORA_SORT_VALUES,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
 } from '@/constants/lora'
@@ -117,6 +119,28 @@ export interface ListCivitaiLorasInput {
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
 }
+
+export interface CivitaiLoraPrewarmEntry {
+  baseModel: CivitaiLoraBaseModel
+  sort: CivitaiLoraSort
+  ok: boolean
+  itemCount: number
+  hasNextPage: boolean
+  nextCursor: string | null
+  durationMs: number
+  error?: string
+}
+
+export interface CivitaiLoraPrewarmResult {
+  checkedAt: string
+  total: number
+  successCount: number
+  failureCount: number
+  entries: CivitaiLoraPrewarmEntry[]
+}
+
+const CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT = 40
+const CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES = 5
 
 function pickDownloadUrl(
   version: z.infer<typeof CivitaiModelVersionSchema>,
@@ -267,10 +291,115 @@ async function fetchCivitaiPayload(url: URL): Promise<unknown> {
   }
 }
 
-// 用 baseModel filter 时把 upstream limit 放大，因为客户端过滤会丢掉一部分。
-// 4× 是经验值：搜 "Wuthering Waves" 时 Illustrious 占比 ~30%（9/30），4× 能让
-// 客户端在一次 upstream 请求里大概率攒满 pageSize。
-const UPSTREAM_OVERFETCH_MULTIPLIER = 4
+function parseNextCursor(
+  metadata: z.infer<typeof CivitaiModelsResponseSchema>['metadata'],
+): string | null {
+  return metadata?.nextCursor === undefined || metadata.nextCursor === null
+    ? null
+    : String(metadata.nextCursor)
+}
+
+function filterByBaseModelFamily(
+  items: CivitaiLoraLibraryItem[],
+  baseModel: CivitaiLoraBaseModel,
+): CivitaiLoraLibraryItem[] {
+  if (baseModel === 'all') return items
+  const accepted = new Set<string>(CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel])
+  return items.filter((item) => accepted.has(item.baseModelFamily))
+}
+
+function appendBaseModelFamilyParams(
+  url: URL,
+  baseModel: Exclude<CivitaiLoraBaseModel, 'all'>,
+): void {
+  CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel].forEach((familyMember) => {
+    url.searchParams.append('baseModels', familyMember)
+  })
+}
+
+async function fetchCivitaiLoraPage(url: URL): Promise<{
+  items: CivitaiLoraLibraryItem[]
+  total: number | null
+  nextCursor: string | null
+  hasNextPage: boolean
+}> {
+  const payload = await withRetry(() => fetchCivitaiPayload(url), {
+    maxAttempts: 3,
+    baseDelayMs: 400,
+    maxDelayMs: 2000,
+    label: 'civitai.listLoras',
+  })
+  const parsed = CivitaiModelsResponseSchema.parse(payload)
+  const items = parsed.items
+    .map(toLibraryItem)
+    .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
+
+  return {
+    items,
+    total: parsed.metadata?.totalItems ?? null,
+    nextCursor: parseNextCursor(parsed.metadata),
+    hasNextPage:
+      Boolean(parsed.metadata?.nextCursor) ||
+      Boolean(parsed.metadata?.nextPage),
+  }
+}
+
+async function listSearchedBaseModelCivitaiLoras({
+  page,
+  pageSize,
+  search,
+  baseModel,
+  sort,
+}: {
+  page: number
+  pageSize: number
+  search: string
+  baseModel: Exclude<CivitaiLoraBaseModel, 'all'>
+  sort: CivitaiLoraSort
+}): Promise<CivitaiLoraLibraryResult> {
+  const end = page * pageSize
+  const start = end - pageSize
+  const collected: CivitaiLoraLibraryItem[] = []
+  let upstreamCursor: string | null = null
+  let scannedPages = 0
+  let upstreamHasNextPage = true
+
+  while (
+    collected.length <= end &&
+    upstreamHasNextPage &&
+    scannedPages < CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES
+  ) {
+    const url = new URL(CIVITAI_MODELS_API)
+    url.searchParams.set('types', 'LORA')
+    url.searchParams.set('limit', String(CIVITAI_SEARCH_BASE_MODEL_SCAN_LIMIT))
+    url.searchParams.set('sort', sort)
+    url.searchParams.set('nsfw', 'false')
+    url.searchParams.set('query', search)
+    if (upstreamCursor) url.searchParams.set('cursor', upstreamCursor)
+    appendBaseModelFamilyParams(url, baseModel)
+
+    const result = await fetchCivitaiLoraPage(url)
+    collected.push(...filterByBaseModelFamily(result.items, baseModel))
+    upstreamCursor = result.nextCursor
+    upstreamHasNextPage = result.hasNextPage && Boolean(upstreamCursor)
+    scannedPages += 1
+  }
+
+  const hasBufferedNextPage = collected.length > end
+  const hasNextPage =
+    hasBufferedNextPage ||
+    (upstreamHasNextPage &&
+      scannedPages < CIVITAI_SEARCH_BASE_MODEL_MAX_SCAN_PAGES)
+
+  return {
+    items: collected.slice(start, end),
+    page,
+    pageSize,
+    total: null,
+    hasNextPage,
+    nextCursor: hasNextPage ? `search-scan:${page + 1}` : null,
+  }
+}
 
 export async function listCivitaiLoras({
   page = 1,
@@ -283,8 +412,17 @@ export async function listCivitaiLoras({
   const url = new URL(CIVITAI_MODELS_API)
   const normalizedSearch = search?.trim() ?? ''
   const nextPageCursor = cursor?.trim() ?? ''
-  const upstreamLimit =
-    baseModel === 'all' ? pageSize : pageSize * UPSTREAM_OVERFETCH_MULTIPLIER
+  if (normalizedSearch && baseModel !== 'all') {
+    return listSearchedBaseModelCivitaiLoras({
+      page,
+      pageSize,
+      search: normalizedSearch,
+      baseModel,
+      sort,
+    })
+  }
+
+  const upstreamLimit = pageSize
 
   url.searchParams.set('types', 'LORA')
   url.searchParams.set('limit', String(upstreamLimit))
@@ -296,56 +434,35 @@ export async function listCivitaiLoras({
     url.searchParams.set('page', String(page))
   }
   if (nextPageCursor) url.searchParams.set('cursor', nextPageCursor)
-  // Intentionally not setting `baseModels` — Civitai's filter has a coverage
-  // bug that drops most matching LoRAs (see CIVITAI_BASE_MODEL_FAMILY_MEMBERS).
-  // We over-fetch and filter on baseModelFamily below.
+  if (baseModel !== 'all') {
+    appendBaseModelFamilyParams(url, baseModel)
+  }
+  // Keep non-search filtering upstream so Civitai applies sort over the full
+  // result set before pagination. Search + baseModel uses the scan path above
+  // because Civitai under-fills `query + baseModels` at small limits.
 
   try {
     // Civitai's public API blips with intermittent 5xx/timeouts — withRetry
     // wraps three attempts with exponential backoff. Our CivitaiFetchError
     // carries `.status` so the default retry classifier lets 4xx fail fast
     // (a bad query won't get better by hammering it).
-    const payload = await withRetry(() => fetchCivitaiPayload(url), {
-      maxAttempts: 3,
-      baseDelayMs: 400,
-      maxDelayMs: 2000,
-      label: 'civitai.listLoras',
-    })
-    const parsed = CivitaiModelsResponseSchema.parse(payload)
-    const allItems = parsed.items
-      .map(toLibraryItem)
-      .filter((item): item is CivitaiLoraLibraryItem => Boolean(item))
-
-    const filteredItems =
-      baseModel === 'all'
-        ? allItems
-        : (() => {
-            const accepted = new Set<string>(
-              CIVITAI_BASE_MODEL_FAMILY_MEMBERS[baseModel],
-            )
-            return allItems.filter((item) => accepted.has(item.baseModelFamily))
-          })()
+    const result = await fetchCivitaiLoraPage(url)
+    const filteredItems = filterByBaseModelFamily(result.items, baseModel)
 
     const items = filteredItems.slice(0, pageSize)
-    const nextCursor =
-      parsed.metadata?.nextCursor === undefined ||
-      parsed.metadata.nextCursor === null
-        ? null
-        : String(parsed.metadata.nextCursor)
 
     return {
       items,
       page,
       pageSize,
-      total: parsed.metadata?.totalItems ?? null,
+      total: result.total,
       // When a filter is on, upstream pagination is the only reliable signal —
       // even if this page yielded 0 filtered items, the next upstream page
       // might still have matches. Trust upstream's nextCursor / nextPage.
       hasNextPage:
-        Boolean(nextCursor) ||
-        Boolean(parsed.metadata?.nextPage) ||
-        (!normalizedSearch && allItems.length >= upstreamLimit),
-      nextCursor,
+        result.hasNextPage ||
+        (!normalizedSearch && result.items.length >= upstreamLimit),
+      nextCursor: result.nextCursor,
     }
   } catch (error) {
     logger.warn('Civitai LoRA library request failed', {
@@ -357,5 +474,90 @@ export async function listCivitaiLoras({
       sort,
     })
     throw error
+  }
+}
+
+const CIVITAI_LORA_PREWARM_CONCURRENCY = 3
+
+export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmResult> {
+  const tasks = CIVITAI_LORA_BASE_MODEL_VALUES.flatMap((baseModel) =>
+    CIVITAI_LORA_SORT_VALUES.map((sort) => ({ baseModel, sort })),
+  )
+  const entries: CivitaiLoraPrewarmEntry[] = new Array(tasks.length)
+  let nextTaskIndex = 0
+
+  async function runNextTask(): Promise<void> {
+    while (nextTaskIndex < tasks.length) {
+      const taskIndex = nextTaskIndex
+      nextTaskIndex += 1
+      const task = tasks[taskIndex]
+      if (!task) return
+
+      const startedAt = Date.now()
+      try {
+        const result = await listCivitaiLoras({
+          page: 1,
+          pageSize: CIVITAI_LORA_PAGE_SIZE,
+          baseModel: task.baseModel,
+          sort: task.sort,
+        })
+        entries[taskIndex] = {
+          baseModel: task.baseModel,
+          sort: task.sort,
+          ok: true,
+          itemCount: result.items.length,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+          durationMs: Date.now() - startedAt,
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Unknown prewarm failure'
+        entries[taskIndex] = {
+          baseModel: task.baseModel,
+          sort: task.sort,
+          ok: false,
+          itemCount: 0,
+          hasNextPage: false,
+          nextCursor: null,
+          durationMs: Date.now() - startedAt,
+          error: message,
+        }
+        logger.warn('Civitai LoRA prewarm task failed', {
+          baseModel: task.baseModel,
+          sort: task.sort,
+          error: message,
+        })
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(CIVITAI_LORA_PREWARM_CONCURRENCY, tasks.length) },
+      () => runNextTask(),
+    ),
+  )
+
+  const completedEntries = entries.filter(
+    (entry): entry is CivitaiLoraPrewarmEntry => Boolean(entry),
+  )
+  const successCount = completedEntries.filter((entry) => entry.ok).length
+  const failureCount = completedEntries.length - successCount
+
+  if (failureCount > 0) {
+    logger.warn('Civitai LoRA prewarm completed with failures', {
+      total: completedEntries.length,
+      successCount,
+      failureCount,
+    })
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    total: completedEntries.length,
+    successCount,
+    failureCount,
+    entries: completedEntries,
   }
 }

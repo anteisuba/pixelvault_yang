@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  CIVITAI_LORA_BASE_MODEL_VALUES,
+  CIVITAI_LORA_SORT_VALUES,
+} from '@/constants/lora'
+
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
@@ -11,7 +16,10 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }))
 
-import { listCivitaiLoras } from '@/services/civitai-lora.service'
+import {
+  listCivitaiLoras,
+  prewarmCivitaiLoraLibrary,
+} from '@/services/civitai-lora.service'
 
 const mockFetch = vi.fn<typeof fetch>()
 
@@ -83,19 +91,20 @@ describe('listCivitaiLoras', () => {
     const result = await listCivitaiLoras({
       page: 2,
       cursor: 'cursor-2',
-      search: 'detail',
       baseModel: 'SDXL 1.0',
       sort: 'Most Downloaded',
     })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('types')).toBe('LORA')
-    expect(requestUrl.searchParams.get('page')).toBeNull()
+    expect(requestUrl.searchParams.get('page')).toBe('2')
     expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
-    expect(requestUrl.searchParams.get('query')).toBe('detail')
-    // We don't forward baseModels to Civitai (their filter drops matching
-    // LoRAs). Client-side filtering happens after fetch.
-    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
+    expect(requestUrl.searchParams.get('query')).toBeNull()
+    expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
+      'SDXL 1.0',
+      'SDXL 0.9',
+      'SDXL Turbo',
+    ])
     expect(requestUrl.searchParams.get('sort')).toBe('Most Downloaded')
     expect(result.items).toHaveLength(1)
     expect(result.items[0]).toMatchObject({
@@ -136,11 +145,67 @@ describe('listCivitaiLoras', () => {
     expect(requestUrl.searchParams.get('page')).toBe('3')
     expect(requestUrl.searchParams.get('query')).toBeNull()
     expect(requestUrl.searchParams.get('cursor')).toBe('cursor-2')
-    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
+    expect(requestUrl.searchParams.getAll('baseModels')).toEqual(['Anima'])
     expect(result.nextCursor).toBeNull()
   })
 
-  it('over-fetches and client-side filters by base model family bucket', async () => {
+  it('forwards base model family buckets when browsing so upstream sort is global', async () => {
+    const versionFor = (baseModel: string, id: number) => ({
+      id,
+      name: 'v1',
+      baseModel,
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: ['trigger'],
+    })
+
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Illustrious LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('Illustrious', 101)],
+          },
+          {
+            id: 2,
+            name: 'NoobAI LoRA',
+            type: 'LORA',
+            modelVersions: [versionFor('NoobAI', 102)],
+          },
+        ],
+        metadata: { nextCursor: 'cursor-next' },
+      }),
+    )
+
+    const result = await listCivitaiLoras({
+      baseModel: 'Illustrious',
+      pageSize: 10,
+      sort: 'Most Downloaded',
+    })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('limit')).toBe('10')
+    expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
+      'Illustrious',
+      'NoobAI',
+    ])
+    expect(requestUrl.searchParams.get('sort')).toBe('Most Downloaded')
+
+    expect(result.items.map((item) => item.baseModelFamily)).toEqual([
+      'Illustrious',
+      'NoobAI',
+    ])
+    expect(result.hasNextPage).toBe(true)
+  })
+
+  it('uses an expanded upstream window for searched base model buckets', async () => {
     const versionFor = (baseModel: string, id: number) => ({
       id,
       name: 'v1',
@@ -183,6 +248,56 @@ describe('listCivitaiLoras', () => {
             modelVersions: [versionFor('Anima', 104)],
           },
         ],
+        metadata: {},
+      }),
+    )
+
+    const result = await listCivitaiLoras({
+      baseModel: 'Illustrious',
+      pageSize: 10,
+      search: 'Wuthering Waves',
+    })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('limit')).toBe('40')
+    expect(requestUrl.searchParams.get('query')).toBe('Wuthering Waves')
+    expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
+      'Illustrious',
+      'NoobAI',
+    ])
+
+    // Local filtering still guards the family bucket if Civitai returns an
+    // unexpected mixed page.
+    expect(result.items.map((item) => item.baseModelFamily)).toEqual([
+      'Illustrious',
+      'NoobAI',
+    ])
+    expect(result.hasNextPage).toBe(false)
+  })
+
+  it('returns a full logical page from expanded searched base model results', async () => {
+    const versionFor = (id: number) => ({
+      id,
+      name: 'v1',
+      baseModel: 'Illustrious',
+      files: [
+        {
+          type: 'Model',
+          primary: true,
+          downloadUrl: `https://civitai.com/api/download/models/${id}`,
+        },
+      ],
+      trainedWords: [`trigger-${id}`],
+    })
+
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        items: Array.from({ length: 12 }).map((_, index) => ({
+          id: index + 1,
+          name: `Wuthering Waves LoRA ${index + 1}`,
+          type: 'LORA',
+          modelVersions: [versionFor(index + 101)],
+        })),
         metadata: { nextCursor: 'cursor-next' },
       }),
     )
@@ -190,19 +305,21 @@ describe('listCivitaiLoras', () => {
     const result = await listCivitaiLoras({
       baseModel: 'Illustrious',
       pageSize: 10,
+      search: '鸣潮',
     })
 
-    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
-    // Over-fetch: pageSize 10 × 4 = 40
-    expect(requestUrl.searchParams.get('limit')).toBe('40')
-    expect(requestUrl.searchParams.get('baseModels')).toBeNull()
+    expect(result.items).toHaveLength(10)
+    expect(result.items[0]?.name).toBe('Wuthering Waves LoRA 1')
+    expect(result.hasNextPage).toBe(true)
+    expect(result.nextCursor).toBe('search-scan:2')
 
-    // Illustrious bucket admits NoobAI (shared weight structure).
-    expect(result.items.map((item) => item.baseModelFamily)).toEqual([
+    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
+    expect(requestUrl.searchParams.get('limit')).toBe('40')
+    expect(requestUrl.searchParams.get('query')).toBe('鸣潮')
+    expect(requestUrl.searchParams.getAll('baseModels')).toEqual([
       'Illustrious',
       'NoobAI',
     ])
-    expect(result.hasNextPage).toBe(true)
   })
 
   it('forwards Civitai license fields to library items', async () => {
@@ -343,6 +460,43 @@ describe('listCivitaiLoras', () => {
       allowCommercialUse: [],
       allowDerivatives: false,
     })
+  })
+
+  it('prewarms the first page for every base model and sort combination', async () => {
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        jsonResponse({
+          items: [],
+          metadata: { nextCursor: 'cursor-next' },
+        }),
+      ),
+    )
+
+    const result = await prewarmCivitaiLoraLibrary()
+    const expectedTotal =
+      CIVITAI_LORA_BASE_MODEL_VALUES.length * CIVITAI_LORA_SORT_VALUES.length
+
+    expect(result.total).toBe(expectedTotal)
+    expect(result.successCount).toBe(expectedTotal)
+    expect(result.failureCount).toBe(0)
+    expect(mockFetch).toHaveBeenCalledTimes(expectedTotal)
+
+    const urls = mockFetch.mock.calls.map((call) => new URL(String(call[0])))
+    expect(
+      urls.some(
+        (url) =>
+          url.searchParams.get('sort') === 'Newest' &&
+          url.searchParams.get('baseModels') === null,
+      ),
+    ).toBe(true)
+    expect(
+      urls.some(
+        (url) =>
+          url.searchParams.get('sort') === 'Most Downloaded' &&
+          url.searchParams.getAll('baseModels').includes('Illustrious') &&
+          url.searchParams.getAll('baseModels').includes('NoobAI'),
+      ),
+    ).toBe(true)
   })
 
   it('skips LoRA entries without a downloadable model version', async () => {

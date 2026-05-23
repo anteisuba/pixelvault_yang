@@ -49,6 +49,18 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     new Map([[1, null]]),
   )
 
+  const resetLibraryForFilterChange = useCallback(() => {
+    requestIdRef.current += 1
+    cursorByPageRef.current = new Map([[1, null]])
+    setItems([])
+    setTotal(null)
+    setHasNextPage(false)
+    setSelectedItemId(null)
+    setError(null)
+    setIsLoading(true)
+    setPage(1)
+  }, [])
+
   const applyResult = useCallback((result: CivitaiLoraLibraryResult) => {
     setItems(result.items)
     setTotal(result.total)
@@ -66,6 +78,8 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     requestIdRef.current = requestId
     setIsLoading(true)
     setError(null)
+    const normalizedSearch = search.trim()
+    if (normalizedSearch !== debouncedSearch) return
     const activeSearch = debouncedSearch.trim()
     const cursor = cursorByPageRef.current.get(page) ?? null
 
@@ -94,7 +108,7 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
       setError(response.error ?? 'Failed to load Civitai LoRAs')
     }
     setIsLoading(false)
-  }, [applyResult, baseModel, debouncedSearch, page, sort])
+  }, [applyResult, baseModel, debouncedSearch, page, search, sort])
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -111,21 +125,33 @@ export function useCivitaiLoraLibrary(): UseCivitaiLoraLibraryReturn {
     })
   }, [refresh])
 
-  const setSearch = useCallback((value: string) => {
-    setSearchValue(value)
-  }, [])
+  const setSearch = useCallback(
+    (value: string) => {
+      setSearchValue(value)
+      if (value.trim() !== debouncedSearch) {
+        resetLibraryForFilterChange()
+      }
+    },
+    [debouncedSearch, resetLibraryForFilterChange],
+  )
 
-  const setSort = useCallback((value: CivitaiLoraSort) => {
-    cursorByPageRef.current = new Map([[1, null]])
-    setSortValue(value)
-    setPage(1)
-  }, [])
+  const setSort = useCallback(
+    (value: CivitaiLoraSort) => {
+      if (value === sort) return
+      resetLibraryForFilterChange()
+      setSortValue(value)
+    },
+    [resetLibraryForFilterChange, sort],
+  )
 
-  const setBaseModel = useCallback((value: CivitaiLoraBaseModel) => {
-    cursorByPageRef.current = new Map([[1, null]])
-    setBaseModelValue(value)
-    setPage(1)
-  }, [])
+  const setBaseModel = useCallback(
+    (value: CivitaiLoraBaseModel) => {
+      if (value === baseModel) return
+      resetLibraryForFilterChange()
+      setBaseModelValue(value)
+    },
+    [baseModel, resetLibraryForFilterChange],
+  )
 
   const selectItem = useCallback((item: CivitaiLoraLibraryItem) => {
     setSelectedItemId(item.id)

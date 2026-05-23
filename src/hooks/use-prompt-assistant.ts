@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import type {
   PromptAssistantMessage,
+  PromptAssistantMode,
   PromptAssistantResponseLanguage,
 } from '@/types'
 import { chatPromptAssistantAPI } from '@/lib/api-client'
@@ -19,6 +20,7 @@ export const STYLE_SHORTCUTS = {
     'Enhance with camera parameters, lens specs, lighting setup, and film stock.',
   anime:
     'Enhance with anime descriptors, character design details, and atmosphere.',
+  lora: 'Convert my request into a LoRA-ready image prompt. Preserve any LoRA trigger words already in the current prompt, then write English comma-separated diffusion tags and short control phrases. If a reference image is attached, use it only for requested visual attributes such as clothing, outfit, materials, colors, and accessories; keep the LoRA character identity from the trigger words. Return the positive prompt only.',
   tags: 'Convert to danbooru-style comma-separated tags for NovelAI.',
 } as const
 
@@ -46,6 +48,7 @@ export function usePromptAssistant() {
         currentPrompt?: string
         apiKeyId?: string
         responseLanguage?: PromptAssistantResponseLanguage
+        mode?: PromptAssistantMode
       },
     ) => {
       if (!text.trim()) return
@@ -72,6 +75,7 @@ export function usePromptAssistant() {
         currentPrompt: opts?.currentPrompt,
         apiKeyId: opts?.apiKeyId,
         responseLanguage: opts?.responseLanguage,
+        mode: opts?.mode,
       })
 
       if (result.success && result.data) {
@@ -104,11 +108,15 @@ export function usePromptAssistant() {
         currentPrompt?: string
         apiKeyId?: string
         responseLanguage?: PromptAssistantResponseLanguage
+        mode?: PromptAssistantMode
       },
     ) => {
       const text = STYLE_SHORTCUTS[style]
       if (text) {
-        void send(text, opts)
+        void send(text, {
+          ...opts,
+          mode: style === 'lora' ? 'lora' : opts?.mode,
+        })
       }
     },
     [send],

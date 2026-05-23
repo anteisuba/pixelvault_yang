@@ -1493,6 +1493,7 @@ export const PromptAssistantResponseLanguageSchema = z.enum([
   'japanese',
   'chinese',
 ])
+export const PromptAssistantModeSchema = z.enum(['general', 'lora'])
 
 export const PromptAssistantRequestSchema = z.object({
   messages: z.array(PromptAssistantMessageSchema).min(1),
@@ -1506,6 +1507,8 @@ export const PromptAssistantRequestSchema = z.object({
   apiKeyId: z.string().optional(),
   /** User-selected language for assistant prompt output */
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
+  /** Specialized prompt conversion mode */
+  mode: PromptAssistantModeSchema.optional(),
 })
 
 export type PromptAssistantRequest = z.infer<
@@ -1517,6 +1520,7 @@ export type PromptAssistantMessage = z.infer<
 export type PromptAssistantResponseLanguage = z.infer<
   typeof PromptAssistantResponseLanguageSchema
 >
+export type PromptAssistantMode = z.infer<typeof PromptAssistantModeSchema>
 
 export interface PromptAssistantResponseData {
   prompt: string
@@ -2997,14 +3001,18 @@ export const LoraAssetRecordSchema = z.object({
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
 
+export const FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH = 4000
+
 export const FavoriteLoraRequestSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  // Civitai 上很多 LoRA 把整段推荐 prompt 当作 trigger word（多到几十个
-  // tag 用逗号串起来），实测 80 字符卡掉了一批热门角色卡。数据库列是
-  // 无长度的 text，所以这里放宽到 500 既不破坏存储也避免吞下整段乱填
-  // 的 prompt 模板。LoraTrainingPayloadSchema 那边 max(50) 不动 ——
-  // 用户自训练 trigger 是自己造的短词。
-  triggerWord: z.string().trim().min(1).max(500),
+  // Civitai 上很多 LoRA 把整段推荐 prompt 当作 trigger word。数据库列是
+  // 无长度的 text，所以收藏外部 LoRA 允许更长的触发词；用户自训练
+  // trigger 仍由 LoraTrainingPayloadSchema 维持短词限制。
+  triggerWord: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH),
   loraUrl: z.string().url(),
   type: LoraAssetTypeSchema,
   baseModelFamily: LoraAssetBaseFamilySchema,

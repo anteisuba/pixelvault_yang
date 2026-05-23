@@ -1833,6 +1833,7 @@
     "presetArtistic": "艺术",
     "presetPhoto": "摄影",
     "presetAnime": "动漫",
+    "presetLora": "LoRA 转换",
     "presetTags": "标签"
   },
   "LayerDecompose": {

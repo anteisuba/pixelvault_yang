@@ -26,6 +26,7 @@ import {
   Sparkles,
   Tag,
   Paintbrush,
+  WandSparkles,
   X,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -83,6 +84,7 @@ const STYLE_PRESETS: {
   { key: 'artistic', icon: Paintbrush, labelKey: 'presetArtistic' },
   { key: 'photorealistic', icon: Camera, labelKey: 'presetPhoto' },
   { key: 'anime', icon: Palette, labelKey: 'presetAnime' },
+  { key: 'lora', icon: WandSparkles, labelKey: 'presetLora' },
   { key: 'tags', icon: Tag, labelKey: 'presetTags' },
 ]
 

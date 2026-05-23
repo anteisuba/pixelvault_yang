@@ -1833,6 +1833,7 @@
     "presetArtistic": "Artistic",
     "presetPhoto": "Photo",
     "presetAnime": "Anime",
+    "presetLora": "LoRA Convert",
     "presetTags": "Tags"
   },
   "LayerDecompose": {

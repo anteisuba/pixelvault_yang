@@ -10,6 +10,7 @@ import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 import { validateLlmPromptOutput } from '@/lib/llm-output-validator'
 import type {
+  PromptAssistantMode,
   PromptAssistantMessage,
   PromptAssistantResponseLanguage,
 } from '@/types'
@@ -27,6 +28,7 @@ export const STYLE_SHORTCUTS: Record<string, string> = {
     'Enhance with camera parameters, lens specs, lighting setup, and film stock.',
   anime:
     'Enhance with anime descriptors, character design details, and atmosphere.',
+  lora: 'Convert my request into a LoRA-ready image prompt. Preserve any LoRA trigger words already in the current prompt, then write English comma-separated diffusion tags and short control phrases. If a reference image is attached, use it only for requested visual attributes such as clothing, outfit, materials, colors, and accessories; keep the LoRA character identity from the trigger words. Return the positive prompt only.',
   tags: 'Convert to danbooru-style comma-separated tags for NovelAI.',
 }
 
@@ -44,6 +46,7 @@ const RESPONSE_LANGUAGE_LABELS: Record<
 function buildAssistantSystemPrompt(
   modelId?: string,
   responseLanguage: PromptAssistantResponseLanguage = 'english',
+  mode: PromptAssistantMode = 'general',
 ): string {
   let modelSection = ''
   const languageLabel = RESPONSE_LANGUAGE_LABELS[responseLanguage]
@@ -56,6 +59,21 @@ function buildAssistantSystemPrompt(
 MODEL PROMPT STYLE: ${hint}
 Adapt your output format to match this model's strengths.`
     }
+  }
+
+  if (mode === 'lora') {
+    return `You are a professional LoRA prompt converter for image generation.
+The user may describe an intent in any language. Convert it into a LoRA-ready positive prompt.${modelSection}
+
+RULES:
+- Output ONLY the final prompt text inside a markdown code block (\`\`\`)
+- Output the prompt in English comma-separated diffusion tags and concise control phrases
+- Preserve existing LoRA trigger words from the current prompt exactly and place them first
+- Keep the active LoRA character identity stable: face, hairstyle, body identity, and signature traits should come from the LoRA trigger words/current prompt
+- If a reference image is provided, use it only for requested visual attributes such as clothing, outfit design, fabric, colors, accessories, pose, lighting, or composition
+- For outfit transfer requests, describe the garment clearly without copying the reference person's identity unless explicitly requested
+- Prefer SDXL / Illustrious / anime-compatible tags: subject count, character traits, outfit, pose, expression, camera framing, background, lighting, quality tags
+- Do not include explanations, markdown headings, JSON, or negative prompt unless the user explicitly asks for it`
   }
 
   return `You are a professional AI image generation prompt engineer.
@@ -130,11 +148,16 @@ export async function chatPromptAssistant(
   currentPrompt?: string,
   apiKeyId?: string,
   responseLanguage: PromptAssistantResponseLanguage = 'english',
+  mode: PromptAssistantMode = 'general',
 ): Promise<{ prompt: string }> {
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  const systemPrompt = buildAssistantSystemPrompt(modelId, responseLanguage)
+  const systemPrompt = buildAssistantSystemPrompt(
+    modelId,
+    responseLanguage,
+    mode,
+  )
   const userPrompt = flattenConversation(messages, currentPrompt)
 
   const rawResult = await llmTextCompletion({

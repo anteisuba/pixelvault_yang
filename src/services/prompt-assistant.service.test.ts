@@ -83,4 +83,37 @@ describe('chatPromptAssistant', () => {
       }),
     )
   })
+
+  it('uses LoRA conversion rules when requested', async () => {
+    mockLlmCompletion.mockResolvedValue(
+      '```\naugusta, 1girl, wearing outfit from reference image, blue dress, masterpiece, best quality\n```',
+    )
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: '让这个角色穿参考图的衣服' }],
+      'illustrious-xl',
+      'data:image/png;base64,abc',
+      'augusta',
+      undefined,
+      'chinese',
+      'lora',
+    )
+
+    expect(mockLlmCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageData: 'data:image/png;base64,abc',
+        systemPrompt: expect.stringContaining('LoRA-ready positive prompt'),
+        userPrompt: expect.stringContaining(
+          '[Current prompt in the editor]: augusta',
+        ),
+      }),
+    )
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as {
+      systemPrompt: string
+    }
+    expect(call.systemPrompt).toContain('Output the prompt in English')
+    expect(call.systemPrompt).toContain('Preserve existing LoRA trigger words')
+    expect(call.systemPrompt).not.toContain('Simplified Chinese')
+  })
 })

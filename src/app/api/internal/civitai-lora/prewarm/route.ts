@@ -50,11 +50,14 @@ export async function GET(
     }
 
     if (data.failureCount > 0) {
-      return NextResponse.json<ErrorBody>({
-        success: false,
-        error: 'Civitai LoRA prewarm completed with failures',
-        data,
-      })
+      return NextResponse.json<ErrorBody>(
+        {
+          success: false,
+          error: 'Civitai LoRA prewarm completed with failures',
+          data,
+        },
+        { status: 502 },
+      )
     }
 
     return NextResponse.json<SuccessBody>({ success: true, data })

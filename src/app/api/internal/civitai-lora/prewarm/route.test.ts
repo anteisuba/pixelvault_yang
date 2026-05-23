@@ -124,4 +124,41 @@ describe('GET /api/internal/civitai-lora/prewarm', () => {
     expect(body.success).toBe(false)
     expect(body.error).toBe('Civitai LoRA prewarm failed')
   })
+
+  it('returns 502 when any prewarm task fails', async () => {
+    mockPrewarmCivitaiLoraLibrary.mockResolvedValueOnce({
+      checkedAt: '2026-05-23T00:00:00.000Z',
+      total: 2,
+      successCount: 1,
+      failureCount: 1,
+      entries: [
+        {
+          baseModel: 'all',
+          sort: 'Newest',
+          ok: true,
+          itemCount: 10,
+          hasNextPage: true,
+          nextCursor: 'cursor-next',
+          durationMs: 20,
+        },
+        {
+          baseModel: 'Anima',
+          sort: 'Newest',
+          ok: false,
+          itemCount: 0,
+          hasNextPage: false,
+          nextCursor: null,
+          durationMs: 20,
+          error: 'Civitai returned 404',
+        },
+      ],
+    })
+
+    const response = await GET(createRequest(CRON_SECRET))
+    const body = await parseJSON<{ success: boolean; error: string }>(response)
+
+    expect(response.status).toBe(502)
+    expect(body.success).toBe(false)
+    expect(body.error).toBe('Civitai LoRA prewarm completed with failures')
+  })
 })

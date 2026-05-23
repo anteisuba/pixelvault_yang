@@ -63,4 +63,24 @@ describe('chatPromptAssistant', () => {
 
     expect(result.prompt).toContain('cat')
   })
+
+  it('passes requested response language into the system prompt', async () => {
+    mockLlmCompletion.mockResolvedValue('```\n柔和光线下的猫\n```')
+
+    await chatPromptAssistant(
+      'clerk_1',
+      [{ role: 'user', content: 'a cat' }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'chinese',
+    )
+
+    expect(mockLlmCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining('Simplified Chinese'),
+      }),
+    )
+  })
 })

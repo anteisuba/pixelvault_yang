@@ -1488,6 +1488,12 @@ export const PromptAssistantMessageSchema = z.object({
   content: z.string(),
 })
 
+export const PromptAssistantResponseLanguageSchema = z.enum([
+  'english',
+  'japanese',
+  'chinese',
+])
+
 export const PromptAssistantRequestSchema = z.object({
   messages: z.array(PromptAssistantMessageSchema).min(1),
   /** Current generation model (for model-aware prompt formatting) */
@@ -1498,6 +1504,8 @@ export const PromptAssistantRequestSchema = z.object({
   currentPrompt: z.string().optional(),
   /** User-selected API key for LLM calls */
   apiKeyId: z.string().optional(),
+  /** User-selected language for assistant prompt output */
+  responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
 })
 
 export type PromptAssistantRequest = z.infer<
@@ -1505,6 +1513,9 @@ export type PromptAssistantRequest = z.infer<
 >
 export type PromptAssistantMessage = z.infer<
   typeof PromptAssistantMessageSchema
+>
+export type PromptAssistantResponseLanguage = z.infer<
+  typeof PromptAssistantResponseLanguageSchema
 >
 
 export interface PromptAssistantResponseData {

@@ -17,7 +17,6 @@ import { StudioAspectRatioPopover } from '@/components/business/studio/StudioAsp
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioLoraChip } from '@/components/business/studio/StudioLoraChip'
-import { StudioReverseButton } from '@/components/business/studio/StudioReverseButton'
 import { StudioTransformButton } from '@/components/business/studio/StudioTransformButton'
 import { StylePresetButton } from '@/components/business/studio/StylePresetButton'
 
@@ -102,9 +101,8 @@ export function StudioToolbar({
         )}
         aria-label={t('toolbarLabel')}
       >
-        {/* Group 1 — Prompt modifiers: enhance / reverse-engineer / style */}
+        {/* Group 1 — Prompt modifiers: enhance / style */}
         <StudioEnhanceButton disabled={disabled} />
-        <StudioReverseButton disabled={disabled} />
         <StylePresetButton disabled={disabled} />
 
         <Toolbar.Separator className="mx-1 h-4 w-px bg-border/60" />

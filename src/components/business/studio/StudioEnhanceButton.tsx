@@ -96,9 +96,9 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           <span className="hidden sm:inline">{t('enhance')}</span>
         </Toolbar.Button>
       </DialogTrigger>
-      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-[720px] gap-0 overflow-hidden !p-0">
+      <DialogContent className="w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] gap-0 overflow-hidden !p-0 sm:w-[min(860px,calc(100vw-4rem))] sm:!max-w-[860px]">
         <DialogTitle className="sr-only">{t('enhance')}</DialogTitle>
-        <div className="flex h-[min(640px,80vh)] flex-col overflow-hidden">
+        <div className="flex h-[min(720px,84vh)] flex-col overflow-hidden">
           <PromptAssistantPanel
             currentPrompt={state.prompt}
             modelId={modelId}

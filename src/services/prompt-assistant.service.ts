@@ -9,11 +9,16 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 import { validateLlmPromptOutput } from '@/lib/llm-output-validator'
-import type { PromptAssistantMessage } from '@/types'
+import type {
+  PromptAssistantMessage,
+  PromptAssistantResponseLanguage,
+} from '@/types'
 
 // ─── Style preset shortcuts ────────────────────────────────────
 
 export const STYLE_SHORTCUTS: Record<string, string> = {
+  imageStyle:
+    'Extract a reusable image generation style prompt from the reference image. Prioritize recognizable style families, medium, material, shape language, lighting, and rendering cues. Include concrete references when appropriate, such as Apple Memoji, Bitmoji, soft clay figurine, rounded Pixar-like 3D cartoon avatar. Avoid identifying real people; describe visual style only.',
   detailed:
     'Enhance with rich environment, lighting, material, and texture details.',
   artistic:
@@ -27,8 +32,21 @@ export const STYLE_SHORTCUTS: Record<string, string> = {
 
 // ─── System prompt builder ─────────────────────────────────────
 
-function buildAssistantSystemPrompt(modelId?: string): string {
+const RESPONSE_LANGUAGE_LABELS: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english: 'English',
+  japanese: 'Japanese',
+  chinese: 'Simplified Chinese',
+}
+
+function buildAssistantSystemPrompt(
+  modelId?: string,
+  responseLanguage: PromptAssistantResponseLanguage = 'english',
+): string {
   let modelSection = ''
+  const languageLabel = RESPONSE_LANGUAGE_LABELS[responseLanguage]
 
   if (modelId) {
     const model = getModelById(modelId)
@@ -54,7 +72,8 @@ RULES:
 - Preserve the user's intent exactly
 - Each response should be a complete, ready-to-use prompt
 - If the user asks to modify a previous prompt, build on the last version
-- Support any language input but output prompts in English (unless user requests otherwise)`
+- Support any language input
+- Output the final prompt in ${languageLabel}`
 }
 
 // ─── Flatten conversation into user prompt ──────────────────────
@@ -110,11 +129,12 @@ export async function chatPromptAssistant(
   referenceImageData?: string,
   currentPrompt?: string,
   apiKeyId?: string,
+  responseLanguage: PromptAssistantResponseLanguage = 'english',
 ): Promise<{ prompt: string }> {
   const dbUser = await ensureUser(clerkId)
   const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
 
-  const systemPrompt = buildAssistantSystemPrompt(modelId)
+  const systemPrompt = buildAssistantSystemPrompt(modelId, responseLanguage)
   const userPrompt = flattenConversation(messages, currentPrompt)
 
   const rawResult = await llmTextCompletion({

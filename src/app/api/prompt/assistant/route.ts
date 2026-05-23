@@ -17,6 +17,7 @@ export const POST = createApiRoute({
       data.referenceImageData,
       data.currentPrompt,
       data.apiKeyId,
+      data.responseLanguage,
     )
   },
 })

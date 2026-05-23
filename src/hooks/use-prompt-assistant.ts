@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { PromptAssistantMessage } from '@/types'
+import type {
+  PromptAssistantMessage,
+  PromptAssistantResponseLanguage,
+} from '@/types'
 import { chatPromptAssistantAPI } from '@/lib/api-client'
 
 /** Style preset shortcuts — must stay in sync with prompt-assistant.service */
 export const STYLE_SHORTCUTS = {
+  imageStyle:
+    'Extract a reusable image generation style prompt from the reference image. Prioritize recognizable style families, medium, material, shape language, lighting, and rendering cues. Include concrete references when appropriate, such as Apple Memoji, Bitmoji, soft clay figurine, rounded Pixar-like 3D cartoon avatar. Avoid identifying real people; describe visual style only.',
   detailed:
     'Enhance with rich environment, lighting, material, and texture details.',
   artistic:
@@ -40,6 +45,7 @@ export function usePromptAssistant() {
         referenceImageData?: string
         currentPrompt?: string
         apiKeyId?: string
+        responseLanguage?: PromptAssistantResponseLanguage
       },
     ) => {
       if (!text.trim()) return
@@ -65,6 +71,7 @@ export function usePromptAssistant() {
         referenceImageData: opts?.referenceImageData,
         currentPrompt: opts?.currentPrompt,
         apiKeyId: opts?.apiKeyId,
+        responseLanguage: opts?.responseLanguage,
       })
 
       if (result.success && result.data) {
@@ -96,6 +103,7 @@ export function usePromptAssistant() {
         referenceImageData?: string
         currentPrompt?: string
         apiKeyId?: string
+        responseLanguage?: PromptAssistantResponseLanguage
       },
     ) => {
       const text = STYLE_SHORTCUTS[style]

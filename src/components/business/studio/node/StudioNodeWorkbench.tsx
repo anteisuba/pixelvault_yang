@@ -36,11 +36,17 @@ import {
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import {
+  getCapabilityConfig,
+  getMaxReferenceImages,
+  hasCapability,
+} from '@/constants/provider-capabilities'
 import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
+import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 
@@ -339,11 +345,38 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         status: NODE_STATUS_IDS.running,
       })
 
+      const maxReferenceImages = getMaxReferenceImages(
+        model.adapterType,
+        model.modelId,
+      )
+      const referenceImages = (node.data.referenceAssets ?? [])
+        .slice(0, maxReferenceImages)
+        .map((reference) => reference.url)
+      const supportsLora = hasCapability(
+        model.adapterType,
+        'lora',
+        model.modelId,
+      )
+      const maxLoras =
+        getCapabilityConfig(model.adapterType, model.modelId).maxLoras ??
+        Number.POSITIVE_INFINITY
+      const loras = supportsLora
+        ? (node.data.loras ?? []).slice(0, maxLoras).map((lora) => ({
+            url: lora.loraUrl,
+            scale: lora.scale,
+          }))
+        : []
+      const advancedParams: AdvancedParams | undefined =
+        loras.length > 0 ? { loras } : undefined
+
       const result = await characterImageGeneration.generate({
         modelId: model.modelId,
         apiKeyId: model.apiKeyId,
         freePrompt: prompt,
         aspectRatio: DEFAULT_ASPECT_RATIO,
+        referenceImages:
+          referenceImages.length > 0 ? referenceImages : undefined,
+        advancedParams,
       })
 
       if (result.success) {

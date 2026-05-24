@@ -59,6 +59,8 @@ describe('useCharacterImageGeneration', () => {
       apiKeyId: undefined,
       freePrompt: FAKE_GENERATION.prompt,
       aspectRatio: DEFAULT_ASPECT_RATIO,
+      referenceImages: undefined,
+      advancedParams: undefined,
     })
     expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
@@ -86,6 +88,39 @@ describe('useCharacterImageGeneration', () => {
       apiKeyId: 'key-123',
       freePrompt: FAKE_GENERATION.prompt,
       aspectRatio: '3:4',
+      referenceImages: undefined,
+      advancedParams: undefined,
+    })
+  })
+
+  it('passes reference images and LoRA advanced params through', async () => {
+    vi.mocked(studioGenerateAPI).mockResolvedValue({
+      success: true,
+      data: { generation: FAKE_GENERATION },
+    })
+
+    const { result } = renderHook(() => useCharacterImageGeneration())
+
+    await act(async () => {
+      await result.current.generate({
+        modelId: FAKE_GENERATION.model,
+        freePrompt: FAKE_GENERATION.prompt,
+        referenceImages: ['https://cdn.test/ref.png'],
+        advancedParams: {
+          loras: [{ url: 'https://cdn.test/lora.safetensors', scale: 0.8 }],
+        },
+      })
+    })
+
+    expect(studioGenerateAPI).toHaveBeenCalledWith({
+      modelId: FAKE_GENERATION.model,
+      apiKeyId: undefined,
+      freePrompt: FAKE_GENERATION.prompt,
+      aspectRatio: DEFAULT_ASPECT_RATIO,
+      referenceImages: ['https://cdn.test/ref.png'],
+      advancedParams: {
+        loras: [{ url: 'https://cdn.test/lora.safetensors', scale: 0.8 }],
+      },
     })
   })
 

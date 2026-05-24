@@ -6,6 +6,12 @@ import {
   type ProviderConfig,
 } from '@/constants/providers'
 import {
+  NODE_STUDIO_CHARACTER_IMAGE_LORAS,
+  NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_REFERENCE_ROLES,
+  NODE_STUDIO_REFERENCE_SOURCES,
+} from '@/constants/node-studio'
+import {
   NODE_GENERATION_STATUSES,
   NODE_STATUSES,
   NODE_TYPES,
@@ -42,6 +48,45 @@ export const NodeWorkflowCharacterReferenceSchema = z.object({
   visualSeed: z.string().trim().min(1).max(2000),
 })
 
+export const NodeWorkflowReferenceRoleSchema = z.enum(
+  NODE_STUDIO_REFERENCE_ROLES,
+)
+
+export const NodeWorkflowReferenceSourceSchema = z.enum(
+  NODE_STUDIO_REFERENCE_SOURCES,
+)
+
+export const NodeWorkflowReferenceAssetSchema = z.object({
+  id: z.string().trim().min(1).max(160),
+  url: z.string().trim().min(1).max(4000),
+  role: NodeWorkflowReferenceRoleSchema.default(
+    NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
+  ),
+  weight: z
+    .number()
+    .min(NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.minWeight)
+    .max(NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxWeight)
+    .default(NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight),
+  source: NodeWorkflowReferenceSourceSchema,
+  sourceId: z.string().trim().min(1).max(160).optional(),
+  name: z.string().trim().min(1).max(160).optional(),
+})
+
+export const NodeWorkflowLoraSelectionSchema = z.object({
+  assetId: z.string().trim().min(1).max(160),
+  styleCode: z.string().trim().max(160).optional(),
+  name: z.string().trim().min(1).max(160),
+  loraUrl: z.string().trim().url().max(500),
+  triggerWord: z.string().trim().max(4000).optional(),
+  type: z.enum(['subject', 'style']),
+  baseModelFamily: z.string().trim().min(1).max(120),
+  scale: z
+    .number()
+    .min(NODE_STUDIO_CHARACTER_IMAGE_LORAS.minScale)
+    .max(NODE_STUDIO_CHARACTER_IMAGE_LORAS.maxScale)
+    .default(NODE_STUDIO_CHARACTER_IMAGE_LORAS.defaultScale),
+})
+
 export const NodeWorkflowNodeDataSchema = z
   .object({
     prompt: z.string(),
@@ -59,6 +104,8 @@ export const NodeWorkflowNodeDataSchema = z
     generationError: z.string().optional(),
     generationId: z.string().trim().min(1).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
+    referenceAssets: z.array(NodeWorkflowReferenceAssetSchema).optional(),
+    loras: z.array(NodeWorkflowLoraSelectionSchema).optional(),
   })
   .passthrough()
 
@@ -103,6 +150,18 @@ export type NodeWorkflowModelSelection = z.infer<
 >
 export type NodeWorkflowCharacterReference = z.infer<
   typeof NodeWorkflowCharacterReferenceSchema
+>
+export type NodeWorkflowReferenceRole = z.infer<
+  typeof NodeWorkflowReferenceRoleSchema
+>
+export type NodeWorkflowReferenceSource = z.infer<
+  typeof NodeWorkflowReferenceSourceSchema
+>
+export type NodeWorkflowReferenceAsset = z.infer<
+  typeof NodeWorkflowReferenceAssetSchema
+>
+export type NodeWorkflowLoraSelection = z.infer<
+  typeof NodeWorkflowLoraSelectionSchema
 >
 export interface NodeWorkflowModelOption extends NodeWorkflowModelSelection {
   requestCount: number

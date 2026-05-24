@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronDown, Plus, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
@@ -133,6 +133,7 @@ export function CanvasPlannerRouteSelector({
   const tApiKeys = useTranslations('StudioApiKeys')
   const { keys, healthMap, isLoading } = useApiKeysContext()
   const [open, setOpen] = useState(false)
+  const [addKeyMenuOpen, setAddKeyMenuOpen] = useState(false)
   const [quickSetup, setQuickSetup] = useState<QuickSetupState>({
     open: false,
     modelId: '',
@@ -208,6 +209,7 @@ export function CanvasPlannerRouteSelector({
         apiKeyId: option.apiKeyId,
       })
       setOpen(false)
+      setAddKeyMenuOpen(false)
     },
     [onChange],
   )
@@ -222,9 +224,17 @@ export function CanvasPlannerRouteSelector({
         optionId: option.optionId,
       })
       setOpen(false)
+      setAddKeyMenuOpen(false)
     },
     [],
   )
+
+  const handlePopoverOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) {
+      setAddKeyMenuOpen(false)
+    }
+  }, [])
 
   const handleQuickSetupOpenChange = useCallback((nextOpen: boolean) => {
     setQuickSetup((current) => ({
@@ -253,7 +263,7 @@ export function CanvasPlannerRouteSelector({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handlePopoverOpenChange}>
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -296,7 +306,7 @@ export function CanvasPlannerRouteSelector({
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
+          className="relative w-64 overflow-visible rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
         >
           <div className="border-b border-node-panel-inner px-4 py-3">
             <div className="flex items-center justify-between gap-3">
@@ -392,10 +402,38 @@ export function CanvasPlannerRouteSelector({
             )}
 
             <div className={cn(savedRoutes.length > 0 && 'mt-2')}>
-              <p className="px-2 py-1 text-2xs font-semibold text-node-muted">
-                {t('addKey')}
-              </p>
-              <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setAddKeyMenuOpen((current) => !current)}
+                className="group flex min-h-12 w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left transition-colors hover:border-node-amber/35 hover:bg-node-panel-inner"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-amber">
+                  <Plus className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-node-foreground">
+                    {t('addKey')}
+                  </span>
+                  <span className="block truncate text-2xs text-node-muted">
+                    {t('chooseProvider')}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-node-muted" />
+              </button>
+            </div>
+          </div>
+
+          {addKeyMenuOpen ? (
+            <div className="absolute bottom-2 left-full ml-2 w-56 rounded-2xl border border-node-panel-inner bg-node-panel/96 p-2 text-node-foreground shadow-node-panel backdrop-blur-xl">
+              <div className="px-2 pb-2 pt-1">
+                <p className="text-sm font-semibold text-node-foreground">
+                  {t('addKey')}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-node-muted">
+                  {t('addKeyDescription')}
+                </p>
+              </div>
+              <div className="space-y-2">
                 {lockedRoutes.map((option) => {
                   const setupLabel = t(
                     getPlannerSetupLabelKey(option.adapterType),
@@ -406,9 +444,9 @@ export function CanvasPlannerRouteSelector({
                       key={option.optionId}
                       type="button"
                       onClick={() => handleOpenQuickSetup(option, setupLabel)}
-                      className="group flex min-w-0 items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-2 py-2 text-left transition-colors hover:border-node-amber/35 hover:bg-node-panel-inner"
+                      className="group flex min-h-11 w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-left transition-colors hover:border-node-amber/35 hover:bg-node-panel-inner"
                     >
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-amber">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-amber">
                         <Plus className="size-3.5" />
                       </span>
                       <span className="min-w-0">
@@ -424,7 +462,7 @@ export function CanvasPlannerRouteSelector({
                 })}
               </div>
             </div>
-          </div>
+          ) : null}
         </PopoverContent>
       </Popover>
 

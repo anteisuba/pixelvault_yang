@@ -36,6 +36,35 @@ export const NODE_STUDIO_WORKFLOW_STORAGE = {
   version: 1,
 } as const
 
+export const NODE_STUDIO_REFERENCE_ROLES = [
+  'identity',
+  'pose',
+  'style',
+  'composition',
+  'background',
+] as const
+
+export const NODE_STUDIO_REFERENCE_SOURCES = ['upload', 'asset'] as const
+
+export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
+  maxItems: 3,
+  defaultRole: 'identity',
+  defaultWeight: 0.72,
+  minWeight: 0,
+  maxWeight: 1,
+  weightStep: 0.05,
+  uploadNote: 'Node Studio character reference',
+} as const
+
+export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
+  maxItems: 5,
+  defaultScale: 1,
+  minScale: 0.1,
+  maxScale: 2,
+  scaleStep: 0.05,
+  customBaseFamily: 'custom',
+} as const
+
 export const NODE_STUDIO_NODE_PLACEMENT = {
   topbarAddPosition: {
     x: 96,

@@ -2530,6 +2530,8 @@
       "routeMeta": "{model} · {provider}",
       "configured": "Configured",
       "addKey": "Add API Key",
+      "chooseProvider": "Choose provider",
+      "addKeyDescription": "Full-width rows keep provider names readable.",
       "configureProvider": "Set up {provider}",
       "savedMeta": "{model} · {key}"
     },
@@ -2578,7 +2580,61 @@
       "statusPending": "Generating image",
       "statusSuccess": "Image generated",
       "statusError": "Generation failed",
-      "imageAlt": "{name} generated character image"
+      "imageAlt": "{name} generated character image",
+      "openImageStudio": "Open in Image Studio",
+      "openImageStudioShort": "Image",
+      "reference": {
+        "title": "Reference images",
+        "chip": "Refs {count}/{max}",
+        "hint": "Upload or pick assets, then define how each image should guide generation.",
+        "unsupported": "The current model does not support reference images.",
+        "uploadTab": "Upload",
+        "assetTab": "Assets",
+        "uploadTitle": "Upload reference images",
+        "uploadMeta": "JPG / PNG / WebP",
+        "selectAsset": "Select from assets",
+        "empty": "No reference images yet.",
+        "maxReached": "Reference limit reached",
+        "uploadFailed": "Reference image upload failed.",
+        "weightLabel": "Reference weight",
+        "remove": "Remove reference image",
+        "assetDialogTitle": "Select reference images",
+        "assetDialogDescription": "Choose one or more image assets as character image references.",
+        "roles": {
+          "identity": "Identity",
+          "pose": "Pose",
+          "style": "Style",
+          "composition": "Composition",
+          "background": "Background"
+        }
+      },
+      "lora": {
+        "title": "LoRA",
+        "chip": "LoRA {count}/{max}",
+        "hint": "Select up to {max} LoRAs. They are sent as advanced parameters.",
+        "noModel": "Select an image model first.",
+        "unsupported": "The current model does not support LoRA.",
+        "mineTab": "Mine",
+        "discoverTab": "Discover",
+        "urlTab": "URL",
+        "loading": "Loading LoRAs...",
+        "empty": "No LoRAs available.",
+        "selected": "Selected",
+        "noneSelected": "No LoRA selected yet.",
+        "assetMeta": "{type} · {family}",
+        "types": {
+          "subject": "Subject",
+          "style": "Style"
+        },
+        "urlPlaceholder": "https://.../model.safetensors",
+        "importUrl": "Import URL",
+        "invalidUrl": "Enter a valid HTTPS LoRA URL.",
+        "customName": "Custom LoRA",
+        "maxReached": "Select up to {max} LoRAs.",
+        "scaleLabel": "LoRA scale",
+        "remove": "Remove LoRA",
+        "insertTrigger": "Insert trigger"
+      }
     },
     "topbar": {
       "addNode": "Add node",

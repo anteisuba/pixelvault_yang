@@ -2530,6 +2530,8 @@
       "routeMeta": "{model} · {provider}",
       "configured": "已配置",
       "addKey": "添加 API Key",
+      "chooseProvider": "选择提供商",
+      "addKeyDescription": "整行显示，避免窄按钮挤压。",
       "configureProvider": "配置 {provider}",
       "savedMeta": "{model} · {key}"
     },
@@ -2578,7 +2580,61 @@
       "statusPending": "正在生成图片",
       "statusSuccess": "图片已生成",
       "statusError": "生成失败",
-      "imageAlt": "{name} 的生成角色图"
+      "imageAlt": "{name} 的生成角色图",
+      "openImageStudio": "在图像生成中打开",
+      "openImageStudioShort": "图像",
+      "reference": {
+        "title": "参考图",
+        "chip": "参考图 {count}/{max}",
+        "hint": "上传或从素材库选择，指定每张图在生成里的作用。",
+        "unsupported": "当前模型不支持参考图。",
+        "uploadTab": "上传",
+        "assetTab": "素材库",
+        "uploadTitle": "点击上传参考图",
+        "uploadMeta": "JPG / PNG / WebP",
+        "selectAsset": "从素材库选择",
+        "empty": "还没有参考图。",
+        "maxReached": "参考图已达上限",
+        "uploadFailed": "参考图上传失败。",
+        "weightLabel": "参考图权重",
+        "remove": "移除参考图",
+        "assetDialogTitle": "选择参考图",
+        "assetDialogDescription": "选择一个或多个图像素材作为角色图参考。",
+        "roles": {
+          "identity": "身份",
+          "pose": "姿势",
+          "style": "风格",
+          "composition": "构图",
+          "background": "背景"
+        }
+      },
+      "lora": {
+        "title": "LoRA",
+        "chip": "LoRA {count}/{max}",
+        "hint": "选择最多 {max} 个 LoRA，生成时写入高级参数。",
+        "noModel": "请先选择图像模型。",
+        "unsupported": "当前模型不支持 LoRA。",
+        "mineTab": "我的",
+        "discoverTab": "发现",
+        "urlTab": "URL",
+        "loading": "正在加载 LoRA...",
+        "empty": "暂无可用 LoRA。",
+        "selected": "已选",
+        "noneSelected": "还没有选择 LoRA。",
+        "assetMeta": "{type} · {family}",
+        "types": {
+          "subject": "主体",
+          "style": "风格"
+        },
+        "urlPlaceholder": "https://.../model.safetensors",
+        "importUrl": "导入 URL",
+        "invalidUrl": "请输入有效的 HTTPS LoRA URL。",
+        "customName": "自定义 LoRA",
+        "maxReached": "最多选择 {max} 个 LoRA。",
+        "scaleLabel": "LoRA 权重",
+        "remove": "移除 LoRA",
+        "insertTrigger": "插入 trigger"
+      }
     },
     "topbar": {
       "addNode": "添加节点",

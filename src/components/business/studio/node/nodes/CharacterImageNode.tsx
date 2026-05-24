@@ -11,9 +11,19 @@ import {
   type PointerEvent,
 } from 'react'
 import type { NodeProps } from '@xyflow/react'
-import { AlertCircle, ImageIcon, Loader2, WandSparkles } from 'lucide-react'
+import {
+  AlertCircle,
+  ExternalLink,
+  ImageIcon,
+  Loader2,
+  WandSparkles,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import { NODE_STUDIO_CHARACTER_IMAGE_REFERENCES } from '@/constants/node-studio'
+import { ROUTES } from '@/constants/routes'
+import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
@@ -28,8 +38,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CharacterImageLoraControls } from '@/components/business/studio/node/CharacterImageLoraControls'
+import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
 import { useNodeWorkflowActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { useRouter } from '@/i18n/navigation'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeShell } from './NodeShell'
@@ -55,9 +68,11 @@ export function CharacterImageNode({
   selected,
 }: NodeProps<NodeWorkflowNode>) {
   const t = useTranslations('StudioNode.characterImage')
+  const router = useRouter()
   const { generateCharacterImage, modelOptionsByType, updateNodeData } =
     useNodeWorkflowActions()
   const isComposingPrompt = useRef(false)
+  const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
   const imageUrl = typeof data.imageUrl === 'string' ? data.imageUrl : null
   const characterName = data.character?.name ?? t('namePrefix')
   const generationStatus =
@@ -73,6 +88,11 @@ export function CharacterImageNode({
     (data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError))
   const modelOptions = modelOptionsByType[NODE_TYPE_IDS.characterImage] ?? []
   const prompt = data.prompt.trim()
+  const referenceAssets = data.referenceAssets ?? []
+  const loras = data.loras ?? []
+  const maxReferenceImages = data.model
+    ? getMaxReferenceImages(data.model.adapterType, data.model.modelId)
+    : NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems
   const disabledReason = isPending
     ? t('generating')
     : !data.model
@@ -129,6 +149,41 @@ export function CharacterImageNode({
     void generateCharacterImage?.(id)
   }, [generateCharacterImage, id])
 
+  const handleInsertLoraTrigger = useCallback(
+    (triggerWord: string) => {
+      if (!triggerWord) {
+        return
+      }
+
+      const currentPrompt = promptTextareaRef.current?.value ?? data.prompt
+      if (currentPrompt.includes(triggerWord)) {
+        return
+      }
+
+      const nextPrompt = currentPrompt.trim()
+        ? `${currentPrompt.trim()} ${triggerWord}`
+        : triggerWord
+      if (promptTextareaRef.current) {
+        promptTextareaRef.current.value = nextPrompt
+      }
+      updateNodeData(id, { prompt: nextPrompt })
+    },
+    [data.prompt, id, updateNodeData],
+  )
+
+  const handleOpenImageStudio = useCallback(() => {
+    if (prompt) {
+      window.sessionStorage.setItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY, prompt)
+    }
+
+    const styleCode = loras.find((lora) => lora.styleCode)?.styleCode
+    router.push(
+      styleCode
+        ? `${ROUTES.STUDIO_IMAGE}?style=${encodeURIComponent(styleCode)}`
+        : ROUTES.STUDIO_IMAGE,
+    )
+  }, [loras, prompt, router])
+
   return (
     <NodeShell type={NODE_TYPE_IDS.characterImage} selected={selected}>
       <NodeShell.Header
@@ -181,6 +236,7 @@ export function CharacterImageNode({
         ) : null}
 
         <Textarea
+          ref={promptTextareaRef}
           defaultValue={data.prompt}
           onChange={handlePromptChange}
           onBlur={handlePromptBlur}
@@ -193,6 +249,31 @@ export function CharacterImageNode({
           placeholder={t('promptPlaceholder')}
           className="nodrag nopan nowheel min-h-24 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
         />
+
+        <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+          <CharacterImageReferenceControls
+            value={referenceAssets}
+            maxItems={maxReferenceImages}
+            onChange={(nextReferences) =>
+              updateNodeData(id, { referenceAssets: nextReferences })
+            }
+          />
+          <CharacterImageLoraControls
+            value={loras}
+            model={data.model}
+            onChange={(nextLoras) => updateNodeData(id, { loras: nextLoras })}
+            onInsertTrigger={handleInsertLoraTrigger}
+          />
+          <button
+            type="button"
+            onClick={handleOpenImageStudio}
+            className="nodrag nopan nowheel ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground"
+            title={t('openImageStudio')}
+          >
+            <ExternalLink className="size-3.5" />
+            {t('openImageStudioShort')}
+          </button>
+        </div>
       </NodeShell.Body>
       <NodeShell.Footer className="items-center">
         <div className="min-w-0 flex-1 space-y-1">

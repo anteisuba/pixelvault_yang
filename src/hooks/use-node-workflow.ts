@@ -97,6 +97,8 @@ function createDefaultNodeData(
       prompt: '',
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      referenceAssets: [],
+      loras: [],
     }
   }
 
@@ -342,6 +344,8 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
             prompt: character.visualSeed,
             status: NODE_STATUS_IDS.idle,
             generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+            referenceAssets: [],
+            loras: [],
             character: {
               characterId: character.id,
               name: character.nameSuggestion || character.label,

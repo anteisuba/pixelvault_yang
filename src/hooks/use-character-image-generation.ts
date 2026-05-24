@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
 import { studioGenerateAPI } from '@/lib/api-client'
-import type { GenerationRecord } from '@/types'
+import type { AdvancedParams, GenerationRecord } from '@/types'
 
 const CHARACTER_IMAGE_GENERATION_FALLBACK_ERROR =
   'Character image generation failed'
@@ -14,6 +14,8 @@ interface CharacterImageGenerationInput {
   freePrompt: string
   aspectRatio?: AspectRatio
   apiKeyId?: string
+  referenceImages?: string[]
+  advancedParams?: AdvancedParams
 }
 
 type CharacterImageGenerationResult =
@@ -63,6 +65,8 @@ export function useCharacterImageGeneration(): UseCharacterImageGenerationValue 
           apiKeyId: input.apiKeyId,
           freePrompt: input.freePrompt,
           aspectRatio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
+          referenceImages: input.referenceImages,
+          advancedParams: input.advancedParams,
         })
 
         if (response.success && response.data?.generation) {

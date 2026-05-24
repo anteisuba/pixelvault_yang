@@ -2530,6 +2530,8 @@
       "routeMeta": "{model} · {provider}",
       "configured": "設定済み",
       "addKey": "APIキーを追加",
+      "chooseProvider": "プロバイダーを選択",
+      "addKeyDescription": "横幅いっぱいの行で、プロバイダー名を読みやすくします。",
       "configureProvider": "{provider} を設定",
       "savedMeta": "{model} · {key}"
     },
@@ -2578,7 +2580,61 @@
       "statusPending": "画像を生成中",
       "statusSuccess": "画像を生成しました",
       "statusError": "生成に失敗しました",
-      "imageAlt": "{name} の生成キャラクター画像"
+      "imageAlt": "{name} の生成キャラクター画像",
+      "openImageStudio": "画像生成で開く",
+      "openImageStudioShort": "画像",
+      "reference": {
+        "title": "参考画像",
+        "chip": "参考 {count}/{max}",
+        "hint": "アップロードまたは素材から選び、各画像の役割を指定します。",
+        "unsupported": "現在のモデルは参考画像に対応していません。",
+        "uploadTab": "アップロード",
+        "assetTab": "素材",
+        "uploadTitle": "参考画像をアップロード",
+        "uploadMeta": "JPG / PNG / WebP",
+        "selectAsset": "素材から選択",
+        "empty": "参考画像はまだありません。",
+        "maxReached": "参考画像の上限です",
+        "uploadFailed": "参考画像のアップロードに失敗しました。",
+        "weightLabel": "参考画像の強度",
+        "remove": "参考画像を削除",
+        "assetDialogTitle": "参考画像を選択",
+        "assetDialogDescription": "キャラクター画像の参考にする画像素材を選択します。",
+        "roles": {
+          "identity": "同一性",
+          "pose": "ポーズ",
+          "style": "スタイル",
+          "composition": "構図",
+          "background": "背景"
+        }
+      },
+      "lora": {
+        "title": "LoRA",
+        "chip": "LoRA {count}/{max}",
+        "hint": "最大 {max} 個の LoRA を選択し、高度なパラメータとして送信します。",
+        "noModel": "先に画像モデルを選択してください。",
+        "unsupported": "現在のモデルは LoRA に対応していません。",
+        "mineTab": "自分",
+        "discoverTab": "発見",
+        "urlTab": "URL",
+        "loading": "LoRA を読み込み中...",
+        "empty": "利用できる LoRA はありません。",
+        "selected": "選択済み",
+        "noneSelected": "LoRA はまだ選択されていません。",
+        "assetMeta": "{type} · {family}",
+        "types": {
+          "subject": "主体",
+          "style": "スタイル"
+        },
+        "urlPlaceholder": "https://.../model.safetensors",
+        "importUrl": "URL をインポート",
+        "invalidUrl": "有効な HTTPS LoRA URL を入力してください。",
+        "customName": "カスタム LoRA",
+        "maxReached": "最大 {max} 個まで選択できます。",
+        "scaleLabel": "LoRA 強度",
+        "remove": "LoRA を削除",
+        "insertTrigger": "trigger を挿入"
+      }
     },
     "topbar": {
       "addNode": "ノードを追加",

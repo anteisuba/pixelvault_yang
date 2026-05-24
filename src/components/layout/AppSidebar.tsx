@@ -27,6 +27,7 @@ import {
   UserCircle,
   Video,
   Wand2,
+  Workflow,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
@@ -258,6 +259,13 @@ function AppSidebarContent() {
       icon: Palette,
       comingSoon: false,
       activePaths: [ROUTES.STUDIO_LORA],
+    },
+    {
+      href: ROUTES.STUDIO_NODE,
+      label: tTools('tools.node.label'),
+      icon: Workflow,
+      comingSoon: false,
+      activePaths: [ROUTES.STUDIO_NODE],
     },
   ] as const
 

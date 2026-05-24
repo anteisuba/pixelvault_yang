@@ -2,6 +2,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+@import '@xyflow/react/dist/style.css';
 
 @source not "../../.codex-artifacts";
 @source not "../../.codex-dev.err.log";
@@ -13,6 +14,15 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-node-canvas: var(--node-canvas);
+  --color-node-panel: var(--node-panel);
+  --color-node-panel-inner: var(--node-panel-inner);
+  --color-node-panel-soft: var(--node-panel-soft);
+  --color-node-foreground: var(--node-foreground);
+  --color-node-muted: var(--node-muted);
+  --color-node-subtle: var(--node-subtle);
+  --color-node-amber: var(--node-amber);
+  --shadow-node-panel: 0 20px 60px var(--node-shadow);
   --font-sans: var(--font-app-sans);
   --font-display: var(--font-app-display);
   --font-serif: var(--font-app-serif);
@@ -218,6 +228,16 @@
     var(--background)
   );
   --page-border: color-mix(in oklab, var(--border) 85%, transparent);
+
+  --node-canvas: #0b0b0a;
+  --node-panel: #181716;
+  --node-panel-inner: #2d2b28;
+  --node-panel-soft: #22211f;
+  --node-foreground: #f4f1ea;
+  --node-muted: #a6a098;
+  --node-subtle: #6f6a63;
+  --node-amber: #f59e0b;
+  --node-shadow: rgb(0 0 0 / 0.5);
 }
 
 html:lang(ja) {

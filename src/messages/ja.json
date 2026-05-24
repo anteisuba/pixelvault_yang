@@ -117,6 +117,10 @@
       "edit": {
         "title": "画像編集 — PixelVault",
         "description": "インペイント、アウトペイント、超解像、背景除去、レイヤー機能で生成画像を編集。"
+      },
+      "node": {
+        "title": "ノードスタジオ — PixelVault",
+        "description": "ノードキャンバスでビジュアルな AI 制作ワークフローを組み立てます。"
       }
     },
     "gallery": {
@@ -2470,6 +2474,32 @@
         "title": "ノードエディター",
         "description": "生成・編集・解析を視覚的にチェーン構築するワークフロー。"
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "ノードワークフロー",
+    "projectUntitled": "無題のプロジェクト",
+    "nodeCount": "{count} 個のノード",
+    "topbar": {
+      "addNode": "ノードを追加",
+      "arrange": "キャンバスを整列",
+      "save": "保存"
+    },
+    "bottomDock": {
+      "pointer": "選択",
+      "hand": "キャンバス移動",
+      "connect": "接続",
+      "cut": "カット",
+      "zoomLevel": "{percent}%",
+      "undo": "元に戻す",
+      "redo": "やり直す"
+    },
+    "assistant": {
+      "toggle": "アシスタント"
+    },
+    "minimapTitle": "ミニマップ",
+    "toasts": {
+      "notImplemented": "まだ実装されていません。"
     }
   },
   "StudioV2": {

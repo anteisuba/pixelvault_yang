@@ -117,6 +117,10 @@
       "edit": {
         "title": "Image Edit — PixelVault",
         "description": "Edit generated images with inpaint, outpaint, super resolution, background removal, and layer tools."
+      },
+      "node": {
+        "title": "Node Studio — PixelVault",
+        "description": "Build visual AI creation workflows on a node canvas."
       }
     },
     "gallery": {
@@ -2470,6 +2474,32 @@
         "title": "Node Editor",
         "description": "Build visual workflows that chain generation, editing, and analysis steps."
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "Node workflow",
+    "projectUntitled": "Untitled project",
+    "nodeCount": "{count, plural, one {# node} other {# nodes}}",
+    "topbar": {
+      "addNode": "Add node",
+      "arrange": "Arrange canvas",
+      "save": "Save"
+    },
+    "bottomDock": {
+      "pointer": "Pointer",
+      "hand": "Hand",
+      "connect": "Connect",
+      "cut": "Cut",
+      "zoomLevel": "{percent}%",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "assistant": {
+      "toggle": "Assistant"
+    },
+    "minimapTitle": "Minimap",
+    "toasts": {
+      "notImplemented": "Not implemented yet."
     }
   },
   "StudioV2": {

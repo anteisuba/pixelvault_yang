@@ -117,6 +117,10 @@
       "edit": {
         "title": "图片编辑 — PixelVault",
         "description": "使用局部重绘、扩图、超分、去背景和图层工具编辑生成图片。"
+      },
+      "node": {
+        "title": "节点工作台 — PixelVault",
+        "description": "在节点画布上搭建可视化 AI 创作工作流。"
       }
     },
     "gallery": {
@@ -2470,6 +2474,32 @@
         "title": "节点编辑器",
         "description": "可视化工作流，串联生成、编辑、解析等步骤。"
       }
+    }
+  },
+  "StudioNode": {
+    "eyebrow": "节点工作流",
+    "projectUntitled": "未命名项目",
+    "nodeCount": "{count} 个节点",
+    "topbar": {
+      "addNode": "添加节点",
+      "arrange": "整理画布",
+      "save": "保存"
+    },
+    "bottomDock": {
+      "pointer": "选择",
+      "hand": "拖动画布",
+      "connect": "连接",
+      "cut": "剪切",
+      "zoomLevel": "{percent}%",
+      "undo": "撤销",
+      "redo": "重做"
+    },
+    "assistant": {
+      "toggle": "助手"
+    },
+    "minimapTitle": "小地图",
+    "toasts": {
+      "notImplemented": "暂未实现。"
     }
   },
   "StudioV2": {

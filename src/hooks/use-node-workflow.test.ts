@@ -162,6 +162,8 @@ describe('useNodeWorkflow', () => {
 
     const { result } = renderHook(() => useNodeWorkflow())
 
+    expect(result.current.nodes).toEqual([])
+
     await waitFor(() => {
       expect(result.current.nodes).toHaveLength(1)
     })
@@ -205,9 +207,13 @@ describe('useNodeWorkflow', () => {
     })
   })
 
-  it('debounces localStorage persistence', () => {
+  it('debounces localStorage persistence', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useNodeWorkflow())
+
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     act(() => {
       result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)

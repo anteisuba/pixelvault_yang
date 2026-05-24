@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   addEdge,
   applyEdgeChanges,
@@ -122,11 +122,64 @@ function writeWorkflowStateToStorage(state: NodeWorkflowState): void {
 }
 
 export function useNodeWorkflow(): UseNodeWorkflowValue {
-  const [state, setState] = useState<NodeWorkflowState>(() =>
-    readWorkflowStateFromStorage(),
+  const [state, setState] = useState<NodeWorkflowState>(
+    EMPTY_NODE_WORKFLOW_STATE,
+  )
+  const stateRef = useRef<NodeWorkflowState>(EMPTY_NODE_WORKFLOW_STATE)
+  const hasHydrated = useRef(false)
+  const hasPreHydrationMutation = useRef(false)
+
+  const setWorkflowState = useCallback(
+    (updater: (currentState: NodeWorkflowState) => NodeWorkflowState) => {
+      setState((currentState) => {
+        if (!hasHydrated.current) {
+          hasPreHydrationMutation.current = true
+        }
+
+        const nextState = updater(currentState)
+        stateRef.current = nextState
+        return nextState
+      })
+    },
+    [],
   )
 
   useEffect(() => {
+    let cancelled = false
+    let preHydrationSaveTimeout: number | undefined
+
+    window.queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+
+      hasHydrated.current = true
+
+      if (hasPreHydrationMutation.current) {
+        preHydrationSaveTimeout = window.setTimeout(() => {
+          writeWorkflowStateToStorage(stateRef.current)
+        }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+        return
+      }
+
+      const hydratedState = readWorkflowStateFromStorage()
+      stateRef.current = hydratedState
+      setState(hydratedState)
+    })
+
+    return () => {
+      cancelled = true
+      if (preHydrationSaveTimeout !== undefined) {
+        window.clearTimeout(preHydrationSaveTimeout)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasHydrated.current) {
+      return
+    }
+
     const timeoutId = window.setTimeout(() => {
       writeWorkflowStateToStorage(state)
     }, NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
@@ -144,19 +197,19 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
         data: createDefaultNodeData(type),
       }
 
-      setState((currentState) => ({
+      setWorkflowState((currentState) => ({
         ...currentState,
         nodes: [...currentState.nodes, nextNode],
       }))
 
       return nodeId
     },
-    [],
+    [setWorkflowState],
   )
 
   const updateNodeData = useCallback(
     (id: string, patch: Partial<NodeWorkflowNodeData>) => {
-      setState((currentState) => ({
+      setWorkflowState((currentState) => ({
         ...currentState,
         nodes: currentState.nodes.map((node) =>
           node.id === id
@@ -171,65 +224,71 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
         ),
       }))
     },
-    [],
+    [setWorkflowState],
   )
 
-  const deleteNode = useCallback((id: string) => {
-    setState((currentState) => ({
-      nodes: currentState.nodes.filter((node) => node.id !== id),
-      edges: currentState.edges.filter(
-        (edge) => edge.source !== id && edge.target !== id,
-      ),
-    }))
-  }, [])
+  const deleteNode = useCallback(
+    (id: string) => {
+      setWorkflowState((currentState) => ({
+        nodes: currentState.nodes.filter((node) => node.id !== id),
+        edges: currentState.edges.filter(
+          (edge) => edge.source !== id && edge.target !== id,
+        ),
+      }))
+    },
+    [setWorkflowState],
+  )
 
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
     (changes) => {
-      setState((currentState) => ({
+      setWorkflowState((currentState) => ({
         ...currentState,
         nodes: applyNodeChanges(changes, currentState.nodes),
       }))
     },
-    [],
+    [setWorkflowState],
   )
 
   const onEdgesChange = useCallback<OnEdgesChange<NodeWorkflowEdge>>(
     (changes) => {
-      setState((currentState) => ({
+      setWorkflowState((currentState) => ({
         ...currentState,
         edges: applyEdgeChanges(changes, currentState.edges),
       }))
     },
-    [],
+    [setWorkflowState],
   )
 
-  const onConnect = useCallback((connection: Connection) => {
-    const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
-    setState((currentState) => ({
-      ...currentState,
-      edges: addEdge(
-        {
-          ...connection,
-          id: edgeId,
-          type: NODE_STUDIO_EDGE_VISUALS.type,
-          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
-          markerEnd: {
-            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
-            color: NODE_STUDIO_EDGE_VISUALS.color,
-            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
-            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
+      setWorkflowState((currentState) => ({
+        ...currentState,
+        edges: addEdge(
+          {
+            ...connection,
+            id: edgeId,
+            type: NODE_STUDIO_EDGE_VISUALS.type,
+            interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+            markerEnd: {
+              type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+              color: NODE_STUDIO_EDGE_VISUALS.color,
+              width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+              height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+              strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+            },
+            style: {
+              stroke: NODE_STUDIO_EDGE_VISUALS.color,
+              strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+              filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
+            },
           },
-          style: {
-            stroke: NODE_STUDIO_EDGE_VISUALS.color,
-            strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
-            filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
-          },
-        },
-        currentState.edges,
-      ),
-    }))
-  }, [])
+          currentState.edges,
+        ),
+      }))
+    },
+    [setWorkflowState],
+  )
 
   return useMemo(
     () => ({

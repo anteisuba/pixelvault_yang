@@ -42,7 +42,7 @@ function NodeShellRoot({ type, selected, children }: NodeShellRootProps) {
         type="target"
         position={Position.Left}
         className={cn(
-          '!z-10 !size-3 !border-2 !border-node-canvas',
+          '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
           accent.dot,
         )}
       />
@@ -50,7 +50,7 @@ function NodeShellRoot({ type, selected, children }: NodeShellRootProps) {
         type="source"
         position={Position.Right}
         className={cn(
-          '!z-10 !size-3 !border-2 !border-node-canvas',
+          '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
           accent.dot,
         )}
       />

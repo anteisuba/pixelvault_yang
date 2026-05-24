@@ -51,3 +51,18 @@ export const NODE_STUDIO_ID_PREFIXES = {
   node: 'node',
   edge: 'edge',
 } as const
+
+export const NODE_STUDIO_EDGE_VISUALS = {
+  type: 'smoothstep',
+  color: 'var(--node-amber)',
+  previewColor: 'color-mix(in oklab, var(--node-amber) 82%, white)',
+  glowFilter:
+    'drop-shadow(0 0 5px color-mix(in oklab, var(--node-amber) 45%, transparent))',
+  strokeWidth: 3,
+  previewStrokeWidth: 3.5,
+  interactionWidth: 28,
+  markerSize: 20,
+  markerStrokeWidth: 1.8,
+  previewDash: '9 7',
+  markerEndType: 'arrowclosed',
+} as const

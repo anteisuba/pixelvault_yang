@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react'
 
 import {
+  NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_ID_PREFIXES,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
@@ -210,6 +211,20 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
         {
           ...connection,
           id: edgeId,
+          type: NODE_STUDIO_EDGE_VISUALS.type,
+          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+          markerEnd: {
+            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+            color: NODE_STUDIO_EDGE_VISUALS.color,
+            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+          },
+          style: {
+            stroke: NODE_STUDIO_EDGE_VISUALS.color,
+            strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+            filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
+          },
         },
         currentState.edges,
       ),

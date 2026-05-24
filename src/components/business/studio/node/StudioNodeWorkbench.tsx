@@ -9,9 +9,11 @@ import {
 import {
   Background,
   BackgroundVariant,
+  ConnectionLineType,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  type DefaultEdgeOptions,
   type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
@@ -20,6 +22,7 @@ import { toast } from 'sonner'
 
 import {
   NODE_STUDIO_CANVAS,
+  NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
@@ -41,6 +44,30 @@ import { ComposerNode } from './nodes/ComposerNode'
 
 const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.composer]: ComposerNode,
+}
+
+const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
+  type: NODE_STUDIO_EDGE_VISUALS.type,
+  interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+  markerEnd: {
+    type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+    color: NODE_STUDIO_EDGE_VISUALS.color,
+    width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+    height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+    strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+  },
+  style: {
+    stroke: NODE_STUDIO_EDGE_VISUALS.color,
+    strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+    filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
+  },
+}
+
+const NODE_STUDIO_CONNECTION_LINE_STYLE = {
+  stroke: NODE_STUDIO_EDGE_VISUALS.previewColor,
+  strokeWidth: NODE_STUDIO_EDGE_VISUALS.previewStrokeWidth,
+  strokeDasharray: NODE_STUDIO_EDGE_VISUALS.previewDash,
+  filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
 }
 
 interface AddMenuState {
@@ -157,6 +184,9 @@ function StudioNodeCanvas() {
           onNodesDelete={handleNodesDelete}
           deleteKeyCode={['Backspace', 'Delete']}
           defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
+          defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
+          connectionLineType={ConnectionLineType.SmoothStep}
+          connectionLineStyle={NODE_STUDIO_CONNECTION_LINE_STYLE}
           proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
           nodesDraggable
           nodesConnectable

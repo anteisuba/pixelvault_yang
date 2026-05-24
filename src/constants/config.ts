@@ -63,8 +63,6 @@ export const API_ENDPOINTS = {
   PROMPT_FEEDBACK: '/api/prompt/feedback',
   /** Prompt assistant (chat-based prompt generation) */
   PROMPT_ASSISTANT: '/api/prompt/assistant',
-  /** Node canvas script breakdown planner */
-  SCRIPT_BREAKDOWN: '/api/script-breakdown',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 

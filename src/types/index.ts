@@ -48,22 +48,6 @@ import {
 } from '@/constants/voice-cards'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
-export type {
-  ScriptBreakdownRequest,
-  ScriptBreakdownResponse,
-  ScriptBreakdownResponseData,
-  ScriptBreakdownResult,
-} from '@/types/script-breakdown'
-export type {
-  NodeWorkflowEdge,
-  NodeWorkflowModelSelection,
-  NodeWorkflowNode,
-  NodeWorkflowNodeData,
-  NodeWorkflowNodeType,
-  NodeWorkflowPosition,
-  NodeWorkflowState,
-} from '@/types/node-workflow'
-
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
 

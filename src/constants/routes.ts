@@ -23,7 +23,6 @@ export const ROUTES = {
   STUDIO_ENHANCE: '/studio/enhance',
   STUDIO_ANALYZE: '/studio/analyze',
   STUDIO_LORA: '/studio/lora',
-  STUDIO_NODE: '/studio/node',
   /** Krea-style private asset browser */
   ASSETS: '/assets',
   CARDS: '/cards',

@@ -2514,7 +2514,11 @@
     "plannerRoute": {
       "triggerLabel": "选择规划模型",
       "searchPlaceholder": "搜索规划模型...",
-      "routeMeta": "{model} · {provider}"
+      "routeMeta": "{model} · {provider}",
+      "configured": "已配置",
+      "addKey": "添加 API Key",
+      "configureProvider": "配置 {provider}",
+      "savedMeta": "{model} · {key}"
     },
     "agent": {
       "emptyTitle": "等待 Composer 输入",

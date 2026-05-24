@@ -2514,7 +2514,11 @@
     "plannerRoute": {
       "triggerLabel": "プランナーモデルを選択",
       "searchPlaceholder": "プランナーモデルを検索...",
-      "routeMeta": "{model} · {provider}"
+      "routeMeta": "{model} · {provider}",
+      "configured": "設定済み",
+      "addKey": "APIキーを追加",
+      "configureProvider": "{provider} を設定",
+      "savedMeta": "{model} · {key}"
     },
     "agent": {
       "emptyTitle": "Composer 入力待ち",

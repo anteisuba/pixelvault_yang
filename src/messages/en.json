@@ -2514,7 +2514,11 @@
     "plannerRoute": {
       "triggerLabel": "Select planner model",
       "searchPlaceholder": "Search planner models...",
-      "routeMeta": "{model} · {provider}"
+      "routeMeta": "{model} · {provider}",
+      "configured": "Configured",
+      "addKey": "Add API Key",
+      "configureProvider": "Set up {provider}",
+      "savedMeta": "{model} · {key}"
     },
     "agent": {
       "emptyTitle": "Waiting for Composer",

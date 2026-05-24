@@ -2480,6 +2480,30 @@
     "eyebrow": "Node workflow",
     "projectUntitled": "Untitled project",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
+    "addMenuTitle": "Add node",
+    "nodeTypes": {
+      "composer": "Composer"
+    },
+    "addMenuHelpers": {
+      "composer": "Draft an idea prompt for the workflow."
+    },
+    "statuses": {
+      "idle": "Idle",
+      "queued": "Queued",
+      "ready": "Ready",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Failed",
+      "stale": "Stale",
+      "disabled": "Disabled"
+    },
+    "composer": {
+      "promptLabel": "Composer prompt",
+      "placeholder": "Write the story idea or visual brief...",
+      "send": "Send",
+      "sendDisabledTooltip": "Send connects to Agent in stage 3.",
+      "stageHint": "Stage 2 draft node"
+    },
     "topbar": {
       "addNode": "Add node",
       "arrange": "Arrange canvas",
@@ -2499,7 +2523,8 @@
     },
     "minimapTitle": "Minimap",
     "toasts": {
-      "notImplemented": "Not implemented yet."
+      "notImplemented": "Not implemented yet.",
+      "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}"
     }
   },
   "StudioV2": {

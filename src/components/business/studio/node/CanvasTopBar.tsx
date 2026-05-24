@@ -1,5 +1,6 @@
 'use client'
 
+import type { MouseEvent } from 'react'
 import { Archive, LayoutTemplate, Plus, Save, Workflow } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -10,10 +11,15 @@ import { cn } from '@/lib/utils'
 
 interface CanvasTopBarProps {
   nodeCount: number
+  onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   className?: string
 }
 
-export function CanvasTopBar({ nodeCount, className }: CanvasTopBarProps) {
+export function CanvasTopBar({
+  nodeCount,
+  onAddClick,
+  className,
+}: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
 
   const showPlaceholderToast = () => {
@@ -54,7 +60,7 @@ export function CanvasTopBar({ nodeCount, className }: CanvasTopBarProps) {
         <Button
           type="button"
           size="sm"
-          onClick={showPlaceholderToast}
+          onClick={onAddClick ?? showPlaceholderToast}
           className="h-9 rounded-2xl bg-node-foreground px-3 text-node-canvas hover:bg-node-foreground/90"
         >
           <Plus className="size-4" />

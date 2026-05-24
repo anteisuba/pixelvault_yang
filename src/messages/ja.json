@@ -2480,6 +2480,30 @@
     "eyebrow": "ノードワークフロー",
     "projectUntitled": "無題のプロジェクト",
     "nodeCount": "{count} 個のノード",
+    "addMenuTitle": "ノードを追加",
+    "nodeTypes": {
+      "composer": "Composer"
+    },
+    "addMenuHelpers": {
+      "composer": "制作アイデアをワークフローの出発点として書きます。"
+    },
+    "statuses": {
+      "idle": "待機中",
+      "queued": "キュー中",
+      "ready": "準備完了",
+      "running": "実行中",
+      "done": "完了",
+      "failed": "失敗",
+      "stale": "古い",
+      "disabled": "無効"
+    },
+    "composer": {
+      "promptLabel": "Composer プロンプト",
+      "placeholder": "物語のアイデアやビジュアル要件を書く...",
+      "send": "送信",
+      "sendDisabledTooltip": "送信はステージ 3 で Agent に接続します。",
+      "stageHint": "ステージ 2 のドラフトノード"
+    },
     "topbar": {
       "addNode": "ノードを追加",
       "arrange": "キャンバスを整列",
@@ -2499,7 +2523,8 @@
     },
     "minimapTitle": "ミニマップ",
     "toasts": {
-      "notImplemented": "まだ実装されていません。"
+      "notImplemented": "まだ実装されていません。",
+      "nodesDeleted": "{count} 個のノードを削除しました。"
     }
   },
   "StudioV2": {

@@ -29,3 +29,25 @@ export const NODE_STUDIO_TOOL_MODES = [
 ] as const
 
 export type NodeStudioToolMode = (typeof NODE_STUDIO_TOOL_MODES)[number]
+
+export const NODE_STUDIO_WORKFLOW_STORAGE = {
+  key: 'pixelvault.nodeStudio.v3',
+  debounceMs: 400,
+  version: 1,
+} as const
+
+export const NODE_STUDIO_NODE_PLACEMENT = {
+  topbarAddPosition: {
+    x: 96,
+    y: 96,
+  },
+  menuOffset: {
+    x: 16,
+    y: 16,
+  },
+} as const
+
+export const NODE_STUDIO_ID_PREFIXES = {
+  node: 'node',
+  edge: 'edge',
+} as const

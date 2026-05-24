@@ -2480,6 +2480,30 @@
     "eyebrow": "节点工作流",
     "projectUntitled": "未命名项目",
     "nodeCount": "{count} 个节点",
+    "addMenuTitle": "添加节点",
+    "nodeTypes": {
+      "composer": "Composer"
+    },
+    "addMenuHelpers": {
+      "composer": "写下创作想法，作为工作流的起点。"
+    },
+    "statuses": {
+      "idle": "空闲",
+      "queued": "排队",
+      "ready": "就绪",
+      "running": "运行中",
+      "done": "完成",
+      "failed": "失败",
+      "stale": "过期",
+      "disabled": "禁用"
+    },
+    "composer": {
+      "promptLabel": "Composer 提示词",
+      "placeholder": "写下故事想法或视觉需求...",
+      "send": "发送",
+      "sendDisabledTooltip": "发送会在阶段 3 接入 Agent。",
+      "stageHint": "阶段 2 草稿节点"
+    },
     "topbar": {
       "addNode": "添加节点",
       "arrange": "整理画布",
@@ -2499,7 +2523,8 @@
     },
     "minimapTitle": "小地图",
     "toasts": {
-      "notImplemented": "暂未实现。"
+      "notImplemented": "暂未实现。",
+      "nodesDeleted": "已删除 {count} 个节点。"
     }
   },
   "StudioV2": {

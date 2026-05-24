@@ -50,6 +50,14 @@ import { WORKFLOW_IDS } from '@/constants/workflows'
 import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
 // Re-export ModelOption from constants for convenience
 export type { ModelOption } from '@/constants/models'
+export type {
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+  NodeWorkflowNodeData,
+  NodeWorkflowState,
+  NodeWorkflowStateSnapshot,
+  NodeWorkflowStatus,
+} from '@/types/node-workflow'
 
 // ─── Advanced Generation Parameters ──────────────────────────────
 

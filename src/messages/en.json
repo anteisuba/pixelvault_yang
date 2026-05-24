@@ -2488,11 +2488,13 @@
     "addMenuTitle": "Add node",
     "nodeTypes": {
       "composer": "Composer",
-      "agent": "Agent"
+      "agent": "Agent",
+      "characterImage": "Character Image"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
-      "agent": "Break a Composer idea into story, scene, beat, and shot structure."
+      "agent": "Break a Composer idea into story, scene, beat, and shot structure.",
+      "characterImage": "Generate a portrait or design pass from a character prompt."
     },
     "statuses": {
       "idle": "Idle",
@@ -2531,6 +2533,12 @@
       "configureProvider": "Set up {provider}",
       "savedMeta": "{model} · {key}"
     },
+    "workflowModelPicker": {
+      "label": "Image model",
+      "placeholder": "Select model",
+      "hint": "Saved routes and free image models available for this node.",
+      "noOptions": "No image model with a configured key is available yet."
+    },
     "agent": {
       "emptyTitle": "Waiting for Composer",
       "emptyDescription": "Select a planner model, then connect a Composer node and send an idea.",
@@ -2550,7 +2558,27 @@
         "actions": "Actions",
         "beats": "Beats",
         "shots": "Shots"
-      }
+      },
+      "spawnCharacters": "Spawn character images ({count})",
+      "spawnCharactersTooltip": "Create one Character Image node for each breakdown character."
+    },
+    "characterImage": {
+      "namePrefix": "Character",
+      "promptLabel": "Character image prompt",
+      "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
+      "emptyPreview": "No generated image yet",
+      "generate": "Generate",
+      "regenerate": "Regenerate",
+      "generating": "Generating...",
+      "noModel": "Select an image model first.",
+      "noPrompt": "Add a character prompt first.",
+      "failedTitle": "Image generation failed",
+      "fallbackError": "Character image generation failed.",
+      "statusIdle": "Ready for generation",
+      "statusPending": "Generating image",
+      "statusSuccess": "Image generated",
+      "statusError": "Generation failed",
+      "imageAlt": "{name} generated character image"
     },
     "topbar": {
       "addNode": "Add node",
@@ -2574,7 +2602,11 @@
       "notImplemented": "Not implemented yet.",
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
       "generated": "Agent breakdown generated.",
-      "scriptBreakdownFailed": "Agent breakdown failed."
+      "scriptBreakdownFailed": "Agent breakdown failed.",
+      "characterGenerated": "Character image generated.",
+      "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
+      "charactersAlreadySpawned": "All characters already have image nodes.",
+      "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images."
     }
   },
   "StudioV2": {

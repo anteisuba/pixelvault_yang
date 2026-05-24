@@ -30,13 +30,17 @@ import {
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
 } from '@/constants/node-studio'
 import {
+  NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { DEFAULT_ASPECT_RATIO } from '@/constants/config'
+import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
+import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 
@@ -47,11 +51,13 @@ import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { AgentNode } from './nodes/AgentNode'
+import { CharacterImageNode } from './nodes/CharacterImageNode'
 import { ComposerNode } from './nodes/ComposerNode'
 
 const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.composer]: ComposerNode,
   [NODE_TYPE_IDS.agent]: AgentNode,
+  [NODE_TYPE_IDS.characterImage]: CharacterImageNode,
 }
 
 const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -108,6 +114,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const locale = useLocale()
   const workflow = useNodeWorkflow()
   const scriptBreakdown = useScriptBreakdown()
+  const characterImageGeneration = useCharacterImageGeneration()
+  const modelOptionsByType = useWorkflowModelOptions()
   const { screenToFlowPosition } = useReactFlow<
     NodeWorkflowNode,
     NodeWorkflowEdge
@@ -299,16 +307,96 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [appLocale, scriptBreakdown, t, tErrors, workflow],
   )
 
+  const handleGenerateCharacterImage = useCallback(
+    async (nodeId: string) => {
+      const node = workflow.nodes.find((item) => item.id === nodeId)
+      const prompt = node?.data.prompt.trim() ?? ''
+      const model = node?.data.model
+
+      if (!node || node.type !== NODE_TYPE_IDS.characterImage) {
+        return
+      }
+
+      if (!model) {
+        toast.info(t('characterImage.noModel'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      if (!prompt) {
+        toast.info(t('characterImage.noPrompt'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      workflow.updateNodeData(nodeId, {
+        generationError: undefined,
+        generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+        status: NODE_STATUS_IDS.running,
+      })
+
+      const result = await characterImageGeneration.generate({
+        modelId: model.modelId,
+        apiKeyId: model.apiKeyId,
+        freePrompt: prompt,
+        aspectRatio: DEFAULT_ASPECT_RATIO,
+      })
+
+      if (result.success) {
+        workflow.updateNodeData(nodeId, {
+          generationError: undefined,
+          generationId: result.generation.id,
+          generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          imageUrl: result.imageUrl,
+          status: NODE_STATUS_IDS.done,
+        })
+        toast.success(t('toasts.characterGenerated'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      const failureMessage = getApiErrorMessage(
+        tErrors,
+        result,
+        t('characterImage.fallbackError'),
+      )
+
+      workflow.updateNodeData(nodeId, {
+        generationError: failureMessage,
+        generationStatus: NODE_GENERATION_STATUS_IDS.error,
+        status: NODE_STATUS_IDS.failed,
+      })
+      toast.error(t('characterImage.failedTitle'), {
+        description: failureMessage,
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [characterImageGeneration, t, tErrors, workflow],
+  )
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
       updateScriptBreakdown: workflow.updateScriptBreakdown,
+      spawnCharactersFromBreakdown: workflow.spawnCharactersFromBreakdown,
       deleteNode: workflow.deleteNode,
       sendFromComposer: handleSendFromComposer,
+      generateCharacterImage: handleGenerateCharacterImage,
+      modelOptionsByType,
     }),
     [
+      handleGenerateCharacterImage,
       handleSendFromComposer,
+      modelOptionsByType,
       workflow.deleteNode,
+      workflow.spawnCharactersFromBreakdown,
       workflow.updateNodeData,
       workflow.updateScriptBreakdown,
     ],

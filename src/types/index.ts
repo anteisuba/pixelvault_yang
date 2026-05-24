@@ -52,6 +52,12 @@ import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
 export type { ModelOption } from '@/constants/models'
 export type {
   NodeWorkflowEdge,
+  NodeWorkflowCharacterReference,
+  NodeWorkflowGenerationStatus,
+  NodeWorkflowModelOption,
+  NodeWorkflowModelOptionsByType,
+  NodeWorkflowModelProviderConfig,
+  NodeWorkflowModelSelection,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
   NodeWorkflowState,

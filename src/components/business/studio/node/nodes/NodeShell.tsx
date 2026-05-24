@@ -36,7 +36,7 @@ function NodeShellRoot({ type, selected, children }: NodeShellRootProps) {
   return (
     <article
       className={cn(
-        'relative w-80 overflow-visible rounded-3xl border bg-node-panel text-node-foreground shadow-node-panel transition-colors',
+        'group relative w-80 overflow-visible rounded-3xl border bg-node-panel text-node-foreground shadow-node-panel transition-colors',
         selected
           ? cn('border-node-foreground/70 ring-2', accent.selectedRing)
           : 'border-node-panel-inner/80 hover:border-node-muted/70',

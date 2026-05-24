@@ -3,8 +3,15 @@ import type { Connection } from '@xyflow/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { NODE_STUDIO_WORKFLOW_STORAGE } from '@/constants/node-studio'
-import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_STUDIO_NODE_PLACEMENT,
+  NODE_STUDIO_WORKFLOW_STORAGE,
+} from '@/constants/node-studio'
+import {
+  NODE_GENERATION_STATUS_IDS,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 import { NodeWorkflowStateSchema } from '@/types/node-workflow'
 import type {
   ScriptBreakdownPlanner,
@@ -32,6 +39,16 @@ const FAKE_BREAKDOWN: ScriptBreakdownResult = {
       personality: 'Patient and observant.',
       visualSeed: 'weathered explorer in amber field jacket',
       goal: 'Find the hidden landing path.',
+    },
+    {
+      id: 'char-2',
+      label: 'Guide',
+      nameSuggestion: 'Sol',
+      role: 'Signal keeper',
+      functionInStory: 'Guards the route beacon.',
+      personality: 'Measured and dryly funny.',
+      visualSeed: 'silver-haired signal keeper with prism lantern',
+      goal: 'Keep the beacon alive.',
     },
   ],
   scenes: [
@@ -268,6 +285,150 @@ describe('useNodeWorkflow', () => {
       plannerModelId: FAKE_PLANNER.modelId,
       status: NODE_STATUS_IDS.done,
     })
+  })
+
+  it('spawns character image nodes from an agent breakdown', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let agentId = ''
+    let spawnResult: ReturnType<
+      typeof result.current.spawnCharactersFromBreakdown
+    >
+    act(() => {
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.updateScriptBreakdown(
+        agentId,
+        FAKE_BREAKDOWN,
+        FAKE_PLANNER,
+      )
+      spawnResult = result.current.spawnCharactersFromBreakdown(agentId)
+    })
+
+    const characterNodes = result.current.nodes.filter(
+      (node) => node.type === NODE_TYPE_IDS.characterImage,
+    )
+    const firstY =
+      SECOND_POSITION.y -
+      ((FAKE_BREAKDOWN.characters.length - 1) *
+        NODE_STUDIO_NODE_PLACEMENT.characterSpawn.offsetY) /
+        2
+
+    expect(spawnResult!.createdNodeIds).toHaveLength(2)
+    expect(spawnResult!.skippedCharacterIds).toEqual([])
+    expect(characterNodes).toHaveLength(2)
+    expect(characterNodes[0]).toMatchObject({
+      type: NODE_TYPE_IDS.characterImage,
+      position: {
+        x:
+          SECOND_POSITION.x + NODE_STUDIO_NODE_PLACEMENT.characterSpawn.offsetX,
+        y: firstY,
+      },
+      data: {
+        prompt: FAKE_BREAKDOWN.characters[0]?.visualSeed,
+        status: NODE_STATUS_IDS.idle,
+        generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+        character: {
+          characterId: 'char-1',
+          name: 'Mira',
+        },
+      },
+    })
+    expect(result.current.edges).toHaveLength(2)
+    expect(result.current.edges[0]).toMatchObject({
+      source: agentId,
+      target: characterNodes[0]?.id,
+    })
+  })
+
+  it('does not spawn characters when the agent is missing or has no breakdown', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let agentId = ''
+    let missingResult: ReturnType<
+      typeof result.current.spawnCharactersFromBreakdown
+    >
+    let emptyAgentResult: ReturnType<
+      typeof result.current.spawnCharactersFromBreakdown
+    >
+    act(() => {
+      missingResult = result.current.spawnCharactersFromBreakdown('missing')
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      emptyAgentResult = result.current.spawnCharactersFromBreakdown(agentId)
+    })
+
+    expect(missingResult!).toEqual({
+      createdNodeIds: [],
+      skippedCharacterIds: [],
+    })
+    expect(emptyAgentResult!).toEqual({
+      createdNodeIds: [],
+      skippedCharacterIds: [],
+    })
+    expect(
+      result.current.nodes.filter(
+        (node) => node.type === NODE_TYPE_IDS.characterImage,
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps character spawning idempotent', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let agentId = ''
+    let secondSpawn: ReturnType<
+      typeof result.current.spawnCharactersFromBreakdown
+    >
+    act(() => {
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.updateScriptBreakdown(
+        agentId,
+        FAKE_BREAKDOWN,
+        FAKE_PLANNER,
+      )
+      result.current.spawnCharactersFromBreakdown(agentId)
+      secondSpawn = result.current.spawnCharactersFromBreakdown(agentId)
+    })
+
+    expect(secondSpawn!).toEqual({
+      createdNodeIds: [],
+      skippedCharacterIds: ['char-1', 'char-2'],
+    })
+    expect(
+      result.current.nodes.filter(
+        (node) => node.type === NODE_TYPE_IDS.characterImage,
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('recreates only missing character image nodes', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let agentId = ''
+    let deletedCharacterId = ''
+    let respawn: ReturnType<typeof result.current.spawnCharactersFromBreakdown>
+    act(() => {
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.updateScriptBreakdown(
+        agentId,
+        FAKE_BREAKDOWN,
+        FAKE_PLANNER,
+      )
+      const firstSpawn = result.current.spawnCharactersFromBreakdown(agentId)
+      deletedCharacterId = firstSpawn.createdNodeIds[0] ?? ''
+      result.current.deleteNode(deletedCharacterId)
+      respawn = result.current.spawnCharactersFromBreakdown(agentId)
+    })
+
+    const characterNodes = result.current.nodes.filter(
+      (node) => node.type === NODE_TYPE_IDS.characterImage,
+    )
+
+    expect(deletedCharacterId).not.toBe('')
+    expect(respawn!.createdNodeIds).toHaveLength(1)
+    expect(respawn!.skippedCharacterIds).toEqual(['char-2'])
+    expect(
+      characterNodes.map((node) => node.data.character?.characterId),
+    ).toEqual(['char-2', 'char-1'])
   })
 
   it('hydrates nodes, edges, and prompt data from a valid snapshot', async () => {

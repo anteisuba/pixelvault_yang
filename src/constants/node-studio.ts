@@ -45,6 +45,10 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     x: 16,
     y: 16,
   },
+  characterSpawn: {
+    offsetX: 420,
+    offsetY: 260,
+  },
 } as const
 
 export const NODE_STUDIO_ID_PREFIXES = {

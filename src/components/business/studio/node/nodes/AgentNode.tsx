@@ -2,14 +2,17 @@
 
 import { useCallback, useMemo } from 'react'
 import type { NodeProps } from '@xyflow/react'
-import { AlertCircle, Bot, Loader2 } from 'lucide-react'
+import { AlertCircle, Bot, ImagePlus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
+import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import {
   SCRIPT_BREAKDOWN_SUMMARY_FIELDS,
   SCRIPT_PLANNER_PROVIDER_IDS,
 } from '@/constants/script-breakdown'
+import { Button } from '@/components/ui/button'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 import { cn } from '@/lib/utils'
@@ -36,7 +39,9 @@ function getCopyRiskClass(copyRisk: ScriptBreakdownResult['copyRisk']): string {
 
 export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
   const t = useTranslations('StudioNode.agent')
-  const { updateNodeData } = useNodeWorkflowActions()
+  const tToasts = useTranslations('StudioNode.toasts')
+  const { spawnCharactersFromBreakdown, updateNodeData } =
+    useNodeWorkflowActions()
   const breakdown = data.breakdown
   const isRunning = data.status === NODE_STATUS_IDS.running
   const isFailed =
@@ -71,6 +76,35 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
     },
     [id, updateNodeData],
   )
+
+  const handleSpawnCharacters = useCallback(() => {
+    if (!breakdown || breakdown.characters.length === 0) {
+      toast.info(tToasts('charactersSpawnNoBreakdown'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+      return
+    }
+
+    const result = spawnCharactersFromBreakdown(id)
+    if (result.createdNodeIds.length === 0) {
+      toast.info(tToasts('charactersAlreadySpawned'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+      return
+    }
+
+    toast.success(
+      tToasts('charactersSpawned', {
+        count: result.createdNodeIds.length,
+      }),
+      {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      },
+    )
+  }, [breakdown, id, spawnCharactersFromBreakdown, tToasts])
 
   return (
     <NodeShell type={NODE_TYPE_IDS.agent} selected={selected}>
@@ -166,6 +200,19 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
                 })}
               </span>
             </div>
+
+            <Button
+              type="button"
+              onClick={handleSpawnCharacters}
+              disabled={breakdown.characters.length === 0}
+              title={t('spawnCharactersTooltip')}
+              className="nodrag nopan nowheel h-9 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs font-semibold text-node-foreground opacity-0 transition-opacity hover:border-node-amber/40 hover:bg-node-panel-inner group-hover:opacity-100 disabled:text-node-subtle disabled:opacity-60"
+            >
+              <ImagePlus className="mr-2 size-4 text-rose-200" />
+              {t('spawnCharacters', {
+                count: breakdown.characters.length,
+              })}
+            </Button>
           </>
         )}
       </NodeShell.Body>

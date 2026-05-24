@@ -2488,11 +2488,13 @@
     "addMenuTitle": "添加节点",
     "nodeTypes": {
       "composer": "Composer",
-      "agent": "Agent"
+      "agent": "Agent",
+      "characterImage": "角色图"
     },
     "addMenuHelpers": {
       "composer": "写下创作想法，作为工作流的起点。",
-      "agent": "把 Composer 想法拆成故事、场景、节拍和镜头结构。"
+      "agent": "把 Composer 想法拆成故事、场景、节拍和镜头结构。",
+      "characterImage": "根据角色提示词生成角色设定图或肖像。"
     },
     "statuses": {
       "idle": "空闲",
@@ -2531,6 +2533,12 @@
       "configureProvider": "配置 {provider}",
       "savedMeta": "{model} · {key}"
     },
+    "workflowModelPicker": {
+      "label": "图像模型",
+      "placeholder": "选择模型",
+      "hint": "这里显示当前可用于此节点的已保存路由和免费图像模型。",
+      "noOptions": "暂时没有已配置 Key 的图像模型。"
+    },
     "agent": {
       "emptyTitle": "等待 Composer 输入",
       "emptyDescription": "先选择规划模型，再连接 Composer 节点并发送想法。",
@@ -2550,7 +2558,27 @@
         "actions": "动作",
         "beats": "节拍",
         "shots": "镜头"
-      }
+      },
+      "spawnCharacters": "派生角色图 ({count})",
+      "spawnCharactersTooltip": "为拆解结果里的每个角色创建一个角色图节点。"
+    },
+    "characterImage": {
+      "namePrefix": "角色",
+      "promptLabel": "角色图提示词",
+      "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
+      "emptyPreview": "还没有生成图片",
+      "generate": "生成",
+      "regenerate": "重新生成",
+      "generating": "生成中...",
+      "noModel": "请先选择图像模型。",
+      "noPrompt": "请先填写角色提示词。",
+      "failedTitle": "图片生成失败",
+      "fallbackError": "角色图生成失败。",
+      "statusIdle": "可开始生成",
+      "statusPending": "正在生成图片",
+      "statusSuccess": "图片已生成",
+      "statusError": "生成失败",
+      "imageAlt": "{name} 的生成角色图"
     },
     "topbar": {
       "addNode": "添加节点",
@@ -2574,7 +2602,11 @@
       "notImplemented": "暂未实现。",
       "nodesDeleted": "已删除 {count} 个节点。",
       "generated": "Agent 拆解已生成。",
-      "scriptBreakdownFailed": "Agent 拆解失败。"
+      "scriptBreakdownFailed": "Agent 拆解失败。",
+      "characterGenerated": "角色图已生成。",
+      "charactersSpawned": "已派生 {count} 个角色图节点。",
+      "charactersAlreadySpawned": "所有角色都已派生过节点。",
+      "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。"
     }
   },
   "StudioV2": {

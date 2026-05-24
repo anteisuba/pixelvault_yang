@@ -14,9 +14,11 @@ import {
 import {
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_ID_PREFIXES,
+  NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
+  NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
@@ -45,7 +47,13 @@ export interface NodeWorkflowActions {
     breakdown: ScriptBreakdownResult,
     planner: ScriptBreakdownPlanner,
   ): void
+  spawnCharactersFromBreakdown(agentNodeId: string): SpawnCharactersResult
   deleteNode(id: string): void
+}
+
+export interface SpawnCharactersResult {
+  createdNodeIds: string[]
+  skippedCharacterIds: string[]
 }
 
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
@@ -81,6 +89,14 @@ function createDefaultNodeData(
     return {
       prompt: '',
       status: NODE_STATUS_IDS.idle,
+    }
+  }
+
+  if (type === NODE_TYPE_IDS.characterImage) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
     }
   }
 
@@ -144,15 +160,13 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
 
   const setWorkflowState = useCallback(
     (updater: (currentState: NodeWorkflowState) => NodeWorkflowState) => {
-      setState((currentState) => {
-        if (!hasHydrated.current) {
-          hasPreHydrationMutation.current = true
-        }
+      if (!hasHydrated.current) {
+        hasPreHydrationMutation.current = true
+      }
 
-        const nextState = updater(currentState)
-        stateRef.current = nextState
-        return nextState
-      })
+      const nextState = updater(stateRef.current)
+      stateRef.current = nextState
+      setState(nextState)
     },
     [],
   )
@@ -281,6 +295,102 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
     [setWorkflowState],
   )
 
+  const spawnCharactersFromBreakdown = useCallback(
+    (agentNodeId: string): SpawnCharactersResult => {
+      const currentState = stateRef.current
+      const agentNode = currentState.nodes.find(
+        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
+      )
+      const breakdown = agentNode?.data.breakdown
+
+      if (!agentNode || !breakdown) {
+        return {
+          createdNodeIds: [],
+          skippedCharacterIds: [],
+        }
+      }
+
+      const existingCharacterIds = new Set(
+        currentState.nodes
+          .filter((node) => node.type === NODE_TYPE_IDS.characterImage)
+          .map((node) => node.data.character?.characterId)
+          .filter((characterId): characterId is string => Boolean(characterId)),
+      )
+      const skippedCharacterIds: string[] = []
+      const createdNodes: NodeWorkflowNode[] = []
+      const createdEdges: NodeWorkflowEdge[] = []
+      const { offsetX, offsetY } = NODE_STUDIO_NODE_PLACEMENT.characterSpawn
+      const firstY =
+        agentNode.position.y - ((breakdown.characters.length - 1) * offsetY) / 2
+
+      breakdown.characters.forEach((character, characterIndex) => {
+        if (existingCharacterIds.has(character.id)) {
+          skippedCharacterIds.push(character.id)
+          return
+        }
+
+        const nodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+        const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
+        createdNodes.push({
+          id: nodeId,
+          type: NODE_TYPE_IDS.characterImage,
+          position: {
+            x: agentNode.position.x + offsetX,
+            y: firstY + characterIndex * offsetY,
+          },
+          data: {
+            prompt: character.visualSeed,
+            status: NODE_STATUS_IDS.idle,
+            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+            character: {
+              characterId: character.id,
+              name: character.nameSuggestion || character.label,
+              visualSeed: character.visualSeed,
+            },
+          },
+        })
+        createdEdges.push({
+          id: edgeId,
+          source: agentNodeId,
+          target: nodeId,
+          type: NODE_STUDIO_EDGE_VISUALS.type,
+          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+          markerEnd: {
+            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+            color: NODE_STUDIO_EDGE_VISUALS.color,
+            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+          },
+          style: {
+            stroke: NODE_STUDIO_EDGE_VISUALS.color,
+            strokeWidth: NODE_STUDIO_EDGE_VISUALS.strokeWidth,
+            filter: NODE_STUDIO_EDGE_VISUALS.glowFilter,
+          },
+        })
+      })
+
+      if (createdNodes.length === 0) {
+        return {
+          createdNodeIds: [],
+          skippedCharacterIds,
+        }
+      }
+
+      setWorkflowState((latestState) => ({
+        ...latestState,
+        nodes: [...latestState.nodes, ...createdNodes],
+        edges: [...latestState.edges, ...createdEdges],
+      }))
+
+      return {
+        createdNodeIds: createdNodes.map((node) => node.id),
+        skippedCharacterIds,
+      }
+    },
+    [setWorkflowState],
+  )
+
   const getOutgoingTargetByType = useCallback(
     (sourceId: string, targetType: NodeWorkflowNodeType) => {
       const currentState = stateRef.current
@@ -362,6 +472,7 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
       addNode,
       updateNodeData,
       updateScriptBreakdown,
+      spawnCharactersFromBreakdown,
       deleteNode,
       getOutgoingTargetByType,
       onNodesChange,
@@ -376,6 +487,7 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
       onEdgesChange,
       onNodesChange,
       state,
+      spawnCharactersFromBreakdown,
       updateScriptBreakdown,
       updateNodeData,
     ],

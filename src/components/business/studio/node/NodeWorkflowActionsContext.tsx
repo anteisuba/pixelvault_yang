@@ -3,9 +3,12 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeWorkflowActions } from '@/hooks/use-node-workflow'
+import type { NodeWorkflowModelOptionsByType } from '@/types/node-workflow'
 
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   sendFromComposer?(composerNodeId: string): Promise<void>
+  generateCharacterImage?(nodeId: string): Promise<void>
+  modelOptionsByType: NodeWorkflowModelOptionsByType
 }
 
 const NodeWorkflowActionsContext =

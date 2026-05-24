@@ -2,6 +2,11 @@ import type { Edge, Node } from '@xyflow/react'
 import { z } from 'zod'
 
 import {
+  AI_ADAPTER_TYPE_OPTIONS,
+  type ProviderConfig,
+} from '@/constants/providers'
+import {
+  NODE_GENERATION_STATUSES,
   NODE_STATUSES,
   NODE_TYPES,
   type NodeWorkflowNodeType,
@@ -16,6 +21,27 @@ export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
 export const NodeWorkflowNodeTypeSchema = z.enum(NODE_TYPES)
 
+export const NodeWorkflowGenerationStatusSchema = z.enum(
+  NODE_GENERATION_STATUSES,
+)
+
+export const NodeWorkflowModelSelectionSchema = z.object({
+  optionId: z.string().trim().min(1).max(240),
+  modelId: z.string().trim().min(1).max(200),
+  adapterType: z.enum(AI_ADAPTER_TYPE_OPTIONS),
+  providerConfig: z.object({
+    label: z.string().trim().min(1).max(120),
+    baseUrl: z.string().trim().min(1).max(500),
+  }),
+  apiKeyId: z.string().trim().min(1).max(160).optional(),
+})
+
+export const NodeWorkflowCharacterReferenceSchema = z.object({
+  characterId: z.string().trim().min(1).max(160),
+  name: z.string().trim().min(1).max(160),
+  visualSeed: z.string().trim().min(1).max(2000),
+})
+
 export const NodeWorkflowNodeDataSchema = z
   .object({
     prompt: z.string(),
@@ -27,7 +53,12 @@ export const NodeWorkflowNodeDataSchema = z
     plannerLabel: z.string().optional(),
     plannerModelId: z.string().optional(),
     planner: ScriptBreakdownPlannerSchema.optional(),
+    model: NodeWorkflowModelSelectionSchema.optional(),
+    imageUrl: z.string().trim().min(1).optional(),
+    generationStatus: NodeWorkflowGenerationStatusSchema.optional(),
     generationError: z.string().optional(),
+    generationId: z.string().trim().min(1).optional(),
+    character: NodeWorkflowCharacterReferenceSchema.optional(),
   })
   .passthrough()
 
@@ -64,6 +95,26 @@ export const NodeWorkflowStateSchema = z.object({
 })
 
 export type NodeWorkflowStatus = z.infer<typeof NodeStatusSchema>
+export type NodeWorkflowGenerationStatus = z.infer<
+  typeof NodeWorkflowGenerationStatusSchema
+>
+export type NodeWorkflowModelSelection = z.infer<
+  typeof NodeWorkflowModelSelectionSchema
+>
+export type NodeWorkflowCharacterReference = z.infer<
+  typeof NodeWorkflowCharacterReferenceSchema
+>
+export interface NodeWorkflowModelOption extends NodeWorkflowModelSelection {
+  requestCount: number
+  sourceType: 'workspace' | 'saved'
+  freeTier?: boolean
+  keyLabel?: string
+  maskedKey?: string
+}
+export type NodeWorkflowModelOptionsByType = Partial<
+  Record<NodeWorkflowNodeType, NodeWorkflowModelOption[]>
+>
+export type NodeWorkflowModelProviderConfig = ProviderConfig
 export type NodeWorkflowNodeData = z.infer<typeof NodeWorkflowNodeDataSchema> &
   Record<string, unknown>
 export type NodeWorkflowStateSnapshot = z.infer<typeof NodeWorkflowStateSchema>

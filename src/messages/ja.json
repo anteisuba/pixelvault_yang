@@ -2488,11 +2488,13 @@
     "addMenuTitle": "ノードを追加",
     "nodeTypes": {
       "composer": "Composer",
-      "agent": "Agent"
+      "agent": "Agent",
+      "characterImage": "キャラクター画像"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
-      "agent": "Composer のアイデアを物語、シーン、ビート、ショット構成に分解します。"
+      "agent": "Composer のアイデアを物語、シーン、ビート、ショット構成に分解します。",
+      "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。"
     },
     "statuses": {
       "idle": "待機中",
@@ -2531,6 +2533,12 @@
       "configureProvider": "{provider} を設定",
       "savedMeta": "{model} · {key}"
     },
+    "workflowModelPicker": {
+      "label": "画像モデル",
+      "placeholder": "モデルを選択",
+      "hint": "このノードで使える保存済みルートと無料画像モデルを表示します。",
+      "noOptions": "設定済みキーで使える画像モデルはまだありません。"
+    },
     "agent": {
       "emptyTitle": "Composer 入力待ち",
       "emptyDescription": "プランナーモデルを選び、Composer ノードを接続してアイデアを送信します。",
@@ -2550,7 +2558,27 @@
         "actions": "動作",
         "beats": "ビート",
         "shots": "ショット"
-      }
+      },
+      "spawnCharacters": "キャラクター画像を派生 ({count})",
+      "spawnCharactersTooltip": "分解結果の各キャラクターに Character Image ノードを作成します。"
+    },
+    "characterImage": {
+      "namePrefix": "キャラクター",
+      "promptLabel": "キャラクター画像プロンプト",
+      "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
+      "emptyPreview": "生成画像はまだありません",
+      "generate": "生成",
+      "regenerate": "再生成",
+      "generating": "生成中...",
+      "noModel": "先に画像モデルを選択してください。",
+      "noPrompt": "先にキャラクタープロンプトを入力してください。",
+      "failedTitle": "画像生成に失敗しました",
+      "fallbackError": "キャラクター画像の生成に失敗しました。",
+      "statusIdle": "生成できます",
+      "statusPending": "画像を生成中",
+      "statusSuccess": "画像を生成しました",
+      "statusError": "生成に失敗しました",
+      "imageAlt": "{name} の生成キャラクター画像"
     },
     "topbar": {
       "addNode": "ノードを追加",
@@ -2574,7 +2602,11 @@
       "notImplemented": "まだ実装されていません。",
       "nodesDeleted": "{count} 個のノードを削除しました。",
       "generated": "Agent の分解を生成しました。",
-      "scriptBreakdownFailed": "Agent の分解に失敗しました。"
+      "scriptBreakdownFailed": "Agent の分解に失敗しました。",
+      "characterGenerated": "キャラクター画像を生成しました。",
+      "charactersSpawned": "{count} 個のキャラクター画像ノードを派生しました。",
+      "charactersAlreadySpawned": "すべてのキャラクターは既にノード化されています。",
+      "charactersSpawnNoBreakdown": "キャラクター画像を派生する前に Agent の分解を生成してください。"
     }
   },
   "StudioV2": {

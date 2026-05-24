@@ -2566,6 +2566,7 @@
     },
     "characterImage": {
       "namePrefix": "角色",
+      "nameLabel": "角色名称",
       "promptLabel": "角色图提示词",
       "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
       "emptyPreview": "还没有生成图片",
@@ -2592,6 +2593,16 @@
       "clearImage": "清空图片",
       "existingAssetDialogTitle": "选择已有图片",
       "existingAssetDialogDescription": "选择一张之前生成的图片，直接作为这个角色图节点的最终产物。",
+      "existing": {
+        "title": "使用图片",
+        "hint": "上传、从素材库选择，或直接粘贴剪贴板图片。",
+        "upload": "上传图片",
+        "asset": "从素材库选择",
+        "paste": "粘贴图片",
+        "pasteMeta": "聚焦这里后粘贴图片。",
+        "pasteEmpty": "剪贴板里没有图片。",
+        "uploadFailed": "图片上传失败。"
+      },
       "openImageStudio": "在图像生成中打开",
       "openImageStudioShort": "图像",
       "reference": {
@@ -2601,8 +2612,12 @@
         "unsupported": "当前模型不支持参考图。",
         "uploadTab": "上传",
         "assetTab": "素材库",
+        "pasteTab": "粘贴",
         "uploadTitle": "点击上传参考图",
         "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "粘贴参考图",
+        "pasteMeta": "聚焦这里后粘贴图片。",
+        "pasteEmpty": "剪贴板里没有图片。",
         "selectAsset": "从素材库选择",
         "empty": "还没有参考图。",
         "maxReached": "参考图已达上限",

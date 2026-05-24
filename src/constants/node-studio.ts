@@ -44,7 +44,17 @@ export const NODE_STUDIO_REFERENCE_ROLES = [
   'background',
 ] as const
 
-export const NODE_STUDIO_REFERENCE_SOURCES = ['upload', 'asset'] as const
+export const NODE_STUDIO_REFERENCE_SOURCES = [
+  'upload',
+  'asset',
+  'paste',
+] as const
+
+export const NODE_STUDIO_IMAGE_INPUT = {
+  accept: 'image/*',
+  mimePrefix: 'image/',
+  pastedFileName: 'pasted-image.png',
+} as const
 
 export const NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS = {
   generated: 'generated',
@@ -80,6 +90,7 @@ export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
 
 export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
   maxSourceLabelLength: 160,
+  uploadNote: 'Node Studio character output',
 } as const
 
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {

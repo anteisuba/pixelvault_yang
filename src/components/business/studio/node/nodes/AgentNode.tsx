@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import {
+  useCallback,
+  useMemo,
+  type FocusEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { AlertCircle, Bot, ImagePlus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -13,6 +19,7 @@ import {
   SCRIPT_PLANNER_PROVIDER_IDS,
 } from '@/constants/script-breakdown'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 import { cn } from '@/lib/utils'
@@ -75,6 +82,42 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
       })
     },
     [id, updateNodeData],
+  )
+
+  const handleLoglineBlur = useCallback(
+    (event: FocusEvent<HTMLTextAreaElement>) => {
+      if (!breakdown) {
+        return
+      }
+
+      const nextLogline = event.currentTarget.value.trim()
+      if (!nextLogline || nextLogline === breakdown.logline) {
+        event.currentTarget.value = breakdown.logline
+        return
+      }
+
+      updateNodeData(id, {
+        breakdown: {
+          ...breakdown,
+          logline: nextLogline,
+        },
+      })
+    },
+    [breakdown, id, updateNodeData],
+  )
+
+  const stopCanvasKeyboardEvent = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      event.stopPropagation()
+    },
+    [],
+  )
+
+  const stopCanvasPointerEvent = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      event.stopPropagation()
+    },
+    [],
   )
 
   const handleSpawnCharacters = useCallback(() => {
@@ -162,9 +205,16 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
               <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
                 {t('logline')}
               </p>
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-node-foreground">
-                {breakdown.logline}
-              </p>
+              <Textarea
+                key={breakdown.logline}
+                defaultValue={breakdown.logline}
+                onBlur={handleLoglineBlur}
+                onKeyDownCapture={stopCanvasKeyboardEvent}
+                onKeyUpCapture={stopCanvasKeyboardEvent}
+                onPointerDownCapture={stopCanvasPointerEvent}
+                aria-label={t('logline')}
+                className="nodrag nopan nowheel mt-2 min-h-16 resize-none rounded-2xl border-node-panel-inner bg-node-panel text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+              />
             </div>
 
             <div className="grid grid-cols-5 gap-2">

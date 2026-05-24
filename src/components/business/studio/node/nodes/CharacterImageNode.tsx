@@ -5,6 +5,7 @@ import {
   useCallback,
   useRef,
   useState,
+  type ClipboardEvent,
   type ChangeEvent,
   type CompositionEvent,
   type FocusEvent,
@@ -14,21 +15,27 @@ import {
 import type { NodeProps } from '@xyflow/react'
 import {
   AlertCircle,
+  Clipboard,
   ExternalLink,
   ImageIcon,
   Images,
+  Library,
   Loader2,
   Trash2,
+  Upload,
   WandSparkles,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_CHARACTER_IMAGE_OUTPUT,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_PLACEHOLDER_TOAST,
 } from '@/constants/node-studio'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
@@ -41,6 +48,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -51,6 +63,7 @@ import { CharacterImageLoraControls } from '@/components/business/studio/node/Ch
 import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
 import { useNodeWorkflowActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, NodeWorkflowNode } from '@/types'
@@ -84,6 +97,10 @@ export function CharacterImageNode({
     useNodeWorkflowActions()
   const isComposingPrompt = useRef(false)
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const existingImageInputRef = useRef<HTMLInputElement>(null)
+  const existingPasteTargetRef = useRef<HTMLDivElement>(null)
+  const { uploadFile, isUploading: isExistingImageUploading } =
+    useNodeReferenceUpload()
   const imageUrl = typeof data.imageUrl === 'string' ? data.imageUrl : null
   const imageSource =
     data.imageSource ??
@@ -91,7 +108,10 @@ export function CharacterImageNode({
   const isExistingImage =
     Boolean(imageUrl) &&
     imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
-  const characterName = data.character?.name ?? t('namePrefix')
+  const characterName =
+    typeof data.characterName === 'string'
+      ? data.characterName
+      : (data.character?.name ?? t('namePrefix'))
   const generationStatus =
     data.generationStatus ??
     (imageUrl
@@ -143,6 +163,27 @@ export function CharacterImageNode({
       : t('regenerate')
     : t('generate')
 
+  const applyExistingImage = useCallback(
+    (url: string, generationId: string | undefined, label: string) => {
+      const sourceLabel = label
+        .trim()
+        .slice(0, NODE_STUDIO_CHARACTER_IMAGE_OUTPUT.maxSourceLabelLength)
+
+      updateNodeData(id, {
+        generationError: undefined,
+        generationId,
+        generationStatus: NODE_GENERATION_STATUS_IDS.success,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        imageUrl: url,
+        sourceGenerationId: generationId,
+        sourceLabel: sourceLabel || t('sourceFallback'),
+        status: NODE_STATUS_IDS.done,
+      })
+    },
+    [id, t, updateNodeData],
+  )
+
   const handleSelectAiMode = useCallback(() => {
     updateNodeData(id, {
       generationError: undefined,
@@ -163,28 +204,73 @@ export function CharacterImageNode({
         return
       }
 
-      const fallbackLabel = t('sourceFallback')
-      const sourceLabel = (
-        generation.prompt ||
-        generation.model ||
-        fallbackLabel
+      applyExistingImage(
+        generation.url,
+        generation.id,
+        generation.prompt || generation.model || t('sourceFallback'),
       )
-        .trim()
-        .slice(0, NODE_STUDIO_CHARACTER_IMAGE_OUTPUT.maxSourceLabelLength)
+    },
+    [applyExistingImage, t],
+  )
 
-      updateNodeData(id, {
-        generationError: undefined,
-        generationId: generation.id,
-        generationStatus: NODE_GENERATION_STATUS_IDS.success,
-        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
-        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
-        imageUrl: generation.url,
-        sourceGenerationId: generation.id,
-        sourceLabel: sourceLabel || fallbackLabel,
-        status: NODE_STATUS_IDS.done,
+  const handleUploadExistingImage = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix)) {
+        return
+      }
+
+      const result = await uploadFile(
+        file,
+        NODE_STUDIO_CHARACTER_IMAGE_OUTPUT.uploadNote,
+      )
+      if (result.success && result.url) {
+        applyExistingImage(
+          result.url,
+          result.generationId,
+          file.name || t('sourceFallback'),
+        )
+        return
+      }
+
+      toast.error(result.error ?? t('existing.uploadFailed'), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [id, t, updateNodeData],
+    [applyExistingImage, t, uploadFile],
+  )
+
+  const handleExistingFileInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (existingImageInputRef.current) {
+        existingImageInputRef.current.value = ''
+      }
+      if (!file) {
+        return
+      }
+      void handleUploadExistingImage(file)
+    },
+    [handleUploadExistingImage],
+  )
+
+  const handleExistingPaste = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      const file = Array.from(event.clipboardData.files).find((entry) =>
+        entry.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
+      )
+      if (!file) {
+        toast.info(t('existing.pasteEmpty'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      event.preventDefault()
+      void handleUploadExistingImage(file)
+    },
+    [handleUploadExistingImage, t],
   )
 
   const handleClearImage = useCallback(() => {
@@ -200,6 +286,19 @@ export function CharacterImageNode({
       status: NODE_STATUS_IDS.idle,
     })
   }, [id, updateNodeData])
+
+  const handleCharacterNameBlur = useCallback(
+    (event: FocusEvent<HTMLInputElement>) => {
+      const nextName = event.currentTarget.value.trim()
+      if (!nextName || nextName === characterName) {
+        event.currentTarget.value = characterName
+        return
+      }
+
+      updateNodeData(id, { characterName: nextName })
+    },
+    [characterName, id, updateNodeData],
+  )
 
   const handlePromptChange = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -232,14 +331,14 @@ export function CharacterImageNode({
   )
 
   const stopCanvasKeyboardEvent = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    (event: KeyboardEvent<HTMLElement>) => {
       event.stopPropagation()
     },
     [],
   )
 
   const stopCanvasPointerEvent = useCallback(
-    (event: PointerEvent<HTMLTextAreaElement>) => {
+    (event: PointerEvent<HTMLElement>) => {
       event.stopPropagation()
     },
     [],
@@ -284,6 +383,66 @@ export function CharacterImageNode({
     )
   }, [loras, prompt, router])
 
+  const existingImagePickerContent = (
+    <PopoverContent
+      align="center"
+      sideOffset={8}
+      collisionPadding={12}
+      onPaste={handleExistingPaste}
+      className="w-72 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
+    >
+      <div className="border-b border-node-panel-inner px-4 py-3">
+        <p className="text-sm font-semibold text-node-foreground">
+          {t('existing.title')}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-node-muted">
+          {t('existing.hint')}
+        </p>
+      </div>
+      <div className="space-y-2 p-3">
+        <button
+          type="button"
+          onClick={() => existingImageInputRef.current?.click()}
+          className="nodrag nopan nowheel flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+        >
+          {isExistingImageUploading ? (
+            <Loader2 className="size-4 animate-spin text-node-amber" />
+          ) : (
+            <Upload className="size-4 text-node-amber" />
+          )}
+          {t('existing.upload')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAssetDialogOpen(true)}
+          className="nodrag nopan nowheel flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft text-xs font-semibold text-node-foreground transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+        >
+          <Library className="size-4 text-node-amber" />
+          {t('existing.asset')}
+        </button>
+        <div
+          ref={existingPasteTargetRef}
+          role="button"
+          tabIndex={0}
+          onClick={() => existingPasteTargetRef.current?.focus()}
+          onPaste={handleExistingPaste}
+          className="nodrag nopan nowheel flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-3 text-center text-node-muted outline-none transition-colors hover:border-node-amber/40 hover:text-node-foreground focus-visible:border-node-amber/60 focus-visible:ring-2 focus-visible:ring-node-amber/20"
+        >
+          <Clipboard className="size-4 text-node-amber" />
+          <span className="text-xs font-semibold">{t('existing.paste')}</span>
+          <span className="text-2xs">{t('existing.pasteMeta')}</span>
+        </div>
+      </div>
+      <input
+        ref={existingImageInputRef}
+        type="file"
+        accept={NODE_STUDIO_IMAGE_INPUT.accept}
+        className="hidden"
+        onChange={handleExistingFileInputChange}
+      />
+    </PopoverContent>
+  )
+
   return (
     <>
       <NodeShell type={NODE_TYPE_IDS.characterImage} selected={selected}>
@@ -306,32 +465,55 @@ export function CharacterImageNode({
                 <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
                   {isExistingImage ? t('sourceExisting') : t('sourceGenerated')}
                 </span>
+                <div className="absolute inset-x-2 bottom-2 rounded-2xl border border-node-panel-inner bg-node-canvas/75 px-3 py-2 backdrop-blur">
+                  <input
+                    key={characterName}
+                    defaultValue={characterName}
+                    onBlur={handleCharacterNameBlur}
+                    onKeyDownCapture={stopCanvasKeyboardEvent}
+                    onKeyUpCapture={stopCanvasKeyboardEvent}
+                    onPointerDownCapture={stopCanvasPointerEvent}
+                    aria-label={t('nameLabel')}
+                    className="nodrag nopan nowheel w-full bg-transparent text-center text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle"
+                  />
+                </div>
               </>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 <ImageIcon className="size-8 text-rose-200" />
                 <div>
-                  <p className="text-sm font-semibold text-node-foreground">
-                    {characterName}
-                  </p>
+                  <input
+                    key={characterName}
+                    defaultValue={characterName}
+                    onBlur={handleCharacterNameBlur}
+                    onKeyDownCapture={stopCanvasKeyboardEvent}
+                    onKeyUpCapture={stopCanvasKeyboardEvent}
+                    onPointerDownCapture={stopCanvasPointerEvent}
+                    aria-label={t('nameLabel')}
+                    className="nodrag nopan nowheel w-full bg-transparent text-center text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle"
+                  />
                   <p className="mt-1 text-xs leading-5 text-node-muted">
                     {t('emptyPreview')}
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAssetDialogOpen(true)}
-                    className={cn(
-                      'nodrag nopan nowheel inline-flex h-8 items-center gap-1.5 rounded-2xl px-3 text-xs font-semibold transition-colors',
-                      !isAiMode
-                        ? 'bg-node-foreground text-node-canvas hover:bg-node-foreground/90'
-                        : 'border border-node-panel-inner bg-node-panel text-node-muted hover:border-node-amber/40 hover:text-node-foreground',
-                    )}
-                  >
-                    <Images className="size-3.5" />
-                    {t('selectExistingShort')}
-                  </button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'nodrag nopan nowheel inline-flex h-8 items-center gap-1.5 rounded-2xl px-3 text-xs font-semibold transition-colors',
+                          !isAiMode
+                            ? 'bg-node-foreground text-node-canvas hover:bg-node-foreground/90'
+                            : 'border border-node-panel-inner bg-node-panel text-node-muted hover:border-node-amber/40 hover:text-node-foreground',
+                        )}
+                      >
+                        <Images className="size-3.5" />
+                        {t('selectExistingShort')}
+                      </button>
+                    </PopoverTrigger>
+                    {existingImagePickerContent}
+                  </Popover>
                   <button
                     type="button"
                     onClick={handleSelectAiMode}
@@ -368,13 +550,17 @@ export function CharacterImageNode({
                   {data.sourceLabel ?? t('sourceFallback')}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAssetDialogOpen(true)}
-                className="nodrag nopan nowheel h-8 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
-              >
-                {t('replaceImage')}
-              </button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="nodrag nopan nowheel h-8 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+                  >
+                    {t('replaceImage')}
+                  </button>
+                </PopoverTrigger>
+                {existingImagePickerContent}
+              </Popover>
               <button
                 type="button"
                 onClick={handleClearImage}

@@ -2566,6 +2566,7 @@
     },
     "characterImage": {
       "namePrefix": "キャラクター",
+      "nameLabel": "キャラクター名",
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
       "emptyPreview": "生成画像はまだありません",
@@ -2592,6 +2593,16 @@
       "clearImage": "画像をクリア",
       "existingAssetDialogTitle": "既存画像を選択",
       "existingAssetDialogDescription": "以前生成した画像を選び、このキャラクター画像ノードの最終出力として使用します。",
+      "existing": {
+        "title": "画像を使用",
+        "hint": "アップロード、素材から選択、またはクリップボード画像を貼り付けます。",
+        "upload": "画像をアップロード",
+        "asset": "素材から選択",
+        "paste": "画像を貼り付け",
+        "pasteMeta": "ここにフォーカスして画像を貼り付けます。",
+        "pasteEmpty": "クリップボードに画像がありません。",
+        "uploadFailed": "画像のアップロードに失敗しました。"
+      },
       "openImageStudio": "画像生成で開く",
       "openImageStudioShort": "画像",
       "reference": {
@@ -2601,8 +2612,12 @@
         "unsupported": "現在のモデルは参考画像に対応していません。",
         "uploadTab": "アップロード",
         "assetTab": "素材",
+        "pasteTab": "貼り付け",
         "uploadTitle": "参考画像をアップロード",
         "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "参考画像を貼り付け",
+        "pasteMeta": "ここにフォーカスして画像を貼り付けます。",
+        "pasteEmpty": "クリップボードに画像がありません。",
         "selectAsset": "素材から選択",
         "empty": "参考画像はまだありません。",
         "maxReached": "参考画像の上限です",

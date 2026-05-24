@@ -117,6 +117,7 @@ export const NodeWorkflowNodeDataSchema = z
     generationId: z.string().trim().min(1).optional(),
     sourceGenerationId: z.string().trim().min(1).max(160).optional(),
     sourceLabel: z.string().trim().min(1).max(160).optional(),
+    characterName: z.string().trim().min(1).max(160).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
     referenceAssets: z.array(NodeWorkflowReferenceAssetSchema).optional(),
     loras: z.array(NodeWorkflowLoraSelectionSchema).optional(),

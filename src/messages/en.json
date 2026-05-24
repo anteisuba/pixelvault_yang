@@ -2566,6 +2566,7 @@
     },
     "characterImage": {
       "namePrefix": "Character",
+      "nameLabel": "Character name",
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
       "emptyPreview": "No generated image yet",
@@ -2592,6 +2593,16 @@
       "clearImage": "Clear image",
       "existingAssetDialogTitle": "Select existing image",
       "existingAssetDialogDescription": "Choose a previously generated image as the final character image output.",
+      "existing": {
+        "title": "Use image",
+        "hint": "Upload, pick from assets, or paste an image from the clipboard.",
+        "upload": "Upload image",
+        "asset": "Select from assets",
+        "paste": "Paste image",
+        "pasteMeta": "Focus here, then paste an image.",
+        "pasteEmpty": "No image found in the clipboard.",
+        "uploadFailed": "Image upload failed."
+      },
       "openImageStudio": "Open in Image Studio",
       "openImageStudioShort": "Image",
       "reference": {
@@ -2601,8 +2612,12 @@
         "unsupported": "The current model does not support reference images.",
         "uploadTab": "Upload",
         "assetTab": "Assets",
+        "pasteTab": "Paste",
         "uploadTitle": "Upload reference images",
         "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "Paste reference images",
+        "pasteMeta": "Focus here, then paste an image.",
+        "pasteEmpty": "No image found in the clipboard.",
         "selectAsset": "Select from assets",
         "empty": "No reference images yet.",
         "maxReached": "Reference limit reached",

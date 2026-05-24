@@ -1,13 +1,28 @@
 'use client'
 
 import Image from 'next/image'
-import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { ImagePlus, Library, Loader2, Trash2, Upload } from 'lucide-react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+} from 'react'
+import {
+  Clipboard,
+  ImagePlus,
+  Library,
+  Loader2,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REFERENCE_ROLES,
 } from '@/constants/node-studio'
@@ -63,6 +78,7 @@ export function CharacterImageReferenceControls({
   const references = useMemo(() => value ?? [], [value])
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const pasteTargetRef = useRef<HTMLDivElement>(null)
   const { uploadFile, isUploading } = useNodeReferenceUpload()
   const effectiveMaxItems = Math.min(
     Math.max(maxItems, 0),
@@ -109,7 +125,7 @@ export function CharacterImageReferenceControls({
       const slots = effectiveMaxItems - references.length
       const uploadedReferences: NodeWorkflowReferenceAsset[] = []
       for (const file of files.slice(0, slots)) {
-        if (!file.type.startsWith('image/')) {
+        if (!file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix)) {
           continue
         }
         const result = await uploadFile(
@@ -123,6 +139,63 @@ export function CharacterImageReferenceControls({
               'upload',
               result.generationId,
               file.name,
+            ),
+          )
+        } else {
+          toast.error(result.error ?? t('uploadFailed'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+        }
+      }
+
+      if (uploadedReferences.length > 0) {
+        appendReferences(uploadedReferences)
+      }
+    },
+    [
+      appendReferences,
+      disabled,
+      effectiveMaxItems,
+      isFull,
+      references.length,
+      t,
+      uploadFile,
+    ],
+  )
+
+  const handlePaste = useCallback(
+    async (event: ClipboardEvent<HTMLDivElement>) => {
+      if (disabled || isFull) {
+        return
+      }
+
+      const files = Array.from(event.clipboardData.files).filter((file) =>
+        file.type.startsWith(NODE_STUDIO_IMAGE_INPUT.mimePrefix),
+      )
+      if (files.length === 0) {
+        toast.info(t('pasteEmpty'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      event.preventDefault()
+      const slots = effectiveMaxItems - references.length
+      const uploadedReferences: NodeWorkflowReferenceAsset[] = []
+      for (const file of files.slice(0, slots)) {
+        const result = await uploadFile(
+          file,
+          NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.uploadNote,
+        )
+        if (result.success && result.url) {
+          uploadedReferences.push(
+            createReferenceAsset(
+              result.url,
+              'paste',
+              result.generationId,
+              file.name || NODE_STUDIO_IMAGE_INPUT.pastedFileName,
             ),
           )
         } else {
@@ -205,7 +278,7 @@ export function CharacterImageReferenceControls({
           </div>
 
           <Tabs defaultValue="upload" className="p-3">
-            <TabsList className="grid h-9 grid-cols-2 rounded-2xl bg-node-panel-soft p-1">
+            <TabsList className="grid h-9 grid-cols-3 rounded-2xl bg-node-panel-soft p-1">
               <TabsTrigger
                 value="upload"
                 className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
@@ -217,6 +290,12 @@ export function CharacterImageReferenceControls({
                 className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
               >
                 {t('assetTab')}
+              </TabsTrigger>
+              <TabsTrigger
+                value="paste"
+                className="rounded-xl text-xs data-[state=active]:bg-node-foreground data-[state=active]:text-node-canvas"
+              >
+                {t('pasteTab')}
               </TabsTrigger>
             </TabsList>
             <TabsContent value="upload" className="mt-3">
@@ -239,7 +318,7 @@ export function CharacterImageReferenceControls({
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/*"
+                accept={NODE_STUDIO_IMAGE_INPUT.accept}
                 multiple
                 className="hidden"
                 onChange={handleFileInputChange}
@@ -255,6 +334,26 @@ export function CharacterImageReferenceControls({
                 <Library className="mr-2 size-4 text-node-amber" />
                 {isFull ? t('maxReached') : t('selectAsset')}
               </Button>
+            </TabsContent>
+            <TabsContent value="paste" className="mt-3">
+              <div
+                ref={pasteTargetRef}
+                role="button"
+                tabIndex={0}
+                onClick={() => pasteTargetRef.current?.focus()}
+                onPaste={handlePaste}
+                className="nodrag nopan nowheel flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-node-panel-inner bg-node-panel-soft px-4 text-center text-node-muted outline-none transition-colors hover:border-node-amber/40 hover:text-node-foreground focus-visible:border-node-amber/60 focus-visible:ring-2 focus-visible:ring-node-amber/20"
+              >
+                {isUploading ? (
+                  <Loader2 className="size-5 animate-spin text-node-amber" />
+                ) : (
+                  <Clipboard className="size-5 text-node-amber" />
+                )}
+                <span className="text-xs font-semibold">
+                  {isFull ? t('maxReached') : t('pasteTitle')}
+                </span>
+                <span className="text-2xs">{t('pasteMeta')}</span>
+              </div>
             </TabsContent>
           </Tabs>
 

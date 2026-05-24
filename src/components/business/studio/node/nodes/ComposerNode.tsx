@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, type ChangeEvent } from 'react'
+import {
+  useCallback,
+  useRef,
+  type ChangeEvent,
+  type CompositionEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { Loader2, SendHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -21,12 +29,50 @@ export function ComposerNode({
   const t = useTranslations('StudioNode.composer')
   const { sendFromComposer, updateNodeData } = useNodeWorkflowActions()
   const isRunning = data.status === NODE_STATUS_IDS.running
+  const isComposingPrompt = useRef(false)
 
   const handlePromptChange = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>) => {
+      if (isComposingPrompt.current) {
+        return
+      }
+
       updateNodeData(id, { prompt: event.target.value })
     },
     [id, updateNodeData],
+  )
+
+  const handlePromptCompositionStart = useCallback(() => {
+    isComposingPrompt.current = true
+  }, [])
+
+  const handlePromptCompositionEnd = useCallback(
+    (event: CompositionEvent<HTMLTextAreaElement>) => {
+      isComposingPrompt.current = false
+      updateNodeData(id, { prompt: event.currentTarget.value })
+    },
+    [id, updateNodeData],
+  )
+
+  const handlePromptBlur = useCallback(
+    (event: FocusEvent<HTMLTextAreaElement>) => {
+      updateNodeData(id, { prompt: event.currentTarget.value })
+    },
+    [id, updateNodeData],
+  )
+
+  const stopCanvasKeyboardEvent = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      event.stopPropagation()
+    },
+    [],
+  )
+
+  const stopCanvasPointerEvent = useCallback(
+    (event: PointerEvent<HTMLTextAreaElement>) => {
+      event.stopPropagation()
+    },
+    [],
   )
 
   const handleSend = useCallback(() => {
@@ -38,11 +84,17 @@ export function ComposerNode({
       <NodeShell.Header type={NODE_TYPE_IDS.composer} status={data.status} />
       <NodeShell.Body className="space-y-3">
         <Textarea
-          value={data.prompt}
+          defaultValue={data.prompt}
           onChange={handlePromptChange}
+          onBlur={handlePromptBlur}
+          onCompositionStart={handlePromptCompositionStart}
+          onCompositionEnd={handlePromptCompositionEnd}
+          onKeyDownCapture={stopCanvasKeyboardEvent}
+          onKeyUpCapture={stopCanvasKeyboardEvent}
+          onPointerDownCapture={stopCanvasPointerEvent}
           aria-label={t('promptLabel')}
           placeholder={t('placeholder')}
-          className="nodrag nowheel min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+          className="nodrag nopan nowheel min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
         />
       </NodeShell.Body>
       <NodeShell.Footer>

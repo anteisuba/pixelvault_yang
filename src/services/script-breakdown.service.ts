@@ -1,0 +1,265 @@
+import 'server-only'
+
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
+import {
+  SCRIPT_BREAKDOWN_LIMITS,
+  SCRIPT_BREAKDOWN_OUTPUT_CONTRACT,
+  SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
+  SCRIPT_PLANNER_PROVIDER_IDS,
+  SCRIPT_PLANNER_MODELS,
+  type ScriptPlannerConcreteProvider,
+  type ScriptPlannerProvider,
+} from '@/constants/script-breakdown'
+import { getSystemApiKey } from '@/lib/platform-keys'
+import { logger } from '@/lib/logger'
+import { ApiKeyError } from '@/lib/errors'
+import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
+import { withRetry } from '@/lib/with-retry'
+import {
+  llmTextCompletion,
+  resolveLlmTextRoute,
+  type ResolvedLlmTextRoute,
+} from '@/services/llm-text.service'
+import { findActiveKeyForAdapter } from '@/services/apiKey.service'
+import { ensureUser } from '@/services/user.service'
+import {
+  ScriptBreakdownResultSchema,
+  type ScriptBreakdownResponseData,
+} from '@/types/script-breakdown'
+
+interface PlannerRoute extends ResolvedLlmTextRoute {
+  modelId: string
+  label: string
+}
+
+function getAdapterForProvider(
+  provider: ScriptPlannerConcreteProvider,
+): AI_ADAPTER_TYPES {
+  return SCRIPT_PLANNER_MODELS[provider].adapterType
+}
+
+async function resolveSpecificPlannerRoute(
+  userId: string,
+  provider: ScriptPlannerConcreteProvider,
+  apiKeyId?: string,
+): Promise<PlannerRoute> {
+  if (apiKeyId) {
+    const route = await resolveLlmTextRoute(userId, apiKeyId)
+    const expectedAdapter = getAdapterForProvider(provider)
+    if (route.adapterType !== expectedAdapter) {
+      throw new ApiKeyError(
+        'invalid',
+        `The selected API key is not a ${SCRIPT_PLANNER_MODELS[provider].label} key.`,
+      )
+    }
+
+    return {
+      ...route,
+      modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
+      label: SCRIPT_PLANNER_MODELS[provider].label,
+    }
+  }
+
+  const adapterType = getAdapterForProvider(provider)
+  const userKey = await findActiveKeyForAdapter(userId, adapterType)
+  if (userKey) {
+    return {
+      adapterType: userKey.adapterType,
+      providerConfig: userKey.providerConfig,
+      apiKey: userKey.keyValue,
+      modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
+      label: userKey.providerConfig.label,
+    }
+  }
+
+  const platformKey = getSystemApiKey(adapterType)
+  if (platformKey) {
+    return {
+      adapterType,
+      providerConfig: getDefaultProviderConfig(adapterType),
+      apiKey: platformKey,
+      modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
+      label: SCRIPT_PLANNER_MODELS[provider].label,
+    }
+  }
+
+  throw new ApiKeyError(
+    'missing',
+    `Please add a ${SCRIPT_PLANNER_MODELS[provider].label} API key to use script breakdown.`,
+  )
+}
+
+async function resolvePlannerRoute(
+  userId: string,
+  provider: ScriptPlannerProvider,
+  apiKeyId?: string,
+): Promise<PlannerRoute> {
+  if (provider !== SCRIPT_PLANNER_PROVIDER_IDS.auto) {
+    return resolveSpecificPlannerRoute(userId, provider, apiKeyId)
+  }
+
+  if (apiKeyId) {
+    const route = await resolveLlmTextRoute(userId, apiKeyId)
+    if (
+      route.adapterType !== AI_ADAPTER_TYPES.GEMINI &&
+      route.adapterType !== AI_ADAPTER_TYPES.OPENAI
+    ) {
+      throw new ApiKeyError(
+        'invalid',
+        'The selected API key does not support Node Studio script breakdown.',
+      )
+    }
+
+    const providerEntry =
+      route.adapterType === AI_ADAPTER_TYPES.OPENAI
+        ? SCRIPT_PLANNER_MODELS.openai
+        : SCRIPT_PLANNER_MODELS.gemini
+
+    return {
+      ...route,
+      modelId: providerEntry.modelId,
+      label: route.providerConfig.label,
+    }
+  }
+
+  try {
+    return await resolveSpecificPlannerRoute(
+      userId,
+      SCRIPT_PLANNER_PROVIDER_IDS.gemini,
+    )
+  } catch (geminiError) {
+    logger.info('Script breakdown Gemini route unavailable, trying OpenAI', {
+      reason:
+        geminiError instanceof Error
+          ? geminiError.message
+          : String(geminiError),
+    })
+    try {
+      return await resolveSpecificPlannerRoute(
+        userId,
+        SCRIPT_PLANNER_PROVIDER_IDS.openai,
+      )
+    } catch (openAiError) {
+      if (
+        geminiError instanceof ApiKeyError &&
+        openAiError instanceof ApiKeyError
+      ) {
+        throw new ApiKeyError(
+          'missing',
+          'Please add a Gemini or OpenAI API key to use script breakdown.',
+        )
+      }
+
+      throw openAiError
+    }
+  }
+}
+
+function buildUserPrompt(idea: string, locale: string): string {
+  return [
+    SCRIPT_BREAKDOWN_OUTPUT_CONTRACT,
+    `Limits: max ${SCRIPT_BREAKDOWN_LIMITS.maxCharacters} characters, ${SCRIPT_BREAKDOWN_LIMITS.maxScenes} scenes, ${SCRIPT_BREAKDOWN_LIMITS.maxActions} actions, ${SCRIPT_BREAKDOWN_LIMITS.maxBeats} beats, ${SCRIPT_BREAKDOWN_LIMITS.maxShots} shots.`,
+    `Locale hint: ${locale}. Keep JSON keys in English; content may match the user's language.`,
+    `User idea: ${idea}`,
+  ].join('\n\n')
+}
+
+function parseJsonObject(raw: string): unknown {
+  const trimmed = raw.trim()
+  try {
+    return JSON.parse(trimmed) as unknown
+  } catch {
+    const match = trimmed.match(/\{[\s\S]*\}/)
+    if (!match) {
+      throw new Error('Script breakdown response did not contain JSON.')
+    }
+
+    return JSON.parse(match[0]) as unknown
+  }
+}
+
+async function withScriptBreakdownTimeout<T>(task: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Script breakdown timed out. Please try again.'))
+    }, SCRIPT_BREAKDOWN_LIMITS.llmTimeoutMs)
+  })
+
+  try {
+    return await Promise.race([task, timeout])
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
+export async function createScriptBreakdown(
+  clerkId: string,
+  params: {
+    idea: string
+    plannerProvider: ScriptPlannerProvider
+    apiKeyId?: string
+    locale: string
+  },
+): Promise<ScriptBreakdownResponseData> {
+  const dbUser = await ensureUser(clerkId)
+  const route = await resolvePlannerRoute(
+    dbUser.id,
+    params.plannerProvider,
+    params.apiKeyId,
+  )
+
+  const rawOutput = await withRetry(
+    () =>
+      withScriptBreakdownTimeout(
+        llmTextCompletion({
+          systemPrompt: SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
+          userPrompt: buildUserPrompt(params.idea, params.locale),
+          modelId: route.modelId,
+          maxTokens: SCRIPT_BREAKDOWN_LIMITS.maxTokens,
+          responseFormat: 'json_object',
+          adapterType: route.adapterType,
+          providerConfig: route.providerConfig,
+          apiKey: route.apiKey,
+        }),
+      ),
+    {
+      maxAttempts: 2,
+      baseDelayMs: 800,
+      label: 'script-breakdown.llm',
+    },
+  )
+
+  const validation = validateLlmStructuredOutput(
+    parseJsonObject(rawOutput),
+    ScriptBreakdownResultSchema,
+  )
+
+  if (!validation.usable || !validation.data) {
+    throw new Error(
+      validation.reason ?? 'Script breakdown response failed validation.',
+    )
+  }
+
+  logger.info('Script breakdown generated', {
+    adapterType: route.adapterType,
+    modelId: route.modelId,
+    characterCount: validation.data.characters.length,
+    sceneCount: validation.data.scenes.length,
+    shotCount: validation.data.shots.length,
+  })
+
+  return {
+    breakdown: validation.data,
+    planner: {
+      adapterType: route.adapterType,
+      modelId: route.modelId,
+      label: route.label,
+    },
+  }
+}

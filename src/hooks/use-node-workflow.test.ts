@@ -2,15 +2,83 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Connection } from '@xyflow/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { NODE_STUDIO_WORKFLOW_STORAGE } from '@/constants/node-studio'
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { NodeWorkflowStateSchema } from '@/types/node-workflow'
+import type {
+  ScriptBreakdownPlanner,
+  ScriptBreakdownResult,
+} from '@/types/script-breakdown'
 
 import { useNodeWorkflow } from './use-node-workflow'
 
 const FIRST_POSITION = { x: 20, y: 40 }
 const SECOND_POSITION = { x: 220, y: 40 }
 const MOVED_POSITION = { x: 80, y: 120 }
+
+const FAKE_BREAKDOWN: ScriptBreakdownResult = {
+  title: 'Quiet Orbit',
+  logline: 'A cartographer maps a silent moon before sunrise.',
+  referenceIntent: 'Soft cinematic sci-fi with warm practical light.',
+  copyRisk: 'low',
+  characters: [
+    {
+      id: 'char-1',
+      label: 'Lead',
+      nameSuggestion: 'Mira',
+      role: 'Cartographer',
+      functionInStory: 'Maps the moon route.',
+      personality: 'Patient and observant.',
+      visualSeed: 'weathered explorer in amber field jacket',
+      goal: 'Find the hidden landing path.',
+    },
+  ],
+  scenes: [
+    {
+      id: 'scene-1',
+      label: 'Moon Ridge',
+      summary: 'Mira studies a luminous ridge.',
+      location: 'Lunar plateau',
+      timeOfDay: 'Dawn',
+      mood: 'Quiet resolve',
+    },
+  ],
+  actions: [
+    {
+      id: 'action-1',
+      sceneId: 'scene-1',
+      label: 'Trace route',
+      description: 'Mira traces a route across the glowing dust.',
+    },
+  ],
+  beats: [
+    {
+      id: 'beat-1',
+      sceneId: 'scene-1',
+      label: 'Discovery',
+      emotionalTurn: 'Doubt becomes focus.',
+      description: 'The map reveals a hidden pass.',
+    },
+  ],
+  shots: [
+    {
+      id: 'shot-1',
+      sceneId: 'scene-1',
+      beatId: 'beat-1',
+      label: 'Wide ridge',
+      camera: 'Slow lateral move',
+      composition: 'Tiny figure against a broad glowing horizon',
+      promptSeed: 'wide lunar ridge at dawn with amber light',
+    },
+  ],
+}
+
+const FAKE_PLANNER: ScriptBreakdownPlanner = {
+  adapterType: AI_ADAPTER_TYPES.GEMINI,
+  modelId: 'gemini-2.5-flash-lite',
+  label: 'Gemini',
+}
 
 function readStoredSnapshot() {
   const raw = window.localStorage.getItem(NODE_STUDIO_WORKFLOW_STORAGE.key)
@@ -48,6 +116,23 @@ describe('useNodeWorkflow', () => {
       id: nodeId,
       type: NODE_TYPE_IDS.composer,
       position: FIRST_POSITION,
+      data: {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+      },
+    })
+  })
+
+  it('adds an agent node with default data', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+    })
+
+    expect(result.current.nodes[0]).toMatchObject({
+      type: NODE_TYPE_IDS.agent,
+      position: SECOND_POSITION,
       data: {
         prompt: '',
         status: NODE_STATUS_IDS.idle,
@@ -137,6 +222,51 @@ describe('useNodeWorkflow', () => {
     expect(result.current.edges[0]).toMatchObject({
       source: sourceId,
       target: targetId,
+    })
+  })
+
+  it('finds the first outgoing target by node type', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let sourceId = ''
+    let agentId = ''
+    act(() => {
+      sourceId = result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.onConnect({
+        source: sourceId,
+        target: agentId,
+        sourceHandle: null,
+        targetHandle: null,
+      })
+    })
+
+    expect(
+      result.current.getOutgoingTargetByType(sourceId, NODE_TYPE_IDS.agent)?.id,
+    ).toBe(agentId)
+    expect(
+      result.current.getOutgoingTargetByType(agentId, NODE_TYPE_IDS.agent),
+    ).toBeNull()
+  })
+
+  it('stores script breakdown data on an agent node', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let agentId = ''
+    act(() => {
+      agentId = result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+      result.current.updateScriptBreakdown(
+        agentId,
+        FAKE_BREAKDOWN,
+        FAKE_PLANNER,
+      )
+    })
+
+    expect(result.current.nodes[0]?.data).toMatchObject({
+      breakdown: FAKE_BREAKDOWN,
+      plannerLabel: FAKE_PLANNER.label,
+      plannerModelId: FAKE_PLANNER.modelId,
+      status: NODE_STATUS_IDS.done,
     })
   })
 

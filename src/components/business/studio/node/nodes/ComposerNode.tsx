@@ -2,18 +2,12 @@
 
 import { useCallback, type ChangeEvent } from 'react'
 import type { NodeProps } from '@xyflow/react'
-import { SendHorizontal } from 'lucide-react'
+import { Loader2, SendHorizontal } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useNodeWorkflowActions } from '@/components/business/studio/node/NodeWorkflowActionsContext'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
@@ -25,7 +19,8 @@ export function ComposerNode({
   selected,
 }: NodeProps<NodeWorkflowNode>) {
   const t = useTranslations('StudioNode.composer')
-  const { updateNodeData } = useNodeWorkflowActions()
+  const { sendFromComposer, updateNodeData } = useNodeWorkflowActions()
+  const isRunning = data.status === NODE_STATUS_IDS.running
 
   const handlePromptChange = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -33,6 +28,10 @@ export function ComposerNode({
     },
     [id, updateNodeData],
   )
+
+  const handleSend = useCallback(() => {
+    void sendFromComposer?.(id)
+  }, [id, sendFromComposer])
 
   return (
     <NodeShell type={NODE_TYPE_IDS.composer} selected={selected}>
@@ -48,28 +47,22 @@ export function ComposerNode({
       </NodeShell.Body>
       <NodeShell.Footer>
         <p className="truncate text-2xs font-medium text-node-subtle">
-          {t('stageHint')}
+          {isRunning ? t('generatingHint') : t('readyHint')}
         </p>
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  disabled
-                  aria-label={t('send')}
-                  className="rounded-2xl bg-node-panel-inner text-node-muted"
-                >
-                  <SendHorizontal className="size-4" />
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-64">
-              {t('sendDisabledTooltip')}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          type="button"
+          size="icon-sm"
+          disabled={isRunning}
+          onClick={handleSend}
+          aria-label={t('send')}
+          className="rounded-2xl bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
+        >
+          {isRunning ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="size-4" />
+          )}
+        </Button>
       </NodeShell.Footer>
     </NodeShell>
   )

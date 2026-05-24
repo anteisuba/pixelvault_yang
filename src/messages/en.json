@@ -2482,10 +2482,12 @@
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
     "addMenuTitle": "Add node",
     "nodeTypes": {
-      "composer": "Composer"
+      "composer": "Composer",
+      "agent": "Agent"
     },
     "addMenuHelpers": {
-      "composer": "Draft an idea prompt for the workflow."
+      "composer": "Draft an idea prompt for the workflow.",
+      "agent": "Break a Composer idea into story, scene, beat, and shot structure."
     },
     "statuses": {
       "idle": "Idle",
@@ -2502,7 +2504,32 @@
       "placeholder": "Write the story idea or visual brief...",
       "send": "Send",
       "sendDisabledTooltip": "Send connects to Agent in stage 3.",
-      "stageHint": "Stage 2 draft node"
+      "stageHint": "Stage 2 draft node",
+      "readyHint": "Connect to an Agent and send",
+      "generatingHint": "Asking Agent...",
+      "noTargetTip": "Connect this Composer to an Agent node first.",
+      "emptyPromptTip": "Write an idea before sending."
+    },
+    "agent": {
+      "emptyTitle": "Waiting for Composer",
+      "emptyDescription": "Connect a Composer node, then send an idea to create a production breakdown.",
+      "generatingTitle": "Breaking down script",
+      "generatingDescription": "The planner is building characters, scenes, beats, and shots.",
+      "failedTitle": "Breakdown failed",
+      "logline": "Logline",
+      "copyRisk": "Copy risk: {risk}",
+      "copyRiskLevels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "counts": {
+        "characters": "Chars",
+        "scenes": "Scenes",
+        "actions": "Actions",
+        "beats": "Beats",
+        "shots": "Shots"
+      }
     },
     "topbar": {
       "addNode": "Add node",
@@ -2524,7 +2551,9 @@
     "minimapTitle": "Minimap",
     "toasts": {
       "notImplemented": "Not implemented yet.",
-      "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}"
+      "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
+      "generated": "Agent breakdown generated.",
+      "scriptBreakdownFailed": "Agent breakdown failed."
     }
   },
   "StudioV2": {

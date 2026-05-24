@@ -17,9 +17,10 @@ import {
   type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_EDGE_VISUALS,
@@ -28,10 +29,20 @@ import {
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
 } from '@/constants/node-studio'
 import {
+  NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import {
+  DEFAULT_SCRIPT_PLANNER_PROVIDER,
+  SCRIPT_BREAKDOWN_ERROR_CODES,
+  SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX,
+  SCRIPT_PLANNER_MODELS,
+} from '@/constants/script-breakdown'
+import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
+import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
+import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
@@ -40,10 +51,12 @@ import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
+import { AgentNode } from './nodes/AgentNode'
 import { ComposerNode } from './nodes/ComposerNode'
 
 const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.composer]: ComposerNode,
+  [NODE_TYPE_IDS.agent]: AgentNode,
 }
 
 const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -87,20 +100,17 @@ export function StudioNodeWorkbench() {
 
 function StudioNodeCanvas() {
   const t = useTranslations('StudioNode')
+  const locale = useLocale()
   const workflow = useNodeWorkflow()
+  const scriptBreakdown = useScriptBreakdown()
   const { screenToFlowPosition } = useReactFlow<
     NodeWorkflowNode,
     NodeWorkflowEdge
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
+  const [quickSetupOpen, setQuickSetupOpen] = useState(false)
 
-  const workflowActions = useMemo(
-    () => ({
-      updateNodeData: workflow.updateNodeData,
-      deleteNode: workflow.deleteNode,
-    }),
-    [workflow.deleteNode, workflow.updateNodeData],
-  )
+  const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
   const closeAddMenu = useCallback(() => {
     setAddMenu(null)
@@ -169,6 +179,100 @@ function StudioNodeCanvas() {
     [t],
   )
 
+  const handleSendFromComposer = useCallback(
+    async (composerNodeId: string) => {
+      const composerNode = workflow.nodes.find(
+        (node) => node.id === composerNodeId,
+      )
+      const idea = composerNode?.data.prompt.trim() ?? ''
+
+      if (!idea) {
+        toast.info(t('composer.emptyPromptTip'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      const targetAgent = workflow.getOutgoingTargetByType(
+        composerNodeId,
+        NODE_TYPE_IDS.agent,
+      )
+
+      if (!targetAgent) {
+        toast.info(t('composer.noTargetTip'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      workflow.updateNodeData(composerNodeId, {
+        status: NODE_STATUS_IDS.running,
+      })
+      workflow.updateNodeData(targetAgent.id, {
+        generationError: undefined,
+        status: NODE_STATUS_IDS.running,
+      })
+
+      const result = await scriptBreakdown.generate({
+        idea,
+        plannerProvider: DEFAULT_SCRIPT_PLANNER_PROVIDER,
+        locale: appLocale,
+      })
+
+      if (result.success) {
+        workflow.updateScriptBreakdown(
+          targetAgent.id,
+          result.data.breakdown,
+          result.data.planner,
+        )
+        workflow.updateNodeData(composerNodeId, {
+          status: NODE_STATUS_IDS.done,
+        })
+        toast.success(t('toasts.generated'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      workflow.updateNodeData(composerNodeId, {
+        status: NODE_STATUS_IDS.failed,
+      })
+      workflow.updateNodeData(targetAgent.id, {
+        generationError: result.error,
+        status: NODE_STATUS_IDS.failed,
+      })
+
+      if (result.errorCode === SCRIPT_BREAKDOWN_ERROR_CODES.missingApiKey) {
+        setQuickSetupOpen(true)
+      }
+
+      toast.error(t('toasts.scriptBreakdownFailed'), {
+        description: result.error,
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [appLocale, scriptBreakdown, t, workflow],
+  )
+
+  const workflowActions = useMemo(
+    () => ({
+      updateNodeData: workflow.updateNodeData,
+      updateScriptBreakdown: workflow.updateScriptBreakdown,
+      deleteNode: workflow.deleteNode,
+      sendFromComposer: handleSendFromComposer,
+    }),
+    [
+      handleSendFromComposer,
+      workflow.deleteNode,
+      workflow.updateNodeData,
+      workflow.updateScriptBreakdown,
+    ],
+  )
+
   return (
     <>
       <NodeWorkflowActionsProvider value={workflowActions}>
@@ -219,6 +323,14 @@ function StudioNodeCanvas() {
           onClose={closeAddMenu}
         />
       </div>
+      <QuickSetupDialog
+        open={quickSetupOpen}
+        onOpenChange={setQuickSetupOpen}
+        modelId={SCRIPT_PLANNER_MODELS.gemini.modelId}
+        modelLabel={SCRIPT_PLANNER_MODELS.gemini.label}
+        adapterType={AI_ADAPTER_TYPES.GEMINI}
+        optionId={`${SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX}:${SCRIPT_PLANNER_MODELS.gemini.modelId}`}
+      />
     </>
   )
 }

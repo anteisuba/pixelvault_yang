@@ -28,6 +28,10 @@ import {
   type NodeWorkflowNodeData,
   type NodeWorkflowState,
 } from '@/types/node-workflow'
+import type {
+  ScriptBreakdownPlanner,
+  ScriptBreakdownResult,
+} from '@/types/script-breakdown'
 
 export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
   nodes: [],
@@ -36,6 +40,11 @@ export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
 
 export interface NodeWorkflowActions {
   updateNodeData(id: string, patch: Partial<NodeWorkflowNodeData>): void
+  updateScriptBreakdown(
+    nodeId: string,
+    breakdown: ScriptBreakdownResult,
+    planner: ScriptBreakdownPlanner,
+  ): void
   deleteNode(id: string): void
 }
 
@@ -44,6 +53,10 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   nodes: NodeWorkflowNode[]
   edges: NodeWorkflowEdge[]
   addNode(type: NodeWorkflowNodeType, position: XYPosition): string
+  getOutgoingTargetByType(
+    sourceId: string,
+    targetType: NodeWorkflowNodeType,
+  ): NodeWorkflowNode | null
   onNodesChange: OnNodesChange<NodeWorkflowNode>
   onEdgesChange: OnEdgesChange<NodeWorkflowEdge>
   onConnect(connection: Connection): void
@@ -239,6 +252,57 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
     [setWorkflowState],
   )
 
+  const updateScriptBreakdown = useCallback(
+    (
+      nodeId: string,
+      breakdown: ScriptBreakdownResult,
+      planner: ScriptBreakdownPlanner,
+    ) => {
+      setWorkflowState((currentState) => ({
+        ...currentState,
+        nodes: currentState.nodes.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  breakdown,
+                  planner,
+                  plannerLabel: planner.label,
+                  plannerModelId: planner.modelId,
+                  generationError: undefined,
+                  status: NODE_STATUS_IDS.done,
+                },
+              }
+            : node,
+        ),
+      }))
+    },
+    [setWorkflowState],
+  )
+
+  const getOutgoingTargetByType = useCallback(
+    (sourceId: string, targetType: NodeWorkflowNodeType) => {
+      const currentState = stateRef.current
+      for (const edge of currentState.edges) {
+        if (edge.source !== sourceId) {
+          continue
+        }
+
+        const targetNode = currentState.nodes.find(
+          (node) => node.id === edge.target && node.type === targetType,
+        )
+
+        if (targetNode) {
+          return targetNode
+        }
+      }
+
+      return null
+    },
+    [],
+  )
+
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
     (changes) => {
       setWorkflowState((currentState) => ({
@@ -297,7 +361,9 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
       edges: state.edges,
       addNode,
       updateNodeData,
+      updateScriptBreakdown,
       deleteNode,
+      getOutgoingTargetByType,
       onNodesChange,
       onEdgesChange,
       onConnect,
@@ -305,10 +371,12 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
     [
       addNode,
       deleteNode,
+      getOutgoingTargetByType,
       onConnect,
       onEdgesChange,
       onNodesChange,
       state,
+      updateScriptBreakdown,
       updateNodeData,
     ],
   )

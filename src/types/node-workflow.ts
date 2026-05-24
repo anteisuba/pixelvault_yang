@@ -6,6 +6,10 @@ import {
   NODE_TYPES,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import {
+  ScriptBreakdownPlannerSchema,
+  ScriptBreakdownResultSchema,
+} from '@/types/script-breakdown'
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -15,6 +19,11 @@ export const NodeWorkflowNodeDataSchema = z
   .object({
     prompt: z.string(),
     status: NodeStatusSchema.default('idle'),
+    breakdown: ScriptBreakdownResultSchema.optional(),
+    plannerLabel: z.string().optional(),
+    plannerModelId: z.string().optional(),
+    planner: ScriptBreakdownPlannerSchema.optional(),
+    generationError: z.string().optional(),
   })
   .passthrough()
 

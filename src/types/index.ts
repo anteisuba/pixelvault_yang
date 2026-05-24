@@ -58,6 +58,30 @@ export type {
   NodeWorkflowStateSnapshot,
   NodeWorkflowStatus,
 } from '@/types/node-workflow'
+export {
+  ActionDraftSchema,
+  BeatDraftSchema,
+  CharacterDraftSchema,
+  SceneDraftSchema,
+  ScriptBreakdownApiSuccessResponseSchema,
+  ScriptBreakdownPlannerSchema,
+  ScriptBreakdownRequestSchema,
+  ScriptBreakdownResponseDataSchema,
+  ScriptBreakdownResultSchema,
+  ShotDraftSchema,
+} from '@/types/script-breakdown'
+export type {
+  ActionDraft,
+  BeatDraft,
+  CharacterDraft,
+  SceneDraft,
+  ScriptBreakdownApiSuccessResponse,
+  ScriptBreakdownPlanner,
+  ScriptBreakdownRequest,
+  ScriptBreakdownResponseData,
+  ScriptBreakdownResult,
+  ShotDraft,
+} from '@/types/script-breakdown'
 
 // ─── Advanced Generation Parameters ──────────────────────────────
 

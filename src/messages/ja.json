@@ -2482,10 +2482,12 @@
     "nodeCount": "{count} 個のノード",
     "addMenuTitle": "ノードを追加",
     "nodeTypes": {
-      "composer": "Composer"
+      "composer": "Composer",
+      "agent": "Agent"
     },
     "addMenuHelpers": {
-      "composer": "制作アイデアをワークフローの出発点として書きます。"
+      "composer": "制作アイデアをワークフローの出発点として書きます。",
+      "agent": "Composer のアイデアを物語、シーン、ビート、ショット構成に分解します。"
     },
     "statuses": {
       "idle": "待機中",
@@ -2502,7 +2504,32 @@
       "placeholder": "物語のアイデアやビジュアル要件を書く...",
       "send": "送信",
       "sendDisabledTooltip": "送信はステージ 3 で Agent に接続します。",
-      "stageHint": "ステージ 2 のドラフトノード"
+      "stageHint": "ステージ 2 のドラフトノード",
+      "readyHint": "Agent に接続して送信",
+      "generatingHint": "Agent に問い合わせ中...",
+      "noTargetTip": "先にこの Composer を Agent ノードへ接続してください。",
+      "emptyPromptTip": "送信前にアイデアを入力してください。"
+    },
+    "agent": {
+      "emptyTitle": "Composer 入力待ち",
+      "emptyDescription": "Composer ノードを接続してアイデアを送信すると、制作分解が生成されます。",
+      "generatingTitle": "脚本を分解中",
+      "generatingDescription": "プランナーがキャラクター、シーン、ビート、ショットを構成しています。",
+      "failedTitle": "分解に失敗しました",
+      "logline": "ログライン",
+      "copyRisk": "コピーリスク：{risk}",
+      "copyRiskLevels": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "counts": {
+        "characters": "人物",
+        "scenes": "場面",
+        "actions": "動作",
+        "beats": "ビート",
+        "shots": "ショット"
+      }
     },
     "topbar": {
       "addNode": "ノードを追加",
@@ -2524,7 +2551,9 @@
     "minimapTitle": "ミニマップ",
     "toasts": {
       "notImplemented": "まだ実装されていません。",
-      "nodesDeleted": "{count} 個のノードを削除しました。"
+      "nodesDeleted": "{count} 個のノードを削除しました。",
+      "generated": "Agent の分解を生成しました。",
+      "scriptBreakdownFailed": "Agent の分解に失敗しました。"
     }
   },
   "StudioV2": {

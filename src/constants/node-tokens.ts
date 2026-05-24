@@ -16,6 +16,22 @@ export const NODE_TOKEN_TYPES = [
 
 export type NodeTokenType = (typeof NODE_TOKEN_TYPES)[number]
 
+export const NODE_TOKEN_BADGE_LABELS = {
+  composer: 'C',
+  agent: 'A',
+  shotText: 'T',
+  shot: 'S',
+  characterImage: 'C',
+  backgroundImage: 'B',
+  frameImage: 'F',
+  voice: 'V',
+  seedance: 'D',
+  text: 'T',
+  image: 'I',
+  video: 'V',
+  audio: 'A',
+} as const satisfies Record<NodeTokenType, string>
+
 interface NodeAccentToken {
   iconPlate: string
   iconText: string

@@ -4,12 +4,15 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import type { NodeWorkflowActions } from '@/hooks/use-node-workflow'
 
-const NodeWorkflowActionsContext = createContext<NodeWorkflowActions | null>(
-  null,
-)
+export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
+  sendFromComposer?(composerNodeId: string): Promise<void>
+}
+
+const NodeWorkflowActionsContext =
+  createContext<NodeWorkflowCanvasActions | null>(null)
 
 interface NodeWorkflowActionsProviderProps {
-  value: NodeWorkflowActions
+  value: NodeWorkflowCanvasActions
   children: ReactNode
 }
 
@@ -24,7 +27,7 @@ export function NodeWorkflowActionsProvider({
   )
 }
 
-export function useNodeWorkflowActions(): NodeWorkflowActions {
+export function useNodeWorkflowActions(): NodeWorkflowCanvasActions {
   const context = useContext(NodeWorkflowActionsContext)
   if (!context) {
     throw new Error('NodeWorkflowActionsProvider is missing')

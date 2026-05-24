@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { MessageSquarePlus } from 'lucide-react'
+import { Bot, MessageSquarePlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
 
@@ -93,6 +93,27 @@ export function CanvasAddMenu({
           </span>
           <span className="mt-1 block text-xs leading-5 text-node-muted">
             {t('addMenuHelpers.composer')}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => onSelect(NODE_TYPE_IDS.agent)}
+        className={cn(
+          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
+          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+        )}
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-lime-500/15 text-lime-200">
+          <Bot className="size-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-node-foreground">
+            {t('nodeTypes.agent')}
+          </span>
+          <span className="mt-1 block text-xs leading-5 text-node-muted">
+            {t('addMenuHelpers.agent')}
           </span>
         </span>
       </button>

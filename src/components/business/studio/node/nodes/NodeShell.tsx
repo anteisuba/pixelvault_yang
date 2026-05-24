@@ -4,7 +4,11 @@ import type { ReactNode } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
-import { NODE_ACCENTS, type NodeTokenType } from '@/constants/node-tokens'
+import {
+  NODE_ACCENTS,
+  NODE_TOKEN_BADGE_LABELS,
+  type NodeTokenType,
+} from '@/constants/node-tokens'
 import type { NodeWorkflowStatus } from '@/constants/node-types'
 import { cn } from '@/lib/utils'
 
@@ -74,7 +78,7 @@ function NodeShellHeader({ type, status }: NodeShellHeaderProps) {
           )}
           aria-hidden
         >
-          C
+          {NODE_TOKEN_BADGE_LABELS[type]}
         </span>
         <span className="truncate text-sm font-semibold text-node-foreground">
           {t(type)}

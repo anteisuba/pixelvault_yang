@@ -1,8 +1,9 @@
 export const NODE_TYPE_IDS = {
   composer: 'composer',
+  agent: 'agent',
 } as const
 
-export const NODE_TYPES = [NODE_TYPE_IDS.composer] as const
+export const NODE_TYPES = [NODE_TYPE_IDS.composer, NODE_TYPE_IDS.agent] as const
 
 export type NodeWorkflowNodeType = (typeof NODE_TYPES)[number]
 

@@ -2482,10 +2482,12 @@
     "nodeCount": "{count} 个节点",
     "addMenuTitle": "添加节点",
     "nodeTypes": {
-      "composer": "Composer"
+      "composer": "Composer",
+      "agent": "Agent"
     },
     "addMenuHelpers": {
-      "composer": "写下创作想法，作为工作流的起点。"
+      "composer": "写下创作想法，作为工作流的起点。",
+      "agent": "把 Composer 想法拆成故事、场景、节拍和镜头结构。"
     },
     "statuses": {
       "idle": "空闲",
@@ -2502,7 +2504,32 @@
       "placeholder": "写下故事想法或视觉需求...",
       "send": "发送",
       "sendDisabledTooltip": "发送会在阶段 3 接入 Agent。",
-      "stageHint": "阶段 2 草稿节点"
+      "stageHint": "阶段 2 草稿节点",
+      "readyHint": "连接到 Agent 后发送",
+      "generatingHint": "正在请求 Agent...",
+      "noTargetTip": "请先把这个 Composer 连接到一个 Agent 节点。",
+      "emptyPromptTip": "发送前请先写下想法。"
+    },
+    "agent": {
+      "emptyTitle": "等待 Composer 输入",
+      "emptyDescription": "连接 Composer 节点并发送想法后，这里会生成创作拆解。",
+      "generatingTitle": "正在拆解剧本",
+      "generatingDescription": "规划器正在生成角色、场景、节拍和镜头。",
+      "failedTitle": "拆解失败",
+      "logline": "梗概",
+      "copyRisk": "版权风险：{risk}",
+      "copyRiskLevels": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "counts": {
+        "characters": "角色",
+        "scenes": "场景",
+        "actions": "动作",
+        "beats": "节拍",
+        "shots": "镜头"
+      }
     },
     "topbar": {
       "addNode": "添加节点",
@@ -2524,7 +2551,9 @@
     "minimapTitle": "小地图",
     "toasts": {
       "notImplemented": "暂未实现。",
-      "nodesDeleted": "已删除 {count} 个节点。"
+      "nodesDeleted": "已删除 {count} 个节点。",
+      "generated": "Agent 拆解已生成。",
+      "scriptBreakdownFailed": "Agent 拆解失败。"
     }
   },
   "StudioV2": {

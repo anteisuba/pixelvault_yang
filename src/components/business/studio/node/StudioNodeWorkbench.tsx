@@ -3,7 +3,9 @@
 import {
   useCallback,
   useMemo,
+  useRef,
   useState,
+  type RefObject,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import {
@@ -76,21 +78,30 @@ const NODE_STUDIO_CONNECTION_LINE_STYLE = {
 }
 
 interface AddMenuState {
-  screenPosition: XYPosition
+  menuPosition: XYPosition
   flowPosition: XYPosition
 }
 
 export function StudioNodeWorkbench() {
+  const canvasRef = useRef<HTMLElement | null>(null)
+
   return (
-    <section className="dark relative h-[calc(100vh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground">
+    <section
+      ref={canvasRef}
+      className="dark relative h-[calc(100vh-3rem)] min-h-[36rem] overflow-hidden bg-node-canvas text-node-foreground"
+    >
       <ReactFlowProvider>
-        <StudioNodeCanvas />
+        <StudioNodeCanvas canvasRef={canvasRef} />
       </ReactFlowProvider>
     </section>
   )
 }
 
-function StudioNodeCanvas() {
+interface StudioNodeCanvasProps {
+  canvasRef: RefObject<HTMLElement | null>
+}
+
+function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const t = useTranslations('StudioNode')
   const locale = useLocale()
   const workflow = useNodeWorkflow()
@@ -107,10 +118,25 @@ function StudioNodeCanvas() {
     setAddMenu(null)
   }, [])
 
+  const getCanvasLocalPosition = useCallback(
+    (position: XYPosition): XYPosition => {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) {
+        return position
+      }
+
+      return {
+        x: position.x - rect.left,
+        y: position.y - rect.top,
+      }
+    },
+    [canvasRef],
+  )
+
   const openAddMenu = useCallback(
-    (screenPosition: XYPosition, flowPosition: XYPosition) => {
+    (menuPosition: XYPosition, flowPosition: XYPosition) => {
       setAddMenu({
-        screenPosition,
+        menuPosition,
         flowPosition,
       })
     },
@@ -120,15 +146,20 @@ function StudioNodeCanvas() {
   const handleTopbarAddClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
+      const menuPosition = getCanvasLocalPosition({
+        x: rect.left,
+        y: rect.bottom,
+      })
+
       openAddMenu(
         {
-          x: rect.left,
-          y: rect.bottom + NODE_STUDIO_NODE_PLACEMENT.menuOffset.y,
+          x: menuPosition.x,
+          y: menuPosition.y + NODE_STUDIO_NODE_PLACEMENT.menuOffset.y,
         },
         NODE_STUDIO_NODE_PLACEMENT.topbarAddPosition,
       )
     },
-    [openAddMenu],
+    [getCanvasLocalPosition, openAddMenu],
   )
 
   const handlePaneContextMenu = useCallback(
@@ -139,9 +170,12 @@ function StudioNodeCanvas() {
         y: event.clientY,
       }
 
-      openAddMenu(screenPosition, screenToFlowPosition(screenPosition))
+      openAddMenu(
+        getCanvasLocalPosition(screenPosition),
+        screenToFlowPosition(screenPosition),
+      )
     },
-    [openAddMenu, screenToFlowPosition],
+    [getCanvasLocalPosition, openAddMenu, screenToFlowPosition],
   )
 
   const handleAddNode = useCallback(
@@ -317,7 +351,7 @@ function StudioNodeCanvas() {
         <CanvasBottomDock />
         <CanvasAddMenu
           open={Boolean(addMenu)}
-          screenPosition={addMenu?.screenPosition ?? null}
+          screenPosition={addMenu?.menuPosition ?? null}
           onSelect={handleAddNode}
           onClose={closeAddMenu}
         />

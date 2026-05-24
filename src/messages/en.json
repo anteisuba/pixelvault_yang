@@ -2508,6 +2508,7 @@
       "readyHint": "Connect to an Agent and send",
       "generatingHint": "Asking Agent...",
       "noTargetTip": "Connect this Composer to an Agent node first.",
+      "noPlannerRouteTip": "Select a planner model on the target Agent node first.",
       "emptyPromptTip": "Write an idea before sending."
     },
     "plannerRoute": {
@@ -2517,7 +2518,7 @@
     },
     "agent": {
       "emptyTitle": "Waiting for Composer",
-      "emptyDescription": "Connect a Composer node, then send an idea to create a production breakdown.",
+      "emptyDescription": "Select a planner model, then connect a Composer node and send an idea.",
       "generatingTitle": "Breaking down script",
       "generatingDescription": "The planner is building characters, scenes, beats, and shots.",
       "failedTitle": "Breakdown failed",

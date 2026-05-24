@@ -81,7 +81,7 @@ function getPlannerProviderForAdapter(
   }
 }
 
-function getPlannerKeyOptionId(keyId: string): string {
+export function getPlannerKeyOptionId(keyId: string): string {
   return `${SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX}:key:${keyId}`
 }
 
@@ -227,7 +227,7 @@ export function CanvasPlannerRouteSelector({
             aria-label={t('triggerLabel')}
             aria-expanded={open}
             className={cn(
-              'hidden h-9 max-w-52 rounded-2xl border-node-panel-inner bg-node-panel-soft px-3 text-node-muted shadow-none hover:bg-node-panel-inner hover:text-node-foreground lg:inline-flex',
+              'inline-flex h-9 max-w-52 rounded-2xl border-node-panel-inner bg-node-panel-soft px-3 text-node-muted shadow-none hover:bg-node-panel-inner hover:text-node-foreground',
               className,
             )}
           >

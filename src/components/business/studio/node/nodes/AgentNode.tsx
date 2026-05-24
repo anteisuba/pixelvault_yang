@@ -1,15 +1,25 @@
 'use client'
 
+import { useCallback, useMemo } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { AlertCircle, Bot, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { SCRIPT_BREAKDOWN_SUMMARY_FIELDS } from '@/constants/script-breakdown'
+import {
+  SCRIPT_BREAKDOWN_SUMMARY_FIELDS,
+  SCRIPT_PLANNER_PROVIDER_IDS,
+} from '@/constants/script-breakdown'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 import type { ScriptBreakdownResult } from '@/types/script-breakdown'
 import { cn } from '@/lib/utils'
 
+import {
+  CanvasPlannerRouteSelector,
+  getPlannerKeyOptionId,
+  type NodePlannerRouteSelection,
+} from '../CanvasPlannerRouteSelector'
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { NodeShell } from './NodeShell'
 
 function getCopyRiskClass(copyRisk: ScriptBreakdownResult['copyRisk']): string {
@@ -24,18 +34,53 @@ function getCopyRiskClass(copyRisk: ScriptBreakdownResult['copyRisk']): string {
   return 'border-lime-400/40 bg-lime-500/10 text-lime-200'
 }
 
-export function AgentNode({ data, selected }: NodeProps<NodeWorkflowNode>) {
+export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
   const t = useTranslations('StudioNode.agent')
+  const { updateNodeData } = useNodeWorkflowActions()
   const breakdown = data.breakdown
   const isRunning = data.status === NODE_STATUS_IDS.running
   const isFailed =
     data.status === NODE_STATUS_IDS.failed && Boolean(data.generationError)
   const plannerLabel = data.plannerLabel ?? data.planner?.label
+  const plannerRoute = useMemo<NodePlannerRouteSelection | null>(() => {
+    if (
+      !data.plannerApiKeyId ||
+      (data.plannerProvider !== SCRIPT_PLANNER_PROVIDER_IDS.gemini &&
+        data.plannerProvider !== SCRIPT_PLANNER_PROVIDER_IDS.openai)
+    ) {
+      return null
+    }
+
+    return {
+      optionId:
+        data.plannerRouteOptionId ??
+        getPlannerKeyOptionId(data.plannerApiKeyId),
+      plannerProvider: data.plannerProvider,
+      apiKeyId: data.plannerApiKeyId,
+    }
+  }, [data.plannerApiKeyId, data.plannerProvider, data.plannerRouteOptionId])
+
+  const handlePlannerRouteChange = useCallback(
+    (selection: NodePlannerRouteSelection) => {
+      updateNodeData(id, {
+        plannerProvider: selection.plannerProvider,
+        plannerApiKeyId: selection.apiKeyId,
+        plannerRouteOptionId: selection.optionId,
+      })
+    },
+    [id, updateNodeData],
+  )
 
   return (
     <NodeShell type={NODE_TYPE_IDS.agent} selected={selected}>
       <NodeShell.Header type={NODE_TYPE_IDS.agent} status={data.status} />
       <NodeShell.Body className="space-y-3">
+        <CanvasPlannerRouteSelector
+          value={plannerRoute}
+          onChange={handlePlannerRouteChange}
+          className="nodrag nopan nowheel h-8 w-full max-w-full justify-between rounded-xl px-2.5"
+        />
+
         {isRunning && (
           <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-4 text-center">
             <Loader2 className="size-5 animate-spin text-lime-200" />

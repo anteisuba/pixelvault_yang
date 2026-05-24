@@ -9,23 +9,14 @@ import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-import {
-  CanvasPlannerRouteSelector,
-  type NodePlannerRouteSelection,
-} from './CanvasPlannerRouteSelector'
-
 interface CanvasTopBarProps {
   nodeCount: number
-  plannerRoute: NodePlannerRouteSelection | null
-  onPlannerRouteChange: (value: NodePlannerRouteSelection) => void
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   className?: string
 }
 
 export function CanvasTopBar({
   nodeCount,
-  plannerRoute,
-  onPlannerRouteChange,
   onAddClick,
   className,
 }: CanvasTopBarProps) {
@@ -66,10 +57,6 @@ export function CanvasTopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <CanvasPlannerRouteSelector
-          value={plannerRoute}
-          onChange={onPlannerRouteChange}
-        />
         <Button
           type="button"
           size="sm"

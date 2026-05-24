@@ -2508,6 +2508,7 @@
       "readyHint": "连接到 Agent 后发送",
       "generatingHint": "正在请求 Agent...",
       "noTargetTip": "请先把这个 Composer 连接到一个 Agent 节点。",
+      "noPlannerRouteTip": "请先在目标 Agent 节点选择规划模型。",
       "emptyPromptTip": "发送前请先写下想法。"
     },
     "plannerRoute": {
@@ -2517,7 +2518,7 @@
     },
     "agent": {
       "emptyTitle": "等待 Composer 输入",
-      "emptyDescription": "连接 Composer 节点并发送想法后，这里会生成创作拆解。",
+      "emptyDescription": "先选择规划模型，再连接 Composer 节点并发送想法。",
       "generatingTitle": "正在拆解剧本",
       "generatingDescription": "规划器正在生成角色、场景、节拍和镜头。",
       "failedTitle": "拆解失败",

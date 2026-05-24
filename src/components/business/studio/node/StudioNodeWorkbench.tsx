@@ -20,7 +20,6 @@ import {
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_EDGE_VISUALS,
@@ -33,16 +32,9 @@ import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import {
-  DEFAULT_SCRIPT_PLANNER_PROVIDER,
-  SCRIPT_BREAKDOWN_ERROR_CODES,
-  SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX,
-  SCRIPT_PLANNER_MODELS,
-} from '@/constants/script-breakdown'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
-import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
@@ -50,7 +42,6 @@ import { CanvasAssistantToggle } from './CanvasAssistantToggle'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
-import type { NodePlannerRouteSelection } from './CanvasPlannerRouteSelector'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { AgentNode } from './nodes/AgentNode'
 import { ComposerNode } from './nodes/ComposerNode'
@@ -109,9 +100,6 @@ function StudioNodeCanvas() {
     NodeWorkflowEdge
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
-  const [plannerRoute, setPlannerRoute] =
-    useState<NodePlannerRouteSelection | null>(null)
-  const [quickSetupOpen, setQuickSetupOpen] = useState(false)
 
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
@@ -210,6 +198,17 @@ function StudioNodeCanvas() {
         return
       }
 
+      if (
+        !targetAgent.data.plannerProvider ||
+        !targetAgent.data.plannerApiKeyId
+      ) {
+        toast.info(t('composer.noPlannerRouteTip'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
       workflow.updateNodeData(composerNodeId, {
         status: NODE_STATUS_IDS.running,
       })
@@ -220,9 +219,8 @@ function StudioNodeCanvas() {
 
       const result = await scriptBreakdown.generate({
         idea,
-        plannerProvider:
-          plannerRoute?.plannerProvider ?? DEFAULT_SCRIPT_PLANNER_PROVIDER,
-        ...(plannerRoute?.apiKeyId ? { apiKeyId: plannerRoute.apiKeyId } : {}),
+        plannerProvider: targetAgent.data.plannerProvider,
+        apiKeyId: targetAgent.data.plannerApiKeyId,
         locale: appLocale,
       })
 
@@ -250,17 +248,13 @@ function StudioNodeCanvas() {
         status: NODE_STATUS_IDS.failed,
       })
 
-      if (result.errorCode === SCRIPT_BREAKDOWN_ERROR_CODES.missingApiKey) {
-        setQuickSetupOpen(true)
-      }
-
       toast.error(t('toasts.scriptBreakdownFailed'), {
         description: result.error,
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, plannerRoute, scriptBreakdown, t, workflow],
+    [appLocale, scriptBreakdown, t, workflow],
   )
 
   const workflowActions = useMemo(
@@ -317,8 +311,6 @@ function StudioNodeCanvas() {
       <div className="pointer-events-none absolute inset-0 z-10">
         <CanvasTopBar
           nodeCount={workflow.nodes.length}
-          plannerRoute={plannerRoute}
-          onPlannerRouteChange={setPlannerRoute}
           onAddClick={handleTopbarAddClick}
         />
         <CanvasAssistantToggle />
@@ -330,14 +322,6 @@ function StudioNodeCanvas() {
           onClose={closeAddMenu}
         />
       </div>
-      <QuickSetupDialog
-        open={quickSetupOpen}
-        onOpenChange={setQuickSetupOpen}
-        modelId={SCRIPT_PLANNER_MODELS.gemini.modelId}
-        modelLabel={SCRIPT_PLANNER_MODELS.gemini.label}
-        adapterType={AI_ADAPTER_TYPES.GEMINI}
-        optionId={`${SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX}:${SCRIPT_PLANNER_MODELS.gemini.modelId}`}
-      />
     </>
   )
 }

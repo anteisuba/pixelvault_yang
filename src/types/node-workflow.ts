@@ -6,6 +6,7 @@ import {
   NODE_TYPES,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import {
   ScriptBreakdownPlannerSchema,
   ScriptBreakdownResultSchema,
@@ -20,6 +21,9 @@ export const NodeWorkflowNodeDataSchema = z
     prompt: z.string(),
     status: NodeStatusSchema.default('idle'),
     breakdown: ScriptBreakdownResultSchema.optional(),
+    plannerProvider: z.enum(SCRIPT_PLANNER_PROVIDERS).optional(),
+    plannerApiKeyId: z.string().trim().min(1).max(160).optional(),
+    plannerRouteOptionId: z.string().trim().min(1).max(240).optional(),
     plannerLabel: z.string().optional(),
     plannerModelId: z.string().optional(),
     planner: ScriptBreakdownPlannerSchema.optional(),

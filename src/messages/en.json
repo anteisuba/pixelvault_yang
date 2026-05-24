@@ -4,6 +4,7 @@
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
+      "deepseek": "DeepSeek",
       "novelai": "NovelAI",
       "fal": "fal.ai",
       "runway": "Runway",
@@ -1366,6 +1367,10 @@
         "label": "OpenAI",
         "description": "Use OpenAI Images endpoints or an OpenAI-compatible proxy."
       },
+      "deepseek": {
+        "label": "DeepSeek",
+        "description": "Use DeepSeek chat models for text planning, script breakdown, and story structure."
+      },
       "fal": {
         "label": "fal.ai",
         "description": "Use fal.ai platform for Flux 2 and other models."
@@ -2513,6 +2518,12 @@
     },
     "plannerRoute": {
       "triggerLabel": "Select planner model",
+      "fieldLabel": "Planner route",
+      "scopeLabel": "Per-Agent key",
+      "scopeDescription": "Changing this route only affects the selected Agent node.",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "ChatGPT",
       "searchPlaceholder": "Search planner models...",
       "routeMeta": "{model} · {provider}",
       "configured": "Configured",
@@ -3043,7 +3054,12 @@
     },
     "provider": {
       "failed": "AI provider error. Please try again.",
+      "insufficientBalance": "The selected Agent Key has insufficient provider balance. Recharge it or choose another Agent Key.",
+      "invalidStructuredOutput": "The selected planner model returned an incomplete response. Retry or choose another Agent Key.",
+      "invalidApiKey": "The selected Agent Key is invalid or no longer authorized. Reconfigure it or choose another Agent Key.",
+      "rateLimited": "The selected planner route is rate limited. Wait a moment or choose another Agent Key.",
       "safetyBlocked": "The provider refused this content due to its safety policy. Try switching to another model (e.g. Gemini if you were on GPT, or vice versa).",
+      "temporarilyUnavailable": "The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.",
       "timeout": "AI provider timed out. Please try again.",
       "unsupportedOpenAiReferenceImage": "OpenAI accepts JPEG, PNG, or WebP reference images. Convert the image and try again.",
       "unsupportedGeminiReferenceImage": "Gemini accepts PNG, JPEG, WebP, HEIC, or HEIF reference images. Convert the image and try again.",

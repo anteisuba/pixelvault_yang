@@ -54,4 +54,10 @@ describe('getProviderAdapter', () => {
 
     expect(adapter.adapterType).toBe('runway')
   })
+
+  it('throws for text-only providers without media adapters', () => {
+    expect(() => getProviderAdapter(AI_ADAPTER_TYPES.DEEPSEEK)).toThrow(
+      'Provider adapter not available',
+    )
+  })
 })

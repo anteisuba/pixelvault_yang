@@ -269,7 +269,7 @@ describe('video-script.service', () => {
       )
     })
 
-    it('VS9: falls back to OpenAI when Gemini fails, succeeds', async () => {
+    it('VS9: falls back to DeepSeek when Gemini fails, succeeds', async () => {
       vi.mocked(findActiveKeyForAdapter).mockImplementation(async (_u, a) =>
         fakeKey(a),
       )
@@ -281,6 +281,31 @@ describe('video-script.service', () => {
       const result = await generateScript(VALID_INPUT, USER_ID)
       expect(llmTextCompletion).toHaveBeenCalledTimes(3)
       expect(result.scenes).toHaveLength(5)
+      expect(vi.mocked(llmTextCompletion).mock.calls[2]?.[0]).toEqual(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        }),
+      )
+    })
+
+    it('VS9: falls back to OpenAI when Gemini and DeepSeek fail, succeeds', async () => {
+      vi.mocked(findActiveKeyForAdapter).mockImplementation(async (_u, a) =>
+        fakeKey(a),
+      )
+      vi.mocked(llmTextCompletion)
+        .mockRejectedValueOnce(new Error('gemini down'))
+        .mockRejectedValueOnce(new Error('gemini down'))
+        .mockRejectedValueOnce(new Error('deepseek down'))
+        .mockResolvedValueOnce(VALID_LLM_OUTPUT_5_SCENES)
+
+      const result = await generateScript(VALID_INPUT, USER_ID)
+      expect(llmTextCompletion).toHaveBeenCalledTimes(4)
+      expect(result.scenes).toHaveLength(5)
+      expect(vi.mocked(llmTextCompletion).mock.calls[3]?.[0]).toEqual(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+        }),
+      )
     })
 
     it('VS9: throws when both providers fail', async () => {

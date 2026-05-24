@@ -38,6 +38,7 @@ import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
 import { CanvasAssistantToggle } from './CanvasAssistantToggle'
@@ -103,6 +104,7 @@ interface StudioNodeCanvasProps {
 
 function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const t = useTranslations('StudioNode')
+  const tErrors = useTranslations('Errors')
   const locale = useLocale()
   const workflow = useNodeWorkflow()
   const scriptBreakdown = useScriptBreakdown()
@@ -274,21 +276,27 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
+      const failureMessage = getApiErrorMessage(
+        tErrors,
+        result,
+        t('toasts.scriptBreakdownFailed'),
+      )
+
       workflow.updateNodeData(composerNodeId, {
         status: NODE_STATUS_IDS.failed,
       })
       workflow.updateNodeData(targetAgent.id, {
-        generationError: result.error,
+        generationError: failureMessage,
         status: NODE_STATUS_IDS.failed,
       })
 
       toast.error(t('toasts.scriptBreakdownFailed'), {
-        description: result.error,
+        description: failureMessage,
         duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, scriptBreakdown, t, workflow],
+    [appLocale, scriptBreakdown, t, tErrors, workflow],
   )
 
   const workflowActions = useMemo(

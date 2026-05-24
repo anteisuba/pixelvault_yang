@@ -13,7 +13,7 @@ import { runwayAdapter } from '@/services/providers/runway.adapter'
 import { volcengineAdapter } from '@/services/providers/volcengine.adapter'
 import type { ProviderAdapter } from '@/services/providers/types'
 
-const PROVIDER_ADAPTERS: Record<AI_ADAPTER_TYPES, ProviderAdapter> = {
+const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: huggingFaceAdapter,
   [AI_ADAPTER_TYPES.GEMINI]: geminiAdapter,
   [AI_ADAPTER_TYPES.OPENAI]: openAiAdapter,
@@ -28,5 +28,10 @@ const PROVIDER_ADAPTERS: Record<AI_ADAPTER_TYPES, ProviderAdapter> = {
 export function getProviderAdapter(
   adapterType: AI_ADAPTER_TYPES,
 ): ProviderAdapter {
-  return PROVIDER_ADAPTERS[adapterType]
+  const adapter = PROVIDER_ADAPTERS[adapterType]
+  if (!adapter) {
+    throw new Error(`Provider adapter not available for ${adapterType}`)
+  }
+
+  return adapter
 }

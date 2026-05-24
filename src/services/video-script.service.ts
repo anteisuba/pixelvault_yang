@@ -40,6 +40,7 @@ export class VideoScriptNotFoundError extends Error {
 /** LLM provider order for script generation (VS9). */
 const LLM_PROVIDER_ORDER = [
   AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
 ] as const
 
@@ -47,7 +48,7 @@ const LLM_PROVIDER_ORDER = [
 
 /**
  * Generate a new structured script via LLM and persist it.
- * Provider fallback (VS9): try Gemini 2x, fall back to OpenAI 1x. Both fail → throw.
+ * Provider fallback (VS9): try Gemini 2x, fall back to DeepSeek 1x, then OpenAI 1x. All fail → throw.
  */
 export async function generateScript(
   input: CreateVideoScriptInput,

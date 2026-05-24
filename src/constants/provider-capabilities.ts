@@ -136,6 +136,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       referenceImageMode: 'native',
     },
 
+    [AI_ADAPTER_TYPES.DEEPSEEK]: {
+      capabilities: [],
+    },
+
     [AI_ADAPTER_TYPES.GEMINI]: {
       capabilities: ['imageAnalysis'],
       maxReferenceImages: 14,

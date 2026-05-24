@@ -46,6 +46,7 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
     if (
       !data.plannerApiKeyId ||
       (data.plannerProvider !== SCRIPT_PLANNER_PROVIDER_IDS.gemini &&
+        data.plannerProvider !== SCRIPT_PLANNER_PROVIDER_IDS.deepseek &&
         data.plannerProvider !== SCRIPT_PLANNER_PROVIDER_IDS.openai)
     ) {
       return null
@@ -78,7 +79,7 @@ export function AgentNode({ id, data, selected }: NodeProps<NodeWorkflowNode>) {
         <CanvasPlannerRouteSelector
           value={plannerRoute}
           onChange={handlePlannerRouteChange}
-          className="nodrag nopan nowheel h-8 w-full max-w-full justify-between rounded-xl px-2.5"
+          className="nodrag nopan nowheel w-full max-w-full"
         />
 
         {isRunning && (

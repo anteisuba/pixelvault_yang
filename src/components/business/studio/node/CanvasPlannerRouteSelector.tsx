@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronDown, Key, Sparkles } from 'lucide-react'
+import { Check, ChevronDown, Plus, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
@@ -11,10 +11,9 @@ import {
   SCRIPT_PLANNER_PROVIDER_IDS,
   type ScriptPlannerConcreteProvider,
 } from '@/constants/script-breakdown'
+import type { ApiKeyHealthStatus } from '@/types'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { QuickSetupDialog } from '@/components/business/studio/QuickSetupDialog'
-import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
-import { Button } from '@/components/ui/button'
 import {
   Popover,
   PopoverContent,
@@ -63,6 +62,8 @@ function getPlannerProviderForAdapter(
   switch (adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
       return SCRIPT_PLANNER_PROVIDER_IDS.gemini
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return SCRIPT_PLANNER_PROVIDER_IDS.deepseek
     case AI_ADAPTER_TYPES.OPENAI:
       return SCRIPT_PLANNER_PROVIDER_IDS.openai
     default:
@@ -76,6 +77,51 @@ export function getPlannerKeyOptionId(keyId: string): string {
 
 function getPlannerSetupOptionId(modelId: string): string {
   return `${SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX}:setup:${modelId}`
+}
+
+function getPlannerSetupLabelKey(
+  adapterType: AI_ADAPTER_TYPES,
+): 'setupChatGpt' | 'setupDeepSeek' | 'setupGemini' {
+  switch (adapterType) {
+    case AI_ADAPTER_TYPES.OPENAI:
+      return 'setupChatGpt'
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return 'setupDeepSeek'
+    default:
+      return 'setupGemini'
+  }
+}
+
+function getHealthDotClass(status: ApiKeyHealthStatus | undefined): string {
+  switch (status) {
+    case 'available':
+      return 'bg-emerald-400'
+    case 'no_key':
+      return 'bg-amber-400'
+    case 'failed':
+      return 'bg-red-400'
+    case 'unknown':
+      return 'bg-node-muted/45'
+    default:
+      return 'bg-transparent'
+  }
+}
+
+function getHealthLabelKey(
+  status: ApiKeyHealthStatus | undefined,
+): 'available' | 'failed' | 'noKey' | 'unknown' | null {
+  switch (status) {
+    case 'available':
+      return 'available'
+    case 'failed':
+      return 'failed'
+    case 'no_key':
+      return 'noKey'
+    case 'unknown':
+      return 'unknown'
+    default:
+      return null
+  }
 }
 
 export function CanvasPlannerRouteSelector({
@@ -144,7 +190,12 @@ export function CanvasPlannerRouteSelector({
   const selectedSavedRoute = value
     ? savedRoutes.find((option) => option.apiKeyId === value.apiKeyId)
     : undefined
-  const selectedLabel = selectedSavedRoute?.routeLabel ?? t('triggerLabel')
+  const selectedLabel = selectedSavedRoute
+    ? t('savedMeta', {
+        model: selectedSavedRoute.providerLabel,
+        key: selectedSavedRoute.maskedKey,
+      })
+    : t('triggerLabel')
   const selectedHealthStatus = selectedSavedRoute
     ? healthMap[selectedSavedRoute.apiKeyId]
     : undefined
@@ -162,11 +213,11 @@ export function CanvasPlannerRouteSelector({
   )
 
   const handleOpenQuickSetup = useCallback(
-    (option: LockedPlannerRouteOption) => {
+    (option: LockedPlannerRouteOption, modelLabel: string) => {
       setQuickSetup({
         open: true,
         modelId: option.modelId,
-        modelLabel: option.modelLabel,
+        modelLabel,
         adapterType: option.adapterType,
         optionId: option.optionId,
       })
@@ -204,24 +255,34 @@ export function CanvasPlannerRouteSelector({
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             aria-label={t('triggerLabel')}
             aria-expanded={open}
             className={cn(
-              'inline-flex h-9 max-w-52 justify-between rounded-xl border-node-panel-inner bg-node-panel-soft px-2.5 text-node-muted shadow-none hover:bg-node-panel-inner hover:text-node-foreground',
+              'group flex h-11 w-full min-w-0 items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-left text-node-muted shadow-none transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-amber/35 data-[state=open]:border-node-amber/70 data-[state=open]:bg-node-panel-inner',
+              selectedSavedRoute && 'border-node-amber/70',
               className,
             )}
           >
-            {selectedSavedRoute ? (
-              <ApiKeyHealthDot status={selectedHealthStatus} />
-            ) : (
+            <span className="relative flex size-6 shrink-0 items-center justify-center text-node-amber">
               <Sparkles className="size-4 text-node-amber" />
-            )}
-            <span className="truncate text-xs font-medium">
-              {isLoading ? tApiKeys('triggerLoading') : selectedLabel}
+              {selectedSavedRoute ? (
+                <span
+                  className={cn(
+                    'absolute right-0 top-1 size-1.5 rounded-full ring-2 ring-node-panel-soft',
+                    getHealthDotClass(selectedHealthStatus),
+                  )}
+                />
+              ) : null}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-2xs font-medium leading-3 text-node-muted">
+                {t('fieldLabel')}
+              </span>
+              <span className="block truncate text-xs font-semibold leading-4 text-node-foreground">
+                {isLoading ? tApiKeys('triggerLoading') : selectedLabel}
+              </span>
             </span>
             <ChevronDown
               className={cn(
@@ -229,15 +290,29 @@ export function CanvasPlannerRouteSelector({
                 open && 'rotate-180',
               )}
             />
-          </Button>
+          </button>
         </PopoverTrigger>
         <PopoverContent
-          align="end"
-          sideOffset={8}
+          align="start"
+          sideOffset={6}
           collisionPadding={12}
-          className="w-80 overflow-hidden rounded-2xl border-node-panel-inner bg-node-panel/95 p-2 text-node-foreground shadow-node-panel backdrop-blur-xl"
+          className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
         >
-          <div className="max-h-80 overflow-y-auto overscroll-contain pr-1">
+          <div className="border-b border-node-panel-inner px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-node-foreground">
+                {t('fieldLabel')}
+              </p>
+              <span className="shrink-0 text-2xs font-semibold text-node-amber">
+                {t('scopeLabel')}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-node-muted">
+              {t('scopeDescription')}
+            </p>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto overscroll-contain p-2">
             {isLoading ? (
               <div className="rounded-xl px-3 py-2 text-xs text-node-muted">
                 {tApiKeys('loading')}
@@ -246,11 +321,13 @@ export function CanvasPlannerRouteSelector({
 
             {savedRoutes.length > 0 && (
               <div className="space-y-1">
-                <p className="px-2 py-1 text-2xs font-semibold tracking-nav-dense text-node-muted">
+                <p className="px-2 py-1 text-2xs font-semibold text-node-muted">
                   {t('configured')}
                 </p>
                 {savedRoutes.map((option) => {
                   const isSelected = option.apiKeyId === value?.apiKeyId
+                  const healthStatus = healthMap[option.apiKeyId]
+                  const healthLabelKey = getHealthLabelKey(healthStatus)
 
                   return (
                     <button
@@ -258,33 +335,55 @@ export function CanvasPlannerRouteSelector({
                       type="button"
                       onClick={() => handleSelectSavedRoute(option)}
                       className={cn(
-                        'group flex w-full items-center gap-3 rounded-xl border px-2.5 py-2 text-left transition-colors',
+                        'group relative flex min-h-14 w-full items-center gap-3 overflow-hidden rounded-xl border px-3 py-2 text-left transition-colors',
                         isSelected
-                          ? 'border-lime-400/35 bg-lime-500/10'
-                          : 'border-transparent hover:border-node-panel-inner hover:bg-node-panel-inner',
+                          ? 'border-node-amber/25 bg-node-panel-soft'
+                          : 'border-transparent bg-node-panel hover:border-node-panel-inner hover:bg-node-panel-inner',
                       )}
                     >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted transition-colors group-hover:text-node-foreground">
+                      {isSelected ? (
+                        <span className="absolute bottom-3 left-0 top-3 w-1 rounded-r-full bg-node-amber" />
+                      ) : null}
+                      <span
+                        className={cn(
+                          'flex size-8 shrink-0 items-center justify-center rounded-full text-node-muted transition-colors group-hover:text-node-foreground',
+                          isSelected
+                            ? 'bg-amber-500/15 text-node-amber'
+                            : 'bg-node-panel-inner',
+                        )}
+                      >
                         <Sparkles className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-2">
-                          <ApiKeyHealthDot
-                            status={healthMap[option.apiKeyId]}
-                          />
                           <span className="truncate text-sm font-semibold text-node-foreground">
                             {option.routeLabel}
                           </span>
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-node-muted">
-                          {t('savedMeta', {
-                            model: option.modelLabel,
-                            key: option.maskedKey,
-                          })}
+                        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-node-muted">
+                          {healthLabelKey ? (
+                            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                              <span
+                                className={cn(
+                                  'size-1.5 rounded-full',
+                                  getHealthDotClass(healthStatus),
+                                )}
+                              />
+                              {tApiKeys(`health.${healthLabelKey}`)}
+                            </span>
+                          ) : null}
+                          <span className="min-w-0 truncate">
+                            {t('savedMeta', {
+                              model: option.providerLabel,
+                              key: option.maskedKey,
+                            })}
+                          </span>
                         </span>
                       </span>
                       {isSelected ? (
-                        <Check className="size-4 shrink-0 text-lime-200" />
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-lime-500/15 text-lime-300">
+                          <Check className="size-3.5" />
+                        </span>
                       ) : null}
                     </button>
                   )
@@ -292,32 +391,38 @@ export function CanvasPlannerRouteSelector({
               </div>
             )}
 
-            <div className={cn('space-y-1', savedRoutes.length > 0 && 'mt-2')}>
-              <p className="px-2 py-1 text-2xs font-semibold tracking-nav-dense text-node-muted">
+            <div className={cn(savedRoutes.length > 0 && 'mt-2')}>
+              <p className="px-2 py-1 text-2xs font-semibold text-node-muted">
                 {t('addKey')}
               </p>
-              {lockedRoutes.map((option) => (
-                <button
-                  key={option.optionId}
-                  type="button"
-                  onClick={() => handleOpenQuickSetup(option)}
-                  className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-node-panel-inner hover:bg-node-panel-inner"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-node-panel-inner text-node-muted transition-colors group-hover:text-node-foreground">
-                    <Key className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-node-foreground">
-                      {t('configureProvider', {
-                        provider: option.modelLabel,
-                      })}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-node-muted">
-                      {option.providerLabel}
-                    </span>
-                  </span>
-                </button>
-              ))}
+              <div className="grid grid-cols-3 gap-2">
+                {lockedRoutes.map((option) => {
+                  const setupLabel = t(
+                    getPlannerSetupLabelKey(option.adapterType),
+                  )
+
+                  return (
+                    <button
+                      key={option.optionId}
+                      type="button"
+                      onClick={() => handleOpenQuickSetup(option, setupLabel)}
+                      className="group flex min-w-0 items-center gap-2 rounded-xl border border-node-panel-inner bg-node-panel-soft px-2 py-2 text-left transition-colors hover:border-node-amber/35 hover:bg-node-panel-inner"
+                    >
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-node-panel-inner text-node-foreground transition-colors group-hover:text-node-amber">
+                        <Plus className="size-3.5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-semibold text-node-foreground">
+                          {setupLabel}
+                        </span>
+                        <span className="block truncate text-2xs text-node-muted">
+                          {option.providerLabel}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </PopoverContent>

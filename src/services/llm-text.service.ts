@@ -2,10 +2,15 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_PROVIDER_ENDPOINTS, LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import {
+  GENERATION_ERROR_CODES,
+  parseGenerationErrorCode,
+} from '@/constants/generation-errors'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
+import { ApiRequestError } from '@/lib/errors'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/lib/prompt-guard'
@@ -80,6 +85,7 @@ const OpenAiChatResponseSchema = z.object({
 /** Text-capable LLM adapter types */
 const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
 ] as const
@@ -91,18 +97,59 @@ function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
 }
 
 const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
-  [AI_ADAPTER_TYPES.GEMINI]: 'gemini-2.5-flash-lite',
-  [AI_ADAPTER_TYPES.OPENAI]: 'gpt-4.1-nano',
-  [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-1.5-pro-32k',
+  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_FLASH_LITE,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
+  [AI_ADAPTER_TYPES.VOLCENGINE]:
+    LLM_TEXT_MODEL_IDS.VOLCENGINE_DOUBAO_1_5_PRO_32K,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'Gemini',
+  [AI_ADAPTER_TYPES.DEEPSEEK]: 'DeepSeek',
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'VolcEngine',
 }
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+
+const LLM_TEXT_PROVIDER_HTTP_STATUS = {
+  unauthorized: 401,
+  forbidden: 403,
+  paymentRequired: 402,
+  rateLimited: 429,
+  temporarilyUnavailable: 503,
+  upstreamFailure: 502,
+} as const
+
+const LLM_TEXT_PROVIDER_ERROR_CODES = {
+  authFailed: 'PROVIDER_AUTH_FAILED',
+  insufficientBalance: 'PROVIDER_INSUFFICIENT_BALANCE',
+  rateLimited: 'PROVIDER_RATE_LIMITED',
+  temporarilyUnavailable: 'PROVIDER_TRANSIENT',
+  failed: 'PROVIDER_ERROR',
+} as const
+
+const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
+  authFailed: 'errors.provider.invalidApiKey',
+  insufficientBalance: 'errors.provider.insufficientBalance',
+  rateLimited: 'errors.provider.rateLimited',
+  temporarilyUnavailable: 'errors.provider.temporarilyUnavailable',
+  failed: 'errors.provider.failed',
+} as const
+
+const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
+  authFailed:
+    'The selected Agent Key is invalid or no longer authorized. Reconfigure it or choose another Agent Key.',
+  insufficientBalance:
+    'The selected Agent Key has insufficient provider balance. Recharge it or choose another Agent Key.',
+  rateLimited:
+    'The selected planner route is rate limited. Wait a moment or choose another Agent Key.',
+  temporarilyUnavailable:
+    'The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.',
+  failed:
+    'The selected planner provider rejected the request. Try another Agent Key.',
+} as const
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
   switch (adapterType) {
@@ -110,6 +157,8 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.GEMINI
     case AI_ADAPTER_TYPES.OPENAI:
       return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return AI_PROVIDER_ENDPOINTS.DEEPSEEK
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return AI_PROVIDER_ENDPOINTS.VOLCENGINE
   }
@@ -130,11 +179,74 @@ function getOpenAiTokenLimit(modelId: string, maxTokens: number) {
   return { max_tokens: maxTokens }
 }
 
+function toLlmTextProviderError(
+  responseStatus: number,
+  errorBody: string,
+): ApiRequestError {
+  const parsedCode = parseGenerationErrorCode(`${responseStatus} ${errorBody}`)
+
+  if (
+    parsedCode === GENERATION_ERROR_CODES.INVALID_API_KEY ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.unauthorized ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.forbidden
+  ) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.authFailed,
+      responseStatus,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.authFailed,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.authFailed,
+    )
+  }
+
+  if (
+    parsedCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired
+  ) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.insufficientBalance,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.insufficientBalance,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.insufficientBalance,
+    )
+  }
+
+  if (
+    parsedCode === GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.rateLimited
+  ) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.rateLimited,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.rateLimited,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.rateLimited,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.rateLimited,
+    )
+  }
+
+  if (
+    parsedCode === GENERATION_ERROR_CODES.PROVIDER_OVERLOADED ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.temporarilyUnavailable
+  ) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.temporarilyUnavailable,
+    )
+  }
+
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.failed,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
+    LLM_TEXT_PROVIDER_ERROR_MESSAGES.failed,
+  )
+}
+
 // ─── Route Resolution ────────────────────────────────────────────
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: specified apiKeyId → user Gemini key → user OpenAI key → user VolcEngine key
+ * Priority: specified apiKeyId → user Gemini key → user DeepSeek key → user OpenAI key → user VolcEngine key
  */
 export async function resolveLlmTextRoute(
   userId: string,
@@ -155,7 +267,7 @@ export async function resolveLlmTextRoute(
     const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
     if (!isLlmTextAdapter(adapterType)) {
       throw new Error(
-        'The selected API key does not support text completion (requires Gemini, OpenAI, or VolcEngine). Please bind a compatible key.',
+        'The selected API key does not support text completion (requires Gemini, DeepSeek, OpenAI, or VolcEngine). Please bind a compatible key.',
       )
     }
 
@@ -219,7 +331,7 @@ export async function resolveLlmTextRoute(
 
   const tried = triedProviders.join(', ')
   throw new Error(
-    `No API key available. Tried: ${tried}. Please add a Gemini, OpenAI, or VolcEngine API key in Settings > API Keys.`,
+    `No API key available. Tried: ${tried}. Please add a Gemini, DeepSeek, OpenAI, or VolcEngine API key in Settings > API Keys.`,
   )
 }
 
@@ -288,13 +400,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    // Surface user-friendly message for common API errors
-    if (response.status === 503 || response.status === 429) {
-      throw new Error(
-        'AI model is temporarily unavailable due to high demand. Please try again in a moment.',
-      )
-    }
-    throw new Error(`Gemini text API error (${response.status}): ${errorBody}`)
+    throw toLlmTextProviderError(response.status, errorBody)
   }
 
   const data = GeminiTextResponseSchema.parse(await response.json())
@@ -351,7 +457,7 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new Error(`OpenAI text API error (${response.status}): ${errorBody}`)
+    throw toLlmTextProviderError(response.status, errorBody)
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
@@ -359,6 +465,53 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!content) {
     throw new Error('No text response from OpenAI')
+  }
+
+  return content.trim()
+}
+
+async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
+  if (input.imageData) {
+    throw new Error('DeepSeek text completion does not support image input.')
+  }
+
+  if (input.useGrounding) {
+    throw new Error('DeepSeek text completion does not support grounding.')
+  }
+
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
+  const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
+  const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [
+        { role: 'system', content: input.systemPrompt },
+        { role: 'user', content: input.userPrompt },
+      ],
+      max_tokens: input.maxTokens ?? 1024,
+      ...(input.responseFormat === 'json_object'
+        ? { response_format: { type: 'json_object' } }
+        : {}),
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody)
+  }
+
+  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const content = data.choices[0]?.message?.content
+
+  if (!content) {
+    throw new Error('No text response from DeepSeek')
   }
 
   return content.trim()
@@ -419,9 +572,7 @@ async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw new Error(
-      `VolcEngine text API error (${response.status}): ${errorBody}`,
-    )
+    throw toLlmTextProviderError(response.status, errorBody)
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
@@ -465,6 +616,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return geminiTextCompletion(input)
     case AI_ADAPTER_TYPES.OPENAI:
       return openAiTextCompletion(input)
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return deepseekTextCompletion(input)
     case AI_ADAPTER_TYPES.VOLCENGINE:
       return volcengineTextCompletion(input)
     default:

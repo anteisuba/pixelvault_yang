@@ -63,6 +63,8 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
     'Target model: Seedream (VolcEngine). Prefer concise, clear descriptions. Works well with both English and Chinese.',
   [AI_ADAPTER_TYPES.OPENAI]:
     'Target model: GPT Image. Prefer detailed natural language descriptions with emphasis on composition and mood.',
+  [AI_ADAPTER_TYPES.DEEPSEEK]:
+    'Target model: DeepSeek text planning. Prefer structured, concrete cinematic writing with clear story beats, scene logic, and production-ready details.',
   [AI_ADAPTER_TYPES.HUGGINGFACE]:
     'Target model: Stable Diffusion. Prefer comma-separated descriptive phrases with quality modifiers.',
   [AI_ADAPTER_TYPES.REPLICATE]:

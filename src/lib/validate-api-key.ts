@@ -15,6 +15,8 @@ export function validateKeyFormat(
       return trimmed.startsWith('AIza') ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.OPENAI:
       return trimmed.startsWith('sk-') ? 'valid' : 'invalid'
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return trimmed.length > 10 ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.FAL:
       return trimmed.length > 10 ? 'valid' : 'invalid'
     case AI_ADAPTER_TYPES.RUNWAY:

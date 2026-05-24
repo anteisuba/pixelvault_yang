@@ -138,7 +138,7 @@ describe('createScriptBreakdown', () => {
     )
   })
 
-  it('rejects invalid planner output', async () => {
+  it('wraps invalid planner output in a structured provider output error', async () => {
     mockLlmTextCompletion.mockResolvedValue(JSON.stringify({ title: '' }))
 
     await expect(
@@ -147,7 +147,29 @@ describe('createScriptBreakdown', () => {
         plannerProvider: 'gemini',
         locale: 'en',
       }),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({
+      errorCode: 'SCRIPT_BREAKDOWN_INVALID_OUTPUT',
+      httpStatus: 502,
+      i18nKey: 'errors.provider.invalidStructuredOutput',
+    })
+  })
+
+  it('wraps malformed planner JSON in a structured provider output error', async () => {
+    mockLlmTextCompletion.mockResolvedValue(
+      '{"title":"Broken","characters":[{"id":"char-1"}',
+    )
+
+    await expect(
+      createScriptBreakdown('clerk_user_1', {
+        idea: 'malformed output',
+        plannerProvider: 'gemini',
+        locale: 'zh',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'SCRIPT_BREAKDOWN_INVALID_OUTPUT',
+      httpStatus: 502,
+      i18nKey: 'errors.provider.invalidStructuredOutput',
+    })
   })
 
   it('surfaces provider errors from the LLM adapter', async () => {
@@ -160,6 +182,41 @@ describe('createScriptBreakdown', () => {
         locale: 'zh',
       }),
     ).rejects.toThrow('provider down')
+  })
+
+  it('uses DeepSeek when explicitly selected as the planner route', async () => {
+    mockFindActiveKeyForAdapter.mockImplementation(async (_userId, adapter) =>
+      adapter === AI_ADAPTER_TYPES.DEEPSEEK
+        ? {
+            adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+            providerConfig: {
+              label: 'Personal DeepSeek',
+              baseUrl: 'https://api.deepseek.com',
+            },
+            keyValue: 'deepseek-key',
+          }
+        : null,
+    )
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_BREAKDOWN))
+
+    const result = await createScriptBreakdown('clerk_user_1', {
+      idea: 'A lantern archive mystery',
+      plannerProvider: 'deepseek',
+      locale: 'zh',
+    })
+
+    expect(result.planner).toEqual({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      modelId: SCRIPT_PLANNER_MODELS.deepseek.modelId,
+      label: 'Personal DeepSeek',
+    })
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: SCRIPT_PLANNER_MODELS.deepseek.modelId,
+        responseFormat: 'json_object',
+      }),
+    )
   })
 
   it('throws missing API key when no planner route is available', async () => {

@@ -275,6 +275,7 @@ export const isFreeTierModel = (modelId: string): boolean => {
 export type ProviderGroup =
   | 'openai'
   | 'google'
+  | 'deepseek'
   | 'novelai'
   | 'fal'
   | 'runway'
@@ -287,6 +288,7 @@ export type ProviderGroup =
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'openai',
   'google',
+  'deepseek',
   'novelai',
   'fal',
   'runway',
@@ -303,6 +305,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'openai'
     case AI_ADAPTER_TYPES.GEMINI:
       return 'google'
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return 'deepseek'
     case AI_ADAPTER_TYPES.NOVELAI:
       return 'novelai'
     case AI_ADAPTER_TYPES.FAL:

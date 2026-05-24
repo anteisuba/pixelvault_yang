@@ -77,6 +77,22 @@ const RUNWAY_KEY_RECORD = {
   createdAt: new Date('2026-01-03T00:00:00.000Z'),
 }
 
+const DEEPSEEK_KEY_RECORD = {
+  id: 'key-4',
+  userId: 'user-1',
+  modelId: 'deepseek-v4-pro',
+  adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+  providerConfig: {
+    label: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+  },
+  label: 'DeepSeek',
+  encryptedKey: 'encrypted:deepseek-key',
+  maskedKey: 'sk-****test',
+  isActive: true,
+  createdAt: new Date('2026-01-04T00:00:00.000Z'),
+}
+
 describe('apiKey.service createApiKey', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -231,6 +247,41 @@ describe('apiKey.service verifyApiKey', () => {
           Authorization: 'Bearer plain-runway-key',
           'X-Runway-Version': '2024-11-06',
         },
+        signal: expect.any(AbortSignal),
+      }),
+    )
+  })
+
+  it('verifies DeepSeek keys against the models endpoint', async () => {
+    mockFindUnique.mockResolvedValue(DEEPSEEK_KEY_RECORD)
+    mockDecryptApiKey.mockReturnValue('plain-deepseek-key')
+    const mockFetch = vi.fn()
+    vi.stubGlobal('fetch', mockFetch)
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          object: 'list',
+          data: [{ id: 'deepseek-v4-pro', object: 'model' }],
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const result = await verifyApiKey('key-4', 'user-1')
+
+    expect(result).toMatchObject({
+      id: 'key-4',
+      status: 'available',
+    })
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.deepseek.com/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer plain-deepseek-key',
+        },
+        redirect: 'manual',
         signal: expect.any(AbortSignal),
       }),
     )

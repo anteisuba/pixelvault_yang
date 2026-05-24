@@ -322,6 +322,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
   OPENAI: 'https://api.openai.com/v1/images',
   OPENAI_CHAT: 'https://api.openai.com/v1',
+  DEEPSEEK: 'https://api.deepseek.com',
   FAL: 'https://fal.run',
   FAL_QUEUE: 'https://queue.fal.run',
   RUNWAY: 'https://api.dev.runwayml.com/v1',
@@ -330,6 +331,15 @@ export const AI_PROVIDER_ENDPOINTS = {
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
+} as const
+
+export const LLM_TEXT_MODEL_IDS = {
+  GEMINI_FLASH_LITE: 'gemini-2.5-flash-lite',
+  GEMINI_3_PRO_PREVIEW: 'gemini-3-pro-preview',
+  OPENAI_GPT_4_1_NANO: 'gpt-4.1-nano',
+  VOLCENGINE_DOUBAO_1_5_PRO_32K: 'doubao-1.5-pro-32k',
+  DEEPSEEK_V4_FLASH: 'deepseek-v4-flash',
+  DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
 } as const
 
 export const RUNWAY_API = {

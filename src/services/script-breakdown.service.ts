@@ -6,6 +6,8 @@ import {
 } from '@/constants/providers'
 import {
   SCRIPT_BREAKDOWN_LIMITS,
+  SCRIPT_BREAKDOWN_ERROR_CODES,
+  SCRIPT_BREAKDOWN_HTTP_STATUS,
   SCRIPT_BREAKDOWN_OUTPUT_CONTRACT,
   SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
   SCRIPT_PLANNER_PROVIDER_IDS,
@@ -15,7 +17,7 @@ import {
 } from '@/constants/script-breakdown'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
-import { ApiKeyError } from '@/lib/errors'
+import { ApiKeyError, ApiRequestError } from '@/lib/errors'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { withRetry } from '@/lib/with-retry'
 import {
@@ -105,6 +107,7 @@ async function resolvePlannerRoute(
     const route = await resolveLlmTextRoute(userId, apiKeyId)
     if (
       route.adapterType !== AI_ADAPTER_TYPES.GEMINI &&
+      route.adapterType !== AI_ADAPTER_TYPES.DEEPSEEK &&
       route.adapterType !== AI_ADAPTER_TYPES.OPENAI
     ) {
       throw new ApiKeyError(
@@ -116,7 +119,9 @@ async function resolvePlannerRoute(
     const providerEntry =
       route.adapterType === AI_ADAPTER_TYPES.OPENAI
         ? SCRIPT_PLANNER_MODELS.openai
-        : SCRIPT_PLANNER_MODELS.gemini
+        : route.adapterType === AI_ADAPTER_TYPES.DEEPSEEK
+          ? SCRIPT_PLANNER_MODELS.deepseek
+          : SCRIPT_PLANNER_MODELS.gemini
 
     return {
       ...route,
@@ -125,37 +130,36 @@ async function resolvePlannerRoute(
     }
   }
 
-  try {
-    return await resolveSpecificPlannerRoute(
-      userId,
-      SCRIPT_PLANNER_PROVIDER_IDS.gemini,
-    )
-  } catch (geminiError) {
-    logger.info('Script breakdown Gemini route unavailable, trying OpenAI', {
-      reason:
-        geminiError instanceof Error
-          ? geminiError.message
-          : String(geminiError),
-    })
-    try {
-      return await resolveSpecificPlannerRoute(
-        userId,
-        SCRIPT_PLANNER_PROVIDER_IDS.openai,
-      )
-    } catch (openAiError) {
-      if (
-        geminiError instanceof ApiKeyError &&
-        openAiError instanceof ApiKeyError
-      ) {
-        throw new ApiKeyError(
-          'missing',
-          'Please add a Gemini or OpenAI API key to use script breakdown.',
-        )
-      }
+  const providerOrder = [
+    SCRIPT_PLANNER_PROVIDER_IDS.gemini,
+    SCRIPT_PLANNER_PROVIDER_IDS.deepseek,
+    SCRIPT_PLANNER_PROVIDER_IDS.openai,
+  ] as const
+  const routeErrors: unknown[] = []
 
-      throw openAiError
+  for (const candidate of providerOrder) {
+    try {
+      return await resolveSpecificPlannerRoute(userId, candidate)
+    } catch (error) {
+      routeErrors.push(error)
+      logger.info('Script breakdown planner route unavailable', {
+        provider: candidate,
+        reason: error instanceof Error ? error.message : String(error),
+      })
     }
   }
+
+  if (routeErrors.every((error) => error instanceof ApiKeyError)) {
+    throw new ApiKeyError(
+      'missing',
+      'Please add a Gemini, DeepSeek, or OpenAI API key to use script breakdown.',
+    )
+  }
+
+  const lastError = routeErrors[routeErrors.length - 1]
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(String(lastError ?? 'No script breakdown route available.'))
 }
 
 function buildUserPrompt(idea: string, locale: string): string {
@@ -167,6 +171,15 @@ function buildUserPrompt(idea: string, locale: string): string {
   ].join('\n\n')
 }
 
+function createInvalidPlannerOutputError(): ApiRequestError {
+  return new ApiRequestError(
+    SCRIPT_BREAKDOWN_ERROR_CODES.invalidPlannerOutput,
+    SCRIPT_BREAKDOWN_HTTP_STATUS.invalidPlannerOutput,
+    'errors.provider.invalidStructuredOutput',
+    'The selected planner model returned malformed JSON. Retry or choose another Agent Key.',
+  )
+}
+
 function parseJsonObject(raw: string): unknown {
   const trimmed = raw.trim()
   try {
@@ -174,11 +187,45 @@ function parseJsonObject(raw: string): unknown {
   } catch {
     const match = trimmed.match(/\{[\s\S]*\}/)
     if (!match) {
-      throw new Error('Script breakdown response did not contain JSON.')
+      throw createInvalidPlannerOutputError()
     }
 
-    return JSON.parse(match[0]) as unknown
+    try {
+      return JSON.parse(match[0]) as unknown
+    } catch {
+      throw createInvalidPlannerOutputError()
+    }
   }
+}
+
+function validateScriptBreakdownOutput(rawOutput: string) {
+  const validation = validateLlmStructuredOutput(
+    parseJsonObject(rawOutput),
+    ScriptBreakdownResultSchema,
+  )
+
+  if (!validation.usable || !validation.data) {
+    throw createInvalidPlannerOutputError()
+  }
+
+  return validation.data
+}
+
+function isScriptBreakdownRetryable(error: unknown): boolean {
+  if (error instanceof ApiRequestError) {
+    return (
+      error.errorCode === SCRIPT_BREAKDOWN_ERROR_CODES.invalidPlannerOutput ||
+      error.httpStatus === SCRIPT_BREAKDOWN_HTTP_STATUS.rateLimited ||
+      error.httpStatus === SCRIPT_BREAKDOWN_HTTP_STATUS.temporarilyUnavailable
+    )
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase()
+    return message.includes('timed out') || message.includes('network')
+  }
+
+  return false
 }
 
 async function withScriptBreakdownTimeout<T>(task: Promise<T>): Promise<T> {
@@ -214,9 +261,9 @@ export async function createScriptBreakdown(
     params.apiKeyId,
   )
 
-  const rawOutput = await withRetry(
-    () =>
-      withScriptBreakdownTimeout(
+  const breakdown = await withRetry(
+    async () => {
+      const rawOutput = await withScriptBreakdownTimeout(
         llmTextCompletion({
           systemPrompt: SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
           userPrompt: buildUserPrompt(params.idea, params.locale),
@@ -227,35 +274,28 @@ export async function createScriptBreakdown(
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,
         }),
-      ),
+      )
+
+      return validateScriptBreakdownOutput(rawOutput)
+    },
     {
       maxAttempts: 2,
       baseDelayMs: 800,
       label: 'script-breakdown.llm',
+      isRetryable: isScriptBreakdownRetryable,
     },
   )
-
-  const validation = validateLlmStructuredOutput(
-    parseJsonObject(rawOutput),
-    ScriptBreakdownResultSchema,
-  )
-
-  if (!validation.usable || !validation.data) {
-    throw new Error(
-      validation.reason ?? 'Script breakdown response failed validation.',
-    )
-  }
 
   logger.info('Script breakdown generated', {
     adapterType: route.adapterType,
     modelId: route.modelId,
-    characterCount: validation.data.characters.length,
-    sceneCount: validation.data.scenes.length,
-    shotCount: validation.data.shots.length,
+    characterCount: breakdown.characters.length,
+    sceneCount: breakdown.scenes.length,
+    shotCount: breakdown.shots.length,
   })
 
   return {
-    breakdown: validation.data,
+    breakdown,
     planner: {
       adapterType: route.adapterType,
       modelId: route.modelId,

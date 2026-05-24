@@ -4,6 +4,7 @@
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
+      "deepseek": "DeepSeek",
       "novelai": "NovelAI",
       "fal": "fal.ai",
       "runway": "Runway",
@@ -1366,6 +1367,10 @@
         "label": "OpenAI",
         "description": "OpenAI Images エンドポイント、または OpenAI 互換プロキシを使います。"
       },
+      "deepseek": {
+        "label": "DeepSeek",
+        "description": "DeepSeek のチャットモデルでテキスト設計、脚本分解、ストーリー構成を行います。"
+      },
       "fal": {
         "label": "fal.ai",
         "description": "fal.ai プラットフォームで Flux 2 などのモデルを使用。"
@@ -2513,6 +2518,12 @@
     },
     "plannerRoute": {
       "triggerLabel": "プランナーモデルを選択",
+      "fieldLabel": "プランナールート",
+      "scopeLabel": "Agent 別キー",
+      "scopeDescription": "このルートの変更は、選択中の Agent ノードにのみ反映されます。",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "ChatGPT",
       "searchPlaceholder": "プランナーモデルを検索...",
       "routeMeta": "{model} · {provider}",
       "configured": "設定済み",
@@ -3043,7 +3054,12 @@
     },
     "provider": {
       "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
+      "insufficientBalance": "選択中の Agent Key はプロバイダー残高が不足しています。チャージするか、別の Agent Key に切り替えてください。",
+      "invalidStructuredOutput": "選択中のプランナーモデルが不完全な応答を返しました。再試行するか、別の Agent Key に切り替えてください。",
+      "invalidApiKey": "選択中の Agent Key は無効、または認証が失効しています。再設定するか、別の Agent Key に切り替えてください。",
+      "rateLimited": "選択中のプランナールートがプロバイダーのレート制限を受けています。少し待つか、別の Agent Key に切り替えてください。",
       "safetyBlocked": "このモデルは安全ポリシーによりリクエストを拒否しました。別のモデルに切り替えて再試行してください（例: GPT から Gemini へ、またはその逆）。",
+      "temporarilyUnavailable": "選択中のプランナーモデルは一時的に利用できないか、混雑しています。少し待つか、別の Agent Key に切り替えてください。",
       "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。",
       "unsupportedOpenAiReferenceImage": "OpenAI は JPEG、PNG、WebP の参照画像を受け付けます。画像形式を変換してから再試行してください。",
       "unsupportedGeminiReferenceImage": "Gemini は PNG、JPEG、WebP、HEIC、HEIF の参照画像を受け付けます。画像形式を変換してから再試行してください。",

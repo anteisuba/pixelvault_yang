@@ -103,6 +103,7 @@ export function ApiKeyForm({ onAdd, onCancel, isSubmitting }: ApiKeyFormProps) {
     setProviderLabel(nextProviderConfig.label)
     setProviderBaseUrl(nextProviderConfig.baseUrl)
     setPresetModelId(nextModels[0]?.id ?? '')
+    setEntryMode(nextModels.length > 0 ? 'preset' : 'custom')
     setKeyValue('')
   }
 

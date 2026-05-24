@@ -4,6 +4,7 @@
     "providerGroups": {
       "openai": "OpenAI",
       "google": "Google",
+      "deepseek": "DeepSeek",
       "novelai": "NovelAI",
       "fal": "fal.ai",
       "runway": "Runway",
@@ -1366,6 +1367,10 @@
         "label": "OpenAI",
         "description": "使用 OpenAI Images 端点，或 OpenAI 兼容代理。"
       },
+      "deepseek": {
+        "label": "DeepSeek",
+        "description": "使用 DeepSeek 对话模型进行文本规划、剧本拆解和故事结构生成。"
+      },
       "fal": {
         "label": "fal.ai",
         "description": "使用 fal.ai 平台，支持 Flux 2 等模型。"
@@ -2513,6 +2518,12 @@
     },
     "plannerRoute": {
       "triggerLabel": "选择规划模型",
+      "fieldLabel": "规划路由",
+      "scopeLabel": "单 Agent Key",
+      "scopeDescription": "更改此路由只会影响当前 Agent 节点。",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "ChatGPT",
       "searchPlaceholder": "搜索规划模型...",
       "routeMeta": "{model} · {provider}",
       "configured": "已配置",
@@ -3043,7 +3054,12 @@
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",
+      "insufficientBalance": "当前 Agent Key 的服务商余额不足。请充值，或为这个 Agent 切换另一个 Key。",
+      "invalidStructuredOutput": "当前规划模型返回了不完整结果。请重试，或为这个 Agent 切换另一个 Key。",
+      "invalidApiKey": "当前 Agent Key 无效或已失去授权。请重新配置，或切换另一个 Agent Key。",
+      "rateLimited": "当前规划路由触发了服务商限流。请稍后重试，或切换另一个 Agent Key。",
       "safetyBlocked": "该模型基于安全策略拒绝处理此内容。换一个模型试试（例如从 GPT 切到 Gemini，或反之）。",
+      "temporarilyUnavailable": "当前规划模型暂时不可用或容量已满。请稍后重试，或切换另一个 Agent Key。",
       "timeout": "AI 提供商超时，请重试。",
       "unsupportedOpenAiReferenceImage": "OpenAI 只接受 JPEG、PNG 或 WebP 参考图。请转换图片格式后再试。",
       "unsupportedGeminiReferenceImage": "Gemini 接受 PNG、JPEG、WebP、HEIC 或 HEIF 参考图。请转换图片格式后再试。",

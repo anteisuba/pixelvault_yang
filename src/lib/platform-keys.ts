@@ -14,6 +14,8 @@ export function getSystemApiKey(adapterType: string): string | null {
       return process.env.GEMINI_API_KEY ?? null
     case AI_ADAPTER_TYPES.OPENAI:
       return process.env.OPENAI_API_KEY ?? null
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return process.env.DEEPSEEK_API_KEY ?? null
     case AI_ADAPTER_TYPES.FAL:
       return process.env.FAL_API_KEY ?? null
     case AI_ADAPTER_TYPES.RUNWAY:

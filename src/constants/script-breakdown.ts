@@ -1,4 +1,5 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 
 export const SCRIPT_BREAKDOWN_LIMITS = {
   ideaMaxLength: 2400,
@@ -12,18 +13,20 @@ export const SCRIPT_BREAKDOWN_LIMITS = {
   maxShots: 48,
   fieldMaxLength: 700,
   llmTimeoutMs: 60_000,
-  maxTokens: 2800,
+  maxTokens: 6000,
 } as const
 
 export const SCRIPT_PLANNER_PROVIDER_IDS = {
   auto: 'auto',
   gemini: 'gemini',
+  deepseek: 'deepseek',
   openai: 'openai',
 } as const
 
 export const SCRIPT_PLANNER_PROVIDERS = [
   SCRIPT_PLANNER_PROVIDER_IDS.auto,
   SCRIPT_PLANNER_PROVIDER_IDS.gemini,
+  SCRIPT_PLANNER_PROVIDER_IDS.deepseek,
   SCRIPT_PLANNER_PROVIDER_IDS.openai,
 ] as const
 
@@ -37,12 +40,17 @@ export const DEFAULT_SCRIPT_PLANNER_PROVIDER = SCRIPT_PLANNER_PROVIDER_IDS.auto
 
 export const SCRIPT_PLANNER_MODELS = {
   gemini: {
-    modelId: 'gemini-2.5-flash-lite',
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_PRO_PREVIEW,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     label: 'Gemini',
   },
+  deepseek: {
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    label: 'DeepSeek',
+  },
   openai: {
-    modelId: 'gpt-4.1-nano',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     label: 'OpenAI',
   },
@@ -52,6 +60,10 @@ export const SCRIPT_PLANNER_MODEL_OPTIONS = [
   {
     provider: SCRIPT_PLANNER_PROVIDER_IDS.gemini,
     ...SCRIPT_PLANNER_MODELS.gemini,
+  },
+  {
+    provider: SCRIPT_PLANNER_PROVIDER_IDS.deepseek,
+    ...SCRIPT_PLANNER_MODELS.deepseek,
   },
   {
     provider: SCRIPT_PLANNER_PROVIDER_IDS.openai,
@@ -74,6 +86,13 @@ export type ScriptBreakdownSummaryField =
 
 export const SCRIPT_BREAKDOWN_ERROR_CODES = {
   missingApiKey: 'MISSING_API_KEY',
+  invalidPlannerOutput: 'SCRIPT_BREAKDOWN_INVALID_OUTPUT',
+} as const
+
+export const SCRIPT_BREAKDOWN_HTTP_STATUS = {
+  invalidPlannerOutput: 502,
+  rateLimited: 429,
+  temporarilyUnavailable: 503,
 } as const
 
 export const SCRIPT_BREAKDOWN_QUICK_SETUP_OPTION_PREFIX = 'node-studio-planner'

@@ -313,6 +313,18 @@ async function verifyAdapterKey(
         })
         break
       }
+      case AI_ADAPTER_TYPES.DEEPSEEK: {
+        const url = `${baseUrl.replace(/\/$/, '')}/models`
+        response = await safeFetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        break
+      }
       case AI_ADAPTER_TYPES.GEMINI: {
         // GET /models — list models to verify key
         const url = `${baseUrl.replace(/\/$/, '')}`

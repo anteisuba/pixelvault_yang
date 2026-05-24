@@ -9,9 +9,11 @@ import {
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODES,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_PROJECTS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_SOURCES,
+  NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUSES,
@@ -150,11 +152,54 @@ export const NodeWorkflowEdgeSchema = z
   })
   .passthrough()
 
-export const NodeWorkflowStateSchema = z.object({
-  version: z.literal(1),
+export const NodeWorkflowStateDataSchema = z.object({
   nodes: z.array(NodeWorkflowNodeSchema),
   edges: z.array(NodeWorkflowEdgeSchema),
 })
+
+export const NodeWorkflowStateSchema = NodeWorkflowStateDataSchema.extend({
+  version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.legacyVersion),
+})
+
+export const NodeWorkflowProjectSchema = z.object({
+  id: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.idMaxLength),
+  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+  createdAt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.timestampMaxLength),
+  updatedAt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.timestampMaxLength),
+  state: NodeWorkflowStateDataSchema,
+})
+
+export const NodeWorkflowStorageSchema = z
+  .object({
+    version: z.literal(NODE_STUDIO_WORKFLOW_STORAGE.version),
+    currentProjectId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NODE_STUDIO_PROJECTS.idMaxLength),
+    projects: z.array(NodeWorkflowProjectSchema).min(1),
+  })
+  .superRefine((storage, context) => {
+    const hasCurrentProject = storage.projects.some(
+      (project) => project.id === storage.currentProjectId,
+    )
+
+    if (!hasCurrentProject) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Current project is missing from storage projects.',
+        path: ['currentProjectId'],
+      })
+    }
+  })
 
 export type NodeWorkflowStatus = z.infer<typeof NodeStatusSchema>
 export type NodeWorkflowGenerationStatus = z.infer<
@@ -198,6 +243,17 @@ export type NodeWorkflowModelProviderConfig = ProviderConfig
 export type NodeWorkflowNodeData = z.infer<typeof NodeWorkflowNodeDataSchema> &
   Record<string, unknown>
 export type NodeWorkflowStateSnapshot = z.infer<typeof NodeWorkflowStateSchema>
-export type NodeWorkflowState = Omit<NodeWorkflowStateSnapshot, 'version'>
+export type NodeWorkflowState = z.infer<typeof NodeWorkflowStateDataSchema>
+export type NodeWorkflowProject = z.infer<typeof NodeWorkflowProjectSchema>
+export type NodeWorkflowStorageSnapshot = z.infer<
+  typeof NodeWorkflowStorageSchema
+>
+export interface NodeWorkflowProjectSummary {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  nodeCount: number
+}
 export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
 export type NodeWorkflowEdge = Edge<Record<string, unknown>>

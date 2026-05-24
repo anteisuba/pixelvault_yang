@@ -1,26 +1,64 @@
 'use client'
 
 import type { MouseEvent } from 'react'
-import { Archive, LayoutTemplate, Plus, Save, Workflow } from 'lucide-react'
+import {
+  Archive,
+  Check,
+  ChevronDown,
+  FolderOpen,
+  FolderPlus,
+  LayoutTemplate,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Workflow,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 interface CanvasTopBarProps {
   nodeCount: number
+  projectName: string
+  projects: NodeWorkflowProjectSummary[]
+  currentProjectId: string
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
+  onCreateProject: () => void
+  onRenameProject: () => void
+  onDeleteProject: () => void
+  onSwitchProject: (id: string) => void
   className?: string
 }
 
 export function CanvasTopBar({
   nodeCount,
+  projectName,
+  projects,
+  currentProjectId,
   onAddClick,
+  onCreateProject,
+  onRenameProject,
+  onDeleteProject,
+  onSwitchProject,
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
+  const otherProjects = projects.filter(
+    (project) => project.id !== currentProjectId,
+  )
 
   const showPlaceholderToast = () => {
     toast.info(t('toasts.notImplemented'), {
@@ -45,9 +83,81 @@ export function CanvasTopBar({
             {t('eyebrow')}
           </p>
           <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate font-display text-sm font-semibold text-node-foreground">
-              {t('projectUntitled')}
-            </p>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t('projectMenu.triggerLabel')}
+                  className="group flex min-w-0 items-center gap-1 rounded-lg text-left font-display text-sm font-semibold text-node-foreground outline-none transition hover:text-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/70"
+                >
+                  <span className="truncate">{projectName}</span>
+                  <ChevronDown className="size-3.5 shrink-0 text-node-muted transition group-data-[state=open]:rotate-180" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-72 border-node-panel-inner bg-node-panel text-node-foreground shadow-node-panel"
+              >
+                <DropdownMenuLabel className="text-2xs uppercase tracking-nav-dense text-node-muted">
+                  {t('projectMenu.current')}
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  disabled
+                  className="flex items-center gap-2 text-node-foreground opacity-100"
+                >
+                  <Check className="size-4 text-node-amber" />
+                  <span className="min-w-0 flex-1 truncate">{projectName}</span>
+                  <span className="shrink-0 text-2xs text-node-muted">
+                    {t('nodeCount', { count: nodeCount })}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onRenameProject}
+                  className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
+                >
+                  <Pencil className="size-4 text-node-muted" />
+                  {t('projectMenu.rename')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onDeleteProject}
+                  className="gap-2 text-destructive focus:bg-node-panel-inner focus:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                  {t('projectMenu.delete')}
+                </DropdownMenuItem>
+                {otherProjects.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator className="bg-node-panel-inner" />
+                    <DropdownMenuLabel className="text-2xs uppercase tracking-nav-dense text-node-muted">
+                      {t('projectMenu.switch')}
+                    </DropdownMenuLabel>
+                    {otherProjects.map((project) => (
+                      <DropdownMenuItem
+                        key={project.id}
+                        onClick={() => onSwitchProject(project.id)}
+                        className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
+                      >
+                        <FolderOpen className="size-4 shrink-0 text-node-muted" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {project.name}
+                        </span>
+                        <span className="shrink-0 text-2xs text-node-muted">
+                          {t('nodeCount', { count: project.nodeCount })}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                <DropdownMenuSeparator className="bg-node-panel-inner" />
+                <DropdownMenuItem
+                  onClick={onCreateProject}
+                  className="gap-2 focus:bg-node-panel-inner focus:text-node-foreground"
+                >
+                  <FolderPlus className="size-4 text-node-amber" />
+                  {t('projectMenu.create')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="hidden items-center gap-1 rounded-lg border border-node-panel-inner bg-node-panel-soft px-2 py-1 text-2xs font-medium text-node-muted sm:inline-flex">
               <Archive className="size-3" />
               {t('nodeCount', { count: nodeCount })}

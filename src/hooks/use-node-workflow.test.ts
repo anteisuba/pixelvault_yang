@@ -14,7 +14,7 @@ import {
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
 } from '@/constants/node-types'
-import { NodeWorkflowStateSchema } from '@/types/node-workflow'
+import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
 import type {
   ScriptBreakdownPlanner,
   ScriptBreakdownResult,
@@ -25,6 +25,7 @@ import { useNodeWorkflow } from './use-node-workflow'
 const FIRST_POSITION = { x: 20, y: 40 }
 const SECOND_POSITION = { x: 220, y: 40 }
 const MOVED_POSITION = { x: 80, y: 120 }
+const DEFAULT_PROJECT_NAME = 'Untitled project'
 
 const FAKE_BREAKDOWN: ScriptBreakdownResult = {
   title: 'Quiet Orbit',
@@ -99,10 +100,26 @@ const FAKE_PLANNER: ScriptBreakdownPlanner = {
   label: 'Gemini',
 }
 
-function readStoredSnapshot() {
+function renderNodeWorkflowHook() {
+  return renderHook(() =>
+    useNodeWorkflow({ defaultProjectName: DEFAULT_PROJECT_NAME }),
+  )
+}
+
+function readStoredStorage() {
   const raw = window.localStorage.getItem(NODE_STUDIO_WORKFLOW_STORAGE.key)
   expect(raw).not.toBeNull()
-  return NodeWorkflowStateSchema.parse(JSON.parse(raw ?? '{}') as unknown)
+  return NodeWorkflowStorageSchema.parse(JSON.parse(raw ?? '{}') as unknown)
+}
+
+function readStoredCurrentState() {
+  const storage = readStoredStorage()
+  const currentProject = storage.projects.find(
+    (project) => project.id === storage.currentProjectId,
+  )
+
+  expect(currentProject).toBeDefined()
+  return currentProject?.state ?? { nodes: [], edges: [] }
 }
 
 beforeEach(() => {
@@ -115,15 +132,21 @@ afterEach(() => {
 })
 
 describe('useNodeWorkflow', () => {
-  it('starts with an empty workflow when localStorage is empty', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+  it('starts with an empty workflow when localStorage is empty', async () => {
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     expect(result.current.nodes).toEqual([])
     expect(result.current.edges).toEqual([])
+    expect(result.current.currentProjectName).toBe(DEFAULT_PROJECT_NAME)
+    expect(result.current.projects).toHaveLength(1)
   })
 
   it('adds a composer node with default data', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let nodeId = ''
     act(() => {
@@ -143,7 +166,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('adds an agent node with default data', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     act(() => {
       result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
@@ -160,7 +183,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('adds a character image node with choice-mode defaults', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     act(() => {
       result.current.addNode(NODE_TYPE_IDS.characterImage, SECOND_POSITION)
@@ -181,7 +204,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('updates node data without replacing unrelated node fields', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let nodeId = ''
     act(() => {
@@ -195,7 +218,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('stores an existing image output on a character image node', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let nodeId = ''
     act(() => {
@@ -228,7 +251,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('deletes a node and removes connected edges', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let sourceId = ''
     let targetId = ''
@@ -249,7 +272,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('moves nodes through React Flow node changes', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let nodeId = ''
     act(() => {
@@ -271,7 +294,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('creates an edge through React Flow connections', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let sourceId = ''
     let targetId = ''
@@ -299,7 +322,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('finds the first outgoing target by node type', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let sourceId = ''
     let agentId = ''
@@ -323,7 +346,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('stores script breakdown data on an agent node', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let agentId = ''
     act(() => {
@@ -344,7 +367,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('spawns character image nodes from an agent breakdown', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let agentId = ''
     let spawnResult: ReturnType<
@@ -397,7 +420,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('does not spawn characters when the agent is missing or has no breakdown', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let agentId = ''
     let missingResult: ReturnType<
@@ -428,7 +451,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('keeps character spawning idempotent', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let agentId = ''
     let secondSpawn: ReturnType<
@@ -457,7 +480,7 @@ describe('useNodeWorkflow', () => {
   })
 
   it('recreates only missing character image nodes', () => {
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     let agentId = ''
     let deletedCharacterId = ''
@@ -487,11 +510,179 @@ describe('useNodeWorkflow', () => {
     ).toEqual(['char-2', 'char-1'])
   })
 
-  it('hydrates nodes, edges, and prompt data from a valid snapshot', async () => {
+  it('creates a new project and keeps workflow state isolated', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let firstProjectId = ''
+    let secondProjectId = ''
+    let firstNodeId = ''
+    let secondNodeId = ''
+    act(() => {
+      firstProjectId = result.current.currentProjectId
+      firstNodeId = result.current.addNode(
+        NODE_TYPE_IDS.composer,
+        FIRST_POSITION,
+      )
+      secondProjectId = result.current.createProject('Storyboard pass')
+    })
+
+    expect(result.current.currentProjectId).toBe(secondProjectId)
+    expect(result.current.currentProjectName).toBe('Storyboard pass')
+    expect(result.current.nodes).toEqual([])
+
+    act(() => {
+      secondNodeId = result.current.addNode(
+        NODE_TYPE_IDS.agent,
+        SECOND_POSITION,
+      )
+      result.current.switchProject(firstProjectId)
+    })
+
+    expect(result.current.nodes.map((node) => node.id)).toEqual([firstNodeId])
+
+    act(() => {
+      result.current.switchProject(secondProjectId)
+    })
+
+    expect(result.current.nodes.map((node) => node.id)).toEqual([secondNodeId])
+  })
+
+  it('renames the current project', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    act(() => {
+      result.current.renameCurrentProject('Renamed workflow')
+    })
+
+    expect(result.current.currentProjectName).toBe('Renamed workflow')
+    expect(result.current.projects[0]?.name).toBe('Renamed workflow')
+  })
+
+  it('deletes the current project and switches to another project', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let firstProjectId = ''
+    let secondProjectId = ''
+    let deletedProjectName = ''
+    act(() => {
+      firstProjectId = result.current.currentProjectId
+      secondProjectId = result.current.createProject('Second workflow')
+      deletedProjectName =
+        result.current.deleteProject(secondProjectId)?.name ?? ''
+    })
+
+    expect(deletedProjectName).toBe('Second workflow')
+    expect(result.current.currentProjectId).toBe(firstProjectId)
+    expect(result.current.projects).toHaveLength(1)
+  })
+
+  it('creates a blank default project when deleting the last project', () => {
+    const { result } = renderNodeWorkflowHook()
+
+    let deletedNodeCount = 0
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      deletedNodeCount =
+        result.current.deleteProject(result.current.currentProjectId)
+          ?.nodeCount ?? 0
+    })
+
+    expect(deletedNodeCount).toBe(1)
+    expect(result.current.projects).toHaveLength(1)
+    expect(result.current.currentProjectName).toBe(DEFAULT_PROJECT_NAME)
+    expect(result.current.nodes).toEqual([])
+  })
+
+  it('persists multiple projects and the selected current project', async () => {
+    vi.useFakeTimers()
+    const { result } = renderNodeWorkflowHook()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let firstProjectId = ''
+    let secondProjectId = ''
+    act(() => {
+      firstProjectId = result.current.currentProjectId
+      result.current.addNode(NODE_TYPE_IDS.composer, FIRST_POSITION)
+      secondProjectId = result.current.createProject('Second workflow')
+      result.current.addNode(NODE_TYPE_IDS.agent, SECOND_POSITION)
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(NODE_STUDIO_WORKFLOW_STORAGE.debounceMs)
+    })
+
+    const storage = readStoredStorage()
+    const firstProject = storage.projects.find(
+      (project) => project.id === firstProjectId,
+    )
+    const secondProject = storage.projects.find(
+      (project) => project.id === secondProjectId,
+    )
+
+    expect(storage.currentProjectId).toBe(secondProjectId)
+    expect(storage.projects).toHaveLength(2)
+    expect(firstProject?.state.nodes).toHaveLength(1)
+    expect(secondProject?.state.nodes).toHaveLength(1)
+  })
+
+  it('hydrates from a valid multi-project snapshot', async () => {
     window.localStorage.setItem(
       NODE_STUDIO_WORKFLOW_STORAGE.key,
       JSON.stringify({
         version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        currentProjectId: 'project-b',
+        projects: [
+          {
+            id: 'project-a',
+            name: DEFAULT_PROJECT_NAME,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            state: {
+              nodes: [],
+              edges: [],
+            },
+          },
+          {
+            id: 'project-b',
+            name: 'Hydrated workflow',
+            createdAt: '2026-01-02T00:00:00.000Z',
+            updatedAt: '2026-01-02T00:00:00.000Z',
+            state: {
+              nodes: [
+                {
+                  id: 'node-hydrated',
+                  type: NODE_TYPE_IDS.composer,
+                  position: FIRST_POSITION,
+                  data: {
+                    prompt: 'Hydrated prompt',
+                    status: NODE_STATUS_IDS.idle,
+                  },
+                },
+              ],
+              edges: [],
+            },
+          },
+        ],
+      }),
+    )
+
+    const { result } = renderNodeWorkflowHook()
+
+    await waitFor(() => {
+      expect(result.current.currentProjectName).toBe('Hydrated workflow')
+    })
+    expect(result.current.nodes[0]?.data.prompt).toBe('Hydrated prompt')
+    expect(result.current.projects).toHaveLength(2)
+  })
+
+  it('hydrates nodes, edges, and prompt data from a valid snapshot', async () => {
+    window.localStorage.setItem(
+      NODE_STUDIO_WORKFLOW_STORAGE.key,
+      JSON.stringify({
+        version: NODE_STUDIO_WORKFLOW_STORAGE.legacyVersion,
         nodes: [
           {
             id: 'node-existing',
@@ -507,7 +698,7 @@ describe('useNodeWorkflow', () => {
       }),
     )
 
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     expect(result.current.nodes).toEqual([])
 
@@ -515,12 +706,13 @@ describe('useNodeWorkflow', () => {
       expect(result.current.nodes).toHaveLength(1)
     })
     expect(result.current.nodes[0]?.data.prompt).toBe('Stored prompt')
+    expect(result.current.currentProjectName).toBe(DEFAULT_PROJECT_NAME)
   })
 
   it('falls back to an empty workflow when localStorage is invalid JSON', async () => {
     window.localStorage.setItem(NODE_STUDIO_WORKFLOW_STORAGE.key, 'not-json')
 
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     await waitFor(() => {
       expect(result.current.nodes).toEqual([])
@@ -532,7 +724,7 @@ describe('useNodeWorkflow', () => {
     window.localStorage.setItem(
       NODE_STUDIO_WORKFLOW_STORAGE.key,
       JSON.stringify({
-        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+        version: NODE_STUDIO_WORKFLOW_STORAGE.legacyVersion,
         nodes: [
           {
             id: 'node-invalid',
@@ -547,7 +739,7 @@ describe('useNodeWorkflow', () => {
       }),
     )
 
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     await waitFor(() => {
       expect(result.current.nodes).toEqual([])
@@ -556,7 +748,7 @@ describe('useNodeWorkflow', () => {
 
   it('debounces localStorage persistence', async () => {
     vi.useFakeTimers()
-    const { result } = renderHook(() => useNodeWorkflow())
+    const { result } = renderNodeWorkflowHook()
 
     await act(async () => {
       await Promise.resolve()
@@ -577,7 +769,9 @@ describe('useNodeWorkflow', () => {
       vi.advanceTimersByTime(1)
     })
 
-    const snapshot = readStoredSnapshot()
+    const storage = readStoredStorage()
+    const snapshot = readStoredCurrentState()
+    expect(storage.version).toBe(NODE_STUDIO_WORKFLOW_STORAGE.version)
     expect(snapshot.nodes).toHaveLength(1)
     expect(snapshot.nodes[0]?.position).toEqual(FIRST_POSITION)
   })

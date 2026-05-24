@@ -2484,6 +2484,7 @@
   "StudioNode": {
     "eyebrow": "Node workflow",
     "projectUntitled": "Untitled project",
+    "projectNewDefaultName": "Untitled project {n}",
     "nodeCount": "{count, plural, one {# node} other {# nodes}}",
     "addMenuTitle": "Add node",
     "nodeTypes": {
@@ -2665,7 +2666,18 @@
     "topbar": {
       "addNode": "Add node",
       "arrange": "Arrange canvas",
-      "save": "Save"
+      "save": "Save",
+      "createProjectPrompt": "Project name",
+      "renameProjectPrompt": "Rename project",
+      "deleteProjectConfirm": "Delete \"{name}\"? This removes its local Node Studio canvas."
+    },
+    "projectMenu": {
+      "triggerLabel": "Open project menu",
+      "current": "Current project",
+      "switch": "Switch project",
+      "create": "New project",
+      "rename": "Rename",
+      "delete": "Delete current project"
     },
     "bottomDock": {
       "pointer": "Pointer",
@@ -2688,7 +2700,10 @@
       "characterGenerated": "Character image generated.",
       "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
       "charactersAlreadySpawned": "All characters already have image nodes.",
-      "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images."
+      "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images.",
+      "projectCreated": "Project \"{name}\" created.",
+      "projectRenamed": "Project renamed to \"{name}\".",
+      "projectDeleted": "Project \"{name}\" deleted."
     }
   },
   "StudioV2": {

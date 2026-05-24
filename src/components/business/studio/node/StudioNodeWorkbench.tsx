@@ -120,7 +120,9 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const t = useTranslations('StudioNode')
   const tErrors = useTranslations('Errors')
   const locale = useLocale()
-  const workflow = useNodeWorkflow()
+  const workflow = useNodeWorkflow({
+    defaultProjectName: t('projectUntitled'),
+  })
   const scriptBreakdown = useScriptBreakdown()
   const characterImageGeneration = useCharacterImageGeneration()
   const modelOptionsByType = useWorkflowModelOptions()
@@ -220,6 +222,70 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       })
     },
     [t],
+  )
+
+  const handleCreateProject = useCallback(() => {
+    const projectName = window
+      .prompt(
+        t('topbar.createProjectPrompt'),
+        t('projectNewDefaultName', { n: workflow.projects.length + 1 }),
+      )
+      ?.trim()
+
+    if (!projectName) {
+      return
+    }
+
+    workflow.createProject(projectName)
+    toast.success(t('toasts.projectCreated', { name: projectName }), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [t, workflow])
+
+  const handleRenameProject = useCallback(() => {
+    const projectName = window
+      .prompt(t('topbar.renameProjectPrompt'), workflow.currentProjectName)
+      ?.trim()
+
+    if (!projectName || projectName === workflow.currentProjectName) {
+      return
+    }
+
+    workflow.renameCurrentProject(projectName)
+    toast.success(t('toasts.projectRenamed', { name: projectName }), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [t, workflow])
+
+  const handleDeleteProject = useCallback(() => {
+    const shouldDelete = window.confirm(
+      t('topbar.deleteProjectConfirm', {
+        name: workflow.currentProjectName,
+      }),
+    )
+
+    if (!shouldDelete) {
+      return
+    }
+
+    const deletedProject = workflow.deleteProject(workflow.currentProjectId)
+    if (!deletedProject) {
+      return
+    }
+
+    toast.success(t('toasts.projectDeleted', { name: deletedProject.name }), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [t, workflow])
+
+  const handleSwitchProject = useCallback(
+    (projectId: string) => {
+      workflow.switchProject(projectId)
+    },
+    [workflow],
   )
 
   const handleSendFromComposer = useCallback(
@@ -484,7 +550,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       <div className="pointer-events-none absolute inset-0 z-10">
         <CanvasTopBar
           nodeCount={workflow.nodes.length}
+          projectName={workflow.currentProjectName}
+          projects={workflow.projects}
+          currentProjectId={workflow.currentProjectId}
           onAddClick={handleTopbarAddClick}
+          onCreateProject={handleCreateProject}
+          onRenameProject={handleRenameProject}
+          onDeleteProject={handleDeleteProject}
+          onSwitchProject={handleSwitchProject}
         />
         <CanvasAssistantToggle />
         <CanvasBottomDock />

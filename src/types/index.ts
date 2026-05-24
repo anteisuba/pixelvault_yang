@@ -63,11 +63,14 @@ export type {
   NodeWorkflowModelSelection,
   NodeWorkflowNode,
   NodeWorkflowNodeData,
+  NodeWorkflowProject,
+  NodeWorkflowProjectSummary,
   NodeWorkflowReferenceAsset,
   NodeWorkflowReferenceRole,
   NodeWorkflowReferenceSource,
   NodeWorkflowState,
   NodeWorkflowStateSnapshot,
+  NodeWorkflowStorageSnapshot,
   NodeWorkflowStatus,
 } from '@/types/node-workflow'
 export {

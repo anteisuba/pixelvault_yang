@@ -33,7 +33,15 @@ export type NodeStudioToolMode = (typeof NODE_STUDIO_TOOL_MODES)[number]
 export const NODE_STUDIO_WORKFLOW_STORAGE = {
   key: 'pixelvault.nodeStudio.v3',
   debounceMs: 400,
-  version: 1,
+  version: 2,
+  legacyVersion: 1,
+} as const
+
+export const NODE_STUDIO_PROJECTS = {
+  idMaxLength: 160,
+  nameMaxLength: 80,
+  timestampMaxLength: 80,
+  fallbackName: 'Node Studio Project',
 } as const
 
 export const NODE_STUDIO_REFERENCE_ROLES = [
@@ -120,6 +128,7 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
 export const NODE_STUDIO_ID_PREFIXES = {
   node: 'node',
   edge: 'edge',
+  project: 'project',
 } as const
 
 export const NODE_STUDIO_EDGE_VISUALS = {

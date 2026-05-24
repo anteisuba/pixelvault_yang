@@ -2484,6 +2484,7 @@
   "StudioNode": {
     "eyebrow": "节点工作流",
     "projectUntitled": "未命名项目",
+    "projectNewDefaultName": "未命名项目 {n}",
     "nodeCount": "{count} 个节点",
     "addMenuTitle": "添加节点",
     "nodeTypes": {
@@ -2665,7 +2666,18 @@
     "topbar": {
       "addNode": "添加节点",
       "arrange": "整理画布",
-      "save": "保存"
+      "save": "保存",
+      "createProjectPrompt": "项目名称",
+      "renameProjectPrompt": "重命名项目",
+      "deleteProjectConfirm": "确定删除「{name}」吗？这个项目的本地节点画布会被移除。"
+    },
+    "projectMenu": {
+      "triggerLabel": "打开项目菜单",
+      "current": "当前项目",
+      "switch": "切换项目",
+      "create": "新建项目",
+      "rename": "重命名",
+      "delete": "删除当前项目"
     },
     "bottomDock": {
       "pointer": "选择",
@@ -2688,7 +2700,10 @@
       "characterGenerated": "角色图已生成。",
       "charactersSpawned": "已派生 {count} 个角色图节点。",
       "charactersAlreadySpawned": "所有角色都已派生过节点。",
-      "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。"
+      "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。",
+      "projectCreated": "项目「{name}」已创建。",
+      "projectRenamed": "项目已重命名为「{name}」。",
+      "projectDeleted": "项目「{name}」已删除。"
     }
   },
   "StudioV2": {

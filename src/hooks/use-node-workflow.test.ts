@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
@@ -157,6 +159,27 @@ describe('useNodeWorkflow', () => {
     })
   })
 
+  it('adds a character image node with choice-mode defaults', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    act(() => {
+      result.current.addNode(NODE_TYPE_IDS.characterImage, SECOND_POSITION)
+    })
+
+    expect(result.current.nodes[0]).toMatchObject({
+      type: NODE_TYPE_IDS.characterImage,
+      position: SECOND_POSITION,
+      data: {
+        prompt: '',
+        status: NODE_STATUS_IDS.idle,
+        generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
+        referenceAssets: [],
+        loras: [],
+      },
+    })
+  })
+
   it('updates node data without replacing unrelated node fields', () => {
     const { result } = renderHook(() => useNodeWorkflow())
 
@@ -169,6 +192,39 @@ describe('useNodeWorkflow', () => {
     expect(result.current.nodes[0]?.position).toEqual(FIRST_POSITION)
     expect(result.current.nodes[0]?.data.prompt).toBe('A quiet studio')
     expect(result.current.nodes[0]?.data.status).toBe(NODE_STATUS_IDS.idle)
+  })
+
+  it('stores an existing image output on a character image node', () => {
+    const { result } = renderHook(() => useNodeWorkflow())
+
+    let nodeId = ''
+    act(() => {
+      nodeId = result.current.addNode(
+        NODE_TYPE_IDS.characterImage,
+        FIRST_POSITION,
+      )
+      result.current.updateNodeData(nodeId, {
+        generationId: 'generation-existing',
+        generationStatus: NODE_GENERATION_STATUS_IDS.success,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        imageUrl: 'https://cdn.example.com/existing.png',
+        sourceGenerationId: 'generation-existing',
+        sourceLabel: 'Existing portrait',
+        status: NODE_STATUS_IDS.done,
+      })
+    })
+
+    expect(result.current.nodes[0]?.data).toMatchObject({
+      generationId: 'generation-existing',
+      generationStatus: NODE_GENERATION_STATUS_IDS.success,
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+      imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+      imageUrl: 'https://cdn.example.com/existing.png',
+      sourceGenerationId: 'generation-existing',
+      sourceLabel: 'Existing portrait',
+      status: NODE_STATUS_IDS.done,
+    })
   })
 
   it('deletes a node and removes connected edges', () => {

@@ -24,7 +24,9 @@ import { toast } from 'sonner'
 
 import {
   NODE_STUDIO_CANVAS,
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_EDGE_VISUALS,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
@@ -342,6 +344,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.updateNodeData(nodeId, {
         generationError: undefined,
         generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
         status: NODE_STATUS_IDS.running,
       })
 
@@ -384,7 +388,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           generationError: undefined,
           generationId: result.generation.id,
           generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
           imageUrl: result.imageUrl,
+          sourceGenerationId: undefined,
+          sourceLabel: undefined,
           status: NODE_STATUS_IDS.done,
         })
         toast.success(t('toasts.characterGenerated'), {
@@ -403,6 +411,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.updateNodeData(nodeId, {
         generationError: failureMessage,
         generationStatus: NODE_GENERATION_STATUS_IDS.error,
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
         status: NODE_STATUS_IDS.failed,
       })
       toast.error(t('characterImage.failedTitle'), {

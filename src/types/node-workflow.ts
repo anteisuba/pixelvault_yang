@@ -7,7 +7,9 @@ import {
 } from '@/constants/providers'
 import {
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
+  NODE_STUDIO_CHARACTER_IMAGE_MODES,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_SOURCES,
 } from '@/constants/node-studio'
@@ -56,6 +58,14 @@ export const NodeWorkflowReferenceSourceSchema = z.enum(
   NODE_STUDIO_REFERENCE_SOURCES,
 )
 
+export const NodeWorkflowImageOutputSourceSchema = z.enum(
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
+)
+
+export const NodeWorkflowCharacterImageModeSchema = z.enum(
+  NODE_STUDIO_CHARACTER_IMAGE_MODES,
+)
+
 export const NodeWorkflowReferenceAssetSchema = z.object({
   id: z.string().trim().min(1).max(160),
   url: z.string().trim().min(1).max(4000),
@@ -99,10 +109,14 @@ export const NodeWorkflowNodeDataSchema = z
     plannerModelId: z.string().optional(),
     planner: ScriptBreakdownPlannerSchema.optional(),
     model: NodeWorkflowModelSelectionSchema.optional(),
+    imageMode: NodeWorkflowCharacterImageModeSchema.optional(),
+    imageSource: NodeWorkflowImageOutputSourceSchema.optional(),
     imageUrl: z.string().trim().min(1).optional(),
     generationStatus: NodeWorkflowGenerationStatusSchema.optional(),
     generationError: z.string().optional(),
     generationId: z.string().trim().min(1).optional(),
+    sourceGenerationId: z.string().trim().min(1).max(160).optional(),
+    sourceLabel: z.string().trim().min(1).max(160).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
     referenceAssets: z.array(NodeWorkflowReferenceAssetSchema).optional(),
     loras: z.array(NodeWorkflowLoraSelectionSchema).optional(),
@@ -148,6 +162,9 @@ export type NodeWorkflowGenerationStatus = z.infer<
 export type NodeWorkflowModelSelection = z.infer<
   typeof NodeWorkflowModelSelectionSchema
 >
+export type NodeWorkflowCharacterImageMode = z.infer<
+  typeof NodeWorkflowCharacterImageModeSchema
+>
 export type NodeWorkflowCharacterReference = z.infer<
   typeof NodeWorkflowCharacterReferenceSchema
 >
@@ -156,6 +173,9 @@ export type NodeWorkflowReferenceRole = z.infer<
 >
 export type NodeWorkflowReferenceSource = z.infer<
   typeof NodeWorkflowReferenceSourceSchema
+>
+export type NodeWorkflowImageOutputSource = z.infer<
+  typeof NodeWorkflowImageOutputSourceSchema
 >
 export type NodeWorkflowReferenceAsset = z.infer<
   typeof NodeWorkflowReferenceAssetSchema

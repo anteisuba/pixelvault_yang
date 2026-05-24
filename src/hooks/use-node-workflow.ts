@@ -13,6 +13,7 @@ import {
 
 import {
   NODE_STUDIO_EDGE_VISUALS,
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_ID_PREFIXES,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_WORKFLOW_STORAGE,
@@ -97,6 +98,7 @@ function createDefaultNodeData(
       prompt: '',
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
       referenceAssets: [],
       loras: [],
     }
@@ -344,6 +346,7 @@ export function useNodeWorkflow(): UseNodeWorkflowValue {
             prompt: character.visualSeed,
             status: NODE_STATUS_IDS.idle,
             generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+            imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
             referenceAssets: [],
             loras: [],
             character: {

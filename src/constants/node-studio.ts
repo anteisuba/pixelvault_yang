@@ -46,6 +46,28 @@ export const NODE_STUDIO_REFERENCE_ROLES = [
 
 export const NODE_STUDIO_REFERENCE_SOURCES = ['upload', 'asset'] as const
 
+export const NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS = {
+  generated: 'generated',
+  existing: 'existing',
+} as const
+
+export const NODE_STUDIO_IMAGE_OUTPUT_SOURCES = [
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+] as const
+
+export const NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS = {
+  choice: 'choice',
+  ai: 'ai',
+  existing: 'existing',
+} as const
+
+export const NODE_STUDIO_CHARACTER_IMAGE_MODES = [
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+] as const
+
 export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
   maxItems: 3,
   defaultRole: 'identity',
@@ -54,6 +76,10 @@ export const NODE_STUDIO_CHARACTER_IMAGE_REFERENCES = {
   maxWeight: 1,
   weightStep: 0.05,
   uploadNote: 'Node Studio character reference',
+} as const
+
+export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
+  maxSourceLabelLength: 160,
 } as const
 
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {

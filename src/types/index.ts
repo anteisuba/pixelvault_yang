@@ -53,7 +53,9 @@ export type { ModelOption } from '@/constants/models'
 export type {
   NodeWorkflowEdge,
   NodeWorkflowCharacterReference,
+  NodeWorkflowCharacterImageMode,
   NodeWorkflowGenerationStatus,
+  NodeWorkflowImageOutputSource,
   NodeWorkflowLoraSelection,
   NodeWorkflowModelOption,
   NodeWorkflowModelOptionsByType,

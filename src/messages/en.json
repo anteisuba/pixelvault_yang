@@ -2510,6 +2510,11 @@
       "noTargetTip": "Connect this Composer to an Agent node first.",
       "emptyPromptTip": "Write an idea before sending."
     },
+    "plannerRoute": {
+      "triggerLabel": "Select planner model",
+      "searchPlaceholder": "Search planner models...",
+      "routeMeta": "{model} · {provider}"
+    },
     "agent": {
       "emptyTitle": "Waiting for Composer",
       "emptyDescription": "Connect a Composer node, then send an idea to create a production breakdown.",

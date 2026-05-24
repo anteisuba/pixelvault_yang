@@ -7,17 +7,25 @@ import { toast } from 'sonner'
 
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { Button } from '@/components/ui/button'
-import { StudioApiRoutesSection } from '@/components/business/studio/StudioApiRoutesSection'
 import { cn } from '@/lib/utils'
+
+import {
+  CanvasPlannerRouteSelector,
+  type NodePlannerRouteSelection,
+} from './CanvasPlannerRouteSelector'
 
 interface CanvasTopBarProps {
   nodeCount: number
+  plannerRoute: NodePlannerRouteSelection | null
+  onPlannerRouteChange: (value: NodePlannerRouteSelection) => void
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   className?: string
 }
 
 export function CanvasTopBar({
   nodeCount,
+  plannerRoute,
+  onPlannerRouteChange,
   onAddClick,
   className,
 }: CanvasTopBarProps) {
@@ -58,9 +66,9 @@ export function CanvasTopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <StudioApiRoutesSection
-          compact
-          className="hidden h-9 rounded-2xl border-node-panel-inner bg-node-panel-soft text-node-muted hover:bg-node-panel-inner hover:text-node-foreground lg:inline-flex"
+        <CanvasPlannerRouteSelector
+          value={plannerRoute}
+          onChange={onPlannerRouteChange}
         />
         <Button
           type="button"

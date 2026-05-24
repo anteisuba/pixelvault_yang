@@ -50,6 +50,7 @@ import { CanvasAssistantToggle } from './CanvasAssistantToggle'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
+import type { NodePlannerRouteSelection } from './CanvasPlannerRouteSelector'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { AgentNode } from './nodes/AgentNode'
 import { ComposerNode } from './nodes/ComposerNode'
@@ -108,6 +109,8 @@ function StudioNodeCanvas() {
     NodeWorkflowEdge
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
+  const [plannerRoute, setPlannerRoute] =
+    useState<NodePlannerRouteSelection | null>(null)
   const [quickSetupOpen, setQuickSetupOpen] = useState(false)
 
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
@@ -217,7 +220,9 @@ function StudioNodeCanvas() {
 
       const result = await scriptBreakdown.generate({
         idea,
-        plannerProvider: DEFAULT_SCRIPT_PLANNER_PROVIDER,
+        plannerProvider:
+          plannerRoute?.plannerProvider ?? DEFAULT_SCRIPT_PLANNER_PROVIDER,
+        ...(plannerRoute?.apiKeyId ? { apiKeyId: plannerRoute.apiKeyId } : {}),
         locale: appLocale,
       })
 
@@ -255,7 +260,7 @@ function StudioNodeCanvas() {
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, scriptBreakdown, t, workflow],
+    [appLocale, plannerRoute, scriptBreakdown, t, workflow],
   )
 
   const workflowActions = useMemo(
@@ -312,6 +317,8 @@ function StudioNodeCanvas() {
       <div className="pointer-events-none absolute inset-0 z-10">
         <CanvasTopBar
           nodeCount={workflow.nodes.length}
+          plannerRoute={plannerRoute}
+          onPlannerRouteChange={setPlannerRoute}
           onAddClick={handleTopbarAddClick}
         />
         <CanvasAssistantToggle />

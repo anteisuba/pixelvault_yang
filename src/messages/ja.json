@@ -2510,6 +2510,11 @@
       "noTargetTip": "先にこの Composer を Agent ノードへ接続してください。",
       "emptyPromptTip": "送信前にアイデアを入力してください。"
     },
+    "plannerRoute": {
+      "triggerLabel": "プランナーモデルを選択",
+      "searchPlaceholder": "プランナーモデルを検索...",
+      "routeMeta": "{model} · {provider}"
+    },
     "agent": {
       "emptyTitle": "Composer 入力待ち",
       "emptyDescription": "Composer ノードを接続してアイデアを送信すると、制作分解が生成されます。",

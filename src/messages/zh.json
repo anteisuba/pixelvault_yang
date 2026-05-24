@@ -2510,6 +2510,11 @@
       "noTargetTip": "请先把这个 Composer 连接到一个 Agent 节点。",
       "emptyPromptTip": "发送前请先写下想法。"
     },
+    "plannerRoute": {
+      "triggerLabel": "选择规划模型",
+      "searchPlaceholder": "搜索规划模型...",
+      "routeMeta": "{model} · {provider}"
+    },
     "agent": {
       "emptyTitle": "等待 Composer 输入",
       "emptyDescription": "连接 Composer 节点并发送想法后，这里会生成创作拆解。",

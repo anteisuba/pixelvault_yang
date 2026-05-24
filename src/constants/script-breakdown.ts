@@ -48,6 +48,17 @@ export const SCRIPT_PLANNER_MODELS = {
   },
 } as const
 
+export const SCRIPT_PLANNER_MODEL_OPTIONS = [
+  {
+    provider: SCRIPT_PLANNER_PROVIDER_IDS.gemini,
+    ...SCRIPT_PLANNER_MODELS.gemini,
+  },
+  {
+    provider: SCRIPT_PLANNER_PROVIDER_IDS.openai,
+    ...SCRIPT_PLANNER_MODELS.openai,
+  },
+] as const
+
 export const SCRIPT_BREAKDOWN_COPY_RISKS = ['low', 'medium', 'high'] as const
 
 export const SCRIPT_BREAKDOWN_SUMMARY_FIELDS = [

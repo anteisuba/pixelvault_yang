@@ -22,6 +22,9 @@
   --color-node-muted: var(--node-muted);
   --color-node-subtle: var(--node-subtle);
   --color-node-amber: var(--node-amber);
+  --color-node-danger: var(--node-danger);
+  --color-node-success: var(--node-success);
+  --color-node-lipsync: var(--node-lipsync);
   --shadow-node-panel: 0 20px 60px var(--node-shadow);
   --font-sans: var(--font-app-sans);
   --font-display: var(--font-app-display);
@@ -237,6 +240,9 @@
   --node-muted: #a6a098;
   --node-subtle: #6f6a63;
   --node-amber: #f59e0b;
+  --node-danger: #ca8a04;
+  --node-success: #10b981;
+  --node-lipsync: #8b5cf6;
   --node-shadow: rgb(0 0 0 / 0.5);
 }
 

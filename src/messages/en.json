@@ -10,7 +10,8 @@
       "runway": "Runway",
       "volcengine": "VolcEngine",
       "opensource": "Open Source",
-      "replicate": "Replicate"
+      "replicate": "Replicate",
+      "hyper3d": "Hyper3D"
     },
     "styleGroups": {
       "photorealistic": "Photorealistic",
@@ -388,15 +389,16 @@
       "shimmerDesc": "Soft, soothing female voice"
     },
     "voicePublic": "Public Voices",
+    "voiceMarket": "Voices",
     "voiceMy": "My Voices",
     "voiceFavorites": "Favorite Voices",
     "voiceCloned": "Cloned Voices",
     "voiceSearch": "Search voices...",
-    "voiceLibraryTitle": "Fish voice library",
-    "voiceLibraryDescription": "Search public voices, filter by language, audition samples, save favorites, or pick one of your cloned voices.",
-    "voiceLibraryClose": "Close voice library",
+    "voiceLibraryTitle": "Voices",
+    "voiceLibraryDescription": "Search Fish Audio public voices, filter by language, audition samples, save favorites, or pick one of your cloned voices.",
+    "voiceLibraryClose": "Close voices",
     "voiceMyEmpty": "No custom voices yet. Clone one to get started!",
-    "voiceFavoritesEmpty": "No favorite voices yet. Star voices in the public library to save them here.",
+    "voiceFavoritesEmpty": "No favorite voices yet. Star voices from Voices to save them here.",
     "voiceClonedEmpty": "No cloned voices yet. Upload audio to create one.",
     "voiceNoResults": "No voices found",
     "voiceSelected": "Selected",
@@ -412,6 +414,8 @@
     "voiceDeleteFailed": "Could not delete voice. Please try again.",
     "voiceApiKeyRequired": "Add your own Fish Audio API key before using cloned voices, transcription, or generation.",
     "voiceLanguageFilter": "Filter voices by language",
+    "voiceSourceFilter": "Filter voices by source",
+    "voiceSourceAll": "All sources",
     "voiceLanguageAll": "All",
     "voiceLanguageChinese": "Chinese",
     "voiceLanguageEnglish": "English",
@@ -740,7 +744,29 @@
     "stepGeometry": "Geometry",
     "stepTexture": "Texture",
     "stepComplete": "Done",
-    "stepperTotalElapsed": "Total {seconds}s"
+    "stepperTotalElapsed": "Total {seconds}s",
+    "rodinTierLabel": "Quality Tier",
+    "rodinTierHint": "Higher tiers produce denser geometry and finer detail at the cost of longer generation time.",
+    "rodinMeshModeLabel": "Mesh Surface",
+    "rodinMeshModeHint": "Smooth for organic shapes; Hard Surface for manufactured objects with sharp edges.",
+    "rodinTextureModeLabel": "Texture Mode",
+    "rodinMaterialLabel": "Material",
+    "rodinHighPackLabel": "HighPack (+1.0 cr)",
+    "rodinHighPackHint": "Doubles polygon count for extreme detail. Adds 1 credit on top of tier cost.",
+    "rodinTAPoseLabel": "T/A-Pose",
+    "rodinTAPoseHint": "Optimize mesh topology for humanoid characters in T or A pose.",
+    "rodinHdTextureLabel": "HD Texture",
+    "rodinHdTextureHint": "Generate higher-resolution texture maps.",
+    "rodinTextureDelightLabel": "Texture Delight",
+    "rodinTextureDelightHint": "Remove baked environmental lighting from the texture for cleaner PBR workflow.",
+    "rodinQualityOverrideLabel": "Polygon Count Override",
+    "rodinQualityOverrideHint": "Set a specific polygon target. Leave empty to use the tier default.",
+    "rodinAdditionalImagesLabel": "Additional Reference Images",
+    "rodinAdditionalImagesHint": "Up to 4 additional views (combined with the source image = 5 total). More views reduce geometric ambiguity.",
+    "rodinApiKeyMissingTitle": "Hyper3D API key not configured",
+    "rodinApiKeyMissingDescription": "Rodin Gen-2.5 requires a Hyper3D API key with a Business subscription. Add your key in Settings.",
+    "rodinEstimatedCost": "Est. {credits} cr",
+    "rodinEstimatedTime": "~{minutes} min"
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",
@@ -1394,6 +1420,10 @@
       "fish_audio": {
         "label": "Fish Audio",
         "description": "Use Fish Audio for high-quality text-to-speech with 30+ language voice cloning."
+      },
+      "hyper3d_rodin": {
+        "label": "Hyper3D Rodin",
+        "description": "Use the official Hyper3D Rodin Gen-2.5 API for high-quality image-to-3D generation with up to 5 reference images."
       }
     },
     "summary": {
@@ -2111,6 +2141,10 @@
     "triposr": {
       "label": "TripoSR",
       "description": "Sub-second geometry reconstruction, untextured preview"
+    },
+    "rodinGen25": {
+      "label": "Rodin Gen-2.5",
+      "description": "Hyper3D official API — up to 5 reference images, GLB output, 5 quality tiers. Requires BYOK (Business subscription)."
     }
   },
   "PromptPresets": {
@@ -2495,8 +2529,8 @@
       "characterImage": "Character Image",
       "backgroundImage": "Background Image",
       "frameImage": "Frame Image",
-      "voice": "Voice",
-      "seedance": "Seedance"
+      "voice": "Voice Profile",
+      "seedance": "Video Generation"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
@@ -2506,8 +2540,8 @@
       "characterImage": "Generate a portrait or design pass from a character prompt.",
       "backgroundImage": "Generate a scene background and atmosphere plate.",
       "frameImage": "Generate a keyframe image before video creation.",
-      "voice": "Generate voice audio from dialogue or narration.",
-      "seedance": "Generate a video clip from a keyframe or shot prompt."
+      "voice": "Select or upload a voice profile for video character voices.",
+      "seedance": "Aggregate upstream images, keyframes, and voices into a final video."
     },
     "statuses": {
       "idle": "Idle",
@@ -2699,6 +2733,97 @@
         "insertTrigger": "Insert trigger"
       }
     },
+    "voiceProfile": {
+      "title": "Voice input",
+      "description": "This node only defines voice identity. Video nodes use it as character or narration voice context.",
+      "emptyTitle": "No voice set",
+      "emptyDescription": "Choose a library voice, paste a model voice ID, or upload reference audio.",
+      "readyDescription": "This voice will feed downstream video nodes.",
+      "providerLabel": "Source",
+      "providerFallback": "Manual voice",
+      "referenceLabel": "Reference audio",
+      "referenceEmpty": "Not uploaded",
+      "footerReady": "Ready for video nodes",
+      "footerEmpty": "Waiting for voice setup",
+      "chooseVoice": "Voice library",
+      "openAudioStudio": "Audio Studio",
+      "referenceAudioTitle": "Reference audio",
+      "referenceAudioDescription": "Upload an MP3/WAV sample. Supported models can use it for voice cloning or reference.",
+      "replaceAudio": "Replace reference audio",
+      "uploadAudio": "Upload audio",
+      "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
+      "referenceAudioFallback": "Reference audio",
+      "clearAudio": "Clear reference audio",
+      "outputHint": "Dialogue and exact spoken content belong in the video node's audio direction. This node only defines who the voice is, where it comes from, and how it sounds.",
+      "toasts": {
+        "voiceSelected": "Voice selected.",
+        "referenceUploaded": "Reference audio uploaded.",
+        "unsupportedAudio": "Upload an audio file.",
+        "uploadFailed": "Reference audio upload failed."
+      }
+    },
+    "videoGeneration": {
+      "emptyPreview": "No video generated yet",
+      "generating": "Generating video...",
+      "motionLabel": "Motion",
+      "cameraLabel": "Camera",
+      "durationLabel": "Duration",
+      "fieldEmpty": "Not set",
+      "upstreamHintReady": "This video node reads connected character images, backgrounds, keyframes, and voices.",
+      "upstreamHintEmpty": "Connect character images, backgrounds, keyframes, and voice nodes here.",
+      "footerDone": "Video generated",
+      "footerEmpty": "Aggregate upstream nodes into video",
+      "upstreamTitle": "Upstream inputs",
+      "upstreamDescription": "Connected nodes are compiled into the video prompt and reference images.",
+      "referenceCount": "{count}/{max} refs",
+      "upstreamGroups": {
+        "visual": "Characters / backgrounds / shots",
+        "keyframe": "Keyframes",
+        "text": "Shot text",
+        "voice": "Voices"
+      },
+      "upstreamEmpty": {
+        "visual": "No image nodes connected.",
+        "keyframe": "No keyframes connected.",
+        "text": "No shot text connected.",
+        "voice": "No voice nodes connected."
+      },
+      "capabilities": {
+        "referenceTitle": "Visual references",
+        "referenceRequired": "The selected model requires at least one reference image.",
+        "referenceOptional": "The selected model can generate from text and will use connected references when supported.",
+        "audioTitle": "Audio capability"
+      },
+      "audioCapabilities": {
+        "referenceAudio": "Supports reference audio or voice context; this version writes voice nodes into the prompt, with direct audio wiring reserved for the provider path.",
+        "voiceId": "Supports model-specific voice IDs. Fill a compatible voice ID on the voice node.",
+        "nativeAudio": "Supports native audio prompting but not universal uploaded voice cloning; voice nodes become text context.",
+        "promptOnly": "This model mainly controls audio through prompt text, so voice nodes become prompt context."
+      },
+      "audioCallout": {
+        "ignored": {
+          "title": "This model does not support native audio",
+          "body": "The connected voice node will be ignored at generation time.\nSwitch to a model that supports audio to keep the voice.",
+          "switchAction": "Switch to Veo 3.1  →"
+        },
+        "active": {
+          "title": "Native audio channel is active",
+          "body": "The voice will be passed to the model as voice_id,\nproducing video with synced dialogue and emotion."
+        },
+        "lipsync": {
+          "title": "Lip-sync mode",
+          "body": "The voice provides the speaker. The dialogue script must come from an upstream Composer or ShotText node.\nBoth are required."
+        }
+      },
+      "noModel": "Select a video model first.",
+      "noInput": "Write a video prompt or connect upstream nodes.",
+      "generate": "Generate video",
+      "regenerate": "Regenerate video",
+      "statusIdle": "Ready to generate",
+      "statusPending": "Generating video",
+      "statusSuccess": "Video generated",
+      "statusError": "Generation failed"
+    },
     "mediaNodes": {
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe what this node should create...",
@@ -2790,12 +2915,24 @@
         "label": "Dialogue",
         "placeholder": "Enter the line or narration to speak..."
       },
+      "voiceName": {
+        "label": "Voice name",
+        "placeholder": "e.g. Character A, narrator, gentle heroine..."
+      },
+      "voiceProvider": {
+        "label": "Voice source",
+        "placeholder": "e.g. Fish Audio, Kling Voice..."
+      },
+      "voiceId": {
+        "label": "Voice ID",
+        "placeholder": "Paste a model voice ID, or choose from the voice library..."
+      },
       "voiceStyle": {
-        "label": "Voice",
-        "placeholder": "Tone, age, pace, accent..."
+        "label": "Voice style",
+        "placeholder": "Tone, age, pace, accent, texture..."
       },
       "voiceEmotion": {
-        "label": "Emotion",
+        "label": "Emotion / delivery",
         "placeholder": "Calm, tense, gentle, restrained..."
       },
       "motion": {
@@ -2805,6 +2942,10 @@
       "duration": {
         "label": "Duration",
         "placeholder": "e.g. 4s, 6s, 8s..."
+      },
+      "audioIntent": {
+        "label": "Audio / voice direction",
+        "placeholder": "e.g. Voice 1 handles narration, Voice 2 is Character A's line..."
       }
     },
     "workflowNodes": {
@@ -2825,12 +2966,12 @@
         "footerEmpty": "Waiting for keyframe setup"
       },
       "voice": {
-        "emptyPreview": "Shape dialogue, voice, and emotion into a speech generation input.",
-        "footerEmpty": "Waiting for dialogue"
+        "emptyPreview": "Choose a voice, voice ID, or reference audio for the video node.",
+        "footerEmpty": "Waiting for voice"
       },
       "seedance": {
-        "emptyPreview": "Generate a Seedance video clip from keyframes and motion direction.",
-        "footerEmpty": "Waiting for motion direction"
+        "emptyPreview": "Aggregate character images, backgrounds, keyframes, and voices into video.",
+        "footerEmpty": "Waiting for video inputs"
       }
     },
     "topbar": {
@@ -3386,6 +3527,8 @@
     "verifyFailed": "Invalid API key. Please check and try again.",
     "success": "API key verified! Model ready to use.",
     "available": "Available",
+    "configuredKeys": "Configured API keys",
+    "platformQuota": "Platform free quota",
     "needsKey": "Needs API key"
   },
   "Errors": {

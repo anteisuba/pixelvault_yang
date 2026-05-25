@@ -1,20 +1,510 @@
 'use client'
 
-import { NODE_MEDIA_KIND_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import type { NodeWorkflowNode } from '@/types/node-workflow'
+import { useCallback, useMemo, type ChangeEvent, type ReactNode } from 'react'
+import { useEdges, useNodes } from '@xyflow/react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Film,
+  ImageIcon,
+  Loader2,
+  Mic2,
+  Route,
+  Video,
+} from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
-import { NodeMediaInspector } from './NodeMediaInspector'
+import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { AI_MODELS } from '@/constants/models'
+import {
+  NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_IDS,
+  NODE_STATUS_IDS,
+  NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELD_IDS,
+  type NodeWorkflowFieldId,
+} from '@/constants/node-types'
+import {
+  getReferenceCapabilityMax,
+  getVideoReferenceCapability,
+} from '@/constants/reference-image-capabilities'
+import {
+  getVideoAudioCapability,
+  getVideoModelCapabilities,
+  type VideoAudioMode,
+} from '@/constants/video-model-capabilities'
+import {
+  buildNodeWorkflowPrompt,
+  getNodeWorkflowFieldValue,
+} from '@/lib/node-workflow-prompt'
+import { cn } from '@/lib/utils'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowNode,
+  NodeWorkflowNodeData,
+} from '@/types/node-workflow'
+
+import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
+import { InspectorField } from './InspectorField'
 
 interface SeedanceInspectorProps {
   node: NodeWorkflowNode
 }
 
-export function SeedanceInspector({ node }: SeedanceInspectorProps) {
+type AudioCalloutState = 'hidden' | 'ignored' | 'active' | 'lipsync'
+
+interface UpstreamGroup {
+  key: 'visual' | 'keyframe' | 'text' | 'voice'
+  icon: ReactNode
+  nodes: NodeWorkflowNode[]
+}
+
+const AUDIO_CALLOUT_STATE_BY_MODE: Record<VideoAudioMode, AudioCalloutState> = {
+  none: 'ignored',
+  native: 'active',
+  lipsync: 'lipsync',
+}
+
+const VIDEO_GENERATION_FIELDS = [
+  NODE_WORKFLOW_FIELD_IDS.motion,
+  NODE_WORKFLOW_FIELD_IDS.camera,
+  NODE_WORKFLOW_FIELD_IDS.duration,
+  NODE_WORKFLOW_FIELD_IDS.audioIntent,
+  NODE_WORKFLOW_FIELD_IDS.prompt,
+] as const
+
+function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
   return (
-    <NodeMediaInspector
-      node={node}
-      type={NODE_TYPE_IDS.seedance}
-      kind={NODE_MEDIA_KIND_IDS.video}
-    />
+    node.type === NODE_TYPE_IDS.characterImage ||
+    node.type === NODE_TYPE_IDS.shot ||
+    node.type === NODE_TYPE_IDS.backgroundImage
+  )
+}
+
+function isKeyframeNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.frameImage
+}
+
+function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.voice
+}
+
+function isShotTextNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.shotText
+}
+
+function getNodeMediaUrl(data: NodeWorkflowNodeData): string | undefined {
+  return data.imageUrl ?? data.mediaUrl
+}
+
+function getNodeLabel(node: NodeWorkflowNode, fallback: string): string {
+  return (
+    node.data.characterName ??
+    node.data.character?.name ??
+    node.data.voiceName ??
+    node.data.voiceId ??
+    node.data.mediaLabel ??
+    node.data.sourceLabel ??
+    node.data.breakdown?.title ??
+    fallback
+  )
+}
+
+function getStatusLabelKey(
+  generationStatus: string | undefined,
+  hasMedia: boolean,
+): 'statusIdle' | 'statusPending' | 'statusSuccess' | 'statusError' {
+  switch (generationStatus) {
+    case NODE_GENERATION_STATUS_IDS.pending:
+      return 'statusPending'
+    case NODE_GENERATION_STATUS_IDS.success:
+      return 'statusSuccess'
+    case NODE_GENERATION_STATUS_IDS.error:
+      return 'statusError'
+    default:
+      return hasMedia ? 'statusSuccess' : 'statusIdle'
+  }
+}
+
+export function SeedanceInspector({ node }: SeedanceInspectorProps) {
+  const t = useTranslations('StudioNode.videoGeneration')
+  const tFields = useTranslations('StudioNode.workflowFields')
+  const tNodeTypes = useTranslations('StudioNode.nodeTypes')
+  const allNodes = useNodes<NodeWorkflowNode>()
+  const edges = useEdges<NodeWorkflowEdge>()
+  const { generateMediaNode, modelOptionsByType, updateNodeData } =
+    useNodeWorkflowActions()
+  const mediaUrl =
+    typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
+  const modelOptions = modelOptionsByType[NODE_TYPE_IDS.seedance] ?? []
+  const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, node.data)
+  const generationStatus =
+    node.data.generationStatus ??
+    (mediaUrl
+      ? NODE_GENERATION_STATUS_IDS.success
+      : NODE_GENERATION_STATUS_IDS.idle)
+  const isPending =
+    generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
+    node.data.status === NODE_STATUS_IDS.running
+
+  const incomingNodes = useMemo(() => {
+    const sourceIds = new Set(
+      edges
+        .filter((edge) => edge.target === node.id)
+        .map((edge) => edge.source),
+    )
+
+    return allNodes.filter((candidate) => sourceIds.has(candidate.id))
+  }, [allNodes, edges, node.id])
+
+  const upstreamGroups = useMemo<UpstreamGroup[]>(
+    () => [
+      {
+        key: 'visual',
+        icon: <ImageIcon className="size-3.5 text-node-amber" />,
+        nodes: incomingNodes.filter(isVisualReferenceNode),
+      },
+      {
+        key: 'keyframe',
+        icon: <Film className="size-3.5 text-teal-200" />,
+        nodes: incomingNodes.filter(isKeyframeNode),
+      },
+      {
+        key: 'text',
+        icon: <Route className="size-3.5 text-stone-200" />,
+        nodes: incomingNodes.filter(isShotTextNode),
+      },
+      {
+        key: 'voice',
+        icon: <Mic2 className="size-3.5 text-fuchsia-200" />,
+        nodes: incomingNodes.filter(isVoiceProfileNode),
+      },
+    ],
+    [incomingNodes],
+  )
+
+  const selectedModelId = node.data.model?.modelId
+  const videoCapabilities = selectedModelId
+    ? getVideoModelCapabilities(selectedModelId)
+    : null
+  const referenceCapability = selectedModelId
+    ? getVideoReferenceCapability(selectedModelId)
+    : null
+  const maxReferences = referenceCapability
+    ? getReferenceCapabilityMax(referenceCapability)
+    : 0
+  const availableReferenceCount = upstreamGroups
+    .filter((group) => group.key === 'visual' || group.key === 'keyframe')
+    .flatMap((group) => group.nodes)
+    .filter((upstreamNode) =>
+      Boolean(getNodeMediaUrl(upstreamNode.data)),
+    ).length
+
+  const audioCapability = getVideoAudioCapability(selectedModelId)
+  const voiceUpstreamCount =
+    upstreamGroups.find((group) => group.key === 'voice')?.nodes.length ?? 0
+  const audioCalloutState: AudioCalloutState =
+    voiceUpstreamCount === 0
+      ? 'hidden'
+      : AUDIO_CALLOUT_STATE_BY_MODE[audioCapability.mode]
+
+  const veoSwitchOption = useMemo(() => {
+    if (audioCalloutState !== 'ignored') return null
+    return (
+      modelOptions.find((option) => option.modelId === AI_MODELS.VEO_31) ?? null
+    )
+  }, [audioCalloutState, modelOptions])
+
+  const handleSwitchToVeo = useCallback(() => {
+    if (!veoSwitchOption) return
+    updateNodeData(node.id, { model: veoSwitchOption })
+  }, [node.id, updateNodeData, veoSwitchOption])
+
+  const disabledReason = isPending
+    ? t('generating')
+    : !node.data.model
+      ? t('noModel')
+      : !prompt.trim() && incomingNodes.length === 0
+        ? t('noInput')
+        : null
+  const statusLabelKey = getStatusLabelKey(generationStatus, Boolean(mediaUrl))
+  const generateButtonLabel = mediaUrl ? t('regenerate') : t('generate')
+
+  const handleFieldChange = useCallback(
+    (fieldId: NodeWorkflowFieldId, value: string) => {
+      const nextData = {
+        ...node.data,
+        [fieldId]: value,
+      }
+
+      updateNodeData(node.id, {
+        [fieldId]: value,
+        status: buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, nextData).trim()
+          ? NODE_STATUS_IDS.ready
+          : NODE_STATUS_IDS.idle,
+      })
+    },
+    [node.data, node.id, updateNodeData],
+  )
+
+  const handleGenerate = useCallback(() => {
+    void generateMediaNode?.(node.id)
+  }, [generateMediaNode, node.id])
+
+  const renderField = (fieldId: NodeWorkflowFieldId) => {
+    const value = getNodeWorkflowFieldValue(node.data, fieldId)
+    const isLongField =
+      fieldId === NODE_WORKFLOW_FIELD_IDS.motion ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.audioIntent ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.prompt
+
+    return (
+      <InspectorField
+        key={fieldId}
+        label={tFields(`${fieldId}.label`)}
+        statusDotClassName="bg-teal-300"
+      >
+        {isLongField ? (
+          <Textarea
+            value={value}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+              handleFieldChange(fieldId, event.target.value)
+            }
+            aria-label={tFields(`${fieldId}.label`)}
+            placeholder={tFields(`${fieldId}.placeholder`)}
+            className="min-h-20 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+          />
+        ) : (
+          <input
+            value={value}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              handleFieldChange(fieldId, event.target.value)
+            }
+            aria-label={tFields(`${fieldId}.label`)}
+            placeholder={tFields(`${fieldId}.placeholder`)}
+            className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+          />
+        )}
+      </InspectorField>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+        {mediaUrl ? (
+          <video
+            src={mediaUrl}
+            className="h-full w-full object-cover"
+            controls
+            muted
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <Video className="size-8 text-teal-200" />
+            <p className="text-xs leading-5 text-node-muted">
+              {t('emptyPreview')}
+            </p>
+          </div>
+        )}
+        {isPending ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+            <Loader2 className="size-5 animate-spin text-node-amber" />
+            <span className="text-xs font-semibold">{t('generating')}</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-node-foreground">
+              {t('upstreamTitle')}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-node-muted">
+              {t('upstreamDescription')}
+            </p>
+          </div>
+          <span className="rounded-full border border-node-panel-inner bg-node-panel px-2 py-1 text-2xs font-semibold text-node-muted">
+            {t('referenceCount', {
+              count: availableReferenceCount,
+              max: maxReferences,
+            })}
+          </span>
+        </div>
+        <div className="grid gap-2">
+          {upstreamGroups.map((group) => (
+            <div
+              key={group.key}
+              className="rounded-2xl border border-node-panel-inner bg-node-panel p-2"
+            >
+              <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {group.icon}
+                {t(`upstreamGroups.${group.key}`)}
+              </div>
+              {group.nodes.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {group.nodes.map((upstreamNode) => (
+                    <span
+                      key={upstreamNode.id}
+                      className={cn(
+                        'max-w-full truncate rounded-full border px-2 py-1 text-2xs font-semibold',
+                        getNodeMediaUrl(upstreamNode.data) ||
+                          upstreamNode.data.voiceId ||
+                          upstreamNode.data.voiceReferenceAudioUrl
+                          ? 'border-teal-400/25 bg-teal-500/10 text-teal-100'
+                          : 'border-node-panel-inner bg-node-panel-soft text-node-muted',
+                      )}
+                    >
+                      {getNodeLabel(
+                        upstreamNode,
+                        tNodeTypes(upstreamNode.type),
+                      )}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs leading-5 text-node-subtle">
+                  {t(`upstreamEmpty.${group.key}`)}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+        <WorkflowModelPicker
+          value={node.data.model}
+          options={modelOptions}
+          onChange={(model) => updateNodeData(node.id, { model })}
+          kind={NODE_MEDIA_KIND_IDS.video}
+        />
+        <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
+          {t(statusLabelKey)}
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-muted">
+          <p className="font-semibold text-node-foreground">
+            {t('capabilities.referenceTitle')}
+          </p>
+          <p className="mt-1">
+            {videoCapabilities?.requiresReferenceImage
+              ? t('capabilities.referenceRequired')
+              : t('capabilities.referenceOptional')}
+          </p>
+        </div>
+        {audioCalloutState !== 'hidden' ? (
+          <AudioCallout
+            state={audioCalloutState}
+            onSwitch={veoSwitchOption ? handleSwitchToVeo : undefined}
+          />
+        ) : null}
+      </div>
+
+      <div className="space-y-3">
+        {VIDEO_GENERATION_FIELDS.map((fieldId) => renderField(fieldId))}
+      </div>
+
+      {node.data.generationError ? (
+        <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
+          {node.data.generationError}
+        </div>
+      ) : null}
+
+      <Button
+        type="button"
+        onClick={handleGenerate}
+        disabled={Boolean(disabledReason)}
+        className="h-11 w-full rounded-2xl bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+      >
+        {isPending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Film className="size-4" />
+        )}
+        {disabledReason ?? generateButtonLabel}
+      </Button>
+    </div>
+  )
+}
+
+interface AudioCalloutProps {
+  state: Exclude<AudioCalloutState, 'hidden'>
+  onSwitch?: () => void
+}
+
+const AUDIO_CALLOUT_STYLES: Record<
+  AudioCalloutProps['state'],
+  {
+    container: string
+    title: string
+    icon: ReactNode
+    action: string
+  }
+> = {
+  ignored: {
+    container:
+      'border-node-danger/40 bg-node-danger/10 [&_p[data-callout-body]]:text-node-danger/80',
+    title: 'text-node-danger',
+    icon: <AlertTriangle className="size-4 text-node-danger" />,
+    action:
+      'bg-node-danger/15 border-node-danger/35 text-node-danger hover:bg-node-danger/20',
+  },
+  active: {
+    container:
+      'border-node-success/40 bg-node-success/10 [&_p[data-callout-body]]:text-node-success/80',
+    title: 'text-node-success',
+    icon: <CheckCircle2 className="size-4 text-node-success" />,
+    action: '',
+  },
+  lipsync: {
+    container:
+      'border-node-lipsync/40 bg-node-lipsync/10 [&_p[data-callout-body]]:text-node-lipsync/80',
+    title: 'text-node-lipsync',
+    icon: <Mic2 className="size-4 text-node-lipsync" />,
+    action: '',
+  },
+}
+
+function AudioCallout({ state, onSwitch }: AudioCalloutProps) {
+  const t = useTranslations('StudioNode.videoGeneration.audioCallout')
+  const styles = AUDIO_CALLOUT_STYLES[state]
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-2.5 rounded-2xl border p-3 text-xs leading-5',
+        styles.container,
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 shrink-0">{styles.icon}</div>
+        <div className="flex flex-col gap-1.5">
+          <p className={cn('text-sm font-semibold leading-5', styles.title)}>
+            {t(`${state}.title`)}
+          </p>
+          <p data-callout-body className="whitespace-pre-line">
+            {t(`${state}.body`)}
+          </p>
+        </div>
+      </div>
+      {state === 'ignored' && onSwitch ? (
+        <button
+          type="button"
+          onClick={onSwitch}
+          className={cn(
+            'flex items-center justify-center rounded-xl border px-3 py-2 text-xs font-semibold transition-colors',
+            styles.action,
+          )}
+        >
+          {t('ignored.switchAction')}
+        </button>
+      ) : null}
+    </div>
   )
 }

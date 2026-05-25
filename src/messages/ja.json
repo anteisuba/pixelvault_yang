@@ -10,7 +10,8 @@
       "runway": "Runway",
       "volcengine": "火山エンジン",
       "opensource": "オープンソース",
-      "replicate": "Replicate"
+      "replicate": "Replicate",
+      "hyper3d": "Hyper3D"
     },
     "styleGroups": {
       "photorealistic": "フォトリアル",
@@ -388,15 +389,16 @@
       "shimmerDesc": "柔らかく落ち着いた女性の声"
     },
     "voicePublic": "公開ボイスライブラリ",
+    "voiceMarket": "ボイス",
     "voiceMy": "マイボイス",
     "voiceFavorites": "お気に入りボイス",
     "voiceCloned": "クローンボイス",
     "voiceSearch": "ボイスを検索...",
-    "voiceLibraryTitle": "Fish ボイスライブラリ",
-    "voiceLibraryDescription": "公開ボイスの検索、言語フィルター、サンプル試聴、お気に入り保存、クローンボイスの選択ができます。",
-    "voiceLibraryClose": "ボイスライブラリを閉じる",
+    "voiceLibraryTitle": "ボイス",
+    "voiceLibraryDescription": "Fish Audio の公開ボイス検索、言語フィルター、サンプル試聴、お気に入り保存、クローンボイスの選択ができます。",
+    "voiceLibraryClose": "ボイスを閉じる",
     "voiceMyEmpty": "カスタムボイスがありません。クローンして始めましょう！",
-    "voiceFavoritesEmpty": "お気に入りボイスはまだありません。公開ライブラリで星を付けると保存できます。",
+    "voiceFavoritesEmpty": "お気に入りボイスはまだありません。ボイスで星を付けると保存できます。",
     "voiceClonedEmpty": "クローンボイスはまだありません。音声をアップロードして作成してください。",
     "voiceNoResults": "ボイスが見つかりません",
     "voiceSelected": "選択済み",
@@ -412,6 +414,8 @@
     "voiceDeleteFailed": "ボイスを削除できませんでした。もう一度お試しください。",
     "voiceApiKeyRequired": "クローンボイス、文字起こし、生成を使う前に、自分の Fish Audio APIキーを追加してください。",
     "voiceLanguageFilter": "言語でボイスを絞り込む",
+    "voiceSourceFilter": "ソースでボイスを絞り込む",
+    "voiceSourceAll": "すべてのソース",
     "voiceLanguageAll": "すべて",
     "voiceLanguageChinese": "中国語",
     "voiceLanguageEnglish": "英語",
@@ -740,7 +744,29 @@
     "stepGeometry": "ジオメトリ",
     "stepTexture": "テクスチャ",
     "stepComplete": "完成",
-    "stepperTotalElapsed": "総 {seconds}s"
+    "stepperTotalElapsed": "総 {seconds}s",
+    "rodinTierLabel": "品質ティア",
+    "rodinTierHint": "ティアが高いほどポリゴン密度と細部の精度が向上しますが、生成時間も長くなります。",
+    "rodinMeshModeLabel": "メッシュ表面",
+    "rodinMeshModeHint": "有機的な形状にはスムース、シャープなエッジが必要な工業製品にはハードサーフェスを選択。",
+    "rodinTextureModeLabel": "テクスチャモード",
+    "rodinMaterialLabel": "マテリアル",
+    "rodinHighPackLabel": "HighPack (+1.0 cr)",
+    "rodinHighPackHint": "ポリゴン数を2倍にして極限の細部を実現。ティアコストに1クレジット追加。",
+    "rodinTAPoseLabel": "T/Aポーズ",
+    "rodinTAPoseHint": "TポーズまたはAポーズのヒューマノイドキャラクター向けにメッシュトポロジーを最適化。",
+    "rodinHdTextureLabel": "HDテクスチャ",
+    "rodinHdTextureHint": "高解像度テクスチャマップを生成します。",
+    "rodinTextureDelightLabel": "テクスチャ照明除去",
+    "rodinTextureDelightHint": "クリーンなPBRワークフローのためにテクスチャから環境光を除去します。",
+    "rodinQualityOverrideLabel": "ポリゴン数指定",
+    "rodinQualityOverrideHint": "特定のポリゴン目標値を設定。空白の場合はティアのデフォルト値を使用。",
+    "rodinAdditionalImagesLabel": "追加参照画像",
+    "rodinAdditionalImagesHint": "最大4枚の追加ビュー（ソース画像と合わせて最大5枚）。多くのビューを使用すると幾何学的な曖昧さが減少します。",
+    "rodinApiKeyMissingTitle": "Hyper3D APIキーが未設定",
+    "rodinApiKeyMissingDescription": "Rodin Gen-2.5にはBusinessサブスクリプション付きのHyper3D APIキーが必要です。設定でキーを追加してください。",
+    "rodinEstimatedCost": "推定 {credits} cr",
+    "rodinEstimatedTime": "約{minutes}分"
   },
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",
@@ -1394,6 +1420,10 @@
       "fish_audio": {
         "label": "Fish Audio",
         "description": "Fish Audio で高品質なテキスト読み上げを使用。30以上の言語で音声クローニング対応。"
+      },
+      "hyper3d_rodin": {
+        "label": "Hyper3D Rodin",
+        "description": "公式Hyper3D Rodin Gen-2.5 APIを使用して、最大5枚の参照画像で高品質な画像→3D生成を行います。"
       }
     },
     "summary": {
@@ -2111,6 +2141,10 @@
     "triposr": {
       "label": "TripoSR",
       "description": "秒速ジオメトリ再構成、テクスチャなしプレビュー"
+    },
+    "rodinGen25": {
+      "label": "Rodin Gen-2.5",
+      "description": "Hyper3D公式API — 最大5枚の参照画像、GLB出力、5段階品質ティア。BYOK（Businessサブスクリプション）が必要。"
     }
   },
   "PromptPresets": {
@@ -2495,8 +2529,8 @@
       "characterImage": "キャラクター画像",
       "backgroundImage": "背景画像",
       "frameImage": "キーフレーム",
-      "voice": "音声",
-      "seedance": "Seedance"
+      "voice": "音色",
+      "seedance": "動画生成"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
@@ -2506,8 +2540,8 @@
       "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。",
       "backgroundImage": "シーン背景と空気感のある画像を生成します。",
       "frameImage": "動画生成前のキーフレーム画像を生成します。",
-      "voice": "台詞やナレーションから音声素材を生成します。",
-      "seedance": "キーフレームやショットプロンプトから動画クリップを生成します。"
+      "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
+      "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。"
     },
     "statuses": {
       "idle": "待機中",
@@ -2699,6 +2733,97 @@
         "insertTrigger": "trigger を挿入"
       }
     },
+    "voiceProfile": {
+      "title": "音色入力",
+      "description": "このノードは声のアイデンティティだけを定義します。動画ノードはキャラクターやナレーションの音色コンテキストとして使用します。",
+      "emptyTitle": "音色未設定",
+      "emptyDescription": "音声ライブラリから選択、モデル音色 ID を貼り付け、または参考音声をアップロードします。",
+      "readyDescription": "この音色は下流の動画ノードへ渡されます。",
+      "providerLabel": "ソース",
+      "providerFallback": "手動音色",
+      "referenceLabel": "参考音声",
+      "referenceEmpty": "未アップロード",
+      "footerReady": "動画ノードへ接続できます",
+      "footerEmpty": "音色設定を待機中",
+      "chooseVoice": "音声ライブラリ",
+      "openAudioStudio": "音声ワークスペース",
+      "referenceAudioTitle": "参考音声",
+      "referenceAudioDescription": "MP3/WAV などの音声サンプルをアップロードします。対応モデルでは声の複製や参考に使えます。",
+      "replaceAudio": "参考音声を置き換え",
+      "uploadAudio": "音声をアップロード",
+      "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
+      "referenceAudioFallback": "参考音声",
+      "clearAudio": "参考音声をクリア",
+      "outputHint": "台詞や具体的な発話内容は動画ノードの音声指示に書きます。このノードは声が誰か、どこ由来か、どう聞こえるかだけを定義します。",
+      "toasts": {
+        "voiceSelected": "音色を選択しました。",
+        "referenceUploaded": "参考音声をアップロードしました。",
+        "unsupportedAudio": "音声ファイルをアップロードしてください。",
+        "uploadFailed": "参考音声のアップロードに失敗しました。"
+      }
+    },
+    "videoGeneration": {
+      "emptyPreview": "動画はまだ生成されていません",
+      "generating": "動画を生成中...",
+      "motionLabel": "動き",
+      "cameraLabel": "カメラ",
+      "durationLabel": "長さ",
+      "fieldEmpty": "未設定",
+      "upstreamHintReady": "この動画ノードは接続されたキャラクター画像、背景、キーフレーム、音色を読み取ります。",
+      "upstreamHintEmpty": "キャラクター画像、背景、キーフレーム、音色ノードをここへ接続します。",
+      "footerDone": "動画を生成しました",
+      "footerEmpty": "上流ノードを集約して動画化",
+      "upstreamTitle": "上流入力",
+      "upstreamDescription": "接続されたノードは動画プロンプトと参考画像に編成されます。",
+      "referenceCount": "参考 {count}/{max}",
+      "upstreamGroups": {
+        "visual": "キャラクター / 背景 / ショット",
+        "keyframe": "キーフレーム",
+        "text": "ショット文",
+        "voice": "音色"
+      },
+      "upstreamEmpty": {
+        "visual": "画像ノードはまだ接続されていません。",
+        "keyframe": "キーフレームはまだ接続されていません。",
+        "text": "ショット文はまだ接続されていません。",
+        "voice": "音色ノードはまだ接続されていません。"
+      },
+      "capabilities": {
+        "referenceTitle": "視覚参考",
+        "referenceRequired": "選択中のモデルは少なくとも 1 枚の参考画像が必要です。",
+        "referenceOptional": "選択中のモデルはテキスト生成が可能で、対応時は接続された参考画像を使用します。",
+        "audioTitle": "音声機能"
+      },
+      "audioCapabilities": {
+        "referenceAudio": "参考音声または音色コンテキストに対応します。現段階では音色ノードをプロンプトへ書き込み、音声直結はプロバイダー経路で対応します。",
+        "voiceId": "モデル専用の音色 ID に対応します。音色ノードに互換 voice ID を入力してください。",
+        "nativeAudio": "ネイティブ音声プロンプトには対応しますが、汎用の音色アップロードには対応しません。音色ノードはテキスト文脈になります。",
+        "promptOnly": "このモデルは主にプロンプトで音声を制御するため、音色ノードはプロンプト文脈になります。"
+      },
+      "audioCallout": {
+        "ignored": {
+          "title": "このモデルはネイティブ音声に対応していません",
+          "body": "接続中の音色ノードは生成時に無視されます。\n音声を活かすには、対応モデルへの切り替えをおすすめします。",
+          "switchAction": "Veo 3.1 にワンクリック切替  →"
+        },
+        "active": {
+          "title": "ネイティブ音声チャネルが有効です",
+          "body": "音色は voice_id としてモデルへ直接渡され、\n同期した台詞と感情を含む動画が生成されます。"
+        },
+        "lipsync": {
+          "title": "Lip-sync モード",
+          "body": "音色は発話者を提供します。台詞テキストは Composer または ShotText ノードから取得します。\n両方が必要です。"
+        }
+      },
+      "noModel": "先に動画モデルを選択してください。",
+      "noInput": "動画プロンプトを入力するか、上流ノードを接続してください。",
+      "generate": "動画を生成",
+      "regenerate": "動画を再生成",
+      "statusIdle": "生成できます",
+      "statusPending": "動画を生成中",
+      "statusSuccess": "動画を生成しました",
+      "statusError": "生成に失敗しました"
+    },
     "mediaNodes": {
       "promptLabel": "プロンプト",
       "promptPlaceholder": "このノードで生成する内容を説明...",
@@ -2790,12 +2915,24 @@
         "label": "台詞",
         "placeholder": "読み上げる台詞やナレーション..."
       },
+      "voiceName": {
+        "label": "音色名",
+        "placeholder": "例：キャラクターA、ナレーター、優しい少女..."
+      },
+      "voiceProvider": {
+        "label": "音色ソース",
+        "placeholder": "例：Fish Audio、Kling Voice..."
+      },
+      "voiceId": {
+        "label": "音色 ID",
+        "placeholder": "モデルの音色 ID を貼り付けるか、音声ライブラリから選択..."
+      },
       "voiceStyle": {
-        "label": "声",
-        "placeholder": "声色、年齢感、速度、アクセント..."
+        "label": "音色スタイル",
+        "placeholder": "声色、年齢感、速度、アクセント、質感..."
       },
       "voiceEmotion": {
-        "label": "感情",
+        "label": "感情 / 話し方",
         "placeholder": "落ち着き、緊張、優しさ、抑制..."
       },
       "motion": {
@@ -2805,6 +2942,10 @@
       "duration": {
         "label": "長さ",
         "placeholder": "例：4s、6s、8s..."
+      },
+      "audioIntent": {
+        "label": "音声 / 音色指示",
+        "placeholder": "例：音色1はナレーション、音色2はキャラクターAの短い台詞..."
       }
     },
     "workflowNodes": {
@@ -2825,12 +2966,12 @@
         "footerEmpty": "キーフレーム設定を待機中"
       },
       "voice": {
-        "emptyPreview": "台詞、声、感情を音声生成入力として整理します。",
-        "footerEmpty": "台詞を待機中"
+        "emptyPreview": "動画ノード用の音色、音色 ID、または参考音声を選択します。",
+        "footerEmpty": "音色を待機中"
       },
       "seedance": {
-        "emptyPreview": "キーフレームと動きの指示から Seedance 動画クリップを生成します。",
-        "footerEmpty": "動きの指示を待機中"
+        "emptyPreview": "キャラクター画像、背景、キーフレーム、音色を集約して動画化します。",
+        "footerEmpty": "動画入力を待機中"
       }
     },
     "topbar": {
@@ -3386,6 +3527,8 @@
     "verifyFailed": "無効なAPIキーです。確認してもう一度お試しください。",
     "success": "APIキー検証完了！モデルが使えます。",
     "available": "利用可能",
+    "configuredKeys": "設定済み API キー",
+    "platformQuota": "プラットフォーム無料枠",
     "needsKey": "APIキーが必要"
   },
   "Errors": {

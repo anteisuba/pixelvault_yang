@@ -7,12 +7,20 @@ import {
   type VideoResolution,
 } from '@/constants/video-options'
 
+export type VideoAudioMode = 'none' | 'native' | 'lipsync'
+
+export interface VideoAudioCapability {
+  mode: VideoAudioMode
+  needsScript?: boolean
+}
+
 export interface VideoModelCapabilities {
   supportedDurations?: readonly number[]
   supportedResolutions?: readonly VideoResolution[]
   supportedAspectRatios?: readonly AspectRatio[]
   resolutionDurationMatrix?: Partial<Record<VideoResolution, readonly number[]>>
   requiresReferenceImage?: boolean
+  audio?: VideoAudioCapability
 }
 
 export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
@@ -20,6 +28,7 @@ export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
   supportedResolutions: VIDEO_RESOLUTIONS,
   supportedAspectRatios: VIDEO_ASPECT_RATIOS,
   requiresReferenceImage: false,
+  audio: { mode: 'none' } as VideoAudioCapability,
 } as const satisfies VideoModelCapabilities
 
 export const VIDEO_MODEL_CAPABILITIES: Partial<
@@ -55,6 +64,15 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
+  [AI_MODELS.VEO_31]: {
+    audio: { mode: 'native' },
+  },
+  [AI_MODELS.KLING_V3_PRO]: {
+    audio: { mode: 'lipsync', needsScript: true },
+  },
+  [AI_MODELS.KLING_VIDEO]: {
+    audio: { mode: 'lipsync', needsScript: true },
+  },
 }
 
 export function getVideoModelCapabilities(
@@ -67,4 +85,14 @@ export function getVideoModelCapabilities(
     requiresReferenceImage: builtInModel?.requiresReferenceImage ?? false,
     ...(builtInModel ? VIDEO_MODEL_CAPABILITIES[builtInModel.id] : undefined),
   }
+}
+
+export function getVideoAudioCapability(
+  modelId: string | undefined,
+): VideoAudioCapability {
+  if (!modelId) return DEFAULT_VIDEO_MODEL_CAPABILITIES.audio
+  return (
+    getVideoModelCapabilities(modelId).audio ??
+    DEFAULT_VIDEO_MODEL_CAPABILITIES.audio
+  )
 }

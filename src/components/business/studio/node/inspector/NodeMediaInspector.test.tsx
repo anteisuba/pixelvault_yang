@@ -174,6 +174,20 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.shot, ShotInspector],
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
+  ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
+    'hides the empty preview for idle image node %s',
+    (type, Inspector) => {
+      renderMediaInspector(Inspector, createNode(type))
+
+      expect(screen.queryByText(`${type}.emptyPreview`)).not.toBeInTheDocument()
+      expect(screen.getByLabelText('prompt.label')).toBeInTheDocument()
+    },
+  )
+
+  it.each([
+    [NODE_TYPE_IDS.shot, ShotInspector],
+    [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
+    [NODE_TYPE_IDS.frameImage, FrameImageInspector],
     [NODE_TYPE_IDS.voice, VoiceInspector],
     [NODE_TYPE_IDS.seedance, SeedanceInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(

@@ -91,6 +91,8 @@ export function NodeMediaInspector({
     generationStatus === NODE_GENERATION_STATUS_IDS.pending ||
     node.data.status === NODE_STATUS_IDS.running
   const isTextNode = kind === NODE_MEDIA_KIND_IDS.text
+  const shouldShowPreview =
+    kind !== NODE_MEDIA_KIND_IDS.image || Boolean(mediaUrl) || isPending
   const disabledReason = isPending
     ? t('generating')
     : !node.data.model && !isTextNode
@@ -169,54 +171,56 @@ export function NodeMediaInspector({
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
-        {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
-          <Image
-            src={mediaUrl}
-            alt={t('imageAlt')}
-            fill
-            sizes="360px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : null}
+      {shouldShowPreview ? (
+        <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+          {mediaUrl && kind === NODE_MEDIA_KIND_IDS.image ? (
+            <Image
+              src={mediaUrl}
+              alt={t('imageAlt')}
+              fill
+              sizes="360px"
+              className="object-cover"
+              unoptimized
+            />
+          ) : null}
 
-        {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
-          <video
-            src={mediaUrl}
-            className="h-full w-full object-cover"
-            controls
-            muted
-          />
-        ) : null}
+          {mediaUrl && kind === NODE_MEDIA_KIND_IDS.video ? (
+            <video
+              src={mediaUrl}
+              className="h-full w-full object-cover"
+              controls
+              muted
+            />
+          ) : null}
 
-        {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-            <Mic2 className="size-8 text-fuchsia-200" />
-            <audio src={mediaUrl} controls className="w-full" />
-          </div>
-        ) : null}
+          {mediaUrl && kind === NODE_MEDIA_KIND_IDS.audio ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+              <Mic2 className="size-8 text-fuchsia-200" />
+              <audio src={mediaUrl} controls className="w-full" />
+            </div>
+          ) : null}
 
-        {!mediaUrl ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            {kind === NODE_MEDIA_KIND_IDS.video ? (
-              <Video className="size-8 text-teal-200" />
-            ) : (
-              <WandSparkles className="size-8 text-node-amber" />
-            )}
-            <p className="text-xs leading-5 text-node-muted">
-              {tWorkflows(`${type}.emptyPreview`)}
-            </p>
-          </div>
-        ) : null}
+          {!mediaUrl ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+              {kind === NODE_MEDIA_KIND_IDS.video ? (
+                <Video className="size-8 text-teal-200" />
+              ) : (
+                <WandSparkles className="size-8 text-node-amber" />
+              )}
+              <p className="text-xs leading-5 text-node-muted">
+                {tWorkflows(`${type}.emptyPreview`)}
+              </p>
+            </div>
+          ) : null}
 
-        {isPending ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-            <Loader2 className="size-5 animate-spin text-node-amber" />
-            <span className="text-xs font-semibold">{t('generating')}</span>
-          </div>
-        ) : null}
-      </div>
+          {isPending ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+              <Loader2 className="size-5 animate-spin text-node-amber" />
+              <span className="text-xs font-semibold">{t('generating')}</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         {fields.map((fieldId) => renderField(fieldId))}

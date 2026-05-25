@@ -2804,15 +2804,18 @@
         "ignored": {
           "title": "This model does not support native audio",
           "body": "The connected voice node will be ignored at generation time.\nSwitch to a model that supports audio to keep the voice.",
-          "switchAction": "Switch to Veo 3.1  →"
+          "switchAction": "Switch to Veo 3.1  →",
+          "statusPill": "Will be ignored"
         },
         "active": {
           "title": "Native audio channel is active",
-          "body": "The voice will be passed to the model as voice_id,\nproducing video with synced dialogue and emotion."
+          "body": "The voice will be passed to the model as voice_id,\nproducing video with synced dialogue and emotion.",
+          "statusPill": "Native audio"
         },
         "lipsync": {
           "title": "Lip-sync mode",
-          "body": "The voice provides the speaker. The dialogue script must come from an upstream Composer or ShotText node.\nBoth are required."
+          "body": "The voice provides the speaker. The dialogue script must come from an upstream Composer or ShotText node.\nBoth are required.",
+          "statusPill": "Lip-sync"
         }
       },
       "noModel": "Select a video model first.",

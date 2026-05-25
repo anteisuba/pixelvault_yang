@@ -67,6 +67,24 @@ const AUDIO_CALLOUT_STATE_BY_MODE: Record<VideoAudioMode, AudioCalloutState> = {
   lipsync: 'lipsync',
 }
 
+const VOICE_GROUP_TINT_BY_STATE: Record<
+  Exclude<AudioCalloutState, 'hidden'>,
+  string
+> = {
+  ignored: 'border-node-danger/40 bg-node-danger/10',
+  active: 'border-node-success/40 bg-node-success/10',
+  lipsync: 'border-node-lipsync/40 bg-node-lipsync/10',
+}
+
+const VOICE_GROUP_PILL_BY_STATE: Record<
+  Exclude<AudioCalloutState, 'hidden'>,
+  string
+> = {
+  ignored: 'bg-node-danger/20 text-node-danger',
+  active: 'bg-node-success/20 text-node-success',
+  lipsync: 'bg-node-lipsync/20 text-node-lipsync',
+}
+
 const VIDEO_GENERATION_FIELDS = [
   NODE_WORKFLOW_FIELD_IDS.motion,
   NODE_WORKFLOW_FIELD_IDS.camera,
@@ -338,11 +356,28 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
           {upstreamGroups.map((group) => (
             <div
               key={group.key}
-              className="rounded-2xl border border-node-panel-inner bg-node-panel p-2"
+              className={cn(
+                'rounded-2xl border p-2',
+                group.key === 'voice' && audioCalloutState !== 'hidden'
+                  ? VOICE_GROUP_TINT_BY_STATE[audioCalloutState]
+                  : 'border-node-panel-inner bg-node-panel',
+              )}
             >
               <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
                 {group.icon}
-                {t(`upstreamGroups.${group.key}`)}
+                <span className="flex-1">
+                  {t(`upstreamGroups.${group.key}`)}
+                </span>
+                {group.key === 'voice' && audioCalloutState !== 'hidden' ? (
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-2xs font-semibold normal-case tracking-normal',
+                      VOICE_GROUP_PILL_BY_STATE[audioCalloutState],
+                    )}
+                  >
+                    {t(`audioCallout.${audioCalloutState}.statusPill`)}
+                  </span>
+                ) : null}
               </div>
               {group.nodes.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">

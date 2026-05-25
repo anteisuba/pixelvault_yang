@@ -2804,15 +2804,18 @@
         "ignored": {
           "title": "当前模型不支持原生音频",
           "body": "已连接的音色节点将在生成时被忽略。\n建议切换到支持音频的视频模型。",
-          "switchAction": "一键切换到 Veo 3.1  →"
+          "switchAction": "一键切换到 Veo 3.1  →",
+          "statusPill": "将被忽略"
         },
         "active": {
           "title": "原生音频通道已激活",
-          "body": "音色将作为 voice_id 直接传给模型，\n生成视频会带同步对白与情绪。"
+          "body": "音色将作为 voice_id 直接传给模型，\n生成视频会带同步对白与情绪。",
+          "statusPill": "原生音频"
         },
         "lipsync": {
           "title": "Lip-sync 模式",
-          "body": "音色提供发声器，对白文本由上游 Composer 或 ShotText 提供。\n二者缺一不可。"
+          "body": "音色提供发声器，对白文本由上游 Composer 或 ShotText 提供。\n二者缺一不可。",
+          "statusPill": "Lip-sync"
         }
       },
       "noModel": "请先选择视频模型。",

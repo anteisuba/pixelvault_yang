@@ -1027,6 +1027,7 @@ function buildModel3DWorkerContext(params: {
       // Rodin-specific
       tier: input.rodinTier,
       meshMode: input.rodinMeshMode,
+      quality: input.rodinQuality,
       textureMode: input.rodinTextureMode,
       material: input.rodinMaterial,
       highPack: input.rodinHighPack,
@@ -1038,6 +1039,12 @@ function buildModel3DWorkerContext(params: {
       bboxCondition: input.rodinBboxCondition
         ? [...input.rodinBboxCondition]
         : undefined,
+      geometryInstructMode: input.rodinGeometryInstructMode,
+      geometryFileFormat: input.rodinGeometryFileFormat,
+      prompt: input.rodinPrompt,
+      useOriginalAlpha: input.rodinUseOriginalAlpha,
+      previewRender: input.rodinPreviewRender,
+      isMicro: input.rodinIsMicro,
       // FAL / Hunyuan3D + Trellis
       texturedMesh: input.texturedMesh,
       octreeResolution: input.octreeResolution,

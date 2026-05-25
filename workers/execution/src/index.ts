@@ -19,7 +19,7 @@ const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
 const LONG_VIDEO_PIPELINE_WORKFLOW_ID = 'LONG_VIDEO_PIPELINE'
 const HYPER3D_RODIN_WORKFLOW_ID = 'HYPER3D_RODIN'
 const HUNYUAN3D_WORKFLOW_ID = 'HUNYUAN3D'
-const HYPER3D_BASE_URL = 'https://hyperhuman.deemos.com'
+const HYPER3D_BASE_URL = 'https://api.hyper3d.com'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
@@ -72,6 +72,11 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
     duration?: number
     referenceImage?: string
+    /**
+     * Multi-reference URLs for endpoints whose fal API takes `image_urls`
+     * (Veo 3.1 reference-to-video, Seedance 2.0 reference-to-video).
+     */
+    referenceImages?: string[]
     /** Reference audio clips for Seedance reference-to-video voice cloning. */
     audioUrls?: string[]
     negativePrompt?: string
@@ -136,6 +141,7 @@ interface WorkerModel3DRunContext {
     seed?: number
     tier?: string
     meshMode?: string
+    quality?: string
     textureMode?: string
     material?: string
     highPack?: boolean
@@ -145,6 +151,12 @@ interface WorkerModel3DRunContext {
     qualityOverride?: number
     bboxCondition?: unknown
     additionalImageUrls?: string[]
+    geometryInstructMode?: string
+    geometryFileFormat?: string
+    prompt?: string
+    useOriginalAlpha?: boolean
+    previewRender?: boolean
+    isMicro?: boolean
     enablePbr?: boolean
     faceCount?: number
     multiViewImages?: Record<string, string>
@@ -157,6 +169,7 @@ interface WorkerModel3DRunContext {
 
 interface RodinSubmitResult {
   jobUuid: string
+  subscriptionKey?: string
   statusUrl: string
   downloadUrl: string
 }
@@ -527,6 +540,11 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       duration: readPositiveNumberField(providerInput, 'duration') ?? undefined,
       referenceImage:
         readStringField(providerInput, 'referenceImage') ?? undefined,
+      referenceImages: Array.isArray(providerInput.referenceImages)
+        ? providerInput.referenceImages.filter(
+            (v): v is string => typeof v === 'string' && v.trim().length > 0,
+          )
+        : undefined,
       audioUrls: Array.isArray(providerInput.audioUrls)
         ? providerInput.audioUrls.filter(
             (v): v is string => typeof v === 'string' && v.trim().length > 0,
@@ -761,31 +779,95 @@ async function submitRodinJob(
   const { providerInput } = context
   const form = new FormData()
 
-  form.append('image_urls[]', providerInput.imageUrl)
+  // Rodin requires binary image upload — fetch and attach as files
+  async function appendImageAsFile(url: string, index: number): Promise<void> {
+    const imgRes = await fetch(url)
+    if (!imgRes.ok)
+      throw new Error(
+        `Failed to fetch source image (${imgRes.status}): ${url.slice(0, 80)}`,
+      )
+    const buffer = await imgRes.arrayBuffer()
+    const mime = imgRes.headers.get('content-type') ?? 'image/png'
+    const ext = mime.includes('jpeg')
+      ? 'jpg'
+      : mime.includes('webp')
+        ? 'webp'
+        : 'png'
+    form.append(
+      'images',
+      new Blob([buffer], { type: mime }),
+      `image_${index}.${ext}`,
+    )
+  }
+
+  if (providerInput.imageUrl) {
+    await appendImageAsFile(providerInput.imageUrl, 0)
+  }
   if (providerInput.additionalImageUrls?.length) {
-    for (const url of providerInput.additionalImageUrls) {
-      form.append('image_urls[]', url)
+    for (let i = 0; i < providerInput.additionalImageUrls.length; i++) {
+      await appendImageAsFile(providerInput.additionalImageUrls[i], i + 1)
     }
   }
+  // Field names per official Rodin Gen-2.5 docs:
+  // https://developer.hyper3d.ai/api-specification/rodin-gen2.5
   if (providerInput.tier) form.append('tier', providerInput.tier)
-  if (providerInput.meshMode) form.append('mesh', providerInput.meshMode)
-  if (providerInput.textureMode)
-    form.append('texture', providerInput.textureMode)
   if (providerInput.material) form.append('material', providerInput.material)
-  if (providerInput.highPack != null)
-    form.append('high_pack', String(providerInput.highPack))
-  if (providerInput.taPose != null)
-    form.append('t_a_pose', String(providerInput.taPose))
-  if (providerInput.hdTexture != null)
+  // mesh_mode: 'Raw' (triangle) or 'Quad'. Schema already restricts values.
+  if (providerInput.meshMode) {
+    form.append('mesh_mode', providerInput.meshMode)
+  }
+  // quality: extra-low / low / medium / high — controls polygon budget.
+  if (providerInput.quality) {
+    form.append('quality', providerInput.quality)
+  }
+  // texture_mode: legacy / extreme-low / low / medium / high.
+  if (providerInput.textureMode) {
+    form.append('texture_mode', providerInput.textureMode)
+  }
+  // geometry_instruct_mode: faithful (default) or creative.
+  if (providerInput.geometryInstructMode) {
+    form.append('geometry_instruct_mode', providerInput.geometryInstructMode)
+  }
+  // geometry_file_format: glb / usdz / fbx / obj / stl. Defaults to glb so
+  // the rest of the pipeline (R2 ingest, ModelViewer) keeps working.
+  if (providerInput.geometryFileFormat) {
+    form.append('geometry_file_format', providerInput.geometryFileFormat)
+  }
+  // addons: array of strings. Only 'HighPack' is supported per docs.
+  if (providerInput.highPack) {
+    form.append('addons', JSON.stringify(['HighPack']))
+  }
+  if (providerInput.taPose != null) {
+    form.append('TAPose', String(providerInput.taPose))
+  }
+  if (providerInput.hdTexture != null) {
     form.append('hd_texture', String(providerInput.hdTexture))
-  if (providerInput.textureDelight != null)
+  }
+  // texture_delight: boolean — removes lighting info from textures
+  if (providerInput.textureDelight != null) {
     form.append('texture_delight', String(providerInput.textureDelight))
-  if (providerInput.qualityOverride != null)
+  }
+  if (providerInput.useOriginalAlpha != null) {
+    form.append('use_original_alpha', String(providerInput.useOriginalAlpha))
+  }
+  if (providerInput.previewRender != null) {
+    form.append('preview_render', String(providerInput.previewRender))
+  }
+  // is_micro: only takes effect on Gen-2.5-Extreme-High tier per docs.
+  if (providerInput.isMicro != null) {
+    form.append('is_micro', String(providerInput.isMicro))
+  }
+  if (providerInput.prompt) {
+    form.append('prompt', providerInput.prompt)
+  }
+  if (providerInput.qualityOverride != null) {
     form.append('quality_override', String(providerInput.qualityOverride))
-  if (providerInput.seed != null && providerInput.seed >= 0)
+  }
+  if (providerInput.seed != null && providerInput.seed >= 0) {
     form.append('seed', String(providerInput.seed))
+  }
+  // bbox_condition: array of 3 integers [Width(Y), Height(Z), Length(X)]
   if (providerInput.bboxCondition) {
-    form.append('condition_mode', 'gt')
     form.append('bbox_condition', JSON.stringify(providerInput.bboxCondition))
   }
 
@@ -796,31 +878,45 @@ async function submitRodinJob(
   })
 
   if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
     throw new Error(
-      `Hyper3D Rodin submit failed with status ${response.status}`,
+      `Hyper3D Rodin submit failed with status ${response.status}: ${errBody.slice(0, 400)}`,
     )
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  // Response shape: { uuid, jobs: { uuids: [...], subscription_key: <JWT> } }
   const jobUuid = readStringField(data, 'uuid')
+  const jobsMeta =
+    data.jobs != null && typeof data.jobs === 'object'
+      ? (data.jobs as Record<string, unknown>)
+      : {}
+  const subscriptionKey = readStringField(jobsMeta, 'subscription_key')
+
   if (!jobUuid) {
-    throw new Error('Hyper3D Rodin submit returned no job UUID.')
+    throw new Error(
+      `Hyper3D Rodin submit returned no job UUID. Response: ${JSON.stringify(data).slice(0, 300)}`,
+    )
   }
 
   return {
     jobUuid,
-    statusUrl: `${HYPER3D_BASE_URL}/api/v2/status?job_uuid=${jobUuid}`,
-    downloadUrl: `${HYPER3D_BASE_URL}/api/v2/download?job_uuid=${jobUuid}&format=glb`,
+    subscriptionKey: subscriptionKey ?? undefined,
+    statusUrl: `${HYPER3D_BASE_URL}/api/v2/status`,
+    downloadUrl: `${HYPER3D_BASE_URL}/api/v2/download`,
   }
 }
 
 function mapRodinStatus(
   raw: string,
 ): 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' {
+  // Official status values from /api/v2/status: Waiting, Generating, Done, Failed
+  // https://developer.hyper3d.ai/api-specification/check-status
   const s = raw.toLowerCase()
-  if (s === 'succeeded' || s === 'done' || s === 'completed') return 'COMPLETED'
+  if (s === 'done' || s === 'succeeded' || s === 'completed') return 'COMPLETED'
   if (s === 'failed' || s === 'error') return 'FAILED'
-  if (s === 'running' || s === 'processing') return 'IN_PROGRESS'
+  if (s === 'generating' || s === 'running' || s === 'processing')
+    return 'IN_PROGRESS'
   return 'IN_QUEUE'
 }
 
@@ -828,15 +924,30 @@ async function pollRodinJob(
   rodin: RodinSubmitResult,
   apiKey: string,
 ): Promise<RodinPollResult> {
+  // Per official docs: POST application/json with { subscription_key }
+  // https://developer.hyper3d.ai/api-specification/check-status
   const response = await fetch(rodin.statusUrl, {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      subscription_key: rodin.subscriptionKey,
+    }),
   })
 
   if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    console.error(
+      `[Rodin] poll failed status ${response.status}:`,
+      errBody.slice(0, 300),
+    )
     return { status: 'IN_QUEUE' }
   }
 
   const data = (await response.json()) as Record<string, unknown>
+  console.log('[Rodin] poll response:', JSON.stringify(data).slice(0, 400))
   const jobs = Array.isArray(data.jobs) ? data.jobs : []
   const messages = Array.isArray(data.status_messages)
     ? data.status_messages
@@ -848,7 +959,22 @@ async function pollRodinJob(
     .map((m) => readStringField(m, 'status') ?? '')
     .map(mapRodinStatus)
 
-  if (statuses.some((s) => s === 'FAILED')) return { status: 'FAILED' }
+  if (statuses.some((s) => s === 'FAILED')) {
+    const failedJob = (messages as Array<Record<string, unknown>>).find(
+      (m) => mapRodinStatus(readStringField(m, 'status') ?? '') === 'FAILED',
+    )
+    const failMsg =
+      readStringField(failedJob ?? {}, 'message') ??
+      readStringField(failedJob ?? {}, 'error') ??
+      JSON.stringify(failedJob)
+    console.error(
+      '[Rodin] Job FAILED:',
+      failMsg,
+      'full response:',
+      JSON.stringify(data).slice(0, 500),
+    )
+    return { status: 'FAILED' }
+  }
   if (statuses.every((s) => s === 'COMPLETED')) return { status: 'COMPLETED' }
   if (statuses.some((s) => s === 'IN_PROGRESS'))
     return { status: 'IN_PROGRESS' }
@@ -860,25 +986,62 @@ async function downloadAndUploadRodinGlb(
   context: WorkerModel3DRunContext,
   rodin: RodinSubmitResult,
   apiKey: string,
-): Promise<string> {
-  const glbResponse = await fetch(rodin.downloadUrl, {
-    headers: { Authorization: `Bearer ${apiKey}` },
+): Promise<{ artifactUrl: string; glbR2Key: string }> {
+  // Step 1: Ask Rodin for the file list (returns JSON with download URLs)
+  // Per official docs: POST application/json with { task_uuid }
+  // https://developer.hyper3d.ai/api-specification/download-results
+  const listResponse = await fetch(rodin.downloadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ task_uuid: rodin.jobUuid }),
   })
 
+  if (!listResponse.ok) {
+    const errBody = await listResponse.text().catch(() => '')
+    throw new Error(
+      `Hyper3D Rodin download list failed (${listResponse.status}): ${errBody.slice(0, 200)}`,
+    )
+  }
+
+  const listData = (await listResponse.json()) as Record<string, unknown>
+  console.log('[Rodin] download list:', JSON.stringify(listData).slice(0, 400))
+
+  const list = Array.isArray(listData.list) ? listData.list : []
+  const glbFile = (list as Array<Record<string, unknown>>).find((f) => {
+    const name = readStringField(f, 'name') ?? ''
+    return name.toLowerCase().endsWith('.glb')
+  })
+
+  if (!glbFile) {
+    throw new Error(
+      `Hyper3D Rodin download list has no GLB file. Response: ${JSON.stringify(listData).slice(0, 300)}`,
+    )
+  }
+
+  const glbUrl = readStringField(glbFile, 'url')
+  if (!glbUrl) {
+    throw new Error('Hyper3D Rodin GLB entry has no url.')
+  }
+
+  // Step 2: Fetch the GLB binary
+  const glbResponse = await fetch(glbUrl)
   if (!glbResponse.ok) {
     throw new Error(
-      `Hyper3D Rodin GLB download failed with status ${glbResponse.status}`,
+      `Hyper3D Rodin GLB binary download failed with status ${glbResponse.status}`,
     )
   }
 
   const glbBuffer = await glbResponse.arrayBuffer()
-  const storageKey = `3d/${context.runId}/${rodin.jobUuid}.glb`
+  const glbR2Key = `3d/${context.runId}/${rodin.jobUuid}.glb`
 
-  await env.GENERATION_BUCKET.put(storageKey, glbBuffer, {
+  await env.GENERATION_BUCKET.put(glbR2Key, glbBuffer, {
     httpMetadata: { contentType: 'model/gltf-binary' },
   })
 
-  return `${env.R2_PUBLIC_URL}/${storageKey}`
+  return { artifactUrl: `${env.R2_PUBLIC_URL}/${glbR2Key}`, glbR2Key }
 }
 
 // ─── fal.ai model-3D (Hunyuan3D) ─────────────────────────────────────────────
@@ -1590,7 +1753,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
         }
 
         if (pollResult.status === 'COMPLETED') {
-          const artifactUrl = await step.do(
+          const glbResult = await step.do(
             'download-and-upload-glb',
             {
               retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
@@ -1604,7 +1767,8 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
 
           await step.do('callback-result', async () =>
             emitModel3DCallback(this.env, context, {
-              artifactUrl,
+              artifactUrl: glbResult.artifactUrl,
+              glbR2Key: glbResult.glbR2Key,
               mimeType: 'model/gltf-binary',
               providerMetadata: { jobUuid: rodin.jobUuid },
               requestCount: 1,

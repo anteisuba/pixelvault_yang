@@ -29,9 +29,12 @@ import {
   MODEL_3D_PREVIEW_MODES,
   MODEL_3D_POLYGON_TYPES,
   MODEL_3D_PROGRESS_STAGES,
+  RODIN_GEOMETRY_FILE_FORMATS,
+  RODIN_GEOMETRY_INSTRUCT_MODES,
   RODIN_MATERIALS,
   RODIN_MAX_REFERENCE_IMAGES,
   RODIN_MESH_MODES,
+  RODIN_QUALITIES,
   RODIN_QUALITY_OVERRIDE,
   RODIN_TEXTURE_MODES,
   RODIN_TIERS,
@@ -841,8 +844,26 @@ export const Generate3DRequestSchema = z.object({
     .array(z.string().trim().url())
     .max(RODIN_MAX_REFERENCE_IMAGES - 1)
     .optional(),
-  /** Hyper3D Rodin: 3D bounding box [x_min, y_min, z_min, x_max, y_max, z_max] */
-  rodinBboxCondition: z.array(z.number()).length(6).optional(),
+  /**
+   * Hyper3D Rodin: bounding-box hint as 3 integers
+   * [Width(Y), Height(Z), Length(X)] per official Gen-2.5 docs
+   * https://developer.hyper3d.ai/api-specification/rodin-gen2.5
+   */
+  rodinBboxCondition: z.array(z.number().int()).length(3).optional(),
+  /** Hyper3D Rodin Gen-2.5: geometry quality preset (extra-low / low / medium / high) */
+  rodinQuality: z.enum(RODIN_QUALITIES).optional(),
+  /** Hyper3D Rodin Gen-2.5: faithful (default) or creative geometry interpretation */
+  rodinGeometryInstructMode: z.enum(RODIN_GEOMETRY_INSTRUCT_MODES).optional(),
+  /** Hyper3D Rodin Gen-2.5: geometry export format. Defaults to glb. */
+  rodinGeometryFileFormat: z.enum(RODIN_GEOMETRY_FILE_FORMATS).optional(),
+  /** Hyper3D Rodin Gen-2.5: optional natural-language prompt to guide the model */
+  rodinPrompt: z.string().trim().max(2000).optional(),
+  /** Hyper3D Rodin Gen-2.5: preserve original alpha channel from reference image */
+  rodinUseOriginalAlpha: z.boolean().optional(),
+  /** Hyper3D Rodin Gen-2.5: emit an extra preview render alongside the mesh */
+  rodinPreviewRender: z.boolean().optional(),
+  /** Hyper3D Rodin Gen-2.5 Extreme-High only: enable micro-geometry detail */
+  rodinIsMicro: z.boolean().optional(),
   /** Reproducibility seed (-1 or omitted = random) */
   seed: z.number().int().min(-1).optional(),
   /** Saved API key ID (BYOK) */
@@ -1237,6 +1258,7 @@ export const WorkerModel3DRunContextSchema = z.object({
       // Rodin-specific
       tier: z.string().optional(),
       meshMode: z.string().optional(),
+      quality: z.string().optional(),
       textureMode: z.string().optional(),
       material: z.string().optional(),
       highPack: z.boolean().optional(),
@@ -1246,6 +1268,12 @@ export const WorkerModel3DRunContextSchema = z.object({
       qualityOverride: z.number().optional(),
       bboxCondition: z.unknown().optional(),
       additionalImageUrls: z.array(z.string().url()).optional(),
+      geometryInstructMode: z.string().optional(),
+      geometryFileFormat: z.string().optional(),
+      prompt: z.string().optional(),
+      useOriginalAlpha: z.boolean().optional(),
+      previewRender: z.boolean().optional(),
+      isMicro: z.boolean().optional(),
       // fal / Hunyuan3D
       enablePbr: z.boolean().optional(),
       faceCount: z.number().int().optional(),

@@ -140,11 +140,11 @@ export const MODEL_3D_MULTIVIEW_CACHE = {
 
 /** Quality tiers exposed by Rodin Gen-2.5 — maps to the `tier` API parameter */
 export const RODIN_TIER = {
-  EXTREME_LOW: 'Extreme-Low',
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
-  EXTREME_HIGH: 'Extreme-High',
+  EXTREME_LOW: 'Gen-2.5-Extreme-Low',
+  LOW: 'Gen-2.5-Low',
+  MEDIUM: 'Gen-2.5-Medium',
+  HIGH: 'Gen-2.5-High',
+  EXTREME_HIGH: 'Gen-2.5-Extreme-High',
 } as const
 
 export const RODIN_TIERS = [
@@ -180,44 +180,142 @@ export const RODIN_TIER_ESTIMATED_SECONDS: Record<RodinTier, number> = {
   [RODIN_TIER.EXTREME_HIGH]: 480,
 } as const
 
-/** Mesh surface style — maps to the `mesh_mode` API parameter */
+/**
+ * Mesh topology — maps to the `mesh_mode` API parameter.
+ * - `Raw`: triangle mesh (default, denser geometry)
+ * - `Quad`: quad mesh (lower poly, retopologized for animation)
+ */
 export const RODIN_MESH_MODE = {
-  SMOOTH: 'Rodin',
-  HARD_SURFACE: 'Rodin-Hard',
+  RAW: 'Raw',
+  QUAD: 'Quad',
 } as const
 
 export const RODIN_MESH_MODES = [
-  RODIN_MESH_MODE.SMOOTH,
-  RODIN_MESH_MODE.HARD_SURFACE,
+  RODIN_MESH_MODE.RAW,
+  RODIN_MESH_MODE.QUAD,
 ] as const
 
 export type RodinMeshMode = (typeof RODIN_MESH_MODES)[number]
 
+/**
+ * Geometry quality — maps to the `quality` API parameter. Combined with
+ * `mesh_mode` it controls the polygon budget (see RODIN_FACE_COUNT_LABEL).
+ */
+export const RODIN_QUALITY = {
+  EXTRA_LOW: 'extra-low',
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+} as const
+
+export const RODIN_QUALITIES = [
+  RODIN_QUALITY.EXTRA_LOW,
+  RODIN_QUALITY.LOW,
+  RODIN_QUALITY.MEDIUM,
+  RODIN_QUALITY.HIGH,
+] as const
+
+export type RodinQuality = (typeof RODIN_QUALITIES)[number]
+
+/**
+ * Human-readable face-count label per (mesh_mode, quality) combination.
+ * Mirrors the 8 presets surfaced on the Rodin web UI.
+ */
+export const RODIN_FACE_COUNT_LABEL: Record<
+  RodinMeshMode,
+  Record<RodinQuality, string>
+> = {
+  [RODIN_MESH_MODE.RAW]: {
+    [RODIN_QUALITY.EXTRA_LOW]: '2K',
+    [RODIN_QUALITY.LOW]: '20K',
+    [RODIN_QUALITY.MEDIUM]: '150K',
+    [RODIN_QUALITY.HIGH]: '500K',
+  },
+  [RODIN_MESH_MODE.QUAD]: {
+    [RODIN_QUALITY.EXTRA_LOW]: '4K',
+    [RODIN_QUALITY.LOW]: '8K',
+    [RODIN_QUALITY.MEDIUM]: '18K',
+    [RODIN_QUALITY.HIGH]: '50K',
+  },
+} as const
+
 /** Texture pipeline — maps to the `texture_mode` API parameter */
 export const RODIN_TEXTURE_MODE = {
-  PBR: 'PBR',
-  BAKED: 'Baked',
+  LEGACY: 'legacy',
+  EXTREME_LOW: 'extreme-low',
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
 } as const
 
 export const RODIN_TEXTURE_MODES = [
-  RODIN_TEXTURE_MODE.PBR,
-  RODIN_TEXTURE_MODE.BAKED,
+  RODIN_TEXTURE_MODE.LEGACY,
+  RODIN_TEXTURE_MODE.EXTREME_LOW,
+  RODIN_TEXTURE_MODE.LOW,
+  RODIN_TEXTURE_MODE.MEDIUM,
+  RODIN_TEXTURE_MODE.HIGH,
 ] as const
 
 export type RodinTextureMode = (typeof RODIN_TEXTURE_MODES)[number]
 
 /** Material workflow — maps to the `material` API parameter */
 export const RODIN_MATERIAL = {
-  METALLIC_ROUGHNESS: 'Metallic Roughness',
-  ALBEDO: 'Albedo',
+  PBR: 'PBR',
+  SHADED: 'Shaded',
+  ALL: 'All',
+  NONE: 'None',
 } as const
 
 export const RODIN_MATERIALS = [
-  RODIN_MATERIAL.METALLIC_ROUGHNESS,
-  RODIN_MATERIAL.ALBEDO,
+  RODIN_MATERIAL.PBR,
+  RODIN_MATERIAL.SHADED,
+  RODIN_MATERIAL.ALL,
+  RODIN_MATERIAL.NONE,
 ] as const
 
 export type RodinMaterial = (typeof RODIN_MATERIALS)[number]
+
+/**
+ * Geometry instruction mode — maps to the `geometry_instruct_mode` API
+ * parameter. `faithful` follows the reference image strictly (default);
+ * `creative` lets the model interpret the silhouette more loosely.
+ */
+export const RODIN_GEOMETRY_INSTRUCT_MODE = {
+  FAITHFUL: 'faithful',
+  CREATIVE: 'creative',
+} as const
+
+export const RODIN_GEOMETRY_INSTRUCT_MODES = [
+  RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL,
+  RODIN_GEOMETRY_INSTRUCT_MODE.CREATIVE,
+] as const
+
+export type RodinGeometryInstructMode =
+  (typeof RODIN_GEOMETRY_INSTRUCT_MODES)[number]
+
+/**
+ * Geometry export format — maps to the `geometry_file_format` API parameter.
+ * Defaults to glb so the rest of the pipeline (R2 ingest, ModelViewer)
+ * keeps working unchanged.
+ */
+export const RODIN_GEOMETRY_FILE_FORMAT = {
+  GLB: 'glb',
+  USDZ: 'usdz',
+  FBX: 'fbx',
+  OBJ: 'obj',
+  STL: 'stl',
+} as const
+
+export const RODIN_GEOMETRY_FILE_FORMATS = [
+  RODIN_GEOMETRY_FILE_FORMAT.GLB,
+  RODIN_GEOMETRY_FILE_FORMAT.USDZ,
+  RODIN_GEOMETRY_FILE_FORMAT.FBX,
+  RODIN_GEOMETRY_FILE_FORMAT.OBJ,
+  RODIN_GEOMETRY_FILE_FORMAT.STL,
+] as const
+
+export type RodinGeometryFileFormat =
+  (typeof RODIN_GEOMETRY_FILE_FORMATS)[number]
 
 /**
  * quality_override polygon-count constraints by geometry mode.
@@ -231,3 +329,6 @@ export const RODIN_QUALITY_OVERRIDE = {
 
 /** Maximum number of reference images Rodin accepts (primary + additional) */
 export const RODIN_MAX_REFERENCE_IMAGES = 5
+
+/** Tier where `is_micro` (micro-geometry) takes effect */
+export const RODIN_IS_MICRO_REQUIRED_TIER: RodinTier = RODIN_TIER.EXTREME_HIGH

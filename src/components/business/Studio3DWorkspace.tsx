@@ -37,22 +37,34 @@ import {
   MODEL_3D_GENERATE_TYPE,
   MODEL_3D_MULTIVIEW_MODEL_IDS,
   MODEL_3D_SOURCE_QUALITY,
+  RODIN_FACE_COUNT_LABEL,
+  RODIN_GEOMETRY_FILE_FORMAT,
+  RODIN_GEOMETRY_FILE_FORMATS,
+  RODIN_GEOMETRY_INSTRUCT_MODE,
+  RODIN_GEOMETRY_INSTRUCT_MODES,
+  RODIN_IS_MICRO_REQUIRED_TIER,
   RODIN_MATERIAL,
   RODIN_MATERIALS,
   RODIN_MAX_REFERENCE_IMAGES,
   RODIN_MESH_MODE,
   RODIN_MESH_MODES,
+  RODIN_QUALITY,
+  RODIN_QUALITIES,
   RODIN_TEXTURE_MODE,
   RODIN_TEXTURE_MODES,
   RODIN_TIER,
   RODIN_TIER_CREDITS,
   RODIN_TIER_ESTIMATED_SECONDS,
+  RODIN_HIGHPACK_EXTRA_CREDITS,
   RODIN_TIERS,
   TRELLIS_2_DECIMATION_TARGET,
   TRELLIS_2_RESOLUTIONS,
   TRELLIS_2_TEXTURE_SIZES,
+  type RodinGeometryFileFormat,
+  type RodinGeometryInstructMode,
   type RodinMaterial,
   type RodinMeshMode,
+  type RodinQuality,
   type RodinTextureMode,
   type RodinTier,
 } from '@/constants/model-3d-generation'
@@ -324,18 +336,39 @@ export function Studio3DWorkspace({
     useState<number>(TRELLIS_2_DECIMATION_TARGET.HIGH)
   const [trellisRemesh, setTrellisRemesh] = useState(true)
   const [removeBackground, setRemoveBackground] = useState(true)
-  // Rodin Gen-2.5 parameters
+  // Rodin Gen-2.5 parameters (defaults mirror Rodin web UI: tier=High,
+  // mesh_mode=Raw + quality=high → 500K Triangle, faithful geometry, high texture)
   const [rodinTier, setRodinTier] = useState<RodinTier>(RODIN_TIER.HIGH)
   const [rodinMeshMode, setRodinMeshMode] = useState<RodinMeshMode>(
-    RODIN_MESH_MODE.SMOOTH,
+    RODIN_MESH_MODE.RAW,
+  )
+  const [rodinQuality, setRodinQuality] = useState<RodinQuality>(
+    RODIN_QUALITY.HIGH,
   )
   const [rodinTextureMode, setRodinTextureMode] = useState<RodinTextureMode>(
-    RODIN_TEXTURE_MODE.PBR,
+    RODIN_TEXTURE_MODE.HIGH,
   )
   const [rodinMaterial, setRodinMaterial] = useState<RodinMaterial>(
-    RODIN_MATERIAL.METALLIC_ROUGHNESS,
+    RODIN_MATERIAL.PBR,
   )
   const [rodinHighPack, setRodinHighPack] = useState(false)
+  const [rodinGeometryInstructMode, setRodinGeometryInstructMode] =
+    useState<RodinGeometryInstructMode>(RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL)
+  const [rodinTAPose, setRodinTAPose] = useState(false)
+  const [rodinHdTexture, setRodinHdTexture] = useState(false)
+  const [rodinTextureDelight, setRodinTextureDelight] = useState(false)
+  const [rodinIsMicro, setRodinIsMicro] = useState(false)
+  const [rodinUseOriginalAlpha, setRodinUseOriginalAlpha] = useState(false)
+  const [rodinPreviewRender, setRodinPreviewRender] = useState(false)
+  const [rodinPrompt, setRodinPrompt] = useState('')
+  const [rodinGeometryFileFormat, setRodinGeometryFileFormat] =
+    useState<RodinGeometryFileFormat>(RODIN_GEOMETRY_FILE_FORMAT.GLB)
+  const [rodinSeedInput, setRodinSeedInput] = useState('')
+  const [rodinQualityOverrideInput, setRodinQualityOverrideInput] = useState('')
+  const [rodinBboxWidth, setRodinBboxWidth] = useState('')
+  const [rodinBboxHeight, setRodinBboxHeight] = useState('')
+  const [rodinBboxLength, setRodinBboxLength] = useState('')
+  const [rodinAdvancedOpen, setRodinAdvancedOpen] = useState(false)
   // Additional reference image URLs (beyond the front/source image). Max 4.
   const [rodinAdditionalImages, setRodinAdditionalImages] = useState<string[]>(
     [],
@@ -698,19 +731,62 @@ export function Studio3DWorkspace({
       ...(targetIsTriposr && {
         removeBackground,
       }),
-      ...(targetIsRodin && {
-        rodinTier,
-        rodinMeshMode,
-        rodinTextureMode,
-        rodinMaterial,
-        rodinHighPack,
-        ...(rodinAdditionalImages.length > 0 && {
-          rodinAdditionalImageUrls: rodinAdditionalImages.slice(
-            0,
-            RODIN_MAX_REFERENCE_IMAGES - 1,
-          ),
-        }),
-      }),
+      ...(targetIsRodin &&
+        (() => {
+          const trimmedPrompt = rodinPrompt.trim()
+          const parsedSeed = Number.parseInt(rodinSeedInput, 10)
+          const parsedQualityOverride = Number.parseInt(
+            rodinQualityOverrideInput,
+            10,
+          )
+          const bboxWidth = Number.parseFloat(rodinBboxWidth)
+          const bboxHeight = Number.parseFloat(rodinBboxHeight)
+          const bboxLength = Number.parseFloat(rodinBboxLength)
+          const bboxAllValid =
+            Number.isFinite(bboxWidth) &&
+            Number.isFinite(bboxHeight) &&
+            Number.isFinite(bboxLength)
+          const isMicroEffective =
+            rodinTier === RODIN_IS_MICRO_REQUIRED_TIER && rodinIsMicro
+
+          return {
+            rodinTier,
+            rodinMeshMode,
+            rodinQuality,
+            rodinTextureMode,
+            rodinMaterial,
+            rodinHighPack,
+            rodinGeometryInstructMode,
+            rodinGeometryFileFormat,
+            ...(rodinTAPose && { rodinTAPose: true }),
+            ...(rodinHdTexture && { rodinHdTexture: true }),
+            ...(rodinTextureDelight && { rodinTextureDelight: true }),
+            ...(rodinUseOriginalAlpha && { rodinUseOriginalAlpha: true }),
+            ...(rodinPreviewRender && { rodinPreviewRender: true }),
+            ...(isMicroEffective && { rodinIsMicro: true }),
+            ...(trimmedPrompt && { rodinPrompt: trimmedPrompt }),
+            ...(Number.isFinite(parsedSeed) &&
+              parsedSeed >= -1 && { seed: parsedSeed }),
+            ...(Number.isFinite(parsedQualityOverride) &&
+              parsedQualityOverride > 0 && {
+                rodinQualityOverride: parsedQualityOverride,
+              }),
+            ...(bboxAllValid && {
+              // [Width(Y), Height(Z), Length(X)] per official Rodin Gen-2.5 docs
+              rodinBboxCondition: [
+                Math.round(bboxWidth),
+                Math.round(bboxHeight),
+                Math.round(bboxLength),
+              ],
+            }),
+            ...(rodinAdditionalImages.length > 0 && {
+              rodinAdditionalImageUrls: rodinAdditionalImages.slice(
+                0,
+                RODIN_MAX_REFERENCE_IMAGES - 1,
+              ),
+            }),
+          }
+        })()),
     }
     await generate(params)
   }
@@ -1901,11 +1977,11 @@ export function Studio3DWorkspace({
                         )}
                       >
                         <span className="text-[10px] font-medium leading-tight">
-                          {tier === 'Extreme-Low'
+                          {tier === RODIN_TIER.EXTREME_LOW
                             ? 'XS'
-                            : tier === 'Extreme-High'
+                            : tier === RODIN_TIER.EXTREME_HIGH
                               ? 'XH'
-                              : tier}
+                              : tier.replace('Gen-2.5-', '')}
                         </span>
                         <span className="text-[9px] leading-tight opacity-70">
                           {credits} cr
@@ -1916,110 +1992,91 @@ export function Studio3DWorkspace({
                 </div>
                 <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
                   ~{Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60)}{' '}
-                  min · {RODIN_TIER_CREDITS[rodinTier]}
-                  {rodinHighPack ? ` + 1.0` : ''} cr
+                  min ·{' '}
+                  {RODIN_TIER_CREDITS[rodinTier] +
+                    (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)}{' '}
+                  cr
                 </p>
               </div>
 
-              {/* Geometry card — C-style big icon toggles */}
+              {/* Geometry preset card — unified mesh_mode + quality grid */}
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">
                 <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
                   {t('rodinMeshModeLabel')}
                 </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {RODIN_MESH_MODES.map((mode) => {
-                    const isActive = rodinMeshMode === mode
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setRodinMeshMode(mode)}
-                        className={cn(
-                          'flex flex-col items-center gap-2 rounded-lg border py-3 text-center transition-colors',
-                          isActive
-                            ? 'border-primary bg-primary/5 text-primary'
-                            : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
-                        )}
-                      >
-                        <span className="text-xl">
-                          {mode === RODIN_MESH_MODE.SMOOTH ? '〰️' : '📦'}
-                        </span>
-                        <span className="text-[11px] font-medium leading-tight">
-                          {mode === RODIN_MESH_MODE.SMOOTH
-                            ? 'Smooth'
-                            : 'Hard Surface'}
-                        </span>
-                      </button>
-                    )
-                  })}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {RODIN_MESH_MODES.flatMap((mode) =>
+                    RODIN_QUALITIES.map((quality) => {
+                      const isActive =
+                        rodinMeshMode === mode && rodinQuality === quality
+                      const faceLabel = RODIN_FACE_COUNT_LABEL[mode][quality]
+                      return (
+                        <button
+                          key={`${mode}-${quality}`}
+                          type="button"
+                          onClick={() => {
+                            setRodinMeshMode(mode)
+                            setRodinQuality(quality)
+                          }}
+                          className={cn(
+                            'flex flex-col items-center gap-0.5 rounded-md border px-1 py-2 text-center transition-colors',
+                            isActive
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
+                          )}
+                        >
+                          <span className="text-[12px] font-semibold leading-tight">
+                            {faceLabel}
+                          </span>
+                          <span className="text-[10px] leading-tight opacity-80">
+                            {mode === RODIN_MESH_MODE.QUAD
+                              ? 'Quad'
+                              : 'Triangle'}
+                          </span>
+                        </button>
+                      )
+                    }),
+                  )}
                 </div>
+                <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
+                  {t('rodinMeshModeHint')}
+                </p>
               </div>
 
-              {/* Texture & Material card — C-style segmented */}
+              {/* Material card — segmented + HighPack switch */}
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">
                 <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinTextureModeLabel')} &amp; {t('rodinMaterialLabel')}
+                  {t('rodinMaterialLabel')}
                 </Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-xs text-muted-foreground">
-                      {t('rodinTextureModeLabel')}
-                    </span>
-                    <div className="flex flex-1 gap-0.5 rounded-md bg-muted/50 p-0.5">
-                      {RODIN_TEXTURE_MODES.map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setRodinTextureMode(mode)}
-                          className={cn(
-                            'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-                            rodinTextureMode === mode
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:text-foreground',
-                          )}
-                        >
-                          {mode}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-xs text-muted-foreground">
-                      {t('rodinMaterialLabel')}
-                    </span>
-                    <div className="flex flex-1 gap-0.5 rounded-md bg-muted/50 p-0.5">
-                      {RODIN_MATERIALS.map((mat) => (
-                        <button
-                          key={mat}
-                          type="button"
-                          onClick={() => setRodinMaterial(mat)}
-                          className={cn(
-                            'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-                            rodinMaterial === mat
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:text-foreground',
-                          )}
-                        >
-                          {mat === RODIN_MATERIAL.METALLIC_ROUGHNESS
-                            ? 'Metallic'
-                            : 'Albedo'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 border-t border-border/40 pt-2">
-                    <Switch
-                      id="rodin-highpack"
-                      checked={rodinHighPack}
-                      onCheckedChange={setRodinHighPack}
-                    />
-                    <Label
-                      htmlFor="rodin-highpack"
-                      className="flex-1 cursor-pointer text-xs font-medium"
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_MATERIALS.map((mat) => (
+                    <button
+                      key={mat}
+                      type="button"
+                      onClick={() => setRodinMaterial(mat)}
+                      className={cn(
+                        'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                        rodinMaterial === mat
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
                     >
-                      {t('rodinHighPackLabel')}
-                    </Label>
-                  </div>
+                      {mat}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2 border-t border-border/40 pt-2">
+                  <Switch
+                    id="rodin-highpack"
+                    checked={rodinHighPack}
+                    onCheckedChange={setRodinHighPack}
+                  />
+                  <Label
+                    htmlFor="rodin-highpack"
+                    className="flex-1 cursor-pointer text-xs font-medium"
+                  >
+                    {t('rodinHighPackLabel')}
+                  </Label>
                 </div>
               </div>
 
@@ -2117,6 +2174,295 @@ export function Studio3DWorkspace({
                   ))}
                 </div>
               )}
+
+              {/* Geometry instruction card — faithful vs creative */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinGeometryInstructModeLabel')}
+                </Label>
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_GEOMETRY_INSTRUCT_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setRodinGeometryInstructMode(mode)}
+                      className={cn(
+                        'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                        rodinGeometryInstructMode === mode
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mode === RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL
+                        ? t('rodinFaithfulLabel')
+                        : t('rodinCreativeLabel')}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 font-serif text-[11px] italic text-muted-foreground">
+                  {t('rodinGeometryInstructModeHint')}
+                </p>
+              </div>
+
+              {/* Texture quality card — 5-way segmented */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinTextureModeLabel')}
+                </Label>
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_TEXTURE_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setRodinTextureMode(mode)}
+                      className={cn(
+                        'flex-1 rounded px-1 py-1 text-[10px] font-medium capitalize transition-colors',
+                        rodinTextureMode === mode
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Advanced collapsible — extra Gen-2.5 knobs */}
+              <div className="rounded-lg border border-border/60 bg-background/60">
+                <button
+                  type="button"
+                  onClick={() => setRodinAdvancedOpen((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-t-lg px-3 py-2.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/40"
+                >
+                  <span>{t('rodinAdvancedSectionLabel')}</span>
+                  <ChevronDown
+                    className={cn(
+                      'size-4 transition-transform',
+                      rodinAdvancedOpen && 'rotate-180',
+                    )}
+                  />
+                </button>
+                {rodinAdvancedOpen && (
+                  <div className="flex flex-col gap-3 border-t border-border/40 p-3">
+                    {/* Toggle row 1 */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="rodin-tapose"
+                          checked={rodinTAPose}
+                          onCheckedChange={setRodinTAPose}
+                        />
+                        <Label
+                          htmlFor="rodin-tapose"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinTAPoseLabel')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="rodin-hd-texture"
+                          checked={rodinHdTexture}
+                          onCheckedChange={setRodinHdTexture}
+                        />
+                        <Label
+                          htmlFor="rodin-hd-texture"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinHdTextureLabel')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="rodin-texture-delight"
+                          checked={rodinTextureDelight}
+                          onCheckedChange={setRodinTextureDelight}
+                        />
+                        <Label
+                          htmlFor="rodin-texture-delight"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinTextureDelightLabel')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="rodin-use-original-alpha"
+                          checked={rodinUseOriginalAlpha}
+                          onCheckedChange={setRodinUseOriginalAlpha}
+                        />
+                        <Label
+                          htmlFor="rodin-use-original-alpha"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinUseOriginalAlphaLabel')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="rodin-preview-render"
+                          checked={rodinPreviewRender}
+                          onCheckedChange={setRodinPreviewRender}
+                        />
+                        <Label
+                          htmlFor="rodin-preview-render"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinPreviewRenderLabel')}
+                        </Label>
+                      </div>
+                      <div
+                        className={cn(
+                          'flex items-center gap-2',
+                          rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER &&
+                            'opacity-50',
+                        )}
+                      >
+                        <Switch
+                          id="rodin-is-micro"
+                          checked={rodinIsMicro}
+                          disabled={rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER}
+                          onCheckedChange={setRodinIsMicro}
+                        />
+                        <Label
+                          htmlFor="rodin-is-micro"
+                          className="flex-1 cursor-pointer text-xs"
+                        >
+                          {t('rodinIsMicroLabel')}
+                        </Label>
+                      </div>
+                    </div>
+
+                    {/* Prompt */}
+                    <div className="flex flex-col gap-1">
+                      <Label
+                        htmlFor="rodin-prompt"
+                        className="text-[11px] uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t('rodinPromptLabel')}
+                      </Label>
+                      <textarea
+                        id="rodin-prompt"
+                        value={rodinPrompt}
+                        onChange={(e) => setRodinPrompt(e.target.value)}
+                        placeholder={t('rodinPromptPlaceholder')}
+                        rows={2}
+                        className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    {/* File format */}
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="rodin-format"
+                        className="w-24 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t('rodinGeometryFileFormatLabel')}
+                      </Label>
+                      <Select
+                        value={rodinGeometryFileFormat}
+                        onValueChange={(v) =>
+                          setRodinGeometryFileFormat(
+                            v as RodinGeometryFileFormat,
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          id="rodin-format"
+                          className="h-8 flex-1 text-xs"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RODIN_GEOMETRY_FILE_FORMATS.map((fmt) => (
+                            <SelectItem
+                              key={fmt}
+                              value={fmt}
+                              className="text-xs"
+                            >
+                              {fmt.toUpperCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Numeric inputs */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <Label
+                          htmlFor="rodin-seed"
+                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
+                        >
+                          Seed
+                        </Label>
+                        <input
+                          id="rodin-seed"
+                          type="number"
+                          inputMode="numeric"
+                          value={rodinSeedInput}
+                          onChange={(e) => setRodinSeedInput(e.target.value)}
+                          placeholder="-1"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Label
+                          htmlFor="rodin-quality-override"
+                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
+                        >
+                          {t('rodinQualityOverrideLabel')}
+                        </Label>
+                        <input
+                          id="rodin-quality-override"
+                          type="number"
+                          inputMode="numeric"
+                          value={rodinQualityOverrideInput}
+                          onChange={(e) =>
+                            setRodinQualityOverrideInput(e.target.value)
+                          }
+                          placeholder="auto"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bbox condition (W / H / L) */}
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Bounding Box
+                      </Label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={rodinBboxWidth}
+                          onChange={(e) => setRodinBboxWidth(e.target.value)}
+                          placeholder="W"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={rodinBboxHeight}
+                          onChange={(e) => setRodinBboxHeight(e.target.value)}
+                          placeholder="H"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={rodinBboxLength}
+                          onChange={(e) => setRodinBboxLength(e.target.value)}
+                          placeholder="L"
+                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Rodin BYOK key selector (optional) */}
               {rodinActiveKeys.length > 1 && (

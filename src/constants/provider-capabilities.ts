@@ -29,6 +29,8 @@ export type ProviderCapability =
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
+const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+
 /** Range constraints for numeric parameters */
 export interface NumericRange {
   min: number
@@ -166,6 +168,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
+    maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
+  },
   [AI_MODELS.FLUX_LORA]: {
     maxReferenceImages: 0,
   },

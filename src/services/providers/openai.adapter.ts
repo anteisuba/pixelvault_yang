@@ -49,6 +49,14 @@ function getOpenAiEndpoint(
   return `${trimmedBaseUrl}/${targetPath}`
 }
 
+function getReferenceImageInputs(
+  referenceImage?: string,
+  referenceImages?: string[],
+): string[] {
+  if (referenceImages && referenceImages.length > 0) return referenceImages
+  return referenceImage ? [referenceImage] : []
+}
+
 export const openAiAdapter: ProviderAdapter = {
   adapterType: AI_ADAPTER_TYPES.OPENAI,
   async generateImage({
@@ -64,23 +72,31 @@ export const openAiAdapter: ProviderAdapter = {
     const { width, height, size } =
       OPENAI_IMAGE_SIZES[aspectRatio] ?? OPENAI_IMAGE_SIZES['1:1']
     const baseUrl = providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.OPENAI
-    const effectiveRefImage = referenceImages?.[0] ?? referenceImage
-    const endpoint = getOpenAiEndpoint(baseUrl, Boolean(effectiveRefImage))
+    const referenceImageInputs = getReferenceImageInputs(
+      referenceImage,
+      referenceImages,
+    )
+    const endpoint = getOpenAiEndpoint(baseUrl, referenceImageInputs.length > 0)
     let response: Response
 
-    if (effectiveRefImage) {
-      const { buffer, mimeType } = await fetchAsBuffer(effectiveRefImage)
-      const extension = mimeType.split('/')[1] ?? 'png'
+    if (referenceImageInputs.length > 0) {
       const formData = new FormData()
+      const imageFieldName =
+        referenceImageInputs.length > 1 ? 'image[]' : 'image'
 
       formData.append('model', getExecutionModelId(modelId))
       formData.append('prompt', prompt)
       formData.append('size', size)
-      formData.append(
-        'image',
-        new Blob([Uint8Array.from(buffer)], { type: mimeType }),
-        `reference.${extension}`,
-      )
+
+      for (const [index, image] of referenceImageInputs.entries()) {
+        const { buffer, mimeType } = await fetchAsBuffer(image)
+        const extension = mimeType.split('/')[1] ?? 'png'
+        formData.append(
+          imageFieldName,
+          new Blob([Uint8Array.from(buffer)], { type: mimeType }),
+          `reference-${index + 1}.${extension}`,
+        )
+      }
 
       if (advancedParams?.quality)
         formData.append('quality', advancedParams.quality)

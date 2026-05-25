@@ -29,6 +29,16 @@ describe('reference-image-capabilities', () => {
       expect(cap.mode).toBe('native')
     })
 
+    it('honours GPT Image 2 official multi-reference limit', () => {
+      const cap = getImageReferenceCapability(
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_2,
+      )
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.max).toBe(16)
+      expect(cap.mode).toBe('native')
+    })
+
     it('honours per-model override for FLUX_KONTEXT_MAX (max=4, native mode)', () => {
       const cap = getImageReferenceCapability(
         AI_ADAPTER_TYPES.FAL,

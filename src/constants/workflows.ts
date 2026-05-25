@@ -191,17 +191,18 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: {
     openPanel: 'videoParams',
     recommendedModelIds: [
-      AI_MODELS.KLING_V3_PRO,
+      AI_MODELS.SEEDANCE_20_FAST,
+      AI_MODELS.SEEDANCE_20,
       AI_MODELS.VEO_31,
-      AI_MODELS.LUMA_RAY_2,
+      AI_MODELS.KLING_V3_PRO,
     ],
   },
   [WORKFLOW_IDS.CHARACTER_TO_VIDEO]: {
     openPanel: 'refImage',
     recommendedModelIds: [
-      AI_MODELS.KLING_V3_PRO,
+      AI_MODELS.SEEDANCE_20_FAST,
       AI_MODELS.SEEDANCE_20,
-      AI_MODELS.MINIMAX_VIDEO,
+      AI_MODELS.KLING_V3_PRO,
     ],
   },
   [WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE]: {

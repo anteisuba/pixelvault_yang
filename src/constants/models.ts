@@ -112,6 +112,19 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.PIKA_V25,
   AI_MODELS.KLING_VIDEO,
   AI_MODELS.RUNWAY_GEN3,
+  // Tier-2 video models retired in the 2026-05-25 lineup audit. Kept the
+  // Tier-1 four (Seedance 2.0 Fast/Standard, Veo 3.1, Kling V3 Pro) — these
+  // duplicated or under-performed the survivors. Volcengine-direct Seedance
+  // dropped to avoid same-name confusion vs the fal variants.
+  AI_MODELS.SEEDANCE_20_VOLC,
+  AI_MODELS.SEEDANCE_20_FAST_VOLC,
+  AI_MODELS.VIDU_Q3_PRO,
+  AI_MODELS.MINIMAX_VIDEO,
+  AI_MODELS.LUMA_RAY_2,
+  AI_MODELS.WAN_VIDEO,
+  AI_MODELS.HUNYUAN_VIDEO,
+  AI_MODELS.RUNWAY_GEN45,
+  AI_MODELS.RUNWAY_GEN4_TURBO,
   AI_MODELS.FAL_F5_TTS,
   AI_MODELS.HUNYUAN3D_2_1,
   // ANIMA_PENCIL_XL is `available: false` while we hunt for a real anime
@@ -237,10 +250,25 @@ export const isBuiltInModel = (value: string): value is AI_MODELS =>
 
 export const isAiModel = isBuiltInModel
 
-/** Get only the currently available video models */
+/**
+ * Recommendation order for the 4 Tier-1 video models. Lower number sorts first.
+ * Set 2026-05-25 after the model lineup audit: Seedance 2.0 Fast is the
+ * default — best speed/cost balance, covers 80% of use cases.
+ */
+const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
+  [AI_MODELS.SEEDANCE_20_FAST]: 1,
+  [AI_MODELS.SEEDANCE_20]: 2,
+  [AI_MODELS.VEO_31]: 3,
+  [AI_MODELS.KLING_V3_PRO]: 4,
+}
+
+/** Get only the currently available video models, sorted by recommendation. */
 export const getAvailableVideoModels = (): ModelOption[] =>
   MODEL_OPTIONS.filter(
     (model) => model.available && model.outputType === 'VIDEO',
+  ).sort(
+    (a, b) =>
+      (VIDEO_MODEL_PRIORITY[a.id] ?? 999) - (VIDEO_MODEL_PRIORITY[b.id] ?? 999),
   )
 
 /** Get only the currently available image models */
@@ -283,6 +311,7 @@ export type ProviderGroup =
   | 'opensource'
   | 'replicate'
   | 'fish_audio'
+  | 'hyper3d'
 
 /** Display order for provider groups */
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
@@ -296,6 +325,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'fish_audio',
   'opensource',
   'replicate',
+  'hyper3d',
 ]
 
 /** Map adapter type to provider group */
@@ -321,6 +351,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'replicate'
     case AI_ADAPTER_TYPES.FISH_AUDIO:
       return 'fish_audio'
+    case AI_ADAPTER_TYPES.HYPER3D_RODIN:
+      return 'hyper3d'
   }
 }
 

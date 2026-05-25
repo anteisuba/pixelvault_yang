@@ -2787,10 +2787,14 @@
       "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
       "referenceAudioFallback": "Reference audio",
       "clearAudio": "Clear reference audio",
+      "generateReferenceAudio": "Generate a 15-second sample with this voice",
       "outputHint": "Dialogue and exact spoken content belong in the video node's audio direction. This node only defines who the voice is, where it comes from, and how it sounds.",
       "toasts": {
         "voiceSelected": "Voice selected.",
         "referenceUploaded": "Reference audio uploaded.",
+        "referenceGenerated": "Reference audio generated.",
+        "referenceGenerateNoVoice": "Pick a Fish Audio voice first.",
+        "referenceGenerateFailed": "Could not generate reference audio. Try again.",
         "unsupportedAudio": "Upload an audio file.",
         "uploadFailed": "Reference audio upload failed."
       }

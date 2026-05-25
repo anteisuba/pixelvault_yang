@@ -2787,10 +2787,14 @@
       "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
       "referenceAudioFallback": "参考音频",
       "clearAudio": "清除参考音频",
+      "generateReferenceAudio": "用此音色生成 15 秒参考音频",
       "outputHint": "台词和具体说话内容放在视频节点的音频说明里；音色节点只描述声音是谁、来自哪里、听起来怎样。",
       "toasts": {
         "voiceSelected": "音色已选择。",
         "referenceUploaded": "参考音频已上传。",
+        "referenceGenerated": "参考音频已生成。",
+        "referenceGenerateNoVoice": "请先选择 Fish Audio 音色。",
+        "referenceGenerateFailed": "参考音频生成失败，请稍后重试。",
         "unsupportedAudio": "请上传音频文件。",
         "uploadFailed": "参考音频上传失败。"
       }

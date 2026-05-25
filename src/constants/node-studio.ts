@@ -92,7 +92,7 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_MINI,
     label: 'OpenAI',
   },
   {
@@ -136,6 +136,50 @@ export const NODE_STUDIO_IMAGE_INPUT = {
   accept: 'image/*',
   mimePrefix: 'image/',
   pastedFileName: 'pasted-image.png',
+} as const
+
+export const NODE_STUDIO_AUDIO_INPUT = {
+  accept: 'audio/*,.mp3,.wav,.webm,.ogg,.mp4,.m4a,.flac',
+  mimePrefix: 'audio/',
+  fileExtensions: ['.mp3', '.wav', '.webm', '.ogg', '.mp4', '.m4a', '.flac'],
+} as const
+
+export const NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS = {
+  manual: 'manual',
+  fishAudio: 'fishAudio',
+  referenceAudio: 'referenceAudio',
+} as const
+
+export const NODE_STUDIO_VOICE_PROFILE_SOURCES = [
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.manual,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.referenceAudio,
+] as const
+
+export const NODE_STUDIO_VOICE_PROFILE = {
+  providerDefault: 'Fish Audio',
+  idPreviewLength: 48,
+  maxAudioNameLength: 160,
+  /**
+   * Sample text used by the Voice Inspector's "Generate reference audio"
+   * button. Length aims at ~12-15s when spoken at natural pace — within fal
+   * Seedance reference-to-video's 15s audio cap.
+   */
+  referenceSampleText:
+    '你好，这是一段用于声音克隆的参考音频。我们正在测试音色的克隆效果，请保持自然的语调和清晰的发音。',
+  referenceSampleName: 'voice-clone-sample.mp3',
+} as const
+
+export const NODE_STUDIO_VIDEO_PROMPT = {
+  maxItemLength: 220,
+  maxPromptLength: 4000,
+  maxVisualReferences: 4,
+  sections: {
+    visualReferences: 'Visual references',
+    keyframes: 'Keyframes',
+    shotText: 'Shot text',
+    voiceProfiles: 'Voice profiles',
+  },
 } as const
 
 export const NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS = {

@@ -116,7 +116,7 @@ export function WorkflowModelPicker({
 }: WorkflowModelPickerProps) {
   const t = useTranslations('StudioNode.workflowModelPicker')
   const tModels = useTranslations('Models')
-  const tSetup = useTranslations('Setup')
+  const tSetup = useTranslations('QuickSetup')
   const [open, setOpen] = useState(false)
   const pickerKind = normalizePickerKind(kind)
   const iconClassName = getPickerIconClassName(pickerKind)

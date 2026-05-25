@@ -2787,10 +2787,14 @@
       "uploadAudioMeta": "MP3 / WAV / M4A / FLAC",
       "referenceAudioFallback": "参考音声",
       "clearAudio": "参考音声をクリア",
+      "generateReferenceAudio": "この音色で 15 秒の参考音声を生成",
       "outputHint": "台詞や具体的な発話内容は動画ノードの音声指示に書きます。このノードは声が誰か、どこ由来か、どう聞こえるかだけを定義します。",
       "toasts": {
         "voiceSelected": "音色を選択しました。",
         "referenceUploaded": "参考音声をアップロードしました。",
+        "referenceGenerated": "参考音声を生成しました。",
+        "referenceGenerateNoVoice": "先に Fish Audio の音色を選択してください。",
+        "referenceGenerateFailed": "参考音声の生成に失敗しました。再度お試しください。",
         "unsupportedAudio": "音声ファイルをアップロードしてください。",
         "uploadFailed": "参考音声のアップロードに失敗しました。"
       }

@@ -2832,6 +2832,7 @@
         "text": "ショット文",
         "voice": "音色"
       },
+      "upstreamGroupsEffective": "有効：生成リクエストに含まれます",
       "upstreamEmpty": {
         "visual": "画像ノードはまだ接続されていません。",
         "keyframe": "キーフレームはまだ接続されていません。",
@@ -2852,8 +2853,8 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "このモデルはボイスクローニングに対応していません",
-          "body": "generate_audio のオン/オフのみで、音色ノードの参考音声は使えません。\n音色をクローンするには Seedance Reference エンドポイントに切り替えてください。",
+          "title": "音色ノードはこのモデルでは反映されません",
+          "body": "Veo / Kling / 通常版 Seedance は、プロンプトから音声を自動合成するだけで、アップロードした参考音声を受け付けません。発話自体は生成されますが、音色ノードの声色はコピーされません。\n声をクローンしたい場合は、Seedance 2.0 Reference エンドポイントに切り替えてください。",
           "switchAction": "Seedance 2.0 Reference にワンクリック切替  →",
           "statusPill": "無視されます"
         },

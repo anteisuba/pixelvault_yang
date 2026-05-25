@@ -4,6 +4,7 @@ import { useCallback, useMemo, type ChangeEvent, type ReactNode } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   Film,
   ImageIcon,
@@ -36,15 +37,18 @@ import {
   type VideoAudioMode,
 } from '@/constants/video-model-capabilities'
 import {
+  getNodeMediaUrl,
+  isKeyframeNode,
+  isShotTextNode,
+  isVisualReferenceNode,
+  isVoiceProfileNode,
+} from '@/lib/node-workflow-graph'
+import {
   buildNodeWorkflowPrompt,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
 import { cn } from '@/lib/utils'
-import type {
-  NodeWorkflowEdge,
-  NodeWorkflowNode,
-  NodeWorkflowNodeData,
-} from '@/types/node-workflow'
+import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { InspectorField } from './InspectorField'
@@ -112,30 +116,6 @@ const VIDEO_ACCENT_STYLES: Record<
     chip: 'border-node-success/30 bg-node-success/10 text-node-success',
     button: 'bg-node-success text-node-canvas hover:bg-node-success/90',
   },
-}
-
-function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
-  return (
-    node.type === NODE_TYPE_IDS.characterImage ||
-    node.type === NODE_TYPE_IDS.shot ||
-    node.type === NODE_TYPE_IDS.backgroundImage
-  )
-}
-
-function isKeyframeNode(node: NodeWorkflowNode): boolean {
-  return node.type === NODE_TYPE_IDS.frameImage
-}
-
-function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
-  return node.type === NODE_TYPE_IDS.voice
-}
-
-function isShotTextNode(node: NodeWorkflowNode): boolean {
-  return node.type === NODE_TYPE_IDS.shotText
-}
-
-function getNodeMediaUrl(data: NodeWorkflowNodeData): string | undefined {
-  return data.imageUrl ?? data.mediaUrl
 }
 
 function getNonEmptyText(
@@ -280,6 +260,40 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     voiceUpstreamCount === 0
       ? 'hidden'
       : AUDIO_CALLOUT_STATE_BY_MODE[audioCapability.mode]
+
+  // Per-group "will this actually be consumed by the chosen model?" flag.
+  // Mirrors the harvest rules in StudioNodeWorkbench.handleGenerateMediaNode
+  // so users see what the picker really receives, not just what's connected.
+  const groupEffectiveByKey: Record<UpstreamGroup['key'], boolean> = useMemo(
+    () => ({
+      visual:
+        maxReferences > 0 &&
+        upstreamGroups
+          .find((g) => g.key === 'visual')
+          ?.nodes.some((n) => Boolean(getNodeMediaUrl(n.data))) === true,
+      keyframe:
+        maxReferences > 0 &&
+        upstreamGroups
+          .find((g) => g.key === 'keyframe')
+          ?.nodes.some((n) => Boolean(getNodeMediaUrl(n.data))) === true,
+      text:
+        upstreamGroups
+          .find((g) => g.key === 'text')
+          ?.nodes.some((n) =>
+            Boolean(buildNodeWorkflowPrompt(n.type, n.data).trim()),
+          ) === true,
+      voice:
+        audioCapability.mode === 'reference' &&
+        upstreamGroups
+          .find((g) => g.key === 'voice')
+          ?.nodes.some((n) =>
+            typeof n.data.voiceReferenceAudioUrl === 'string'
+              ? n.data.voiceReferenceAudioUrl.trim().length > 0
+              : false,
+          ) === true,
+    }),
+    [audioCapability.mode, maxReferences, upstreamGroups],
+  )
 
   const referenceSwitchOption = useMemo(() => {
     if (audioCalloutState !== 'ignored') return null
@@ -436,6 +450,15 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
                 <span className="flex-1">
                   {t(`upstreamGroups.${group.key}`)}
                 </span>
+                {group.nodes.length > 0 && groupEffectiveByKey[group.key] ? (
+                  <span
+                    className="inline-flex size-4 items-center justify-center rounded-full bg-node-success/20 text-node-success"
+                    title={t('upstreamGroupsEffective')}
+                    aria-label={t('upstreamGroupsEffective')}
+                  >
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                ) : null}
                 {group.key === 'voice' && audioCalloutState !== 'hidden' ? (
                   <span
                     className={cn(

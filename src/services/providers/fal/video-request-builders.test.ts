@@ -521,6 +521,62 @@ describe('buildFalVideoQueueRequest', () => {
 
     expect(result.input.audio_urls).toBeUndefined()
   })
+
+  describe('@AudioN prompt injection on Seedance Reference', () => {
+    it('prepends @Audio1 when audioUrls is set but the prompt has no @AudioN', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioUrls: ['https://example.com/voice-a.mp3'],
+      })
+
+      expect(result.input.prompt).toBe(`@Audio1 ${PROMPT}`)
+    })
+
+    it('prepends @Audio1 @Audio2 for two audio URLs', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
+        audioUrls: [
+          'https://example.com/voice-a.mp3',
+          'https://example.com/voice-b.mp3',
+        ],
+      })
+
+      expect(result.input.prompt).toBe(`@Audio1 @Audio2 ${PROMPT}`)
+    })
+
+    it('leaves the prompt alone when the user already wrote @Audio1', () => {
+      const userPrompt = 'narrator: @Audio1 says "hi"'
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        prompt: userPrompt,
+        audioUrls: ['https://example.com/voice-a.mp3'],
+      })
+
+      expect(result.input.prompt).toBe(userPrompt)
+    })
+
+    it('does not inject when audioUrls is empty', () => {
+      const result = buildFalVideoQueueRequest(
+        buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+      )
+
+      expect(result.input.prompt).toBe(PROMPT)
+    })
+
+    it('caps the prefix at @Audio3 even when 4 URLs are supplied', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioUrls: [
+          'https://example.com/a.mp3',
+          'https://example.com/b.mp3',
+          'https://example.com/c.mp3',
+          'https://example.com/d.mp3',
+        ],
+      })
+
+      expect(result.input.prompt).toBe(`@Audio1 @Audio2 @Audio3 ${PROMPT}`)
+    })
+  })
 })
 
 describe('buildFalWorkerQueueRequest', () => {

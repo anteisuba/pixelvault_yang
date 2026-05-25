@@ -2832,6 +2832,7 @@
         "text": "镜头文本",
         "voice": "音色"
       },
+      "upstreamGroupsEffective": "已生效：会进入生成请求",
       "upstreamEmpty": {
         "visual": "还没有连接图像节点。",
         "keyframe": "还没有连接关键帧。",
@@ -2852,8 +2853,8 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "当前模型不支持声音克隆",
-          "body": "此模型只能开关 generate_audio，无法使用音色节点的参考音频。\n要克隆音色，请切换到 Seedance Reference 端点。",
+          "title": "音色节点不会用于此模型",
+          "body": "Veo / Kling / 普通 Seedance 只能根据 prompt 自动合成音频，不接受上传的参考音频。声音会按 prompt 描述生成，但无法复刻音色节点的音色。\n如需声音克隆，请切换到 Seedance 2.0 Reference 端点。",
           "switchAction": "一键切换到 Seedance 2.0 Reference  →",
           "statusPill": "将被忽略"
         },

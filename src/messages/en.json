@@ -2832,6 +2832,7 @@
         "text": "Shot text",
         "voice": "Voices"
       },
+      "upstreamGroupsEffective": "Active: included in the generation request",
       "upstreamEmpty": {
         "visual": "No image nodes connected.",
         "keyframe": "No keyframes connected.",
@@ -2852,8 +2853,8 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "This model does not support voice cloning",
-          "body": "It can only toggle generate_audio — it won't read the voice node's reference audio.\nSwitch to a Seedance Reference endpoint to clone the voice.",
+          "title": "Voice node won't apply to this model",
+          "body": "Veo, Kling, and the non-Reference Seedance endpoints only let the model synthesize audio from your prompt — they don't accept uploaded reference clips. Speech will be generated, but the voice node's timbre is ignored.\nSwitch to a Seedance 2.0 Reference endpoint to actually clone the voice.",
           "switchAction": "Switch to Seedance 2.0 Reference  →",
           "statusPill": "Will be ignored"
         },

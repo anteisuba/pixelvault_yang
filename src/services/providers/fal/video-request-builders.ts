@@ -303,17 +303,56 @@ function buildSeedance20(
 }
 
 /**
+ * Detects whether a prompt already references reference audio via the fal
+ * `@AudioN` token convention. Case-sensitive per fal docs (`@Audio1`, not
+ * `@audio1`). Matches @Audio1 through @Audio9.
+ */
+function promptReferencesAudio(prompt: string): boolean {
+  return /@Audio[1-9]\b/.test(prompt)
+}
+
+/**
+ * Build the auto-inject prefix when the user supplied audio_urls but forgot
+ * to wire them into the prompt. For N URLs we prepend `@Audio1 @Audio2 ...`
+ * so the fal model knows which references to pull from. Users still write
+ * their own dialogue (typically double-quoted) after the prefix.
+ */
+function buildAudioReferencePrefix(audioCount: number): string {
+  const refs: string[] = []
+  for (let i = 1; i <= audioCount && i <= 3; i += 1) {
+    refs.push(`@Audio${i}`)
+  }
+  return refs.join(' ')
+}
+
+/**
  * Seedance 2.0 reference-to-video endpoint. Accepts up to 9 reference images
- * in `image_urls` and (future, when voice nodes produce real audio URLs) up
- * to 3 reference audios in `audio_urls`. Auto-generates audio + lipsync per
- * the fal docs at https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+ * in `image_urls` and up to 3 reference audios in `audio_urls`. Auto-generates
+ * audio + lipsync per fal docs at
+ * https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+ *
+ * When the caller passes `audioUrls` but the prompt doesn't reference any
+ * `@AudioN` token, we auto-prepend `@Audio1 @Audio2 ...` so the model
+ * actually consumes the audio. The user remains responsible for the dialogue
+ * text (e.g. `"hello, my friend"`) — we don't fabricate lines.
  */
 function buildSeedanceReference(
   input: FalVideoRequestBuilderInput,
   allowedResolutions: readonly string[],
 ): Record<string, unknown> {
+  const audioUrls =
+    input.audioUrls && input.audioUrls.length > 0
+      ? input.audioUrls.slice(0, 3)
+      : []
+
+  const basePrompt = input.prompt
+  const prompt =
+    audioUrls.length > 0 && !promptReferencesAudio(basePrompt)
+      ? `${buildAudioReferencePrefix(audioUrls.length)} ${basePrompt}`.trim()
+      : basePrompt
+
   const body: Record<string, unknown> = {
-    prompt: input.prompt,
+    prompt,
     resolution:
       pickResolution(
         input.resolution,
@@ -335,10 +374,8 @@ function buildSeedanceReference(
       ? input.referenceImages
       : [requireReferenceImage(input)]
   body.image_urls = refs.slice(0, 9)
-  // Optional voice cloning: each clip up to 15s / 15MB, max 3 clips. Prompt
-  // should include `@Audio1` (etc.) for fal to wire the speaker in.
-  if (input.audioUrls && input.audioUrls.length > 0) {
-    body.audio_urls = input.audioUrls.slice(0, 3)
+  if (audioUrls.length > 0) {
+    body.audio_urls = audioUrls
   }
   return body
 }

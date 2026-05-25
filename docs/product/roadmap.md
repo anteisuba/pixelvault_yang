@@ -263,7 +263,11 @@
 - 缺口：不支持音频参考；platform.vidu.com 尚未开放 API（消费版独占）
 - 差异化：现有 Kling / Runway / Wan / Hunyuan / MiniMax / Seedance 不覆盖「多参考图角色一致性 R2V + 动漫强项」组合
 - 状态：等官方放出 API SKU ID 与稳定定价后再评估接入
-- 复查节点：**2026-05-25**（重新检查 [model-map](https://platform.vidu.com/docs/model-map) 与 release notes）
+- 复查节点：**2026-06-08**（重新检查 [model-map](https://platform.vidu.com/docs/model-map) 与 release notes）
+
+### Status check 2026-05-25 — API 仍未开放
+
+platform.vidu.com 文档页（model-map / reference-to-video / pricing / changelog）全部返回 403，无法直接读取。公开搜索结果证实 Omni Video Pro 已在消费端（vidu.com）正式上线（5s=200积分，15s=600积分），但第三方 API 聚合平台（Atlas Cloud、WaveSpeed、Pollo AI）仅列出 Q3 / Q3-Pro 作为可用 API SKU，未见 omni-pro 或 viduq3-omni 条目。结论：API 仍未开放，下次复查节点更新为 2026-06-08。
 
 ## Current Studio Highlights
 

@@ -352,6 +352,12 @@ export const GenerateVideoRequestSchema = z.object({
    * callers keep working unchanged.
    */
   referenceImages: z.array(z.string()).max(3).optional(),
+  /**
+   * Reference audio URLs (mp3/wav, up to 15s each, up to 3 clips). Only
+   * consumed by video models whose audio.mode === 'reference' (currently
+   * the Seedance 2.0 reference-to-video endpoints). Other models ignore.
+   */
+  audioUrls: z.array(z.string().trim().min(1)).max(3).optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -1100,6 +1106,8 @@ const WorkerVideoProviderInputSchema = z.object({
   referenceImage: z.string().optional(),
   /** Multi-reference array for Veo 3.1 reference-to-video. */
   referenceImages: z.array(z.string()).max(3).optional(),
+  /** Reference audio clips for Seedance reference-to-video voice cloning. */
+  audioUrls: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   i2vModelId: z.string().optional(),

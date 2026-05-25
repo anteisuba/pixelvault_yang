@@ -32,6 +32,8 @@ interface NodeMediaGenerationInput {
   apiKeyId?: string
   aspectRatio?: AspectRatio
   referenceImages?: string[]
+  /** Reference audio clips for voice cloning (Seedance reference-to-video). */
+  audioUrls?: string[]
   advancedParams?: AdvancedParams
 }
 
@@ -176,6 +178,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             aspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
             duration: VIDEO_GENERATION.DEFAULT_DURATION,
             referenceImages: input.referenceImages,
+            audioUrls: input.audioUrls,
           })
 
           if (!response.success || !response.data) {

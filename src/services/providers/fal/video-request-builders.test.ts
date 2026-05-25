@@ -479,6 +479,48 @@ describe('buildFalVideoQueueRequest', () => {
       image_url: REF,
     })
   })
+
+  it('emits audio_urls for Seedance 2.0 Reference when provided', () => {
+    const result = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+      audioUrls: ['https://example.com/voice-a.mp3'],
+    })
+
+    expect(result.input.image_urls).toEqual([REF])
+    expect(result.input.audio_urls).toEqual(['https://example.com/voice-a.mp3'])
+  })
+
+  it('caps audio_urls at 3 entries for Seedance Reference', () => {
+    const audioUrls = [
+      'https://example.com/a.mp3',
+      'https://example.com/b.mp3',
+      'https://example.com/c.mp3',
+      'https://example.com/d.mp3',
+    ]
+    const result = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
+      audioUrls,
+    })
+
+    expect((result.input.audio_urls as string[]).length).toBe(3)
+  })
+
+  it('omits audio_urls when not provided', () => {
+    const result = buildFalVideoQueueRequest(
+      buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+    )
+
+    expect(result.input.audio_urls).toBeUndefined()
+  })
+
+  it('ignores audioUrls on non-Reference Seedance endpoints', () => {
+    const result = buildFalVideoQueueRequest({
+      ...buildInput(AI_MODELS.SEEDANCE_20_FAST, REF),
+      audioUrls: ['https://example.com/voice.mp3'],
+    })
+
+    expect(result.input.audio_urls).toBeUndefined()
+  })
 })
 
 describe('buildFalWorkerQueueRequest', () => {

@@ -72,6 +72,8 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
     duration?: number
     referenceImage?: string
+    /** Reference audio clips for Seedance reference-to-video voice cloning. */
+    audioUrls?: string[]
     negativePrompt?: string
     resolution?: string
     i2vModelId?: string
@@ -525,6 +527,11 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       duration: readPositiveNumberField(providerInput, 'duration') ?? undefined,
       referenceImage:
         readStringField(providerInput, 'referenceImage') ?? undefined,
+      audioUrls: Array.isArray(providerInput.audioUrls)
+        ? providerInput.audioUrls.filter(
+            (v): v is string => typeof v === 'string' && v.trim().length > 0,
+          )
+        : undefined,
       negativePrompt:
         readStringField(providerInput, 'negativePrompt') ?? undefined,
       resolution: readStringField(providerInput, 'resolution') ?? undefined,

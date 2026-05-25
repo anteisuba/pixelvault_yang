@@ -647,6 +647,28 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const advancedParams: AdvancedParams | undefined =
         loras.length > 0 ? { loras } : undefined
 
+      // Harvest reference-audio URLs from any upstream voice node — only used
+      // when the chosen video model has audio.mode === 'reference' (Seedance
+      // 2.0 reference-to-video). Other models ignore audio_urls.
+      const upstreamAudioUrls =
+        kind === NODE_MEDIA_KIND_IDS.video
+          ? workflow.edges
+              .filter((edge) => edge.target === nodeId)
+              .map((edge) =>
+                workflow.nodes.find(
+                  (candidate) => candidate.id === edge.source,
+                ),
+              )
+              .filter(
+                (upstream): upstream is NodeWorkflowNode =>
+                  upstream?.type === NODE_TYPE_IDS.voice &&
+                  typeof upstream.data.voiceReferenceAudioUrl === 'string' &&
+                  upstream.data.voiceReferenceAudioUrl.length > 0,
+              )
+              .map((upstream) => upstream.data.voiceReferenceAudioUrl as string)
+              .slice(0, 3)
+          : []
+
       const result = await nodeMediaGeneration.generate({
         kind,
         modelId: model.modelId,
@@ -654,6 +676,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         prompt,
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
+        audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
         advancedParams,
       })
 

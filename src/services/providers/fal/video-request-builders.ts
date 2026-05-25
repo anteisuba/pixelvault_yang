@@ -26,6 +26,12 @@ export interface FalVideoRequestBuilderInput {
    * Other builders ignore this and read `referenceImage`.
    */
   referenceImages?: string[]
+  /**
+   * Reference audio clips. Only consumed by builders for endpoints that
+   * accept audio_urls (Seedance 2.0 reference-to-video). Other builders
+   * ignore.
+   */
+  audioUrls?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string
@@ -329,6 +335,11 @@ function buildSeedanceReference(
       ? input.referenceImages
       : [requireReferenceImage(input)]
   body.image_urls = refs.slice(0, 9)
+  // Optional voice cloning: each clip up to 15s / 15MB, max 3 clips. Prompt
+  // should include `@Audio1` (etc.) for fal to wire the speaker in.
+  if (input.audioUrls && input.audioUrls.length > 0) {
+    body.audio_urls = input.audioUrls.slice(0, 3)
+  }
   return body
 }
 

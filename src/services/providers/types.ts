@@ -81,6 +81,11 @@ export interface ProviderQueueSubmitInput {
   referenceImage?: string
   /** Multi-reference array for models like Veo 3.1 reference-to-video. */
   referenceImages?: string[]
+  /**
+   * Reference audio clips for voice cloning. Consumed only by builders for
+   * models with audio.mode === 'reference' (Seedance 2.0 reference-to-video).
+   */
+  audioUrls?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string

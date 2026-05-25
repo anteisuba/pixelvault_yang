@@ -16,6 +16,8 @@ export interface FalWorkerVideoRequestContext {
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
     duration?: number
     referenceImage?: string
+    /** Reference audio clips for Seedance reference-to-video voice cloning. */
+    audioUrls?: string[]
     negativePrompt?: string
     resolution?: string
     i2vModelId?: string
@@ -378,6 +380,9 @@ function buildSeedanceReference(
       readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
   }
   body.image_urls = [requireReferenceImage(context)]
+  if (providerInput.audioUrls && providerInput.audioUrls.length > 0) {
+    body.audio_urls = providerInput.audioUrls.slice(0, 3)
+  }
   return body
 }
 

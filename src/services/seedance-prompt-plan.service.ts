@@ -1,13 +1,13 @@
 import 'server-only'
 
 import {
-  SCRIPT_BREAKDOWN_LIMITS,
-  SCRIPT_BREAKDOWN_ERROR_CODES,
-  SCRIPT_BREAKDOWN_HTTP_STATUS,
-  SCRIPT_BREAKDOWN_OUTPUT_CONTRACT,
-  SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
-  type ScriptPlannerProvider,
-} from '@/constants/script-breakdown'
+  SEEDANCE_PROMPT_PLAN_ERROR_CODES,
+  SEEDANCE_PROMPT_PLAN_HTTP_STATUS,
+  SEEDANCE_PROMPT_PLAN_LIMITS,
+  SEEDANCE_PROMPT_PLAN_OUTPUT_CONTRACT,
+  SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT,
+} from '@/constants/seedance-prompt-plan'
+import type { ScriptPlannerProvider } from '@/constants/script-breakdown'
 import { logger } from '@/lib/logger'
 import { ApiRequestError } from '@/lib/errors'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
@@ -16,25 +16,25 @@ import { llmTextCompletion } from '@/services/llm-text.service'
 import { resolveNodePlannerRoute } from '@/services/node-planner-route.service'
 import { ensureUser } from '@/services/user.service'
 import {
-  ScriptBreakdownResultSchema,
-  type ScriptBreakdownResponseData,
-} from '@/types/script-breakdown'
+  SeedancePromptPlanResultSchema,
+  type SeedancePromptPlanResponseData,
+} from '@/types/seedance-prompt-plan'
 
 function buildUserPrompt(idea: string, locale: string): string {
   return [
-    SCRIPT_BREAKDOWN_OUTPUT_CONTRACT,
-    `Limits: max ${SCRIPT_BREAKDOWN_LIMITS.maxCharacters} characters, ${SCRIPT_BREAKDOWN_LIMITS.maxScenes} scenes, ${SCRIPT_BREAKDOWN_LIMITS.maxActions} actions, ${SCRIPT_BREAKDOWN_LIMITS.maxBeats} beats, ${SCRIPT_BREAKDOWN_LIMITS.maxShots} shots.`,
-    `Locale hint: ${locale}. Keep JSON keys in English; content may match the user's language.`,
+    SEEDANCE_PROMPT_PLAN_OUTPUT_CONTRACT,
+    `Limits: max ${SEEDANCE_PROMPT_PLAN_LIMITS.maxTimelineItems} timeline items. Keep finalPrompt under ${SEEDANCE_PROMPT_PLAN_LIMITS.finalPromptMaxLength} characters.`,
+    `Locale hint: ${locale}. Keep JSON keys in English. Write finalPrompt in English unless the user explicitly asks for another output language.`,
     `User idea: ${idea}`,
   ].join('\n\n')
 }
 
 function createInvalidPlannerOutputError(): ApiRequestError {
   return new ApiRequestError(
-    SCRIPT_BREAKDOWN_ERROR_CODES.invalidPlannerOutput,
-    SCRIPT_BREAKDOWN_HTTP_STATUS.invalidPlannerOutput,
+    SEEDANCE_PROMPT_PLAN_ERROR_CODES.invalidPlannerOutput,
+    SEEDANCE_PROMPT_PLAN_HTTP_STATUS.invalidPlannerOutput,
     'errors.provider.invalidStructuredOutput',
-    'The selected planner model returned malformed JSON. Retry or choose another Agent Key.',
+    'The selected planner model returned malformed Seedance prompt JSON. Retry or choose another Agent Key.',
   )
 }
 
@@ -56,10 +56,10 @@ function parseJsonObject(raw: string): unknown {
   }
 }
 
-function validateScriptBreakdownOutput(rawOutput: string) {
+function validateSeedancePromptPlanOutput(rawOutput: string) {
   const validation = validateLlmStructuredOutput(
     parseJsonObject(rawOutput),
-    ScriptBreakdownResultSchema,
+    SeedancePromptPlanResultSchema,
   )
 
   if (!validation.usable || !validation.data) {
@@ -69,12 +69,14 @@ function validateScriptBreakdownOutput(rawOutput: string) {
   return validation.data
 }
 
-function isScriptBreakdownRetryable(error: unknown): boolean {
+function isSeedancePromptPlanRetryable(error: unknown): boolean {
   if (error instanceof ApiRequestError) {
     return (
-      error.errorCode === SCRIPT_BREAKDOWN_ERROR_CODES.invalidPlannerOutput ||
-      error.httpStatus === SCRIPT_BREAKDOWN_HTTP_STATUS.rateLimited ||
-      error.httpStatus === SCRIPT_BREAKDOWN_HTTP_STATUS.temporarilyUnavailable
+      error.errorCode ===
+        SEEDANCE_PROMPT_PLAN_ERROR_CODES.invalidPlannerOutput ||
+      error.httpStatus === SEEDANCE_PROMPT_PLAN_HTTP_STATUS.rateLimited ||
+      error.httpStatus ===
+        SEEDANCE_PROMPT_PLAN_HTTP_STATUS.temporarilyUnavailable
     )
   }
 
@@ -86,12 +88,12 @@ function isScriptBreakdownRetryable(error: unknown): boolean {
   return false
 }
 
-async function withScriptBreakdownTimeout<T>(task: Promise<T>): Promise<T> {
+async function withSeedancePromptPlanTimeout<T>(task: Promise<T>): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error('Script breakdown timed out. Please try again.'))
-    }, SCRIPT_BREAKDOWN_LIMITS.llmTimeoutMs)
+      reject(new Error('Seedance prompt planning timed out. Please try again.'))
+    }, SEEDANCE_PROMPT_PLAN_LIMITS.llmTimeoutMs)
   })
 
   try {
@@ -103,7 +105,7 @@ async function withScriptBreakdownTimeout<T>(task: Promise<T>): Promise<T> {
   }
 }
 
-export async function createScriptBreakdown(
+export async function createSeedancePromptPlan(
   clerkId: string,
   params: {
     idea: string
@@ -111,7 +113,7 @@ export async function createScriptBreakdown(
     apiKeyId?: string
     locale: string
   },
-): Promise<ScriptBreakdownResponseData> {
+): Promise<SeedancePromptPlanResponseData> {
   const dbUser = await ensureUser(clerkId)
   const route = await resolveNodePlannerRoute(
     dbUser.id,
@@ -119,14 +121,14 @@ export async function createScriptBreakdown(
     params.apiKeyId,
   )
 
-  const breakdown = await withRetry(
+  const plan = await withRetry(
     async () => {
-      const rawOutput = await withScriptBreakdownTimeout(
+      const rawOutput = await withSeedancePromptPlanTimeout(
         llmTextCompletion({
-          systemPrompt: SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
+          systemPrompt: SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT,
           userPrompt: buildUserPrompt(params.idea, params.locale),
           modelId: route.modelId,
-          maxTokens: SCRIPT_BREAKDOWN_LIMITS.maxTokens,
+          maxTokens: SEEDANCE_PROMPT_PLAN_LIMITS.maxTokens,
           responseFormat: 'json_object',
           adapterType: route.adapterType,
           providerConfig: route.providerConfig,
@@ -134,26 +136,24 @@ export async function createScriptBreakdown(
         }),
       )
 
-      return validateScriptBreakdownOutput(rawOutput)
+      return validateSeedancePromptPlanOutput(rawOutput)
     },
     {
       maxAttempts: 2,
       baseDelayMs: 800,
-      label: 'script-breakdown.llm',
-      isRetryable: isScriptBreakdownRetryable,
+      label: 'seedance-prompt-plan.llm',
+      isRetryable: isSeedancePromptPlanRetryable,
     },
   )
 
-  logger.info('Script breakdown generated', {
+  logger.info('Seedance prompt plan generated', {
     adapterType: route.adapterType,
     modelId: route.modelId,
-    characterCount: breakdown.characters.length,
-    sceneCount: breakdown.scenes.length,
-    shotCount: breakdown.shots.length,
+    timelineCount: plan.timeline.length,
   })
 
   return {
-    breakdown,
+    plan,
     planner: {
       adapterType: route.adapterType,
       modelId: route.modelId,

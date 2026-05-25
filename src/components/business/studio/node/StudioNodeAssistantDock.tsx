@@ -60,7 +60,11 @@ function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
   }
 
   if (node.type === NODE_TYPE_IDS.agent) {
-    return node.data.breakdown?.title ?? fallbackTitle
+    return (
+      node.data.seedancePromptPlan?.title ??
+      node.data.breakdown?.title ??
+      fallbackTitle
+    )
   }
 
   return fallbackTitle
@@ -68,7 +72,11 @@ function getNodeTitle(node: NodeWorkflowNode, fallbackTitle: string): string {
 
 function getNodeSummary(node: NodeWorkflowNode): string | undefined {
   if (node.type === NODE_TYPE_IDS.agent) {
-    return node.data.breakdown?.logline ?? node.data.generationError
+    return (
+      node.data.seedancePromptPlan?.finalPrompt ??
+      node.data.breakdown?.logline ??
+      node.data.generationError
+    )
   }
 
   if (node.type === NODE_TYPE_IDS.characterImage) {

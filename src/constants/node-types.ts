@@ -68,6 +68,7 @@ export const NODE_WORKFLOW_FIELD_IDS = {
   voiceEmotion: 'voiceEmotion',
   motion: 'motion',
   duration: 'duration',
+  audioIntent: 'audioIntent',
 } as const
 
 export const NODE_WORKFLOW_FIELDS = [
@@ -85,6 +86,7 @@ export const NODE_WORKFLOW_FIELDS = [
   NODE_WORKFLOW_FIELD_IDS.voiceEmotion,
   NODE_WORKFLOW_FIELD_IDS.motion,
   NODE_WORKFLOW_FIELD_IDS.duration,
+  NODE_WORKFLOW_FIELD_IDS.audioIntent,
 ] as const
 
 export type NodeWorkflowFieldId = (typeof NODE_WORKFLOW_FIELDS)[number]
@@ -125,6 +127,7 @@ export const NODE_WORKFLOW_FIELDS_BY_NODE_TYPE: Partial<
     NODE_WORKFLOW_FIELD_IDS.motion,
     NODE_WORKFLOW_FIELD_IDS.camera,
     NODE_WORKFLOW_FIELD_IDS.duration,
+    NODE_WORKFLOW_FIELD_IDS.audioIntent,
     NODE_WORKFLOW_FIELD_IDS.prompt,
   ],
 } as const

@@ -43,7 +43,9 @@ const sendFromComposer = vi.fn()
 const ACTIONS: NodeWorkflowCanvasActions = {
   updateNodeData,
   updateScriptBreakdown: vi.fn(),
+  updateSeedancePromptPlan: vi.fn(),
   spawnCharactersFromBreakdown: vi.fn(),
+  applySeedancePromptPlanToSeedance: vi.fn(),
   deleteNode: vi.fn(),
   sendFromComposer,
   generateCharacterImage: vi.fn(),

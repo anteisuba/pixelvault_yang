@@ -24,6 +24,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_DOCK,
@@ -48,6 +49,7 @@ import {
   hasCapability,
 } from '@/constants/provider-capabilities'
 import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
+import { useSeedancePromptPlan } from '@/hooks/use-seedance-prompt-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
@@ -142,6 +144,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     defaultProjectName: t('projectUntitled'),
   })
   const scriptBreakdown = useScriptBreakdown()
+  const seedancePromptPlan = useSeedancePromptPlan()
   const characterImageGeneration = useCharacterImageGeneration()
   const nodeMediaGeneration = useNodeMediaGeneration()
   const modelOptionsByType = useWorkflowModelOptions()
@@ -356,12 +359,64 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         status: NODE_STATUS_IDS.running,
       })
       workflow.updateNodeData(targetAgent.id, {
+        agentMode:
+          targetAgent.data.agentMode ??
+          NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown,
         generationError: undefined,
         plannerApiKeyId,
         plannerProvider,
         plannerRouteOptionId,
         status: NODE_STATUS_IDS.running,
       })
+
+      const agentMode =
+        targetAgent.data.agentMode ?? NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
+
+      if (agentMode === NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt) {
+        const result = await seedancePromptPlan.generate({
+          idea,
+          plannerProvider,
+          apiKeyId: plannerApiKeyId,
+          locale: appLocale,
+        })
+
+        if (result.success) {
+          workflow.updateSeedancePromptPlan(
+            targetAgent.id,
+            result.data.plan,
+            result.data.planner,
+          )
+          workflow.updateNodeData(composerNodeId, {
+            status: NODE_STATUS_IDS.done,
+          })
+          toast.success(t('toasts.seedancePromptPlanned'), {
+            duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+            position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+          })
+          return
+        }
+
+        const failureMessage = getApiErrorMessage(
+          tErrors,
+          result,
+          t('toasts.seedancePromptPlanFailed'),
+        )
+
+        workflow.updateNodeData(composerNodeId, {
+          status: NODE_STATUS_IDS.failed,
+        })
+        workflow.updateNodeData(targetAgent.id, {
+          generationError: failureMessage,
+          status: NODE_STATUS_IDS.failed,
+        })
+
+        toast.error(t('toasts.seedancePromptPlanFailed'), {
+          description: failureMessage,
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
 
       const result = await scriptBreakdown.generate({
         idea,
@@ -406,7 +461,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
       })
     },
-    [appLocale, scriptBreakdown, t, tErrors, workflow],
+    [appLocale, scriptBreakdown, seedancePromptPlan, t, tErrors, workflow],
   )
 
   const handleGenerateCharacterImage = useCallback(
@@ -682,7 +737,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     () => ({
       updateNodeData: workflow.updateNodeData,
       updateScriptBreakdown: workflow.updateScriptBreakdown,
+      updateSeedancePromptPlan: workflow.updateSeedancePromptPlan,
       spawnCharactersFromBreakdown: workflow.spawnCharactersFromBreakdown,
+      applySeedancePromptPlanToSeedance:
+        workflow.applySeedancePromptPlanToSeedance,
       deleteNode: workflow.deleteNode,
       sendFromComposer: handleSendFromComposer,
       generateCharacterImage: handleGenerateCharacterImage,
@@ -695,9 +753,11 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       handleSendFromComposer,
       modelOptionsByType,
       workflow.deleteNode,
+      workflow.applySeedancePromptPlanToSeedance,
       workflow.spawnCharactersFromBreakdown,
       workflow.updateNodeData,
       workflow.updateScriptBreakdown,
+      workflow.updateSeedancePromptPlan,
     ],
   )
 

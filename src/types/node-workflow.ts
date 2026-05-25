@@ -9,6 +9,7 @@ import {
   NODE_STUDIO_CHARACTER_IMAGE_LORAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODES,
   NODE_STUDIO_CHARACTER_IMAGE_REFERENCES,
+  NODE_STUDIO_AGENT_MODES,
   NODE_STUDIO_PROJECTS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_REFERENCE_ROLES,
@@ -28,6 +29,7 @@ import {
   ScriptBreakdownPlannerSchema,
   ScriptBreakdownResultSchema,
 } from '@/types/script-breakdown'
+import { SeedancePromptPlanResultSchema } from '@/types/seedance-prompt-plan'
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -123,6 +125,8 @@ export const NodeWorkflowNodeDataSchema = z
     duration: z.string().optional(),
     status: NodeStatusSchema.default('idle'),
     breakdown: ScriptBreakdownResultSchema.optional(),
+    agentMode: z.enum(NODE_STUDIO_AGENT_MODES).optional(),
+    seedancePromptPlan: SeedancePromptPlanResultSchema.optional(),
     plannerProvider: z.enum(SCRIPT_PLANNER_PROVIDERS).optional(),
     plannerApiKeyId: z.string().trim().min(1).max(160).optional(),
     plannerRouteOptionId: z.string().trim().min(1).max(240).optional(),

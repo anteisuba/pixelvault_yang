@@ -127,7 +127,9 @@ const AUDIO_OPTION: NodeWorkflowModelOption = {
 const ACTIONS: NodeWorkflowCanvasActions = {
   updateNodeData,
   updateScriptBreakdown: vi.fn(),
+  updateSeedancePromptPlan: vi.fn(),
   spawnCharactersFromBreakdown: vi.fn(),
+  applySeedancePromptPlanToSeedance: vi.fn(),
   deleteNode: vi.fn(),
   generateMediaNode,
   modelOptionsByType: {

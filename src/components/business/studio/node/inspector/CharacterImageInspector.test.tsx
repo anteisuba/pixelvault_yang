@@ -119,7 +119,9 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
         }))
       },
       updateScriptBreakdown: vi.fn(),
+      updateSeedancePromptPlan: vi.fn(),
       spawnCharactersFromBreakdown: vi.fn(),
+      applySeedancePromptPlanToSeedance: vi.fn(),
       deleteNode: vi.fn(),
       generateCharacterImage,
       modelOptionsByType: {
@@ -143,7 +145,9 @@ function renderStatic(children: ReactNode) {
       value={{
         updateNodeData,
         updateScriptBreakdown: vi.fn(),
+        updateSeedancePromptPlan: vi.fn(),
         spawnCharactersFromBreakdown: vi.fn(),
+        applySeedancePromptPlanToSeedance: vi.fn(),
         deleteNode: vi.fn(),
         generateCharacterImage,
         modelOptionsByType: {

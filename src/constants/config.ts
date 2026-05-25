@@ -65,6 +65,8 @@ export const API_ENDPOINTS = {
   PROMPT_ASSISTANT: '/api/prompt/assistant',
   /** Node Studio script breakdown */
   SCRIPT_BREAKDOWN: '/api/script-breakdown',
+  /** Node Studio Seedance prompt planning */
+  SEEDANCE_PROMPT_PLAN: '/api/studio/seedance-prompt-plan',
   /** Node Studio assistant conversation */
   NODE_ASSISTANT: '/api/studio/node-assistant',
   /** Generation feedback (iterative refinement) */
@@ -432,6 +434,7 @@ export const RATE_LIMIT_CONFIGS = {
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
   scriptBreakdown: { limit: 12, windowSeconds: 60 },
+  seedancePromptPlan: { limit: 12, windowSeconds: 60 },
   nodeAssistant: { limit: 30, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────

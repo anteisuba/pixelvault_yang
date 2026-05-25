@@ -105,6 +105,22 @@ export type {
   ScriptBreakdownResult,
   ShotDraft,
 } from '@/types/script-breakdown'
+export {
+  SeedancePromptPlanApiSuccessResponseSchema,
+  SeedancePromptPlanPlannerSchema,
+  SeedancePromptPlanRequestSchema,
+  SeedancePromptPlanResponseDataSchema,
+  SeedancePromptPlanResultSchema,
+  SeedancePromptTimelineItemSchema,
+} from '@/types/seedance-prompt-plan'
+export type {
+  SeedancePromptPlanApiSuccessResponse,
+  SeedancePromptPlanPlanner,
+  SeedancePromptPlanRequest,
+  SeedancePromptPlanResponseData,
+  SeedancePromptPlanResult,
+  SeedancePromptTimelineItem,
+} from '@/types/seedance-prompt-plan'
 
 // ─── Advanced Generation Parameters ──────────────────────────────
 

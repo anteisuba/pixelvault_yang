@@ -2606,6 +2606,17 @@
       "generatingTitle": "Breaking down script",
       "generatingDescription": "The planner is building characters, scenes, beats, and shots.",
       "failedTitle": "Breakdown failed",
+      "modeLabel": "Agent mode",
+      "modes": {
+        "storyBreakdown": {
+          "label": "Story breakdown",
+          "description": "Characters, scenes, beats, and shots."
+        },
+        "seedancePrompt": {
+          "label": "Seedance prompt",
+          "description": "Video-ready prompt, timeline, camera, and audio."
+        }
+      },
       "logline": "Logline",
       "copyRisk": "Copy risk: {risk}",
       "copyRiskLevels": {
@@ -2619,6 +2630,18 @@
         "actions": "Actions",
         "beats": "Beats",
         "shots": "Shots"
+      },
+      "seedance": {
+        "emptyTitle": "Waiting for Seedance prompt",
+        "emptyDescription": "Switch to this mode, connect a Composer, and send a rough video idea.",
+        "generatingTitle": "Planning Seedance prompt",
+        "generatingDescription": "The planner is writing timeline, camera, motion, and audio direction.",
+        "duration": "Duration",
+        "timeline": "Timeline",
+        "timelineCount": "{count, plural, one {# segment} other {# segments}}",
+        "timelineRange": "{start}s-{end}s",
+        "finalPrompt": "Seedance prompt",
+        "applyToVideo": "Apply to connected video node"
       },
       "spawnCharacters": "Spawn character images ({count})",
       "spawnCharactersTooltip": "Create one Character Image node for each breakdown character."
@@ -3051,6 +3074,14 @@
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
       "generated": "Agent breakdown generated.",
       "scriptBreakdownFailed": "Agent breakdown failed.",
+      "seedancePromptPlanned": "Seedance prompt generated.",
+      "seedancePromptPlanFailed": "Seedance prompt planning failed.",
+      "seedancePromptApplied": "Seedance prompt applied to the connected video node.",
+      "seedancePromptApply": {
+        "missingAgent": "Select the Agent node with a Seedance prompt plan.",
+        "missingPlan": "Generate a Seedance prompt plan first.",
+        "missingSeedanceTarget": "Connect this Agent to a video generation node first."
+      },
       "characterGenerated": "Character image generated.",
       "mediaGenerated": "Node media generated.",
       "mediaGenerationFailed": "Node media generation failed.",

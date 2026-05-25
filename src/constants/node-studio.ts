@@ -52,6 +52,16 @@ export const NODE_STUDIO_PROJECTS = {
   fallbackName: 'Node Studio Project',
 } as const
 
+export const NODE_STUDIO_AGENT_MODE_IDS = {
+  storyBreakdown: 'storyBreakdown',
+  seedancePrompt: 'seedancePrompt',
+} as const
+
+export const NODE_STUDIO_AGENT_MODES = [
+  NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown,
+  NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt,
+] as const
+
 export const NODE_STUDIO_ASSISTANT_MESSAGE_ROLES = [
   'user',
   'assistant',

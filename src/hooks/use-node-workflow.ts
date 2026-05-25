@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react'
 
 import {
+  NODE_STUDIO_AGENT_MODE_IDS,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_ID_PREFIXES,
@@ -42,6 +43,10 @@ import type {
   ScriptBreakdownPlanner,
   ScriptBreakdownResult,
 } from '@/types/script-breakdown'
+import type {
+  SeedancePromptPlanPlanner,
+  SeedancePromptPlanResult,
+} from '@/types/seedance-prompt-plan'
 
 export const EMPTY_NODE_WORKFLOW_STATE: NodeWorkflowState = {
   nodes: [],
@@ -59,13 +64,26 @@ export interface NodeWorkflowActions {
     breakdown: ScriptBreakdownResult,
     planner: ScriptBreakdownPlanner,
   ): void
+  updateSeedancePromptPlan(
+    nodeId: string,
+    plan: SeedancePromptPlanResult,
+    planner: SeedancePromptPlanPlanner,
+  ): void
   spawnCharactersFromBreakdown(agentNodeId: string): SpawnCharactersResult
+  applySeedancePromptPlanToSeedance(
+    agentNodeId: string,
+  ): ApplySeedancePromptPlanResult
   deleteNode(id: string): void
 }
 
 export interface SpawnCharactersResult {
   createdNodeIds: string[]
   skippedCharacterIds: string[]
+}
+
+export interface ApplySeedancePromptPlanResult {
+  appliedNodeId: string | null
+  reason?: 'missingAgent' | 'missingPlan' | 'missingSeedanceTarget'
 }
 
 interface UseNodeWorkflowValue extends NodeWorkflowActions {
@@ -243,6 +261,14 @@ function createDefaultNodeData(
   if (type === NODE_TYPE_IDS.composer) {
     return {
       prompt: '',
+      status: NODE_STATUS_IDS.idle,
+    }
+  }
+
+  if (type === NODE_TYPE_IDS.agent) {
+    return {
+      prompt: '',
+      agentMode: NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown,
       status: NODE_STATUS_IDS.idle,
     }
   }
@@ -650,6 +676,44 @@ export function useNodeWorkflow({
                     data: {
                       ...node.data,
                       breakdown,
+                      seedancePromptPlan: undefined,
+                      planner,
+                      plannerLabel: planner.label,
+                      plannerModelId: planner.modelId,
+                      generationError: undefined,
+                      status: NODE_STATUS_IDS.done,
+                    },
+                  }
+                : node,
+            ),
+          }),
+        ),
+      )
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
+  const updateSeedancePromptPlan = useCallback(
+    (
+      nodeId: string,
+      plan: SeedancePromptPlanResult,
+      planner: SeedancePromptPlanPlanner,
+    ) => {
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (currentState) => ({
+            ...currentState,
+            nodes: currentState.nodes.map((node) =>
+              node.id === nodeId
+                ? {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      breakdown: undefined,
+                      agentMode: NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt,
+                      seedancePromptPlan: plan,
                       planner,
                       plannerLabel: planner.label,
                       plannerModelId: planner.modelId,
@@ -799,6 +863,71 @@ export function useNodeWorkflow({
     [defaultProjectName],
   )
 
+  const applySeedancePromptPlanToSeedance = useCallback(
+    (agentNodeId: string): ApplySeedancePromptPlanResult => {
+      const currentState = getCurrentProject(
+        storageRef.current,
+        defaultProjectName,
+      ).state
+      const agentNode = currentState.nodes.find(
+        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
+      )
+
+      if (!agentNode) {
+        return { appliedNodeId: null, reason: 'missingAgent' }
+      }
+
+      const plan = agentNode.data.seedancePromptPlan
+      if (!plan) {
+        return { appliedNodeId: null, reason: 'missingPlan' }
+      }
+
+      const targetSeedanceNode = currentState.edges
+        .filter((edge) => edge.source === agentNodeId)
+        .map((edge) =>
+          currentState.nodes.find(
+            (node) =>
+              node.id === edge.target && node.type === NODE_TYPE_IDS.seedance,
+          ),
+        )
+        .find((node): node is NodeWorkflowNode => Boolean(node))
+
+      if (!targetSeedanceNode) {
+        return { appliedNodeId: null, reason: 'missingSeedanceTarget' }
+      }
+
+      setWorkflowStorage((currentStorage) =>
+        patchCurrentProjectState(
+          currentStorage,
+          defaultProjectName,
+          (latestState) => ({
+            ...latestState,
+            nodes: latestState.nodes.map((node) =>
+              node.id === targetSeedanceNode.id
+                ? {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      [NODE_WORKFLOW_FIELD_IDS.motion]: plan.motion,
+                      [NODE_WORKFLOW_FIELD_IDS.camera]: plan.camera,
+                      [NODE_WORKFLOW_FIELD_IDS.duration]: plan.duration,
+                      [NODE_WORKFLOW_FIELD_IDS.audioIntent]: plan.audioIntent,
+                      prompt: plan.finalPrompt,
+                      generationError: undefined,
+                      status: NODE_STATUS_IDS.ready,
+                    },
+                  }
+                : node,
+            ),
+          }),
+        ),
+      )
+
+      return { appliedNodeId: targetSeedanceNode.id }
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
   const onNodesChange = useCallback<OnNodesChange<NodeWorkflowNode>>(
     (changes) => {
       setWorkflowStorage((currentStorage) =>
@@ -883,7 +1012,9 @@ export function useNodeWorkflow({
       deleteProject,
       updateNodeData,
       updateScriptBreakdown,
+      updateSeedancePromptPlan,
       spawnCharactersFromBreakdown,
+      applySeedancePromptPlanToSeedance,
       deleteNode,
       getOutgoingTargetByType,
       onNodesChange,
@@ -892,6 +1023,7 @@ export function useNodeWorkflow({
     }),
     [
       addNode,
+      applySeedancePromptPlanToSeedance,
       createProject,
       currentProject.id,
       currentProject.name,
@@ -907,6 +1039,7 @@ export function useNodeWorkflow({
       spawnCharactersFromBreakdown,
       switchProject,
       updateScriptBreakdown,
+      updateSeedancePromptPlan,
       updateNodeData,
     ],
   )

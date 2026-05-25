@@ -2606,6 +2606,17 @@
       "generatingTitle": "脚本を分解中",
       "generatingDescription": "プランナーがキャラクター、シーン、ビート、ショットを構成しています。",
       "failedTitle": "分解に失敗しました",
+      "modeLabel": "Agent モード",
+      "modes": {
+        "storyBreakdown": {
+          "label": "ストーリー分解",
+          "description": "キャラクター、シーン、ビート、ショット。"
+        },
+        "seedancePrompt": {
+          "label": "Seedance プロンプト",
+          "description": "動画向けプロンプト、時間軸、カメラ、音声。"
+        }
+      },
       "logline": "ログライン",
       "copyRisk": "コピーリスク：{risk}",
       "copyRiskLevels": {
@@ -2619,6 +2630,18 @@
         "actions": "動作",
         "beats": "ビート",
         "shots": "ショット"
+      },
+      "seedance": {
+        "emptyTitle": "Seedance プロンプト待ち",
+        "emptyDescription": "このモードに切り替え、Composer を接続して動画アイデアを送信します。",
+        "generatingTitle": "Seedance プロンプトを設計中",
+        "generatingDescription": "時間軸、カメラ、動き、音声方向を作成しています。",
+        "duration": "尺",
+        "timeline": "時間軸",
+        "timelineCount": "{count} セグメント",
+        "timelineRange": "{start}s-{end}s",
+        "finalPrompt": "Seedance プロンプト",
+        "applyToVideo": "接続した動画ノードへ適用"
       },
       "spawnCharacters": "キャラクター画像を派生 ({count})",
       "spawnCharactersTooltip": "分解結果の各キャラクターに Character Image ノードを作成します。"
@@ -3051,6 +3074,14 @@
       "nodesDeleted": "{count} 個のノードを削除しました。",
       "generated": "Agent の分解を生成しました。",
       "scriptBreakdownFailed": "Agent の分解に失敗しました。",
+      "seedancePromptPlanned": "Seedance プロンプトを生成しました。",
+      "seedancePromptPlanFailed": "Seedance プロンプト設計に失敗しました。",
+      "seedancePromptApplied": "接続した動画ノードへ適用しました。",
+      "seedancePromptApply": {
+        "missingAgent": "Seedance プロンプト計画を持つ Agent ノードを選択してください。",
+        "missingPlan": "先に Seedance プロンプト計画を生成してください。",
+        "missingSeedanceTarget": "この Agent を動画生成ノードへ接続してください。"
+      },
       "characterGenerated": "キャラクター画像を生成しました。",
       "mediaGenerated": "ノード素材を生成しました。",
       "mediaGenerationFailed": "ノード素材の生成に失敗しました。",

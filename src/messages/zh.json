@@ -2606,6 +2606,17 @@
       "generatingTitle": "正在拆解剧本",
       "generatingDescription": "规划器正在生成角色、场景、节拍和镜头。",
       "failedTitle": "拆解失败",
+      "modeLabel": "Agent 模式",
+      "modes": {
+        "storyBreakdown": {
+          "label": "故事拆解",
+          "description": "角色、场景、节拍和镜头结构。"
+        },
+        "seedancePrompt": {
+          "label": "Seedance 提示词",
+          "description": "视频可用提示词、时间轴、镜头和音频。"
+        }
+      },
       "logline": "梗概",
       "copyRisk": "版权风险：{risk}",
       "copyRiskLevels": {
@@ -2619,6 +2630,18 @@
         "actions": "动作",
         "beats": "节拍",
         "shots": "镜头"
+      },
+      "seedance": {
+        "emptyTitle": "等待 Seedance 提示词",
+        "emptyDescription": "切到此模式，连接 Composer，然后发送粗略视频想法。",
+        "generatingTitle": "正在规划 Seedance 提示词",
+        "generatingDescription": "规划器正在写时间轴、镜头、运动和音频方向。",
+        "duration": "时长",
+        "timeline": "时间轴",
+        "timelineCount": "{count} 段",
+        "timelineRange": "{start}s-{end}s",
+        "finalPrompt": "Seedance 提示词",
+        "applyToVideo": "写入已连接的视频节点"
       },
       "spawnCharacters": "派生角色图 ({count})",
       "spawnCharactersTooltip": "为拆解结果里的每个角色创建一个角色图节点。"
@@ -3051,6 +3074,14 @@
       "nodesDeleted": "已删除 {count} 个节点。",
       "generated": "Agent 拆解已生成。",
       "scriptBreakdownFailed": "Agent 拆解失败。",
+      "seedancePromptPlanned": "Seedance 提示词已生成。",
+      "seedancePromptPlanFailed": "Seedance 提示词规划失败。",
+      "seedancePromptApplied": "已写入连接的视频节点。",
+      "seedancePromptApply": {
+        "missingAgent": "请选择带 Seedance 提示词计划的 Agent 节点。",
+        "missingPlan": "请先生成 Seedance 提示词计划。",
+        "missingSeedanceTarget": "请先把这个 Agent 连接到视频生成节点。"
+      },
       "characterGenerated": "角色图已生成。",
       "mediaGenerated": "节点素材已生成。",
       "mediaGenerationFailed": "节点素材生成失败。",

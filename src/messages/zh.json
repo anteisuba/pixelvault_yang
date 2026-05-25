@@ -2866,6 +2866,10 @@
           "statusPill": "声音克隆"
         }
       },
+      "videoDiscount": {
+        "badge": "立省 40%",
+        "tooltip": "Seedance Reference 接视频参考自动 0.6x 价格"
+      },
       "noModel": "请先选择视频模型。",
       "noInput": "请填写视频提示词，或连接上游节点。",
       "generate": "生成视频",

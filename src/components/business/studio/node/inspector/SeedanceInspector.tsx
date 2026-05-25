@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useMemo, type ChangeEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import {
   AlertTriangle,
@@ -186,6 +192,22 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     () => modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
     [modelOptionsByType],
   )
+
+  // Default new Seedance nodes to Fast Reference — same per-second price as
+  // Fast text-to-video but unlocks multi-image / audio_urls / video_urls and
+  // a 0.6x discount when a reference video is connected. Only auto-sets if
+  // the user hasn't already chosen a model and Fast Reference is available
+  // (workspace platform / user-saved key). Otherwise leaves model unset so
+  // the picker can route through QuickSetupDialog as usual.
+  useEffect(() => {
+    if (node.data.model) return
+    const preferred = modelOptions.find(
+      (option) => option.modelId === AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+    )
+    if (!preferred) return
+    updateNodeData(node.id, { model: preferred })
+  }, [modelOptions, node.data.model, node.id, updateNodeData])
+
   const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, node.data)
   const generationStatus =
     node.data.generationStatus ??
@@ -485,6 +507,14 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
                     )}
                   >
                     {t(`audioCallout.${audioCalloutState}.statusPill`)}
+                  </span>
+                ) : null}
+                {group.key === 'video' && groupEffectiveByKey.video ? (
+                  <span
+                    className="rounded-full bg-node-success/20 px-2 py-0.5 text-2xs font-semibold normal-case tracking-normal text-node-success"
+                    title={t('videoDiscount.tooltip')}
+                  >
+                    {t('videoDiscount.badge')}
                   </span>
                 ) : null}
               </div>

@@ -2866,6 +2866,10 @@
           "statusPill": "Voice cloning"
         }
       },
+      "videoDiscount": {
+        "badge": "Save 40%",
+        "tooltip": "Seedance Reference applies a 0.6x discount when a reference video is connected."
+      },
       "noModel": "Select a video model first.",
       "noInput": "Write a video prompt or connect upstream nodes.",
       "generate": "Generate video",

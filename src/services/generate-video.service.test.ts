@@ -236,6 +236,106 @@ describe('generate-video.service worker dispatch', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  it('forwards videoUrls to the worker dispatch providerInput for Seedance Reference', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
+      creditCost: 4,
+    })
+
+    await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
+        referenceImage: 'data:image/png;base64,cmVm',
+        videoUrls: [
+          'https://cdn.example.com/clip-a.mp4',
+          'https://cdn.example.com/clip-b.mp4',
+        ],
+        audioUrls: ['https://cdn.example.com/voice.mp3'],
+      }),
+    )
+
+    expect(fetch).toHaveBeenCalled()
+    const dispatchBody = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as { body: string }).body,
+    ) as { providerInput: Record<string, unknown> }
+
+    expect(dispatchBody.providerInput).toMatchObject({
+      videoUrls: [
+        'https://cdn.example.com/clip-a.mp4',
+        'https://cdn.example.com/clip-b.mp4',
+      ],
+      audioUrls: ['https://cdn.example.com/voice.mp3'],
+    })
+  })
+
+  it('omits videoUrls from the worker dispatch when none are supplied', async () => {
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: 'key-1',
+      isFreeGeneration: false,
+      creditCost: 4,
+    })
+
+    await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
+        referenceImage: 'data:image/png;base64,cmVm',
+      }),
+    )
+
+    const dispatchBody = JSON.parse(
+      (vi.mocked(fetch).mock.calls[0][1] as { body: string }).body,
+    ) as { providerInput: Record<string, unknown> }
+
+    expect(dispatchBody.providerInput.videoUrls).toBeUndefined()
+  })
+
+  it('forwards videoUrls through the inline fal adapter path when the worker URL is absent', async () => {
+    delete process.env.EXECUTION_WORKER_BASE_URL
+    mockResolveGenerationRoute.mockResolvedValueOnce({
+      modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+      apiKey: 'plain-key',
+      resolvedApiKeyId: null,
+      isFreeGeneration: false,
+      creditCost: 4,
+    })
+    mockSubmitVideoToQueue.mockResolvedValue({
+      requestId: 'provider-request-1',
+      statusUrl: 'https://queue.fal.run/status',
+      responseUrl: 'https://queue.fal.run/response',
+    })
+
+    await submitVideoGeneration(
+      'clerk-1',
+      buildVideoRequest({
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        referenceImage: 'data:image/png;base64,cmVm',
+        videoUrls: ['https://cdn.example.com/clip-a.mp4'],
+      }),
+    )
+
+    expect(mockSubmitVideoToQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        videoUrls: ['https://cdn.example.com/clip-a.mp4'],
+      }),
+    )
+  })
+
   it('keeps routes without worker-resolvable keys on the existing inline queue path', async () => {
     mockResolveGenerationRoute.mockResolvedValueOnce({
       modelId: AI_MODELS.KLING_VIDEO,

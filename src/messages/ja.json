@@ -2866,6 +2866,10 @@
           "statusPill": "ボイスクローン"
         }
       },
+      "videoDiscount": {
+        "badge": "40% オフ",
+        "tooltip": "Seedance Reference は参考動画を接続すると 0.6x 価格になります。"
+      },
       "noModel": "先に動画モデルを選択してください。",
       "noInput": "動画プロンプトを入力するか、上流ノードを接続してください。",
       "generate": "動画を生成",

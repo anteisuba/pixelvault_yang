@@ -16,6 +16,7 @@ import {
   submitVideoAPI,
 } from '@/lib/api-client'
 import type {
+  AdvancedParams,
   GenerateAudioResponseData,
   GenerationRecord,
   VideoStatusResponseData,
@@ -31,6 +32,7 @@ interface NodeMediaGenerationInput {
   apiKeyId?: string
   aspectRatio?: AspectRatio
   referenceImages?: string[]
+  advancedParams?: AdvancedParams
 }
 
 type NodeMediaGenerationResult =
@@ -148,6 +150,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             freePrompt: input.prompt,
             aspectRatio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
             referenceImages: input.referenceImages,
+            advancedParams: input.advancedParams,
           })
 
           if (!response.success || !hasGeneration(response.data)) {

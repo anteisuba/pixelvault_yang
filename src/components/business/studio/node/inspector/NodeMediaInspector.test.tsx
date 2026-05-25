@@ -1,9 +1,47 @@
-import { useState, type ComponentType, type ReactNode } from 'react'
+/* eslint-disable @next/next/no-img-element */
+
+import {
+  useState,
+  type ComponentType,
+  type ImgHTMLAttributes,
+  type ReactNode,
+} from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('next/image', () => ({
+  default: ({
+    alt,
+    src,
+  }: ImgHTMLAttributes<HTMLImageElement> & {
+    fill?: boolean
+    unoptimized?: boolean
+  }) => <img alt={alt} src={typeof src === 'string' ? src : ''} />,
+}))
+
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: () => null,
+}))
+
+vi.mock(
+  '@/components/business/studio/node/CharacterImageReferenceControls',
+  () => ({
+    CharacterImageReferenceControls: () => <button>referenceControls</button>,
+  }),
+)
+
+vi.mock('@/components/business/studio/node/CharacterImageLoraControls', () => ({
+  CharacterImageLoraControls: () => <button>loraControls</button>,
 }))
 
 vi.mock('@/components/business/studio/node/WorkflowModelPicker', () => ({
@@ -20,6 +58,17 @@ vi.mock('@/components/business/studio/node/WorkflowModelPicker', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-node-reference-upload', () => ({
+  useNodeReferenceUpload: () => ({
+    uploadFile: vi.fn(),
+    isUploading: false,
+  }),
+}))
+
+import {
+  NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
+  NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+} from '@/constants/node-studio'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
@@ -90,7 +139,10 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   },
 }
 
-function createNode(type: NodeWorkflowNodeType): NodeWorkflowNode {
+function createNode(
+  type: NodeWorkflowNodeType,
+  patch: Partial<NodeWorkflowNode['data']> = {},
+): NodeWorkflowNode {
   return {
     id: `node-${type}`,
     type,
@@ -105,6 +157,7 @@ function createNode(type: NodeWorkflowNodeType): NodeWorkflowNode {
       [NODE_WORKFLOW_FIELD_IDS.dialogue]: 'initial dialogue',
       [NODE_WORKFLOW_FIELD_IDS.motion]: 'initial motion',
       [NODE_WORKFLOW_FIELD_IDS.scene]: 'initial scene',
+      ...patch,
     },
   }
 }
@@ -175,14 +228,45 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
-    'hides the empty preview for idle image node %s',
+    'starts idle image node %s with three source choices',
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
 
       expect(screen.queryByText(`${type}.emptyPreview`)).not.toBeInTheDocument()
-      expect(screen.getByLabelText('prompt.label')).toBeInTheDocument()
+      expect(screen.getByText('modeExistingTitle')).toBeInTheDocument()
+      expect(screen.getByText('modeAiTitle')).toBeInTheDocument()
+      expect(screen.getByText('modeStudioTitle')).toBeInTheDocument()
+      expect(screen.queryByLabelText('prompt.label')).not.toBeInTheDocument()
     },
   )
+
+  it('can turn an existing image node result into an AI reference', () => {
+    renderMediaInspector(
+      BackgroundImageInspector,
+      createNode(NODE_TYPE_IDS.backgroundImage, {
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        mediaUrl: 'https://cdn.test/background.png',
+        sourceGenerationId: 'generation-background',
+        sourceLabel: 'Existing background',
+      }),
+    )
+
+    fireEvent.click(screen.getByText('useExistingAsReference'))
+
+    expect(updateNodeData).toHaveBeenCalledWith(
+      'node-backgroundImage',
+      expect.objectContaining({
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+        referenceAssets: expect.arrayContaining([
+          expect.objectContaining({
+            url: 'https://cdn.test/background.png',
+            sourceId: 'generation-background',
+          }),
+        ]),
+      }),
+    )
+  })
 
   it.each([
     [NODE_TYPE_IDS.shot, ShotInspector],
@@ -194,6 +278,14 @@ describe('Node media inspectors', () => {
     'selects a model and generates %s nodes',
     (type, Inspector) => {
       renderMediaInspector(Inspector, createNode(type))
+
+      if (
+        type === NODE_TYPE_IDS.shot ||
+        type === NODE_TYPE_IDS.backgroundImage ||
+        type === NODE_TYPE_IDS.frameImage
+      ) {
+        fireEvent.click(screen.getByText('modeAiTitle'))
+      }
 
       fireEvent.click(screen.getByText('modelPicker'))
       fireEvent.click(screen.getByText('generate'))

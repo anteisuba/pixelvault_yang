@@ -550,18 +550,56 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
+      const isImageMediaNode = kind === NODE_MEDIA_KIND_IDS.image
       workflow.updateNodeData(nodeId, {
         generationError: undefined,
         generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+        ...(isImageMediaNode
+          ? {
+              imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+              imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+            }
+          : {}),
         mediaKind: kind,
         status: NODE_STATUS_IDS.running,
       })
+
+      const maxReferenceImages = getMaxReferenceImages(
+        model.adapterType,
+        model.modelId,
+      )
+      const existingImageReference =
+        isImageMediaNode &&
+        node.data.imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
+          ? node.data.mediaUrl
+          : undefined
+      const referenceImages = [
+        ...(existingImageReference ? [existingImageReference] : []),
+        ...(node.data.referenceAssets ?? []).map((reference) => reference.url),
+      ].slice(0, maxReferenceImages)
+      const supportsLora =
+        isImageMediaNode &&
+        hasCapability(model.adapterType, 'lora', model.modelId)
+      const maxLoras =
+        getCapabilityConfig(model.adapterType, model.modelId).maxLoras ??
+        Number.POSITIVE_INFINITY
+      const loras = supportsLora
+        ? (node.data.loras ?? []).slice(0, maxLoras).map((lora) => ({
+            url: lora.loraUrl,
+            scale: lora.scale,
+          }))
+        : []
+      const advancedParams: AdvancedParams | undefined =
+        loras.length > 0 ? { loras } : undefined
 
       const result = await nodeMediaGeneration.generate({
         kind,
         modelId: model.modelId,
         apiKeyId: model.apiKeyId,
         prompt,
+        referenceImages:
+          referenceImages.length > 0 ? referenceImages : undefined,
+        advancedParams,
       })
 
       if (result.success) {
@@ -569,6 +607,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           generationError: undefined,
           generationId: result.generation.id,
           generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          ...(isImageMediaNode
+            ? {
+                imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+                imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+                sourceGenerationId: undefined,
+                sourceLabel: undefined,
+              }
+            : {}),
           mediaKind: kind,
           mediaUrl: result.mediaUrl,
           mediaLabel: result.generation.model,
@@ -590,6 +636,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.updateNodeData(nodeId, {
         generationError: failureMessage,
         generationStatus: NODE_GENERATION_STATUS_IDS.error,
+        ...(isImageMediaNode
+          ? {
+              imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+              imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+            }
+          : {}),
         mediaKind: kind,
         status: NODE_STATUS_IDS.failed,
       })

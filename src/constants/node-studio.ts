@@ -165,6 +165,11 @@ export const NODE_STUDIO_CHARACTER_IMAGE_OUTPUT = {
   uploadNote: 'Node Studio character output',
 } as const
 
+export const NODE_STUDIO_MEDIA_IMAGE_OUTPUT = {
+  maxSourceLabelLength: 160,
+  uploadNote: 'Node Studio image node output',
+} as const
+
 export const NODE_STUDIO_CHARACTER_IMAGE_LORAS = {
   maxItems: 5,
   defaultScale: 1,

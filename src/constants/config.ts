@@ -139,6 +139,9 @@ export const API_ENDPOINTS = {
   /** Voice Cards */
   VOICE_CARDS: '/api/voice-cards',
 
+  /** Node Studio workflow projects */
+  NODE_WORKFLOW_PROJECTS: '/api/node-workflow/projects',
+
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
 
@@ -339,9 +342,9 @@ export const AI_PROVIDER_ENDPOINTS = {
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
-  GEMINI_FLASH_LITE: 'gemini-2.5-flash-lite',
-  GEMINI_3_PRO_PREVIEW: 'gemini-3-pro-preview',
-  OPENAI_GPT_4_1_NANO: 'gpt-4.1-nano',
+  GEMINI_3_1_FLASH_LITE: 'gemini-3.1-flash-lite',
+  GEMINI_3_5_FLASH: 'gemini-3.5-flash',
+  OPENAI_GPT_5_4_MINI: 'gpt-5.4-mini',
   VOLCENGINE_DOUBAO_1_5_PRO_32K: 'doubao-1.5-pro-32k',
   DEEPSEEK_V4_FLASH: 'deepseek-v4-flash',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',

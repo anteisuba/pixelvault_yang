@@ -37,10 +37,18 @@ import {
   type NodeWorkflowNode,
   type NodeWorkflowNodeData,
   type NodeWorkflowProject,
+  type NodeWorkflowProjectRecord,
   type NodeWorkflowProjectSummary,
   type NodeWorkflowState,
   type NodeWorkflowStorageSnapshot,
 } from '@/types/node-workflow'
+import {
+  createNodeWorkflowProjectAPI,
+  deleteNodeWorkflowProjectAPI,
+  listNodeWorkflowProjectsAPI,
+  updateNodeWorkflowProjectAPI,
+  activateNodeWorkflowProjectAPI,
+} from '@/lib/api-client'
 import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import type {
   ScriptBreakdownPlanner,
@@ -395,6 +403,25 @@ function readWorkflowStorageFromStorage(
   }
 }
 
+/**
+ * 5s of inactivity before pushing the current project state to the server.
+ * Long enough that rapid edits collapse into a single PUT; short enough
+ * that a crash or tab close loses at most a few seconds of work.
+ */
+const SERVER_WRITE_DEBOUNCE_MS = 5000
+
+function projectFromServerRecord(
+  record: NodeWorkflowProjectRecord,
+): NodeWorkflowProject {
+  return {
+    id: record.id,
+    name: record.name,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    state: record.state,
+  }
+}
+
 function writeWorkflowStorageToStorage(
   storage: NodeWorkflowStorageSnapshot,
 ): void {
@@ -485,6 +512,108 @@ export function useNodeWorkflow({
     return () => window.clearTimeout(timeoutId)
   }, [storageState])
 
+  // ── Server hydration (Phase 2 of 7g) ────────────────────────────────
+  // Once localStorage has settled, pull the server-side project list. The
+  // server is the source of truth — if it has projects, they replace local
+  // state. If the server is empty but localStorage has data, treat it as
+  // a one-time migration: upload everything we have, then re-fetch to pick
+  // up the server-assigned ids. If the server is empty AND local is empty,
+  // do nothing — the user's first edit will trigger a create-on-write.
+  const hasServerHydrated = useRef(false)
+  const hasServerMigrationAttempted = useRef(false)
+  useEffect(() => {
+    if (hasServerHydrated.current) return
+    if (!hasHydrated.current) return
+
+    let cancelled = false
+    void (async () => {
+      const response = await listNodeWorkflowProjectsAPI()
+      if (cancelled) return
+
+      // Network or auth failure — silently fall back to localStorage so the
+      // user keeps editing offline. We'll retry sync on the next state
+      // change via the write effect below.
+      if (!response.success || !response.data) {
+        hasServerHydrated.current = true
+        return
+      }
+
+      const serverProjects = response.data
+      const localProjects = storageRef.current.projects
+
+      if (serverProjects.length > 0) {
+        const nextStorage: NodeWorkflowStorageSnapshot = {
+          version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+          currentProjectId: serverProjects[0].id,
+          projects: serverProjects.map(projectFromServerRecord),
+        }
+        storageRef.current = nextStorage
+        setStorageState(nextStorage)
+        hasServerHydrated.current = true
+        return
+      }
+
+      // Server is empty. If we have local projects with actual nodes/edges,
+      // ship them up so the next device sees them. Empty local projects
+      // (just the bootstrap default) aren't worth migrating.
+      const localHasContent = localProjects.some(
+        (project) =>
+          project.state.nodes.length > 0 || project.state.edges.length > 0,
+      )
+      if (localHasContent && !hasServerMigrationAttempted.current) {
+        hasServerMigrationAttempted.current = true
+        for (const project of localProjects) {
+          await createNodeWorkflowProjectAPI({
+            name: project.name,
+            state: project.state,
+          })
+        }
+        // Re-fetch to pick up server-assigned ids, then re-run the hydrate
+        // path so the canvas swaps to the migrated copy.
+        const refetch = await listNodeWorkflowProjectsAPI()
+        if (cancelled) return
+        if (refetch.success && refetch.data && refetch.data.length > 0) {
+          const nextStorage: NodeWorkflowStorageSnapshot = {
+            version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+            currentProjectId: refetch.data[0].id,
+            projects: refetch.data.map(projectFromServerRecord),
+          }
+          storageRef.current = nextStorage
+          setStorageState(nextStorage)
+        }
+      }
+
+      hasServerHydrated.current = true
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // Re-checked on every state tick so the "wait until localStorage
+    // hydrated" gate eventually opens the server hydrate.
+  }, [storageState])
+
+  // Debounced server write — pushes the CURRENT project's state up every
+  // ~5s of inactivity. We don't push the full snapshot (other projects)
+  // because Inspector edits only touch the current project; non-current
+  // projects only change when the user explicitly switches/renames/deletes
+  // them, and those operations go through their own server calls below.
+  useEffect(() => {
+    if (!hasServerHydrated.current) return
+
+    const currentId = storageState.currentProjectId
+    const current = storageState.projects.find((p) => p.id === currentId)
+    if (!current) return
+
+    const timeoutId = window.setTimeout(() => {
+      void updateNodeWorkflowProjectAPI(currentId, {
+        state: current.state,
+      })
+    }, SERVER_WRITE_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [storageState])
+
   const currentProject = useMemo(
     () => getCurrentProject(storageState, defaultProjectName),
     [defaultProjectName, storageState],
@@ -537,6 +666,36 @@ export function useNodeWorkflow({
         projects: [...currentStorage.projects, project],
       }))
 
+      // Fire-and-forget create on the server. If it succeeds with a
+      // different id (server assigns its own UUID), rewrite the local id so
+      // subsequent writes / activate calls hit the right row. If it fails,
+      // the project lives only in localStorage until the user reloads (at
+      // which point the server hydrate will reconcile).
+      if (hasServerHydrated.current) {
+        void createNodeWorkflowProjectAPI({
+          name: normalizedName,
+          state: project.state,
+        }).then((response) => {
+          if (
+            response.success &&
+            response.data &&
+            response.data.id !== project.id
+          ) {
+            const serverId = response.data.id
+            setWorkflowStorage((currentStorage) => ({
+              ...currentStorage,
+              currentProjectId:
+                currentStorage.currentProjectId === project.id
+                  ? serverId
+                  : currentStorage.currentProjectId,
+              projects: currentStorage.projects.map((p) =>
+                p.id === project.id ? { ...p, id: serverId } : p,
+              ),
+            }))
+          }
+        })
+      }
+
       return project.id
     },
     [defaultProjectName, setWorkflowStorage],
@@ -558,16 +717,26 @@ export function useNodeWorkflow({
           currentProjectId: id,
         }
       })
+
+      // Bump server lastActiveAt so reopening this account on another
+      // device lands on the just-switched-to project.
+      if (hasServerHydrated.current) {
+        void activateNodeWorkflowProjectAPI(id)
+      }
     },
     [setWorkflowStorage],
   )
 
   const renameCurrentProject = useCallback(
     (name: string) => {
+      let renamedId: string | null = null
+      let renamedName: string | null = null
       setWorkflowStorage((currentStorage) => {
         const current = getCurrentProject(currentStorage, defaultProjectName)
         const normalizedName = normalizeProjectName(name, current.name)
         const updatedAt = createWorkflowTimestamp()
+        renamedId = current.id
+        renamedName = normalizedName
 
         return {
           ...currentStorage,
@@ -583,6 +752,10 @@ export function useNodeWorkflow({
           ),
         }
       })
+
+      if (hasServerHydrated.current && renamedId && renamedName) {
+        void updateNodeWorkflowProjectAPI(renamedId, { name: renamedName })
+      }
     },
     [defaultProjectName, setWorkflowStorage],
   )
@@ -620,6 +793,10 @@ export function useNodeWorkflow({
           projects: remainingProjects,
         }
       })
+
+      if (hasServerHydrated.current) {
+        void deleteNodeWorkflowProjectAPI(id)
+      }
 
       return getProjectSummaries([targetProject])[0] ?? null
     },

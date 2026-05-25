@@ -53,6 +53,82 @@ export const NODE_MEDIA_KINDS = [
 
 export type NodeWorkflowMediaKind = (typeof NODE_MEDIA_KINDS)[number]
 
+export const NODE_WORKFLOW_FIELD_IDS = {
+  prompt: 'prompt',
+  scene: 'scene',
+  action: 'action',
+  camera: 'camera',
+  composition: 'composition',
+  location: 'location',
+  mood: 'mood',
+  lighting: 'lighting',
+  frameIntent: 'frameIntent',
+  dialogue: 'dialogue',
+  voiceStyle: 'voiceStyle',
+  voiceEmotion: 'voiceEmotion',
+  motion: 'motion',
+  duration: 'duration',
+} as const
+
+export const NODE_WORKFLOW_FIELDS = [
+  NODE_WORKFLOW_FIELD_IDS.prompt,
+  NODE_WORKFLOW_FIELD_IDS.scene,
+  NODE_WORKFLOW_FIELD_IDS.action,
+  NODE_WORKFLOW_FIELD_IDS.camera,
+  NODE_WORKFLOW_FIELD_IDS.composition,
+  NODE_WORKFLOW_FIELD_IDS.location,
+  NODE_WORKFLOW_FIELD_IDS.mood,
+  NODE_WORKFLOW_FIELD_IDS.lighting,
+  NODE_WORKFLOW_FIELD_IDS.frameIntent,
+  NODE_WORKFLOW_FIELD_IDS.dialogue,
+  NODE_WORKFLOW_FIELD_IDS.voiceStyle,
+  NODE_WORKFLOW_FIELD_IDS.voiceEmotion,
+  NODE_WORKFLOW_FIELD_IDS.motion,
+  NODE_WORKFLOW_FIELD_IDS.duration,
+] as const
+
+export type NodeWorkflowFieldId = (typeof NODE_WORKFLOW_FIELDS)[number]
+
+export const NODE_WORKFLOW_FIELDS_BY_NODE_TYPE: Partial<
+  Record<NodeWorkflowNodeType, readonly NodeWorkflowFieldId[]>
+> = {
+  [NODE_TYPE_IDS.shotText]: [
+    NODE_WORKFLOW_FIELD_IDS.scene,
+    NODE_WORKFLOW_FIELD_IDS.action,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.composition,
+  ],
+  [NODE_TYPE_IDS.shot]: [
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.composition,
+    NODE_WORKFLOW_FIELD_IDS.action,
+  ],
+  [NODE_TYPE_IDS.backgroundImage]: [
+    NODE_WORKFLOW_FIELD_IDS.location,
+    NODE_WORKFLOW_FIELD_IDS.mood,
+    NODE_WORKFLOW_FIELD_IDS.lighting,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ],
+  [NODE_TYPE_IDS.frameImage]: [
+    NODE_WORKFLOW_FIELD_IDS.frameIntent,
+    NODE_WORKFLOW_FIELD_IDS.composition,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ],
+  [NODE_TYPE_IDS.voice]: [
+    NODE_WORKFLOW_FIELD_IDS.dialogue,
+    NODE_WORKFLOW_FIELD_IDS.voiceStyle,
+    NODE_WORKFLOW_FIELD_IDS.voiceEmotion,
+  ],
+  [NODE_TYPE_IDS.seedance]: [
+    NODE_WORKFLOW_FIELD_IDS.motion,
+    NODE_WORKFLOW_FIELD_IDS.camera,
+    NODE_WORKFLOW_FIELD_IDS.duration,
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ],
+} as const
+
 export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.composer]: undefined,
   [NODE_TYPE_IDS.agent]: undefined,

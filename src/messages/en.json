@@ -2583,6 +2583,18 @@
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
       "emptyPreview": "No generated image yet",
+      "modeExistingTitle": "Use an existing image",
+      "modeExistingDescription": "Upload, paste, or pick an image from assets as this character node's result.",
+      "modeAiTitle": "Generate inside this node",
+      "modeAiDescription": "Write the character brief, choose model, references, and LoRA, then generate.",
+      "modeStudioTitle": "Open Image Studio",
+      "modeStudioDescription": "Send the current prompt to the full image generation workspace.",
+      "activeExistingTitle": "Existing image mode",
+      "activeExistingDescription": "This node is using the selected image; you can also continue with it as an AI reference.",
+      "activeAiTitle": "AI generation mode",
+      "activeAiDescription": "Generate or regenerate the character design inside this node.",
+      "backToChoice": "Back to choices",
+      "useExistingAsReference": "Use as reference",
       "selectExistingShort": "Use asset",
       "generateWithAi": "AI generate",
       "generate": "Generate",
@@ -2693,6 +2705,90 @@
       "statusSuccess": "Media generated",
       "statusError": "Generation failed",
       "statusTextReady": "Text will feed downstream nodes"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "Generation prompt",
+        "placeholder": "Describe the final output this node should generate..."
+      },
+      "scene": {
+        "label": "Scene",
+        "placeholder": "Where and when this shot happens..."
+      },
+      "action": {
+        "label": "Action",
+        "placeholder": "What the character does and what changes on screen..."
+      },
+      "camera": {
+        "label": "Camera",
+        "placeholder": "Close-up, push-in, handheld, overhead..."
+      },
+      "composition": {
+        "label": "Composition",
+        "placeholder": "Subject placement, shot size, foreground and background..."
+      },
+      "location": {
+        "label": "Location",
+        "placeholder": "The space or environment for the background..."
+      },
+      "mood": {
+        "label": "Mood",
+        "placeholder": "Emotion, season, weather, color temperature..."
+      },
+      "lighting": {
+        "label": "Lighting",
+        "placeholder": "Light source, contrast, shadows, reflections..."
+      },
+      "frameIntent": {
+        "label": "Keyframe intent",
+        "placeholder": "The action and image state this keyframe should lock..."
+      },
+      "dialogue": {
+        "label": "Dialogue",
+        "placeholder": "Enter the line or narration to speak..."
+      },
+      "voiceStyle": {
+        "label": "Voice",
+        "placeholder": "Tone, age, pace, accent..."
+      },
+      "voiceEmotion": {
+        "label": "Emotion",
+        "placeholder": "Calm, tense, gentle, restrained..."
+      },
+      "motion": {
+        "label": "Motion",
+        "placeholder": "Describe character, camera, and scene motion..."
+      },
+      "duration": {
+        "label": "Duration",
+        "placeholder": "e.g. 4s, 6s, 8s..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyPreview": "Turn scene, action, camera, and composition into executable shot text.",
+        "footerEmpty": "Waiting for shot text"
+      },
+      "shot": {
+        "emptyPreview": "Generate a single shot image from shot text and character/background references.",
+        "footerEmpty": "Waiting for shot prompt"
+      },
+      "backgroundImage": {
+        "emptyPreview": "Define location, mood, and lighting for a reusable background.",
+        "footerEmpty": "Waiting for background setup"
+      },
+      "frameImage": {
+        "emptyPreview": "Combine characters, background, and shot intent into a video keyframe.",
+        "footerEmpty": "Waiting for keyframe setup"
+      },
+      "voice": {
+        "emptyPreview": "Shape dialogue, voice, and emotion into a speech generation input.",
+        "footerEmpty": "Waiting for dialogue"
+      },
+      "seedance": {
+        "emptyPreview": "Generate a Seedance video clip from keyframes and motion direction.",
+        "footerEmpty": "Waiting for motion direction"
+      }
     },
     "topbar": {
       "addNode": "Add node",

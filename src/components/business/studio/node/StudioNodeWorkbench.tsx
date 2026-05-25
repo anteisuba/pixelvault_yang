@@ -53,6 +53,7 @@ import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
+import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import type { AdvancedParams } from '@/types'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getApiErrorMessage } from '@/lib/api-error-message'
@@ -446,9 +447,14 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         model.adapterType,
         model.modelId,
       )
-      const referenceImages = (node.data.referenceAssets ?? [])
-        .slice(0, maxReferenceImages)
-        .map((reference) => reference.url)
+      const existingImageReference =
+        node.data.imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
+          ? node.data.imageUrl
+          : undefined
+      const referenceImages = [
+        ...(existingImageReference ? [existingImageReference] : []),
+        ...(node.data.referenceAssets ?? []).map((reference) => reference.url),
+      ].slice(0, maxReferenceImages)
       const supportsLora = hasCapability(
         model.adapterType,
         'lora',
@@ -521,7 +527,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     async (nodeId: string) => {
       const node = workflow.nodes.find((item) => item.id === nodeId)
       const kind = node ? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] : undefined
-      const prompt = node?.data.prompt.trim() ?? ''
+      const prompt = node ? buildNodeWorkflowPrompt(node.type, node.data) : ''
       const model = node?.data.model
 
       if (!node || !kind || kind === NODE_MEDIA_KIND_IDS.text) {

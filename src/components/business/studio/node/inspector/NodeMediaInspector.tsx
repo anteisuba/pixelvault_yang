@@ -9,6 +9,9 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
+  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
+  NODE_WORKFLOW_FIELD_IDS,
+  type NodeWorkflowFieldId,
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
@@ -21,6 +24,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import {
+  buildNodeWorkflowPrompt,
+  getNodeWorkflowFieldValue,
+} from '@/lib/node-workflow-prompt'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -64,12 +71,17 @@ export function NodeMediaInspector({
   kind,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
+  const tFields = useTranslations('StudioNode.workflowFields')
+  const tWorkflows = useTranslations('StudioNode.workflowNodes')
   const { generateMediaNode, modelOptionsByType, updateNodeData } =
     useNodeWorkflowActions()
   const mediaUrl =
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
   const modelOptions = modelOptionsByType[type] ?? []
-  const prompt = node.data.prompt.trim()
+  const prompt = buildNodeWorkflowPrompt(type, node.data).trim()
+  const fields = NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[type] ?? [
+    NODE_WORKFLOW_FIELD_IDS.prompt,
+  ]
   const generationStatus =
     node.data.generationStatus ??
     (mediaUrl
@@ -92,21 +104,68 @@ export function NodeMediaInspector({
     kind,
   )
 
-  const handlePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
+  const handleFieldChange = useCallback(
+    (fieldId: NodeWorkflowFieldId, value: string) => {
+      const nextData = {
+        ...node.data,
+        [fieldId]: value,
+      }
+
       updateNodeData(node.id, {
-        prompt: event.target.value,
-        status: event.target.value.trim()
+        [fieldId]: value,
+        status: buildNodeWorkflowPrompt(type, nextData).trim()
           ? NODE_STATUS_IDS.ready
           : NODE_STATUS_IDS.idle,
       })
     },
-    [node.id, updateNodeData],
+    [node.data, node.id, type, updateNodeData],
   )
 
   const handleGenerate = useCallback(() => {
     void generateMediaNode?.(node.id)
   }, [generateMediaNode, node.id])
+
+  const renderField = (fieldId: NodeWorkflowFieldId) => {
+    const value = getNodeWorkflowFieldValue(node.data, fieldId)
+    const isLongField =
+      fieldId === NODE_WORKFLOW_FIELD_IDS.prompt ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.action ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.composition ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.dialogue ||
+      fieldId === NODE_WORKFLOW_FIELD_IDS.motion
+    const commonClassName =
+      'w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20'
+
+    return (
+      <InspectorField
+        key={fieldId}
+        label={tFields(`${fieldId}.label`)}
+        statusDotClassName="bg-node-amber"
+      >
+        {isLongField ? (
+          <Textarea
+            value={value}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+              handleFieldChange(fieldId, event.target.value)
+            }
+            aria-label={tFields(`${fieldId}.label`)}
+            placeholder={tFields(`${fieldId}.placeholder`)}
+            className="min-h-24 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+          />
+        ) : (
+          <input
+            value={value}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              handleFieldChange(fieldId, event.target.value)
+            }
+            aria-label={tFields(`${fieldId}.label`)}
+            placeholder={tFields(`${fieldId}.placeholder`)}
+            className={`${commonClassName} h-10`}
+          />
+        )}
+      </InspectorField>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -146,7 +205,7 @@ export function NodeMediaInspector({
               <WandSparkles className="size-8 text-node-amber" />
             )}
             <p className="text-xs leading-5 text-node-muted">
-              {isTextNode ? t('textPreview') : t('emptyPreview')}
+              {tWorkflows(`${type}.emptyPreview`)}
             </p>
           </div>
         ) : null}
@@ -159,15 +218,9 @@ export function NodeMediaInspector({
         ) : null}
       </div>
 
-      <InspectorField label={t('promptLabel')}>
-        <Textarea
-          value={node.data.prompt}
-          onChange={handlePromptChange}
-          aria-label={t('promptLabel')}
-          placeholder={t('promptPlaceholder')}
-          className="min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
-        />
-      </InspectorField>
+      <div className="space-y-3">
+        {fields.map((fieldId) => renderField(fieldId))}
+      </div>
 
       {!isTextNode ? (
         <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">

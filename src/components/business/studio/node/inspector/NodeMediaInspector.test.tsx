@@ -28,6 +28,7 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NodeWorkflowActionsProvider } from '@/components/business/studio/node/NodeWorkflowActionsContext'
@@ -98,6 +99,12 @@ function createNode(type: NodeWorkflowNodeType): NodeWorkflowNode {
       prompt: 'initial prompt',
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      [NODE_WORKFLOW_FIELD_IDS.action]: 'initial action',
+      [NODE_WORKFLOW_FIELD_IDS.camera]: 'initial camera',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: 'initial composition',
+      [NODE_WORKFLOW_FIELD_IDS.dialogue]: 'initial dialogue',
+      [NODE_WORKFLOW_FIELD_IDS.motion]: 'initial motion',
+      [NODE_WORKFLOW_FIELD_IDS.scene]: 'initial scene',
     },
   }
 }
@@ -152,12 +159,12 @@ describe('Node media inspectors', () => {
       <ShotTextInspector node={createNode(NODE_TYPE_IDS.shotText)} />,
     )
 
-    fireEvent.change(screen.getByLabelText('promptLabel'), {
-      target: { value: 'new shot text' },
+    fireEvent.change(screen.getByLabelText('scene.label'), {
+      target: { value: 'new scene text' },
     })
 
     expect(updateNodeData).toHaveBeenCalledWith('node-shotText', {
-      prompt: 'new shot text',
+      [NODE_WORKFLOW_FIELD_IDS.scene]: 'new scene text',
       status: NODE_STATUS_IDS.ready,
     })
     expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()

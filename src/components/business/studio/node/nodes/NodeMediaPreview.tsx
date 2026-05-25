@@ -17,9 +17,16 @@ import {
   NODE_GENERATION_STATUS_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
+  NODE_WORKFLOW_FIELDS_BY_NODE_TYPE,
+  NODE_WORKFLOW_FIELD_IDS,
+  type NodeWorkflowFieldId,
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import {
+  buildNodeWorkflowPrompt,
+  getNodeWorkflowFieldValue,
+} from '@/lib/node-workflow-prompt'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import { NodeShell } from './NodeShell'
@@ -53,6 +60,14 @@ function getMediaStatusLabelKey(
   return hasMedia ? 'statusSuccess' : 'statusIdle'
 }
 
+function getSummaryFields(
+  type: NodeWorkflowNodeType,
+): readonly NodeWorkflowFieldId[] {
+  return (
+    NODE_WORKFLOW_FIELDS_BY_NODE_TYPE[type] ?? [NODE_WORKFLOW_FIELD_IDS.prompt]
+  ).slice(0, 3)
+}
+
 export function NodeMediaPreview({
   type,
   kind,
@@ -60,7 +75,11 @@ export function NodeMediaPreview({
   selected,
 }: NodeMediaPreviewProps) {
   const t = useTranslations('StudioNode.mediaNodes')
+  const tFields = useTranslations('StudioNode.workflowFields')
+  const tWorkflows = useTranslations('StudioNode.workflowNodes')
   const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : null
+  const summaryFields = getSummaryFields(type)
+  const hasWorkflowPrompt = Boolean(buildNodeWorkflowPrompt(type, data))
   const generationStatus =
     data.generationStatus ??
     (mediaUrl
@@ -109,9 +128,7 @@ export function NodeMediaPreview({
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
               {getEmptyIcon(kind)}
               <p className="text-xs leading-5 text-node-muted">
-                {kind === NODE_MEDIA_KIND_IDS.text
-                  ? t('textPreview')
-                  : t('emptyPreview')}
+                {tWorkflows(`${type}.emptyPreview`)}
               </p>
             </div>
           ) : null}
@@ -124,13 +141,21 @@ export function NodeMediaPreview({
           ) : null}
         </div>
 
-        <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
-          <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-            {t('promptLabel')}
-          </p>
-          <p className="mt-2 line-clamp-3 text-sm leading-6 text-node-foreground">
-            {data.prompt || t('promptPlaceholder')}
-          </p>
+        <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+          {summaryFields.map((fieldId) => {
+            const value = getNodeWorkflowFieldValue(data, fieldId)
+
+            return (
+              <div key={fieldId}>
+                <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                  {tFields(`${fieldId}.label`)}
+                </p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-node-foreground">
+                  {value || tFields(`${fieldId}.placeholder`)}
+                </p>
+              </div>
+            )
+          })}
         </div>
 
         {isError ? (
@@ -144,7 +169,9 @@ export function NodeMediaPreview({
       </NodeShell.Body>
       <NodeShell.Footer>
         <p className="truncate text-2xs font-medium text-node-subtle">
-          {t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))}
+          {hasWorkflowPrompt
+            ? t(getMediaStatusLabelKey(Boolean(mediaUrl), kind))
+            : tWorkflows(`${type}.footerEmpty`)}
         </p>
         <span className="flex size-8 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
           <WandSparkles className="size-4" />

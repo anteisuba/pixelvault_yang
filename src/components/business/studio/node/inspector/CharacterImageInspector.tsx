@@ -3,12 +3,14 @@
 import Image from 'next/image'
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
   type ChangeEvent,
 } from 'react'
 import {
+  ArrowLeft,
   Clipboard,
   ExternalLink,
   ImageIcon,
@@ -30,6 +32,7 @@ import {
   NODE_STUDIO_IMAGE_INPUT,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_PLACEHOLDER_TOAST,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS,
 } from '@/constants/node-studio'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
@@ -102,6 +105,15 @@ export function CharacterImageInspector({
   const isExistingImage =
     Boolean(imageUrl) &&
     imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
+  const imageMode =
+    node.data.imageMode ??
+    (isExistingImage
+      ? NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing
+      : NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice)
+  const isChoiceMode = imageMode === NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice
+  const isAiMode = imageMode === NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai
+  const isExistingMode =
+    imageMode === NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing
   const characterName =
     typeof node.data.characterName === 'string'
       ? node.data.characterName
@@ -116,8 +128,11 @@ export function CharacterImageInspector({
     node.data.status === NODE_STATUS_IDS.running
   const modelOptions = modelOptionsByType[NODE_TYPE_IDS.characterImage] ?? []
   const prompt = node.data.prompt.trim()
-  const referenceAssets = node.data.referenceAssets ?? []
-  const loras = node.data.loras ?? []
+  const referenceAssets = useMemo(
+    () => node.data.referenceAssets ?? [],
+    [node.data.referenceAssets],
+  )
+  const loras = useMemo(() => node.data.loras ?? [], [node.data.loras])
   const maxReferenceImages = node.data.model
     ? getMaxReferenceImages(
         node.data.model.adapterType,
@@ -139,6 +154,18 @@ export function CharacterImageInspector({
       ? t('generateFromExisting')
       : t('regenerate')
     : t('generate')
+
+  const handleChooseAiMode = useCallback(() => {
+    updateNodeData(node.id, {
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+    })
+  }, [node.id, updateNodeData])
+
+  const handleReturnToChoice = useCallback(() => {
+    updateNodeData(node.id, {
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
+    })
+  }, [node.id, updateNodeData])
 
   const applyExistingImage = useCallback(
     (url: string, generationId: string | undefined, label: string) => {
@@ -249,6 +276,40 @@ export function CharacterImageInspector({
       status: NODE_STATUS_IDS.idle,
     })
   }, [node.id, updateNodeData])
+
+  const handleUseExistingAsReference = useCallback(() => {
+    if (!imageUrl) {
+      return
+    }
+
+    const existingReference = {
+      id: node.data.sourceGenerationId ?? `existing-${node.id}`,
+      url: imageUrl,
+      role: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
+      weight: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight,
+      source: NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
+      sourceId: node.data.sourceGenerationId,
+      name: node.data.sourceLabel ?? t('sourceExisting'),
+    }
+    const nextReferences = [
+      existingReference,
+      ...referenceAssets.filter((reference) => reference.url !== imageUrl),
+    ].slice(0, maxReferenceImages)
+
+    updateNodeData(node.id, {
+      imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
+      referenceAssets: nextReferences,
+    })
+  }, [
+    imageUrl,
+    maxReferenceImages,
+    node.data.sourceGenerationId,
+    node.data.sourceLabel,
+    node.id,
+    referenceAssets,
+    t,
+    updateNodeData,
+  ])
 
   const handleCharacterNameChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -398,110 +459,225 @@ export function CharacterImageInspector({
           ) : null}
         </div>
 
-        <InspectorField label={t('nameLabel')} statusDotClassName="bg-rose-200">
-          <input
-            value={characterName}
-            onChange={handleCharacterNameChange}
-            aria-label={t('nameLabel')}
-            className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
-          />
-        </InspectorField>
-
-        <InspectorField label={t('promptLabel')}>
-          <Textarea
-            value={node.data.prompt}
-            onChange={handlePromptChange}
-            aria-label={t('promptLabel')}
-            placeholder={t('promptPlaceholder')}
-            className="min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
-          />
-        </InspectorField>
-
-        <InspectorField label={t('sourceExisting')}>
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+        {isChoiceMode ? (
+          <div className="space-y-2">
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
                 >
-                  <Images className="size-3.5" />
-                  {imageUrl ? t('replaceImage') : t('selectExistingShort')}
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-rose-200">
+                    <Images className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-node-foreground">
+                      {t('modeExistingTitle')}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-node-muted">
+                      {t('modeExistingDescription')}
+                    </span>
+                  </span>
                 </button>
               </PopoverTrigger>
               {existingImagePickerContent}
             </Popover>
+
+            <button
+              type="button"
+              onClick={handleChooseAiMode}
+              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-amber/35 bg-node-amber/10 p-3 text-left transition-colors hover:border-node-amber/60 hover:bg-node-amber/15"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-amber/15 text-node-amber">
+                <WandSparkles className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-node-foreground">
+                  {t('modeAiTitle')}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-node-muted">
+                  {t('modeAiDescription')}
+                </span>
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={handleOpenImageStudio}
-              className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground"
-              title={t('openImageStudio')}
+              className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
             >
-              <ExternalLink className="size-3.5" />
-              {t('openImageStudioShort')}
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-foreground">
+                <ExternalLink className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-node-foreground">
+                  {t('modeStudioTitle')}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-node-muted">
+                  {t('modeStudioDescription')}
+                </span>
+              </span>
             </button>
-          </div>
-        </InspectorField>
-
-        <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-          <WorkflowModelPicker
-            value={node.data.model}
-            options={modelOptions}
-            onChange={(model) => updateNodeData(node.id, { model })}
-          />
-          <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
-            {t(statusLabelKey)}
-          </p>
-        </div>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
-          <CharacterImageReferenceControls
-            value={referenceAssets}
-            maxItems={maxReferenceImages}
-            onChange={(nextReferences) =>
-              updateNodeData(node.id, { referenceAssets: nextReferences })
-            }
-          />
-          <CharacterImageLoraControls
-            value={loras}
-            model={node.data.model}
-            onChange={(nextLoras) =>
-              updateNodeData(node.id, { loras: nextLoras })
-            }
-            onInsertTrigger={handleInsertLoraTrigger}
-          />
-        </div>
-
-        {node.data.generationError ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
-            {node.data.generationError}
           </div>
         ) : null}
 
-        <TooltipProvider delayDuration={250}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex w-full">
-                <Button
-                  type="button"
-                  disabled={Boolean(disabledReason)}
-                  onClick={handleGenerate}
-                  className="h-10 w-full rounded-2xl bg-node-foreground text-sm font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
-                >
-                  {isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <WandSparkles className="mr-2 size-4" />
-                  )}
-                  {generateButtonLabel}
-                </Button>
+        {isExistingMode ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-rose-200">
+                <Images className="size-4" />
               </span>
-            </TooltipTrigger>
-            {disabledReason ? (
-              <TooltipContent side="top">{disabledReason}</TooltipContent>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-node-foreground">
+                  {t('activeExistingTitle')}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-node-muted">
+                  {t('activeExistingDescription')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleReturnToChoice}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted transition-colors hover:text-node-foreground"
+                aria-label={t('backToChoice')}
+              >
+                <ArrowLeft className="size-3.5" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:text-node-foreground"
+                  >
+                    <Images className="size-3.5" />
+                    {imageUrl ? t('replaceImage') : t('selectExistingShort')}
+                  </button>
+                </PopoverTrigger>
+                {existingImagePickerContent}
+              </Popover>
+              <button
+                type="button"
+                onClick={handleUseExistingAsReference}
+                disabled={!imageUrl}
+                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-2xl border border-node-panel-inner bg-node-panel px-2.5 text-xs font-semibold text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground disabled:text-node-subtle"
+              >
+                <WandSparkles className="size-3.5" />
+                {t('useExistingAsReference')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {isAiMode ? (
+          <>
+            <div className="flex items-start gap-3 rounded-2xl border border-node-amber/25 bg-node-amber/10 p-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-node-amber/15 text-node-amber">
+                <WandSparkles className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-node-foreground">
+                  {t('activeAiTitle')}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-node-muted">
+                  {t('activeAiDescription')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleReturnToChoice}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full border border-node-panel-inner bg-node-panel text-node-muted transition-colors hover:text-node-foreground"
+                aria-label={t('backToChoice')}
+              >
+                <ArrowLeft className="size-3.5" />
+              </button>
+            </div>
+
+            <InspectorField
+              label={t('nameLabel')}
+              statusDotClassName="bg-rose-200"
+            >
+              <input
+                value={characterName}
+                onChange={handleCharacterNameChange}
+                aria-label={t('nameLabel')}
+                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+              />
+            </InspectorField>
+
+            <InspectorField label={t('promptLabel')}>
+              <Textarea
+                value={node.data.prompt}
+                onChange={handlePromptChange}
+                aria-label={t('promptLabel')}
+                placeholder={t('promptPlaceholder')}
+                className="min-h-28 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+              />
+            </InspectorField>
+
+            <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+              <WorkflowModelPicker
+                value={node.data.model}
+                options={modelOptions}
+                onChange={(model) => updateNodeData(node.id, { model })}
+              />
+              <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
+                {t(statusLabelKey)}
+              </p>
+            </div>
+
+            <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+              <CharacterImageReferenceControls
+                value={referenceAssets}
+                maxItems={maxReferenceImages}
+                onChange={(nextReferences) =>
+                  updateNodeData(node.id, { referenceAssets: nextReferences })
+                }
+              />
+              <CharacterImageLoraControls
+                value={loras}
+                model={node.data.model}
+                onChange={(nextLoras) =>
+                  updateNodeData(node.id, { loras: nextLoras })
+                }
+                onInsertTrigger={handleInsertLoraTrigger}
+              />
+            </div>
+
+            {node.data.generationError ? (
+              <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
+                {node.data.generationError}
+              </div>
             ) : null}
-          </Tooltip>
-        </TooltipProvider>
+
+            <TooltipProvider delayDuration={250}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex w-full">
+                    <Button
+                      type="button"
+                      disabled={Boolean(disabledReason)}
+                      onClick={handleGenerate}
+                      className="h-10 w-full rounded-2xl bg-node-foreground text-sm font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
+                    >
+                      {isPending ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <WandSparkles className="mr-2 size-4" />
+                      )}
+                      {generateButtonLabel}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {disabledReason ? (
+                  <TooltipContent side="top">{disabledReason}</TooltipContent>
+                ) : null}
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        ) : null}
       </div>
 
       <AssetSelectorDialog

@@ -56,6 +56,7 @@ export type {
   NodeWorkflowCharacterImageMode,
   NodeWorkflowGenerationStatus,
   NodeWorkflowImageOutputSource,
+  NodeWorkflowField,
   NodeWorkflowLoraSelection,
   NodeWorkflowMediaKind,
   NodeWorkflowModelOption,

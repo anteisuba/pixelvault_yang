@@ -2583,6 +2583,18 @@
       "promptLabel": "角色图提示词",
       "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
       "emptyPreview": "还没有生成图片",
+      "modeExistingTitle": "直接使用已有图",
+      "modeExistingDescription": "上传、粘贴或从素材库选择一张图，作为角色图节点的结果。",
+      "modeAiTitle": "在节点内 AI 生成",
+      "modeAiDescription": "填写角色设定，选择模型、参考图和 LoRA 后生成。",
+      "modeStudioTitle": "去图像生成",
+      "modeStudioDescription": "把当前提示词带到图像工作台，使用完整图像生成流程。",
+      "activeExistingTitle": "已有图模式",
+      "activeExistingDescription": "当前节点使用选中的图片；也可以把它作为参考图继续 AI 生成。",
+      "activeAiTitle": "AI 生成模式",
+      "activeAiDescription": "在当前节点内生成或重新生成角色设定图。",
+      "backToChoice": "返回选择",
+      "useExistingAsReference": "作为参考生成",
       "selectExistingShort": "用已有图",
       "generateWithAi": "AI 生成",
       "generate": "生成",
@@ -2693,6 +2705,90 @@
       "statusSuccess": "素材已生成",
       "statusError": "生成失败",
       "statusTextReady": "文本会作为下游节点输入"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "生成提示词",
+        "placeholder": "描述这个节点最终要生成的内容..."
+      },
+      "scene": {
+        "label": "场景",
+        "placeholder": "这段镜头发生在哪里、什么时间..."
+      },
+      "action": {
+        "label": "动作",
+        "placeholder": "角色做什么，画面里发生什么..."
+      },
+      "camera": {
+        "label": "镜头",
+        "placeholder": "例如：近景、推镜、手持、俯拍..."
+      },
+      "composition": {
+        "label": "构图",
+        "placeholder": "主体位置、景别、前后景关系..."
+      },
+      "location": {
+        "label": "地点",
+        "placeholder": "背景所在的空间或环境..."
+      },
+      "mood": {
+        "label": "氛围",
+        "placeholder": "情绪、季节、天气、色调..."
+      },
+      "lighting": {
+        "label": "光线",
+        "placeholder": "光源、明暗、阴影、反射..."
+      },
+      "frameIntent": {
+        "label": "关键帧目标",
+        "placeholder": "这张关键帧要锁定的动作和画面..."
+      },
+      "dialogue": {
+        "label": "台词",
+        "placeholder": "输入角色要说的台词或旁白..."
+      },
+      "voiceStyle": {
+        "label": "声线",
+        "placeholder": "音色、年龄感、语速、口音..."
+      },
+      "voiceEmotion": {
+        "label": "情绪",
+        "placeholder": "平静、紧张、温柔、克制..."
+      },
+      "motion": {
+        "label": "运动",
+        "placeholder": "描述角色、镜头和画面的运动..."
+      },
+      "duration": {
+        "label": "时长",
+        "placeholder": "例如：4s、6s、8s..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyPreview": "把场景、动作、镜头和构图整理成可执行镜头文本。",
+        "footerEmpty": "等待镜头文本"
+      },
+      "shot": {
+        "emptyPreview": "从镜头文本和角色/背景参考生成单张镜头图。",
+        "footerEmpty": "等待镜头提示"
+      },
+      "backgroundImage": {
+        "emptyPreview": "定义地点、氛围和光线，生成可复用背景图。",
+        "footerEmpty": "等待背景设定"
+      },
+      "frameImage": {
+        "emptyPreview": "合成角色、背景和镜头意图，锁定视频关键帧。",
+        "footerEmpty": "等待关键帧设定"
+      },
+      "voice": {
+        "emptyPreview": "把台词、声线和情绪整理成语音生成输入。",
+        "footerEmpty": "等待台词"
+      },
+      "seedance": {
+        "emptyPreview": "用关键帧和运动说明生成 Seedance 视频片段。",
+        "footerEmpty": "等待运动说明"
+      }
     },
     "topbar": {
       "addNode": "添加节点",

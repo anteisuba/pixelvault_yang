@@ -2583,6 +2583,18 @@
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
       "emptyPreview": "生成画像はまだありません",
+      "modeExistingTitle": "既存画像をそのまま使う",
+      "modeExistingDescription": "アップロード、貼り付け、または素材から選んだ画像をこのノードの結果にします。",
+      "modeAiTitle": "このノードで AI 生成",
+      "modeAiDescription": "キャラクター設定、モデル、参考画像、LoRA を選んで生成します。",
+      "modeStudioTitle": "画像生成へ移動",
+      "modeStudioDescription": "現在のプロンプトを画像生成ワークスペースへ送ります。",
+      "activeExistingTitle": "既存画像モード",
+      "activeExistingDescription": "選択した画像を使用中です。参考画像として AI 生成に進むこともできます。",
+      "activeAiTitle": "AI 生成モード",
+      "activeAiDescription": "このノード内でキャラクター設定画を生成または再生成します。",
+      "backToChoice": "選択へ戻る",
+      "useExistingAsReference": "参考として生成",
       "selectExistingShort": "既存画像",
       "generateWithAi": "AI 生成",
       "generate": "生成",
@@ -2693,6 +2705,90 @@
       "statusSuccess": "素材を生成しました",
       "statusError": "生成に失敗しました",
       "statusTextReady": "このテキストは下流ノードの入力になります"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "生成プロンプト",
+        "placeholder": "このノードの最終出力を説明..."
+      },
+      "scene": {
+        "label": "シーン",
+        "placeholder": "このショットの場所と時間..."
+      },
+      "action": {
+        "label": "アクション",
+        "placeholder": "キャラクターの動きや画面の変化..."
+      },
+      "camera": {
+        "label": "カメラ",
+        "placeholder": "寄り、押し、手持ち、俯瞰など..."
+      },
+      "composition": {
+        "label": "構図",
+        "placeholder": "被写体位置、画角、前景と背景..."
+      },
+      "location": {
+        "label": "場所",
+        "placeholder": "背景となる空間や環境..."
+      },
+      "mood": {
+        "label": "ムード",
+        "placeholder": "感情、季節、天気、色温度..."
+      },
+      "lighting": {
+        "label": "光",
+        "placeholder": "光源、コントラスト、影、反射..."
+      },
+      "frameIntent": {
+        "label": "キーフレーム意図",
+        "placeholder": "固定したい動作と画面状態..."
+      },
+      "dialogue": {
+        "label": "台詞",
+        "placeholder": "読み上げる台詞やナレーション..."
+      },
+      "voiceStyle": {
+        "label": "声",
+        "placeholder": "声色、年齢感、速度、アクセント..."
+      },
+      "voiceEmotion": {
+        "label": "感情",
+        "placeholder": "落ち着き、緊張、優しさ、抑制..."
+      },
+      "motion": {
+        "label": "動き",
+        "placeholder": "キャラクター、カメラ、画面の動き..."
+      },
+      "duration": {
+        "label": "長さ",
+        "placeholder": "例：4s、6s、8s..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyPreview": "シーン、動き、カメラ、構図を実行可能なショット文に整理します。",
+        "footerEmpty": "ショット文を待機中"
+      },
+      "shot": {
+        "emptyPreview": "ショット文とキャラクター/背景参考から単一ショット画像を生成します。",
+        "footerEmpty": "ショットプロンプトを待機中"
+      },
+      "backgroundImage": {
+        "emptyPreview": "場所、ムード、光を定義して再利用できる背景を生成します。",
+        "footerEmpty": "背景設定を待機中"
+      },
+      "frameImage": {
+        "emptyPreview": "キャラクター、背景、ショット意図を合わせて動画キーフレームにします。",
+        "footerEmpty": "キーフレーム設定を待機中"
+      },
+      "voice": {
+        "emptyPreview": "台詞、声、感情を音声生成入力として整理します。",
+        "footerEmpty": "台詞を待機中"
+      },
+      "seedance": {
+        "emptyPreview": "キーフレームと動きの指示から Seedance 動画クリップを生成します。",
+        "footerEmpty": "動きの指示を待機中"
+      }
     },
     "topbar": {
       "addNode": "ノードを追加",

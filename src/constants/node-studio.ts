@@ -110,10 +110,16 @@ export const NODE_STUDIO_REFERENCE_ROLES = [
   'background',
 ] as const
 
+export const NODE_STUDIO_REFERENCE_SOURCE_IDS = {
+  upload: 'upload',
+  asset: 'asset',
+  paste: 'paste',
+} as const
+
 export const NODE_STUDIO_REFERENCE_SOURCES = [
-  'upload',
-  'asset',
-  'paste',
+  NODE_STUDIO_REFERENCE_SOURCE_IDS.upload,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
+  NODE_STUDIO_REFERENCE_SOURCE_IDS.paste,
 ] as const
 
 export const NODE_STUDIO_IMAGE_INPUT = {

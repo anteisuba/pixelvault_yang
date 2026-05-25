@@ -24,6 +24,7 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_WORKFLOW_FIELD_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import {
@@ -267,6 +268,13 @@ function createDefaultNodeData(
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.image,
+      [NODE_WORKFLOW_FIELD_IDS.action]: '',
+      [NODE_WORKFLOW_FIELD_IDS.camera]: '',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: '',
+      [NODE_WORKFLOW_FIELD_IDS.frameIntent]: '',
+      [NODE_WORKFLOW_FIELD_IDS.lighting]: '',
+      [NODE_WORKFLOW_FIELD_IDS.location]: '',
+      [NODE_WORKFLOW_FIELD_IDS.mood]: '',
     }
   }
 
@@ -276,6 +284,9 @@ function createDefaultNodeData(
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.video,
+      [NODE_WORKFLOW_FIELD_IDS.camera]: '',
+      [NODE_WORKFLOW_FIELD_IDS.duration]: '',
+      [NODE_WORKFLOW_FIELD_IDS.motion]: '',
     }
   }
 
@@ -285,6 +296,9 @@ function createDefaultNodeData(
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.audio,
+      [NODE_WORKFLOW_FIELD_IDS.dialogue]: '',
+      [NODE_WORKFLOW_FIELD_IDS.voiceEmotion]: '',
+      [NODE_WORKFLOW_FIELD_IDS.voiceStyle]: '',
     }
   }
 
@@ -293,6 +307,10 @@ function createDefaultNodeData(
       prompt: '',
       status: NODE_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.text,
+      [NODE_WORKFLOW_FIELD_IDS.action]: '',
+      [NODE_WORKFLOW_FIELD_IDS.camera]: '',
+      [NODE_WORKFLOW_FIELD_IDS.composition]: '',
+      [NODE_WORKFLOW_FIELD_IDS.scene]: '',
     }
   }
 

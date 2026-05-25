@@ -3081,6 +3081,8 @@
     "toasts": {
       "notImplemented": "まだ実装されていません。",
       "layoutTidied": "キャンバスを整理しました。",
+      "workflowSaved": "ワークフローをクラウドに保存しました。",
+      "workflowSaveFailed": "保存に失敗しました。後でもう一度お試しください。",
       "nodesDeleted": "{count} 個のノードを削除しました。",
       "generated": "Agent の分解を生成しました。",
       "scriptBreakdownFailed": "Agent の分解に失敗しました。",

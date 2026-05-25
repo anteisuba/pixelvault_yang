@@ -121,6 +121,13 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
    * or any project metadata, just rewrites positions.
    */
   tidyLayout(): void
+  /**
+   * Force the current project's state to the server right now, bypassing
+   * the 5-second debounce. Resolves true on success, false otherwise so
+   * the UI can toast the right message. Safe to call before the server
+   * hydrate completes — it will no-op and return false.
+   */
+  saveNow(): Promise<boolean>
 }
 
 let fallbackIdSequence = 0
@@ -1150,6 +1157,18 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    if (!hasServerHydrated.current) return false
+    const snapshot = storageRef.current
+    const currentId = snapshot.currentProjectId
+    const current = snapshot.projects.find((p) => p.id === currentId)
+    if (!current) return false
+    const response = await updateNodeWorkflowProjectAPI(currentId, {
+      state: current.state,
+    })
+    return response.success
+  }, [])
+
   const tidyLayout = useCallback(() => {
     setWorkflowStorage((currentStorage) =>
       patchCurrentProjectState(
@@ -1224,6 +1243,7 @@ export function useNodeWorkflow({
       onEdgesChange,
       onConnect,
       tidyLayout,
+      saveNow,
     }),
     [
       addNode,
@@ -1239,6 +1259,7 @@ export function useNodeWorkflow({
       onNodesChange,
       projects,
       renameCurrentProject,
+      saveNow,
       state,
       spawnCharactersFromBreakdown,
       switchProject,

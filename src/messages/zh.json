@@ -3081,6 +3081,8 @@
     "toasts": {
       "notImplemented": "暂未实现。",
       "layoutTidied": "画布已整理。",
+      "workflowSaved": "工作流已保存到云端。",
+      "workflowSaveFailed": "保存失败，请稍后重试。",
       "nodesDeleted": "已删除 {count} 个节点。",
       "generated": "Agent 拆解已生成。",
       "scriptBreakdownFailed": "Agent 拆解失败。",

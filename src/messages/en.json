@@ -3081,6 +3081,8 @@
     "toasts": {
       "notImplemented": "Not implemented yet.",
       "layoutTidied": "Canvas tidied.",
+      "workflowSaved": "Workflow saved to the cloud.",
+      "workflowSaveFailed": "Save failed. Try again.",
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
       "generated": "Agent breakdown generated.",
       "scriptBreakdownFailed": "Agent breakdown failed.",

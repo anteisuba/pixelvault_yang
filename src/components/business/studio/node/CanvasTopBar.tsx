@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FolderPlus,
   LayoutTemplate,
+  Loader2,
   Pencil,
   Plus,
   Save,
@@ -37,6 +38,8 @@ interface CanvasTopBarProps {
   currentProjectId: string
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
   onArrange?: () => void
+  onSave?: () => void
+  isSaving?: boolean
   onCreateProject: () => void
   onRenameProject: () => void
   onDeleteProject: () => void
@@ -51,6 +54,8 @@ export function CanvasTopBar({
   currentProjectId,
   onAddClick,
   onArrange,
+  onSave,
+  isSaving = false,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -195,10 +200,16 @@ export function CanvasTopBar({
           size="icon-sm"
           variant="ghost"
           aria-label={t('topbar.save')}
-          onClick={showPlaceholderToast}
-          className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          title={t('topbar.save')}
+          onClick={onSave ?? showPlaceholderToast}
+          disabled={isSaving}
+          className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-50"
         >
-          <Save className="size-4" />
+          {isSaving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
         </Button>
       </div>
     </header>

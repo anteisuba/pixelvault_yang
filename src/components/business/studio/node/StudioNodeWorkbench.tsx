@@ -195,6 +195,28 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     })
   }, [t, workflow])
 
+  const [isSaving, setIsSaving] = useState(false)
+  const handleSaveNow = useCallback(async () => {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      const ok = await workflow.saveNow()
+      if (ok) {
+        toast.success(t('toasts.workflowSaved'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+      } else {
+        toast.error(t('toasts.workflowSaveFailed'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }, [isSaving, t, workflow])
+
   const handleTopbarAddClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
@@ -835,6 +857,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             currentProjectId={workflow.currentProjectId}
             onAddClick={handleTopbarAddClick}
             onArrange={handleTidyLayout}
+            onSave={handleSaveNow}
+            isSaving={isSaving}
             onCreateProject={handleCreateProject}
             onRenameProject={handleRenameProject}
             onDeleteProject={handleDeleteProject}

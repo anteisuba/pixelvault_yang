@@ -72,9 +72,10 @@ export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
         healthMap,
       )
 
-      return mergedOptions
-        .filter((option) => option.sourceType === 'saved' || option.freeTier)
-        .map(toNodeWorkflowModelOption)
+      // Surface ALL workspace + saved options so the picker can group them
+      // into 已配置 / 平台免费 / 需要 key — locked options route through
+      // QuickSetupDialog instead of going disabled (CLAUDE.md Hard Rule #8).
+      return mergedOptions.map(toNodeWorkflowModelOption)
     },
     [healthMap, keys],
   )

@@ -34,7 +34,6 @@ function getModel(id: AI_MODELS): ModelOption {
 function buildInput(
   modelId: AI_MODELS,
   referenceImage?: string,
-  referenceImages?: string[],
 ): FalVideoRequestBuilderInput {
   const model = getModel(modelId)
   return {
@@ -44,18 +43,13 @@ function buildInput(
     aspectRatio: '16:9',
     duration: 5,
     referenceImage,
-    referenceImages,
     i2vModelId: model.i2vModelId,
     videoDefaults: model.videoDefaults,
   }
 }
 
-function buildWorkerInput(
-  modelId: AI_MODELS,
-  referenceImage?: string,
-  referenceImages?: string[],
-) {
-  const input = buildInput(modelId, referenceImage, referenceImages)
+function buildWorkerInput(modelId: AI_MODELS, referenceImage?: string) {
+  const input = buildInput(modelId, referenceImage)
   return {
     providerInput: {
       prompt: input.prompt,
@@ -64,7 +58,6 @@ function buildWorkerInput(
       aspectRatio: input.aspectRatio,
       duration: input.duration,
       referenceImage: input.referenceImage,
-      referenceImages: input.referenceImages,
       i2vModelId: input.i2vModelId,
       videoDefaults: input.videoDefaults,
     },
@@ -481,30 +474,6 @@ describe('buildFalWorkerQueueRequest', () => {
     )
   })
 
-  it('emits voice_id for Veo 3.1 when voiceId is provided', () => {
-    const request = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.VEO_31),
-      voiceId: 'voice_abc123',
-    })
-
-    expect(request.input.voice_id).toBe('voice_abc123')
-  })
-
-  it('omits voice_id from Veo 3.1 when voiceId is not provided', () => {
-    const request = buildFalVideoQueueRequest(buildInput(AI_MODELS.VEO_31))
-
-    expect(request.input.voice_id).toBeUndefined()
-  })
-
-  it('ignores voiceId for non-audio video models', () => {
-    const request = buildFalVideoQueueRequest({
-      ...buildInput(AI_MODELS.SEEDANCE_20),
-      voiceId: 'voice_abc123',
-    })
-
-    expect(request.input.voice_id).toBeUndefined()
-  })
-
   it('matches inline legacy ID normalization for execution-worker requests', () => {
     const inline = buildFalVideoQueueRequest({
       ...buildInput(AI_MODELS.VEO_31),
@@ -518,59 +487,6 @@ describe('buildFalWorkerQueueRequest', () => {
     })
 
     expect(worker).toEqual(inline)
-  })
-
-  describe('Kling V3 Pro element references', () => {
-    const REF_A = 'https://example.com/start.png'
-    const REF_B = 'https://example.com/left.png'
-    const REF_C = 'https://example.com/right.png'
-    const REF_D = 'https://example.com/back.png'
-    const REF_E = 'https://example.com/extra.png'
-
-    it('maps additional references to elements[0].reference_image_urls', () => {
-      const result = buildFalVideoQueueRequest(
-        buildInput(AI_MODELS.KLING_V3_PRO, REF_A, [REF_A, REF_B, REF_C]),
-      )
-
-      expect(result.mode).toBe('image-to-video')
-      expect(result.input.start_image_url).toBe(REF_A)
-      expect(result.input.elements).toEqual([
-        {
-          frontal_image_url: REF_A,
-          reference_image_urls: [REF_B, REF_C],
-        },
-      ])
-    })
-
-    it('caps Kling V3 Pro element reference_image_urls at 3', () => {
-      const result = buildFalVideoQueueRequest(
-        buildInput(AI_MODELS.KLING_V3_PRO, REF_A, [
-          REF_A,
-          REF_B,
-          REF_C,
-          REF_D,
-          REF_E,
-        ]),
-      )
-
-      expect(result.input.elements).toEqual([
-        {
-          frontal_image_url: REF_A,
-          reference_image_urls: [REF_B, REF_C, REF_D],
-        },
-      ])
-    })
-
-    it('keeps inline and worker Kling V3 Pro multi-reference bodies aligned', () => {
-      const inline = buildFalVideoQueueRequest(
-        buildInput(AI_MODELS.KLING_V3_PRO, REF_A, [REF_A, REF_B, REF_C]),
-      )
-      const worker = buildFalWorkerQueueRequest(
-        buildWorkerInput(AI_MODELS.KLING_V3_PRO, REF_A, [REF_A, REF_B, REF_C]),
-      )
-
-      expect(worker).toEqual(inline)
-    })
   })
 
   describe('Veo 3.1 multi-reference', () => {
@@ -610,17 +526,6 @@ describe('buildFalWorkerQueueRequest', () => {
         buildVeoInput([REF_A, REF_B, REF_C, REF_D]),
       )
       expect(result.input.image_urls).toEqual([REF_A, REF_B, REF_C])
-    })
-
-    it('keeps inline and worker Veo multi-reference bodies aligned', () => {
-      const inline = buildFalVideoQueueRequest(
-        buildVeoInput([REF_A, REF_B, REF_C]),
-      )
-      const worker = buildFalWorkerQueueRequest(
-        buildWorkerInput(AI_MODELS.VEO_31, REF_A, [REF_A, REF_B, REF_C]),
-      )
-
-      expect(worker).toEqual(inline)
     })
 
     it('falls back to [referenceImage] when referenceImages is empty', () => {

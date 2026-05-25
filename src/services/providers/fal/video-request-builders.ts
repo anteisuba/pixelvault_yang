@@ -6,7 +6,6 @@ import {
   normalizeModelId,
   type VideoDefaults,
 } from '@/constants/models'
-import { FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX } from '@/constants/provider-capabilities'
 import type { VideoResolution } from '@/constants/video-options'
 
 import { ProviderError } from '@/services/providers/types'
@@ -31,11 +30,6 @@ export interface FalVideoRequestBuilderInput {
   resolution?: VideoResolution
   i2vModelId?: string
   videoDefaults?: VideoDefaults
-  /**
-   * Voice id propagated from upstream voice node. Builders for models with
-   * `audio.mode === 'native'` (Veo 3.1) emit it as `voice_id`; others ignore it.
-   */
-  voiceId?: string
 }
 
 export interface FalVideoQueueRequest {
@@ -182,18 +176,6 @@ function requireReferenceImage(input: FalVideoRequestBuilderInput): string {
   return input.referenceImage
 }
 
-function getAdditionalKlingV3ReferenceImages(
-  input: FalVideoRequestBuilderInput,
-  startImage: string,
-): string[] {
-  const refs =
-    input.referenceImages && input.referenceImages.length > 0
-      ? input.referenceImages
-      : [startImage]
-  const additionalRefs = refs[0] === startImage ? refs.slice(1) : refs
-  return additionalRefs.slice(0, FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX)
-}
-
 function buildKlingV3Pro(
   input: FalVideoRequestBuilderInput,
   mode: FalVideoMode,
@@ -205,20 +187,7 @@ function buildKlingV3Pro(
   }
 
   if (mode === 'image-to-video') {
-    const startImage = requireReferenceImage(input)
-    const additionalRefs = getAdditionalKlingV3ReferenceImages(
-      input,
-      startImage,
-    )
-    body.start_image_url = startImage
-    if (additionalRefs.length > 0) {
-      body.elements = [
-        {
-          frontal_image_url: startImage,
-          reference_image_urls: additionalRefs,
-        },
-      ]
-    }
+    body.start_image_url = requireReferenceImage(input)
   } else {
     body.aspect_ratio = pickString(
       input.aspectRatio,
@@ -251,10 +220,6 @@ function buildVeo31(
   }
 
   applyNegativePrompt(body, input)
-
-  if (input.voiceId) {
-    body.voice_id = input.voiceId
-  }
 
   if (mode === 'image-to-video') {
     // Veo 3.1 reference-to-video takes up to 3 subject/scene refs via

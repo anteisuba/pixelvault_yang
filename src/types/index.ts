@@ -21,7 +21,6 @@ import {
 } from '@/constants/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { AI_MODELS, getModelById } from '@/constants/models'
-import { FAL_KLING_V3_MAX_REFERENCE_IMAGES } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import {
@@ -30,11 +29,6 @@ import {
   MODEL_3D_PREVIEW_MODES,
   MODEL_3D_POLYGON_TYPES,
   MODEL_3D_PROGRESS_STAGES,
-  RODIN_MATERIALS,
-  RODIN_MAX_REFERENCE_IMAGES,
-  RODIN_MESH_MODES,
-  RODIN_TEXTURE_MODES,
-  RODIN_TIERS,
   TRELLIS_2_DECIMATION_TARGET,
   TRELLIS_2_RESOLUTIONS,
   TRELLIS_2_SAMPLING_STEPS,
@@ -330,22 +324,14 @@ export const GenerateVideoRequestSchema = z.object({
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
   /**
-   * Multi-reference video models take an array of subject/scene references.
-   * Kling V3 Pro uses one start image plus up to three element reference
-   * images; Veo 3.1 uses up to three `image_urls`.
+   * Multi-reference video models (e.g. Veo 3.1 reference-to-video) take an
+   * array of subject/scene references. When omitted, the service falls back
+   * to wrapping the singular `referenceImage` so existing single-image
+   * callers keep working unchanged.
    */
-  referenceImages: z
-    .array(z.string())
-    .max(FAL_KLING_V3_MAX_REFERENCE_IMAGES)
-    .optional(),
+  referenceImages: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
-  /**
-   * Voice id from an upstream voice node — only consumed by video models whose
-   * audio.mode is 'native' or 'lipsync' (see video-model-capabilities). Models
-   * with audio.mode 'none' ignore this field.
-   */
-  voiceId: z.string().trim().min(1).max(200).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   workflowId: z
     .enum([WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, WORKFLOW_IDS.CHARACTER_TO_VIDEO])
@@ -822,50 +808,6 @@ export const Generate3DRequestSchema = z.object({
    * When false the existing auto-chain behaviour is preserved.
    */
   staged: z.boolean().optional(),
-  // ─── Rodin Gen-2.5 parameters ──────────────────────────────────
-  /** Rodin quality tier. Determines polygon resolution and generation time. */
-  rodinTier: z.enum(RODIN_TIERS).optional(),
-  /** Rodin mesh surface style: smooth organic ('Rodin') or hard surface ('Rodin-Hard'). */
-  rodinMeshMode: z.enum(RODIN_MESH_MODES).optional(),
-  /** Rodin texture pipeline: PBR maps or simple baked color. */
-  rodinTextureMode: z.enum(RODIN_TEXTURE_MODES).optional(),
-  /** Rodin material workflow: metallic-roughness PBR or albedo only. */
-  rodinMaterial: z.enum(RODIN_MATERIALS).optional(),
-  /** Rodin HighPack: doubles polygon budget (+1.0 cr). */
-  rodinHighPack: z.boolean().optional(),
-  /** Rodin T/A-Pose: optimize for humanoid characters in T or A pose. */
-  rodinTAPose: z.boolean().optional(),
-  /** Rodin HD Texture: generate higher-resolution texture maps. */
-  rodinHdTexture: z.boolean().optional(),
-  /** Rodin Texture Delight: remove baked environmental lighting from texture. */
-  rodinTextureDelight: z.boolean().optional(),
-  /**
-   * Rodin polygon-count override. Valid range depends on tier+geometry:
-   * Quad: 1 000–200 000 · Raw standard: 500–1 000 000 · Raw high: 20 000–2 000 000.
-   */
-  rodinQualityOverride: z.number().int().min(500).max(2_000_000).optional(),
-  /**
-   * Additional reference image URLs for Rodin multi-view input.
-   * Combined with `imageUrl` (primary), up to 4 additional = 5 total.
-   */
-  rodinAdditionalImageUrls: z
-    .array(z.string().trim().url())
-    .max(RODIN_MAX_REFERENCE_IMAGES - 1)
-    .optional(),
-  /**
-   * Rodin bounding box condition [minX, minY, minZ, maxX, maxY, maxZ].
-   * Constrains the generated mesh to a specific volume. Optional.
-   */
-  rodinBboxCondition: z
-    .tuple([
-      z.number(),
-      z.number(),
-      z.number(),
-      z.number(),
-      z.number(),
-      z.number(),
-    ])
-    .optional(),
 })
 
 export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
@@ -1032,14 +974,6 @@ export const ExecutionCallbackResultDataSchema = z.object({
   requestCount: z.number().int().positive().optional(),
   mimeType: z.string().trim().min(1).optional(),
   fetchHeaders: z.record(z.string(), z.string()).optional(),
-  /**
-   * MODEL_3D: R2 storage key of the GLB already uploaded by the Worker.
-   * When present, the callback service skips streamUploadToR2 and uses
-   * this key directly for `modelStorageKey`.
-   */
-  glbR2Key: z.string().trim().min(1).optional(),
-  /** MODEL_3D: seed used for reproducibility */
-  generationSeed: z.number().int().optional(),
 })
 
 export type ExecutionCallbackResultData = z.infer<
@@ -1110,17 +1044,12 @@ const WorkerVideoProviderInputSchema = z.object({
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
   duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
   referenceImage: z.string().optional(),
-  /** Multi-reference array for model-specific FAL video endpoints. */
-  referenceImages: z
-    .array(z.string())
-    .max(FAL_KLING_V3_MAX_REFERENCE_IMAGES)
-    .optional(),
+  /** Multi-reference array for Veo 3.1 reference-to-video. */
+  referenceImages: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   i2vModelId: z.string().optional(),
   videoDefaults: z.unknown().optional(),
-  /** Voice id from an upstream voice node, consumed by Veo / Kling. */
-  voiceId: z.string().trim().min(1).max(200).optional(),
   providerBaseUrl: z.string().trim().url().optional(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -1219,73 +1148,6 @@ export const LongVideoPipelineWorkerRunContextSchema = z.object({
 
 export type LongVideoPipelineWorkerRunContext = z.infer<
   typeof LongVideoPipelineWorkerRunContextSchema
->
-
-// ─── MODEL_3D Worker Run Context ─────────────────────────────────
-
-export const WorkerModel3DRunContextSchema = z
-  .object({
-    runId: z.string().trim().min(1),
-    workflowId: z.enum([
-      EXECUTION_WORKFLOW_IDS.HYPER3D_RODIN,
-      EXECUTION_WORKFLOW_IDS.HUNYUAN3D,
-    ]),
-    providerId: z.string().trim().min(1),
-    apiKeyId: z.string().trim().min(1).optional(),
-    useSystemKey: z.boolean().optional(),
-    callbackUrl: z.string().trim().url(),
-    resolveKeyUrl: z.string().trim().url(),
-    timeoutMs: z.number().int().positive(),
-    maxAttempts: z.number().int().positive(),
-    pollIntervalMs: z.number().int().positive(),
-    outputType: z.literal('MODEL_3D'),
-    userId: z.string().trim().min(1),
-    providerInput: z.object({
-      imageUrl: z.string().url(),
-      modelId: z.string().min(1),
-      externalModelId: z.string().min(1),
-      seed: z.number().int().optional(),
-      // Rodin-specific
-      tier: z.string().optional(),
-      meshMode: z.string().optional(),
-      textureMode: z.string().optional(),
-      material: z.string().optional(),
-      highPack: z.boolean().optional(),
-      taPose: z.boolean().optional(),
-      hdTexture: z.boolean().optional(),
-      textureDelight: z.boolean().optional(),
-      qualityOverride: z.number().int().optional(),
-      additionalImageUrls: z.array(z.string().url()).optional(),
-      bboxCondition: z.array(z.number()).length(6).optional(),
-      // FAL / Hunyuan3D
-      texturedMesh: z.boolean().optional(),
-      octreeResolution: z.number().int().optional(),
-      enablePbr: z.boolean().optional(),
-      faceCount: z.number().int().optional(),
-      generateType: z.string().optional(),
-      polygonType: z.string().optional(),
-      trellisResolution: z.string().optional(),
-      trellisTextureSize: z.string().optional(),
-      trellisDecimationTarget: z.number().int().optional(),
-      trellisRemesh: z.boolean().optional(),
-      trellisRemeshProject: z.number().optional(),
-      trellisStructureSamplingSteps: z.number().int().optional(),
-      trellisShapeSamplingSteps: z.number().int().optional(),
-      trellisTextureSamplingSteps: z.number().int().optional(),
-      removeBackground: z.boolean().optional(),
-    }),
-  })
-  .superRefine((value, ctx) => {
-    if (value.apiKeyId || value.useSystemKey) return
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['apiKeyId'],
-      message: 'Either API key ID or system key flag is required',
-    })
-  })
-
-export type WorkerModel3DRunContext = z.infer<
-  typeof WorkerModel3DRunContextSchema
 >
 
 // ─── Long Video Pipeline ──────────────────────────────────────────

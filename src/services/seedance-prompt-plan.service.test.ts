@@ -101,6 +101,29 @@ describe('createSeedancePromptPlan', () => {
     )
   })
 
+  it('requests locale-matched Seedance prompt text for Chinese users', async () => {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_PLAN))
+
+    await createSeedancePromptPlan('clerk_user_1', {
+      idea: '我想做一个拟人化 AI 工具在酒吧聊天的二次元短片',
+      plannerProvider: 'auto',
+      locale: 'zh',
+    })
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining(
+          'Write every JSON string value in Simplified Chinese',
+        ),
+      }),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.not.stringContaining('Write finalPrompt in English'),
+      }),
+    )
+  })
+
   it('wraps invalid planner output in a structured provider output error', async () => {
     mockLlmTextCompletion.mockResolvedValue(JSON.stringify({ title: '' }))
 

@@ -5,11 +5,13 @@ import {
   SEEDANCE_PROMPT_PLAN_HTTP_STATUS,
   SEEDANCE_PROMPT_PLAN_LIMITS,
   SEEDANCE_PROMPT_PLAN_OUTPUT_CONTRACT,
+  SEEDANCE_PROMPT_PLAN_OUTPUT_LANGUAGES,
   SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT,
 } from '@/constants/seedance-prompt-plan'
 import type { ScriptPlannerProvider } from '@/constants/script-breakdown'
 import { logger } from '@/lib/logger'
 import { ApiRequestError } from '@/lib/errors'
+import type { AppLocale } from '@/i18n/routing'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { withRetry } from '@/lib/with-retry'
 import { llmTextCompletion } from '@/services/llm-text.service'
@@ -20,11 +22,17 @@ import {
   type SeedancePromptPlanResponseData,
 } from '@/types/seedance-prompt-plan'
 
-function buildUserPrompt(idea: string, locale: string): string {
+function getSeedancePromptOutputLanguage(locale: AppLocale): string {
+  return SEEDANCE_PROMPT_PLAN_OUTPUT_LANGUAGES[locale]
+}
+
+function buildUserPrompt(idea: string, locale: AppLocale): string {
+  const outputLanguage = getSeedancePromptOutputLanguage(locale)
+
   return [
     SEEDANCE_PROMPT_PLAN_OUTPUT_CONTRACT,
     `Limits: max ${SEEDANCE_PROMPT_PLAN_LIMITS.maxTimelineItems} timeline items. Keep finalPrompt under ${SEEDANCE_PROMPT_PLAN_LIMITS.finalPromptMaxLength} characters.`,
-    `Locale hint: ${locale}. Keep JSON keys in English. Write finalPrompt in English unless the user explicitly asks for another output language.`,
+    `Locale hint: ${locale}. Keep JSON keys in English. Write every JSON string value in ${outputLanguage}, including title, visualDescription, timeline items, motion, camera, audioIntent, and finalPrompt. Preserve standard film/camera/style terms when they are clearer as industry terms. If the user explicitly asks for another output language, use that language instead.`,
     `User idea: ${idea}`,
   ].join('\n\n')
 }
@@ -111,7 +119,7 @@ export async function createSeedancePromptPlan(
     idea: string
     plannerProvider: ScriptPlannerProvider
     apiKeyId?: string
-    locale: string
+    locale: AppLocale
   },
 ): Promise<SeedancePromptPlanResponseData> {
   const dbUser = await ensureUser(clerkId)

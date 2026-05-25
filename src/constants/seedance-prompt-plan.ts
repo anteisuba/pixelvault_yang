@@ -1,3 +1,5 @@
+import type { AppLocale } from '@/i18n/routing'
+
 export const SEEDANCE_PROMPT_PLAN_LIMITS = {
   ideaMaxLength: 4000,
   titleMaxLength: 90,
@@ -24,6 +26,13 @@ export const SEEDANCE_PROMPT_PLAN_HTTP_STATUS = {
   rateLimited: 429,
   temporarilyUnavailable: 503,
 } as const
+
+export const SEEDANCE_PROMPT_PLAN_OUTPUT_LANGUAGES: Record<AppLocale, string> =
+  {
+    en: 'English',
+    ja: 'Japanese',
+    zh: 'Simplified Chinese',
+  } as const
 
 export const SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT = `You are PixelVault's Seedance video prompt planning agent. Convert a user's rough video idea into a structured Seedance 2.0-ready video prompt plan.
 

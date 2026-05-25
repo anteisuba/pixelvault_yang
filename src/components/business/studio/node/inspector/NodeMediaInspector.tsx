@@ -108,6 +108,17 @@ function getStatusLabelKey(
   }
 }
 
+function getEmptyPreviewIcon(kind: NodeWorkflowMediaKind) {
+  switch (kind) {
+    case NODE_MEDIA_KIND_IDS.video:
+      return <Video className="size-8 text-teal-200" />
+    case NODE_MEDIA_KIND_IDS.audio:
+      return <Mic2 className="size-8 text-fuchsia-200" />
+    default:
+      return <WandSparkles className="size-8 text-node-amber" />
+  }
+}
+
 export function NodeMediaInspector({
   node,
   type,
@@ -544,11 +555,7 @@ export function NodeMediaInspector({
 
             {!mediaUrl ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                {kind === NODE_MEDIA_KIND_IDS.video ? (
-                  <Video className="size-8 text-teal-200" />
-                ) : (
-                  <WandSparkles className="size-8 text-node-amber" />
-                )}
+                {getEmptyPreviewIcon(kind)}
                 <p className="text-xs leading-5 text-node-muted">
                   {tWorkflows(`${type}.emptyPreview`)}
                 </p>
@@ -712,6 +719,7 @@ export function NodeMediaInspector({
                   value={node.data.model}
                   options={modelOptions}
                   onChange={(model) => updateNodeData(node.id, { model })}
+                  kind={kind}
                 />
                 <p className="mt-1 truncate px-1 text-2xs font-medium text-node-subtle">
                   {t(statusLabelKey)}

@@ -2549,10 +2549,22 @@
       "savedMeta": "{model} · {key}"
     },
     "workflowModelPicker": {
-      "label": "Image model",
+      "labels": {
+        "image": "Image model",
+        "video": "Video model",
+        "audio": "Audio model"
+      },
       "placeholder": "Select model",
-      "hint": "Saved routes and free image models available for this node.",
-      "noOptions": "No image model with a configured key is available yet."
+      "hints": {
+        "image": "Saved routes and free image models available for this node.",
+        "video": "Saved routes and free video models available for this node.",
+        "audio": "Saved routes and free audio models available for this node."
+      },
+      "noOptions": {
+        "image": "No image model with a configured key is available yet.",
+        "video": "No video model with a configured key is available yet.",
+        "audio": "No audio model with a configured key is available yet."
+      }
     },
     "agent": {
       "emptyTitle": "Waiting for Composer",

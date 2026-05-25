@@ -1,7 +1,15 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronDown, Gift, ImageIcon, KeyRound } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  Gift,
+  ImageIcon,
+  KeyRound,
+  Mic2,
+  Video,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -9,6 +17,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  NODE_MEDIA_KIND_IDS,
+  type NodeWorkflowMediaKind,
+} from '@/constants/node-types'
 import { getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
@@ -17,11 +29,51 @@ import type {
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
 
+type WorkflowModelPickerKind = Exclude<
+  NodeWorkflowMediaKind,
+  typeof NODE_MEDIA_KIND_IDS.text
+>
+
 interface WorkflowModelPickerProps {
   value: NodeWorkflowModelSelection | undefined
   options: NodeWorkflowModelOption[]
   onChange(value: NodeWorkflowModelSelection): void
+  kind?: NodeWorkflowMediaKind
   className?: string
+}
+
+function normalizePickerKind(
+  kind: NodeWorkflowMediaKind | undefined,
+): WorkflowModelPickerKind {
+  switch (kind) {
+    case NODE_MEDIA_KIND_IDS.video:
+    case NODE_MEDIA_KIND_IDS.audio:
+      return kind
+    default:
+      return NODE_MEDIA_KIND_IDS.image
+  }
+}
+
+function renderPickerIcon(kind: WorkflowModelPickerKind, className: string) {
+  switch (kind) {
+    case NODE_MEDIA_KIND_IDS.video:
+      return <Video className={className} />
+    case NODE_MEDIA_KIND_IDS.audio:
+      return <Mic2 className={className} />
+    default:
+      return <ImageIcon className={className} />
+  }
+}
+
+function getPickerIconClassName(kind: WorkflowModelPickerKind): string {
+  switch (kind) {
+    case NODE_MEDIA_KIND_IDS.video:
+      return 'text-teal-200'
+    case NODE_MEDIA_KIND_IDS.audio:
+      return 'text-fuchsia-200'
+    default:
+      return 'text-node-amber'
+  }
 }
 
 function toModelSelection(
@@ -50,11 +102,15 @@ export function WorkflowModelPicker({
   value,
   options,
   onChange,
+  kind,
   className,
 }: WorkflowModelPickerProps) {
   const t = useTranslations('StudioNode.workflowModelPicker')
   const tModels = useTranslations('Models')
   const [open, setOpen] = useState(false)
+  const pickerKind = normalizePickerKind(kind)
+  const iconClassName = getPickerIconClassName(pickerKind)
+  const label = t(`labels.${pickerKind}`)
   const selectedOption = useMemo(
     () =>
       value
@@ -80,7 +136,7 @@ export function WorkflowModelPicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={t('label')}
+          aria-label={label}
           aria-expanded={open}
           className={cn(
             'nodrag nopan nowheel flex h-9 min-w-0 items-center gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft px-2.5 text-left text-node-muted transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-amber/35',
@@ -88,7 +144,7 @@ export function WorkflowModelPicker({
             className,
           )}
         >
-          <ImageIcon className="size-3.5 shrink-0 text-node-amber" />
+          {renderPickerIcon(pickerKind, cn('size-3.5 shrink-0', iconClassName))}
           <span className="min-w-0 flex-1 truncate text-xs font-semibold">
             {selectedLabel}
           </span>
@@ -107,15 +163,15 @@ export function WorkflowModelPicker({
         className="w-72 overflow-hidden rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
       >
         <div className="border-b border-node-panel-inner px-4 py-3">
-          <p className="text-sm font-semibold text-node-foreground">
-            {t('label')}
+          <p className="text-sm font-semibold text-node-foreground">{label}</p>
+          <p className="mt-1 text-xs leading-5 text-node-muted">
+            {t(`hints.${pickerKind}`)}
           </p>
-          <p className="mt-1 text-xs leading-5 text-node-muted">{t('hint')}</p>
         </div>
         <div className="max-h-72 overflow-y-auto overscroll-contain p-2">
           {options.length === 0 ? (
             <div className="rounded-xl px-3 py-3 text-xs leading-5 text-node-muted">
-              {t('noOptions')}
+              {t(`noOptions.${pickerKind}`)}
             </div>
           ) : null}
           {options.map((option) => {
@@ -146,7 +202,7 @@ export function WorkflowModelPicker({
                       : 'bg-node-panel-inner',
                   )}
                 >
-                  <ImageIcon className="size-4" />
+                  {renderPickerIcon(pickerKind, 'size-4')}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-node-foreground">

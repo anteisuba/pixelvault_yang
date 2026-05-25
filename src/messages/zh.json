@@ -2549,10 +2549,22 @@
       "savedMeta": "{model} · {key}"
     },
     "workflowModelPicker": {
-      "label": "图像模型",
+      "labels": {
+        "image": "图像模型",
+        "video": "视频模型",
+        "audio": "音频模型"
+      },
       "placeholder": "选择模型",
-      "hint": "这里显示当前可用于此节点的已保存路由和免费图像模型。",
-      "noOptions": "暂时没有已配置 Key 的图像模型。"
+      "hints": {
+        "image": "这里显示当前可用于此节点的已保存路由和免费图像模型。",
+        "video": "这里显示当前可用于此节点的已保存路由和免费视频模型。",
+        "audio": "这里显示当前可用于此节点的已保存路由和免费音频模型。"
+      },
+      "noOptions": {
+        "image": "暂时没有已配置 Key 的图像模型。",
+        "video": "暂时没有已配置 Key 的视频模型。",
+        "audio": "暂时没有已配置 Key 的音频模型。"
+      }
     },
     "agent": {
       "emptyTitle": "等待 Composer 输入",

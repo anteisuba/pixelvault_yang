@@ -128,9 +128,31 @@ model User {
   loraAssets         LoraAsset[]
   videoScripts       VideoScript[]
   extractedElements  ExtractedElement[]
+  nodeWorkflowProjects NodeWorkflowProject[]
 
   @@index([username])
   @@index([isDeleted])
+}
+
+/// Node Studio workflow project — persists the React Flow canvas state
+/// (nodes + edges + per-node data) per user so a workflow survives across
+/// devices and browser refreshes. Treated as opaque JSON in the DB; shape
+/// is validated server-side via NodeWorkflowStateSchema (Zod) before write.
+model NodeWorkflowProject {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  /// Full workflow snapshot: { nodes: [...], edges: [...] }
+  state        Json
+  /// Last time the user opened or saved this project. Highest lastActiveAt
+  /// among the user's projects becomes the default open project.
+  lastActiveAt DateTime @default(now())
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, isDeleted, lastActiveAt(sort: Desc)])
 }
 
 model Project {

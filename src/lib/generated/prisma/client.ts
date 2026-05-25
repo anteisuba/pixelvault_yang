@@ -47,6 +47,14 @@ export { Prisma }
  */
 export type User = Prisma.UserModel
 /**
+ * Model NodeWorkflowProject
+ * Node Studio workflow project — persists the React Flow canvas state
+ * (nodes + edges + per-node data) per user so a workflow survives across
+ * devices and browser refreshes. Treated as opaque JSON in the DB; shape
+ * is validated server-side via NodeWorkflowStateSchema (Zod) before write.
+ */
+export type NodeWorkflowProject = Prisma.NodeWorkflowProjectModel
+/**
  * Model Project
  * 
  */

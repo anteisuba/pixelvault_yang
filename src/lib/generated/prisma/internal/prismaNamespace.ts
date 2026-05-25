@@ -385,6 +385,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
@@ -433,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement"
+    modelProps: "user" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "imageAnalysis" | "arenaMatch" | "arenaEntry" | "modelEloRating" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -508,6 +509,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    NodeWorkflowProject: {
+      payload: Prisma.$NodeWorkflowProjectPayload<ExtArgs>
+      fields: Prisma.NodeWorkflowProjectFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.NodeWorkflowProjectFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.NodeWorkflowProjectFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        findFirst: {
+          args: Prisma.NodeWorkflowProjectFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.NodeWorkflowProjectFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        findMany: {
+          args: Prisma.NodeWorkflowProjectFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>[]
+        }
+        create: {
+          args: Prisma.NodeWorkflowProjectCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        createMany: {
+          args: Prisma.NodeWorkflowProjectCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.NodeWorkflowProjectCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>[]
+        }
+        delete: {
+          args: Prisma.NodeWorkflowProjectDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        update: {
+          args: Prisma.NodeWorkflowProjectUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        deleteMany: {
+          args: Prisma.NodeWorkflowProjectDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.NodeWorkflowProjectUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.NodeWorkflowProjectUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>[]
+        }
+        upsert: {
+          args: Prisma.NodeWorkflowProjectUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$NodeWorkflowProjectPayload>
+        }
+        aggregate: {
+          args: Prisma.NodeWorkflowProjectAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateNodeWorkflowProject>
+        }
+        groupBy: {
+          args: Prisma.NodeWorkflowProjectGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NodeWorkflowProjectGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.NodeWorkflowProjectCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.NodeWorkflowProjectCountAggregateOutputType> | number
         }
       }
     }
@@ -3013,6 +3088,20 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const NodeWorkflowProjectScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  state: 'state',
+  lastActiveAt: 'lastActiveAt',
+  isDeleted: 'isDeleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NodeWorkflowProjectScalarFieldEnum = (typeof NodeWorkflowProjectScalarFieldEnum)[keyof typeof NodeWorkflowProjectScalarFieldEnum]
+
+
 export const ProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4013,6 +4102,7 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  nodeWorkflowProject?: Prisma.NodeWorkflowProjectOmit
   project?: Prisma.ProjectOmit
   userApiKey?: Prisma.UserApiKeyOmit
   generation?: Prisma.GenerationOmit

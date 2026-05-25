@@ -14,6 +14,7 @@ import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCES,
   NODE_STUDIO_REFERENCE_ROLES,
   NODE_STUDIO_REFERENCE_SOURCES,
+  NODE_STUDIO_VOICE_PROFILE_SOURCES,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
@@ -119,10 +120,18 @@ export const NodeWorkflowNodeDataSchema = z
     lighting: z.string().optional(),
     frameIntent: z.string().optional(),
     dialogue: z.string().optional(),
+    voiceName: z.string().optional(),
+    voiceProvider: z.string().optional(),
+    voiceId: z.string().optional(),
     voiceStyle: z.string().optional(),
     voiceEmotion: z.string().optional(),
+    voiceSource: z.enum(NODE_STUDIO_VOICE_PROFILE_SOURCES).optional(),
+    voiceReferenceAudioUrl: z.string().trim().min(1).optional(),
+    voiceReferenceAudioName: z.string().trim().min(1).max(160).optional(),
+    voiceReferenceAudioMimeType: z.string().trim().min(1).max(120).optional(),
     motion: z.string().optional(),
     duration: z.string().optional(),
+    audioIntent: z.string().optional(),
     status: NodeStatusSchema.default('idle'),
     breakdown: ScriptBreakdownResultSchema.optional(),
     agentMode: z.enum(NODE_STUDIO_AGENT_MODES).optional(),
@@ -227,6 +236,49 @@ export const NodeWorkflowStorageSchema = z
       })
     }
   })
+
+// ─── API contracts for the Prisma-backed NodeWorkflowProject ─────────────
+
+/**
+ * Server-side record shape — what API routes return to the client.
+ * Mirrors the `NodeWorkflowProject` Prisma model 1:1 except `state` is
+ * the validated `NodeWorkflowStateDataSchema` shape (JSON in DB → typed
+ * here before crossing the network boundary).
+ */
+export const NodeWorkflowProjectRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  userId: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+  state: NodeWorkflowStateDataSchema,
+  lastActiveAt: z.string().trim().min(1),
+  createdAt: z.string().trim().min(1),
+  updatedAt: z.string().trim().min(1),
+})
+
+export const CreateNodeWorkflowProjectRequestSchema = z.object({
+  name: z.string().trim().min(1).max(NODE_STUDIO_PROJECTS.nameMaxLength),
+  state: NodeWorkflowStateDataSchema.optional(),
+})
+
+export const UpdateNodeWorkflowProjectRequestSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_STUDIO_PROJECTS.nameMaxLength)
+    .optional(),
+  state: NodeWorkflowStateDataSchema.optional(),
+})
+
+export type NodeWorkflowProjectRecord = z.infer<
+  typeof NodeWorkflowProjectRecordSchema
+>
+export type CreateNodeWorkflowProjectRequest = z.infer<
+  typeof CreateNodeWorkflowProjectRequestSchema
+>
+export type UpdateNodeWorkflowProjectRequest = z.infer<
+  typeof UpdateNodeWorkflowProjectRequestSchema
+>
 
 export type NodeWorkflowStatus = z.infer<typeof NodeStatusSchema>
 export type NodeWorkflowGenerationStatus = z.infer<

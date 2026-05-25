@@ -286,6 +286,7 @@ export type UserWhereInput = {
   loraAssets?: Prisma.LoraAssetListRelationFilter
   videoScripts?: Prisma.VideoScriptListRelationFilter
   extractedElements?: Prisma.ExtractedElementListRelationFilter
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -328,6 +329,7 @@ export type UserOrderByWithRelationInput = {
   loraAssets?: Prisma.LoraAssetOrderByRelationAggregateInput
   videoScripts?: Prisma.VideoScriptOrderByRelationAggregateInput
   extractedElements?: Prisma.ExtractedElementOrderByRelationAggregateInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -373,6 +375,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   loraAssets?: Prisma.LoraAssetListRelationFilter
   videoScripts?: Prisma.VideoScriptListRelationFilter
   extractedElements?: Prisma.ExtractedElementListRelationFilter
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
 }, "id" | "clerkId" | "email" | "username">
 
 export type UserOrderByWithAggregationInput = {
@@ -457,6 +460,7 @@ export type UserCreateInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -499,6 +503,7 @@ export type UserUncheckedCreateInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -541,6 +546,7 @@ export type UserUpdateInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -583,6 +589,7 @@ export type UserUncheckedUpdateInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -717,6 +724,20 @@ export type BoolFieldUpdateOperationsInput = {
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
+}
+
+export type UserCreateNestedOneWithoutNodeWorkflowProjectsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedCreateWithoutNodeWorkflowProjectsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNodeWorkflowProjectsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutNodeWorkflowProjectsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedCreateWithoutNodeWorkflowProjectsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNodeWorkflowProjectsInput
+  upsert?: Prisma.UserUpsertWithoutNodeWorkflowProjectsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutNodeWorkflowProjectsInput, Prisma.UserUpdateWithoutNodeWorkflowProjectsInput>, Prisma.UserUncheckedUpdateWithoutNodeWorkflowProjectsInput>
 }
 
 export type UserCreateNestedOneWithoutProjectsInput = {
@@ -1059,6 +1080,190 @@ export type UserUpdateOneRequiredWithoutExtractedElementsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutExtractedElementsInput, Prisma.UserUpdateWithoutExtractedElementsInput>, Prisma.UserUncheckedUpdateWithoutExtractedElementsInput>
 }
 
+export type UserCreateWithoutNodeWorkflowProjectsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutNodeWorkflowProjectsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedCreateWithoutNodeWorkflowProjectsInput>
+}
+
+export type UserUpsertWithoutNodeWorkflowProjectsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedUpdateWithoutNodeWorkflowProjectsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedCreateWithoutNodeWorkflowProjectsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutNodeWorkflowProjectsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutNodeWorkflowProjectsInput, Prisma.UserUncheckedUpdateWithoutNodeWorkflowProjectsInput>
+}
+
+export type UserUpdateWithoutNodeWorkflowProjectsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
+  arenaMatches?: Prisma.ArenaMatchUncheckedUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+}
+
 export type UserCreateWithoutProjectsInput = {
   id?: string
   clerkId: string
@@ -1098,6 +1303,7 @@ export type UserCreateWithoutProjectsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectsInput = {
@@ -1139,6 +1345,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectsInput = {
@@ -1196,6 +1403,7 @@ export type UserUpdateWithoutProjectsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectsInput = {
@@ -1237,6 +1445,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutUserApiKeysInput = {
@@ -1278,6 +1487,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutUserApiKeysInput = {
@@ -1319,6 +1529,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutUserApiKeysInput = {
@@ -1376,6 +1587,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutUserApiKeysInput = {
@@ -1417,6 +1629,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationsInput = {
@@ -1458,6 +1671,7 @@ export type UserCreateWithoutGenerationsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationsInput = {
@@ -1499,6 +1713,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationsInput = {
@@ -1556,6 +1771,7 @@ export type UserUpdateWithoutGenerationsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationsInput = {
@@ -1597,6 +1813,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationJobsInput = {
@@ -1638,6 +1855,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationJobsInput = {
@@ -1679,6 +1897,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationJobsInput = {
@@ -1736,6 +1955,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationJobsInput = {
@@ -1777,6 +1997,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutApiUsageLedgerInput = {
@@ -1818,6 +2039,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -1859,6 +2081,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -1916,6 +2139,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -1957,6 +2181,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutRecipesInput = {
@@ -1998,6 +2223,7 @@ export type UserCreateWithoutRecipesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutRecipesInput = {
@@ -2039,6 +2265,7 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutRecipesInput = {
@@ -2096,6 +2323,7 @@ export type UserUpdateWithoutRecipesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRecipesInput = {
@@ -2137,6 +2365,7 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVoiceCardsInput = {
@@ -2178,6 +2407,7 @@ export type UserCreateWithoutVoiceCardsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVoiceCardsInput = {
@@ -2219,6 +2449,7 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVoiceCardsInput = {
@@ -2276,6 +2507,7 @@ export type UserUpdateWithoutVoiceCardsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVoiceCardsInput = {
@@ -2317,6 +2549,7 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCreativePreferenceInput = {
@@ -2358,6 +2591,7 @@ export type UserCreateWithoutCreativePreferenceInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCreativePreferenceInput = {
@@ -2399,6 +2633,7 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCreativePreferenceInput = {
@@ -2456,6 +2691,7 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
@@ -2497,6 +2733,7 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutImageAnalysesInput = {
@@ -2538,6 +2775,7 @@ export type UserCreateWithoutImageAnalysesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutImageAnalysesInput = {
@@ -2579,6 +2817,7 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutImageAnalysesInput = {
@@ -2636,6 +2875,7 @@ export type UserUpdateWithoutImageAnalysesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutImageAnalysesInput = {
@@ -2677,6 +2917,7 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutArenaMatchesInput = {
@@ -2718,6 +2959,7 @@ export type UserCreateWithoutArenaMatchesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutArenaMatchesInput = {
@@ -2759,6 +3001,7 @@ export type UserUncheckedCreateWithoutArenaMatchesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutArenaMatchesInput = {
@@ -2816,6 +3059,7 @@ export type UserUpdateWithoutArenaMatchesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutArenaMatchesInput = {
@@ -2857,6 +3101,7 @@ export type UserUncheckedUpdateWithoutArenaMatchesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutStoriesInput = {
@@ -2898,6 +3143,7 @@ export type UserCreateWithoutStoriesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStoriesInput = {
@@ -2939,6 +3185,7 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStoriesInput = {
@@ -2996,6 +3243,7 @@ export type UserUpdateWithoutStoriesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStoriesInput = {
@@ -3037,6 +3285,7 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCharacterCardsInput = {
@@ -3078,6 +3327,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCharacterCardsInput = {
@@ -3119,6 +3369,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCharacterCardsInput = {
@@ -3176,6 +3427,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCharacterCardsInput = {
@@ -3217,6 +3469,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLikesGivenInput = {
@@ -3258,6 +3511,7 @@ export type UserCreateWithoutLikesGivenInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLikesGivenInput = {
@@ -3299,6 +3553,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLikesGivenInput = {
@@ -3356,6 +3611,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLikesGivenInput = {
@@ -3397,6 +3653,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutFollowsGivenInput = {
@@ -3438,6 +3695,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFollowsGivenInput = {
@@ -3479,6 +3737,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFollowsGivenInput = {
@@ -3525,6 +3784,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFollowsReceivedInput = {
@@ -3566,6 +3826,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFollowsReceivedInput = {
@@ -3623,6 +3884,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFollowsGivenInput = {
@@ -3664,6 +3926,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserUpsertWithoutFollowsReceivedInput = {
@@ -3716,6 +3979,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
@@ -3757,6 +4021,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCollectionsInput = {
@@ -3798,6 +4063,7 @@ export type UserCreateWithoutCollectionsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCollectionsInput = {
@@ -3839,6 +4105,7 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCollectionsInput = {
@@ -3896,6 +4163,7 @@ export type UserUpdateWithoutCollectionsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCollectionsInput = {
@@ -3937,6 +4205,7 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutBackgroundCardsInput = {
@@ -3978,6 +4247,7 @@ export type UserCreateWithoutBackgroundCardsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutBackgroundCardsInput = {
@@ -4019,6 +4289,7 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutBackgroundCardsInput = {
@@ -4076,6 +4347,7 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
@@ -4117,6 +4389,7 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutStyleCardsInput = {
@@ -4158,6 +4431,7 @@ export type UserCreateWithoutStyleCardsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStyleCardsInput = {
@@ -4199,6 +4473,7 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStyleCardsInput = {
@@ -4256,6 +4531,7 @@ export type UserUpdateWithoutStyleCardsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStyleCardsInput = {
@@ -4297,6 +4573,7 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCardRecipesInput = {
@@ -4338,6 +4615,7 @@ export type UserCreateWithoutCardRecipesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCardRecipesInput = {
@@ -4379,6 +4657,7 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCardRecipesInput = {
@@ -4436,6 +4715,7 @@ export type UserUpdateWithoutCardRecipesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCardRecipesInput = {
@@ -4477,6 +4757,7 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVideoPipelinesInput = {
@@ -4518,6 +4799,7 @@ export type UserCreateWithoutVideoPipelinesInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVideoPipelinesInput = {
@@ -4559,6 +4841,7 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVideoPipelinesInput = {
@@ -4616,6 +4899,7 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
@@ -4657,6 +4941,7 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLoraTrainingJobsInput = {
@@ -4698,6 +4983,7 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
@@ -4739,6 +5025,7 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLoraTrainingJobsInput = {
@@ -4796,6 +5083,7 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
@@ -4837,6 +5125,7 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLoraAssetsInput = {
@@ -4878,6 +5167,7 @@ export type UserCreateWithoutLoraAssetsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLoraAssetsInput = {
@@ -4919,6 +5209,7 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLoraAssetsInput = {
@@ -4976,6 +5267,7 @@ export type UserUpdateWithoutLoraAssetsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLoraAssetsInput = {
@@ -5017,6 +5309,7 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVideoScriptsInput = {
@@ -5058,6 +5351,7 @@ export type UserCreateWithoutVideoScriptsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVideoScriptsInput = {
@@ -5099,6 +5393,7 @@ export type UserUncheckedCreateWithoutVideoScriptsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVideoScriptsInput = {
@@ -5156,6 +5451,7 @@ export type UserUpdateWithoutVideoScriptsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVideoScriptsInput = {
@@ -5197,6 +5493,7 @@ export type UserUncheckedUpdateWithoutVideoScriptsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutExtractedElementsInput = {
@@ -5238,6 +5535,7 @@ export type UserCreateWithoutExtractedElementsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutExtractedElementsInput = {
@@ -5279,6 +5577,7 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
   videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutExtractedElementsInput = {
@@ -5336,6 +5635,7 @@ export type UserUpdateWithoutExtractedElementsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutExtractedElementsInput = {
@@ -5377,6 +5677,7 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -5408,6 +5709,7 @@ export type UserCountOutputType = {
   loraAssets: number
   videoScripts: number
   extractedElements: number
+  nodeWorkflowProjects: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -5434,6 +5736,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   loraAssets?: boolean | UserCountOutputTypeCountLoraAssetsArgs
   videoScripts?: boolean | UserCountOutputTypeCountVideoScriptsArgs
   extractedElements?: boolean | UserCountOutputTypeCountExtractedElementsArgs
+  nodeWorkflowProjects?: boolean | UserCountOutputTypeCountNodeWorkflowProjectsArgs
 }
 
 /**
@@ -5607,6 +5910,13 @@ export type UserCountOutputTypeCountExtractedElementsArgs<ExtArgs extends runtim
   where?: Prisma.ExtractedElementWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountNodeWorkflowProjectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NodeWorkflowProjectWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -5648,6 +5958,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   loraAssets?: boolean | Prisma.User$loraAssetsArgs<ExtArgs>
   videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
   extractedElements?: boolean | Prisma.User$extractedElementsArgs<ExtArgs>
+  nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -5731,6 +6042,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   loraAssets?: boolean | Prisma.User$loraAssetsArgs<ExtArgs>
   videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
   extractedElements?: boolean | Prisma.User$extractedElementsArgs<ExtArgs>
+  nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -5763,6 +6075,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     loraAssets: Prisma.$LoraAssetPayload<ExtArgs>[]
     videoScripts: Prisma.$VideoScriptPayload<ExtArgs>[]
     extractedElements: Prisma.$ExtractedElementPayload<ExtArgs>[]
+    nodeWorkflowProjects: Prisma.$NodeWorkflowProjectPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -6198,6 +6511,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   loraAssets<T extends Prisma.User$loraAssetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$loraAssetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoraAssetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   videoScripts<T extends Prisma.User$videoScriptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoScriptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoScriptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   extractedElements<T extends Prisma.User$extractedElementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$extractedElementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExtractedElementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  nodeWorkflowProjects<T extends Prisma.User$nodeWorkflowProjectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NodeWorkflowProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7203,6 +7517,30 @@ export type User$extractedElementsArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   distinct?: Prisma.ExtractedElementScalarFieldEnum | Prisma.ExtractedElementScalarFieldEnum[]
+}
+
+/**
+ * User.nodeWorkflowProjects
+ */
+export type User$nodeWorkflowProjectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the NodeWorkflowProject
+   */
+  select?: Prisma.NodeWorkflowProjectSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the NodeWorkflowProject
+   */
+  omit?: Prisma.NodeWorkflowProjectOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NodeWorkflowProjectInclude<ExtArgs> | null
+  where?: Prisma.NodeWorkflowProjectWhereInput
+  orderBy?: Prisma.NodeWorkflowProjectOrderByWithRelationInput | Prisma.NodeWorkflowProjectOrderByWithRelationInput[]
+  cursor?: Prisma.NodeWorkflowProjectWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NodeWorkflowProjectScalarFieldEnum | Prisma.NodeWorkflowProjectScalarFieldEnum[]
 }
 
 /**

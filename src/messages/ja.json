@@ -766,7 +766,8 @@
     "rodinApiKeyMissingTitle": "Hyper3D APIキーが未設定",
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5にはBusinessサブスクリプション付きのHyper3D APIキーが必要です。設定でキーを追加してください。",
     "rodinEstimatedCost": "推定 {credits} cr",
-    "rodinEstimatedTime": "約{minutes}分"
+    "rodinEstimatedTime": "約{minutes}分",
+    "changeModelButton": "変更"
   },
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",
@@ -2058,6 +2059,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "ByteDance — 高速版、音声付き、4-15秒"
     },
+    "seedance20Reference": {
+      "label": "Seedance 2.0（リファレンス）",
+      "description": "reference-to-video — audio_urls でボイスクローニング対応"
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast（リファレンス）",
+      "description": "reference-to-video 高速版 — ボイスクローニング対応"
+    },
     "seedance20Volc": {
       "label": "Seedance 2.0（火山引擎）",
       "description": "火山引擎 — 音声+リップシンク、監督レベルのカメラ"
@@ -2825,20 +2834,15 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "このモデルはネイティブ音声に対応していません",
-          "body": "接続中の音色ノードは生成時に無視されます。\n音声を活かすには、対応モデルへの切り替えをおすすめします。",
-          "switchAction": "Veo 3.1 にワンクリック切替  →",
+          "title": "このモデルはボイスクローニングに対応していません",
+          "body": "generate_audio のオン/オフのみで、音色ノードの参考音声は使えません。\n音色をクローンするには Seedance Reference エンドポイントに切り替えてください。",
+          "switchAction": "Seedance 2.0 Reference にワンクリック切替  →",
           "statusPill": "無視されます"
         },
-        "active": {
-          "title": "ネイティブ音声チャネルが有効です",
-          "body": "音色は voice_id としてモデルへ直接渡され、\n同期した台詞と感情を含む動画が生成されます。",
-          "statusPill": "ネイティブ音声"
-        },
-        "lipsync": {
-          "title": "Lip-sync モード",
-          "body": "音色は発話者を提供します。台詞テキストは Composer または ShotText ノードから取得します。\n両方が必要です。",
-          "statusPill": "Lip-sync"
+        "cloning": {
+          "title": "ボイスクローニングが有効です",
+          "body": "Seedance は音色ノードの参考音声を使い、\nプロンプト内の \"ダブルクォート\" で囲まれた台詞を読み上げます。",
+          "statusPill": "ボイスクローン"
         }
       },
       "noModel": "先に動画モデルを選択してください。",

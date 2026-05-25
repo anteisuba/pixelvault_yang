@@ -53,7 +53,8 @@ interface SeedanceInspectorProps {
   node: NodeWorkflowNode
 }
 
-type AudioCalloutState = 'hidden' | 'ignored' | 'active' | 'lipsync'
+type AudioCalloutState = 'hidden' | 'ignored' | 'cloning'
+type VideoAccentState = 'seedance' | 'ok'
 
 interface UpstreamGroup {
   key: 'visual' | 'keyframe' | 'text' | 'voice'
@@ -62,9 +63,8 @@ interface UpstreamGroup {
 }
 
 const AUDIO_CALLOUT_STATE_BY_MODE: Record<VideoAudioMode, AudioCalloutState> = {
-  none: 'ignored',
-  native: 'active',
-  lipsync: 'lipsync',
+  auto: 'ignored',
+  reference: 'cloning',
 }
 
 const VOICE_GROUP_TINT_BY_STATE: Record<
@@ -72,8 +72,7 @@ const VOICE_GROUP_TINT_BY_STATE: Record<
   string
 > = {
   ignored: 'border-node-danger/40 bg-node-danger/10',
-  active: 'border-node-success/40 bg-node-success/10',
-  lipsync: 'border-node-lipsync/40 bg-node-lipsync/10',
+  cloning: 'border-node-success/40 bg-node-success/10',
 }
 
 const VOICE_GROUP_PILL_BY_STATE: Record<
@@ -81,8 +80,7 @@ const VOICE_GROUP_PILL_BY_STATE: Record<
   string
 > = {
   ignored: 'bg-node-danger/20 text-node-danger',
-  active: 'bg-node-success/20 text-node-success',
-  lipsync: 'bg-node-lipsync/20 text-node-lipsync',
+  cloning: 'bg-node-success/20 text-node-success',
 }
 
 const VIDEO_GENERATION_FIELDS = [
@@ -92,6 +90,29 @@ const VIDEO_GENERATION_FIELDS = [
   NODE_WORKFLOW_FIELD_IDS.audioIntent,
   NODE_WORKFLOW_FIELD_IDS.prompt,
 ] as const
+
+const VIDEO_ACCENT_STYLES: Record<
+  VideoAccentState,
+  {
+    dot: string
+    iconPlate: string
+    chip: string
+    button: string
+  }
+> = {
+  seedance: {
+    dot: 'bg-node-amber',
+    iconPlate: 'bg-node-amber/15 text-node-amber',
+    chip: 'border-node-amber/30 bg-node-amber/10 text-node-foreground',
+    button: 'bg-node-amber text-node-canvas hover:bg-node-amber/90',
+  },
+  ok: {
+    dot: 'bg-node-success',
+    iconPlate: 'bg-node-success/15 text-node-success',
+    chip: 'border-node-success/30 bg-node-success/10 text-node-success',
+    button: 'bg-node-success text-node-canvas hover:bg-node-success/90',
+  },
+}
 
 function isVisualReferenceNode(node: NodeWorkflowNode): boolean {
   return (
@@ -117,16 +138,40 @@ function getNodeMediaUrl(data: NodeWorkflowNodeData): string | undefined {
   return data.imageUrl ?? data.mediaUrl
 }
 
+function getNonEmptyText(
+  ...values: Array<string | null | undefined>
+): string | undefined {
+  return values.map((value) => value?.trim()).find(Boolean)
+}
+
+function getVoiceNodeLabel(node: NodeWorkflowNode, fallback: string): string {
+  const name = getNonEmptyText(
+    node.data.voiceName,
+    node.data.voiceId,
+    node.data.voiceReferenceAudioName,
+  )
+  const provider = getNonEmptyText(node.data.voiceProvider)
+
+  if (name && provider && name !== provider) {
+    return `${name} - ${provider}`
+  }
+
+  return name ?? provider ?? fallback
+}
+
 function getNodeLabel(node: NodeWorkflowNode, fallback: string): string {
+  if (node.type === NODE_TYPE_IDS.voice) {
+    return getVoiceNodeLabel(node, fallback)
+  }
+
   return (
-    node.data.characterName ??
-    node.data.character?.name ??
-    node.data.voiceName ??
-    node.data.voiceId ??
-    node.data.mediaLabel ??
-    node.data.sourceLabel ??
-    node.data.breakdown?.title ??
-    fallback
+    getNonEmptyText(
+      node.data.characterName,
+      node.data.character?.name,
+      node.data.mediaLabel,
+      node.data.sourceLabel,
+      node.data.breakdown?.title,
+    ) ?? fallback
   )
 }
 
@@ -156,7 +201,10 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     useNodeWorkflowActions()
   const mediaUrl =
     typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl : null
-  const modelOptions = modelOptionsByType[NODE_TYPE_IDS.seedance] ?? []
+  const modelOptions = useMemo(
+    () => modelOptionsByType[NODE_TYPE_IDS.seedance] ?? [],
+    [modelOptionsByType],
+  )
   const prompt = buildNodeWorkflowPrompt(NODE_TYPE_IDS.seedance, node.data)
   const generationStatus =
     node.data.generationStatus ??
@@ -186,7 +234,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       },
       {
         key: 'keyframe',
-        icon: <Film className="size-3.5 text-teal-200" />,
+        icon: <Film className="size-3.5 text-node-amber" />,
         nodes: incomingNodes.filter(isKeyframeNode),
       },
       {
@@ -196,7 +244,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       },
       {
         key: 'voice',
-        icon: <Mic2 className="size-3.5 text-fuchsia-200" />,
+        icon: <Mic2 className="size-3.5 text-node-amber" />,
         nodes: incomingNodes.filter(isVoiceProfileNode),
       },
     ],
@@ -221,6 +269,11 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     ).length
 
   const audioCapability = getVideoAudioCapability(selectedModelId)
+  // Reference endpoints get the green accent (voice cloning capable);
+  // every other mode keeps the brand amber.
+  const videoAccentState: VideoAccentState =
+    audioCapability.mode === 'reference' ? 'ok' : 'seedance'
+  const videoAccent = VIDEO_ACCENT_STYLES[videoAccentState]
   const voiceUpstreamCount =
     upstreamGroups.find((group) => group.key === 'voice')?.nodes.length ?? 0
   const audioCalloutState: AudioCalloutState =
@@ -228,17 +281,25 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       ? 'hidden'
       : AUDIO_CALLOUT_STATE_BY_MODE[audioCapability.mode]
 
-  const veoSwitchOption = useMemo(() => {
+  const referenceSwitchOption = useMemo(() => {
     if (audioCalloutState !== 'ignored') return null
+    // Prefer Fast Reference (default + cheaper); fall back to Standard if not
+    // present in the user's available options.
     return (
-      modelOptions.find((option) => option.modelId === AI_MODELS.VEO_31) ?? null
+      modelOptions.find(
+        (option) => option.modelId === AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      ) ??
+      modelOptions.find(
+        (option) => option.modelId === AI_MODELS.SEEDANCE_20_REFERENCE,
+      ) ??
+      null
     )
   }, [audioCalloutState, modelOptions])
 
-  const handleSwitchToVeo = useCallback(() => {
-    if (!veoSwitchOption) return
-    updateNodeData(node.id, { model: veoSwitchOption })
-  }, [node.id, updateNodeData, veoSwitchOption])
+  const handleSwitchToReference = useCallback(() => {
+    if (!referenceSwitchOption) return
+    updateNodeData(node.id, { model: referenceSwitchOption })
+  }, [node.id, updateNodeData, referenceSwitchOption])
 
   const disabledReason = isPending
     ? t('generating')
@@ -282,7 +343,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       <InspectorField
         key={fieldId}
         label={tFields(`${fieldId}.label`)}
-        statusDotClassName="bg-teal-300"
+        statusDotClassName={videoAccent.dot}
       >
         {isLongField ? (
           <Textarea
@@ -292,7 +353,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
             }
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
-            className="min-h-20 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+            className="min-h-20 resize-none rounded-xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
           />
         ) : (
           <input
@@ -302,7 +363,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
             }
             aria-label={tFields(`${fieldId}.label`)}
             placeholder={tFields(`${fieldId}.placeholder`)}
-            className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+            className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
           />
         )}
       </InspectorField>
@@ -311,7 +372,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-video overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+      <div className="relative aspect-video overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
         {mediaUrl ? (
           <video
             src={mediaUrl}
@@ -321,7 +382,14 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-            <Video className="size-8 text-teal-200" />
+            <span
+              className={cn(
+                'flex size-11 items-center justify-center rounded-xl',
+                videoAccent.iconPlate,
+              )}
+            >
+              <Video className="size-5" />
+            </span>
             <p className="text-xs leading-5 text-node-muted">
               {t('emptyPreview')}
             </p>
@@ -335,7 +403,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         ) : null}
       </div>
 
-      <div className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+      <div className="space-y-2 rounded-xl border border-node-panel-inner bg-node-panel-soft p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-node-foreground">
@@ -357,7 +425,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
             <div
               key={group.key}
               className={cn(
-                'rounded-2xl border p-2',
+                'rounded-xl border p-2',
                 group.key === 'voice' && audioCalloutState !== 'hidden'
                   ? VOICE_GROUP_TINT_BY_STATE[audioCalloutState]
                   : 'border-node-panel-inner bg-node-panel',
@@ -389,7 +457,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
                         getNodeMediaUrl(upstreamNode.data) ||
                           upstreamNode.data.voiceId ||
                           upstreamNode.data.voiceReferenceAudioUrl
-                          ? 'border-teal-400/25 bg-teal-500/10 text-teal-100'
+                          ? videoAccent.chip
                           : 'border-node-panel-inner bg-node-panel-soft text-node-muted',
                       )}
                     >
@@ -410,7 +478,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
+      <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-2">
         <WorkflowModelPicker
           value={node.data.model}
           options={modelOptions}
@@ -423,7 +491,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       </div>
 
       <div className="grid gap-2">
-        <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-muted">
+        <div className="rounded-xl border border-node-panel-inner bg-node-panel-soft p-3 text-xs leading-5 text-node-muted">
           <p className="font-semibold text-node-foreground">
             {t('capabilities.referenceTitle')}
           </p>
@@ -436,7 +504,9 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         {audioCalloutState !== 'hidden' ? (
           <AudioCallout
             state={audioCalloutState}
-            onSwitch={veoSwitchOption ? handleSwitchToVeo : undefined}
+            onSwitch={
+              referenceSwitchOption ? handleSwitchToReference : undefined
+            }
           />
         ) : null}
       </div>
@@ -446,7 +516,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
       </div>
 
       {node.data.generationError ? (
-        <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
+        <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">
           {node.data.generationError}
         </div>
       ) : null}
@@ -455,7 +525,10 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         type="button"
         onClick={handleGenerate}
         disabled={Boolean(disabledReason)}
-        className="h-11 w-full rounded-2xl bg-node-foreground text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+        className={cn(
+          'h-11 w-full rounded-xl disabled:bg-node-panel-inner disabled:text-node-subtle',
+          videoAccent.button,
+        )}
       >
         {isPending ? (
           <Loader2 className="size-4 animate-spin" />
@@ -490,18 +563,11 @@ const AUDIO_CALLOUT_STYLES: Record<
     action:
       'bg-node-danger/15 border-node-danger/35 text-node-danger hover:bg-node-danger/20',
   },
-  active: {
+  cloning: {
     container:
       'border-node-success/40 bg-node-success/10 [&_p[data-callout-body]]:text-node-success/80',
     title: 'text-node-success',
     icon: <CheckCircle2 className="size-4 text-node-success" />,
-    action: '',
-  },
-  lipsync: {
-    container:
-      'border-node-lipsync/40 bg-node-lipsync/10 [&_p[data-callout-body]]:text-node-lipsync/80',
-    title: 'text-node-lipsync',
-    icon: <Mic2 className="size-4 text-node-lipsync" />,
     action: '',
   },
 }
@@ -513,7 +579,7 @@ function AudioCallout({ state, onSwitch }: AudioCalloutProps) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-2.5 rounded-2xl border p-3 text-xs leading-5',
+        'flex flex-col gap-2.5 rounded-xl border p-3 text-xs leading-5',
         styles.container,
       )}
     >

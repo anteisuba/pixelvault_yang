@@ -43,30 +43,27 @@ describe('video-model-capabilities', () => {
 })
 
 describe('getVideoAudioCapability', () => {
-  it('returns none for models without an audio declaration', () => {
-    expect(getVideoAudioCapability(AI_MODELS.SEEDANCE_20).mode).toBe('none')
+  it('returns auto for models without a voice-cloning endpoint', () => {
+    expect(getVideoAudioCapability(AI_MODELS.SEEDANCE_20).mode).toBe('auto')
     expect(getVideoAudioCapability(AI_MODELS.SEEDANCE_20_FAST).mode).toBe(
-      'none',
+      'auto',
     )
-    expect(getVideoAudioCapability(AI_MODELS.RUNWAY_GEN3).mode).toBe('none')
+    expect(getVideoAudioCapability(AI_MODELS.VEO_31).mode).toBe('auto')
+    expect(getVideoAudioCapability(AI_MODELS.KLING_V3_PRO).mode).toBe('auto')
   })
 
-  it('returns native for Veo 3.1', () => {
-    expect(getVideoAudioCapability(AI_MODELS.VEO_31).mode).toBe('native')
+  it('returns reference + maxReferences for Seedance Reference endpoints', () => {
+    const standard = getVideoAudioCapability(AI_MODELS.SEEDANCE_20_REFERENCE)
+    expect(standard.mode).toBe('reference')
+    expect(standard.maxReferences).toBe(3)
+
+    const fast = getVideoAudioCapability(AI_MODELS.SEEDANCE_20_FAST_REFERENCE)
+    expect(fast.mode).toBe('reference')
+    expect(fast.maxReferences).toBe(3)
   })
 
-  it('returns lipsync with needsScript for Kling models', () => {
-    const v3 = getVideoAudioCapability(AI_MODELS.KLING_V3_PRO)
-    expect(v3.mode).toBe('lipsync')
-    expect(v3.needsScript).toBe(true)
-
-    const v21 = getVideoAudioCapability(AI_MODELS.KLING_VIDEO)
-    expect(v21.mode).toBe('lipsync')
-    expect(v21.needsScript).toBe(true)
-  })
-
-  it('falls back to none for unknown / undefined model ids', () => {
-    expect(getVideoAudioCapability(undefined).mode).toBe('none')
-    expect(getVideoAudioCapability('unknown-model').mode).toBe('none')
+  it('falls back to auto for unknown / undefined model ids', () => {
+    expect(getVideoAudioCapability(undefined).mode).toBe('auto')
+    expect(getVideoAudioCapability('unknown-model').mode).toBe('auto')
   })
 })

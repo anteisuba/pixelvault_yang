@@ -296,6 +296,42 @@ function buildSeedance20(
   return body
 }
 
+/**
+ * Seedance 2.0 reference-to-video endpoint. Accepts up to 9 reference images
+ * in `image_urls` and (future, when voice nodes produce real audio URLs) up
+ * to 3 reference audios in `audio_urls`. Auto-generates audio + lipsync per
+ * the fal docs at https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+ */
+function buildSeedanceReference(
+  input: FalVideoRequestBuilderInput,
+  allowedResolutions: readonly string[],
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    prompt: input.prompt,
+    resolution:
+      pickResolution(
+        input.resolution,
+        input.videoDefaults,
+        allowedResolutions,
+        '720p',
+      ) ?? '720p',
+    duration: pickClampedStringDuration(input.duration, 4, 15),
+    aspect_ratio: pickString(
+      input.aspectRatio,
+      FAL_EXTENDED_ASPECT_RATIOS,
+      '16:9',
+    ),
+    generate_audio: input.videoDefaults?.generateAudio ?? true,
+  }
+  // Reference endpoint mandates image_urls (at least 1, up to 9)
+  const refs =
+    input.referenceImages && input.referenceImages.length > 0
+      ? input.referenceImages
+      : [requireReferenceImage(input)]
+  body.image_urls = refs.slice(0, 9)
+  return body
+}
+
 function buildSeedanceProV1(
   input: FalVideoRequestBuilderInput,
   mode: FalVideoMode,
@@ -501,6 +537,10 @@ function buildBody(
       return buildSeedance20(input, mode, ['480p', '720p', '1080p'])
     case AI_MODELS.SEEDANCE_20_FAST:
       return buildSeedance20(input, mode, ['480p', '720p'])
+    case AI_MODELS.SEEDANCE_20_REFERENCE:
+      return buildSeedanceReference(input, ['480p', '720p', '1080p'])
+    case AI_MODELS.SEEDANCE_20_FAST_REFERENCE:
+      return buildSeedanceReference(input, ['480p', '720p'])
     case AI_MODELS.SEEDANCE_PRO:
       return buildSeedanceProV1(input, mode)
     case AI_MODELS.MINIMAX_VIDEO:

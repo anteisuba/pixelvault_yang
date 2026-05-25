@@ -67,6 +67,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.HUNYUAN_VIDEO]: 'hunyuanVideo',
   [AI_MODELS.SEEDANCE_20]: 'seedance20',
   [AI_MODELS.SEEDANCE_20_FAST]: 'seedance20Fast',
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: 'seedance20Reference',
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 'seedance20FastReference',
   [AI_MODELS.SEEDANCE_20_VOLC]: 'seedance20Volc',
   [AI_MODELS.SEEDANCE_20_FAST_VOLC]: 'seedance20FastVolc',
   [AI_MODELS.SEEDANCE_PRO]: 'seedancePro',
@@ -83,6 +85,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'hunyuan3dV31Pro',
   [AI_MODELS.TRELLIS_2]: 'trellis2',
   [AI_MODELS.TRIPOSR]: 'triposr',
+  [AI_MODELS.RODIN_GEN_2_5]: 'rodinGen25',
 } as const
 
 export const MODEL_ID_ALIASES: Record<string, AI_MODELS> = {

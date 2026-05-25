@@ -766,7 +766,8 @@
     "rodinApiKeyMissingTitle": "Hyper3D API key not configured",
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 requires a Hyper3D API key with a Business subscription. Add your key in Settings.",
     "rodinEstimatedCost": "Est. {credits} cr",
-    "rodinEstimatedTime": "~{minutes} min"
+    "rodinEstimatedTime": "~{minutes} min",
+    "changeModelButton": "Change"
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",
@@ -2058,6 +2059,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "ByteDance — faster variant, native audio, 4-15s"
     },
+    "seedance20Reference": {
+      "label": "Seedance 2.0 (Reference)",
+      "description": "Reference-to-video — supports voice cloning via audio_urls"
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast (Reference)",
+      "description": "Reference-to-video, faster variant — supports voice cloning"
+    },
     "seedance20Volc": {
       "label": "Seedance 2.0 (VolcEngine)",
       "description": "VolcEngine — native audio + lipsync, director-level camera"
@@ -2825,20 +2834,15 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "This model does not support native audio",
-          "body": "The connected voice node will be ignored at generation time.\nSwitch to a model that supports audio to keep the voice.",
-          "switchAction": "Switch to Veo 3.1  →",
+          "title": "This model does not support voice cloning",
+          "body": "It can only toggle generate_audio — it won't read the voice node's reference audio.\nSwitch to a Seedance Reference endpoint to clone the voice.",
+          "switchAction": "Switch to Seedance 2.0 Reference  →",
           "statusPill": "Will be ignored"
         },
-        "active": {
-          "title": "Native audio channel is active",
-          "body": "The voice will be passed to the model as voice_id,\nproducing video with synced dialogue and emotion.",
-          "statusPill": "Native audio"
-        },
-        "lipsync": {
-          "title": "Lip-sync mode",
-          "body": "The voice provides the speaker. The dialogue script must come from an upstream Composer or ShotText node.\nBoth are required.",
-          "statusPill": "Lip-sync"
+        "cloning": {
+          "title": "Voice cloning is active",
+          "body": "Seedance will use the voice node's reference audio\nto read prompt lines wrapped in \"double quotes\".",
+          "statusPill": "Voice cloning"
         }
       },
       "noModel": "Select a video model first.",

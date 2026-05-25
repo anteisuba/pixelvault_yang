@@ -766,7 +766,8 @@
     "rodinApiKeyMissingTitle": "未配置 Hyper3D API Key",
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 需要持有 Business 订阅的 Hyper3D API Key。请在设置中添加。",
     "rodinEstimatedCost": "预计 {credits} 积分",
-    "rodinEstimatedTime": "约 {minutes} 分钟"
+    "rodinEstimatedTime": "约 {minutes} 分钟",
+    "changeModelButton": "切换"
   },
   "MultiViewGenerate": {
     "success": "侧视图已准备好。",
@@ -2058,6 +2059,14 @@
       "label": "Seedance 2.0 Fast",
       "description": "字节跳动 — 快速版、原生音频、4-15秒"
     },
+    "seedance20Reference": {
+      "label": "Seedance 2.0（参考端点）",
+      "description": "reference-to-video — 支持声音克隆，通过 audio_urls 传参考音频"
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast（参考端点）",
+      "description": "reference-to-video 快速版 — 支持声音克隆"
+    },
     "seedance20Volc": {
       "label": "Seedance 2.0（火山引擎）",
       "description": "火山引擎 — 原生音频+口型同步、导演级镜头"
@@ -2825,20 +2834,15 @@
       },
       "audioCallout": {
         "ignored": {
-          "title": "当前模型不支持原生音频",
-          "body": "已连接的音色节点将在生成时被忽略。\n建议切换到支持音频的视频模型。",
-          "switchAction": "一键切换到 Veo 3.1  →",
+          "title": "当前模型不支持声音克隆",
+          "body": "此模型只能开关 generate_audio，无法使用音色节点的参考音频。\n要克隆音色，请切换到 Seedance Reference 端点。",
+          "switchAction": "一键切换到 Seedance 2.0 Reference  →",
           "statusPill": "将被忽略"
         },
-        "active": {
-          "title": "原生音频通道已激活",
-          "body": "音色将作为 voice_id 直接传给模型，\n生成视频会带同步对白与情绪。",
-          "statusPill": "原生音频"
-        },
-        "lipsync": {
-          "title": "Lip-sync 模式",
-          "body": "音色提供发声器，对白文本由上游 Composer 或 ShotText 提供。\n二者缺一不可。",
-          "statusPill": "Lip-sync"
+        "cloning": {
+          "title": "声音克隆已激活",
+          "body": "Seedance 会用音色节点的参考音频，\n读出 prompt 里 \"双引号\" 包起来的台词。",
+          "statusPill": "声音克隆"
         }
       },
       "noModel": "请先选择视频模型。",

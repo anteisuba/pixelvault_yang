@@ -39,6 +39,8 @@ const FAL_VIDEO_MODEL_IDS = {
   HUNYUAN_VIDEO: 'hunyuan-video',
   SEEDANCE_20: 'seedance-2.0',
   SEEDANCE_20_FAST: 'seedance-2.0-fast',
+  SEEDANCE_20_REFERENCE: 'seedance-2.0-reference',
+  SEEDANCE_20_FAST_REFERENCE: 'seedance-2.0-fast-reference',
   SEEDANCE_PRO: 'seedance-pro',
   VEO_31: 'veo-3.1',
   VIDU_Q3_PRO: 'vidu-q3-pro',
@@ -352,6 +354,33 @@ function buildSeedance20(
   return body
 }
 
+function buildSeedanceReference(
+  context: FalWorkerVideoRequestContext,
+  allowedResolutions: readonly string[],
+): Record<string, unknown> {
+  const { providerInput } = context
+  const body: Record<string, unknown> = {
+    prompt: providerInput.prompt,
+    resolution:
+      pickResolution(
+        providerInput.resolution,
+        providerInput.videoDefaults,
+        allowedResolutions,
+        '720p',
+      ) ?? '720p',
+    duration: pickClampedStringDuration(providerInput.duration, 4, 15),
+    aspect_ratio: pickString(
+      providerInput.aspectRatio,
+      FAL_EXTENDED_ASPECT_RATIOS,
+      '16:9',
+    ),
+    generate_audio:
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
+  }
+  body.image_urls = [requireReferenceImage(context)]
+  return body
+}
+
 function buildSeedanceProV1(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
@@ -573,6 +602,10 @@ function buildBody(
       return buildSeedance20(context, mode, ['480p', '720p', '1080p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST:
       return buildSeedance20(context, mode, ['480p', '720p'])
+    case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE:
+      return buildSeedanceReference(context, ['480p', '720p', '1080p'])
+    case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE:
+      return buildSeedanceReference(context, ['480p', '720p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_PRO:
       return buildSeedanceProV1(context, mode)
     case FAL_VIDEO_MODEL_IDS.MINIMAX_VIDEO:

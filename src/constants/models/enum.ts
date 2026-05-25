@@ -47,6 +47,9 @@ export enum AI_MODELS {
   HUNYUAN_VIDEO = 'hunyuan-video',
   SEEDANCE_20 = 'seedance-2.0',
   SEEDANCE_20_FAST = 'seedance-2.0-fast',
+  /** reference-to-video endpoint — supports voice cloning via audio_urls. */
+  SEEDANCE_20_REFERENCE = 'seedance-2.0-reference',
+  SEEDANCE_20_FAST_REFERENCE = 'seedance-2.0-fast-reference',
   SEEDANCE_20_VOLC = 'seedance-2.0-volc',
   SEEDANCE_20_FAST_VOLC = 'seedance-2.0-fast-volc',
   SEEDANCE_PRO = 'seedance-pro',
@@ -64,4 +67,5 @@ export enum AI_MODELS {
   HUNYUAN3D_V31_PRO = 'hunyuan3d-v3.1-pro',
   TRELLIS_2 = 'trellis-2',
   TRIPOSR = 'triposr',
+  RODIN_GEN_2_5 = 'rodin-gen-2.5',
 }

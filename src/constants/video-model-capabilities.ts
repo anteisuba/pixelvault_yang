@@ -7,11 +7,19 @@ import {
   type VideoResolution,
 } from '@/constants/video-options'
 
-export type VideoAudioMode = 'none' | 'native' | 'lipsync'
+/**
+ * 'auto' — model auto-generates audio via generate_audio: boolean. User cannot
+ *          choose which voice; voice node is ignored if connected.
+ * 'reference' — model accepts audio_urls[] for voice cloning. Connect a voice
+ *          node whose voiceReferenceAudioUrl is populated and it will speak
+ *          the prompt's "double-quoted" lines.
+ */
+export type VideoAudioMode = 'auto' | 'reference'
 
 export interface VideoAudioCapability {
   mode: VideoAudioMode
-  needsScript?: boolean
+  /** For 'reference' mode: max audio_urls items the endpoint accepts. */
+  maxReferences?: number
 }
 
 export interface VideoModelCapabilities {
@@ -28,7 +36,7 @@ export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
   supportedResolutions: VIDEO_RESOLUTIONS,
   supportedAspectRatios: VIDEO_ASPECT_RATIOS,
   requiresReferenceImage: false,
-  audio: { mode: 'none' } as VideoAudioCapability,
+  audio: { mode: 'auto' } as VideoAudioCapability,
 } as const satisfies VideoModelCapabilities
 
 export const VIDEO_MODEL_CAPABILITIES: Partial<
@@ -64,15 +72,21 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
-  [AI_MODELS.VEO_31]: {
-    audio: { mode: 'native' },
+  // Voice-cloning endpoints — only path to use voice node's reference audio
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: {
+    supportedDurations: [4, 5, 8, 10, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
   },
-  [AI_MODELS.KLING_V3_PRO]: {
-    audio: { mode: 'lipsync', needsScript: true },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: {
+    supportedDurations: [4, 5, 8, 10, 15],
+    supportedResolutions: ['480p', '720p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+    audio: { mode: 'reference', maxReferences: 3 },
   },
-  [AI_MODELS.KLING_VIDEO]: {
-    audio: { mode: 'lipsync', needsScript: true },
-  },
+  // All other video models default to audio.mode: 'auto' — the generate_audio
+  // boolean controls output, but the caller cannot pick a specific voice.
 }
 
 export function getVideoModelCapabilities(

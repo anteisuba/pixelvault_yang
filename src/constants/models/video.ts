@@ -120,6 +120,44 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       resolution: '720p',
     },
   },
+  // #3.10 — Seedance 2.0 Reference, voice-cloning enabled via audio_urls + image_urls
+  {
+    id: AI_MODELS.SEEDANCE_20_REFERENCE,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.0/reference-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/bytedance/seedance-2.0/reference-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
+  // #3.11 — Seedance 2.0 Fast Reference, same voice-cloning capability, faster/cheaper
+  {
+    id: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+    cost: 4,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'bytedance/seedance-2.0/fast/reference-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/bytedance/seedance-2.0/fast/reference-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    requiresReferenceImage: true,
+    videoDefaults: {
+      generateAudio: true,
+      resolution: '720p',
+    },
+  },
   // #3.8v — ByteDance Seedance 2.0 via VolcEngine, native audio + lipsync
   {
     id: AI_MODELS.SEEDANCE_20_VOLC,

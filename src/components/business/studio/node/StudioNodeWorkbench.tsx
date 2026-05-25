@@ -16,6 +16,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
   type DefaultEdgeOptions,
+  type NodeChange,
   type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
@@ -25,6 +26,7 @@ import { toast } from 'sonner'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
+  NODE_STUDIO_DOCK,
   NODE_STUDIO_EDGE_VISUALS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_NODE_PLACEMENT,
@@ -53,11 +55,11 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 
 import { CanvasAddMenu } from './CanvasAddMenu'
-import { CanvasAssistantToggle } from './CanvasAssistantToggle'
 import { CanvasBottomDock } from './CanvasBottomDock'
 import { CanvasMiniMap } from './CanvasMiniMap'
 import { CanvasTopBar } from './CanvasTopBar'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
+import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { AgentNode } from './nodes/AgentNode'
 import { CharacterImageNode } from './nodes/CharacterImageNode'
 import { ComposerNode } from './nodes/ComposerNode'
@@ -126,11 +128,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const scriptBreakdown = useScriptBreakdown()
   const characterImageGeneration = useCharacterImageGeneration()
   const modelOptionsByType = useWorkflowModelOptions()
-  const { screenToFlowPosition } = useReactFlow<
+  const { fitView, screenToFlowPosition } = useReactFlow<
     NodeWorkflowNode,
     NodeWorkflowEdge
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
+  const [assistantDockOpen, setAssistantDockOpen] = useState(true)
 
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
@@ -316,10 +319,15 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         return
       }
 
-      if (
-        !targetAgent.data.plannerProvider ||
-        !targetAgent.data.plannerApiKeyId
-      ) {
+      const plannerProvider =
+        composerNode?.data.plannerProvider ?? targetAgent.data.plannerProvider
+      const plannerApiKeyId =
+        composerNode?.data.plannerApiKeyId ?? targetAgent.data.plannerApiKeyId
+      const plannerRouteOptionId =
+        composerNode?.data.plannerRouteOptionId ??
+        targetAgent.data.plannerRouteOptionId
+
+      if (!plannerProvider || !plannerApiKeyId) {
         toast.info(t('composer.noPlannerRouteTip'), {
           duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
           position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
@@ -332,13 +340,16 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       })
       workflow.updateNodeData(targetAgent.id, {
         generationError: undefined,
+        plannerApiKeyId,
+        plannerProvider,
+        plannerRouteOptionId,
         status: NODE_STATUS_IDS.running,
       })
 
       const result = await scriptBreakdown.generate({
         idea,
-        plannerProvider: targetAgent.data.plannerProvider,
-        apiKeyId: targetAgent.data.plannerApiKeyId,
+        plannerProvider,
+        apiKeyId: plannerApiKeyId,
         locale: appLocale,
       })
 
@@ -490,6 +501,30 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [characterImageGeneration, t, tErrors, workflow],
   )
 
+  const handleFocusNode = useCallback(
+    (nodeId: string) => {
+      const targetNode = workflow.nodes.find((node) => node.id === nodeId)
+      if (!targetNode) {
+        return
+      }
+
+      const selectionChanges: NodeChange<NodeWorkflowNode>[] =
+        workflow.nodes.map((node) => ({
+          id: node.id,
+          type: 'select',
+          selected: node.id === nodeId,
+        }))
+
+      workflow.onNodesChange(selectionChanges)
+      void fitView({
+        nodes: [{ id: nodeId }],
+        duration: NODE_STUDIO_DOCK.focusDurationMs,
+        maxZoom: NODE_STUDIO_DOCK.focusZoom,
+      })
+    },
+    [fitView, workflow],
+  )
+
   const workflowActions = useMemo(
     () => ({
       updateNodeData: workflow.updateNodeData,
@@ -545,29 +580,35 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           />
           <CanvasMiniMap />
         </ReactFlow>
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CanvasTopBar
+            nodeCount={workflow.nodes.length}
+            projectName={workflow.currentProjectName}
+            projects={workflow.projects}
+            currentProjectId={workflow.currentProjectId}
+            onAddClick={handleTopbarAddClick}
+            onCreateProject={handleCreateProject}
+            onRenameProject={handleRenameProject}
+            onDeleteProject={handleDeleteProject}
+            onSwitchProject={handleSwitchProject}
+          />
+          <StudioNodeAssistantDock
+            open={assistantDockOpen}
+            projectName={workflow.currentProjectName}
+            nodes={workflow.nodes}
+            locale={appLocale}
+            onOpenChange={setAssistantDockOpen}
+            onFocusNode={handleFocusNode}
+          />
+          <CanvasBottomDock />
+          <CanvasAddMenu
+            open={Boolean(addMenu)}
+            screenPosition={addMenu?.menuPosition ?? null}
+            onSelect={handleAddNode}
+            onClose={closeAddMenu}
+          />
+        </div>
       </NodeWorkflowActionsProvider>
-
-      <div className="pointer-events-none absolute inset-0 z-10">
-        <CanvasTopBar
-          nodeCount={workflow.nodes.length}
-          projectName={workflow.currentProjectName}
-          projects={workflow.projects}
-          currentProjectId={workflow.currentProjectId}
-          onAddClick={handleTopbarAddClick}
-          onCreateProject={handleCreateProject}
-          onRenameProject={handleRenameProject}
-          onDeleteProject={handleDeleteProject}
-          onSwitchProject={handleSwitchProject}
-        />
-        <CanvasAssistantToggle />
-        <CanvasBottomDock />
-        <CanvasAddMenu
-          open={Boolean(addMenu)}
-          screenPosition={addMenu?.menuPosition ?? null}
-          onSelect={handleAddNode}
-          onClose={closeAddMenu}
-        />
-      </div>
     </>
   )
 }

@@ -2691,6 +2691,46 @@
     "assistant": {
       "toggle": "助手"
     },
+    "dock": {
+      "title": "助手面板",
+      "welcomeTitle": "选择节点查看检查器",
+      "welcomeDescription": "我可以帮你检查画布、收紧提示词，并建议下一步运行哪个节点。",
+      "welcomeSkillScript": "把 Composer 想法拆成可执行的制作步骤。",
+      "welcomeSkillRoute": "运行节点前检查模型路由和缺失的 Key。",
+      "welcomeSkillGenerate": "检查角色图提示词、参考图和 LoRA 选择。",
+      "newConversation": "新建对话",
+      "assistantCanvas": "画布助手",
+      "collapse": "收起助手面板"
+    },
+    "assistantRoute": {
+      "triggerLabel": "选择画布助手路由",
+      "title": "画布助手路由",
+      "description": "选择本次对话使用的文本模型 Key。自动路由会优先使用 AI Gateway，否则使用工作区默认文本路由。",
+      "autoLabel": "自动路由",
+      "autoDescription": "AI Gateway 或默认 BYOK 路由",
+      "configured": "已配置",
+      "emptyConfigured": "还没有可用的 OpenAI、Gemini 或 DeepSeek 文本 Key。",
+      "addKey": "添加文本 Key",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "savedTrigger": "{provider} · {key}",
+      "savedMeta": "{provider} · {key}"
+    },
+    "inspector": {
+      "plannerRoute": "规划模型",
+      "multiTitle": "已选择 {count} 个节点",
+      "multiDescription": "批量编辑暂时受保护。在破坏性确认弹窗落地前，请一次编辑一个节点。",
+      "unsupported": "这个节点类型暂时还没有检查器。"
+    },
+    "conversation": {
+      "empty": "可以询问当前工作流、选中节点、提示词质量，或下一步该运行什么。",
+      "thinking": "思考中...",
+      "retry": "重试",
+      "placeholder": "询问画布助手...",
+      "modeHint": "应用前先询问",
+      "send": "发送"
+    },
     "minimapTitle": "小地图",
     "toasts": {
       "notImplemented": "暂未实现。",

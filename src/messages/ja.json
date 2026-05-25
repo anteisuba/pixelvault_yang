@@ -2691,6 +2691,46 @@
     "assistant": {
       "toggle": "アシスタント"
     },
+    "dock": {
+      "title": "アシスタントドック",
+      "welcomeTitle": "ノードを選択して検査",
+      "welcomeDescription": "キャンバスの確認、プロンプト調整、次に実行するノードの提案を手伝います。",
+      "welcomeSkillScript": "Composer のアイデアを実行可能な制作ステップに分解します。",
+      "welcomeSkillRoute": "実行前にモデルルートと不足しているキーを確認します。",
+      "welcomeSkillGenerate": "キャラクター画像のプロンプト、参照画像、LoRA 選択を確認します。",
+      "newConversation": "新しい会話",
+      "assistantCanvas": "キャンバス助手",
+      "collapse": "アシスタントドックを閉じる"
+    },
+    "assistantRoute": {
+      "triggerLabel": "キャンバス助手のルートを選択",
+      "title": "キャンバス助手ルート",
+      "description": "この会話で使うテキストモデル Key を選択します。自動ルートは AI Gateway を優先し、なければワークスペース既定の BYOK テキストルートを使います。",
+      "autoLabel": "自動ルート",
+      "autoDescription": "AI Gateway または既定の BYOK ルート",
+      "configured": "設定済み",
+      "emptyConfigured": "利用可能な OpenAI、Gemini、DeepSeek のテキスト Key はまだありません。",
+      "addKey": "テキスト Key を追加",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "savedTrigger": "{provider} · {key}",
+      "savedMeta": "{provider} · {key}"
+    },
+    "inspector": {
+      "plannerRoute": "プランナーモデル",
+      "multiTitle": "{count} 件のノードを選択中",
+      "multiDescription": "一括編集はまだ保護されています。破壊的操作の確認ダイアログが入るまでは、1 件ずつ編集してください。",
+      "unsupported": "このノードタイプの Inspector はまだありません。"
+    },
+    "conversation": {
+      "empty": "現在のワークフロー、選択中ノード、プロンプト品質、次に実行する内容を相談できます。",
+      "thinking": "考えています...",
+      "retry": "再試行",
+      "placeholder": "キャンバス助手に質問...",
+      "modeHint": "適用前に確認",
+      "send": "送信"
+    },
     "minimapTitle": "ミニマップ",
     "toasts": {
       "notImplemented": "まだ実装されていません。",

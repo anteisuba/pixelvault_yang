@@ -1,3 +1,6 @@
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+
 export const NODE_STUDIO_CANVAS = {
   defaultViewport: {
     x: 0,
@@ -42,6 +45,56 @@ export const NODE_STUDIO_PROJECTS = {
   nameMaxLength: 80,
   timestampMaxLength: 80,
   fallbackName: 'Node Studio Project',
+} as const
+
+export const NODE_STUDIO_ASSISTANT_MESSAGE_ROLES = [
+  'user',
+  'assistant',
+] as const
+
+export const NODE_STUDIO_ASSISTANT_LIMITS = {
+  maxMessages: 16,
+  maxMessageLength: 4000,
+  maxNodes: 32,
+  maxNodeLabelLength: 160,
+  maxNodeSummaryLength: 900,
+  maxSelectedNodes: 12,
+  maxReferences: 8,
+  maxOutputTokens: 900,
+} as const
+
+export const NODE_STUDIO_ASSISTANT = {
+  gatewayModelId: 'openai/gpt-5.4',
+  fallbackModelLabel: 'Workspace BYOK route',
+} as const
+
+export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
+  auto: 'node-studio-assistant:auto',
+  keyPrefix: 'node-studio-assistant:key',
+  setupPrefix: 'node-studio-assistant:setup',
+} as const
+
+export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
+  {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
+    label: 'OpenAI',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_PRO_PREVIEW,
+    label: 'Gemini',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    label: 'DeepSeek',
+  },
+] as const
+
+export const NODE_STUDIO_DOCK = {
+  focusZoom: 0.95,
+  focusDurationMs: 420,
 } as const
 
 export const NODE_STUDIO_REFERENCE_ROLES = [
@@ -129,6 +182,7 @@ export const NODE_STUDIO_ID_PREFIXES = {
   node: 'node',
   edge: 'edge',
   project: 'project',
+  message: 'message',
 } as const
 
 export const NODE_STUDIO_EDGE_VISUALS = {

@@ -65,6 +65,8 @@ export const API_ENDPOINTS = {
   PROMPT_ASSISTANT: '/api/prompt/assistant',
   /** Node Studio script breakdown */
   SCRIPT_BREAKDOWN: '/api/script-breakdown',
+  /** Node Studio assistant conversation */
+  NODE_ASSISTANT: '/api/studio/node-assistant',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
@@ -430,6 +432,7 @@ export const RATE_LIMIT_CONFIGS = {
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
   scriptBreakdown: { limit: 12, windowSeconds: 60 },
+  nodeAssistant: { limit: 30, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────
   /** Authenticated list/read endpoints (cards, recipes, history) */

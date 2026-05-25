@@ -2691,6 +2691,46 @@
     "assistant": {
       "toggle": "Assistant"
     },
+    "dock": {
+      "title": "Assistant dock",
+      "welcomeTitle": "Select a node to inspect it",
+      "welcomeDescription": "I can help review the canvas, tighten prompts, and suggest the next node to run.",
+      "welcomeSkillScript": "Break down a Composer idea into production steps.",
+      "welcomeSkillRoute": "Check model routes and missing keys before running nodes.",
+      "welcomeSkillGenerate": "Inspect character image prompts, references, and LoRA choices.",
+      "newConversation": "New conversation",
+      "assistantCanvas": "Canvas assistant",
+      "collapse": "Collapse assistant dock"
+    },
+    "assistantRoute": {
+      "triggerLabel": "Select canvas assistant route",
+      "title": "Canvas assistant route",
+      "description": "Choose the text-model key for this conversation. Auto route uses AI Gateway first, then the workspace BYOK text route.",
+      "autoLabel": "Auto route",
+      "autoDescription": "AI Gateway or default BYOK route",
+      "configured": "Configured",
+      "emptyConfigured": "No OpenAI, Gemini, or DeepSeek text key is available yet.",
+      "addKey": "Add text key",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "savedTrigger": "{provider} · {key}",
+      "savedMeta": "{provider} · {key}"
+    },
+    "inspector": {
+      "plannerRoute": "Planner model",
+      "multiTitle": "{count, plural, one {# node selected} other {# nodes selected}}",
+      "multiDescription": "Batch editing is guarded for now. Edit one node at a time until destructive confirmations land.",
+      "unsupported": "This node type does not have an Inspector yet."
+    },
+    "conversation": {
+      "empty": "Ask about the current workflow, selected nodes, prompt quality, or what to run next.",
+      "thinking": "Thinking...",
+      "retry": "Retry",
+      "placeholder": "Ask the canvas assistant...",
+      "modeHint": "Ask before applying",
+      "send": "Send"
+    },
     "minimapTitle": "Minimap",
     "toasts": {
       "notImplemented": "Not implemented yet.",

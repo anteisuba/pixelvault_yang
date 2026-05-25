@@ -29,8 +29,14 @@ import {
   type NodeAssistantRouteSelection,
 } from './CanvasAssistantRouteSelector'
 import { AgentInspector } from './inspector/AgentInspector'
+import { BackgroundImageInspector } from './inspector/BackgroundImageInspector'
 import { CharacterImageInspector } from './inspector/CharacterImageInspector'
 import { ComposerInspector } from './inspector/ComposerInspector'
+import { FrameImageInspector } from './inspector/FrameImageInspector'
+import { SeedanceInspector } from './inspector/SeedanceInspector'
+import { ShotInspector } from './inspector/ShotInspector'
+import { ShotTextInspector } from './inspector/ShotTextInspector'
+import { VoiceInspector } from './inspector/VoiceInspector'
 
 interface StudioNodeAssistantDockProps {
   open: boolean
@@ -114,8 +120,32 @@ function InspectorPanel({
     return <AgentInspector node={primary} />
   }
 
+  if (primary.type === NODE_TYPE_IDS.shotText) {
+    return <ShotTextInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.shot) {
+    return <ShotInspector node={primary} />
+  }
+
   if (primary.type === NODE_TYPE_IDS.characterImage) {
     return <CharacterImageInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.backgroundImage) {
+    return <BackgroundImageInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.frameImage) {
+    return <FrameImageInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.voice) {
+    return <VoiceInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.seedance) {
+    return <SeedanceInspector node={primary} />
   }
 
   return (

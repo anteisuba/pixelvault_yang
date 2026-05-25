@@ -1,16 +1,72 @@
 export const NODE_TYPE_IDS = {
   composer: 'composer',
   agent: 'agent',
+  shotText: 'shotText',
+  shot: 'shot',
   characterImage: 'characterImage',
+  backgroundImage: 'backgroundImage',
+  frameImage: 'frameImage',
+  voice: 'voice',
+  seedance: 'seedance',
 } as const
 
 export const NODE_TYPES = [
   NODE_TYPE_IDS.composer,
   NODE_TYPE_IDS.agent,
+  NODE_TYPE_IDS.shotText,
+  NODE_TYPE_IDS.shot,
   NODE_TYPE_IDS.characterImage,
+  NODE_TYPE_IDS.backgroundImage,
+  NODE_TYPE_IDS.frameImage,
+  NODE_TYPE_IDS.voice,
+  NODE_TYPE_IDS.seedance,
 ] as const
 
 export type NodeWorkflowNodeType = (typeof NODE_TYPES)[number]
+
+export const NODE_TEXT_NODE_TYPES = [NODE_TYPE_IDS.shotText] as const
+
+export const NODE_IMAGE_MODEL_NODE_TYPES = [
+  NODE_TYPE_IDS.characterImage,
+  NODE_TYPE_IDS.shot,
+  NODE_TYPE_IDS.backgroundImage,
+  NODE_TYPE_IDS.frameImage,
+] as const
+
+export const NODE_VIDEO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.seedance] as const
+
+export const NODE_AUDIO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.voice] as const
+
+export const NODE_MEDIA_KIND_IDS = {
+  text: 'text',
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+} as const
+
+export const NODE_MEDIA_KINDS = [
+  NODE_MEDIA_KIND_IDS.text,
+  NODE_MEDIA_KIND_IDS.image,
+  NODE_MEDIA_KIND_IDS.video,
+  NODE_MEDIA_KIND_IDS.audio,
+] as const
+
+export type NodeWorkflowMediaKind = (typeof NODE_MEDIA_KINDS)[number]
+
+export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
+  [NODE_TYPE_IDS.composer]: undefined,
+  [NODE_TYPE_IDS.agent]: undefined,
+  [NODE_TYPE_IDS.shotText]: NODE_MEDIA_KIND_IDS.text,
+  [NODE_TYPE_IDS.shot]: NODE_MEDIA_KIND_IDS.image,
+  [NODE_TYPE_IDS.characterImage]: NODE_MEDIA_KIND_IDS.image,
+  [NODE_TYPE_IDS.backgroundImage]: NODE_MEDIA_KIND_IDS.image,
+  [NODE_TYPE_IDS.frameImage]: NODE_MEDIA_KIND_IDS.image,
+  [NODE_TYPE_IDS.voice]: NODE_MEDIA_KIND_IDS.audio,
+  [NODE_TYPE_IDS.seedance]: NODE_MEDIA_KIND_IDS.video,
+} as const satisfies Record<
+  NodeWorkflowNodeType,
+  NodeWorkflowMediaKind | undefined
+>
 
 export const NODE_STATUS_IDS = {
   idle: 'idle',

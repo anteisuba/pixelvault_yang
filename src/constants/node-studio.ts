@@ -24,6 +24,11 @@ export const NODE_STUDIO_PLACEHOLDER_TOAST = {
   position: 'bottom-right',
 } as const
 
+export const NODE_STUDIO_ADD_MENU = {
+  viewportPaddingPx: 16,
+  minAvailableHeightPx: 240,
+} as const
+
 export const NODE_STUDIO_TOOL_MODES = [
   'pointer',
   'hand',

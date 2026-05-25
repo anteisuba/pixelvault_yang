@@ -17,6 +17,7 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUSES,
+  NODE_MEDIA_KINDS,
   NODE_STATUSES,
   NODE_TYPES,
   type NodeWorkflowNodeType,
@@ -34,6 +35,8 @@ export const NodeWorkflowNodeTypeSchema = z.enum(NODE_TYPES)
 export const NodeWorkflowGenerationStatusSchema = z.enum(
   NODE_GENERATION_STATUSES,
 )
+
+export const NodeWorkflowMediaKindSchema = z.enum(NODE_MEDIA_KINDS)
 
 export const NodeWorkflowModelSelectionSchema = z.object({
   optionId: z.string().trim().min(1).max(240),
@@ -114,6 +117,10 @@ export const NodeWorkflowNodeDataSchema = z
     imageMode: NodeWorkflowCharacterImageModeSchema.optional(),
     imageSource: NodeWorkflowImageOutputSourceSchema.optional(),
     imageUrl: z.string().trim().min(1).optional(),
+    mediaKind: NodeWorkflowMediaKindSchema.optional(),
+    mediaUrl: z.string().trim().min(1).optional(),
+    mediaJobId: z.string().trim().min(1).max(200).optional(),
+    mediaLabel: z.string().trim().min(1).max(160).optional(),
     generationStatus: NodeWorkflowGenerationStatusSchema.optional(),
     generationError: z.string().optional(),
     generationId: z.string().trim().min(1).optional(),
@@ -205,6 +212,7 @@ export type NodeWorkflowStatus = z.infer<typeof NodeStatusSchema>
 export type NodeWorkflowGenerationStatus = z.infer<
   typeof NodeWorkflowGenerationStatusSchema
 >
+export type NodeWorkflowMediaKind = z.infer<typeof NodeWorkflowMediaKindSchema>
 export type NodeWorkflowModelSelection = z.infer<
   typeof NodeWorkflowModelSelectionSchema
 >

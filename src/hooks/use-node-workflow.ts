@@ -21,6 +21,7 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
@@ -253,6 +254,45 @@ function createDefaultNodeData(
       imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.choice,
       referenceAssets: [],
       loras: [],
+    }
+  }
+
+  if (
+    type === NODE_TYPE_IDS.shot ||
+    type === NODE_TYPE_IDS.backgroundImage ||
+    type === NODE_TYPE_IDS.frameImage
+  ) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.image,
+    }
+  }
+
+  if (type === NODE_TYPE_IDS.seedance) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.video,
+    }
+  }
+
+  if (type === NODE_TYPE_IDS.voice) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.audio,
+    }
+  }
+
+  if (type === NODE_TYPE_IDS.shotText) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.text,
     }
   }
 

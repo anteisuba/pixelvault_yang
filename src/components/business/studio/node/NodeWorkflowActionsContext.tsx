@@ -8,6 +8,7 @@ import type { NodeWorkflowModelOptionsByType } from '@/types/node-workflow'
 export interface NodeWorkflowCanvasActions extends NodeWorkflowActions {
   sendFromComposer?(composerNodeId: string): Promise<void>
   generateCharacterImage?(nodeId: string): Promise<void>
+  generateMediaNode?(nodeId: string): Promise<void>
   modelOptionsByType: NodeWorkflowModelOptionsByType
 }
 

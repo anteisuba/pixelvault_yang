@@ -57,6 +57,7 @@ export type {
   NodeWorkflowGenerationStatus,
   NodeWorkflowImageOutputSource,
   NodeWorkflowLoraSelection,
+  NodeWorkflowMediaKind,
   NodeWorkflowModelOption,
   NodeWorkflowModelOptionsByType,
   NodeWorkflowModelProviderConfig,

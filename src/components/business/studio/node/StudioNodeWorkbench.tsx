@@ -35,6 +35,8 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_BY_NODE_TYPE,
+  NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
@@ -47,6 +49,7 @@ import {
 } from '@/constants/provider-capabilities'
 import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
+import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
 import { useNodeWorkflow } from '@/hooks/use-node-workflow'
 import { useScriptBreakdown } from '@/hooks/use-script-breakdown'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
@@ -61,13 +64,25 @@ import { CanvasTopBar } from './CanvasTopBar'
 import { NodeWorkflowActionsProvider } from './NodeWorkflowActionsContext'
 import { StudioNodeAssistantDock } from './StudioNodeAssistantDock'
 import { AgentNode } from './nodes/AgentNode'
+import { BackgroundImageNode } from './nodes/BackgroundImageNode'
 import { CharacterImageNode } from './nodes/CharacterImageNode'
 import { ComposerNode } from './nodes/ComposerNode'
+import { FrameImageNode } from './nodes/FrameImageNode'
+import { SeedanceNode } from './nodes/SeedanceNode'
+import { ShotNode } from './nodes/ShotNode'
+import { ShotTextNode } from './nodes/ShotTextNode'
+import { VoiceNode } from './nodes/VoiceNode'
 
 const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.composer]: ComposerNode,
   [NODE_TYPE_IDS.agent]: AgentNode,
+  [NODE_TYPE_IDS.shotText]: ShotTextNode,
+  [NODE_TYPE_IDS.shot]: ShotNode,
   [NODE_TYPE_IDS.characterImage]: CharacterImageNode,
+  [NODE_TYPE_IDS.backgroundImage]: BackgroundImageNode,
+  [NODE_TYPE_IDS.frameImage]: FrameImageNode,
+  [NODE_TYPE_IDS.voice]: VoiceNode,
+  [NODE_TYPE_IDS.seedance]: SeedanceNode,
 }
 
 const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
@@ -127,6 +142,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   })
   const scriptBreakdown = useScriptBreakdown()
   const characterImageGeneration = useCharacterImageGeneration()
+  const nodeMediaGeneration = useNodeMediaGeneration()
   const modelOptionsByType = useWorkflowModelOptions()
   const { fitView, screenToFlowPosition } = useReactFlow<
     NodeWorkflowNode,
@@ -501,6 +517,85 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [characterImageGeneration, t, tErrors, workflow],
   )
 
+  const handleGenerateMediaNode = useCallback(
+    async (nodeId: string) => {
+      const node = workflow.nodes.find((item) => item.id === nodeId)
+      const kind = node ? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] : undefined
+      const prompt = node?.data.prompt.trim() ?? ''
+      const model = node?.data.model
+
+      if (!node || !kind || kind === NODE_MEDIA_KIND_IDS.text) {
+        return
+      }
+
+      if (!model) {
+        toast.info(t('mediaNodes.noModel'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      if (!prompt) {
+        toast.info(t('mediaNodes.noPrompt'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      workflow.updateNodeData(nodeId, {
+        generationError: undefined,
+        generationStatus: NODE_GENERATION_STATUS_IDS.pending,
+        mediaKind: kind,
+        status: NODE_STATUS_IDS.running,
+      })
+
+      const result = await nodeMediaGeneration.generate({
+        kind,
+        modelId: model.modelId,
+        apiKeyId: model.apiKeyId,
+        prompt,
+      })
+
+      if (result.success) {
+        workflow.updateNodeData(nodeId, {
+          generationError: undefined,
+          generationId: result.generation.id,
+          generationStatus: NODE_GENERATION_STATUS_IDS.success,
+          mediaKind: kind,
+          mediaUrl: result.mediaUrl,
+          mediaLabel: result.generation.model,
+          status: NODE_STATUS_IDS.done,
+        })
+        toast.success(t('toasts.mediaGenerated'), {
+          duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+          position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+        })
+        return
+      }
+
+      const failureMessage = getApiErrorMessage(
+        tErrors,
+        result,
+        t('mediaNodes.fallbackError'),
+      )
+
+      workflow.updateNodeData(nodeId, {
+        generationError: failureMessage,
+        generationStatus: NODE_GENERATION_STATUS_IDS.error,
+        mediaKind: kind,
+        status: NODE_STATUS_IDS.failed,
+      })
+      toast.error(t('toasts.mediaGenerationFailed'), {
+        description: failureMessage,
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [nodeMediaGeneration, t, tErrors, workflow],
+  )
+
   const handleFocusNode = useCallback(
     (nodeId: string) => {
       const targetNode = workflow.nodes.find((node) => node.id === nodeId)
@@ -533,10 +628,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       deleteNode: workflow.deleteNode,
       sendFromComposer: handleSendFromComposer,
       generateCharacterImage: handleGenerateCharacterImage,
+      generateMediaNode: handleGenerateMediaNode,
       modelOptionsByType,
     }),
     [
       handleGenerateCharacterImage,
+      handleGenerateMediaNode,
       handleSendFromComposer,
       modelOptionsByType,
       workflow.deleteNode,

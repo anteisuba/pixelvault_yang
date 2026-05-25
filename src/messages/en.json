@@ -2490,12 +2490,24 @@
     "nodeTypes": {
       "composer": "Composer",
       "agent": "Agent",
-      "characterImage": "Character Image"
+      "shotText": "Shot Text",
+      "shot": "Shot Image",
+      "characterImage": "Character Image",
+      "backgroundImage": "Background Image",
+      "frameImage": "Frame Image",
+      "voice": "Voice",
+      "seedance": "Seedance"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
       "agent": "Break a Composer idea into story, scene, beat, and shot structure.",
-      "characterImage": "Generate a portrait or design pass from a character prompt."
+      "shotText": "Draft shot direction, action, and camera notes.",
+      "shot": "Generate a still shot from a shot prompt.",
+      "characterImage": "Generate a portrait or design pass from a character prompt.",
+      "backgroundImage": "Generate a scene background and atmosphere plate.",
+      "frameImage": "Generate a keyframe image before video creation.",
+      "voice": "Generate voice audio from dialogue or narration.",
+      "seedance": "Generate a video clip from a keyframe or shot prompt."
     },
     "statuses": {
       "idle": "Idle",
@@ -2663,6 +2675,25 @@
         "insertTrigger": "Insert trigger"
       }
     },
+    "mediaNodes": {
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "Describe what this node should create...",
+      "emptyPreview": "No media generated yet",
+      "textPreview": "Draft shot text in the Inspector",
+      "imageAlt": "Generated node image",
+      "generate": "Generate",
+      "regenerate": "Regenerate",
+      "generating": "Generating...",
+      "noModel": "Select a model first.",
+      "noPrompt": "Write a prompt first.",
+      "failedTitle": "Generation failed",
+      "fallbackError": "Node media generation failed.",
+      "statusIdle": "Ready to generate",
+      "statusPending": "Generating media",
+      "statusSuccess": "Media generated",
+      "statusError": "Generation failed",
+      "statusTextReady": "Text will feed downstream nodes"
+    },
     "topbar": {
       "addNode": "Add node",
       "arrange": "Arrange canvas",
@@ -2738,6 +2769,8 @@
       "generated": "Agent breakdown generated.",
       "scriptBreakdownFailed": "Agent breakdown failed.",
       "characterGenerated": "Character image generated.",
+      "mediaGenerated": "Node media generated.",
+      "mediaGenerationFailed": "Node media generation failed.",
       "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
       "charactersAlreadySpawned": "All characters already have image nodes.",
       "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images.",

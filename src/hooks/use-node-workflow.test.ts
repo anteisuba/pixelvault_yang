@@ -11,8 +11,10 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
+  NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  type NodeWorkflowNodeType,
 } from '@/constants/node-types'
 import { NodeWorkflowStorageSchema } from '@/types/node-workflow'
 import type {
@@ -202,6 +204,63 @@ describe('useNodeWorkflow', () => {
       },
     })
   })
+
+  it.each([
+    [NODE_TYPE_IDS.shotText, NODE_MEDIA_KIND_IDS.text, undefined],
+    [
+      NODE_TYPE_IDS.shot,
+      NODE_MEDIA_KIND_IDS.image,
+      NODE_GENERATION_STATUS_IDS.idle,
+    ],
+    [
+      NODE_TYPE_IDS.backgroundImage,
+      NODE_MEDIA_KIND_IDS.image,
+      NODE_GENERATION_STATUS_IDS.idle,
+    ],
+    [
+      NODE_TYPE_IDS.frameImage,
+      NODE_MEDIA_KIND_IDS.image,
+      NODE_GENERATION_STATUS_IDS.idle,
+    ],
+    [
+      NODE_TYPE_IDS.voice,
+      NODE_MEDIA_KIND_IDS.audio,
+      NODE_GENERATION_STATUS_IDS.idle,
+    ],
+    [
+      NODE_TYPE_IDS.seedance,
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_GENERATION_STATUS_IDS.idle,
+    ],
+  ] satisfies Array<
+    [
+      NodeWorkflowNodeType,
+      (typeof NODE_MEDIA_KIND_IDS)[keyof typeof NODE_MEDIA_KIND_IDS],
+      typeof NODE_GENERATION_STATUS_IDS.idle | undefined,
+    ]
+  >)(
+    'adds %s node with media defaults',
+    (type, mediaKind, generationStatus) => {
+      const { result } = renderNodeWorkflowHook()
+
+      act(() => {
+        result.current.addNode(type, SECOND_POSITION)
+      })
+
+      expect(result.current.nodes[0]).toMatchObject({
+        type,
+        position: SECOND_POSITION,
+        data: {
+          prompt: '',
+          status: NODE_STATUS_IDS.idle,
+          mediaKind,
+        },
+      })
+      expect(result.current.nodes[0]?.data.generationStatus).toBe(
+        generationStatus,
+      )
+    },
+  )
 
   it('updates node data without replacing unrelated node fields', () => {
     const { result } = renderNodeWorkflowHook()

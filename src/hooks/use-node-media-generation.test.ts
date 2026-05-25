@@ -1,0 +1,166 @@
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/api-client', () => ({
+  checkAudioStatusAPI: vi.fn(),
+  checkVideoStatusAPI: vi.fn(),
+  generateAudioAPI: vi.fn(),
+  studioGenerateAPI: vi.fn(),
+  submitVideoAPI: vi.fn(),
+}))
+
+import { DEFAULT_ASPECT_RATIO, VIDEO_GENERATION } from '@/constants/config'
+import {
+  checkAudioStatusAPI,
+  checkVideoStatusAPI,
+  generateAudioAPI,
+  studioGenerateAPI,
+  submitVideoAPI,
+} from '@/lib/api-client'
+import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
+import type { GenerationRecord } from '@/types'
+
+const IMAGE_GENERATION: GenerationRecord = {
+  id: 'generation-image',
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  outputType: 'IMAGE',
+  status: 'COMPLETED',
+  url: 'https://cdn.test/shot.png',
+  storageKey: 'generations/shot.png',
+  mimeType: 'image/png',
+  width: 1024,
+  height: 1024,
+  prompt: 'shot prompt',
+  model: 'gemini-3.1-flash-image-preview',
+  provider: 'Gemini',
+  requestCount: 2,
+  isPublic: false,
+  isPromptPublic: false,
+}
+
+const VIDEO_GENERATION_RECORD: GenerationRecord = {
+  ...IMAGE_GENERATION,
+  id: 'generation-video',
+  outputType: 'VIDEO',
+  url: 'https://cdn.test/clip.mp4',
+  storageKey: 'generations/clip.mp4',
+  mimeType: 'video/mp4',
+  model: 'seedance-2.0',
+}
+
+const AUDIO_GENERATION_RECORD: GenerationRecord = {
+  ...IMAGE_GENERATION,
+  id: 'generation-audio',
+  outputType: 'AUDIO',
+  url: 'https://cdn.test/voice.mp3',
+  storageKey: 'generations/voice.mp3',
+  mimeType: 'audio/mpeg',
+  model: 'fish-audio-s2-pro',
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('useNodeMediaGeneration', () => {
+  it('generates image media through studioGenerateAPI', async () => {
+    vi.mocked(studioGenerateAPI).mockResolvedValue({
+      success: true,
+      data: { generation: IMAGE_GENERATION },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        kind: 'image',
+        modelId: IMAGE_GENERATION.model,
+        prompt: IMAGE_GENERATION.prompt,
+      })
+    })
+
+    expect(response!).toEqual({
+      success: true,
+      generation: IMAGE_GENERATION,
+      mediaUrl: IMAGE_GENERATION.url,
+    })
+    expect(studioGenerateAPI).toHaveBeenCalledWith({
+      modelId: IMAGE_GENERATION.model,
+      apiKeyId: undefined,
+      freePrompt: IMAGE_GENERATION.prompt,
+      aspectRatio: DEFAULT_ASPECT_RATIO,
+      referenceImages: undefined,
+    })
+  })
+
+  it('generates video media through the queue and status API', async () => {
+    vi.mocked(submitVideoAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        requestId: 'request-video',
+      },
+    })
+    vi.mocked(checkVideoStatusAPI).mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-video',
+        status: 'COMPLETED',
+        generation: VIDEO_GENERATION_RECORD,
+      },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+
+    await act(async () => {
+      await result.current.generate({
+        kind: 'video',
+        modelId: VIDEO_GENERATION_RECORD.model,
+        prompt: VIDEO_GENERATION_RECORD.prompt,
+        apiKeyId: 'key-video',
+      })
+    })
+
+    expect(submitVideoAPI).toHaveBeenCalledWith({
+      modelId: VIDEO_GENERATION_RECORD.model,
+      apiKeyId: 'key-video',
+      prompt: VIDEO_GENERATION_RECORD.prompt,
+      aspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
+      duration: VIDEO_GENERATION.DEFAULT_DURATION,
+      referenceImages: undefined,
+    })
+    expect(checkVideoStatusAPI).toHaveBeenCalledWith('job-video')
+  })
+
+  it('generates audio media when the audio API returns a generation directly', async () => {
+    vi.mocked(generateAudioAPI).mockResolvedValue({
+      success: true,
+      data: { generation: AUDIO_GENERATION_RECORD },
+    })
+
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    let response: Awaited<ReturnType<typeof result.current.generate>>
+
+    await act(async () => {
+      response = await result.current.generate({
+        kind: 'audio',
+        modelId: AUDIO_GENERATION_RECORD.model,
+        prompt: AUDIO_GENERATION_RECORD.prompt,
+        apiKeyId: 'key-audio',
+      })
+    })
+
+    expect(response!).toEqual({
+      success: true,
+      generation: AUDIO_GENERATION_RECORD,
+      mediaUrl: AUDIO_GENERATION_RECORD.url,
+    })
+    expect(generateAudioAPI).toHaveBeenCalledWith({
+      modelId: AUDIO_GENERATION_RECORD.model,
+      apiKeyId: 'key-audio',
+      prompt: AUDIO_GENERATION_RECORD.prompt,
+    })
+    expect(checkAudioStatusAPI).not.toHaveBeenCalled()
+  })
+})

@@ -71,16 +71,21 @@ export interface ProviderQueueSubmitInput {
   /**
    * Single reference image — kept for back-compat with the bulk of video
    * models that only accept one i2v starting frame. New multi-reference
-   * models (Veo 3.1) should read `referenceImages` instead; the adapter
-   * normalises one to the other.
+   * models use `referenceImages` for model-specific arrays while preserving
+   * this first image as the i2v starting frame when needed.
    */
   referenceImage?: string
-  /** Multi-reference array for models like Veo 3.1 reference-to-video. */
+  /** Multi-reference array for models like Veo 3.1 and Kling V3 Pro. */
   referenceImages?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string
   videoDefaults?: VideoDefaults
+  /**
+   * Voice id from an upstream voice node. Only consumed by video builders for
+   * models whose audio capability is `native` or `lipsync` — others ignore it.
+   */
+  voiceId?: string
 }
 
 export interface ProviderQueueSubmitResult {
@@ -150,6 +155,28 @@ export interface ProviderModel3DInput {
   removeBackground?: boolean
   /** Reproducibility seed */
   seed?: number
+  /** Rodin Gen-2.5 quality tier (Regular/Detail/Speed/Sketch/Extreme) */
+  rodinTier?: string
+  /** Rodin mesh mode: Rodin (smooth) | Rodin-Hard (hard surface) */
+  rodinMeshMode?: string
+  /** Rodin texture mode: PBR | Baked */
+  rodinTextureMode?: string
+  /** Rodin material: metallic_roughness | albedo */
+  rodinMaterial?: string
+  /** Rodin HighPack add-on (+1 credit for higher quality) */
+  rodinHighPack?: boolean
+  /** Rodin T-A-Pose skeleton rigging */
+  rodinTAPose?: boolean
+  /** Rodin HD texture (8k resolution) */
+  rodinHdTexture?: boolean
+  /** Rodin texture delight (removes baked lighting) */
+  rodinTextureDelight?: boolean
+  /** Rodin polygon target override (500–2_000_000) */
+  rodinQualityOverride?: number
+  /** Rodin additional reference images beyond imageUrl (max 4) */
+  rodinAdditionalImageUrls?: string[]
+  /** Rodin bounding box condition [x, y, z, w, h, d] */
+  rodinBboxCondition?: [number, number, number, number, number, number]
 }
 
 export interface ProviderModel3DResult {

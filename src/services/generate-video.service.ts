@@ -161,7 +161,7 @@ export async function submitVideoGenerationForUserId(
   // first) doesn't trigger unhandledRejection; the await further down
   // still surfaces the real error if the upload itself failed.
   //
-  // Multi-reference models (Veo 3.1) supply `referenceImages`; we still
+  // Multi-reference models supply `referenceImages`; we still
   // only persist the first one as the poster reference because metadata
   // is for callback / record-keeping only, not for re-generation.
   const posterReference = input.referenceImage ?? input.referenceImages?.[0]
@@ -202,6 +202,7 @@ export async function submitVideoGenerationForUserId(
               resolution: input.resolution,
               i2vModelId: modelConfig?.i2vModelId,
               videoDefaults: modelConfig?.videoDefaults,
+              voiceId: input.voiceId,
             }),
           {
             maxAttempts: 2,
@@ -294,8 +295,8 @@ async function submitFalVideoWorkerRun(params: {
     )
   }
 
-  // Multi-reference models (Veo 3.1) supply `referenceImages`; for everything
-  // else we just upload the singular `referenceImage`. Parallel uploads keep
+  // Multi-reference models supply `referenceImages`; for everything else we
+  // just upload the singular `referenceImage`. Parallel uploads keep
   // multi-image latency under the slowest single image, not their sum.
   const sourceRefs: string[] =
     input.referenceImages && input.referenceImages.length > 0
@@ -370,6 +371,7 @@ async function submitFalVideoWorkerRun(params: {
       resolution: input.resolution,
       i2vModelId: modelConfig.i2vModelId,
       videoDefaults: modelConfig.videoDefaults,
+      voiceId: input.voiceId,
       providerBaseUrl: modelConfig.providerConfig.baseUrl,
       width,
       height,

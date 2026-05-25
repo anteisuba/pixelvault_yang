@@ -33,6 +33,8 @@ interface NodeMediaGenerationInput {
   aspectRatio?: AspectRatio
   referenceImages?: string[]
   advancedParams?: AdvancedParams
+  /** Voice id harvested from an upstream voice node — only used for video. */
+  voiceId?: string
 }
 
 type NodeMediaGenerationResult =
@@ -176,6 +178,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             aspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
             duration: VIDEO_GENERATION.DEFAULT_DURATION,
             referenceImages: input.referenceImages,
+            voiceId: input.voiceId,
           })
 
           if (!response.success || !response.data) {

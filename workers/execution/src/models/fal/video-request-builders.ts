@@ -16,10 +16,12 @@ export interface FalWorkerVideoRequestContext {
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
     duration?: number
     referenceImage?: string
+    referenceImages?: string[]
     negativePrompt?: string
     resolution?: string
     i2vModelId?: string
     videoDefaults?: FalWorkerVideoDefaults
+    voiceId?: string
   }
 }
 
@@ -52,6 +54,8 @@ const FAL_VIDEO_MODEL_ID_ALIASES: Record<string, string> = {
 }
 
 const FAL_VIDEO_DURATION_DEFAULT = 5
+const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
+const FAL_VEO31_REFERENCE_IMAGES_MAX = 3
 const FAL_TEXT_ASPECT_RATIOS = ['16:9', '9:16', '1:1'] as const
 const FAL_EXTENDED_ASPECT_RATIOS = [
   '21:9',
@@ -228,6 +232,26 @@ function requireReferenceImage(context: FalWorkerVideoRequestContext): string {
   return providerInput.referenceImage
 }
 
+function getReferenceImages(
+  context: FalWorkerVideoRequestContext,
+  fallbackImage: string,
+): string[] {
+  const { providerInput } = context
+  return providerInput.referenceImages &&
+    providerInput.referenceImages.length > 0
+    ? providerInput.referenceImages
+    : [fallbackImage]
+}
+
+function getAdditionalKlingV3ReferenceImages(
+  context: FalWorkerVideoRequestContext,
+  startImage: string,
+): string[] {
+  const refs = getReferenceImages(context, startImage)
+  const additionalRefs = refs[0] === startImage ? refs.slice(1) : refs
+  return additionalRefs.slice(0, FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX)
+}
+
 function buildKlingV3Pro(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
@@ -241,7 +265,20 @@ function buildKlingV3Pro(
   }
 
   if (mode === 'image-to-video') {
-    body.start_image_url = requireReferenceImage(context)
+    const startImage = requireReferenceImage(context)
+    const additionalRefs = getAdditionalKlingV3ReferenceImages(
+      context,
+      startImage,
+    )
+    body.start_image_url = startImage
+    if (additionalRefs.length > 0) {
+      body.elements = [
+        {
+          frontal_image_url: startImage,
+          reference_image_urls: additionalRefs,
+        },
+      ]
+    }
   } else {
     body.aspect_ratio = pickString(
       providerInput.aspectRatio,
@@ -281,8 +318,16 @@ function buildVeo31(
 
   applyNegativePrompt(body, context)
 
+  if (providerInput.voiceId) {
+    body.voice_id = providerInput.voiceId
+  }
+
   if (mode === 'image-to-video') {
-    body.image_urls = [requireReferenceImage(context)]
+    const referenceImage = requireReferenceImage(context)
+    body.image_urls = getReferenceImages(context, referenceImage).slice(
+      0,
+      FAL_VEO31_REFERENCE_IMAGES_MAX,
+    )
   }
 
   return body

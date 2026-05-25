@@ -10,6 +10,7 @@ import {
   VIDEO_GENERATION,
 } from '@/constants/config'
 import { getExecutionModelId, getModelById } from '@/constants/models'
+import { IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { HUNYUAN3D_FACE_COUNT } from '@/constants/model-3d-generation'
 
@@ -227,6 +228,22 @@ const FAL_IMAGE_QUEUE_DEFAULT_TIMEOUT_MS = 210_000
 const FAL_IMAGE_QUEUE_MAX_TIMEOUT_MS =
   MAX_DURATION_CONFIGS.generate * 1000 - FAL_IMAGE_QUEUE_ROUTE_MARGIN_MS
 
+const FAL_KONTEXT_SINGLE_MODEL_IDS = new Set(['fal-ai/flux-pro/kontext'])
+const FAL_KONTEXT_MULTI_MODEL_IDS = new Set([
+  'fal-ai/flux-pro/kontext/max/multi',
+])
+const FAL_IDEOGRAM_STYLE_REFERENCE_MODEL_IDS = new Set(['fal-ai/ideogram/v3'])
+const FAL_TEXT_TO_IMAGE_ONLY_MODEL_IDS = new Set([
+  'fal-ai/flux-2-pro',
+  'fal-ai/flux-2',
+  'fal-ai/flux/schnell',
+  'fal-ai/flux-lora',
+  'fal-ai/flux-2-max',
+  'fal-ai/bytedance/seedream/v4.5/text-to-image',
+  'fal-ai/recraft/v3/text-to-image',
+  'fal-ai/recraft/v4/pro/text-to-image',
+])
+
 function warnUnverifiedFalVideoBody(
   modelId: string,
   endpoint: string,
@@ -279,6 +296,10 @@ function inferAudioFormatFromFalFile(file: {
   if (contentType.includes('wav') || fileName.endsWith('.wav')) return 'wav'
   if (contentType.includes('opus') || fileName.endsWith('.opus')) return 'opus'
   return 'mp3'
+}
+
+function isFalF5TtsModel(externalModelId: string): boolean {
+  return externalModelId === 'fal-ai/f5-tts'
 }
 
 function getFalImageQueueTimeoutMs(modelId: string): number {
@@ -508,25 +529,34 @@ export const falAdapter: ProviderAdapter = {
       }))
     }
 
-    // Kontext models: native reference image handling (no strength/denoising)
-    const KONTEXT_SINGLE_MODELS = new Set(['fal-ai/flux-pro/kontext'])
-    const KONTEXT_MULTI_MODELS = new Set(['fal-ai/flux-pro/kontext/max/multi'])
-    const TEXT_TO_IMAGE_ONLY_MODELS = new Set(['fal-ai/flux-lora'])
+    const referenceInputs =
+      referenceImages && referenceImages.length > 0
+        ? referenceImages
+        : referenceImage
+          ? [referenceImage]
+          : []
 
-    if (KONTEXT_MULTI_MODELS.has(externalModelId)) {
+    if (FAL_KONTEXT_MULTI_MODEL_IDS.has(externalModelId)) {
       // Kontext Max: multiple reference images
-      if (referenceImages?.length) {
-        body.image_urls = referenceImages
+      if (referenceInputs.length > 0) {
+        body.image_urls = referenceInputs
       }
-    } else if (KONTEXT_SINGLE_MODELS.has(externalModelId)) {
+    } else if (FAL_IDEOGRAM_STYLE_REFERENCE_MODEL_IDS.has(externalModelId)) {
+      if (referenceInputs.length > 0) {
+        body.image_urls = referenceInputs.slice(
+          0,
+          IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES,
+        )
+      }
+    } else if (FAL_KONTEXT_SINGLE_MODEL_IDS.has(externalModelId)) {
       // Kontext Pro: single reference image
-      const ref = referenceImages?.[0] ?? referenceImage
+      const ref = referenceInputs[0]
       if (ref) {
         body.image_url = ref
       }
-    } else if (!TEXT_TO_IMAGE_ONLY_MODELS.has(externalModelId)) {
+    } else if (!FAL_TEXT_TO_IMAGE_ONLY_MODEL_IDS.has(externalModelId)) {
       // Standard FAL img2img: reference image with denoising strength
-      const effectiveRefImage = referenceImages?.[0] ?? referenceImage
+      const effectiveRefImage = referenceInputs[0]
       if (effectiveRefImage) {
         body.image_url = effectiveRefImage
         // fal's `strength` = denoising strength (higher = more change, less similarity)
@@ -651,6 +681,7 @@ export const falAdapter: ProviderAdapter = {
     resolution,
     i2vModelId,
     videoDefaults,
+    voiceId,
   }: ProviderQueueSubmitInput) {
     const externalModelId = getExecutionModelId(modelId)
     const request = buildFalVideoQueueRequest({
@@ -665,6 +696,7 @@ export const falAdapter: ProviderAdapter = {
       resolution,
       i2vModelId,
       videoDefaults,
+      voiceId,
     })
     const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${request.endpointModelId}`
     const body = request.input
@@ -825,7 +857,9 @@ export const falAdapter: ProviderAdapter = {
     referenceAudioUrl,
     referenceText,
   }) {
-    if (!referenceAudioUrl) {
+    const externalModelId = getExecutionModelId(modelId)
+
+    if (isFalF5TtsModel(externalModelId) && !referenceAudioUrl) {
       throw new ProviderError(
         'fal.ai',
         400,
@@ -833,7 +867,6 @@ export const falAdapter: ProviderAdapter = {
       )
     }
 
-    const externalModelId = getExecutionModelId(modelId)
     const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
     const body: Record<string, unknown> = {
       gen_text: prompt,
@@ -926,7 +959,6 @@ export const falAdapter: ProviderAdapter = {
     const resultData = FAL_AUDIO_RESPONSE_SCHEMA.parse(
       await resultResponse.json(),
     )
-
     return {
       status: 'COMPLETED' as const,
       result: {

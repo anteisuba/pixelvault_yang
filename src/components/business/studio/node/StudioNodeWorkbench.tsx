@@ -32,6 +32,7 @@ import {
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PLACEHOLDER_TOAST,
   NODE_STUDIO_REACT_FLOW_PRO_OPTIONS,
+  NODE_STUDIO_VIDEO_PROMPT,
 } from '@/constants/node-studio'
 import {
   NODE_GENERATION_STATUS_IDS,
@@ -47,6 +48,10 @@ import {
   getMaxReferenceImages,
   hasCapability,
 } from '@/constants/provider-capabilities'
+import {
+  getReferenceCapabilityMax,
+  getVideoReferenceCapability,
+} from '@/constants/reference-image-capabilities'
 import { useCharacterImageGeneration } from '@/hooks/use-character-image-generation'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useNodeMediaGeneration } from '@/hooks/use-node-media-generation'
@@ -113,6 +118,156 @@ const NODE_STUDIO_CONNECTION_LINE_STYLE = {
 interface AddMenuState {
   menuPosition: XYPosition
   flowPosition: XYPosition
+}
+
+function truncateVideoPromptItem(value: string): string {
+  const trimmed = value.trim().replace(/\s+/g, ' ')
+
+  return trimmed.length > NODE_STUDIO_VIDEO_PROMPT.maxItemLength
+    ? `${trimmed.slice(0, NODE_STUDIO_VIDEO_PROMPT.maxItemLength - 3)}...`
+    : trimmed
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values))
+}
+
+function isString(value: string | undefined): value is string {
+  return Boolean(value)
+}
+
+function isVideoVisualReferenceNode(node: NodeWorkflowNode): boolean {
+  return (
+    node.type === NODE_TYPE_IDS.characterImage ||
+    node.type === NODE_TYPE_IDS.shot ||
+    node.type === NODE_TYPE_IDS.backgroundImage
+  )
+}
+
+function isVideoKeyframeNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.frameImage
+}
+
+function isVideoVoiceNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.voice
+}
+
+function isVideoShotTextNode(node: NodeWorkflowNode): boolean {
+  return node.type === NODE_TYPE_IDS.shotText
+}
+
+function getNodeOutputUrl(node: NodeWorkflowNode): string | undefined {
+  return node.data.imageUrl ?? node.data.mediaUrl
+}
+
+function getNodeContextLabel(node: NodeWorkflowNode): string {
+  return (
+    node.data.characterName ??
+    node.data.character?.name ??
+    node.data.voiceName ??
+    node.data.voiceId ??
+    node.data.mediaLabel ??
+    node.data.sourceLabel ??
+    node.data.breakdown?.title ??
+    node.type
+  )
+}
+
+function getIncomingNodes(
+  targetId: string,
+  nodes: NodeWorkflowNode[],
+  edges: NodeWorkflowEdge[],
+): NodeWorkflowNode[] {
+  const sourceIds = new Set(
+    edges.filter((edge) => edge.target === targetId).map((edge) => edge.source),
+  )
+
+  return nodes.filter((node) => sourceIds.has(node.id))
+}
+
+function formatUpstreamNodePrompt(node: NodeWorkflowNode): string {
+  const label = getNodeContextLabel(node)
+  const fieldPrompt = buildNodeWorkflowPrompt(node.type, node.data)
+  const details = [
+    label,
+    fieldPrompt,
+    node.data.voiceProvider,
+    node.data.voiceId,
+    node.data.voiceReferenceAudioName,
+  ]
+    .filter(isString)
+    .map(truncateVideoPromptItem)
+
+  return uniqueStrings(details).join(' | ')
+}
+
+function buildVideoGenerationPrompt(
+  videoNode: NodeWorkflowNode,
+  nodes: NodeWorkflowNode[],
+  edges: NodeWorkflowEdge[],
+  basePrompt: string,
+): string {
+  const incomingNodes = getIncomingNodes(videoNode.id, nodes, edges)
+  const visualLines = incomingNodes
+    .filter(isVideoVisualReferenceNode)
+    .map(formatUpstreamNodePrompt)
+    .filter(Boolean)
+  const keyframeLines = incomingNodes
+    .filter(isVideoKeyframeNode)
+    .map(formatUpstreamNodePrompt)
+    .filter(Boolean)
+  const shotTextLines = incomingNodes
+    .filter(isVideoShotTextNode)
+    .map(formatUpstreamNodePrompt)
+    .filter(Boolean)
+  const voiceLines = incomingNodes
+    .filter(isVideoVoiceNode)
+    .map(formatUpstreamNodePrompt)
+    .filter(Boolean)
+
+  const sections = [
+    basePrompt.trim(),
+    visualLines.length > 0
+      ? `${NODE_STUDIO_VIDEO_PROMPT.sections.visualReferences}:\n- ${visualLines.join('\n- ')}`
+      : '',
+    keyframeLines.length > 0
+      ? `${NODE_STUDIO_VIDEO_PROMPT.sections.keyframes}:\n- ${keyframeLines.join('\n- ')}`
+      : '',
+    shotTextLines.length > 0
+      ? `${NODE_STUDIO_VIDEO_PROMPT.sections.shotText}:\n- ${shotTextLines.join('\n- ')}`
+      : '',
+    voiceLines.length > 0
+      ? `${NODE_STUDIO_VIDEO_PROMPT.sections.voiceProfiles}:\n- ${voiceLines.join('\n- ')}`
+      : '',
+  ].filter(Boolean)
+
+  return sections
+    .join('\n\n')
+    .slice(0, NODE_STUDIO_VIDEO_PROMPT.maxPromptLength)
+}
+
+function getVideoReferenceImages(
+  videoNode: NodeWorkflowNode,
+  nodes: NodeWorkflowNode[],
+  edges: NodeWorkflowEdge[],
+  maxReferenceImages: number,
+): string[] {
+  const incomingNodes = getIncomingNodes(videoNode.id, nodes, edges)
+  const incomingReferences = incomingNodes
+    .filter(
+      (node) => isVideoVisualReferenceNode(node) || isVideoKeyframeNode(node),
+    )
+    .map(getNodeOutputUrl)
+    .filter(isString)
+
+  const directReferences = (videoNode.data.referenceAssets ?? []).map(
+    (reference) => reference.url,
+  )
+
+  return uniqueStrings([...directReferences, ...incomingReferences]).slice(
+    0,
+    maxReferenceImages,
+  )
 }
 
 export function StudioNodeWorkbench() {
@@ -527,7 +682,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     async (nodeId: string) => {
       const node = workflow.nodes.find((item) => item.id === nodeId)
       const kind = node ? NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] : undefined
-      const prompt = node ? buildNodeWorkflowPrompt(node.type, node.data) : ''
+      const basePrompt = node
+        ? buildNodeWorkflowPrompt(node.type, node.data)
+        : ''
+      const prompt =
+        node?.type === NODE_TYPE_IDS.seedance
+          ? buildVideoGenerationPrompt(
+              node,
+              workflow.nodes,
+              workflow.edges,
+              basePrompt,
+            )
+          : basePrompt
       const model = node?.data.model
 
       if (!node || !kind || kind === NODE_MEDIA_KIND_IDS.text) {
@@ -551,6 +717,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       }
 
       const isImageMediaNode = kind === NODE_MEDIA_KIND_IDS.image
+      const isVideoMediaNode = kind === NODE_MEDIA_KIND_IDS.video
       workflow.updateNodeData(nodeId, {
         generationError: undefined,
         generationStatus: NODE_GENERATION_STATUS_IDS.pending,
@@ -564,19 +731,31 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         status: NODE_STATUS_IDS.running,
       })
 
-      const maxReferenceImages = getMaxReferenceImages(
-        model.adapterType,
-        model.modelId,
-      )
+      const maxReferenceImages = isVideoMediaNode
+        ? getReferenceCapabilityMax(getVideoReferenceCapability(model.modelId))
+        : getMaxReferenceImages(model.adapterType, model.modelId)
       const existingImageReference =
         isImageMediaNode &&
         node.data.imageSource === NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing
           ? node.data.mediaUrl
           : undefined
-      const referenceImages = [
+      const directReferenceImages = [
         ...(existingImageReference ? [existingImageReference] : []),
         ...(node.data.referenceAssets ?? []).map((reference) => reference.url),
-      ].slice(0, maxReferenceImages)
+      ]
+      const videoReferenceImages =
+        node.type === NODE_TYPE_IDS.seedance
+          ? getVideoReferenceImages(
+              node,
+              workflow.nodes,
+              workflow.edges,
+              maxReferenceImages,
+            )
+          : []
+      const referenceImages = uniqueStrings([
+        ...directReferenceImages,
+        ...videoReferenceImages,
+      ]).slice(0, maxReferenceImages)
       const supportsLora =
         isImageMediaNode &&
         hasCapability(model.adapterType, 'lora', model.modelId)
@@ -592,6 +771,20 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const advancedParams: AdvancedParams | undefined =
         loras.length > 0 ? { loras } : undefined
 
+      const upstreamVoiceId = isVideoMediaNode
+        ? workflow.edges
+            .filter((edge) => edge.target === nodeId)
+            .map((edge) =>
+              workflow.nodes.find((candidate) => candidate.id === edge.source),
+            )
+            .find(
+              (upstream) =>
+                upstream?.type === NODE_TYPE_IDS.voice &&
+                typeof upstream.data.voiceId === 'string' &&
+                upstream.data.voiceId.length > 0,
+            )?.data.voiceId
+        : undefined
+
       const result = await nodeMediaGeneration.generate({
         kind,
         modelId: model.modelId,
@@ -600,6 +793,10 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         advancedParams,
+        voiceId:
+          typeof upstreamVoiceId === 'string' && upstreamVoiceId.length > 0
+            ? upstreamVoiceId
+            : undefined,
       })
 
       if (result.success) {

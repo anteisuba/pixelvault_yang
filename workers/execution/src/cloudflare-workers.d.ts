@@ -1,3 +1,27 @@
+// ─── Cloudflare R2 ──────────────────────────────────────────────────────────
+
+interface R2PutOptions {
+  httpMetadata?: { contentType?: string; cacheControl?: string }
+  customMetadata?: Record<string, string>
+}
+
+interface R2Object {
+  key: string
+  size: number
+  etag: string
+}
+
+interface R2Bucket {
+  put(
+    key: string,
+    value: ArrayBuffer | ArrayBufferView | ReadableStream | string | null,
+    options?: R2PutOptions,
+  ): Promise<R2Object>
+  delete(key: string): Promise<void>
+}
+
+// ─── Cloudflare Workers ─────────────────────────────────────────────────────
+
 declare module 'cloudflare:workers' {
   export interface WorkflowStepConfig {
     retries?: {

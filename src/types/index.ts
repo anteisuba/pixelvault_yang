@@ -29,6 +29,12 @@ import {
   MODEL_3D_PREVIEW_MODES,
   MODEL_3D_POLYGON_TYPES,
   MODEL_3D_PROGRESS_STAGES,
+  RODIN_MATERIALS,
+  RODIN_MAX_REFERENCE_IMAGES,
+  RODIN_MESH_MODES,
+  RODIN_QUALITY_OVERRIDE,
+  RODIN_TEXTURE_MODES,
+  RODIN_TIERS,
   TRELLIS_2_DECIMATION_TARGET,
   TRELLIS_2_RESOLUTIONS,
   TRELLIS_2_SAMPLING_STEPS,
@@ -801,6 +807,36 @@ export const Generate3DRequestSchema = z.object({
     .optional(),
   /** TripoSR: remove background before reconstruction */
   removeBackground: z.boolean().optional(),
+  /** Hyper3D Rodin: quality tier */
+  rodinTier: z.enum(RODIN_TIERS).optional(),
+  /** Hyper3D Rodin: mesh topology mode */
+  rodinMeshMode: z.enum(RODIN_MESH_MODES).optional(),
+  /** Hyper3D Rodin: texture shading mode */
+  rodinTextureMode: z.enum(RODIN_TEXTURE_MODES).optional(),
+  /** Hyper3D Rodin: PBR material type */
+  rodinMaterial: z.enum(RODIN_MATERIALS).optional(),
+  /** Hyper3D Rodin: pack more geometry detail (costs extra) */
+  rodinHighPack: z.boolean().optional(),
+  /** Hyper3D Rodin: T/A canonical pose alignment */
+  rodinTAPose: z.boolean().optional(),
+  /** Hyper3D Rodin: HD texture quality */
+  rodinHdTexture: z.boolean().optional(),
+  /** Hyper3D Rodin: texture delight / lighting removal */
+  rodinTextureDelight: z.boolean().optional(),
+  /** Hyper3D Rodin: polygon count override */
+  rodinQualityOverride: z
+    .number()
+    .int()
+    .min(RODIN_QUALITY_OVERRIDE.RAW_STANDARD.min)
+    .max(RODIN_QUALITY_OVERRIDE.RAW_HIGH.max)
+    .optional(),
+  /** Hyper3D Rodin: additional reference images (up to RODIN_MAX_REFERENCE_IMAGES-1 extra) */
+  rodinAdditionalImageUrls: z
+    .array(z.string().trim().url())
+    .max(RODIN_MAX_REFERENCE_IMAGES - 1)
+    .optional(),
+  /** Hyper3D Rodin: 3D bounding box [x_min, y_min, z_min, x_max, y_max, z_max] */
+  rodinBboxCondition: z.array(z.number()).length(6).optional(),
   /** Reproducibility seed (-1 or omitted = random) */
   seed: z.number().int().min(-1).optional(),
   /** Saved API key ID (BYOK) */
@@ -990,6 +1026,8 @@ export const ExecutionCallbackResultDataSchema = z.object({
   requestCount: z.number().int().positive().optional(),
   mimeType: z.string().trim().min(1).optional(),
   fetchHeaders: z.record(z.string(), z.string()).optional(),
+  /** 3D: pre-uploaded R2 storage key (Hyper3D Rodin worker uploads GLB before callback) */
+  glbR2Key: z.string().trim().min(1).optional(),
 })
 
 export type ExecutionCallbackResultData = z.infer<
@@ -1164,6 +1202,56 @@ export const LongVideoPipelineWorkerRunContextSchema = z.object({
 
 export type LongVideoPipelineWorkerRunContext = z.infer<
   typeof LongVideoPipelineWorkerRunContextSchema
+>
+
+export const WorkerModel3DRunContextSchema = z.object({
+  runId: z.string().trim().min(1),
+  workflowId: z.enum([
+    EXECUTION_WORKFLOW_IDS.HYPER3D_RODIN,
+    EXECUTION_WORKFLOW_IDS.HUNYUAN3D,
+  ]),
+  outputType: z.literal('MODEL_3D'),
+  providerId: z.string().trim().min(1),
+  userId: z.string().trim().min(1).optional(),
+  apiKeyId: z.string().trim().min(1).optional(),
+  useSystemKey: z.boolean().optional(),
+  callbackUrl: z.string().trim().url(),
+  resolveKeyUrl: z.string().trim().url(),
+  timeoutMs: z.number().int().positive(),
+  maxAttempts: z.number().int().positive(),
+  pollIntervalMs: z.number().int().positive(),
+  providerInput: z
+    .object({
+      imageUrl: z.string().url(),
+      modelId: z.string().min(1),
+      externalModelId: z.string().min(1),
+      seed: z.number().int().optional(),
+      // Rodin-specific
+      tier: z.string().optional(),
+      meshMode: z.string().optional(),
+      textureMode: z.string().optional(),
+      material: z.string().optional(),
+      highPack: z.boolean().optional(),
+      taPose: z.boolean().optional(),
+      hdTexture: z.boolean().optional(),
+      textureDelight: z.boolean().optional(),
+      qualityOverride: z.number().optional(),
+      bboxCondition: z.unknown().optional(),
+      additionalImageUrls: z.array(z.string().url()).optional(),
+      // fal / Hunyuan3D
+      enablePbr: z.boolean().optional(),
+      faceCount: z.number().int().optional(),
+      multiViewImages: z.record(z.string(), z.string()).optional(),
+      removeBackground: z.boolean().optional(),
+      octreeResolution: z.number().int().optional(),
+      generateType: z.string().optional(),
+      polygonType: z.string().optional(),
+    })
+    .passthrough(),
+})
+
+export type WorkerModel3DRunContext = z.infer<
+  typeof WorkerModel3DRunContextSchema
 >
 
 // ─── Long Video Pipeline ──────────────────────────────────────────

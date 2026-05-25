@@ -335,6 +335,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
+  HYPER3D: 'https://api.hyper3d.com',
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {

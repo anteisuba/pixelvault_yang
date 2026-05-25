@@ -424,6 +424,37 @@ async function verifyAdapterKey(
         )
         break
       }
+      case AI_ADAPTER_TYPES.HYPER3D_RODIN: {
+        // GET /api/v2/check_balance — verifies key and subscription tier
+        const checkUrl = 'https://api.hyper3d.com/api/v2/check_balance'
+        response = await safeFetch(checkUrl, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        const latencyMs = Date.now() - start
+        if (response.status === 401 || response.status === 403) {
+          return { ok: false, latencyMs, error: `HTTP ${response.status}` }
+        }
+        if (response.ok) {
+          // Check for SUBSCRIPTION_PLAN_TOO_LOW — key is valid but no Business plan
+          try {
+            const body = await response.json()
+            if (body?.error_code === 'SUBSCRIPTION_PLAN_TOO_LOW') {
+              return {
+                ok: false,
+                latencyMs,
+                error:
+                  'API key is valid but requires a Hyper3D Business subscription ($120/mo) to use Rodin Gen-2.5.',
+              }
+            }
+          } catch {
+            // JSON parse failure is fine — key still verified as 200 OK
+          }
+          return { ok: true, latencyMs }
+        }
+        return { ok: false, latencyMs, error: `HTTP ${response.status}` }
+      }
       default: {
         return { ok: false, latencyMs: 0, error: 'Unknown adapter' }
       }

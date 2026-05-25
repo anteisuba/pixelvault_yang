@@ -9,12 +9,23 @@ export const EXECUTION_INTERNAL = {
   CALLBACK_PATH: '/api/internal/execution/callback',
   RESOLVE_KEY_PATH: '/api/internal/execution/resolve-key',
   LONG_VIDEO_ADVANCE_PATH: '/api/internal/execution/long-video/advance',
+  FAL_WEBHOOK_PATH: '/api/internal/fal/webhook',
+} as const
+
+export const FAL_WEBHOOK = {
+  SIGNATURE_HEADER: 'x-fal-signature-ed25519',
+  JWKS_URL: 'https://rest.fal.ai/.well-known/jwks.json',
+  /** Cached keys are refreshed after this interval */
+  JWKS_CACHE_TTL_MS: 5 * 60 * 1000,
+  RUN_ID_PARAM: 'runId',
 } as const
 
 export const EXECUTION_WORKER = {
   CINEMATIC_SHORT_VIDEO_PATH: '/workflows/cinematic-short-video',
   FAL_QUEUE_PATH: '/workflows/fal-queue',
   LONG_VIDEO_PIPELINE_PATH: '/workflows/long-video-pipeline',
+  HYPER3D_RODIN_PATH: '/workflows/hyper3d-rodin',
+  HUNYUAN3D_PATH: '/workflows/hunyuan3d',
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,
@@ -24,6 +35,8 @@ export const EXECUTION_WORKFLOW_IDS = {
   CINEMATIC_SHORT_VIDEO: 'CINEMATIC_SHORT_VIDEO',
   FAL_QUEUE: 'FAL_QUEUE',
   LONG_VIDEO_PIPELINE: 'LONG_VIDEO_PIPELINE',
+  HYPER3D_RODIN: 'HYPER3D_RODIN',
+  HUNYUAN3D: 'HUNYUAN3D',
 } as const
 
 export const EXECUTION_OUTBOX_KINDS = {

@@ -11,6 +11,7 @@ export enum AI_ADAPTER_TYPES {
   NOVELAI = 'novelai',
   VOLCENGINE = 'volcengine',
   FISH_AUDIO = 'fish_audio',
+  HYPER3D_RODIN = 'hyper3d_rodin',
 }
 
 export interface ProviderConfig {
@@ -29,6 +30,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.NOVELAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
   AI_ADAPTER_TYPES.FISH_AUDIO,
+  AI_ADAPTER_TYPES.HYPER3D_RODIN,
 ] as const
 
 export const DEFAULT_PROVIDER_CONFIGS: Record<
@@ -75,6 +77,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'Fish Audio',
     baseUrl: AI_PROVIDER_ENDPOINTS.FISH_AUDIO,
   },
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: {
+    label: 'Hyper3D Rodin',
+    baseUrl: AI_PROVIDER_ENDPOINTS.HYPER3D,
+  },
 }
 
 export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
@@ -88,6 +94,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.NOVELAI]: 'pst-...',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
 }
 
 export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
@@ -101,6 +108,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.NOVELAI]: 2,
   [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
 }
 
 export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
@@ -114,6 +122,7 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-4-5-full',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
 }
 
 export const getDefaultProviderConfig = (
@@ -175,6 +184,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
     url: 'https://fish.audio/zh-CN/app/api-keys/',
     steps: 'Sign in → 开发者 → API 密钥 → 创建新的密钥',
+  },
+  [AI_ADAPTER_TYPES.HYPER3D_RODIN]: {
+    url: 'https://hyper3d.ai/dashboard',
+    steps:
+      'Sign in → Dashboard → API Keys → Create key. Business subscription ($120/mo) required for Rodin Gen-2.5.',
   },
 }
 

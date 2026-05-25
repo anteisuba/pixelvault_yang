@@ -135,3 +135,99 @@ export const MODEL_3D_MULTIVIEW_CACHE = {
   DEFAULT_MODEL_KEY: 'default',
   TTL_MS: 1000 * 60 * 60 * 12,
 } as const
+
+// ─── Rodin Gen-2.5 ─────────────────────────────────────────────────
+
+/** Quality tiers exposed by Rodin Gen-2.5 — maps to the `tier` API parameter */
+export const RODIN_TIER = {
+  EXTREME_LOW: 'Extreme-Low',
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  EXTREME_HIGH: 'Extreme-High',
+} as const
+
+export const RODIN_TIERS = [
+  RODIN_TIER.EXTREME_LOW,
+  RODIN_TIER.LOW,
+  RODIN_TIER.MEDIUM,
+  RODIN_TIER.HIGH,
+  RODIN_TIER.EXTREME_HIGH,
+] as const
+
+export type RodinTier = (typeof RODIN_TIERS)[number]
+
+/** Credit costs by tier. HighPack always adds +1.0 cr on top. */
+export const RODIN_TIER_CREDITS: Record<RodinTier, number> = {
+  [RODIN_TIER.EXTREME_LOW]: 0.5,
+  [RODIN_TIER.LOW]: 0.5,
+  [RODIN_TIER.MEDIUM]: 0.5,
+  [RODIN_TIER.HIGH]: 0.5,
+  [RODIN_TIER.EXTREME_HIGH]: 1.0,
+} as const
+
+export const RODIN_HIGHPACK_EXTRA_CREDITS = 1.0
+
+/**
+ * Approximate generation time by tier (seconds).
+ * Used for UI progress estimation only — actual times vary by server load.
+ */
+export const RODIN_TIER_ESTIMATED_SECONDS: Record<RodinTier, number> = {
+  [RODIN_TIER.EXTREME_LOW]: 45,
+  [RODIN_TIER.LOW]: 60,
+  [RODIN_TIER.MEDIUM]: 150,
+  [RODIN_TIER.HIGH]: 240,
+  [RODIN_TIER.EXTREME_HIGH]: 480,
+} as const
+
+/** Mesh surface style — maps to the `mesh_mode` API parameter */
+export const RODIN_MESH_MODE = {
+  SMOOTH: 'Rodin',
+  HARD_SURFACE: 'Rodin-Hard',
+} as const
+
+export const RODIN_MESH_MODES = [
+  RODIN_MESH_MODE.SMOOTH,
+  RODIN_MESH_MODE.HARD_SURFACE,
+] as const
+
+export type RodinMeshMode = (typeof RODIN_MESH_MODES)[number]
+
+/** Texture pipeline — maps to the `texture_mode` API parameter */
+export const RODIN_TEXTURE_MODE = {
+  PBR: 'PBR',
+  BAKED: 'Baked',
+} as const
+
+export const RODIN_TEXTURE_MODES = [
+  RODIN_TEXTURE_MODE.PBR,
+  RODIN_TEXTURE_MODE.BAKED,
+] as const
+
+export type RodinTextureMode = (typeof RODIN_TEXTURE_MODES)[number]
+
+/** Material workflow — maps to the `material` API parameter */
+export const RODIN_MATERIAL = {
+  METALLIC_ROUGHNESS: 'Metallic Roughness',
+  ALBEDO: 'Albedo',
+} as const
+
+export const RODIN_MATERIALS = [
+  RODIN_MATERIAL.METALLIC_ROUGHNESS,
+  RODIN_MATERIAL.ALBEDO,
+] as const
+
+export type RodinMaterial = (typeof RODIN_MATERIALS)[number]
+
+/**
+ * quality_override polygon-count constraints by geometry mode.
+ * Rodin always outputs GLB; geometry_file_format is set to 'glb' internally.
+ */
+export const RODIN_QUALITY_OVERRIDE = {
+  QUAD: { min: 1_000, max: 200_000 },
+  RAW_STANDARD: { min: 500, max: 1_000_000 },
+  RAW_HIGH: { min: 20_000, max: 2_000_000 },
+} as const
+
+/** Maximum number of reference images Rodin accepts (primary + additional) */
+export const RODIN_MAX_REFERENCE_IMAGES = 5

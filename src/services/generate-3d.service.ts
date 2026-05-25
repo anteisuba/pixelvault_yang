@@ -2,8 +2,13 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { getModelById } from '@/constants/models'
-import { getProviderLabel } from '@/constants/providers'
+import { getExecutionModelId, getModelById } from '@/constants/models'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import {
+  EXECUTION_INTERNAL,
+  EXECUTION_WORKER,
+  EXECUTION_WORKFLOW_IDS,
+} from '@/constants/execution'
 import {
   MODEL_3D_GENERATE_TYPE,
   MODEL_3D_JOB_STAGE,
@@ -20,6 +25,7 @@ import type {
   Model3DStatusResponseData,
   Model3DSubmitResponseData,
   RetryMesh3DRequest,
+  WorkerModel3DRunContext,
 } from '@/types'
 import { Model3DMultiViewImagesSchema } from '@/types'
 import { createGeneration } from '@/services/generation.service'
@@ -52,6 +58,11 @@ import {
   GenerateImageServiceError,
   resolveGenerationRoute,
 } from '@/services/generate-image.service'
+import {
+  buildInternalUrl,
+  dispatchHyper3DRodinWorkerRun,
+  dispatchHunyuan3DWorkerRun,
+} from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -119,6 +130,12 @@ const Model3DQueueMetaSchema = z
      * auto-submitting Stage 2. Cleared on cancel; left intact across retries.
      */
     staged: z.boolean().optional(),
+    /**
+     * Set on jobs dispatched to a Cloudflare Worker workflow (Hyper3D Rodin /
+     * Hunyuan3D). The Worker owns polling and R2 upload; status checks read DB
+     * state only.
+     */
+    workerDispatched: z.boolean().optional(),
   })
   .passthrough()
 
@@ -216,6 +233,17 @@ export async function submit3DGenerationForUserId(
     apiKeyId: input.apiKeyId,
   })
   const provider = getProviderLabel(executionRoute.providerConfig)
+
+  // Dispatch Hyper3D Rodin and all FAL-based MODEL_3D jobs to the Cloudflare
+  // Worker. The Worker owns queue polling, R2 upload, and the callback.
+  if (
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN ||
+    executionRoute.adapterType === AI_ADAPTER_TYPES.FAL
+  ) {
+    return submitWorker3DGeneration({ userId, input, executionRoute, provider })
+  }
+
+  // ─── Legacy inline path ───────────────────────────────────────────────
   const providerAdapter = getProviderAdapter(executionRoute.adapterType)
 
   if (!providerAdapter?.submitModel3DToQueue) {
@@ -415,6 +443,15 @@ export async function check3DGenerationStatusForUserId(
   }
 
   const queueMeta = parseQueueMeta(job.externalRequestId)
+
+  // Worker-dispatched jobs: the Worker owns polling and R2 upload.
+  // The callback service advances job.status; just reflect the DB state.
+  if (queueMeta.workerDispatched) {
+    return {
+      jobId: job.id,
+      status: job.status === 'RUNNING' ? 'IN_PROGRESS' : 'IN_QUEUE',
+    }
+  }
 
   const executionRoute = await resolveGenerationRoute(userId, {
     modelId: job.modelId,
@@ -836,6 +873,195 @@ async function submit3DQueueWithRetry(params: {
       label: `${params.adapterType}.submitModel3D`,
     }),
   )
+}
+
+// ─── Worker dispatch (Hyper3D Rodin + FAL MODEL_3D) ──────────────
+
+async function submitWorker3DGeneration({
+  userId,
+  input,
+  executionRoute,
+  provider,
+}: {
+  userId: string
+  input: Generate3DRequest
+  executionRoute: GenerationExecutionRoute
+  provider: string
+}): Promise<Model3DSubmitResponseData> {
+  let sourceQualityReport: Awaited<
+    ReturnType<typeof inspect3DSourceImageQuality>
+  >
+  try {
+    sourceQualityReport = await inspect3DSourceImageQuality(input.imageUrl, {
+      userId,
+    })
+  } catch (error) {
+    logger.warn('3D source quality inspection failed', {
+      imageUrl: input.imageUrl,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Source image is not accessible or is not a valid raster image.',
+      422,
+    )
+  }
+
+  if (sourceQualityReport.blockingIssues.length > 0) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      build3DSourceQualityMessage(sourceQualityReport),
+      422,
+    )
+  }
+
+  const preparedImageUrl =
+    input.prep3D === false
+      ? input.imageUrl
+      : await prepare3DSourceImage({
+          imageUrl: input.imageUrl,
+          userId,
+          falApiKey: executionRoute.apiKey,
+        })
+
+  const generationJob = await createGenerationJob({
+    userId,
+    adapterType: executionRoute.adapterType,
+    provider,
+    modelId: executionRoute.modelId,
+  })
+
+  const modelConfig = getModelById(executionRoute.modelId)
+  const workerContext = buildModel3DWorkerContext({
+    runId: generationJob.id,
+    userId,
+    executionRoute,
+    input,
+    preparedImageUrl,
+    modelConfig,
+  })
+
+  const dispatch =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
+      ? dispatchHyper3DRodinWorkerRun
+      : dispatchHunyuan3DWorkerRun
+
+  try {
+    await dispatch(workerContext)
+  } catch (error) {
+    await failGenerationJob(generationJob.id, {
+      errorMessage:
+        error instanceof Error ? error.message : 'Worker dispatch failed',
+    })
+    if (error instanceof GenerateImageServiceError) throw error
+    const message =
+      error instanceof Error ? error.message : '3D generation dispatch failed'
+    throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
+  }
+
+  await db.generationJob.update({
+    where: { id: generationJob.id },
+    data: {
+      externalRequestId: serializeQueueMeta({
+        workerDispatched: true,
+        sourceImageUrl: input.imageUrl,
+        sourceGenerationId: input.sourceGenerationId,
+        projectId: input.projectId,
+        prompt: input.prompt ?? '',
+        apiKeyId: executionRoute.resolvedApiKeyId,
+        multiViewImages: input.multiViewImages,
+        sourceQuality: sourceQualityReport,
+      }),
+      prompt: input.prompt ?? '',
+    },
+  })
+
+  logger.info('3D dispatched to Worker', {
+    adapter: executionRoute.adapterType,
+    modelId: executionRoute.modelId,
+    jobId: generationJob.id,
+  })
+
+  return { jobId: generationJob.id, requestId: generationJob.id }
+}
+
+function buildModel3DWorkerContext(params: {
+  runId: string
+  userId: string
+  executionRoute: GenerationExecutionRoute
+  input: Generate3DRequest
+  preparedImageUrl: string
+  modelConfig: ReturnType<typeof getModelById>
+}): WorkerModel3DRunContext {
+  const {
+    runId,
+    userId,
+    executionRoute,
+    input,
+    preparedImageUrl,
+    modelConfig,
+  } = params
+
+  return {
+    runId,
+    workflowId:
+      executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
+        ? EXECUTION_WORKFLOW_IDS.HYPER3D_RODIN
+        : EXECUTION_WORKFLOW_IDS.HUNYUAN3D,
+    providerId: executionRoute.adapterType,
+    userId,
+    outputType: 'MODEL_3D',
+    ...(executionRoute.resolvedApiKeyId
+      ? { apiKeyId: executionRoute.resolvedApiKeyId }
+      : { useSystemKey: true }),
+    callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
+    resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
+    timeoutMs: modelConfig?.timeoutMs ?? EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
+    maxAttempts: EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS,
+    pollIntervalMs: EXECUTION_WORKER.DEFAULT_POLL_INTERVAL_MS,
+    providerInput: {
+      imageUrl: preparedImageUrl,
+      modelId: executionRoute.modelId,
+      externalModelId: getExecutionModelId(executionRoute.modelId),
+      seed: input.seed != null && input.seed >= 0 ? input.seed : undefined,
+      // Rodin-specific
+      tier: input.rodinTier,
+      meshMode: input.rodinMeshMode,
+      textureMode: input.rodinTextureMode,
+      material: input.rodinMaterial,
+      highPack: input.rodinHighPack,
+      taPose: input.rodinTAPose,
+      hdTexture: input.rodinHdTexture,
+      textureDelight: input.rodinTextureDelight,
+      qualityOverride: input.rodinQualityOverride,
+      additionalImageUrls: input.rodinAdditionalImageUrls,
+      bboxCondition: input.rodinBboxCondition
+        ? [...input.rodinBboxCondition]
+        : undefined,
+      // FAL / Hunyuan3D + Trellis
+      texturedMesh: input.texturedMesh,
+      octreeResolution: input.octreeResolution,
+      enablePbr: input.enablePbr,
+      faceCount: input.faceCount,
+      generateType: input.generateType,
+      polygonType: input.polygonType,
+      trellisResolution:
+        input.trellisResolution != null
+          ? String(input.trellisResolution)
+          : undefined,
+      trellisTextureSize:
+        input.trellisTextureSize != null
+          ? String(input.trellisTextureSize)
+          : undefined,
+      trellisDecimationTarget: input.trellisDecimationTarget,
+      trellisRemesh: input.trellisRemesh,
+      trellisRemeshProject: input.trellisRemeshProject,
+      trellisStructureSamplingSteps: input.trellisStructureSamplingSteps,
+      trellisShapeSamplingSteps: input.trellisShapeSamplingSteps,
+      trellisTextureSamplingSteps: input.trellisTextureSamplingSteps,
+      removeBackground: input.removeBackground,
+    },
+  }
 }
 
 function serializeQueueMeta(meta: Model3DQueueMeta): string {

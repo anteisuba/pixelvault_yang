@@ -6,6 +6,7 @@ import { EXECUTION_INTERNAL, EXECUTION_WORKER } from '@/constants/execution'
 import type {
   LongVideoPipelineWorkerRunContext,
   WorkerDispatchResult,
+  WorkerModel3DRunContext,
   WorkerRunContext,
 } from '@/types'
 import { WorkerDispatchResultSchema } from '@/types'
@@ -78,8 +79,26 @@ export async function dispatchLongVideoPipelineWorkerRun(
   )
 }
 
+export async function dispatchHyper3DRodinWorkerRun(
+  runContext: WorkerModel3DRunContext,
+): Promise<WorkerDispatchResult> {
+  return dispatchSignedWorkerRun(
+    runContext,
+    EXECUTION_WORKER.HYPER3D_RODIN_PATH,
+  )
+}
+
+export async function dispatchHunyuan3DWorkerRun(
+  runContext: WorkerModel3DRunContext,
+): Promise<WorkerDispatchResult> {
+  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.HUNYUAN3D_PATH)
+}
+
 async function dispatchSignedWorkerRun(
-  runContext: WorkerRunContext | LongVideoPipelineWorkerRunContext,
+  runContext:
+    | WorkerRunContext
+    | LongVideoPipelineWorkerRunContext
+    | WorkerModel3DRunContext,
   path: string,
 ): Promise<WorkerDispatchResult> {
   const body = JSON.stringify(runContext)

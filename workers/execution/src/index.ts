@@ -8,6 +8,8 @@ const ECHO_PATH = '/echo'
 const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
 const FAL_QUEUE_PATH = '/workflows/fal-queue'
 const LONG_VIDEO_PIPELINE_PATH = '/workflows/long-video-pipeline'
+const HYPER3D_RODIN_PATH = '/workflows/hyper3d-rodin'
+const HUNYUAN3D_PATH = '/workflows/hunyuan3d'
 const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
 const EXECUTION_SIGNATURE_ALGORITHM = 'HMAC'
 const EXECUTION_SIGNATURE_HASH = 'SHA-256'
@@ -15,15 +17,30 @@ const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
 const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
 const LONG_VIDEO_PIPELINE_WORKFLOW_ID = 'LONG_VIDEO_PIPELINE'
+const HYPER3D_RODIN_WORKFLOW_ID = 'HYPER3D_RODIN'
+const HUNYUAN3D_WORKFLOW_ID = 'HUNYUAN3D'
+const HYPER3D_BASE_URL = 'https://hyperhuman.deemos.com'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
+
+interface R2Bucket {
+  put(
+    key: string,
+    value: ArrayBuffer | ArrayBufferView | ReadableStream | string,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<{ key: string }>
+}
 
 interface ExecutionEnv {
   INTERNAL_CALLBACK_URL?: string
   INTERNAL_CALLBACK_SECRET?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
+  HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
+  HUNYUAN3D_WORKFLOW: Workflow<WorkerModel3DRunContext>
+  GENERATION_BUCKET: R2Bucket
+  R2_PUBLIC_URL: string
 }
 
 interface ExecutionCallbackPayload {
@@ -96,6 +113,54 @@ interface LongVideoPipelineStatus {
   pipelineId: string
   status: 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   errorMessage?: string | null
+}
+
+interface WorkerModel3DRunContext {
+  runId: string
+  workflowId: typeof HYPER3D_RODIN_WORKFLOW_ID | typeof HUNYUAN3D_WORKFLOW_ID
+  outputType: 'MODEL_3D'
+  providerId: string
+  apiKeyId?: string
+  useSystemKey?: boolean
+  callbackUrl: string
+  resolveKeyUrl: string
+  timeoutMs: number
+  maxAttempts: number
+  pollIntervalMs: number
+  providerInput: {
+    imageUrl: string
+    modelId: string
+    externalModelId: string
+    seed?: number
+    tier?: string
+    meshMode?: string
+    textureMode?: string
+    material?: string
+    highPack?: boolean
+    taPose?: boolean
+    hdTexture?: boolean
+    textureDelight?: boolean
+    qualityOverride?: number
+    bboxCondition?: unknown
+    additionalImageUrls?: string[]
+    enablePbr?: boolean
+    faceCount?: number
+    multiViewImages?: Record<string, string>
+    removeBackground?: boolean
+    octreeResolution?: number
+    generateType?: string
+    polygonType?: string
+  }
+}
+
+interface RodinSubmitResult {
+  jobUuid: string
+  statusUrl: string
+  downloadUrl: string
+}
+
+interface RodinPollResult {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 }
 
 interface FalQueueSubmitResult {
@@ -509,6 +574,447 @@ function parseLongVideoPipelineRunContext(
     maxAttempts,
     pollIntervalMs,
   }
+}
+
+function isModel3DWorkflowId(
+  value: unknown,
+): value is typeof HYPER3D_RODIN_WORKFLOW_ID | typeof HUNYUAN3D_WORKFLOW_ID {
+  return value === HYPER3D_RODIN_WORKFLOW_ID || value === HUNYUAN3D_WORKFLOW_ID
+}
+
+function parseModel3DRunContext(
+  input: unknown,
+): WorkerModel3DRunContext | null {
+  if (!isRecord(input)) return null
+  const providerInput = input.providerInput
+  if (!isRecord(providerInput)) return null
+
+  const runId = readStringField(input, 'runId')
+  const workflowId = readStringField(input, 'workflowId')
+  const outputType = readStringField(input, 'outputType')
+  const providerId = readStringField(input, 'providerId')
+  const apiKeyId = readStringField(input, 'apiKeyId') ?? undefined
+  const useSystemKey = readBooleanField(input, 'useSystemKey') ?? undefined
+  const callbackUrl = readStringField(input, 'callbackUrl')
+  const resolveKeyUrl = readStringField(input, 'resolveKeyUrl')
+  const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
+  const maxAttempts = readPositiveNumberField(input, 'maxAttempts')
+  const pollIntervalMs = readPositiveNumberField(input, 'pollIntervalMs')
+  const imageUrl = readStringField(providerInput, 'imageUrl')
+  const modelId = readStringField(providerInput, 'modelId')
+  const externalModelId = readStringField(providerInput, 'externalModelId')
+
+  if (
+    !runId ||
+    !isModel3DWorkflowId(workflowId) ||
+    outputType !== 'MODEL_3D' ||
+    !providerId ||
+    (!apiKeyId && !useSystemKey) ||
+    !callbackUrl ||
+    !resolveKeyUrl ||
+    !timeoutMs ||
+    !maxAttempts ||
+    !pollIntervalMs ||
+    !imageUrl ||
+    !modelId ||
+    !externalModelId
+  ) {
+    return null
+  }
+
+  const additionalImageUrls = Array.isArray(providerInput.additionalImageUrls)
+    ? (providerInput.additionalImageUrls as unknown[]).filter(
+        (u): u is string => typeof u === 'string',
+      )
+    : undefined
+
+  const multiViewImages = isRecord(providerInput.multiViewImages)
+    ? (providerInput.multiViewImages as Record<string, unknown>)
+    : undefined
+  const multiViewStrings =
+    multiViewImages &&
+    Object.fromEntries(
+      Object.entries(multiViewImages).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    )
+
+  return {
+    runId,
+    workflowId,
+    outputType: 'MODEL_3D',
+    providerId,
+    apiKeyId,
+    useSystemKey,
+    callbackUrl,
+    resolveKeyUrl,
+    timeoutMs,
+    maxAttempts,
+    pollIntervalMs,
+    providerInput: {
+      imageUrl,
+      modelId,
+      externalModelId,
+      seed: readPositiveNumberField(providerInput, 'seed') ?? undefined,
+      tier: readStringField(providerInput, 'tier') ?? undefined,
+      meshMode: readStringField(providerInput, 'meshMode') ?? undefined,
+      textureMode: readStringField(providerInput, 'textureMode') ?? undefined,
+      material: readStringField(providerInput, 'material') ?? undefined,
+      highPack: readBooleanField(providerInput, 'highPack') ?? undefined,
+      taPose: readBooleanField(providerInput, 'taPose') ?? undefined,
+      hdTexture: readBooleanField(providerInput, 'hdTexture') ?? undefined,
+      textureDelight:
+        readBooleanField(providerInput, 'textureDelight') ?? undefined,
+      qualityOverride:
+        readPositiveNumberField(providerInput, 'qualityOverride') ?? undefined,
+      bboxCondition: providerInput.bboxCondition,
+      additionalImageUrls: additionalImageUrls?.length
+        ? additionalImageUrls
+        : undefined,
+      enablePbr: readBooleanField(providerInput, 'enablePbr') ?? undefined,
+      faceCount:
+        readPositiveNumberField(providerInput, 'faceCount') ?? undefined,
+      multiViewImages: multiViewStrings,
+      removeBackground:
+        readBooleanField(providerInput, 'removeBackground') ?? undefined,
+      octreeResolution:
+        readPositiveNumberField(providerInput, 'octreeResolution') ?? undefined,
+      generateType: readStringField(providerInput, 'generateType') ?? undefined,
+      polygonType: readStringField(providerInput, 'polygonType') ?? undefined,
+    },
+  }
+}
+
+async function resolveApiKeyModel3D(
+  env: ExecutionEnv,
+  context: WorkerModel3DRunContext,
+): Promise<string> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const response = await postSignedJson(
+    context.resolveKeyUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      apiKeyId: context.apiKeyId,
+      adapterType: context.providerId,
+      useSystemKey: context.useSystemKey,
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Resolve key failed with status ${response.status}`)
+  }
+
+  const payload = (await response.json()) as {
+    success?: boolean
+    data?: { apiKey?: unknown }
+  }
+
+  if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
+    throw new Error('Resolve key returned an invalid response.')
+  }
+
+  return payload.data.apiKey
+}
+
+async function emitModel3DCallback(
+  env: ExecutionEnv,
+  context: WorkerModel3DRunContext,
+  data: unknown,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) {
+    throw new Error('Internal callback secret is not configured.')
+  }
+
+  const callbackResponse = await postSignedJson(
+    context.callbackUrl,
+    env.INTERNAL_CALLBACK_SECRET,
+    {
+      runId: context.runId,
+      kind: 'result',
+      ts: new Date().toISOString(),
+      data,
+    },
+  )
+
+  if (!callbackResponse.ok) {
+    throw new Error(`Callback failed with status ${callbackResponse.status}`)
+  }
+}
+
+// ─── Hyper3D Rodin API ────────────────────────────────────────────────────────
+
+async function submitRodinJob(
+  context: WorkerModel3DRunContext,
+  apiKey: string,
+): Promise<RodinSubmitResult> {
+  const { providerInput } = context
+  const form = new FormData()
+
+  form.append('image_urls[]', providerInput.imageUrl)
+  if (providerInput.additionalImageUrls?.length) {
+    for (const url of providerInput.additionalImageUrls) {
+      form.append('image_urls[]', url)
+    }
+  }
+  if (providerInput.tier) form.append('tier', providerInput.tier)
+  if (providerInput.meshMode) form.append('mesh', providerInput.meshMode)
+  if (providerInput.textureMode)
+    form.append('texture', providerInput.textureMode)
+  if (providerInput.material) form.append('material', providerInput.material)
+  if (providerInput.highPack != null)
+    form.append('high_pack', String(providerInput.highPack))
+  if (providerInput.taPose != null)
+    form.append('t_a_pose', String(providerInput.taPose))
+  if (providerInput.hdTexture != null)
+    form.append('hd_texture', String(providerInput.hdTexture))
+  if (providerInput.textureDelight != null)
+    form.append('texture_delight', String(providerInput.textureDelight))
+  if (providerInput.qualityOverride != null)
+    form.append('quality_override', String(providerInput.qualityOverride))
+  if (providerInput.seed != null && providerInput.seed >= 0)
+    form.append('seed', String(providerInput.seed))
+  if (providerInput.bboxCondition) {
+    form.append('condition_mode', 'gt')
+    form.append('bbox_condition', JSON.stringify(providerInput.bboxCondition))
+  }
+
+  const response = await fetch(`${HYPER3D_BASE_URL}/api/v2/rodin`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Hyper3D Rodin submit failed with status ${response.status}`,
+    )
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const jobUuid = readStringField(data, 'uuid')
+  if (!jobUuid) {
+    throw new Error('Hyper3D Rodin submit returned no job UUID.')
+  }
+
+  return {
+    jobUuid,
+    statusUrl: `${HYPER3D_BASE_URL}/api/v2/status?job_uuid=${jobUuid}`,
+    downloadUrl: `${HYPER3D_BASE_URL}/api/v2/download?job_uuid=${jobUuid}&format=glb`,
+  }
+}
+
+function mapRodinStatus(
+  raw: string,
+): 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' {
+  const s = raw.toLowerCase()
+  if (s === 'succeeded' || s === 'done' || s === 'completed') return 'COMPLETED'
+  if (s === 'failed' || s === 'error') return 'FAILED'
+  if (s === 'running' || s === 'processing') return 'IN_PROGRESS'
+  return 'IN_QUEUE'
+}
+
+async function pollRodinJob(
+  rodin: RodinSubmitResult,
+  apiKey: string,
+): Promise<RodinPollResult> {
+  const response = await fetch(rodin.statusUrl, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!response.ok) {
+    return { status: 'IN_QUEUE' }
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const jobs = Array.isArray(data.jobs) ? data.jobs : []
+  const messages = Array.isArray(data.status_messages)
+    ? data.status_messages
+    : jobs
+
+  if (messages.length === 0) return { status: 'IN_PROGRESS' }
+
+  const statuses = (messages as Array<Record<string, unknown>>)
+    .map((m) => readStringField(m, 'status') ?? '')
+    .map(mapRodinStatus)
+
+  if (statuses.some((s) => s === 'FAILED')) return { status: 'FAILED' }
+  if (statuses.every((s) => s === 'COMPLETED')) return { status: 'COMPLETED' }
+  if (statuses.some((s) => s === 'IN_PROGRESS'))
+    return { status: 'IN_PROGRESS' }
+  return { status: 'IN_QUEUE' }
+}
+
+async function downloadAndUploadRodinGlb(
+  env: ExecutionEnv,
+  context: WorkerModel3DRunContext,
+  rodin: RodinSubmitResult,
+  apiKey: string,
+): Promise<string> {
+  const glbResponse = await fetch(rodin.downloadUrl, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  })
+
+  if (!glbResponse.ok) {
+    throw new Error(
+      `Hyper3D Rodin GLB download failed with status ${glbResponse.status}`,
+    )
+  }
+
+  const glbBuffer = await glbResponse.arrayBuffer()
+  const storageKey = `3d/${context.runId}/${rodin.jobUuid}.glb`
+
+  await env.GENERATION_BUCKET.put(storageKey, glbBuffer, {
+    httpMetadata: { contentType: 'model/gltf-binary' },
+  })
+
+  return `${env.R2_PUBLIC_URL}/${storageKey}`
+}
+
+// ─── fal.ai model-3D (Hunyuan3D) ─────────────────────────────────────────────
+
+function buildFalModel3DQueueRequest(context: WorkerModel3DRunContext): {
+  endpointModelId: string
+  input: Record<string, unknown>
+} {
+  const { providerInput } = context
+  const input: Record<string, unknown> = {
+    image_url: providerInput.imageUrl,
+  }
+
+  if (providerInput.seed != null) input.seed = providerInput.seed
+  if (providerInput.removeBackground != null)
+    input.remove_background = providerInput.removeBackground
+  if (providerInput.enablePbr != null)
+    input.enable_pbr = providerInput.enablePbr
+  if (providerInput.faceCount != null)
+    input.face_count = providerInput.faceCount
+  if (providerInput.octreeResolution != null)
+    input.octree_resolution = providerInput.octreeResolution
+  if (providerInput.generateType != null)
+    input.generate_type = providerInput.generateType
+  if (providerInput.polygonType != null)
+    input.polygon_type = providerInput.polygonType
+
+  return { endpointModelId: providerInput.externalModelId, input }
+}
+
+function readFalModel3DResult(resultData: Record<string, unknown>): {
+  artifactUrl: string | null
+  mimeType: string
+} {
+  // Hunyuan3D typically returns { model_mesh: { url, content_type } }
+  const mesh = isRecord(resultData.model_mesh) ? resultData.model_mesh : null
+  if (mesh) {
+    return {
+      artifactUrl: readStringField(mesh, 'url'),
+      mimeType: readStringField(mesh, 'content_type') ?? 'model/gltf-binary',
+    }
+  }
+  // Fallback: some endpoints return { glb: { url } }
+  const glb = isRecord(resultData.glb) ? resultData.glb : null
+  if (glb) {
+    return {
+      artifactUrl: readStringField(glb, 'url'),
+      mimeType: 'model/gltf-binary',
+    }
+  }
+  return { artifactUrl: null, mimeType: 'model/gltf-binary' }
+}
+
+async function handleHyper3DRodinDispatch(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Invalid JSON body.' },
+      { status: 400 },
+    )
+  }
+
+  const runContext = parseModel3DRunContext(parsed)
+  if (!runContext || runContext.workflowId !== HYPER3D_RODIN_WORKFLOW_ID) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid Hyper3D Rodin run context.' },
+      { status: 400 },
+    )
+  }
+
+  const instance = await env.HYPER3D_RODIN_WORKFLOW.create({
+    id: runContext.runId,
+    params: runContext,
+  })
+
+  return jsonResponse({ workflowInstanceId: instance.id })
+}
+
+async function handleHunyuan3DDispatch(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawBody)
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Invalid JSON body.' },
+      { status: 400 },
+    )
+  }
+
+  const runContext = parseModel3DRunContext(parsed)
+  if (!runContext || runContext.workflowId !== HUNYUAN3D_WORKFLOW_ID) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid Hunyuan3D run context.' },
+      { status: 400 },
+    )
+  }
+
+  const instance = await env.HUNYUAN3D_WORKFLOW.create({
+    id: runContext.runId,
+    params: runContext,
+  })
+
+  return jsonResponse({ workflowInstanceId: instance.id })
 }
 
 async function handleLongVideoPipelineDispatch(
@@ -1034,6 +1540,252 @@ export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
   }
 }
 
+export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
+  ExecutionEnv,
+  WorkerModel3DRunContext
+> {
+  async run(
+    event: WorkflowEvent<WorkerModel3DRunContext>,
+    step: WorkflowStep,
+  ): Promise<unknown> {
+    const context = event.payload
+
+    try {
+      const rodin = await step.do(
+        'resolve-key-and-submit-rodin',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: Math.min(context.timeoutMs, 1_800_000),
+        },
+        async () => {
+          const apiKey = await resolveApiKeyModel3D(this.env, context)
+          return submitRodinJob(context, apiKey)
+        },
+      )
+
+      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
+        await step.sleep(`wait-rodin-${attempt}`, context.pollIntervalMs)
+
+        const pollResult = await step.do(
+          `poll-rodin-${attempt}`,
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          async () => {
+            const apiKey = await resolveApiKeyModel3D(this.env, context)
+            return pollRodinJob(rodin, apiKey)
+          },
+        )
+
+        if (pollResult.status === 'FAILED') {
+          throw new Error('Hyper3D Rodin reported failed status.')
+        }
+
+        if (pollResult.status === 'COMPLETED') {
+          const artifactUrl = await step.do(
+            'download-and-upload-glb',
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '120 seconds',
+            },
+            async () => {
+              const apiKey = await resolveApiKeyModel3D(this.env, context)
+              return downloadAndUploadRodinGlb(this.env, context, rodin, apiKey)
+            },
+          )
+
+          await step.do('callback-result', async () =>
+            emitModel3DCallback(this.env, context, {
+              artifactUrl,
+              mimeType: 'model/gltf-binary',
+              providerMetadata: { jobUuid: rodin.jobUuid },
+              requestCount: 1,
+            }),
+          )
+
+          return { status: 'COMPLETED', runId: context.runId }
+        }
+      }
+
+      throw new Error('Hyper3D Rodin polling timed out.')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Workflow execution failed.'
+
+      await step.do('callback-failure', async () =>
+        emitModel3DCallback(this.env, context, {
+          error: message,
+          providerMetadata: { workflowInstanceId: event.instanceId },
+        }),
+      )
+
+      return { status: 'FAILED', runId: context.runId }
+    }
+  }
+}
+
+export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
+  ExecutionEnv,
+  WorkerModel3DRunContext
+> {
+  async run(
+    event: WorkflowEvent<WorkerModel3DRunContext>,
+    step: WorkflowStep,
+  ): Promise<unknown> {
+    const context = event.payload
+
+    try {
+      const queue = await step.do(
+        'resolve-key-and-submit-fal',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: Math.min(context.timeoutMs, 1_800_000),
+        },
+        async () => {
+          const apiKey = await resolveApiKeyModel3D(this.env, context)
+          const queueBody = buildFalModel3DQueueRequest(context)
+          const endpoint = `https://queue.fal.run/${queueBody.endpointModelId}`
+
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              Authorization: `Key ${apiKey}`,
+              'Content-Type': JSON_CONTENT_TYPE,
+            },
+            body: JSON.stringify(queueBody.input),
+          })
+
+          if (!response.ok) {
+            throw new Error(
+              `fal.ai 3D queue submit failed with status ${response.status}`,
+            )
+          }
+
+          const data = (await response.json()) as Record<string, unknown>
+          const requestId = readStringField(data, 'request_id')
+          const statusUrl = readStringField(data, 'status_url')
+          const responseUrl = readStringField(data, 'response_url')
+
+          if (!requestId || !statusUrl || !responseUrl) {
+            throw new Error('fal.ai 3D queue submit returned invalid response.')
+          }
+
+          return { requestId, statusUrl, responseUrl }
+        },
+      )
+
+      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
+        await step.sleep(`wait-fal3d-${attempt}`, context.pollIntervalMs)
+
+        const pollResult = await step.do(
+          `poll-fal3d-${attempt}`,
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '30 seconds',
+          },
+          async () => {
+            const apiKey = await resolveApiKeyModel3D(this.env, context)
+            const statusResponse = await fetch(queue.statusUrl, {
+              headers: { Authorization: `Key ${apiKey}` },
+            })
+
+            if (!statusResponse.ok) {
+              throw new Error(
+                `fal.ai 3D status poll failed with status ${statusResponse.status}`,
+              )
+            }
+
+            const statusData = (await statusResponse.json()) as Record<
+              string,
+              unknown
+            >
+            const status = readStringField(statusData, 'status')
+
+            if (status && isFalQueueFailureStatus(status)) {
+              return { status: 'FAILED' as const }
+            }
+            if (status !== 'COMPLETED') {
+              return {
+                status: (status === 'IN_PROGRESS'
+                  ? 'IN_PROGRESS'
+                  : 'IN_QUEUE') as 'IN_PROGRESS' | 'IN_QUEUE',
+              }
+            }
+
+            const resultResponse = await fetch(queue.responseUrl, {
+              headers: { Authorization: `Key ${apiKey}` },
+            })
+
+            if (!resultResponse.ok) {
+              throw new Error(
+                `fal.ai 3D result fetch failed with status ${resultResponse.status}`,
+              )
+            }
+
+            const resultData = (await resultResponse.json()) as Record<
+              string,
+              unknown
+            >
+            const artifact = readFalModel3DResult(resultData)
+
+            if (!artifact.artifactUrl) {
+              throw new Error(
+                'fal.ai 3D result did not include a model mesh URL.',
+              )
+            }
+
+            return {
+              status: 'COMPLETED' as const,
+              artifactUrl: artifact.artifactUrl,
+              mimeType: artifact.mimeType,
+            }
+          },
+        )
+
+        if (pollResult.status === 'FAILED') {
+          throw new Error('fal.ai 3D reported failed status.')
+        }
+
+        if (
+          pollResult.status === 'COMPLETED' &&
+          'artifactUrl' in pollResult &&
+          pollResult.artifactUrl
+        ) {
+          await step.do('callback-result', async () =>
+            emitModel3DCallback(this.env, context, {
+              artifactUrl: pollResult.artifactUrl,
+              mimeType: pollResult.mimeType ?? 'model/gltf-binary',
+              providerMetadata: {
+                requestId: queue.requestId,
+                statusUrl: queue.statusUrl,
+                responseUrl: queue.responseUrl,
+              },
+              requestCount: 1,
+            }),
+          )
+
+          return { status: 'COMPLETED', runId: context.runId }
+        }
+      }
+
+      throw new Error('fal.ai 3D polling timed out.')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Workflow execution failed.'
+
+      await step.do('callback-failure', async () =>
+        emitModel3DCallback(this.env, context, {
+          error: message,
+          providerMetadata: { workflowInstanceId: event.instanceId },
+        }),
+      )
+
+      return { status: 'FAILED', runId: context.runId }
+    }
+  }
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -1059,6 +1811,14 @@ const executionWorker = {
       url.pathname === LONG_VIDEO_PIPELINE_PATH
     ) {
       return handleLongVideoPipelineDispatch(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === HYPER3D_RODIN_PATH) {
+      return handleHyper3DRodinDispatch(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === HUNYUAN3D_PATH) {
+      return handleHunyuan3DDispatch(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

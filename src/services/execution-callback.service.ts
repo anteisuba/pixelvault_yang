@@ -82,7 +82,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
 })
   .partial()
   .extend({
-    outputType: z.enum(['VIDEO', 'AUDIO']).optional(),
+    outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D']).optional(),
     referenceImageUrl: z.string().url().optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
     projectId: z.string().min(1).optional(),
@@ -240,10 +240,14 @@ async function finalizeExecutionResult(
   }
 
   const resultData = parseResultData(payload)
+  const metadata = parseWorkerJobMetadata(job.externalRequestId)
+  const outputType = metadata.outputType ?? 'VIDEO'
+
+  if (outputType === 'MODEL_3D') {
+    return finalizeModel3DResult(payload, resultData, job, metadata)
+  }
 
   try {
-    const metadata = parseWorkerJobMetadata(job.externalRequestId)
-    const outputType = metadata.outputType ?? 'VIDEO'
     const timer = new GenerationStageTimer({
       outputType,
       jobId: job.id,
@@ -414,5 +418,140 @@ async function finalizeExecutionResult(
       jobStatus: 'FAILED',
       action: 'failed',
     }
+  }
+}
+
+async function finalizeModel3DResult(
+  payload: ExecutionCallbackPayload,
+  resultData: ReturnType<typeof parseResultData>,
+  job: {
+    id: string
+    userId: string
+    status: string
+    adapterType: string
+    provider: string
+    modelId: string
+    prompt: string | null
+    externalRequestId: string | null
+    createdAt: Date
+  },
+  metadata: ReturnType<typeof parseWorkerJobMetadata>,
+): Promise<CallbackResult> {
+  if (!resultData.glbR2Key) {
+    const message = 'MODEL_3D callback missing glbR2Key'
+    await failGenerationJob(job.id, { errorMessage: message })
+    logger.error(
+      'Execution callback MODEL_3D finalization failed: missing glbR2Key',
+      {
+        runId: job.id,
+      },
+    )
+    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
+  }
+
+  const timer = new GenerationStageTimer({
+    outputType: 'MODEL_3D',
+    jobId: job.id,
+    modelId: job.modelId,
+    adapterType: job.adapterType,
+    provider: job.provider,
+  })
+  timer.setDuration(
+    GENERATION_STAGE.PROVIDER_WAIT_POLL,
+    Date.now() - job.createdAt.getTime(),
+  )
+
+  try {
+    const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
+      db.$transaction(async (tx) => {
+        const createdGeneration = await createGeneration(
+          {
+            url: resultData.artifactUrl,
+            storageKey: resultData.glbR2Key!,
+            mimeType: 'model/gltf-binary',
+            modelUrl: resultData.artifactUrl,
+            modelStorageKey: resultData.glbR2Key,
+            width: 0,
+            height: 0,
+            referenceImageUrl: metadata.referenceImageUrl,
+            prompt: job.prompt ?? '',
+            model: job.modelId,
+            provider: job.provider,
+            requestCount: resultData.requestCount ?? 1,
+            outputType: 'MODEL_3D',
+            userId: job.userId,
+            projectId: metadata.projectId,
+            isFreeGeneration: metadata.isFreeGeneration,
+            snapshot: withGenerationObservability(
+              {
+                executionCallback: {
+                  runId: payload.runId,
+                  ts: payload.ts,
+                  artifactUrl: resultData.artifactUrl,
+                  providerMetadata: resultData.providerMetadata,
+                  cost: resultData.cost,
+                },
+              },
+              timer,
+            ),
+          },
+          tx,
+        )
+
+        await completeGenerationJob(
+          job.id,
+          {
+            generationId: createdGeneration.id,
+            requestCount: resultData.requestCount ?? 1,
+          },
+          tx,
+        )
+
+        await createApiUsageEntry(
+          {
+            userId: job.userId,
+            generationId: createdGeneration.id,
+            generationJobId: job.id,
+            adapterType: job.adapterType,
+            provider: job.provider,
+            modelId: job.modelId,
+            requestCount: resultData.requestCount ?? 1,
+            inputImageCount: metadata.referenceImageUrl ? 1 : 0,
+            outputImageCount: 0,
+            durationMs: Date.now() - job.createdAt.getTime(),
+            wasSuccessful: true,
+          },
+          tx,
+        )
+
+        return createdGeneration
+      }),
+    )
+
+    logger.info('Execution callback MODEL_3D result finalized', {
+      runId: job.id,
+      generationId: generation.id,
+    })
+    timer.setContext({ generationId: generation.id })
+    timer.log({ runId: job.id })
+
+    return { runId: job.id, jobStatus: 'COMPLETED', action: 'completed' }
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'MODEL_3D result finalization failed'
+
+    await failGenerationJob(job.id, {
+      requestCount: resultData.requestCount,
+      errorMessage: message,
+    })
+
+    logger.error('Execution callback MODEL_3D result finalization failed', {
+      runId: job.id,
+      error: message,
+    })
+
+    return { runId: job.id, jobStatus: 'FAILED', action: 'failed' }
   }
 }

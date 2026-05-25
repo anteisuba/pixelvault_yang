@@ -6,6 +6,10 @@ import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type {
   Model3DGenerateType,
   Model3DPolygonType,
+  RodinMaterial,
+  RodinMeshMode,
+  RodinTextureMode,
+  RodinTier,
   Trellis2Resolution,
   Trellis2TextureSize,
 } from '@/constants/model-3d-generation'
@@ -150,6 +154,29 @@ export interface ProviderModel3DInput {
   removeBackground?: boolean
   /** Reproducibility seed */
   seed?: number
+  // ─── Hyper3D Rodin ────────────────────────────────────────────────
+  /** Rodin quality tier */
+  rodinTier?: RodinTier
+  /** Rodin mesh topology mode */
+  rodinMeshMode?: RodinMeshMode
+  /** Rodin texture shading mode */
+  rodinTextureMode?: RodinTextureMode
+  /** Rodin PBR material type */
+  rodinMaterial?: RodinMaterial
+  /** Rodin: pack more geometry detail */
+  rodinHighPack?: boolean
+  /** Rodin: T/A canonical pose alignment */
+  rodinTAPose?: boolean
+  /** Rodin: HD texture quality */
+  rodinHdTexture?: boolean
+  /** Rodin: texture delight / lighting removal */
+  rodinTextureDelight?: boolean
+  /** Rodin: polygon count override */
+  rodinQualityOverride?: number
+  /** Rodin: additional reference image URLs */
+  rodinAdditionalImageUrls?: string[]
+  /** Rodin: 3D bounding box [x_min, y_min, z_min, x_max, y_max, z_max] */
+  rodinBboxCondition?: number[]
 }
 
 export interface ProviderModel3DResult {

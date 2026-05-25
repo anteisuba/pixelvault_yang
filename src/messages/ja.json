@@ -767,7 +767,8 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5にはBusinessサブスクリプション付きのHyper3D APIキーが必要です。設定でキーを追加してください。",
     "rodinEstimatedCost": "推定 {credits} cr",
     "rodinEstimatedTime": "約{minutes}分",
-    "changeModelButton": "変更"
+    "changeModelButton": "変更",
+    "setupApiKeyButton": "API キーを設定"
   },
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",

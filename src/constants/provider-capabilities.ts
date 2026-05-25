@@ -29,7 +29,12 @@ export type ProviderCapability =
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
-const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+export const VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES = 14
+export const IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES = 3
+export const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
+export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
+  1 + FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX
 
 /** Range constraints for numeric parameters */
 export interface NumericRange {
@@ -151,12 +156,18 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     [AI_ADAPTER_TYPES.VOLCENGINE]: {
       capabilities: ['seed', 'guidanceScale', 'imageAnalysis'],
       guidanceScale: { min: 1, max: 10, step: 0.5, default: 8.0 },
-      maxReferenceImages: 10,
+      maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
       referenceImageMode: 'native',
     },
 
     [AI_ADAPTER_TYPES.FISH_AUDIO]: {
       capabilities: ['voiceSelection', 'speed', 'sampleRate'],
+    },
+
+    [AI_ADAPTER_TYPES.HYPER3D_RODIN]: {
+      capabilities: ['seed'] as const,
+      maxReferenceImages: 5,
+      referenceImageMode: 'native' as const,
     },
   }
 
@@ -171,7 +182,38 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
+  [AI_MODELS.FLUX_2_PRO]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.SEEDREAM_45]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.IDEOGRAM_3]: {
+    maxReferenceImages: IDEOGRAM_STYLE_REFERENCE_MAX_IMAGES,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.RECRAFT_V3]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.SEEDREAM_50_LITE]: {
+    maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
+  },
+  [AI_MODELS.SEEDREAM_40]: {
+    maxReferenceImages: VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
+  },
+  [AI_MODELS.FLUX_2_DEV]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.FLUX_2_SCHNELL]: {
+    maxReferenceImages: 0,
+  },
   [AI_MODELS.FLUX_LORA]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.FLUX_2_MAX]: {
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.RECRAFT_V4_PRO]: {
     maxReferenceImages: 0,
   },
   // Kontext: seed + lora, native reference image handling
@@ -213,6 +255,11 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   [AI_MODELS.TRIPOSR]: {
     capabilities: ['seed'] as const,
     maxReferenceImages: 1,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.RODIN_GEN_2_5]: {
+    capabilities: ['seed'] as const,
+    maxReferenceImages: 5,
     referenceImageMode: 'native' as const,
   },
 }

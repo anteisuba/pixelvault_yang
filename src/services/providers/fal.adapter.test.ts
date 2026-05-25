@@ -21,6 +21,43 @@ const BASE_INPUT = {
   apiKey: 'fal-test-key',
 }
 
+function mockFalImageQueue(
+  fetchMock: ReturnType<typeof vi.fn>,
+  requestId: string,
+  imageUrl = 'https://fal.run/output/img.png',
+) {
+  fetchMock
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          request_id: requestId,
+          status_url: `https://queue.fal.run/status/${requestId}`,
+          response_url: `https://queue.fal.run/result/${requestId}`,
+        }),
+        { status: 200 },
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 'COMPLETED' }), {
+        status: 200,
+      }),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          images: [
+            {
+              url: imageUrl,
+              width: 1024,
+              height: 1024,
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+}
+
 describe('falAdapter.generateImage', () => {
   it('returns an image URL from a successful queue response', async () => {
     const fetchMock = vi
@@ -135,6 +172,71 @@ describe('falAdapter.generateImage', () => {
         scale: 1,
       },
     ])
+  })
+
+  it.each([
+    [AI_MODELS.FLUX_2_PRO, 'fal-ai/flux-2-pro'],
+    [AI_MODELS.SEEDREAM_45, 'fal-ai/bytedance/seedream/v4.5/text-to-image'],
+    [AI_MODELS.FLUX_2_DEV, 'fal-ai/flux-2'],
+    [AI_MODELS.FLUX_2_SCHNELL, 'fal-ai/flux/schnell'],
+    [AI_MODELS.FLUX_2_MAX, 'fal-ai/flux-2-max'],
+    [AI_MODELS.RECRAFT_V4_PRO, 'fal-ai/recraft/v4/pro/text-to-image'],
+  ])(
+    'does not send reference images to FAL text-to-image endpoint %s',
+    async (modelId, externalModelId) => {
+      const fetchMock = vi.fn()
+      mockFalImageQueue(fetchMock, `req-${modelId}`)
+      vi.stubGlobal('fetch', fetchMock)
+
+      await falAdapter.generateImage({
+        ...BASE_INPUT,
+        modelId,
+        referenceImages: [
+          'https://cdn.example.com/a.png',
+          'https://cdn.example.com/b.png',
+        ],
+      })
+
+      const [endpoint, init] = fetchMock.mock.calls[0]
+      expect(String(endpoint)).toBe(
+        `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`,
+      )
+      const body = JSON.parse((init as RequestInit).body as string)
+      expect(body.image_url).toBeUndefined()
+      expect(body.image_urls).toBeUndefined()
+      expect(body.strength).toBeUndefined()
+    },
+  )
+
+  it('sends Ideogram style references through image_urls', async () => {
+    const fetchMock = vi.fn()
+    mockFalImageQueue(fetchMock, 'req-ideogram')
+    vi.stubGlobal('fetch', fetchMock)
+
+    await falAdapter.generateImage({
+      ...BASE_INPUT,
+      modelId: AI_MODELS.IDEOGRAM_3,
+      referenceImages: [
+        'https://cdn.example.com/a.png',
+        'https://cdn.example.com/b.png',
+        'https://cdn.example.com/c.png',
+        'https://cdn.example.com/d.png',
+      ],
+      advancedParams: { referenceStrength: 0.9 },
+    })
+
+    const [endpoint, init] = fetchMock.mock.calls[0]
+    expect(String(endpoint)).toBe(
+      `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/fal-ai/ideogram/v3`,
+    )
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.image_urls).toEqual([
+      'https://cdn.example.com/a.png',
+      'https://cdn.example.com/b.png',
+      'https://cdn.example.com/c.png',
+    ])
+    expect(body.image_url).toBeUndefined()
+    expect(body.strength).toBeUndefined()
   })
 
   it('throws ProviderError with content_policy_violation message on policy error', async () => {

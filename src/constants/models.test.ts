@@ -50,6 +50,10 @@ describe('models', () => {
     expect(getModelFamily('pika-v2.2')).toBe('Pika')
   })
 
+  it('resolves 3D model IDs for i18n labels', () => {
+    expect(getModelMessageKey(AI_MODELS.RODIN_GEN_2_5)).toBe('rodinGen25')
+  })
+
   it('keeps retired models resolvable but hidden from available lists', () => {
     const availableModelIds = getAvailableModels().map((model) => model.id)
     const availableImageModelIds = getAvailableImageModels().map(
@@ -110,7 +114,7 @@ describe('models', () => {
     expect(isFreeTierModel(AI_MODELS.FAL_F5_TTS)).toBe(false)
   })
 
-  it('keeps Fish Audio as the only active audio generation model', () => {
+  it('keeps supported audio generation models active', () => {
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
     ])

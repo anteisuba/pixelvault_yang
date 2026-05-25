@@ -767,7 +767,8 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 需要持有 Business 订阅的 Hyper3D API Key。请在设置中添加。",
     "rodinEstimatedCost": "预计 {credits} 积分",
     "rodinEstimatedTime": "约 {minutes} 分钟",
-    "changeModelButton": "切换"
+    "changeModelButton": "切换",
+    "setupApiKeyButton": "配置 API Key"
   },
   "MultiViewGenerate": {
     "success": "侧视图已准备好。",

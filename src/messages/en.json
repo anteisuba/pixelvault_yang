@@ -767,7 +767,8 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 requires a Hyper3D API key with a Business subscription. Add your key in Settings.",
     "rodinEstimatedCost": "Est. {credits} cr",
     "rodinEstimatedTime": "~{minutes} min",
-    "changeModelButton": "Change"
+    "changeModelButton": "Change",
+    "setupApiKeyButton": "Set up API Key"
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",

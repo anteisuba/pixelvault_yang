@@ -58,6 +58,16 @@ vi.mock('@/services/image-3d-prep.service', () => ({
   prepare3DSourceImage: vi.fn(),
 }))
 
+vi.mock('@/services/execution-worker.service', () => ({
+  buildInternalUrl: vi.fn((path: string) => `https://app.test${path}`),
+  dispatchHyper3DRodinWorkerRun: vi.fn().mockResolvedValue({
+    workflowInstanceId: 'wf-rodin-1',
+  }),
+  dispatchHunyuan3DWorkerRun: vi.fn().mockResolvedValue({
+    workflowInstanceId: 'wf-hunyuan-1',
+  }),
+}))
+
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
@@ -113,6 +123,10 @@ import {
   streamUploadToR2,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
+import {
+  dispatchHunyuan3DWorkerRun,
+  dispatchHyper3DRodinWorkerRun,
+} from '@/services/execution-worker.service'
 
 const mockFindJob = vi.mocked(db.generationJob.findUnique)
 const mockUpdateJob = vi.mocked(db.generationJob.update)
@@ -130,6 +144,8 @@ const mockFailJob = vi.mocked(failGenerationJob)
 const mockGenerateStorageKey = vi.mocked(generateStorageKey)
 const mockStreamUploadToR2 = vi.mocked(streamUploadToR2)
 const mockUploadBufferedHttpToR2 = vi.mocked(uploadBufferedHttpToR2)
+const mockDispatchHunyuan3D = vi.mocked(dispatchHunyuan3DWorkerRun)
+const mockDispatchHyper3DRodin = vi.mocked(dispatchHyper3DRodinWorkerRun)
 
 const RUNNING_JOB = {
   id: 'job-1',
@@ -226,13 +242,8 @@ describe('check3DGenerationStatusForUserId', () => {
   })
 
   it.each([AI_MODELS.HUNYUAN3D_V3, AI_MODELS.HUNYUAN3D_V31_PRO])(
-    'submits %s mesh-first mode as a Geometry queue job',
+    'dispatches %s to the Hunyuan3D Worker (mesh-first inline flow removed)',
     async (modelId) => {
-      const submitModel3DToQueue = vi.fn().mockResolvedValue({
-        requestId: 'mesh-req',
-        statusUrl: 'https://queue.fal.run/status/mesh-req',
-        responseUrl: 'https://queue.fal.run/result/mesh-req',
-      })
       mockResolveRoute.mockResolvedValue({
         modelId,
         adapterType: AI_ADAPTER_TYPES.FAL,
@@ -241,7 +252,6 @@ describe('check3DGenerationStatusForUserId', () => {
         resolvedApiKeyId: 'fal-key-id',
         creditCost: 5,
       })
-      mockGetProviderAdapter.mockReturnValue({ submitModel3DToQueue } as never)
 
       const result = await submit3DGenerationForUserId('user-1', {
         imageUrl: 'https://cdn.test/source.png',
@@ -253,34 +263,30 @@ describe('check3DGenerationStatusForUserId', () => {
         prompt: 'source prompt',
       })
 
-      expect(result).toEqual({ jobId: 'job-submit', requestId: 'mesh-req' })
-      expect(submitModel3DToQueue).toHaveBeenCalledWith(
+      expect(result).toEqual({ jobId: 'job-submit', requestId: 'job-submit' })
+      expect(mockDispatchHunyuan3D).toHaveBeenCalledTimes(1)
+      expect(mockDispatchHunyuan3D).toHaveBeenCalledWith(
         expect.objectContaining({
-          imageUrl: 'https://cdn.test/prepared.png',
-          modelId,
-          enablePbr: false,
-          generateType: MODEL_3D_GENERATE_TYPE.GEOMETRY,
-          faceCount: 1_000_000,
+          workflowId: 'HUNYUAN3D',
+          outputType: 'MODEL_3D',
+          userId: 'user-1',
+          providerInput: expect.objectContaining({
+            imageUrl: 'https://cdn.test/prepared.png',
+            modelId,
+            enablePbr: true,
+            faceCount: 1_000_000,
+          }),
         }),
       )
       const updateArg = mockUpdateJob.mock.calls[0][0] as {
         data: { externalRequestId: string }
       }
       const meta = JSON.parse(updateArg.data.externalRequestId) as {
-        mode: string
-        stage: string
-        mesh: { requestId: string }
-        preparedImageUrl: string
-        options: { enablePbr: boolean; faceCount: number }
+        workerDispatched: boolean
+        sourceImageUrl: string
       }
-      expect(meta.mode).toBe(MODEL_3D_PREVIEW_MODE.MESH_FIRST)
-      expect(meta.stage).toBe(MODEL_3D_JOB_STAGE.MESH_RUNNING)
-      expect(meta.mesh.requestId).toBe('mesh-req')
-      expect(meta.preparedImageUrl).toBe('https://cdn.test/prepared.png')
-      expect(meta.options).toMatchObject({
-        enablePbr: true,
-        faceCount: 1_000_000,
-      })
+      expect(meta.workerDispatched).toBe(true)
+      expect(meta.sourceImageUrl).toBe('https://cdn.test/source.png')
     },
   )
 

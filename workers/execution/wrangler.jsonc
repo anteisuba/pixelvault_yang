@@ -8,7 +8,14 @@
   },
   "vars": {
     "INTERNAL_CALLBACK_URL": "https://www.anteisuba.com/api/internal/execution/callback",
+    "R2_PUBLIC_URL": "https://cdn.anteisuba.com",
   },
+  "r2_buckets": [
+    {
+      "binding": "GENERATION_BUCKET",
+      "bucket_name": "pixelvault-generations",
+    },
+  ],
   "workflows": [
     {
       "name": "pixelvault-cinematic-short-video",
@@ -19,6 +26,16 @@
       "name": "pixelvault-long-video-pipeline",
       "binding": "LONG_VIDEO_PIPELINE_WORKFLOW",
       "class_name": "LongVideoPipelineWorkflow",
+    },
+    {
+      "name": "pixelvault-hyper3d-rodin",
+      "binding": "HYPER3D_RODIN_WORKFLOW",
+      "class_name": "Hyper3DRodinWorkflow",
+    },
+    {
+      "name": "pixelvault-hunyuan3d",
+      "binding": "HUNYUAN3D_WORKFLOW",
+      "class_name": "Hunyuan3DWorkflow",
     },
   ],
 }

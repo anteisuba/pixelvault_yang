@@ -186,6 +186,15 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
     [],
   )
 
+  const handleTidyLayout = useCallback(() => {
+    if (workflow.nodes.length === 0) return
+    workflow.tidyLayout()
+    toast.success(t('toasts.layoutTidied'), {
+      duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+      position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+    })
+  }, [t, workflow])
+
   const handleTopbarAddClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
@@ -825,6 +834,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             projects={workflow.projects}
             currentProjectId={workflow.currentProjectId}
             onAddClick={handleTopbarAddClick}
+            onArrange={handleTidyLayout}
             onCreateProject={handleCreateProject}
             onRenameProject={handleRenameProject}
             onDeleteProject={handleDeleteProject}

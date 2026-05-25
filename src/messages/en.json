@@ -3080,6 +3080,7 @@
     "minimapTitle": "Minimap",
     "toasts": {
       "notImplemented": "Not implemented yet.",
+      "layoutTidied": "Canvas tidied.",
       "nodesDeleted": "{count, plural, one {Deleted # node.} other {Deleted # nodes.}}",
       "generated": "Agent breakdown generated.",
       "scriptBreakdownFailed": "Agent breakdown failed.",

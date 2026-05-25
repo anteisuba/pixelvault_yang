@@ -18,6 +18,8 @@ import {
   NODE_STUDIO_ID_PREFIXES,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_PROJECTS,
+  NODE_STUDIO_VOICE_PROFILE,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
@@ -39,6 +41,7 @@ import {
   type NodeWorkflowState,
   type NodeWorkflowStorageSnapshot,
 } from '@/types/node-workflow'
+import { applyDagreLayout } from '@/lib/node-workflow-layout'
 import type {
   ScriptBreakdownPlanner,
   ScriptBreakdownResult,
@@ -105,6 +108,11 @@ interface UseNodeWorkflowValue extends NodeWorkflowActions {
   onNodesChange: OnNodesChange<NodeWorkflowNode>
   onEdgesChange: OnEdgesChange<NodeWorkflowEdge>
   onConnect(connection: Connection): void
+  /**
+   * Re-flow nodes via dagre. Pure layout — does not touch node data, edges,
+   * or any project metadata, just rewrites positions.
+   */
+  tidyLayout(): void
 }
 
 let fallbackIdSequence = 0
@@ -313,6 +321,7 @@ function createDefaultNodeData(
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.video,
+      [NODE_WORKFLOW_FIELD_IDS.audioIntent]: '',
       [NODE_WORKFLOW_FIELD_IDS.camera]: '',
       [NODE_WORKFLOW_FIELD_IDS.duration]: '',
       [NODE_WORKFLOW_FIELD_IDS.motion]: '',
@@ -325,7 +334,11 @@ function createDefaultNodeData(
       status: NODE_STATUS_IDS.idle,
       generationStatus: NODE_GENERATION_STATUS_IDS.idle,
       mediaKind: NODE_MEDIA_KIND_IDS.audio,
-      [NODE_WORKFLOW_FIELD_IDS.dialogue]: '',
+      voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.manual,
+      [NODE_WORKFLOW_FIELD_IDS.voiceId]: '',
+      [NODE_WORKFLOW_FIELD_IDS.voiceName]: '',
+      [NODE_WORKFLOW_FIELD_IDS.voiceProvider]:
+        NODE_STUDIO_VOICE_PROFILE.providerDefault,
       [NODE_WORKFLOW_FIELD_IDS.voiceEmotion]: '',
       [NODE_WORKFLOW_FIELD_IDS.voiceStyle]: '',
     }
@@ -960,6 +973,19 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  const tidyLayout = useCallback(() => {
+    setWorkflowStorage((currentStorage) =>
+      patchCurrentProjectState(
+        currentStorage,
+        defaultProjectName,
+        (currentState) => ({
+          ...currentState,
+          nodes: applyDagreLayout(currentState.nodes, currentState.edges),
+        }),
+      ),
+    )
+  }, [defaultProjectName, setWorkflowStorage])
+
   const onConnect = useCallback(
     (connection: Connection) => {
       const edgeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge)
@@ -1020,6 +1046,7 @@ export function useNodeWorkflow({
       onNodesChange,
       onEdgesChange,
       onConnect,
+      tidyLayout,
     }),
     [
       addNode,
@@ -1038,6 +1065,7 @@ export function useNodeWorkflow({
       state,
       spawnCharactersFromBreakdown,
       switchProject,
+      tidyLayout,
       updateScriptBreakdown,
       updateSeedancePromptPlan,
       updateNodeData,

@@ -3080,6 +3080,7 @@
     "minimapTitle": "ミニマップ",
     "toasts": {
       "notImplemented": "まだ実装されていません。",
+      "layoutTidied": "キャンバスを整理しました。",
       "nodesDeleted": "{count} 個のノードを削除しました。",
       "generated": "Agent の分解を生成しました。",
       "scriptBreakdownFailed": "Agent の分解に失敗しました。",

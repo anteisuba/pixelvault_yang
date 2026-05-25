@@ -36,6 +36,7 @@ interface CanvasTopBarProps {
   projects: NodeWorkflowProjectSummary[]
   currentProjectId: string
   onAddClick?: (event: MouseEvent<HTMLButtonElement>) => void
+  onArrange?: () => void
   onCreateProject: () => void
   onRenameProject: () => void
   onDeleteProject: () => void
@@ -49,6 +50,7 @@ export function CanvasTopBar({
   projects,
   currentProjectId,
   onAddClick,
+  onArrange,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
@@ -181,8 +183,10 @@ export function CanvasTopBar({
           size="icon-sm"
           variant="ghost"
           aria-label={t('topbar.arrange')}
-          onClick={showPlaceholderToast}
-          className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          title={t('topbar.arrange')}
+          onClick={onArrange ?? showPlaceholderToast}
+          disabled={nodeCount === 0}
+          className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground disabled:opacity-40"
         >
           <LayoutTemplate className="size-4" />
         </Button>

@@ -40,6 +40,7 @@ import {
   getNodeMediaUrl,
   isKeyframeNode,
   isShotTextNode,
+  isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
 } from '@/lib/node-workflow-graph'
@@ -61,7 +62,7 @@ type AudioCalloutState = 'hidden' | 'ignored' | 'cloning'
 type VideoAccentState = 'seedance' | 'ok'
 
 interface UpstreamGroup {
-  key: 'visual' | 'keyframe' | 'text' | 'voice'
+  key: 'visual' | 'keyframe' | 'video' | 'text' | 'voice'
   icon: ReactNode
   nodes: NodeWorkflowNode[]
 }
@@ -218,6 +219,11 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         nodes: incomingNodes.filter(isKeyframeNode),
       },
       {
+        key: 'video',
+        icon: <Video className="size-3.5 text-node-amber" />,
+        nodes: incomingNodes.filter(isVideoSourceNode),
+      },
+      {
         key: 'text',
         icon: <Route className="size-3.5 text-stone-200" />,
         nodes: incomingNodes.filter(isShotTextNode),
@@ -264,6 +270,9 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
   // Per-group "will this actually be consumed by the chosen model?" flag.
   // Mirrors the harvest rules in StudioNodeWorkbench.handleGenerateMediaNode
   // so users see what the picker really receives, not just what's connected.
+  // Reference-to-video endpoints accept video_urls (the only place where
+  // upstream video clips are consumed today).
+  const isReferenceEndpoint = audioCapability.mode === 'reference'
   const groupEffectiveByKey: Record<UpstreamGroup['key'], boolean> = useMemo(
     () => ({
       visual:
@@ -276,6 +285,15 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         upstreamGroups
           .find((g) => g.key === 'keyframe')
           ?.nodes.some((n) => Boolean(getNodeMediaUrl(n.data))) === true,
+      video:
+        isReferenceEndpoint &&
+        upstreamGroups
+          .find((g) => g.key === 'video')
+          ?.nodes.some((n) =>
+            typeof n.data.mediaUrl === 'string'
+              ? n.data.mediaUrl.trim().length > 0
+              : false,
+          ) === true,
       text:
         upstreamGroups
           .find((g) => g.key === 'text')
@@ -283,7 +301,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
             Boolean(buildNodeWorkflowPrompt(n.type, n.data).trim()),
           ) === true,
       voice:
-        audioCapability.mode === 'reference' &&
+        isReferenceEndpoint &&
         upstreamGroups
           .find((g) => g.key === 'voice')
           ?.nodes.some((n) =>
@@ -292,7 +310,7 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
               : false,
           ) === true,
     }),
-    [audioCapability.mode, maxReferences, upstreamGroups],
+    [isReferenceEndpoint, maxReferences, upstreamGroups],
   )
 
   const referenceSwitchOption = useMemo(() => {

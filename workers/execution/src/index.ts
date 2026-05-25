@@ -79,6 +79,8 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     referenceImages?: string[]
     /** Reference audio clips for Seedance reference-to-video voice cloning. */
     audioUrls?: string[]
+    /** Reference video clips for Seedance reference-to-video. */
+    videoUrls?: string[]
     negativePrompt?: string
     resolution?: string
     i2vModelId?: string
@@ -547,6 +549,11 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
         : undefined,
       audioUrls: Array.isArray(providerInput.audioUrls)
         ? providerInput.audioUrls.filter(
+            (v): v is string => typeof v === 'string' && v.trim().length > 0,
+          )
+        : undefined,
+      videoUrls: Array.isArray(providerInput.videoUrls)
+        ? providerInput.videoUrls.filter(
             (v): v is string => typeof v === 'string' && v.trim().length > 0,
           )
         : undefined,

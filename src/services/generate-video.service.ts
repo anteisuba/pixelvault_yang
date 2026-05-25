@@ -199,6 +199,7 @@ export async function submitVideoGenerationForUserId(
               referenceImage: input.referenceImage,
               referenceImages: input.referenceImages,
               audioUrls: input.audioUrls,
+              videoUrls: input.videoUrls,
               negativePrompt: input.negativePrompt,
               resolution: input.resolution,
               i2vModelId: modelConfig?.i2vModelId,
@@ -370,6 +371,10 @@ async function submitFalVideoWorkerRun(params: {
       audioUrls:
         input.audioUrls && input.audioUrls.length > 0
           ? input.audioUrls
+          : undefined,
+      videoUrls:
+        input.videoUrls && input.videoUrls.length > 0
+          ? input.videoUrls
           : undefined,
       negativePrompt: input.negativePrompt,
       resolution: input.resolution,

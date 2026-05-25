@@ -24,6 +24,8 @@ export interface FalWorkerVideoRequestContext {
     referenceImages?: string[]
     /** Reference audio clips for Seedance reference-to-video voice cloning. */
     audioUrls?: string[]
+    /** Reference video clips for Seedance reference-to-video. */
+    videoUrls?: string[]
     negativePrompt?: string
     resolution?: string
     i2vModelId?: string
@@ -377,10 +379,22 @@ function promptReferencesAudio(prompt: string): boolean {
   return /@Audio[1-9]\b/.test(prompt)
 }
 
+function promptReferencesVideo(prompt: string): boolean {
+  return /@Video[1-9]\b/.test(prompt)
+}
+
 function buildAudioReferencePrefix(audioCount: number): string {
   const refs: string[] = []
   for (let i = 1; i <= audioCount && i <= 3; i += 1) {
     refs.push(`@Audio${i}`)
+  }
+  return refs.join(' ')
+}
+
+function buildVideoReferencePrefix(videoCount: number): string {
+  const refs: string[] = []
+  for (let i = 1; i <= videoCount && i <= 3; i += 1) {
+    refs.push(`@Video${i}`)
   }
   return refs.join(' ')
 }
@@ -394,12 +408,30 @@ function buildSeedanceReference(
     providerInput.audioUrls && providerInput.audioUrls.length > 0
       ? providerInput.audioUrls.slice(0, 3)
       : []
+  const videoUrls =
+    providerInput.videoUrls && providerInput.videoUrls.length > 0
+      ? providerInput.videoUrls.slice(0, 3)
+      : []
 
-  const basePrompt = providerInput.prompt
-  const prompt =
-    audioUrls.length > 0 && !promptReferencesAudio(basePrompt)
-      ? `${buildAudioReferencePrefix(audioUrls.length)} ${basePrompt}`.trim()
-      : basePrompt
+  // Reference endpoint mandates image_urls (at least 1, up to 9). Use the
+  // multi-reference array when provided, falling back to wrapping the single
+  // referenceImage for legacy single-image callers.
+  const imageRefs =
+    providerInput.referenceImages && providerInput.referenceImages.length > 0
+      ? providerInput.referenceImages
+      : [requireReferenceImage(context)]
+  // fal cross-modality cap ≤ 12 total — trim image_urls first so the
+  // user-supplied audio + video references are never silently dropped.
+  const maxImages = Math.max(1, 12 - videoUrls.length - audioUrls.length)
+  const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
+
+  let prompt = providerInput.prompt
+  if (audioUrls.length > 0 && !promptReferencesAudio(prompt)) {
+    prompt = `${buildAudioReferencePrefix(audioUrls.length)} ${prompt}`.trim()
+  }
+  if (videoUrls.length > 0 && !promptReferencesVideo(prompt)) {
+    prompt = `${buildVideoReferencePrefix(videoUrls.length)} ${prompt}`.trim()
+  }
 
   const body: Record<string, unknown> = {
     prompt,
@@ -419,14 +451,10 @@ function buildSeedanceReference(
     generate_audio:
       readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ?? true,
   }
-  // Reference endpoint mandates image_urls (at least 1, up to 9). Use the
-  // multi-reference array when provided, falling back to the single
-  // referenceImage for callers that haven't yet been wired for multi-ref.
-  const refs =
-    providerInput.referenceImages && providerInput.referenceImages.length > 0
-      ? providerInput.referenceImages
-      : [requireReferenceImage(context)]
-  body.image_urls = refs.slice(0, 9)
+  body.image_urls = imageUrls
+  if (videoUrls.length > 0) {
+    body.video_urls = videoUrls
+  }
   if (audioUrls.length > 0) {
     body.audio_urls = audioUrls
   }

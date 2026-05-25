@@ -1,4 +1,8 @@
-import { NODE_TYPE_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_BY_NODE_TYPE,
+  NODE_MEDIA_KIND_IDS,
+  NODE_TYPE_IDS,
+} from '@/constants/node-types'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -25,6 +29,14 @@ export function isShotTextNode(node: NodeWorkflowNode): boolean {
 
 export function isVoiceProfileNode(node: NodeWorkflowNode): boolean {
   return node.type === NODE_TYPE_IDS.voice
+}
+
+/**
+ * A node that produces video output (currently Seedance variants). Used as a
+ * reference video source for downstream Seedance reference-to-video nodes.
+ */
+export function isVideoSourceNode(node: NodeWorkflowNode): boolean {
+  return NODE_MEDIA_KIND_BY_NODE_TYPE[node.type] === NODE_MEDIA_KIND_IDS.video
 }
 
 export function getNodeMediaUrl(
@@ -77,6 +89,29 @@ export function harvestUpstreamImageUrls(
   for (const node of upstreamNodes) {
     if (!isVisualReferenceNode(node)) continue
     pushUnique(result, getNodeMediaUrl(node.data))
+  }
+
+  return result
+}
+
+/**
+ * Harvest reference-video URLs from upstream video-source nodes (e.g. a
+ * Seedance node whose generation has resolved). Only their `mediaUrl` is
+ * read — `imageUrl` is treated as a preview poster and ignored. Empty and
+ * duplicate entries are dropped. Callers should `.slice(0, 3)` against the
+ * fal cap.
+ */
+export function harvestUpstreamVideoUrls(
+  upstreamNodes: readonly NodeWorkflowNode[],
+): string[] {
+  const result: string[] = []
+
+  for (const node of upstreamNodes) {
+    if (!isVideoSourceNode(node)) continue
+    const url =
+      typeof node.data.mediaUrl === 'string' ? node.data.mediaUrl.trim() : ''
+    if (!url) continue
+    pushUnique(result, url)
   }
 
   return result

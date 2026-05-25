@@ -361,6 +361,13 @@ export const GenerateVideoRequestSchema = z.object({
    * the Seedance 2.0 reference-to-video endpoints). Other models ignore.
    */
   audioUrls: z.array(z.string().trim().min(1)).max(3).optional(),
+  /**
+   * Reference video URLs (mp4 etc., combined duration 2-15s, ≤50MB total,
+   * up to 3 clips). Only consumed by the Seedance 2.0 reference-to-video
+   * endpoints; other models ignore. Passing a video reference also unlocks
+   * a 40% price discount on Seedance Reference.
+   */
+  videoUrls: z.array(z.string().trim().min(1)).max(3).optional(),
   negativePrompt: z.string().trim().max(2000).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -1129,6 +1136,8 @@ const WorkerVideoProviderInputSchema = z.object({
   referenceImages: z.array(z.string()).max(3).optional(),
   /** Reference audio clips for Seedance reference-to-video voice cloning. */
   audioUrls: z.array(z.string()).max(3).optional(),
+  /** Reference video clips for Seedance reference-to-video. */
+  videoUrls: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   i2vModelId: z.string().optional(),

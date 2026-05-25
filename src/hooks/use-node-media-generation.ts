@@ -34,6 +34,8 @@ interface NodeMediaGenerationInput {
   referenceImages?: string[]
   /** Reference audio clips for voice cloning (Seedance reference-to-video). */
   audioUrls?: string[]
+  /** Reference video clips (Seedance reference-to-video). */
+  videoUrls?: string[]
   advancedParams?: AdvancedParams
 }
 
@@ -179,6 +181,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             duration: VIDEO_GENERATION.DEFAULT_DURATION,
             referenceImages: input.referenceImages,
             audioUrls: input.audioUrls,
+            videoUrls: input.videoUrls,
           })
 
           if (!response.success || !response.data) {

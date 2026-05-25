@@ -2829,6 +2829,7 @@
       "upstreamGroups": {
         "visual": "角色 / 背景 / 镜头图",
         "keyframe": "关键帧",
+        "video": "参考视频",
         "text": "镜头文本",
         "voice": "音色"
       },
@@ -2836,6 +2837,7 @@
       "upstreamEmpty": {
         "visual": "还没有连接图像节点。",
         "keyframe": "还没有连接关键帧。",
+        "video": "还没有连接参考视频。带视频参考可享 6 折价格。",
         "text": "还没有连接镜头文本。",
         "voice": "还没有连接音色节点。"
       },

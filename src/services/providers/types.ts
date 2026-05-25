@@ -86,6 +86,11 @@ export interface ProviderQueueSubmitInput {
    * models with audio.mode === 'reference' (Seedance 2.0 reference-to-video).
    */
   audioUrls?: string[]
+  /**
+   * Reference video clips. Consumed only by Seedance 2.0 reference-to-video
+   * (unlocks the 0.6x price multiplier).
+   */
+  videoUrls?: string[]
   negativePrompt?: string
   resolution?: VideoResolution
   i2vModelId?: string

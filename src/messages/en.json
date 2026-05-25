@@ -2829,6 +2829,7 @@
       "upstreamGroups": {
         "visual": "Characters / backgrounds / shots",
         "keyframe": "Keyframes",
+        "video": "Reference videos",
         "text": "Shot text",
         "voice": "Voices"
       },
@@ -2836,6 +2837,7 @@
       "upstreamEmpty": {
         "visual": "No image nodes connected.",
         "keyframe": "No keyframes connected.",
+        "video": "No reference videos connected. Adding one unlocks 40% off on Seedance Reference.",
         "text": "No shot text connected.",
         "voice": "No voice nodes connected."
       },

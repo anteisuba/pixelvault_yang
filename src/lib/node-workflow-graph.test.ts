@@ -8,9 +8,11 @@ import {
   getUpstreamNodes,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
+  harvestUpstreamVideoUrls,
   harvestUpstreamVoiceAudioUrls,
   isKeyframeNode,
   isShotTextNode,
+  isVideoSourceNode,
   isVisualReferenceNode,
   isVoiceProfileNode,
   mergePromptWithUpstreamText,
@@ -168,6 +170,62 @@ describe('harvestUpstreamImageUrls', () => {
       makeNode('t', NODE_TYPE_IDS.shotText, { status: 'idle' }),
     ]
     expect(harvestUpstreamImageUrls(upstream)).toEqual([])
+  })
+})
+
+describe('isVideoSourceNode', () => {
+  it('matches seedance nodes (video kind)', () => {
+    expect(isVideoSourceNode(makeNode('s', NODE_TYPE_IDS.seedance))).toBe(true)
+  })
+
+  it('rejects image and audio nodes', () => {
+    expect(isVideoSourceNode(makeNode('c', NODE_TYPE_IDS.characterImage))).toBe(
+      false,
+    )
+    expect(isVideoSourceNode(makeNode('v', NODE_TYPE_IDS.voice))).toBe(false)
+    expect(isVideoSourceNode(makeNode('t', NODE_TYPE_IDS.shotText))).toBe(false)
+  })
+})
+
+describe('harvestUpstreamVideoUrls', () => {
+  it('collects mediaUrl from upstream video-source nodes', () => {
+    const upstream = [
+      makeNode('s1', NODE_TYPE_IDS.seedance, {
+        mediaUrl: 'https://cdn/clip-a.mp4',
+      }),
+      makeNode('s2', NODE_TYPE_IDS.seedance, {
+        mediaUrl: 'https://cdn/clip-b.mp4',
+      }),
+    ]
+    expect(harvestUpstreamVideoUrls(upstream)).toEqual([
+      'https://cdn/clip-a.mp4',
+      'https://cdn/clip-b.mp4',
+    ])
+  })
+
+  it('skips video nodes without mediaUrl and dedupes', () => {
+    const upstream = [
+      makeNode('s1', NODE_TYPE_IDS.seedance),
+      makeNode('s2', NODE_TYPE_IDS.seedance, {
+        mediaUrl: '  https://cdn/clip.mp4  ',
+      }),
+      makeNode('s3', NODE_TYPE_IDS.seedance, {
+        mediaUrl: 'https://cdn/clip.mp4',
+      }),
+    ]
+    expect(harvestUpstreamVideoUrls(upstream)).toEqual(['https://cdn/clip.mp4'])
+  })
+
+  it('ignores non-video upstream nodes', () => {
+    const upstream = [
+      makeNode('img', NODE_TYPE_IDS.characterImage, {
+        mediaUrl: 'https://cdn/x.png',
+      }),
+      makeNode('v', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+      }),
+    ]
+    expect(harvestUpstreamVideoUrls(upstream)).toEqual([])
   })
 })
 

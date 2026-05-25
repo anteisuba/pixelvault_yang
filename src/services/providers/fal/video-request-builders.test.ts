@@ -577,6 +577,102 @@ describe('buildFalVideoQueueRequest', () => {
       expect(result.input.prompt).toBe(`@Audio1 @Audio2 @Audio3 ${PROMPT}`)
     })
   })
+
+  describe('video_urls + @VideoN injection on Seedance Reference', () => {
+    it('emits video_urls and prepends @Video1 when videoUrls is set', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        videoUrls: ['https://example.com/clip-a.mp4'],
+      })
+
+      expect(result.input.video_urls).toEqual([
+        'https://example.com/clip-a.mp4',
+      ])
+      expect(result.input.prompt).toBe(`@Video1 ${PROMPT}`)
+    })
+
+    it('caps video_urls at 3 and prepends @Video1 @Video2 @Video3', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, REF),
+        videoUrls: [
+          'https://example.com/a.mp4',
+          'https://example.com/b.mp4',
+          'https://example.com/c.mp4',
+          'https://example.com/d.mp4',
+        ],
+      })
+
+      expect((result.input.video_urls as string[]).length).toBe(3)
+      expect(result.input.prompt).toBe(`@Video1 @Video2 @Video3 ${PROMPT}`)
+    })
+
+    it('leaves the prompt alone when the user already wrote @Video1', () => {
+      const userPrompt = 'continue from @Video1 with new motion'
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        prompt: userPrompt,
+        videoUrls: ['https://example.com/clip.mp4'],
+      })
+
+      expect(result.input.prompt).toBe(userPrompt)
+    })
+
+    it('omits video_urls when not provided', () => {
+      const result = buildFalVideoQueueRequest(
+        buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+      )
+
+      expect(result.input.video_urls).toBeUndefined()
+    })
+
+    it('ignores videoUrls on non-Reference Seedance endpoints', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_FAST, REF),
+        videoUrls: ['https://example.com/clip.mp4'],
+      })
+
+      expect(result.input.video_urls).toBeUndefined()
+    })
+
+    it('combines @AudioN and @VideoN prefixes when both are supplied', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioUrls: ['https://example.com/voice.mp3'],
+        videoUrls: ['https://example.com/clip.mp4'],
+      })
+
+      expect(result.input.prompt).toBe(`@Video1 @Audio1 ${PROMPT}`)
+      expect(result.input.audio_urls).toEqual(['https://example.com/voice.mp3'])
+      expect(result.input.video_urls).toEqual(['https://example.com/clip.mp4'])
+    })
+
+    it('trims image_urls before video/audio when total exceeds fal cap of 12', () => {
+      // 9 images + 3 videos + 3 audio = 15 → must trim down to 12. Keep all
+      // user-supplied refs (video + audio), trim images to 12 - 3 - 3 = 6.
+      const tenImages = Array.from(
+        { length: 9 },
+        (_, i) => `https://example.com/img-${i}.png`,
+      )
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        referenceImages: tenImages,
+        audioUrls: [
+          'https://example.com/a.mp3',
+          'https://example.com/b.mp3',
+          'https://example.com/c.mp3',
+        ],
+        videoUrls: [
+          'https://example.com/x.mp4',
+          'https://example.com/y.mp4',
+          'https://example.com/z.mp4',
+        ],
+      })
+
+      expect((result.input.image_urls as string[]).length).toBe(6)
+      expect((result.input.audio_urls as string[]).length).toBe(3)
+      expect((result.input.video_urls as string[]).length).toBe(3)
+    })
+  })
 })
 
 describe('buildFalWorkerQueueRequest', () => {

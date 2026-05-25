@@ -60,6 +60,7 @@ import {
   getUpstreamNodes,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
+  harvestUpstreamVideoUrls,
   harvestUpstreamVoiceAudioUrls,
   mergePromptWithUpstreamText,
 } from '@/lib/node-workflow-graph'
@@ -656,6 +657,12 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const upstreamAudioUrls = isVideoMediaNode
         ? harvestUpstreamVoiceAudioUrls(upstreamNodes).slice(0, 3)
         : []
+      // Reference-video clips for Seedance reference-to-video. Each clip
+      // contributes towards the cross-modality cap (≤12 files total) which
+      // the builder enforces against image_urls.
+      const upstreamVideoUrls = isVideoMediaNode
+        ? harvestUpstreamVideoUrls(upstreamNodes).slice(0, 3)
+        : []
 
       const mergedPrompt = mergePromptWithUpstreamText(
         ownPrompt,
@@ -734,6 +741,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
+        videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
         advancedParams,
       })
 

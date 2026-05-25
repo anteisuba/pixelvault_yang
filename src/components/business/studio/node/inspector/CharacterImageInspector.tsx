@@ -419,45 +419,47 @@ export function CharacterImageInspector({
   return (
     <>
       <div className="space-y-4">
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
-          {imageUrl ? (
-            <>
-              <Image
-                src={imageUrl}
-                alt={t('imageAlt', { name: characterName })}
-                fill
-                sizes="360px"
-                className="object-cover"
-                unoptimized
-              />
-              <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
-                {isExistingImage ? t('sourceExisting') : t('sourceGenerated')}
-              </span>
-              <button
-                type="button"
-                onClick={handleClearImage}
-                aria-label={t('clearImage')}
-                className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted backdrop-blur transition-colors hover:text-node-foreground"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-              <ImageIcon className="size-8 text-rose-200" />
-              <p className="text-xs leading-5 text-node-muted">
-                {t('emptyPreview')}
-              </p>
-            </div>
-          )}
+        {!isChoiceMode ? (
+          <div className="relative aspect-square overflow-hidden rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+            {imageUrl ? (
+              <>
+                <Image
+                  src={imageUrl}
+                  alt={t('imageAlt', { name: characterName })}
+                  fill
+                  sizes="360px"
+                  className="object-cover"
+                  unoptimized
+                />
+                <span className="absolute left-2 top-2 rounded-full border border-node-panel-inner bg-node-canvas/75 px-2 py-1 text-2xs font-semibold text-node-foreground backdrop-blur">
+                  {isExistingImage ? t('sourceExisting') : t('sourceGenerated')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  aria-label={t('clearImage')}
+                  className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full border border-node-panel-inner bg-node-canvas/75 text-node-muted backdrop-blur transition-colors hover:text-node-foreground"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                <ImageIcon className="size-8 text-rose-200" />
+                <p className="text-xs leading-5 text-node-muted">
+                  {t('emptyPreview')}
+                </p>
+              </div>
+            )}
 
-          {isPending ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
-              <Loader2 className="size-5 animate-spin text-rose-200" />
-              <span className="text-xs font-semibold">{t('generating')}</span>
-            </div>
-          ) : null}
-        </div>
+            {isPending ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-node-canvas/70 text-node-foreground backdrop-blur-sm">
+                <Loader2 className="size-5 animate-spin text-rose-200" />
+                <span className="text-xs font-semibold">{t('generating')}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {isChoiceMode ? (
           <div className="space-y-2">

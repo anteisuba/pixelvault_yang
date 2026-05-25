@@ -168,10 +168,12 @@ describe('CharacterImageInspector', () => {
     expect(screen.getByText('modeAiTitle')).toBeInTheDocument()
     expect(screen.getByText('modeStudioTitle')).toBeInTheDocument()
     expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
+    expect(screen.queryByText('emptyPreview')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByText('modeAiTitle'))
 
     expect(screen.getByText('activeAiTitle')).toBeInTheDocument()
+    expect(screen.getByText('emptyPreview')).toBeInTheDocument()
     expect(screen.getByText('modelPicker')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('backToChoice'))

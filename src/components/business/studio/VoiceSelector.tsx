@@ -23,13 +23,17 @@ import {
   VOICE_LIBRARY_PAGE_SIZE,
   VOICE_LIBRARY_SORT_BY_VALUES,
   VOICE_LIBRARY_SORT_OPTIONS,
+  VOICE_MARKET_SOURCE,
+  VOICE_MARKET_SOURCES,
+  type VoiceCardProvider,
   type VoiceLibraryLanguage,
   type VoiceLibrarySortBy,
+  type VoiceMarketSource,
 } from '@/constants/voice-cards'
 import { AI_MODELS } from '@/constants/models'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
-import { useStudioForm } from '@/contexts/studio-context'
+import { useStudioFormOptional } from '@/contexts/studio-context'
 import { useVoiceCards } from '@/hooks/use-voice-cards'
 import {
   createVoiceCardAPI,
@@ -51,6 +55,22 @@ import {
 
 type VoiceTab = 'public' | 'favorites' | 'cloned'
 
+interface VoiceAsset {
+  id: string
+  voiceId: string
+  provider: VoiceCardProvider
+  modelId: string
+  title: string
+  description: string | null
+  languages: string[]
+  tags: string[]
+  author: string | null
+  coverImage: string | null
+  sampleUrl: string | null
+  sampleText: string | null
+  sourceLabelKey: string
+}
+
 interface VoiceSelectorProps {
   className?: string
   onSelectComplete?: () => void
@@ -64,6 +84,14 @@ function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
 
 function isVoiceLibrarySortBy(value: string): value is VoiceLibrarySortBy {
   return VOICE_LIBRARY_SORT_BY_VALUES.some((sortBy) => sortBy === value)
+}
+
+function isVoiceMarketSource(value: string): value is VoiceMarketSource {
+  return VOICE_MARKET_SOURCES.some((source) => source === value)
+}
+
+function getVoiceAssetId(provider: VoiceCardProvider, voiceId: string): string {
+  return `${provider}:${voiceId}`
 }
 
 function getVoiceInitial(title: string): string {
@@ -85,11 +113,38 @@ function voiceCardSearchFields(
 }
 
 function isClonedVoiceCard(card: VoiceCardRecord): boolean {
-  return (
-    card.modelId === AI_MODELS.FISH_AUDIO_S2_PRO ||
-    Boolean(card.referenceAudioUrl)
-  )
+  return Boolean(card.referenceAudioUrl)
 }
+
+function getVoiceCardProviderLabelKey(provider: string): string {
+  if (provider === VOICE_CARD_PROVIDER.FISH_AUDIO) return 'voiceCardFishAudio'
+  return 'voiceCardFalF5Tts'
+}
+
+function mapFishVoiceToAsset(voice: FishAudioVoice): VoiceAsset {
+  return {
+    id: getVoiceAssetId(VOICE_CARD_PROVIDER.FISH_AUDIO, voice.id),
+    voiceId: voice.id,
+    provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
+    modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
+    title: voice.title,
+    description: voice.description,
+    languages: voice.languages,
+    tags: voice.tags,
+    author: voice.author?.nickname ?? null,
+    coverImage: voice.coverImage,
+    sampleUrl: voice.samples[0]?.audio ?? null,
+    sampleText: voice.samples[0]?.text ?? null,
+    sourceLabelKey: 'voiceCardFishAudio',
+  }
+}
+
+const VOICE_SELECTOR_FALLBACK_STATE = {
+  voiceCardId: null,
+  voiceId: null,
+} as const
+
+const NOOP_DISPATCH = () => {}
 
 export const VoiceSelector = memo(function VoiceSelector({
   className,
@@ -97,12 +152,14 @@ export const VoiceSelector = memo(function VoiceSelector({
   selectedVoiceId,
   onSelectVoiceId,
 }: VoiceSelectorProps) {
-  const { state, dispatch } = useStudioForm()
+  const formCtx = useStudioFormOptional()
+  const state = formCtx?.state ?? VOICE_SELECTOR_FALLBACK_STATE
+  const dispatch = formCtx?.dispatch ?? NOOP_DISPATCH
   const t = useTranslations('StudioPage')
   const voiceCards = useVoiceCards()
 
   const [tab, setTab] = useState<VoiceTab>('public')
-  const [voices, setVoices] = useState<FishAudioVoice[]>([])
+  const [fishVoices, setFishVoices] = useState<FishAudioVoice[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -116,6 +173,9 @@ export const VoiceSelector = memo(function VoiceSelector({
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [language, setLanguage] = useState<VoiceLibraryLanguage>('all')
+  const [source, setSource] = useState<VoiceMarketSource>(
+    VOICE_MARKET_SOURCE.ALL,
+  )
   const [sortBy, setSortBy] = useState<VoiceLibrarySortBy>('score')
   const [failedCoverIds, setFailedCoverIds] = useState<Set<string>>(
     () => new Set(),
@@ -129,7 +189,7 @@ export const VoiceSelector = memo(function VoiceSelector({
     voiceRequestIdRef.current = requestId
 
     if (tab !== 'public') {
-      setVoices([])
+      setFishVoices([])
       setTotal(0)
       setError(null)
       setIsLoading(false)
@@ -148,10 +208,10 @@ export const VoiceSelector = memo(function VoiceSelector({
     if (voiceRequestIdRef.current !== requestId) return
 
     if (result.success && result.data) {
-      setVoices(result.data.items)
+      setFishVoices(result.data.items)
       setTotal(result.data.total)
     } else {
-      setVoices([])
+      setFishVoices([])
       setTotal(0)
       setError(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
@@ -180,7 +240,7 @@ export const VoiceSelector = memo(function VoiceSelector({
     if (nextTab === tab) return
     setTab(nextTab)
     setPage(1)
-    setVoices([])
+    setFishVoices([])
     setTotal(0)
     setError(null)
   }
@@ -197,23 +257,32 @@ export const VoiceSelector = memo(function VoiceSelector({
     setPage(1)
   }
 
-  const handleToggleFavorite = async (voice: FishAudioVoice) => {
+  const handleSourceChange = (value: string) => {
+    if (!isVoiceMarketSource(value)) return
+    setSource(value)
+    setPage(1)
+  }
+
+  const handleToggleFavorite = async (asset: VoiceAsset) => {
     const existingCard = voiceCards.cards.find(
-      (card) => card.voiceId === voice.id,
+      (card) =>
+        card.voiceId === asset.voiceId && card.provider === asset.provider,
     )
 
-    setFavoritePendingVoiceId(voice.id)
+    setFavoritePendingVoiceId(asset.id)
     setError(null)
 
     const result = existingCard
       ? await deleteVoiceCardAPI(existingCard.id)
       : await createVoiceCardAPI({
-          name: voice.title,
-          provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
-          voiceId: voice.id,
+          name: asset.title,
+          provider: asset.provider,
+          modelId: asset.modelId,
+          voiceId: asset.voiceId,
           tone: [],
           pace: VOICE_CARD_DEFAULT_PACE,
           pronunciationDictionary: {},
+          sampleText: asset.sampleText ?? undefined,
         })
 
     if (result.success) {
@@ -245,6 +314,12 @@ export const VoiceSelector = memo(function VoiceSelector({
       type: 'SET_VOICE_ID',
       payload: isSelected ? null : card.voiceId,
     })
+    if (!isSelected && card.modelId) {
+      dispatch({
+        type: 'SET_OPTION_ID',
+        payload: `workspace:${card.modelId}`,
+      })
+    }
     if (!isSelected) {
       dispatch({ type: 'SET_AUDIO_PACE', payload: card.pace })
       dispatch({
@@ -275,20 +350,24 @@ export const VoiceSelector = memo(function VoiceSelector({
     setPendingVoiceCardId(null)
   }
 
-  const handleSelect = (voiceId: string) => {
+  const handleSelectAsset = (asset: VoiceAsset) => {
     if (onSelectVoiceId) {
-      onSelectVoiceId(voiceId)
+      onSelectVoiceId(asset.voiceId)
       onSelectComplete?.()
       return
     }
 
-    const isSelected = state.voiceId === voiceId
+    const isSelected = state.voiceId === asset.voiceId
     dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
     dispatch({
       type: 'SET_VOICE_ID',
-      payload: isSelected ? null : voiceId,
+      payload: isSelected ? null : asset.voiceId,
     })
     if (!isSelected) {
+      dispatch({
+        type: 'SET_OPTION_ID',
+        payload: `workspace:${asset.modelId}`,
+      })
       onSelectComplete?.()
     }
   }
@@ -322,11 +401,14 @@ export const VoiceSelector = memo(function VoiceSelector({
       .catch(() => setPlayingVoiceId(null))
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / VOICE_LIBRARY_PAGE_SIZE))
   const isPublicTab = tab === 'public'
   const isLocalCardsTab = !isPublicTab
   const usesExternalSelection = Boolean(onSelectVoiceId)
   const activeVoiceId = usesExternalSelection ? selectedVoiceId : state.voiceId
+  const fishVoiceAssets = fishVoices.map(mapFishVoiceToAsset)
+  const publicVoiceAssets = fishVoiceAssets
+  const publicVoiceTotal = total
+  const totalPages = Math.max(1, Math.ceil(total / VOICE_LIBRARY_PAGE_SIZE))
   const localVoiceCards = filterByQuery(
     voiceCards.cards.filter((card) =>
       tab === 'cloned' ? isClonedVoiceCard(card) : !isClonedVoiceCard(card),
@@ -340,14 +422,16 @@ export const VoiceSelector = memo(function VoiceSelector({
       ? tab === 'cloned'
         ? t('voiceClonedLoadFailed')
         : t('voiceFavoritesLoadFailed')
-      : error
+      : error && publicVoiceAssets.length === 0
+        ? error
+        : null
   const selectedVoiceLabel =
     voiceCards.cards.find((card) =>
       usesExternalSelection
         ? card.voiceId === activeVoiceId
         : card.id === state.voiceCardId,
     )?.name ??
-    voices.find((voice) => voice.id === activeVoiceId)?.title ??
+    publicVoiceAssets.find((asset) => asset.voiceId === activeVoiceId)?.title ??
     activeVoiceId
 
   return (
@@ -364,7 +448,7 @@ export const VoiceSelector = memo(function VoiceSelector({
               : 'text-muted-foreground hover:bg-muted/30',
           )}
         >
-          {t('voicePublic')}
+          {t('voiceMarket')}
         </button>
         <button
           type="button"
@@ -397,7 +481,7 @@ export const VoiceSelector = memo(function VoiceSelector({
           'grid gap-2',
           isLocalCardsTab
             ? 'grid-cols-1'
-            : 'sm:grid-cols-[minmax(0,1fr)_auto_auto]',
+            : 'sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]',
         )}
       >
         <div className="relative min-w-0">
@@ -411,6 +495,23 @@ export const VoiceSelector = memo(function VoiceSelector({
         </div>
         {isPublicTab && (
           <>
+            <Select value={source} onValueChange={handleSourceChange}>
+              <SelectTrigger
+                size="sm"
+                className="w-full border-border/60 text-xs sm:w-32"
+                aria-label={t('voiceSourceFilter')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={VOICE_MARKET_SOURCE.ALL}>
+                  {t('voiceSourceAll')}
+                </SelectItem>
+                <SelectItem value={VOICE_MARKET_SOURCE.FISH_AUDIO}>
+                  {t('voiceCardFishAudio')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={language} onValueChange={handleLanguageChange}>
               <SelectTrigger
                 size="sm"
@@ -476,10 +577,9 @@ export const VoiceSelector = memo(function VoiceSelector({
                 ? activeVoiceId === card.voiceId
                 : state.voiceCardId === card.id
               const isPending = pendingVoiceCardId === card.id
-              const providerLabel =
-                card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO
-                  ? t('voiceCardFishAudio')
-                  : t('voiceCardFalF5Tts')
+              const providerLabel = t(
+                getVoiceCardProviderLabelKey(card.provider),
+              )
 
               return (
                 <div
@@ -548,25 +648,26 @@ export const VoiceSelector = memo(function VoiceSelector({
               )
             })
           )
-        ) : voices.length === 0 ? (
+        ) : publicVoiceAssets.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
             {t('voiceNoResults')}
           </div>
         ) : (
-          voices.map((voice) => {
-            const isSelected = activeVoiceId === voice.id
+          publicVoiceAssets.map((asset) => {
+            const isSelected = activeVoiceId === asset.voiceId
             const savedVoiceCard = voiceCards.cards.find(
-              (card) => card.voiceId === voice.id,
+              (card) =>
+                card.voiceId === asset.voiceId &&
+                card.provider === asset.provider,
             )
-            const sampleUrl = voice.samples[0]?.audio
             const hasCoverImage =
-              Boolean(voice.coverImage) && !failedCoverIds.has(voice.id)
-            const isPlaying = playingVoiceId === voice.id
-            const isFavoritePending = favoritePendingVoiceId === voice.id
+              Boolean(asset.coverImage) && !failedCoverIds.has(asset.id)
+            const isPlaying = playingVoiceId === asset.id
+            const isFavoritePending = favoritePendingVoiceId === asset.id
 
             return (
               <div
-                key={voice.id}
+                key={asset.id}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
                   isSelected
@@ -576,7 +677,7 @@ export const VoiceSelector = memo(function VoiceSelector({
               >
                 <button
                   type="button"
-                  onClick={() => handleSelect(voice.id)}
+                  onClick={() => handleSelectAsset(asset)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   {/* Avatar / icon */}
@@ -590,19 +691,19 @@ export const VoiceSelector = memo(function VoiceSelector({
                   >
                     {isSelected ? (
                       <Check className="size-4" />
-                    ) : hasCoverImage && voice.coverImage ? (
+                    ) : hasCoverImage && asset.coverImage ? (
                       <>
                         {/* Third-party cover images can come from arbitrary hosts; keep raw img fallback here. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={voice.coverImage}
+                          src={asset.coverImage}
                           alt=""
                           className="size-full object-cover"
-                          onError={() => handleCoverError(voice.id)}
+                          onError={() => handleCoverError(asset.id)}
                         />
                       </>
                     ) : (
-                      getVoiceInitial(voice.title)
+                      getVoiceInitial(asset.title)
                     )}
                   </div>
 
@@ -610,46 +711,49 @@ export const VoiceSelector = memo(function VoiceSelector({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium text-foreground">
-                        {voice.title}
+                        {asset.title}
                       </span>
-                      {voice.languages.length > 0 && (
+                      <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
+                        {t(asset.sourceLabelKey)}
+                      </span>
+                      {asset.languages.length > 0 && (
                         <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
-                          {voice.languages.slice(0, 2).join(', ')}
+                          {asset.languages.slice(0, 2).join(', ')}
                         </span>
                       )}
                     </div>
-                    {voice.author && (
+                    {asset.author && (
                       <span className="text-2xs text-muted-foreground">
-                        {voice.author.nickname}
+                        {asset.author}
                       </span>
                     )}
-                    {voice.tags.length > 0 && (
+                    {asset.tags.length > 0 && (
                       <span className="block truncate text-2xs text-muted-foreground/70">
-                        {voice.tags.slice(0, 2).join(' · ')}
+                        {asset.tags.slice(0, 3).join(' · ')}
                       </span>
                     )}
                   </div>
                 </button>
 
-                {sampleUrl && (
+                {asset.sampleUrl && (
                   <>
                     <audio
                       ref={(element) => {
-                        audioRefs.current[voice.id] = element
+                        audioRefs.current[asset.id] = element
                       }}
-                      src={sampleUrl}
+                      src={asset.sampleUrl}
                       preload="none"
                       className="hidden"
                       onEnded={() => setPlayingVoiceId(null)}
                       onPause={() => {
-                        if (playingVoiceId === voice.id) {
+                        if (playingVoiceId === asset.id) {
                           setPlayingVoiceId(null)
                         }
                       }}
                     />
                     <button
                       type="button"
-                      onClick={() => handleSampleToggle(voice.id)}
+                      onClick={() => handleSampleToggle(asset.id)}
                       className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     >
                       {isPlaying ? (
@@ -671,7 +775,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   disabled={isFavoritePending}
                   onClick={(e) => {
                     e.stopPropagation()
-                    void handleToggleFavorite(voice)
+                    void handleToggleFavorite(asset)
                   }}
                   className={cn(
                     'shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
@@ -714,7 +818,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             {t('voicePageStatus', {
               page,
               totalPages,
-              total,
+              total: publicVoiceTotal,
             })}
           </span>
           <Button

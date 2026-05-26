@@ -3127,7 +3127,11 @@
       "welcomeSkillGenerate": "检查角色图提示词、参考图和 LoRA 选择。",
       "newConversation": "新建对话",
       "assistantCanvas": "画布助手",
-      "collapse": "收起助手面板"
+      "collapse": "收起助手面板",
+      "resize": {
+        "widthLabel": "拖动调整面板宽度",
+        "splitLabel": "拖动调整检查器与助手对话的比例"
+      }
     },
     "assistantRoute": {
       "triggerLabel": "选择画布助手路由",

@@ -3127,7 +3127,11 @@
       "welcomeSkillGenerate": "Inspect character image prompts, references, and LoRA choices.",
       "newConversation": "New conversation",
       "assistantCanvas": "Canvas assistant",
-      "collapse": "Collapse assistant dock"
+      "collapse": "Collapse assistant dock",
+      "resize": {
+        "widthLabel": "Resize dock width",
+        "splitLabel": "Resize inspector and assistant split"
+      }
     },
     "assistantRoute": {
       "triggerLabel": "Select canvas assistant route",

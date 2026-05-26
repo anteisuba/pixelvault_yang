@@ -112,6 +112,21 @@ export const NODE_STUDIO_DOCK = {
   focusDurationMs: 420,
 } as const
 
+export const NODE_STUDIO_DOCK_RESIZE = {
+  /** Defaults match the previous fixed `lg:w-studio-right` (28rem) / `w-96` (24rem) sizing. */
+  defaultWidthPx: 448,
+  minWidthPx: 320,
+  maxWidthPx: 720,
+  widthStepPx: 20,
+  /** Inspector takes 55% of vertical space by default; conversation gets 45%. */
+  defaultInspectorRatio: 0.55,
+  minInspectorRatio: 0.2,
+  maxInspectorRatio: 0.8,
+  ratioStep: 0.05,
+  handleThicknessPx: 6,
+  storageKey: 'pixelvault.nodeStudio.dock.layout.v1',
+} as const
+
 export const NODE_STUDIO_REFERENCE_ROLES = [
   'identity',
   'pose',

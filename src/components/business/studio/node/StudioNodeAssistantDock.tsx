@@ -1,6 +1,15 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   Bot,
   MessageSquarePlus,
@@ -13,6 +22,7 @@ import { useTranslations } from 'next-intl'
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS,
+  NODE_STUDIO_DOCK_RESIZE,
 } from '@/constants/node-studio'
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
@@ -21,7 +31,6 @@ import { useNodeSelection } from '@/hooks/use-node-selection'
 import type { AppLocale } from '@/i18n/routing'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
-import { cn } from '@/lib/utils'
 
 import { AssistantConversation } from './AssistantConversation'
 import {
@@ -213,6 +222,294 @@ function WelcomeView() {
   )
 }
 
+interface DockLayout {
+  widthPx: number
+  inspectorRatio: number
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min
+  if (value > max) return max
+  return value
+}
+
+const DEFAULT_DOCK_LAYOUT: DockLayout = {
+  widthPx: NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
+  inspectorRatio: NODE_STUDIO_DOCK_RESIZE.defaultInspectorRatio,
+}
+
+/**
+ * Module-level layout store backing `useSyncExternalStore`. We deliberately
+ * avoid an effect-based read because lint forbids `setState` inside
+ * `useEffect`; instead we expose:
+ *  - `subscribe(cb)`     — listener registration
+ *  - `getSnapshot()`     — client read (localStorage, cached)
+ *  - `getServerSnapshot()` — SSR + first-paint default (avoids hydration mismatch)
+ *  - `setStoredLayout()` — mutator that persists + notifies
+ * The cache (`storedLayout`) keeps `getSnapshot` stable between renders so
+ * React's tearing detection stays happy.
+ */
+let storedLayout: DockLayout | null = null
+const layoutListeners = new Set<() => void>()
+
+function readStoredDockLayout(): DockLayout {
+  if (typeof window === 'undefined') {
+    return DEFAULT_DOCK_LAYOUT
+  }
+  try {
+    const raw = window.localStorage.getItem(NODE_STUDIO_DOCK_RESIZE.storageKey)
+    if (!raw) return DEFAULT_DOCK_LAYOUT
+    const parsed = JSON.parse(raw) as Partial<DockLayout>
+    return {
+      widthPx: clamp(
+        typeof parsed.widthPx === 'number'
+          ? parsed.widthPx
+          : NODE_STUDIO_DOCK_RESIZE.defaultWidthPx,
+        NODE_STUDIO_DOCK_RESIZE.minWidthPx,
+        NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
+      ),
+      inspectorRatio: clamp(
+        typeof parsed.inspectorRatio === 'number'
+          ? parsed.inspectorRatio
+          : NODE_STUDIO_DOCK_RESIZE.defaultInspectorRatio,
+        NODE_STUDIO_DOCK_RESIZE.minInspectorRatio,
+        NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio,
+      ),
+    }
+  } catch {
+    return DEFAULT_DOCK_LAYOUT
+  }
+}
+
+function getLayoutSnapshot(): DockLayout {
+  if (!storedLayout) {
+    storedLayout = readStoredDockLayout()
+  }
+  return storedLayout
+}
+
+function getServerLayoutSnapshot(): DockLayout {
+  return DEFAULT_DOCK_LAYOUT
+}
+
+function subscribeLayout(listener: () => void): () => void {
+  layoutListeners.add(listener)
+  return () => {
+    layoutListeners.delete(listener)
+  }
+}
+
+function setStoredLayout(updater: (prev: DockLayout) => DockLayout): void {
+  const next = updater(getLayoutSnapshot())
+  // Bail if nothing actually changed — `useSyncExternalStore` re-reads on every
+  // listener notify, so emitting unchanged snapshots wastes work.
+  if (
+    storedLayout &&
+    storedLayout.widthPx === next.widthPx &&
+    storedLayout.inspectorRatio === next.inspectorRatio
+  ) {
+    return
+  }
+  storedLayout = next
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(
+        NODE_STUDIO_DOCK_RESIZE.storageKey,
+        JSON.stringify(next),
+      )
+    } catch {
+      // localStorage may be unavailable (private mode, quota). Session-only is
+      // an acceptable fallback for a UI preference.
+    }
+  }
+  for (const listener of layoutListeners) {
+    listener()
+  }
+}
+
+/**
+ * Owns the dock's draggable width + inspector/assistant vertical split.
+ * Persists to localStorage on every change (cheap — just two numbers).
+ * Returns pointer + keyboard handlers ready to bind to the two resize
+ * handles. Pointer captures avoid losing the drag when the cursor leaves
+ * the handle, which matters because the panel is narrow and users often
+ * drag past it.
+ */
+function useDockLayout() {
+  const layout = useSyncExternalStore(
+    subscribeLayout,
+    getLayoutSnapshot,
+    getServerLayoutSnapshot,
+  )
+  const splitContainerRef = useRef<HTMLDivElement | null>(null)
+  const widthDragRef = useRef<{
+    pointerId: number
+    startX: number
+    startWidth: number
+  } | null>(null)
+  const splitDragRef = useRef<{
+    pointerId: number
+    containerTop: number
+    containerHeight: number
+  } | null>(null)
+
+  const setWidth = useCallback((next: number) => {
+    setStoredLayout((prev) => ({
+      ...prev,
+      widthPx: clamp(
+        next,
+        NODE_STUDIO_DOCK_RESIZE.minWidthPx,
+        NODE_STUDIO_DOCK_RESIZE.maxWidthPx,
+      ),
+    }))
+  }, [])
+
+  const setInspectorRatio = useCallback((next: number) => {
+    setStoredLayout((prev) => ({
+      ...prev,
+      inspectorRatio: clamp(
+        next,
+        NODE_STUDIO_DOCK_RESIZE.minInspectorRatio,
+        NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio,
+      ),
+    }))
+  }, [])
+
+  const handleWidthPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.currentTarget.setPointerCapture(event.pointerId)
+      widthDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startWidth: layout.widthPx,
+      }
+    },
+    [layout.widthPx],
+  )
+
+  const handleWidthPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = widthDragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) return
+      // Dock is anchored to the right edge — dragging the left handle left
+      // (decreasing clientX) should grow the panel.
+      setWidth(drag.startWidth + (drag.startX - event.clientX))
+    },
+    [setWidth],
+  )
+
+  const handleWidthPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (widthDragRef.current?.pointerId === event.pointerId) {
+        widthDragRef.current = null
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    },
+    [],
+  )
+
+  const handleWidthKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      // Match the visual orientation: left arrow grows the panel (dock is
+      // pinned to the right), right arrow shrinks it.
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        setWidth(layout.widthPx + NODE_STUDIO_DOCK_RESIZE.widthStepPx)
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        setWidth(layout.widthPx - NODE_STUDIO_DOCK_RESIZE.widthStepPx)
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        setWidth(NODE_STUDIO_DOCK_RESIZE.maxWidthPx)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        setWidth(NODE_STUDIO_DOCK_RESIZE.minWidthPx)
+      }
+    },
+    [layout.widthPx, setWidth],
+  )
+
+  const handleSplitPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const container = splitContainerRef.current
+      if (!container) return
+      event.preventDefault()
+      event.currentTarget.setPointerCapture(event.pointerId)
+      const rect = container.getBoundingClientRect()
+      splitDragRef.current = {
+        pointerId: event.pointerId,
+        containerTop: rect.top,
+        containerHeight: rect.height,
+      }
+    },
+    [],
+  )
+
+  const handleSplitPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = splitDragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) return
+      if (drag.containerHeight <= 0) return
+      const localY = event.clientY - drag.containerTop
+      setInspectorRatio(localY / drag.containerHeight)
+    },
+    [setInspectorRatio],
+  )
+
+  const handleSplitPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (splitDragRef.current?.pointerId === event.pointerId) {
+        splitDragRef.current = null
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    },
+    [],
+  )
+
+  const handleSplitKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setInspectorRatio(
+          layout.inspectorRatio - NODE_STUDIO_DOCK_RESIZE.ratioStep,
+        )
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setInspectorRatio(
+          layout.inspectorRatio + NODE_STUDIO_DOCK_RESIZE.ratioStep,
+        )
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        setInspectorRatio(NODE_STUDIO_DOCK_RESIZE.minInspectorRatio)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        setInspectorRatio(NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio)
+      }
+    },
+    [layout.inspectorRatio, setInspectorRatio],
+  )
+
+  return {
+    layout,
+    splitContainerRef,
+    widthHandlers: {
+      onPointerDown: handleWidthPointerDown,
+      onPointerMove: handleWidthPointerMove,
+      onPointerUp: handleWidthPointerUp,
+      onPointerCancel: handleWidthPointerUp,
+      onKeyDown: handleWidthKeyDown,
+    },
+    splitHandlers: {
+      onPointerDown: handleSplitPointerDown,
+      onPointerMove: handleSplitPointerMove,
+      onPointerUp: handleSplitPointerUp,
+      onPointerCancel: handleSplitPointerUp,
+      onKeyDown: handleSplitKeyDown,
+    },
+  }
+}
+
 export function StudioNodeAssistantDock({
   open,
   projectName,
@@ -230,6 +527,14 @@ export function StudioNodeAssistantDock({
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
     })
+  const { layout, splitContainerRef, widthHandlers, splitHandlers } =
+    useDockLayout()
+  const dockStyle = useMemo<CSSProperties>(
+    () => ({ width: `${layout.widthPx}px` }),
+    [layout.widthPx],
+  )
+  const inspectorPercent = Math.round(layout.inspectorRatio * 100)
+  const assistantPercent = 100 - inspectorPercent
 
   const nodeContexts = useMemo<NodeAssistantNodeContext[]>(
     () =>
@@ -304,7 +609,25 @@ export function StudioNodeAssistantDock({
   }
 
   return (
-    <aside className="pointer-events-auto absolute bottom-4 right-4 top-20 flex w-96 flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl lg:w-studio-right">
+    <aside
+      style={dockStyle}
+      className="pointer-events-auto absolute bottom-4 right-4 top-20 flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl"
+    >
+      {/* Left-edge handle: drag horizontally to resize the whole dock. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t('resize.widthLabel')}
+        aria-valuemin={NODE_STUDIO_DOCK_RESIZE.minWidthPx}
+        aria-valuemax={NODE_STUDIO_DOCK_RESIZE.maxWidthPx}
+        aria-valuenow={layout.widthPx}
+        tabIndex={0}
+        {...widthHandlers}
+        className="group absolute inset-y-0 left-0 z-10 flex w-1.5 cursor-col-resize items-center justify-center focus:outline-none"
+      >
+        <span className="h-12 w-0.5 rounded-full bg-node-panel-inner transition-colors group-hover:bg-node-amber/60 group-focus-visible:bg-node-amber" />
+      </div>
+
       <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-node-foreground">
@@ -342,24 +665,48 @@ export function StudioNodeAssistantDock({
         </div>
       </div>
 
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto border-b border-node-panel-inner px-4 py-4',
-          selection.mode === 'none' ? 'basis-44' : 'basis-auto',
-        )}
-      >
-        <InspectorPanel selection={selection} />
-      </div>
+      <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col">
+        <div
+          style={{ flexBasis: `${inspectorPercent}%` }}
+          className="min-h-0 shrink grow overflow-y-auto px-4 py-4"
+        >
+          <InspectorPanel selection={selection} />
+        </div>
 
-      <AssistantConversation
-        messages={conversation.messages}
-        isLoading={conversation.isLoading}
-        error={conversation.error}
-        onSend={handleSend}
-        onRetry={handleRetry}
-        onFocusNode={onFocusNode}
-        getNodeLabel={getNodeLabel}
-      />
+        {/* Horizontal handle between Inspector and Assistant conversation. */}
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t('resize.splitLabel')}
+          aria-valuemin={Math.round(
+            NODE_STUDIO_DOCK_RESIZE.minInspectorRatio * 100,
+          )}
+          aria-valuemax={Math.round(
+            NODE_STUDIO_DOCK_RESIZE.maxInspectorRatio * 100,
+          )}
+          aria-valuenow={inspectorPercent}
+          tabIndex={0}
+          {...splitHandlers}
+          className="group relative flex h-1.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
+        >
+          <span className="h-0.5 w-12 rounded-full bg-node-panel-inner transition-colors group-hover:bg-node-amber/60 group-focus-visible:bg-node-amber" />
+        </div>
+
+        <div
+          style={{ flexBasis: `${assistantPercent}%` }}
+          className="flex min-h-0 shrink grow flex-col"
+        >
+          <AssistantConversation
+            messages={conversation.messages}
+            isLoading={conversation.isLoading}
+            error={conversation.error}
+            onSend={handleSend}
+            onRetry={handleRetry}
+            onFocusNode={onFocusNode}
+            getNodeLabel={getNodeLabel}
+          />
+        </div>
+      </div>
     </aside>
   )
 }

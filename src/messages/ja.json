@@ -3127,7 +3127,11 @@
       "welcomeSkillGenerate": "キャラクター画像のプロンプト、参照画像、LoRA 選択を確認します。",
       "newConversation": "新しい会話",
       "assistantCanvas": "キャンバス助手",
-      "collapse": "アシスタントドックを閉じる"
+      "collapse": "アシスタントドックを閉じる",
+      "resize": {
+        "widthLabel": "ドック幅を調整",
+        "splitLabel": "インスペクタとアシスタントの分割比率を調整"
+      }
     },
     "assistantRoute": {
       "triggerLabel": "キャンバス助手のルートを選択",

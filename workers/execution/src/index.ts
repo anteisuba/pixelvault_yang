@@ -35,6 +35,14 @@ interface R2Bucket {
 interface ExecutionEnv {
   INTERNAL_CALLBACK_URL?: string
   INTERNAL_CALLBACK_SECRET?: string
+  /**
+   * Base64-encoded 32-byte secret used to AES-GCM encrypt user API keys
+   * before they're returned from a step.do and persisted in workflow state.
+   * Required for MODEL_3D workflows. Generate with:
+   *   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   * Set via: npx wrangler secret put STATE_ENCRYPTION_KEY
+   */
+  STATE_ENCRYPTION_KEY?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
@@ -715,6 +723,81 @@ function parseModel3DRunContext(
       polygonType: readStringField(providerInput, 'polygonType') ?? undefined,
     },
   }
+}
+
+// ─── API-key state encryption ──────────────────────────────────────────
+// Resolved BYOK API keys flow through `step.do` results, which Cloudflare
+// persists in workflow state. We AES-GCM encrypt them with a Worker secret
+// so a Cloudflare-state dump alone is not enough to recover the plaintext.
+
+function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 1)
+    binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+async function importStateKey(secret: string): Promise<CryptoKey> {
+  const raw = base64ToBytes(secret)
+  if (raw.length !== 32) {
+    throw new Error('STATE_ENCRYPTION_KEY must decode to exactly 32 bytes.')
+  }
+  return crypto.subtle.importKey(
+    'raw',
+    raw as unknown as ArrayBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
+  )
+}
+
+async function encryptStateString(
+  plaintext: string,
+  env: ExecutionEnv,
+): Promise<string> {
+  if (!env.STATE_ENCRYPTION_KEY) {
+    throw new Error('STATE_ENCRYPTION_KEY is not configured.')
+  }
+  const cryptoKey = await importStateKey(env.STATE_ENCRYPTION_KEY)
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    new TextEncoder().encode(plaintext),
+  )
+  const combined = new Uint8Array(iv.length + cipher.byteLength)
+  combined.set(iv, 0)
+  combined.set(new Uint8Array(cipher), iv.length)
+  return bytesToBase64(combined)
+}
+
+async function decryptStateString(
+  blob: string,
+  env: ExecutionEnv,
+): Promise<string> {
+  if (!env.STATE_ENCRYPTION_KEY) {
+    throw new Error('STATE_ENCRYPTION_KEY is not configured.')
+  }
+  const cryptoKey = await importStateKey(env.STATE_ENCRYPTION_KEY)
+  const combined = base64ToBytes(blob)
+  if (combined.length < 13) {
+    throw new Error('Encrypted state blob is too short to contain IV + cipher.')
+  }
+  const iv = combined.slice(0, 12)
+  const cipher = combined.slice(12)
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    cipher,
+  )
+  return new TextDecoder().decode(plaintext)
 }
 
 async function resolveApiKeyModel3D(
@@ -1728,17 +1811,21 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
-      // Resolve the API key ONCE and cache via step.do. Subsequent steps reuse
-      // the cached value to avoid hitting Cloudflare's per-workflow subrequest
-      // budget (50 on free, 1000 on paid) — without this, every poll iteration
-      // would re-call Vercel resolve-key and we cap at ~24 polls.
-      const apiKey = await step.do(
+      // Resolve the API key ONCE, AES-GCM encrypt before persisting in workflow
+      // state via step.do. Subsequent steps decrypt in-memory. Avoids
+      // (a) hitting Cloudflare's per-workflow subrequest budget by re-resolving
+      // every poll, and (b) leaking the plaintext BYOK key into workflow
+      // state visible to anyone with Cloudflare state read access.
+      const encryptedApiKey = await step.do(
         'resolve-api-key',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: '30 seconds',
         },
-        async () => resolveApiKeyModel3D(this.env, context),
+        async () => {
+          const plaintext = await resolveApiKeyModel3D(this.env, context)
+          return encryptStateString(plaintext, this.env)
+        },
       )
 
       const rodin = await step.do(
@@ -1747,7 +1834,10 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
-        async () => submitRodinJob(context, apiKey),
+        async () => {
+          const apiKey = await decryptStateString(encryptedApiKey, this.env)
+          return submitRodinJob(context, apiKey)
+        },
       )
 
       for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
@@ -1759,7 +1849,10 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
             retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
             timeout: '30 seconds',
           },
-          async () => pollRodinJob(rodin, apiKey),
+          async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
+            return pollRodinJob(rodin, apiKey)
+          },
         )
 
         if (pollResult.status === 'FAILED') {
@@ -1773,8 +1866,10 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
               retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
               timeout: '120 seconds',
             },
-            async () =>
-              downloadAndUploadRodinGlb(this.env, context, rodin, apiKey),
+            async () => {
+              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              return downloadAndUploadRodinGlb(this.env, context, rodin, apiKey)
+            },
           )
 
           await step.do('callback-result', async () =>
@@ -1819,14 +1914,17 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
-      // Resolve the API key ONCE — see Hyper3DRodinWorkflow for rationale.
-      const apiKey = await step.do(
+      // Resolve+encrypt the API key ONCE — see Hyper3DRodinWorkflow for rationale.
+      const encryptedApiKey = await step.do(
         'resolve-api-key',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: '30 seconds',
         },
-        async () => resolveApiKeyModel3D(this.env, context),
+        async () => {
+          const plaintext = await resolveApiKeyModel3D(this.env, context)
+          return encryptStateString(plaintext, this.env)
+        },
       )
 
       const queue = await step.do(
@@ -1836,6 +1934,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
+          const apiKey = await decryptStateString(encryptedApiKey, this.env)
           const queueBody = buildFalModel3DQueueRequest(context)
           const endpoint = `https://queue.fal.run/${queueBody.endpointModelId}`
 
@@ -1877,6 +1976,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
             timeout: '30 seconds',
           },
           async () => {
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
             const statusResponse = await fetch(queue.statusUrl, {
               headers: { Authorization: `Key ${apiKey}` },
             })

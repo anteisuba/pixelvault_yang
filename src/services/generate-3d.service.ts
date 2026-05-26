@@ -15,6 +15,7 @@ import {
   MODEL_3D_JOB_STAGES,
   MODEL_3D_MESH_FIRST_PREVIEW_MODEL_IDS,
   MODEL_3D_PREVIEW_MODE,
+  MODEL_3D_WORKER_STALE_MS,
   type Model3DJobStage,
 } from '@/constants/model-3d-generation'
 import type {
@@ -453,6 +454,26 @@ export async function check3DGenerationStatusForUserId(
   // Worker-dispatched jobs: the Worker owns polling and R2 upload.
   // The callback service advances job.status; just reflect the DB state.
   if (queueMeta.workerDispatched) {
+    // Stale-job sweeper: if the worker crashed before it could send the
+    // failure callback (or the callback itself failed), the job sits at
+    // RUNNING forever and the UI polls indefinitely. Mark it FAILED on read
+    // once we've waited well past any plausible worker runtime.
+    if (
+      job.status === 'RUNNING' &&
+      Date.now() - job.updatedAt.getTime() > MODEL_3D_WORKER_STALE_MS
+    ) {
+      await failGenerationJob(job.id, {
+        errorMessage:
+          'Worker job timed out without callback (exceeded stale threshold)',
+      })
+      logger.warn('3D worker job marked FAILED by stale sweeper', {
+        jobId: job.id,
+        userId,
+        ageMs: Date.now() - job.updatedAt.getTime(),
+      })
+      return { jobId: job.id, status: 'FAILED' }
+    }
+
     return {
       jobId: job.id,
       status: job.status === 'RUNNING' ? 'IN_PROGRESS' : 'IN_QUEUE',

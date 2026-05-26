@@ -332,3 +332,13 @@ export const RODIN_MAX_REFERENCE_IMAGES = 5
 
 /** Tier where `is_micro` (micro-geometry) takes effect */
 export const RODIN_IS_MICRO_REQUIRED_TIER: RodinTier = RODIN_TIER.EXTREME_HIGH
+
+/**
+ * A worker-dispatched 3D job is considered stale if its DB row has not been
+ * updated in this long while still RUNNING. The status endpoint marks such
+ * jobs FAILED on read so the UI stops polling them indefinitely.
+ *
+ * Should comfortably exceed the worker's worst-case end-to-end runtime
+ * (Extreme-High tier ≈ 8 min + polling overhead). 20 min is safe headroom.
+ */
+export const MODEL_3D_WORKER_STALE_MS = 20 * 60 * 1000

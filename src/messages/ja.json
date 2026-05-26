@@ -159,11 +159,11 @@
     },
     "signIn": {
       "title": "ログイン — PixelVault",
-      "description": "ログインしてパーソナルAIギャラリーとクリエイティブツールにアクセス。"
+      "description": "保存済みアーカイブ、APIキー、生成履歴へ戻るためにログインします。"
     },
     "signUp": {
       "title": "アカウント作成 — PixelVault",
-      "description": "PixelVaultに参加してAI画像を生成・保存・共有。"
+      "description": "アカウントを作成して、画像・動画・プロンプト・シードを保存しながら生成を始めます。"
     }
   },
   "Navbar": {
@@ -203,20 +203,12 @@
   },
   "Homepage": {
     "brandLabel": "パーソナルAIギャラリー",
-    "navigationLabel": "ホームページ",
     "skipToContent": "ホームページ本文へ移動",
-    "nav": {
-      "app": "アプリ"
-    },
-    "navigation": {
-      "models": "モデル",
-      "arena": "Arena",
-      "gallery": "ギャラリー"
-    },
     "hero": {
-      "eyebrow": "{count} 件の有効モデル。BYO API キー。従量課金。",
-      "title": "アイデアを、絵と映像と声に。",
-      "subtitle": "PixelVault はあなただけの AI 創作ギャラリー。画像も動画もボイスもひとつの場所で。作品・プロンプト・シードはすべて自動保存。"
+      "title": "ANTEI 画像・動画・音声 制作プラットフォーム",
+      "brand": "ANTEI",
+      "mediums": "画像・動画・音声",
+      "platform": "制作プラットフォーム"
     },
     "badges": {
       "soon": "近日公開"
@@ -226,9 +218,9 @@
       "description": "最近アーカイブに残った作品の横スクロール — プロンプトもモデルもワンクリックで再利用。"
     },
     "capabilityMatrix": {
-      "eyebrow": "そのほかの制作スタック",
-      "title": "専門ツールも、同じアーカイブの近くに。",
-      "description": "音声、3D、ワークフロー、ランキング、ソーシャル発見まで。別々のアプリに分けず、同じ生成記録の上に置いています。"
+      "eyebrow": "つながった制作ツール",
+      "title": "作り方は増えても、保存先はひとつ。",
+      "description": "音声、3D、ワークフロー、ランキング、ギャラリー発見まで。保存した作品と一緒に残るので、別々のツールで文脈を探し直す必要がありません。"
     },
     "mediaLabels": {
       "imageEditing": {
@@ -273,7 +265,7 @@
     "bottomCta": {
       "eyebrow": "アーカイブを始める",
       "title": "次の 1 枚は、あなた自身のものに。",
-      "description": "5 分で最初の API キーを接続 — {count} 件の有効モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
+      "description": "数分で最初の API キーを接続。{count} 件の有効モデルで生成し、画像・動画・プロンプト・シードを自分のアーカイブに残せます。",
       "primary": "無料でアーカイブを始める"
     },
     "footer": {
@@ -297,79 +289,79 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "リファレンス対応ルート",
+        "eyebrow": "リファレンス画像編集",
         "title": "リファレンス編集",
-        "description": "リファレンス画像を渡し、目的に合うモデルへ通します。複数リファレンスの構図なら Gemini、指示付き編集なら Flux Kontext、スタイルや整理には専用の画像モデルを選べます。",
+        "description": "リファレンス画像を入れて、目的に合う経路を選べます。Gemini で構図を組み、Flux Kontext で指示編集し、専用モデルでスタイルや整理まで。",
         "cta": "編集してみる"
       },
       "video": {
         "eyebrow": "{count} の動画モデル",
         "title": "動画生成",
-        "description": "Kling 3.0 Pro、Veo 3.1、Seedance 2.0 系を 1 つのスタジオに集約。text-to-video、image-to-video、reference-to-video、ネイティブ延長の経路を、生成したプロンプトと一緒に保存します。",
+        "description": "Kling、Veo、Seedance を 1 つのスタジオに集約。テキスト、画像、参考動画から作り、完成したクリップはプロンプトと一緒に保存できます。",
         "cta": "動画を生成"
       },
       "lora": {
         "eyebrow": "fal.ai + Replicate",
         "title": "LoRA トレーニング",
-        "description": "ZIP をドロップし、fal.ai か Replicate でトレーニングを開始。完了までこちらで追跡し、ライブラリに自動で着地。Flux Pro、Dev、Schnell、LoRA に直接プラグイン — あなたのスタイル、あなたのキャラクター。",
+        "description": "学習セットをアップロードして LoRA を作成。完成した結果はライブラリに残り、次の生成でキャラクターやスタイルを揃えやすくなります。",
         "cta": "LoRA を訓練"
       },
       "upscale": {
         "eyebrow": "fal.ai で 4 倍",
         "title": "アップスケール & 整理",
-        "description": "fal.ai で 4 倍にアップスケール、ワンクリックで背景除去、軽量な画像変換も同じスタジオで。別ツールを覚える必要はありません。",
+        "description": "画像の拡大、背景除去、軽いクリーンアップを同じスタジオで完了。別ツールを覚える必要はありません。",
         "cta": "画像を編集"
       },
       "tts": {
         "eyebrow": "Fish Audio TTS",
         "title": "Text to Speech",
-        "description": "Fish Audio S2 Pro でテキストを音声化します。公開ボイスまたはクローンボイスを選び、読み上げ速度を決めると、音声も画像と同じアーカイブに保存されます。",
+        "description": "テキストを自然な音声に変換。公開ボイスや保存済みボイスを選び、速度を調整すると、音声も関連する画像やプロンプトと一緒に残ります。",
         "cta": "音声を生成"
       },
       "model3d": {
         "eyebrow": "{count} 件の画像→3Dモデル",
         "title": "画像→3Dモデル",
-        "description": "有効な画像→3D ラインアップで、高精度マルチビュー PBR から高速ジオメトリプレビューまで扱えます。アーカイブから画像を選び、回転可能な GLB を生成し、3D アセットも画像・動画・音声と同じ書庫へ。",
+        "description": "保存済み画像を、プレビューして再利用できる 3D アセットに変換。元画像、プロンプト、完成したモデルを同じアーカイブに残せます。",
         "cta": "3Dを生成"
       },
       "workflow": {
         "eyebrow": "開発中",
-        "title": "ビジュアルワークフロー、ワンクリックでデプロイ",
-        "description": "ノードエディタでモデルをコードなしに連結。画像生成から拡大、動画への流し込み、分岐つきのバッチ処理まで。動いたらデプロイして、ほかのエンドポイントと同じようにコードから呼び出せます。",
+        "title": "再利用できるワークフロー",
+        "description": "画像を生成し、拡大し、動画化する。いくつかの手順をつないで保存すれば、次から同じ流れをそのまま使えます。",
         "cta": "公開時に通知"
       },
       "arena": {
-        "eyebrow": "ブラインド ELO",
+        "eyebrow": "モデルのブラインド比較",
         "title": "Arena",
-        "description": "4 枚並べてブラインド比較、K=32 の ELO。モデル名は伏せたまま勝者を選ぶ。投票は本当にランキングを動かします。",
+        "description": "モデル名を伏せたまま結果を横に並べて比較。いちばん良い作品を選ぶことで、ランキングが少しずつ賢くなります。",
         "cta": "Arena を開く"
       },
       "archive": {
         "eyebrow": "Cloudflare R2",
         "title": "永久アーカイブ",
-        "description": "すべての生成は Cloudflare R2 へ、プロンプト・モデル・プロバイダー・シードを添えて保存。AES-256-GCM 暗号化、S3 マルチパートアップロード。期限切れも腐敗もありません。",
+        "description": "すべての生成を、プロンプト・モデル・プロバイダー・シードと一緒に保存。あとから探しやすく、使い回しやすい形で残ります。",
         "cta": "アーカイブを見る"
       },
       "social": {
         "eyebrow": "パブリックギャラリー",
         "title": "フォロー・いいね・コレクト",
-        "description": "気になるクリエイターをフォロー、響いた作品にいいね、お気に入りをコレクションへ。ギャラリーは公開、個人アーカイブはあなただけのものです。",
+        "description": "ほかのクリエイターを見つけ、気に入った作品にいいねし、お気に入りを集められます。公開ギャラリーと個人アーカイブは分かれています。",
         "cta": "ギャラリーを見る"
       }
     },
     "actions": {
-      "signedOutPrimary": "創作を始める",
-      "signedInPrimary": "スタジオを開く",
+      "signedOutPrimary": "登録",
       "signedOutUtility": "サインイン",
       "signedInUtility": "スタジオへ",
       "sharedSecondary": "モデルを見る",
+      "gallerySecondary": "ギャラリーを見る",
       "signInPrimary": "アカウントを作成",
       "signUpPrimary": "すでにアカウントがありますか？",
       "authSecondary": "ホームに戻る"
     },
     "modelLineup": {
       "title": "主要な AI モデル、すぐ使える",
-      "description": "画像・動画・音声・3D をまたぐ {count} 件の有効モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
+      "description": "画像・動画・音声・3D をまたぐ {count} 件の有効モデル。カタログは私たちが保守。自分の API キーでモデルを選び、結果は保存できます。",
       "groups": {
         "image": "画像モデル",
         "video": "動画モデル",
@@ -381,16 +373,30 @@
       "priceKChars": "{amount} / 1k 文字"
     },
     "auth": {
-      "note": "アカウントを使うと、保存済みルート、非公開プロンプト、アーカイブ済み結果を同じ制作履歴として保てます。",
+      "note": "プロンプト、モデル選択、生成結果を同じ制作履歴として保てます。",
+      "panel": {
+        "eyebrow": "ANTEI",
+        "title": "画像・動画・音声の制作プラットフォーム",
+        "description": "生成、アーカイブ、個人の制作フローを一か所にまとめます。",
+        "items": {
+          "generate": "画像、動画、音声を生成",
+          "save": "プロンプト、モデル、結果を保存",
+          "continue": "同じアカウントから制作を再開"
+        }
+      },
       "signIn": {
-        "eyebrow": "おかえりなさい",
-        "title": "あなたのアーカイブへ戻る。",
-        "description": "サインインすると、生成や保存済み結果の確認、使用量の追跡をそのまま続けられます。"
+        "eyebrow": "ログイン",
+        "title": "既存アカウントにログイン。",
+        "description": "作品アーカイブを開き、前回の続きから制作できます。",
+        "switchPrompt": "PixelVault は初めてですか？",
+        "switchAction": "アカウントを作成"
       },
       "signUp": {
-        "eyebrow": "アーカイブを始める",
-        "title": "落ち着いた画像制作フローを始める。",
-        "description": "アカウントを作成して複数モデルで生成し、良い結果を保存しながら、あとで見返せる記録を育てましょう。"
+        "eyebrow": "アカウント作成",
+        "title": "アカウントを作成。",
+        "description": "登録後に自分の生成サービスを接続し、結果をアーカイブに保存できます。",
+        "switchPrompt": "すでにアカウントがありますか？",
+        "switchAction": "ログイン"
       }
     }
   },

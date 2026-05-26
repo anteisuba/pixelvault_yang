@@ -159,11 +159,11 @@
     },
     "signIn": {
       "title": "Sign In — PixelVault",
-      "description": "Sign in to access your personal AI gallery and creative tools."
+      "description": "Sign in to return to your saved archive, API keys, and generation history."
     },
     "signUp": {
       "title": "Create Account — PixelVault",
-      "description": "Join PixelVault to generate, archive, and share AI-created images."
+      "description": "Create an account to start generating and saving your AI images, video, prompts, and seeds."
     }
   },
   "Navbar": {
@@ -203,20 +203,12 @@
   },
   "Homepage": {
     "brandLabel": "Personal AI Gallery",
-    "navigationLabel": "Homepage",
     "skipToContent": "Skip to homepage content",
-    "nav": {
-      "app": "App"
-    },
-    "navigation": {
-      "models": "Models",
-      "arena": "Arena",
-      "gallery": "Gallery"
-    },
     "hero": {
-      "eyebrow": "{count} active models. Bring your own API key. Pay as you go.",
-      "title": "Turn ideas into images, footage, and voice.",
-      "subtitle": "PixelVault is your personal AI creative gallery. Generate images, video, and voice in one place — every render, prompt, and seed is saved automatically."
+      "title": "ANTEI image, video, and voice creation platform",
+      "brand": "ANTEI",
+      "mediums": "Image, video, voice",
+      "platform": "Creation platform"
     },
     "badges": {
       "soon": "Soon"
@@ -226,9 +218,9 @@
       "description": "A live rail of recent keepers — every prompt and model is one click away to remix."
     },
     "capabilityMatrix": {
-      "eyebrow": "The rest of the stack",
-      "title": "Specialized tools stay close to the archive.",
-      "description": "Voice, 3D, workflows, ranking, and social discovery sit behind the same saved generation record instead of becoming separate apps."
+      "eyebrow": "Connected tools",
+      "title": "More ways to create, one place to save.",
+      "description": "Voice, 3D, workflows, rankings, and gallery discovery stay tied to the work you save, so projects do not scatter across separate tools."
     },
     "mediaLabels": {
       "imageEditing": {
@@ -273,7 +265,7 @@
     "bottomCta": {
       "eyebrow": "Start archiving",
       "title": "Your next image should belong to you.",
-      "description": "Five minutes to wire your first API key — then generate across {count} active models and keep every image, clip, prompt, and seed in your own R2.",
+      "description": "Connect your first API key in minutes. Then generate across {count} active models and keep every image, clip, prompt, and seed in your own archive.",
       "primary": "Start your archive"
     },
     "footer": {
@@ -297,79 +289,79 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "Reference-aware image routes",
+        "eyebrow": "Reference image editing",
         "title": "Edit with references",
-        "description": "Drop in a reference image and route it through the model that fits: Gemini for multi-reference compositions, Flux Kontext for directed edits, and specialist image models for style or cleanup.",
+        "description": "Drop in a reference image and choose the path that fits: compose with Gemini, make directed edits with Flux Kontext, or use a specialist image model for style and cleanup.",
         "cta": "Try editing"
       },
       "video": {
         "eyebrow": "{count} video models",
         "title": "Video Generation",
-        "description": "Kling 3.0 Pro, Veo 3.1, and Seedance 2.0 variants live in one studio. Text-to-video, image-to-video, reference-to-video, and native extension paths stay archived with the prompt that made them.",
+        "description": "Kling, Veo, and Seedance live in one studio. Create from text, an image, or reference footage, then save the clip with the prompt that made it.",
         "cta": "Generate video"
       },
       "lora": {
         "eyebrow": "fal.ai + Replicate",
         "title": "LoRA Training",
-        "description": "Drop a ZIP, kick off training through fal.ai or Replicate, and we track the run until it lands in your library. Then plug it into Flux Pro, Dev, Schnell, or LoRA — your style, your character, your call.",
+        "description": "Upload a training set, start a LoRA run, and keep the result in your library. Use it later to keep a character or style consistent across new generations.",
         "cta": "Train a LoRA"
       },
       "upscale": {
         "eyebrow": "4× through fal.ai",
         "title": "Upscale & Cleanup",
-        "description": "Upscale images 4× through fal.ai. Strip backgrounds in one click. Run lightweight transforms — all from the same studio, no separate tool to learn.",
+        "description": "Upscale images, remove backgrounds, and run quick cleanup passes from the same studio. No separate tool to learn.",
         "cta": "Edit an image"
       },
       "tts": {
         "eyebrow": "Fish Audio TTS",
         "title": "Text to Speech",
-        "description": "Fish Audio S2 Pro handles text-to-speech with public or cloned voices. Pick a voice, choose the reading pace, and every audio result is archived with your images.",
+        "description": "Turn text into natural voice clips with public or saved voices. Choose a voice and pace, then keep the audio beside the images and prompts that inspired it.",
         "cta": "Generate audio"
       },
       "model3d": {
         "eyebrow": "{count} image-to-3D models",
         "title": "Image-to-3D Models",
-        "description": "Use the active image-to-3D lineup for everything from high-fidelity multi-view PBR to fast geometry previews. Pick an image from your archive, get a rotatable GLB, and keep the 3D asset beside your images, video, and audio.",
+        "description": "Turn a saved image into a 3D asset you can preview and reuse. The source image, prompt, and final model stay together in your archive.",
         "cta": "Generate 3D"
       },
       "workflow": {
         "eyebrow": "In development",
-        "title": "Build workflows visually, ship them",
-        "description": "Chain models together in a no-code node editor. Connect image generation to upscaling, feed outputs into video, or run batch jobs with branching logic. When it works, hit deploy and call it from your code like any other endpoint.",
+        "title": "Build reusable workflows",
+        "description": "Build a simple chain: generate an image, upscale it, turn it into video, or run a batch. Save the workflow once and reuse the steps later.",
         "cta": "Get notified"
       },
       "arena": {
-        "eyebrow": "Blind ELO ranking",
+        "eyebrow": "Blind model ranking",
         "title": "Arena",
-        "description": "Side-by-side blind comparison with K-factor 32 ELO. You see four results, you pick a winner — never knowing which model made what. Rankings actually move.",
+        "description": "Compare results side by side without seeing the model names. Pick the strongest output and help the rankings improve over time.",
         "cta": "Open Arena"
       },
       "archive": {
         "eyebrow": "Cloudflare R2",
         "title": "Permanent archive",
-        "description": "Every generation lands on Cloudflare R2 with prompt, model, provider, and seed. AES-256-GCM encryption, S3 multipart uploads. Nothing expires, nothing rots.",
+        "description": "Every generation is saved with its prompt, model, provider, and seed. Your archive is built to stay available, searchable, and reusable.",
         "cta": "Browse archive"
       },
       "social": {
         "eyebrow": "Public gallery",
         "title": "Follow, like, collect",
-        "description": "Follow other creators, like generations that resonate, build collections of your favorites. The gallery is public — your private archive is yours alone.",
+        "description": "Discover other creators, like work that resonates, and collect favorites. Public gallery activity stays separate from your private archive.",
         "cta": "Browse Gallery"
       }
     },
     "actions": {
-      "signedOutPrimary": "Start creating",
-      "signedInPrimary": "Open studio",
+      "signedOutPrimary": "Sign up",
       "signedOutUtility": "Sign in",
       "signedInUtility": "Go to studio",
       "sharedSecondary": "See models",
+      "gallerySecondary": "Browse gallery",
       "signInPrimary": "Create an account",
       "signUpPrimary": "Already have an account?",
       "authSecondary": "Back home"
     },
     "modelLineup": {
       "title": "The best AI models, ready when you are",
-      "description": "{count} active models across image, video, audio, and 3D. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
+      "description": "{count} active models across image, video, audio, and 3D. We keep the catalog wired and current — you bring your own key, choose the right model, and keep every result.",
       "groups": {
         "image": "Image Models",
         "video": "Video Models",
@@ -381,16 +373,30 @@
       "priceKChars": "{amount} per 1k chars"
     },
     "auth": {
-      "note": "Your account keeps saved routes, private prompts, and archived generations together across sessions.",
+      "note": "Your account keeps prompts, model choices, and generated results together across sessions.",
+      "panel": {
+        "eyebrow": "ANTEI",
+        "title": "Image, video, and voice creation platform",
+        "description": "Keep generation, archives, and your creative flow in one place.",
+        "items": {
+          "generate": "Generate images, videos, and voice",
+          "save": "Save prompts, models, and results",
+          "continue": "Continue from the same account"
+        }
+      },
       "signIn": {
-        "eyebrow": "Welcome back",
-        "title": "Return to your archive.",
-        "description": "Sign in to continue generating, review saved work, and keep your usage history intact."
+        "eyebrow": "Sign in",
+        "title": "Sign in to your account.",
+        "description": "Open your archive and continue where you left off.",
+        "switchPrompt": "New to PixelVault?",
+        "switchAction": "Create an account"
       },
       "signUp": {
-        "eyebrow": "Start your archive",
-        "title": "Begin a calmer image workflow.",
-        "description": "Create an account to generate with multiple models, save each keeper, and build a record you can return to later."
+        "eyebrow": "Create account",
+        "title": "Create your account.",
+        "description": "Connect your own generation service after signup and keep each result in your archive.",
+        "switchPrompt": "Already have an account?",
+        "switchAction": "Sign in"
       }
     }
   },

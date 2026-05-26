@@ -2,7 +2,6 @@ import { useTranslations } from 'next-intl'
 
 import {
   HOMEPAGE_FEATURE_SECTIONS,
-  HOMEPAGE_NAVIGATION,
   HOMEPAGE_ROUTES,
 } from '@/constants/homepage'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
@@ -34,7 +33,7 @@ export function HomepageShell() {
         <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             href={HOMEPAGE_ROUTES.home}
-            className="flex min-w-0 items-center gap-2"
+            className="flex min-h-11 min-w-11 items-center justify-center gap-2 sm:min-w-0"
             aria-label={tCommon('brand')}
           >
             <span className="homepage-brand-mark" aria-hidden="true">
@@ -48,34 +47,13 @@ export function HomepageShell() {
             </span>
           </Link>
 
-          <nav
-            aria-label={t('navigationLabel')}
-            className="hidden items-center justify-center gap-9 text-sm font-medium text-foreground md:flex"
-          >
-            <Link href={HOMEPAGE_ROUTES.studio} className="homepage-top-link">
-              {t('nav.app')}
-            </Link>
-            {HOMEPAGE_NAVIGATION.map((item) =>
-              item.href.startsWith('#') ? (
-                <a key={item.id} href={item.href} className="homepage-top-link">
-                  {t(`navigation.${item.id}`)}
-                </a>
-              ) : (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className="homepage-top-link"
-                >
-                  {t(`navigation.${item.id}`)}
-                </Link>
-              ),
-            )}
-          </nav>
+          <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+            <LocaleSwitcher className="homepage-locale-switcher" />
 
-          <div className="flex shrink-0 items-center justify-end gap-2">
-            <LocaleSwitcher />
-
-            <HomepageAuthCta variant="nav-utility" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <HomepageAuthCta variant="nav-utility" />
+              <HomepageAuthCta variant="nav-register" />
+            </div>
           </div>
         </div>
       </header>

@@ -159,11 +159,11 @@
     },
     "signIn": {
       "title": "登录 — PixelVault",
-      "description": "登录以访问您的个人 AI 画廊和创作工具。"
+      "description": "登录后回到已保存的档案、API key 和生成历史。"
     },
     "signUp": {
-      "title": "创建账户 — PixelVault",
-      "description": "加入 PixelVault，生成、存档和分享 AI 图像。"
+      "title": "注册 — PixelVault",
+      "description": "创建账号后开始生成并保存图像、视频、prompt 和 seed。"
     }
   },
   "Navbar": {
@@ -203,20 +203,12 @@
   },
   "Homepage": {
     "brandLabel": "个人 AI 画廊",
-    "navigationLabel": "首页",
     "skipToContent": "跳到首页正文",
-    "nav": {
-      "app": "应用"
-    },
-    "navigation": {
-      "models": "模型",
-      "arena": "擂台",
-      "gallery": "画廊"
-    },
     "hero": {
-      "eyebrow": "{count} 个可用模型。自带 API key。按用量付费。",
-      "title": "把想法做成画面、镜头和声音。",
-      "subtitle": "PixelVault 是你的个人 AI 创作画廊。在一处生成图像、视频和配音；作品、prompt 和 seed 自动保存。"
+      "title": "ANTEI 图像、视频、声音创作平台",
+      "brand": "ANTEI",
+      "mediums": "图像、视频、声音",
+      "platform": "创作平台"
     },
     "badges": {
       "soon": "即将上线"
@@ -226,9 +218,9 @@
       "description": "实时滚动展示最近留进归档的精选生成 — prompt 与模型都可一键复用。"
     },
     "capabilityMatrix": {
-      "eyebrow": "其余创作能力",
-      "title": "专业工具都贴着同一个档案系统。",
-      "description": "语音、3D、工作流、擂台排行和社交发现不再拆成一串入口；它们都围绕同一条生成记录展开。"
+      "eyebrow": "创作工具已串好",
+      "title": "更多创作方式，统一保存。",
+      "description": "语音、3D、工作流、排行和画廊发现都跟着作品走，不必在一堆分散工具里找回上下文。"
     },
     "mediaLabels": {
       "imageEditing": {
@@ -273,7 +265,7 @@
     "bottomCta": {
       "eyebrow": "开始建档",
       "title": "你的下一张图，应该属于你自己。",
-      "description": "5 分钟接好你的第一把 API key，让 {count} 个可用模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
+      "description": "几分钟接好你的第一把 API key。然后用 {count} 个可用模型生成，并把图、视频、prompt 和 seed 留在自己的档案里。",
       "primary": "免费开始建档"
     },
     "footer": {
@@ -297,79 +289,79 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "参考图编辑路径",
+        "eyebrow": "参考图编辑",
         "title": "参考图编辑",
-        "description": "丢一张参考图，然后交给最适合的模型路径：多参考构图走 Gemini，定向编辑走 Flux Kontext，风格化或清理则走对应的图像模型。",
+        "description": "上传参考图，按目标选择合适路径：Gemini 做组合构图，Flux Kontext 做定向修改，其他图像模型负责风格和清理。",
         "cta": "试试编辑"
       },
       "video": {
         "eyebrow": "{count} 个视频模型",
         "title": "视频生成",
-        "description": "Kling 3.0 Pro、Veo 3.1 和 Seedance 2.0 系列都在同一个工作台里。文生视频、图生视频、参考视频和原生延长路径都会跟生成它们的 prompt 一起归档。",
+        "description": "Kling、Veo 和 Seedance 都在同一个工作台里。可以从文字、图片或参考视频开始，生成后和对应 prompt 一起保存。",
         "cta": "生成视频"
       },
       "lora": {
         "eyebrow": "fal.ai + Replicate",
         "title": "LoRA 训练",
-        "description": "上传 ZIP，通过 fal.ai 或 Replicate 提交训练，我们追到落库为止。训完直接挂进 Flux Pro / Dev / Schnell / LoRA — 你的风格、你的角色、你说了算。",
+        "description": "上传训练集，启动 LoRA 训练，结果会进入你的素材库。之后继续用它保持角色、产品或风格的一致性。",
         "cta": "训练 LoRA"
       },
       "upscale": {
         "eyebrow": "fal.ai 4× 放大",
         "title": "图像增强 / 清理",
-        "description": "fal.ai 4× 放大、一键去背景、轻量图像变换 — 都在同一个工作台里，不用换工具。",
+        "description": "放大图片、去背景、做轻量清理都在同一个工作台里完成，不用在多个工具之间来回切。",
         "cta": "编辑图像"
       },
       "tts": {
         "eyebrow": "Fish Audio TTS",
         "title": "文字转语音",
-        "description": "Fish Audio S2 Pro 负责文字转语音，支持公开音色和克隆音色。选音色、设定朗读速度后生成，音频会和图像一起进同一个档案。",
+        "description": "把文字变成自然语音，选择公开或已保存的音色，再调整语速。音频会和相关图像、prompt 放在一起。",
         "cta": "生成语音"
       },
       "model3d": {
         "eyebrow": "{count} 个图生 3D 模型",
         "title": "图生 3D 模型",
-        "description": "使用当前可用的图生 3D 阵容，从高精度多视角 PBR 到快速几何预览都能覆盖。从档案里挑一张图，生成可旋转的 GLB；3D 资产和图像、视频、音频一起归档。",
+        "description": "把已保存的图片转成可预览、可复用的 3D 资产。原图、prompt 和生成结果会留在同一个档案里。",
         "cta": "生成 3D"
       },
       "workflow": {
         "eyebrow": "开发中",
-        "title": "可视化工作流 · 一键部署",
-        "description": "节点编辑器无代码串联模型 — 图像生成接放大，接视频生成，带分支逻辑的批量任务也行。跑通之后一键部署，代码里像调普通 endpoint 一样调它。",
+        "title": "搭建可复用工作流",
+        "description": "把几个步骤串起来：先生成图像，再放大、转视频，或批量处理。保存一次，之后直接复用这套流程。",
         "cta": "上线后通知我"
       },
       "arena": {
-        "eyebrow": "盲测 ELO 排行",
+        "eyebrow": "模型盲测排行",
         "title": "Arena 擂台",
-        "description": "四张结果并排盲测，K=32 的 ELO 算分。你只看图，不看模型，选谁是谁。每一票真的会改变排行。",
+        "description": "并排比较多个结果，但先不看模型名。选出更好的作品，帮助排行慢慢变准。",
         "cta": "进入 Arena"
       },
       "archive": {
         "eyebrow": "Cloudflare R2",
         "title": "永久归档",
-        "description": "每次生成都落到 Cloudflare R2，提示词、模型、供应商、seed 一起留底。AES-256-GCM 加密，S3 multipart 上传。不过期，不腐烂。",
+        "description": "每次生成都会保存 prompt、模型、供应商和 seed。你的档案会保持可查、可找回、可复用。",
         "cta": "浏览档案"
       },
       "social": {
         "eyebrow": "公共画廊",
         "title": "关注、点赞、收藏",
-        "description": "关注其他创作者，给共鸣的作品点赞，把喜欢的攒成合集。公共画廊是公开的，你的私人档案只属于你。",
+        "description": "发现其他创作者，给喜欢的作品点赞，也可以把灵感收进合集。公共画廊和私人档案会清楚分开。",
         "cta": "浏览画廊"
       }
     },
     "actions": {
-      "signedOutPrimary": "开始创作",
-      "signedInPrimary": "打开工作台",
+      "signedOutPrimary": "注册",
       "signedOutUtility": "登录",
       "signedInUtility": "前往工作台",
       "sharedSecondary": "查看模型",
+      "gallerySecondary": "浏览画廊",
       "signInPrimary": "创建账号",
       "signUpPrimary": "已有账号？",
       "authSecondary": "返回首页"
     },
     "modelLineup": {
       "title": "精选 AI 模型，即开即用",
-      "description": "{count} 个可用模型，覆盖图像、视频、语音和 3D。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
+      "description": "{count} 个可用模型，覆盖图像、视频、语音和 3D。模型目录由我们维护；你自带 API key，选择合适模型，结果都会保存。",
       "groups": {
         "image": "图像模型",
         "video": "视频模型",
@@ -381,16 +373,30 @@
       "priceKChars": "{amount} / 千字符"
     },
     "auth": {
-      "note": "账号会把已保存路由、私有提示词和归档结果保留在同一条创作记录里。",
+      "note": "账号会把你的提示词、模型选择和生成结果保留在同一条创作记录里。",
+      "panel": {
+        "eyebrow": "ANTEI",
+        "title": "图像、视频、声音创作平台",
+        "description": "把生成入口、作品档案和个人创作流程放在一个地方。",
+        "items": {
+          "generate": "生成图像、视频和声音",
+          "save": "保存提示词、模型和结果",
+          "continue": "回到同一个账号继续创作"
+        }
+      },
       "signIn": {
-        "eyebrow": "欢迎回来",
-        "title": "回到你的档案。",
-        "description": "登录后继续生成、查看已保存结果，并保留你的用量记录。"
+        "eyebrow": "登录",
+        "title": "登录已有账号。",
+        "description": "进入你的作品档案，继续上次的创作。",
+        "switchPrompt": "还没有账号？",
+        "switchAction": "创建账号"
       },
       "signUp": {
-        "eyebrow": "开始建立档案",
-        "title": "从更安静的图像工作流开始。",
-        "description": "创建账号后即可使用多个模型生成、保存每个满意结果，并在以后继续回看。"
+        "eyebrow": "注册",
+        "title": "创建账号。",
+        "description": "注册后即可连接自己的生成服务，并把每次结果保存在档案里。",
+        "switchPrompt": "已有账号？",
+        "switchAction": "登录"
       }
     }
   },

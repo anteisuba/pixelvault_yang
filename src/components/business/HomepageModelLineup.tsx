@@ -55,13 +55,13 @@ function ModelGroup({ label, models, formatPrice, tModels }: ModelGroupProps) {
       <p className="homepage-model-group-label mb-4 text-xs font-semibold uppercase tracking-[0.18em]">
         {label}
       </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {models.map((model) => {
           const provider = getProviderLabel(model.providerConfig)
           return (
             <div key={model.id} className="homepage-model-card">
               <div className="min-w-0 flex-1">
-                <p className="homepage-model-card-name truncate font-display font-semibold">
+                <p className="homepage-model-card-name font-display font-semibold">
                   {resolveModelLabel(model, tModels)}
                 </p>
                 <p className="homepage-model-card-provider truncate text-xs">

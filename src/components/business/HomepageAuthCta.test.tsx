@@ -13,8 +13,7 @@ vi.mock('@clerk/nextjs', () => ({
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
-      'actions.signedInPrimary': 'Open Studio',
-      'actions.signedOutPrimary': 'Get Started',
+      'actions.signedOutPrimary': 'Sign up',
       'actions.signedInUtility': 'Open Studio',
       'actions.signedOutUtility': 'Sign In',
     }
@@ -33,22 +32,6 @@ beforeEach(() => {
 })
 
 describe('HomepageAuthCta', () => {
-  it('renders signed-out hero CTA before Clerk loads', () => {
-    mockUseUser.mockReturnValue({ isLoaded: false, isSignedIn: undefined })
-    render(<HomepageAuthCta variant="hero" />)
-
-    const link = screen.getByRole('link', { name: 'Get Started' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('sign-up'))
-  })
-
-  it('renders signed-in hero CTA after Clerk loads with a session', () => {
-    mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: true })
-    render(<HomepageAuthCta variant="hero" />)
-
-    const link = screen.getByRole('link', { name: 'Open Studio' })
-    expect(link).toHaveAttribute('href', expect.stringContaining('studio'))
-  })
-
   it('renders sign-in href on nav-utility variant when signed out', () => {
     mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false })
     render(<HomepageAuthCta variant="nav-utility" />)
@@ -63,5 +46,20 @@ describe('HomepageAuthCta', () => {
 
     const link = screen.getByRole('link', { name: 'Open Studio' })
     expect(link).toHaveAttribute('href', expect.stringContaining('studio'))
+  })
+
+  it('renders sign-up href on nav-register variant when signed out', () => {
+    mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false })
+    render(<HomepageAuthCta variant="nav-register" />)
+
+    const link = screen.getByRole('link', { name: 'Sign up' })
+    expect(link).toHaveAttribute('href', expect.stringContaining('sign-up'))
+  })
+
+  it('hides nav-register variant when signed in', () => {
+    mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: true })
+    const { container } = render(<HomepageAuthCta variant="nav-register" />)
+
+    expect(container).toBeEmptyDOMElement()
   })
 })

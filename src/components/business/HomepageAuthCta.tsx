@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { HOMEPAGE_ROUTES } from '@/constants/homepage'
 import { Link } from '@/i18n/navigation'
 
-type Variant = 'hero' | 'nav-utility'
+type Variant = 'nav-utility' | 'nav-register'
 
 const BUTTON_CLASSES: Record<Variant, string> = {
-  hero: 'homepage-primary-btn mt-9 h-14 rounded-full px-8 text-base font-semibold',
   'nav-utility':
-    'homepage-nav-login h-10 rounded-full px-5 text-sm font-medium',
+    'homepage-nav-login h-10 rounded-full px-3 text-xs font-medium sm:px-4 sm:text-sm md:h-11 md:px-5',
+  'nav-register':
+    'homepage-nav-register h-10 rounded-full px-3 text-xs font-semibold sm:px-4 sm:text-sm md:h-11 md:px-5',
 }
 
 const VARIANT_CONFIG: Record<
@@ -24,17 +25,17 @@ const VARIANT_CONFIG: Record<
     signedOutLabelKey: string
   }
 > = {
-  hero: {
-    signedInHref: HOMEPAGE_ROUTES.studio,
-    signedOutHref: HOMEPAGE_ROUTES.signUp,
-    signedInLabelKey: 'actions.signedInPrimary',
-    signedOutLabelKey: 'actions.signedOutPrimary',
-  },
   'nav-utility': {
     signedInHref: HOMEPAGE_ROUTES.studio,
     signedOutHref: HOMEPAGE_ROUTES.signIn,
     signedInLabelKey: 'actions.signedInUtility',
     signedOutLabelKey: 'actions.signedOutUtility',
+  },
+  'nav-register': {
+    signedInHref: HOMEPAGE_ROUTES.studio,
+    signedOutHref: HOMEPAGE_ROUTES.signUp,
+    signedInLabelKey: 'actions.signedInUtility',
+    signedOutLabelKey: 'actions.signedOutPrimary',
   },
 }
 
@@ -48,26 +49,24 @@ interface HomepageAuthCtaProps {
  * The homepage is statically generated (no `auth()` call on the server) so it
  * can be cached at the edge for non-US visitors. The auth-dependent CTA label
  * + href flip on the client after Clerk hydrates. Pre-hydration we render the
- * signed-out variant — the worst-case flash is a logged-in visitor briefly
- * seeing "Get Started" before it swaps to "Open Studio" (~100ms). Clicking
- * during that window still works because /sign-up already handles signed-in
- * users via Clerk.
+ * signed-out variant; if a logged-in user clicks during that brief window,
+ * Clerk redirects them back into the app.
  */
 export function HomepageAuthCta({ variant }: HomepageAuthCtaProps) {
   const t = useTranslations('Homepage')
   const { isLoaded, isSignedIn } = useUser()
   const signedIn = isLoaded ? !!isSignedIn : false
 
+  if (variant === 'nav-register' && signedIn) {
+    return null
+  }
+
   const config = VARIANT_CONFIG[variant]
   const href = signedIn ? config.signedInHref : config.signedOutHref
   const label = t(signedIn ? config.signedInLabelKey : config.signedOutLabelKey)
 
   return (
-    <Button
-      asChild
-      size={variant === 'hero' ? 'lg' : undefined}
-      className={BUTTON_CLASSES[variant]}
-    >
+    <Button asChild className={BUTTON_CLASSES[variant]}>
       <Link href={href}>{label}</Link>
     </Button>
   )

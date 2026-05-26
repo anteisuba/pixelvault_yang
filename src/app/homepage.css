@@ -97,6 +97,35 @@
   outline-offset: 2px;
 }
 
+.homepage-secondary-btn {
+  border-color: color-mix(in oklab, var(--foreground) 34%, transparent);
+  background: color-mix(in oklab, var(--background) 76%, transparent);
+  color: var(--foreground);
+  backdrop-filter: blur(8px);
+  box-shadow: none;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.homepage-secondary-btn:hover {
+  border-color: color-mix(in oklab, var(--foreground) 64%, transparent);
+  background: color-mix(in oklab, var(--foreground) 8%, var(--background));
+  color: var(--foreground);
+  transform: translateY(-1px);
+}
+
+.homepage-secondary-btn:active {
+  transform: translateY(0);
+}
+
+.homepage-secondary-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 45%, transparent);
+  outline-offset: 2px;
+}
+
 .homepage-utility-btn {
   border-color: var(--home-border);
   background: color-mix(in oklab, var(--background) 70%, transparent);
@@ -235,38 +264,6 @@
   }
 }
 
-.homepage-top-link {
-  position: relative;
-  color: color-mix(in oklab, var(--foreground) 96%, var(--background));
-  letter-spacing: 0.005em;
-  transition:
-    color 180ms ease,
-    transform 180ms ease;
-}
-
-.homepage-top-link::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -6px;
-  height: 1.5px;
-  background: var(--foreground);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.homepage-top-link:hover,
-.homepage-top-link:focus-visible {
-  color: var(--foreground);
-}
-
-.homepage-top-link:hover::after,
-.homepage-top-link:focus-visible::after {
-  transform: scaleX(1);
-}
-
 .homepage-nav-login {
   background: transparent;
   color: var(--foreground);
@@ -286,6 +283,67 @@
 .homepage-nav-login:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
   outline-offset: 2px;
+}
+
+.homepage-nav-register {
+  border: 1px solid var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.homepage-nav-register:hover {
+  border-color: color-mix(in oklab, var(--foreground) 86%, var(--background));
+  background: color-mix(in oklab, var(--foreground) 88%, var(--background));
+  color: var(--background);
+}
+
+.homepage-nav-register:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--foreground) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.homepage-locale-switcher {
+  gap: 0.125rem;
+  border-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  padding: 0.1875rem;
+}
+
+.homepage-locale-switcher .locale-switcher-option {
+  display: inline-flex;
+  min-width: 2.35rem;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.6rem;
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+}
+
+.homepage-locale-switcher .locale-switcher-indicator {
+  inset: 0.125rem;
+  background: color-mix(in oklab, var(--foreground) 92%, var(--background));
+}
+
+@media (min-width: 768px) and (pointer: coarse) {
+  .homepage-locale-switcher .locale-switcher-option {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .homepage-locale-switcher .locale-switcher-option {
+    min-width: 1.75rem;
+    min-height: 2.25rem;
+    padding: 0 0.35rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+  }
 }
 
 .homepage-showcase-surface {
@@ -332,14 +390,28 @@
 }
 
 .homepage-hero-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.16em;
   font-size: clamp(2.75rem, 5.5vw, 4.75rem);
-  line-height: 1;
+  line-height: 0.98;
   letter-spacing: -0.045em;
 }
 
-.homepage-hero-copy {
-  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
-  line-height: 1.5;
+.homepage-hero-brand {
+  color: color-mix(in oklab, var(--foreground) 72%, var(--background));
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 1.35vw, 1.35rem);
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  line-height: 1;
+  margin-inline-end: -0.42em;
+}
+
+.homepage-hero-title-main,
+.homepage-hero-title-platform {
+  display: block;
 }
 
 .homepage-hero-mosaic {
@@ -856,7 +928,7 @@ html.homepage-motion-ready
 
 .homepage-model-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   border: 1px solid var(--home-border);
@@ -877,8 +949,13 @@ html.homepage-motion-ready
 
 .homepage-model-card-name {
   color: var(--foreground);
+  display: -webkit-box;
   font-size: 0.95rem;
   line-height: 1.25;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .homepage-model-card-provider {
@@ -916,8 +993,8 @@ html.homepage-motion-ready
 
 .homepage-rail-viewport {
   position: relative;
-  margin-inline: calc(-1 * clamp(1rem, 3vw, 2rem));
-  overflow: hidden;
+  max-width: 100%;
+  overflow: clip;
   mask-image: linear-gradient(
     90deg,
     transparent 0,
@@ -992,6 +1069,9 @@ html.homepage-motion-ready
 /* — Bottom CTA — */
 .homepage-bottom-cta {
   border: 1px solid var(--home-border);
+  contain: paint;
+  isolation: isolate;
+  overflow: clip;
   background:
     radial-gradient(
       circle at 30% 20%,
@@ -1013,7 +1093,7 @@ html.homepage-motion-ready
 
 .homepage-bottom-cta-glow {
   position: absolute;
-  inset: -40%;
+  inset: 0;
   background: radial-gradient(
     circle at 50% 50%,
     color-mix(in oklab, var(--primary) 14%, transparent) 0%,
@@ -1063,14 +1143,54 @@ html.homepage-motion-ready
 }
 
 @media (max-width: 640px) {
+  .homepage-hero-grid {
+    row-gap: 2rem;
+  }
+
+  .homepage-hero-title {
+    font-size: clamp(2.35rem, 10.6vw, 2.65rem);
+    line-height: 1;
+  }
+
+  .homepage-hero-brand {
+    font-size: 0.9rem;
+    letter-spacing: 0.34em;
+    margin-inline-end: -0.34em;
+  }
+
+  .homepage-hero-pill {
+    margin-bottom: 1rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
   .homepage-hero-mosaic {
-    height: 22rem;
-    grid-template-areas:
-      'tile-a tile-b'
-      'tile-c tile-d'
-      'tile-c tile-e'
-      'tile-f tile-f';
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(4, minmax(0, 1fr));
+    aspect-ratio: 3 / 2;
+    height: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .homepage-hero-tile {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .homepage-main {
+    padding-top: 2rem;
+  }
+
+  .homepage-hero-grid {
+    row-gap: 1.75rem;
+  }
+
+  .homepage-hero-title {
+    font-size: 2.25rem;
+  }
+
+  .homepage-hero-mosaic {
+    height: auto;
   }
 }

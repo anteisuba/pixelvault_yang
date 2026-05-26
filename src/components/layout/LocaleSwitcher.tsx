@@ -41,7 +41,7 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'relative z-10 rounded-full px-2.5 py-2.5 text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
+              'locale-switcher-option relative z-10 rounded-full px-2.5 py-2.5 text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
               isActive
                 ? 'text-background'
                 : 'text-muted-foreground hover:text-foreground',
@@ -50,7 +50,7 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
             {isActive && (
               <motion.span
                 layoutId="locale-indicator"
-                className="absolute inset-0 rounded-full bg-foreground"
+                className="locale-switcher-indicator absolute inset-0 rounded-full bg-foreground"
                 transition={{
                   type: 'tween',
                   ease: 'easeOut',

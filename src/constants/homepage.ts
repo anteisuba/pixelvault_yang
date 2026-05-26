@@ -107,12 +107,6 @@ export const HOMEPAGE_ROUTES = {
   models: '#models',
 } as const
 
-export const HOMEPAGE_NAVIGATION = [
-  { id: 'models', href: '#models' },
-  { id: 'arena', href: ROUTES.ARENA },
-  { id: 'gallery', href: HOMEPAGE_ROUTES.gallery },
-] as const
-
 /**
  * Optional media shown inside each feature section's media tile.
  *

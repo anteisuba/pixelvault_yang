@@ -4,56 +4,47 @@ import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { HOMEPAGE_MODEL_COUNTS } from '@/constants/homepage'
-
 import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    eyebrow: '{count} active models. Bring your own API key. Pay as you go.',
-    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} active models. Bring your own API key. Pay as you go.`,
-    title: 'Turn ideas into images, footage, and voice.',
+    title: 'ANTEI image, video, and voice creation platform',
+    brand: 'ANTEI',
+    mediums: 'Image, video, voice',
+    platform: 'Creation platform',
   },
   zh: {
-    eyebrow: '{count} 个可用模型。自带 API key。按用量付费。',
-    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} 个可用模型。自带 API key。按用量付费。`,
-    title: '把想法做成画面、镜头和声音。',
+    title: 'ANTEI 图像、视频、声音创作平台',
+    brand: 'ANTEI',
+    mediums: '图像、视频、声音',
+    platform: '创作平台',
   },
   ja: {
-    eyebrow: '{count} 件の有効モデル。BYO API キー。従量課金。',
-    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} 件の有効モデル。BYO API キー。従量課金。`,
-    title: 'アイデアを、絵と映像と声に。',
+    title: 'ANTEI 画像・動画・音声 制作プラットフォーム',
+    brand: 'ANTEI',
+    mediums: '画像・動画・音声',
+    platform: '制作プラットフォーム',
   },
 } as const
 
 type Locale = keyof typeof EXPECTED_HERO
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, number>) => {
+  useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
-      eyebrow: EXPECTED_HERO.en.eyebrow,
       title: EXPECTED_HERO.en.title,
-      subtitle: 'Run prompts across active image, video, and audio models.',
+      brand: EXPECTED_HERO.en.brand,
+      mediums: EXPECTED_HERO.en.mediums,
+      platform: EXPECTED_HERO.en.platform,
+      gallerySecondary: 'Browse gallery',
     }
-    return (map[key] ?? key).replaceAll(
-      '{count}',
-      String(values?.count ?? HOMEPAGE_MODEL_COUNTS.total),
-    )
+    return map[key] ?? key
   },
 }))
 
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href }: { children: ReactNode; href: string }) => (
     <a href={href}>{children}</a>
-  ),
-}))
-
-// Hero now delegates the auth-aware CTA to HomepageAuthCta. Stub it to keep
-// this test focused on Hero's own rendering — CTA behaviour is covered in
-// HomepageAuthCta.test.tsx.
-vi.mock('./HomepageAuthCta', () => ({
-  HomepageAuthCta: ({ variant }: { variant: string }) => (
-    <button data-testid={`auth-cta-${variant}`}>cta</button>
   ),
 }))
 
@@ -74,21 +65,25 @@ function loadMessages(locale: Locale): Record<string, unknown> {
 }
 
 describe('HomepageHero', () => {
-  it('renders eyebrow, title and subtitle copy', () => {
+  it('renders title and gallery CTA without eyebrow or subtitle copy', () => {
     render(<HomepageHero />)
 
     expect(
-      screen.getByText(EXPECTED_HERO.en.renderedEyebrow),
+      screen.getByRole('heading', { name: EXPECTED_HERO.en.title }),
     ).toBeInTheDocument()
-    expect(screen.getByText(EXPECTED_HERO.en.title)).toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.brand)).toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.mediums)).toBeInTheDocument()
+    expect(screen.getByText(EXPECTED_HERO.en.platform)).toBeInTheDocument()
+    expect(screen.queryByText(/API key/i)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/save every result|保存每次结果/i),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Browse gallery' }),
+    ).toHaveAttribute('href', expect.stringContaining('gallery'))
   })
 
-  it('mounts the hero-variant auth CTA placeholder', () => {
-    render(<HomepageHero />)
-    expect(screen.getByTestId('auth-cta-hero')).toBeInTheDocument()
-  })
-
-  it('keeps Homepage.hero.eyebrow and title present in every locale', () => {
+  it('keeps Homepage.hero title present in every locale', () => {
     for (const locale of Object.keys(EXPECTED_HERO) as Locale[]) {
       const homepage = loadMessages(locale).Homepage
       expect(isRecord(homepage)).toBe(true)
@@ -102,10 +97,12 @@ describe('HomepageHero', () => {
         throw new Error(`Homepage.hero missing in ${locale}.json`)
       }
 
-      expect(hero.eyebrow).toBe(EXPECTED_HERO[locale].eyebrow)
+      expect('eyebrow' in hero).toBe(false)
+      expect('subtitle' in hero).toBe(false)
       expect(hero.title).toBe(EXPECTED_HERO[locale].title)
-      expect(typeof hero.subtitle).toBe('string')
-      expect((hero.subtitle as string).length).toBeGreaterThan(20)
+      expect(hero.brand).toBe(EXPECTED_HERO[locale].brand)
+      expect(hero.mediums).toBe(EXPECTED_HERO[locale].mediums)
+      expect(hero.platform).toBe(EXPECTED_HERO[locale].platform)
     }
   })
 })

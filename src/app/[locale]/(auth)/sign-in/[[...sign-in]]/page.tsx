@@ -3,8 +3,8 @@ import { SignIn } from '@clerk/nextjs'
 import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
-import { BrandMark } from '@/components/ui/brand-mark'
-import { getPathname, Link } from '@/i18n/navigation'
+import { AuthPageShell } from '@/components/business/AuthPageShell'
+import { getPathname } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { clerkAppearance } from '@/lib/clerk-appearance'
 
@@ -42,46 +42,30 @@ export default async function SignInPage({ params }: SignInPageProps) {
   })
 
   return (
-    <div className="flex min-h-svh flex-col items-center bg-white">
-      <header className="w-full border-b border-border/60 px-4 py-4">
-        <div className="mx-auto flex max-w-content items-center">
-          <Link
-            href={ROUTES.HOME}
-            className="flex items-center gap-2 transition-opacity hover:opacity-75"
-            aria-label={tCommon('brand')}
-          >
-            <BrandMark />
-            <span className="sr-only">{tCommon('brand')}</span>
-          </Link>
-        </div>
-      </header>
-
-      <main className="flex w-full flex-1 flex-col items-center justify-center gap-8 px-4 py-12">
-        <div className="text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {t('auth.signIn.eyebrow')}
-          </p>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {t('auth.signIn.title')}
-          </h1>
-          <p className="mx-auto mt-3 max-w-md font-display text-sm leading-relaxed text-muted-foreground">
-            {t('auth.signIn.description')}
-          </p>
-        </div>
-
-        <SignIn
-          path={signInPath}
-          routing="path"
-          signUpUrl={signUpPath}
-          fallbackRedirectUrl={studioPath}
-          signUpFallbackRedirectUrl={studioPath}
-          appearance={clerkAppearance}
-        />
-
-        <p className="max-w-sm text-center font-display text-xs leading-relaxed text-muted-foreground">
-          {t('auth.note')}
-        </p>
-      </main>
-    </div>
+    <AuthPageShell
+      brandLabel={tCommon('brand')}
+      homeHref={ROUTES.HOME}
+      panelEyebrow={t('auth.panel.eyebrow')}
+      panelTitle={t('auth.panel.title')}
+      panelDescription={t('auth.panel.description')}
+      panelItems={[
+        t('auth.panel.items.generate'),
+        t('auth.panel.items.save'),
+        t('auth.panel.items.continue'),
+      ]}
+      eyebrow={t('auth.signIn.eyebrow')}
+      title={t('auth.signIn.title')}
+      description={t('auth.signIn.description')}
+      note={t('auth.note')}
+    >
+      <SignIn
+        path={signInPath}
+        routing="path"
+        signUpUrl={signUpPath}
+        fallbackRedirectUrl={studioPath}
+        signUpFallbackRedirectUrl={studioPath}
+        appearance={clerkAppearance}
+      />
+    </AuthPageShell>
   )
 }

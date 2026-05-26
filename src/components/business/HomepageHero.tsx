@@ -1,15 +1,13 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import {
-  HOMEPAGE_MODEL_COUNT_VALUES,
-  HOMEPAGE_SHOWCASE,
-} from '@/constants/homepage'
-
-import { HomepageAuthCta } from './HomepageAuthCta'
+import { Button } from '@/components/ui/button'
+import { HOMEPAGE_ROUTES, HOMEPAGE_SHOWCASE } from '@/constants/homepage'
+import { Link } from '@/i18n/navigation'
 
 export function HomepageHero() {
   const t = useTranslations('Homepage.hero')
+  const tActions = useTranslations('Homepage.actions')
   const showcase = HOMEPAGE_SHOWCASE
 
   return (
@@ -18,20 +16,28 @@ export function HomepageHero() {
       aria-labelledby="homepage-hero-title"
     >
       <div className="flex flex-col items-center text-center">
-        <span className="homepage-hero-pill mb-5 rounded-full px-4 py-2 text-sm font-semibold">
-          {t('eyebrow', HOMEPAGE_MODEL_COUNT_VALUES)}
-        </span>
         <h1
           id="homepage-hero-title"
           className="homepage-hero-title font-display font-bold text-foreground text-balance"
+          aria-label={t('title')}
         >
-          {t('title')}
+          <span className="homepage-hero-brand">{t('brand')}</span>
+          <span className="homepage-hero-title-main">{t('mediums')}</span>
+          <span className="homepage-hero-title-platform">{t('platform')}</span>
         </h1>
-        <p className="homepage-hero-copy mt-6 max-w-3xl font-display font-medium text-[var(--home-muted)]">
-          {t('subtitle')}
-        </p>
 
-        <HomepageAuthCta variant="hero" />
+        <div className="homepage-hero-actions mt-7 flex flex-wrap items-center justify-center gap-3 sm:mt-9">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="homepage-secondary-btn h-12 rounded-full px-7 text-base font-semibold sm:h-14 sm:px-8"
+          >
+            <Link href={HOMEPAGE_ROUTES.gallery}>
+              {tActions('gallerySecondary')}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="homepage-hero-mosaic overflow-hidden">

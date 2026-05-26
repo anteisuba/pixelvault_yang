@@ -363,6 +363,13 @@ export const VIDEO_GENERATION = {
   // (Veo, Kling) clamp internally via their own builder helpers, so raising
   // the wire-level cap to 15 doesn't break them.
   MAX_DURATION: 15,
+  /**
+   * Long-video pipeline cap for the first clip's duration. Independent of
+   * MAX_DURATION because long-video runs on Veo/Kling/etc. extension models
+   * whose own per-clip limits sit around 8-10s — pushing past that wastes
+   * provider time on clips the extension can't use.
+   */
+  LONG_VIDEO_FIRST_CLIP_MAX_DURATION: 10,
   DEFAULT_DURATION: 5,
   DURATION_OPTIONS: [3, 5, 10] as const,
   POLL_INTERVAL_MS: 3000,

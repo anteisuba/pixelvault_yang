@@ -83,7 +83,7 @@ export async function createLongVideoPipeline(
 
   // Calculate clip count
   const firstClipDuration = Math.min(
-    VIDEO_GENERATION.MAX_DURATION,
+    VIDEO_GENERATION.LONG_VIDEO_FIRST_CLIP_MAX_DURATION,
     input.targetDuration,
   )
   const remainingDuration = input.targetDuration - firstClipDuration
@@ -578,7 +578,7 @@ export async function retryPipelineClip(
 
     const modelConfig = getModelById(pipeline.modelId)
     const firstClipDuration = Math.min(
-      VIDEO_GENERATION.MAX_DURATION,
+      VIDEO_GENERATION.LONG_VIDEO_FIRST_CLIP_MAX_DURATION,
       pipeline.targetDurationSec,
     )
     const validatedResolution =

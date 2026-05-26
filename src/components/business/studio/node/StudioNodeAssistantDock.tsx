@@ -29,6 +29,7 @@ import {
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { Button } from '@/components/ui/button'
 import { useAssistantConversation } from '@/hooks/use-assistant-conversation'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useNodeSelection } from '@/hooks/use-node-selection'
 import type { AppLocale } from '@/i18n/routing'
 import type { NodeAssistantNodeContext } from '@/types/node-assistant'
@@ -531,9 +532,14 @@ export function StudioNodeAssistantDock({
     })
   const { layout, splitContainerRef, widthHandlers, splitHandlers } =
     useDockLayout()
+  const isMobile = useIsMobile()
+  // Mobile uses the bottom-sheet layout (`inset-x-0 h-[65vh]`), so the
+  // persisted desktop width would conflict with the full-bleed sheet —
+  // skip the inline width when on phone-portrait. The localStorage value
+  // is preserved untouched for when the user returns to desktop.
   const dockStyle = useMemo<CSSProperties>(
-    () => ({ width: `${layout.widthPx}px` }),
-    [layout.widthPx],
+    () => (isMobile ? {} : { width: `${layout.widthPx}px` }),
+    [isMobile, layout.widthPx],
   )
   const inspectorPercent = Math.round(layout.inspectorRatio * 100)
   const assistantPercent = 100 - inspectorPercent
@@ -602,23 +608,39 @@ export function StudioNodeAssistantDock({
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className="pointer-events-auto absolute right-6 top-24 inline-flex h-10 items-center gap-2 rounded-xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+        aria-label={tAssistant('toggle')}
+        title={tAssistant('toggle')}
+        className="pointer-events-auto absolute bottom-24 right-4 inline-flex size-12 items-center justify-center gap-2 rounded-full border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner md:bottom-auto md:right-6 md:top-24 md:size-auto md:h-10 md:rounded-xl md:px-3 md:text-xs md:font-semibold"
       >
-        <Bot className="size-4 text-node-amber" />
-        {tAssistant('toggle')}
+        <Bot className="size-5 text-node-amber md:size-4" />
+        <span className="hidden md:inline">{tAssistant('toggle')}</span>
       </button>
     )
   }
 
-  // On mobile the dock spans left-4 → right-4 — setting `left` forces the
-  // flex-box to ignore the inline `width: 448px` style and stretch to viewport
-  // edges (minus margin). The resize handle is hidden + the user's persisted
-  // width is preserved for when they're back on desktop.
+  // Mobile: bottom-sheet pattern. The dock anchors to the section bottom and
+  // takes ~65vh so the canvas stays visible in the top ~35vh — opening the
+  // assistant no longer hides every node on the workflow. The inline
+  // `width: 448px` from dockStyle is ignored because `inset-x-0` pins both
+  // edges; md+ uses the original right-anchored full-height panel.
   return (
     <aside
       style={dockStyle}
-      className="pointer-events-auto absolute bottom-4 right-4 top-20 flex flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl max-md:left-4"
+      className="pointer-events-auto absolute inset-x-0 bottom-0 top-auto flex h-[65vh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:h-auto md:rounded-2xl md:border-b"
     >
+      {/* Grip indicator at the top of the bottom-sheet. Visual affordance
+          only — tapping it toggles closed for a quick dismiss. */}
+      <button
+        type="button"
+        onClick={() => onOpenChange(false)}
+        aria-label={t('collapse')}
+        className="flex h-5 shrink-0 items-center justify-center md:hidden"
+      >
+        <span
+          className="h-1 w-10 rounded-full bg-node-panel-inner"
+          aria-hidden
+        />
+      </button>
       {/* Left-edge handle: drag horizontally to resize the whole dock.
           Hidden on mobile — the dock is full-width and resizing makes
           no sense at that breakpoint. */}

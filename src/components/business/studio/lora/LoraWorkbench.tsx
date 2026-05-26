@@ -808,7 +808,7 @@ function CivitaiCommunityBranch({
   )
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+    <section className="rounded-2xl border border-border bg-card p-3 sm:p-5">
       {/* Mobile: title + refresh on the same row so the section header doesn't
           eat ~88px of vertical space before any content shows. sm+ gets the
           original taller layout with refresh aligned to the bottom-right. */}
@@ -1080,7 +1080,10 @@ function CivitaiLoraRow({
   return (
     <div
       className={cn(
-        'flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all',
+        // Tighter horizontal padding + gap on phone keeps the 2 trailing icon
+        // buttons (heart + use) inside the card and gives the LoRA name an
+        // extra ~12-16px before it truncates.
+        'flex w-full items-center gap-1.5 rounded-lg border px-2 py-2 text-left transition-all sm:gap-3 sm:px-3 sm:py-2.5',
         isSelected
           ? 'border-primary/30 bg-primary/10'
           : 'border-transparent hover:bg-muted/30',
@@ -1089,11 +1092,11 @@ function CivitaiLoraRow({
       <button
         type="button"
         onClick={() => onSelect(item)}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-3"
       >
         <LoraThumb item={item} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <span className="truncate text-sm font-medium text-foreground">
               {item.name}
             </span>
@@ -1211,8 +1214,11 @@ function CivitaiLoraInspector({
     : true
 
   if (!item) {
+    // Hide the empty-state inspector on phone-portrait: it just shows a
+    // "select a LoRA" placeholder card that wastes a screenful of vertical
+    // space before the user can scroll back up to pick something.
     return (
-      <aside className="flex min-h-0 items-center justify-center rounded-xl border border-border/60 bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+      <aside className="hidden min-h-0 items-center justify-center rounded-xl border border-border/60 bg-muted/10 p-6 text-center text-sm text-muted-foreground lg:flex">
         {t('communityNoSelection')}
       </aside>
     )

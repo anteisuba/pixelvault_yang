@@ -56,7 +56,9 @@ function EditShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-svh bg-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+      {/* 7xl = 1280px is plenty for laptop, but 4K monitors benefit from
+          more breathing room around a side-by-side source + tools layout. */}
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 2xl:max-w-[88rem]">
         {isTaskPage ? (
           <Link
             href="/studio/edit"

@@ -258,7 +258,11 @@ export const StudioCanvas = memo(function StudioCanvas() {
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
       )}
     >
-      <div className="mx-auto w-full max-w-5xl">
+      {/* Canvas content scales with viewport: max-w-5xl (1024px) stays
+          tight on mobile/laptop so single-image previews don't bloat,
+          but bumps to 6xl/7xl on 2xl+ so 4K monitors put the Compare
+          and Variant grids to actual use. */}
+      <div className="mx-auto w-full max-w-5xl 2xl:max-w-6xl">
         {activeRun?.mode === 'compare' ? (
           <CompareGrid
             items={activeRun.items}

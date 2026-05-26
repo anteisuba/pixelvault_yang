@@ -16,7 +16,7 @@ export const StudioGenerateBar = memo(function StudioGenerateBar() {
   const t = useTranslations('StudioV2')
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
         {t('aspectRatioLabel')}
       </span>

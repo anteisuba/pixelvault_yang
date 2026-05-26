@@ -3012,6 +3012,16 @@
       },
       "clear": "Clear result",
       "hint": "Costs ~$0.001/clip, completes in ~8s. Audio tracks are preserved automatically.",
+      "trim": {
+        "startLabel": "Start (s)",
+        "endLabel": "End (s)",
+        "startPlaceholder": "0",
+        "endPlaceholder": "Full",
+        "startLabelA11y": "Clip {n} start second",
+        "endLabelA11y": "Clip {n} end second",
+        "rangeWarning": "End second must be greater than start second.",
+        "composeHint": "Adding trims switches the merge to fal's compose endpoint. Start is best-effort (fal does not expose source offset yet); end caps how long each clip plays."
+      },
       "errors": {
         "tooFewClips": "Need at least {min} clips.",
         "tooManyClips": "Up to {max} clips supported.",

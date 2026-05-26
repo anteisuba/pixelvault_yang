@@ -3012,6 +3012,16 @@
       },
       "clear": "清空结果",
       "hint": "成本约 $0.001/段，处理时长约 8 秒。合并后的视频会自动保留音轨。",
+      "trim": {
+        "startLabel": "起始（秒）",
+        "endLabel": "结束（秒）",
+        "startPlaceholder": "0",
+        "endPlaceholder": "整段",
+        "startLabelA11y": "第 {n} 段起始秒",
+        "endLabelA11y": "第 {n} 段结束秒",
+        "rangeWarning": "结束秒应大于起始秒。",
+        "composeHint": "设置了裁剪起止时会切换到 fal compose 端点。起始秒目前 best-effort（fal 暂不暴露源偏移），结束秒可用来截断每段播放长度。"
+      },
       "errors": {
         "tooFewClips": "至少需要 {min} 段视频。",
         "tooManyClips": "最多支持 {max} 段视频。",

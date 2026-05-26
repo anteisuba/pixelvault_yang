@@ -193,8 +193,22 @@ export interface MergeVideoResponse {
   errorCode?: string
 }
 
+export interface MergeVideoClipInput {
+  url: string
+  startSec?: number
+  endSec?: number
+  naturalDurationSec?: number
+}
+
 export async function mergeVideosAPI(params: {
-  videoUrls: readonly string[]
+  /** Legacy: play every clip in full via fal merge-videos. */
+  videoUrls?: readonly string[]
+  /**
+   * New: per-clip trim via fal compose. Send when at least one upstream
+   * clip has a startSec / endSec override. Cannot be combined with
+   * videoUrls — the server enforces this.
+   */
+  clips?: readonly MergeVideoClipInput[]
   apiKeyId?: string
   targetFps?: number
   resolution?: string

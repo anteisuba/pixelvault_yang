@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
 import { Layers, Loader2, Sparkles, Trash2, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -13,10 +13,12 @@ import {
 } from '@/constants/node-types'
 import { NODE_STUDIO_PLACEHOLDER_TOAST } from '@/constants/node-studio'
 import { mergeVideosAPI } from '@/lib/api-client'
+import type { MergeVideoClipInput } from '@/lib/api-client/node-workflow'
 import {
   getUpstreamNodes,
   harvestUpstreamVideoUrls,
 } from '@/lib/node-workflow-graph'
+import { cn } from '@/lib/utils'
 import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
@@ -51,6 +53,26 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
     return harvestUpstreamVideoUrls(upstream)
   }, [allNodes, edges, node.id])
 
+  // Trim overrides are keyed by source URL so re-ordering the upstream
+  // doesn't lose user edits. When the upstream is disconnected the entry
+  // simply doesn't render — it stays in the node's data so reconnecting
+  // restores the trim.
+  const clipOverrides = useMemo(() => {
+    const map = new Map<string, { startSec?: number; endSec?: number }>()
+    for (const clip of node.data.mergeSettings?.clips ?? []) {
+      map.set(clip.url, { startSec: clip.startSec, endSec: clip.endSec })
+    }
+    return map
+  }, [node.data.mergeSettings])
+
+  const hasAnyTrim = useMemo(() => {
+    for (const clip of node.data.mergeSettings?.clips ?? []) {
+      if (typeof clip.startSec === 'number' && clip.startSec > 0) return true
+      if (typeof clip.endSec === 'number') return true
+    }
+    return false
+  }, [node.data.mergeSettings])
+
   const clipCount = upstreamVideoUrls.length
   const canMerge =
     clipCount >= MIN_CLIPS && clipCount <= MAX_CLIPS && !isMerging
@@ -62,6 +84,36 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
         ? t('errors.tooManyClips', { max: MAX_CLIPS })
         : null
 
+  const handleTrimChange = useCallback(
+    (url: string, field: 'startSec' | 'endSec', rawValue: string) => {
+      const parsed = Number(rawValue)
+      const next: number | undefined =
+        rawValue.trim() === '' || !Number.isFinite(parsed)
+          ? undefined
+          : Math.min(600, Math.max(0, parsed))
+
+      const existingClips = node.data.mergeSettings?.clips ?? []
+      const filtered = existingClips.filter((clip) => clip.url !== url)
+      const previousOverride = existingClips.find((clip) => clip.url === url)
+      const updated = {
+        url,
+        startSec: field === 'startSec' ? next : previousOverride?.startSec,
+        endSec: field === 'endSec' ? next : previousOverride?.endSec,
+      }
+      // Strip the entry entirely when both bounds are cleared — keeps
+      // node.data clean and lets `hasAnyTrim` short-circuit the routing
+      // decision back to the merge endpoint.
+      const isEmpty =
+        updated.startSec === undefined && updated.endSec === undefined
+      const nextClips = isEmpty ? filtered : [...filtered, updated]
+
+      updateNodeData(node.id, {
+        mergeSettings: nextClips.length > 0 ? { clips: nextClips } : undefined,
+      })
+    },
+    [node.data.mergeSettings, node.id, updateNodeData],
+  )
+
   const handleMerge = useCallback(async () => {
     if (!canMerge) return
     setIsMerging(true)
@@ -72,7 +124,20 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
     })
 
     try {
-      const response = await mergeVideosAPI({ videoUrls: upstreamVideoUrls })
+      const payload = hasAnyTrim
+        ? {
+            clips: upstreamVideoUrls.map<MergeVideoClipInput>((url) => {
+              const override = clipOverrides.get(url)
+              return {
+                url,
+                startSec: override?.startSec,
+                endSec: override?.endSec,
+              }
+            }),
+          }
+        : { videoUrls: upstreamVideoUrls }
+
+      const response = await mergeVideosAPI(payload)
 
       if (!response.success || !response.data) {
         const errorMessage = response.error ?? t('errors.mergeFailed')
@@ -102,7 +167,15 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
     } finally {
       setIsMerging(false)
     }
-  }, [canMerge, node.id, t, updateNodeData, upstreamVideoUrls])
+  }, [
+    canMerge,
+    clipOverrides,
+    hasAnyTrim,
+    node.id,
+    t,
+    updateNodeData,
+    upstreamVideoUrls,
+  ])
 
   const handleClear = useCallback(() => {
     updateNodeData(node.id, {
@@ -162,24 +235,97 @@ export function VideoMergeInspector({ node }: VideoMergeInspectorProps) {
           </span>
         </div>
         {clipCount > 0 ? (
-          <ol className="space-y-1.5">
-            {upstreamVideoUrls.map((url, index) => (
-              <li
-                key={url}
-                className="flex items-center gap-2 rounded-lg border border-node-panel-inner bg-node-panel px-2 py-1.5 text-xs text-node-foreground"
-              >
-                <span className="flex size-5 items-center justify-center rounded-md bg-purple-500/20 text-2xs font-semibold text-purple-200">
-                  {index + 1}
-                </span>
-                <span className="flex-1 truncate text-node-muted">{url}</span>
-              </li>
-            ))}
+          <ol className="space-y-2">
+            {upstreamVideoUrls.map((url, index) => {
+              const override = clipOverrides.get(url)
+              const startValue =
+                typeof override?.startSec === 'number'
+                  ? String(override.startSec)
+                  : ''
+              const endValue =
+                typeof override?.endSec === 'number'
+                  ? String(override.endSec)
+                  : ''
+              const rangeInvalid =
+                typeof override?.startSec === 'number' &&
+                typeof override?.endSec === 'number' &&
+                override.endSec <= override.startSec
+              return (
+                <li
+                  key={url}
+                  className="space-y-2 rounded-lg border border-node-panel-inner bg-node-panel px-2 py-2 text-xs text-node-foreground"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-purple-500/20 text-2xs font-semibold text-purple-200">
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 truncate text-node-muted">
+                      {url}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {t('trim.startLabel')}
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={0.1}
+                        value={startValue}
+                        placeholder={t('trim.startPlaceholder')}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          handleTrimChange(url, 'startSec', event.target.value)
+                        }
+                        aria-label={t('trim.startLabelA11y', { n: index + 1 })}
+                        className={cn(
+                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          rangeInvalid
+                            ? 'border-node-danger/60'
+                            : 'border-node-panel-inner',
+                        )}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {t('trim.endLabel')}
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={0.1}
+                        value={endValue}
+                        placeholder={t('trim.endPlaceholder')}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          handleTrimChange(url, 'endSec', event.target.value)
+                        }
+                        aria-label={t('trim.endLabelA11y', { n: index + 1 })}
+                        className={cn(
+                          'h-8 w-full rounded-lg border bg-node-panel-soft px-2 text-xs leading-4 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          rangeInvalid
+                            ? 'border-node-danger/60'
+                            : 'border-node-panel-inner',
+                        )}
+                      />
+                    </label>
+                  </div>
+                  {rangeInvalid ? (
+                    <p className="text-2xs leading-4 text-node-danger">
+                      {t('trim.rangeWarning')}
+                    </p>
+                  ) : null}
+                </li>
+              )
+            })}
           </ol>
         ) : (
           <p className="text-xs leading-5 text-node-subtle">
             {t('upstreamEmpty')}
           </p>
         )}
+        {hasAnyTrim ? (
+          <p className="rounded-lg border border-node-panel-inner bg-node-panel-soft px-2 py-1.5 text-2xs leading-4 text-node-muted">
+            {t('trim.composeHint')}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

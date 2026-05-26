@@ -3012,6 +3012,16 @@
       },
       "clear": "結果をクリア",
       "hint": "コストは約 $0.001/本、処理時間は約 8 秒。音声トラックは自動的に保持されます。",
+      "trim": {
+        "startLabel": "開始（秒）",
+        "endLabel": "終了（秒）",
+        "startPlaceholder": "0",
+        "endPlaceholder": "全長",
+        "startLabelA11y": "クリップ {n} の開始秒",
+        "endLabelA11y": "クリップ {n} の終了秒",
+        "rangeWarning": "終了秒は開始秒より大きくしてください。",
+        "composeHint": "トリムを設定すると fal の compose エンドポイントに切り替わります。開始秒は best-effort（fal はソースオフセットを公開していません）、終了秒で再生長を制限できます。"
+      },
       "errors": {
         "tooFewClips": "少なくとも {min} 本の動画が必要です。",
         "tooManyClips": "最大 {max} 本までサポートされます。",

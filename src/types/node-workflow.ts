@@ -133,6 +133,26 @@ export const NodeWorkflowNodeDataSchema = z
     voiceReferenceAudioMimeType: z.string().trim().min(1).max(120).optional(),
     motion: z.string().optional(),
     duration: z.string().optional(),
+    // videoMerge node: per-upstream-clip trim overrides. The Inspector keys
+    // these by upstream URL so reconnection order doesn't lose user edits.
+    // startSec / endSec are seconds within the source clip. When neither
+    // is set the clip plays in full; presence of any override switches the
+    // backend route from `merge-videos` to `compose` (which supports
+    // keyframe timestamp + duration). See video-merge.service.ts.
+    mergeSettings: z
+      .object({
+        clips: z
+          .array(
+            z.object({
+              url: z.string().trim().min(1),
+              startSec: z.number().min(0).max(600).optional(),
+              endSec: z.number().min(0).max(600).optional(),
+            }),
+          )
+          .max(9)
+          .optional(),
+      })
+      .optional(),
     // Video output controls — mirror Studio's video panel. `passthrough()` on
     // this schema previously masked their absence; declaring them here makes
     // the contract explicit and lets the Inspector + Workbench rely on a real

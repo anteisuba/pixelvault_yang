@@ -2559,7 +2559,8 @@
       "frameImage": "キーフレーム",
       "voice": "音色",
       "seedance": "動画生成",
-      "videoReference": "参考動画"
+      "videoReference": "参考動画",
+      "videoMerge": "動画結合"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
@@ -2571,7 +2572,8 @@
       "frameImage": "動画生成前のキーフレーム画像を生成します。",
       "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
       "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。",
-      "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。"
+      "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。",
+      "videoMerge": "上流の複数の動画を順番に結合して 1 本の長い動画にします（~$0.001/回、最大 9 本）。"
     },
     "statuses": {
       "idle": "待機中",
@@ -2902,6 +2904,28 @@
         "uploadFailed": "動画のアップロードに失敗しました。再度お試しください。"
       }
     },
+    "videoMerge": {
+      "title": "動画結合",
+      "description": "上流から接続された複数の動画を順番に結合して 1 本の mp4 にします。出力も動画 URL なので、下流の Seedance Reference / 別の結合ノードでそのまま使えます。",
+      "emptyPreview": "結合した動画はまだありません",
+      "merging": "結合中",
+      "merged": "動画を結合しました",
+      "mediaLabel": "結合した {count} 本の動画",
+      "upstreamHeader": "上流のクリップ",
+      "upstreamEmpty": "結合するには 2 本以上の動画を接続してください。",
+      "clipCount": "{count} / {max} 本",
+      "merge": {
+        "run": "結合を開始",
+        "regenerate": "再結合"
+      },
+      "clear": "結果をクリア",
+      "hint": "コストは約 $0.001/本、処理時間は約 8 秒。音声トラックは自動的に保持されます。",
+      "errors": {
+        "tooFewClips": "少なくとも {min} 本の動画が必要です。",
+        "tooManyClips": "最大 {max} 本までサポートされます。",
+        "mergeFailed": "動画の結合に失敗しました。再度お試しください。"
+      }
+    },
     "mediaNodes": {
       "promptLabel": "プロンプト",
       "promptPlaceholder": "このノードで生成する内容を説明...",
@@ -3056,6 +3080,10 @@
       "videoReference": {
         "emptyPreview": "≤15 秒の動画をアップロードして、下流の Seedance Reference の参考にします。",
         "footerEmpty": "アップロード待ち"
+      },
+      "videoMerge": {
+        "emptyPreview": "2-9 本の動画を接続して結合を実行すると 1 本の長い動画になります。",
+        "footerEmpty": "結合待ち"
       }
     },
     "topbar": {

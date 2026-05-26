@@ -174,3 +174,50 @@ export async function uploadReferenceVideoAPI(
     return { success: false, error: unexpectedError(error) }
   }
 }
+
+export interface MergeVideoResult {
+  url: string
+  sizeBytes: number
+  mimeType: string
+  width?: number
+  height?: number
+  durationSeconds?: number
+  fps?: number
+  requestId: string
+}
+
+export interface MergeVideoResponse {
+  success: boolean
+  data?: MergeVideoResult
+  error?: string
+  errorCode?: string
+}
+
+export async function mergeVideosAPI(params: {
+  videoUrls: readonly string[]
+  apiKeyId?: string
+  targetFps?: number
+  resolution?: string
+}): Promise<MergeVideoResponse> {
+  try {
+    const response = await fetch('/api/node-workflow/merge-videos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string
+        errorCode?: string
+      }
+      return {
+        success: false,
+        errorCode: payload.errorCode,
+        error: payload.error ?? `Failed with status ${response.status}`,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}

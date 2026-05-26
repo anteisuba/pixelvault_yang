@@ -9,6 +9,7 @@ export const NODE_TYPE_IDS = {
   voice: 'voice',
   seedance: 'seedance',
   videoReference: 'videoReference',
+  videoMerge: 'videoMerge',
 } as const
 
 export const NODE_TYPES = [
@@ -22,6 +23,7 @@ export const NODE_TYPES = [
   NODE_TYPE_IDS.voice,
   NODE_TYPE_IDS.seedance,
   NODE_TYPE_IDS.videoReference,
+  NODE_TYPE_IDS.videoMerge,
 ] as const
 
 export type NodeWorkflowNodeType = (typeof NODE_TYPES)[number]
@@ -45,6 +47,14 @@ export const NODE_VIDEO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.seedance] as const
 export const NODE_VIDEO_REFERENCE_NODE_TYPES = [
   NODE_TYPE_IDS.videoReference,
 ] as const
+
+/**
+ * Video aggregator nodes that take multiple upstream video clips and produce
+ * a single merged clip via fal-ai/ffmpeg-api/merge-videos. Output is itself
+ * a video URL, so `isVideoSourceNode` picks them up automatically and they
+ * can recursively feed downstream Seedance Reference / further merge nodes.
+ */
+export const NODE_VIDEO_MERGE_NODE_TYPES = [NODE_TYPE_IDS.videoMerge] as const
 
 export const NODE_AUDIO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.voice] as const
 
@@ -162,6 +172,7 @@ export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.voice]: NODE_MEDIA_KIND_IDS.audio,
   [NODE_TYPE_IDS.seedance]: NODE_MEDIA_KIND_IDS.video,
   [NODE_TYPE_IDS.videoReference]: NODE_MEDIA_KIND_IDS.video,
+  [NODE_TYPE_IDS.videoMerge]: NODE_MEDIA_KIND_IDS.video,
 } as const satisfies Record<
   NodeWorkflowNodeType,
   NodeWorkflowMediaKind | undefined

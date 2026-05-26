@@ -9,6 +9,7 @@ export const NODE_TOKEN_TYPES = [
   'voice',
   'seedance',
   'videoReference',
+  'videoMerge',
   'text',
   'image',
   'video',
@@ -28,6 +29,7 @@ export const NODE_TOKEN_BADGE_LABELS = {
   voice: 'V',
   seedance: 'D',
   videoReference: 'R',
+  videoMerge: 'M',
   text: 'T',
   image: 'I',
   video: 'V',
@@ -101,6 +103,12 @@ export const NODE_ACCENTS = {
     iconText: 'text-red-200',
     selectedRing: 'ring-red-400/70',
     dot: '!bg-red-300',
+  },
+  videoMerge: {
+    iconPlate: 'bg-purple-500/15',
+    iconText: 'text-purple-200',
+    selectedRing: 'ring-purple-400/70',
+    dot: '!bg-purple-300',
   },
   text: {
     iconPlate: 'bg-zinc-300/10',

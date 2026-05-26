@@ -36,6 +36,7 @@ import { FrameImageInspector } from './inspector/FrameImageInspector'
 import { SeedanceInspector } from './inspector/SeedanceInspector'
 import { ShotInspector } from './inspector/ShotInspector'
 import { ShotTextInspector } from './inspector/ShotTextInspector'
+import { VideoMergeInspector } from './inspector/VideoMergeInspector'
 import { VideoReferenceInspector } from './inspector/VideoReferenceInspector'
 import { VoiceInspector } from './inspector/VoiceInspector'
 
@@ -159,6 +160,10 @@ function InspectorPanel({
 
   if (primary.type === NODE_TYPE_IDS.videoReference) {
     return <VideoReferenceInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.videoMerge) {
+    return <VideoMergeInspector node={primary} />
   }
 
   return (

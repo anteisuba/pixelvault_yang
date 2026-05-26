@@ -367,6 +367,15 @@ function createDefaultNodeData(
     }
   }
 
+  if (type === NODE_TYPE_IDS.videoMerge) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.video,
+    }
+  }
+
   if (type === NODE_TYPE_IDS.shotText) {
     return {
       prompt: '',

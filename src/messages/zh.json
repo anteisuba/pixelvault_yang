@@ -2559,7 +2559,8 @@
       "frameImage": "关键帧",
       "voice": "音色",
       "seedance": "视频生成",
-      "videoReference": "参考视频"
+      "videoReference": "参考视频",
+      "videoMerge": "视频合并"
     },
     "addMenuHelpers": {
       "composer": "写下创作想法，作为工作流的起点。",
@@ -2571,7 +2572,8 @@
       "frameImage": "生成视频前使用的关键帧画面。",
       "voice": "选择或上传音色，作为视频角色声音线索。",
       "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
-      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。"
+      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。",
+      "videoMerge": "把多个上游视频按顺序拼接成一段长视频（~$0.001 / 次，≤9 段）。"
     },
     "statuses": {
       "idle": "空闲",
@@ -2902,6 +2904,28 @@
         "uploadFailed": "视频上传失败，请重试。"
       }
     },
+    "videoMerge": {
+      "title": "视频合并",
+      "description": "把上游连进来的多段视频按顺序拼接成一段长视频，输出仍是 mp4，可继续接 Seedance Reference 使用。",
+      "emptyPreview": "还没有合并视频",
+      "merging": "正在合并",
+      "merged": "视频合并成功",
+      "mediaLabel": "合并的 {count} 段视频",
+      "upstreamHeader": "上游视频片段",
+      "upstreamEmpty": "至少连接 2 段视频再开始合并。",
+      "clipCount": "{count} / {max} 段",
+      "merge": {
+        "run": "开始合并",
+        "regenerate": "重新合并"
+      },
+      "clear": "清空结果",
+      "hint": "成本约 $0.001/段，处理时长约 8 秒。合并后的视频会自动保留音轨。",
+      "errors": {
+        "tooFewClips": "至少需要 {min} 段视频。",
+        "tooManyClips": "最多支持 {max} 段视频。",
+        "mergeFailed": "视频合并失败，请稍后重试。"
+      }
+    },
     "mediaNodes": {
       "promptLabel": "提示词",
       "promptPlaceholder": "描述这个节点要生成的内容...",
@@ -3056,6 +3080,10 @@
       "videoReference": {
         "emptyPreview": "上传一段 ≤15 秒的视频，作为下游 Seedance Reference 的参考。",
         "footerEmpty": "等待上传"
+      },
+      "videoMerge": {
+        "emptyPreview": "连接 2-9 段视频后点击合并，得到一段长视频。",
+        "footerEmpty": "等待合并"
       }
     },
     "topbar": {

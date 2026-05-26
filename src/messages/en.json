@@ -2559,7 +2559,8 @@
       "frameImage": "Frame Image",
       "voice": "Voice Profile",
       "seedance": "Video Generation",
-      "videoReference": "Reference Video"
+      "videoReference": "Reference Video",
+      "videoMerge": "Merge Videos"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
@@ -2571,7 +2572,8 @@
       "frameImage": "Generate a keyframe image before video creation.",
       "voice": "Select or upload a voice profile for video character voices.",
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
-      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount."
+      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
+      "videoMerge": "Concatenate multiple upstream videos into one long clip (~$0.001/run, up to 9 clips)."
     },
     "statuses": {
       "idle": "Idle",
@@ -2902,6 +2904,28 @@
         "uploadFailed": "Video upload failed. Please try again."
       }
     },
+    "videoMerge": {
+      "title": "Video merge",
+      "description": "Concatenate connected upstream videos into one mp4. The result is still a video URL, so downstream Seedance Reference / further merges can use it.",
+      "emptyPreview": "No merged video yet",
+      "merging": "Merging",
+      "merged": "Video merged",
+      "mediaLabel": "Merged {count} clips",
+      "upstreamHeader": "Upstream clips",
+      "upstreamEmpty": "Connect at least 2 video nodes to start merging.",
+      "clipCount": "{count} / {max} clips",
+      "merge": {
+        "run": "Run merge",
+        "regenerate": "Re-merge"
+      },
+      "clear": "Clear result",
+      "hint": "Costs ~$0.001/clip, completes in ~8s. Audio tracks are preserved automatically.",
+      "errors": {
+        "tooFewClips": "Need at least {min} clips.",
+        "tooManyClips": "Up to {max} clips supported.",
+        "mergeFailed": "Video merge failed. Please retry."
+      }
+    },
     "mediaNodes": {
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe what this node should create...",
@@ -3056,6 +3080,10 @@
       "videoReference": {
         "emptyPreview": "Upload a ≤15s clip as a reference for downstream Seedance Reference.",
         "footerEmpty": "Waiting for upload"
+      },
+      "videoMerge": {
+        "emptyPreview": "Connect 2-9 video clips, then run merge to get a single long clip.",
+        "footerEmpty": "Waiting for merge"
       }
     },
     "topbar": {

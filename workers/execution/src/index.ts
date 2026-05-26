@@ -1728,16 +1728,26 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
+      // Resolve the API key ONCE and cache via step.do. Subsequent steps reuse
+      // the cached value to avoid hitting Cloudflare's per-workflow subrequest
+      // budget (50 on free, 1000 on paid) — without this, every poll iteration
+      // would re-call Vercel resolve-key and we cap at ~24 polls.
+      const apiKey = await step.do(
+        'resolve-api-key',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        async () => resolveApiKeyModel3D(this.env, context),
+      )
+
       const rodin = await step.do(
-        'resolve-key-and-submit-rodin',
+        'submit-rodin',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
-        async () => {
-          const apiKey = await resolveApiKeyModel3D(this.env, context)
-          return submitRodinJob(context, apiKey)
-        },
+        async () => submitRodinJob(context, apiKey),
       )
 
       for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
@@ -1749,10 +1759,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
             retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
             timeout: '30 seconds',
           },
-          async () => {
-            const apiKey = await resolveApiKeyModel3D(this.env, context)
-            return pollRodinJob(rodin, apiKey)
-          },
+          async () => pollRodinJob(rodin, apiKey),
         )
 
         if (pollResult.status === 'FAILED') {
@@ -1766,10 +1773,8 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
               retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
               timeout: '120 seconds',
             },
-            async () => {
-              const apiKey = await resolveApiKeyModel3D(this.env, context)
-              return downloadAndUploadRodinGlb(this.env, context, rodin, apiKey)
-            },
+            async () =>
+              downloadAndUploadRodinGlb(this.env, context, rodin, apiKey),
           )
 
           await step.do('callback-result', async () =>
@@ -1814,14 +1819,23 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
+      // Resolve the API key ONCE — see Hyper3DRodinWorkflow for rationale.
+      const apiKey = await step.do(
+        'resolve-api-key',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        async () => resolveApiKeyModel3D(this.env, context),
+      )
+
       const queue = await step.do(
-        'resolve-key-and-submit-fal',
+        'submit-fal',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
-          const apiKey = await resolveApiKeyModel3D(this.env, context)
           const queueBody = buildFalModel3DQueueRequest(context)
           const endpoint = `https://queue.fal.run/${queueBody.endpointModelId}`
 
@@ -1863,7 +1877,6 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
             timeout: '30 seconds',
           },
           async () => {
-            const apiKey = await resolveApiKeyModel3D(this.env, context)
             const statusResponse = await fetch(queue.statusUrl, {
               headers: { Authorization: `Key ${apiKey}` },
             })

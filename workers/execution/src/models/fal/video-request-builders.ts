@@ -25,6 +25,16 @@ export interface FalWorkerVideoRequestContext {
     referenceImages?: string[]
     /** Reference audio clips for Seedance reference-to-video voice cloning. */
     audioUrls?: string[]
+    /**
+     * Per-clip binding labels — character names attached to each audio URL
+     * by the upstream Workbench harvest. When present the Seedance Reference
+     * builder labels @AudioN tokens as `"{Name} (@AudioN)"` instead of the
+     * unlabeled fallback.
+     */
+    audioBindings?: ReadonlyArray<{
+      url: string
+      characterName?: string
+    }>
     /** Reference video clips for Seedance reference-to-video. */
     videoUrls?: string[]
     negativePrompt?: string
@@ -412,12 +422,21 @@ function promptReferencesVideo(prompt: string): boolean {
   return /@Video[1-9]\b/.test(prompt)
 }
 
-function buildAudioReferencePrefix(audioCount: number): string {
-  const refs: string[] = []
-  for (let i = 1; i <= audioCount && i <= 3; i += 1) {
-    refs.push(`@Audio${i}`)
+interface AudioPrefixBinding {
+  url: string
+  characterName?: string
+}
+
+function buildAudioReferencePrefix(
+  bindings: readonly AudioPrefixBinding[],
+): string {
+  const tokens: string[] = []
+  for (let i = 0; i < bindings.length && i < 3; i += 1) {
+    const slot = `@Audio${i + 1}`
+    const name = bindings[i]?.characterName?.trim()
+    tokens.push(name ? `${name} (${slot})` : slot)
   }
-  return refs.join(' ')
+  return tokens.join(' ')
 }
 
 function buildVideoReferencePrefix(videoCount: number): string {
@@ -433,10 +452,16 @@ function buildSeedanceReference(
   allowedResolutions: readonly string[],
 ): Record<string, unknown> {
   const { providerInput } = context
-  const audioUrls =
-    providerInput.audioUrls && providerInput.audioUrls.length > 0
-      ? providerInput.audioUrls.slice(0, 3)
-      : []
+  // Prefer audioBindings (carries character names from the harvest) over
+  // bare audioUrls. Callers that don't know about bindings still work via
+  // the audioUrls fallback.
+  const audioBindings =
+    providerInput.audioBindings && providerInput.audioBindings.length > 0
+      ? providerInput.audioBindings.slice(0, 3)
+      : providerInput.audioUrls && providerInput.audioUrls.length > 0
+        ? providerInput.audioUrls.slice(0, 3).map((url) => ({ url }))
+        : []
+  const audioUrls = audioBindings.map((binding) => binding.url)
   const videoUrls =
     providerInput.videoUrls && providerInput.videoUrls.length > 0
       ? providerInput.videoUrls.slice(0, 3)
@@ -455,8 +480,8 @@ function buildSeedanceReference(
   const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
 
   let prompt = providerInput.prompt
-  if (audioUrls.length > 0 && !promptReferencesAudio(prompt)) {
-    prompt = `${buildAudioReferencePrefix(audioUrls.length)} ${prompt}`.trim()
+  if (audioBindings.length > 0 && !promptReferencesAudio(prompt)) {
+    prompt = `${buildAudioReferencePrefix(audioBindings)} ${prompt}`.trim()
   }
   if (videoUrls.length > 0 && !promptReferencesVideo(prompt)) {
     prompt = `${buildVideoReferencePrefix(videoUrls.length)} ${prompt}`.trim()

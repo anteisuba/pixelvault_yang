@@ -369,6 +369,23 @@ export const GenerateVideoRequestSchema = z.object({
    */
   audioUrls: z.array(z.string().trim().min(1)).max(3).optional(),
   /**
+   * Per-clip binding labels — character names attached to each audio URL
+   * by the Node Studio harvest when a voice node is wired through a
+   * character node. The Seedance Reference builder uses these to label
+   * `@AudioN` tokens as `"{Name} (@AudioN)"` so multi-character scenes
+   * tell the model whose voice is whose. When omitted, falls back to
+   * unlabeled tokens derived from `audioUrls`.
+   */
+  audioBindings: z
+    .array(
+      z.object({
+        url: z.string().trim().min(1),
+        characterName: z.string().trim().min(1).max(160).optional(),
+      }),
+    )
+    .max(3)
+    .optional(),
+  /**
    * Reference video URLs (mp4 etc., combined duration 2-15s, ≤50MB total,
    * up to 3 clips). Only consumed by the Seedance 2.0 reference-to-video
    * endpoints; other models ignore. Passing a video reference also unlocks
@@ -1166,6 +1183,19 @@ const WorkerVideoProviderInputSchema = z.object({
   referenceImages: z.array(z.string()).max(3).optional(),
   /** Reference audio clips for Seedance reference-to-video voice cloning. */
   audioUrls: z.array(z.string()).max(3).optional(),
+  /**
+   * Optional binding labels (character name per clip) for Seedance Reference.
+   * When present, the worker builder emits "{Name} (@AudioN)" tokens.
+   */
+  audioBindings: z
+    .array(
+      z.object({
+        url: z.string().min(1),
+        characterName: z.string().min(1).max(160).optional(),
+      }),
+    )
+    .max(3)
+    .optional(),
   /** Reference video clips for Seedance reference-to-video. */
   videoUrls: z.array(z.string()).max(3).optional(),
   negativePrompt: z.string().optional(),

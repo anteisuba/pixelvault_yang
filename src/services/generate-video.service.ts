@@ -199,6 +199,7 @@ export async function submitVideoGenerationForUserId(
               referenceImage: input.referenceImage,
               referenceImages: input.referenceImages,
               audioUrls: input.audioUrls,
+              audioBindings: input.audioBindings,
               videoUrls: input.videoUrls,
               negativePrompt: input.negativePrompt,
               resolution: input.resolution,
@@ -371,6 +372,10 @@ async function submitFalVideoWorkerRun(params: {
       audioUrls:
         input.audioUrls && input.audioUrls.length > 0
           ? input.audioUrls
+          : undefined,
+      audioBindings:
+        input.audioBindings && input.audioBindings.length > 0
+          ? input.audioBindings
           : undefined,
       videoUrls:
         input.videoUrls && input.videoUrls.length > 0

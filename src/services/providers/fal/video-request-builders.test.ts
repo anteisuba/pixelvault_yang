@@ -578,6 +578,60 @@ describe('buildFalVideoQueueRequest', () => {
     })
   })
 
+  describe('character-bound @AudioN injection on Seedance Reference', () => {
+    it('labels @AudioN with the character name when audioBindings carries one', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioBindings: [
+          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+          { url: 'https://example.com/bob.mp3', characterName: 'Bob' },
+        ],
+      })
+
+      expect(result.input.prompt).toBe(
+        `Alice (@Audio1) Bob (@Audio2) ${PROMPT}`,
+      )
+      expect(result.input.audio_urls).toEqual([
+        'https://example.com/alice.mp3',
+        'https://example.com/bob.mp3',
+      ])
+    })
+
+    it('mixes labeled and unlabeled bindings within the same prompt', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioBindings: [
+          { url: 'https://example.com/narrator.mp3' },
+          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+        ],
+      })
+
+      expect(result.input.prompt).toBe(`@Audio1 Alice (@Audio2) ${PROMPT}`)
+    })
+
+    it('falls back to bare audioUrls when audioBindings is absent', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioUrls: ['https://example.com/x.mp3'],
+      })
+
+      expect(result.input.prompt).toBe(`@Audio1 ${PROMPT}`)
+    })
+
+    it('prefers audioBindings when both audioBindings and audioUrls are given', () => {
+      const result = buildFalVideoQueueRequest({
+        ...buildInput(AI_MODELS.SEEDANCE_20_REFERENCE, REF),
+        audioUrls: ['https://example.com/ignored.mp3'],
+        audioBindings: [
+          { url: 'https://example.com/alice.mp3', characterName: 'Alice' },
+        ],
+      })
+
+      expect(result.input.audio_urls).toEqual(['https://example.com/alice.mp3'])
+      expect(result.input.prompt).toBe(`Alice (@Audio1) ${PROMPT}`)
+    })
+  })
+
   describe('video_urls + @VideoN injection on Seedance Reference', () => {
     it('emits video_urls and prepends @Video1 when videoUrls is set', () => {
       const result = buildFalVideoQueueRequest({

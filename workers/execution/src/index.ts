@@ -88,6 +88,11 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     referenceImages?: string[]
     /** Reference audio clips for Seedance reference-to-video voice cloning. */
     audioUrls?: string[]
+    /**
+     * Per-clip binding labels (character name per URL) for Seedance Reference.
+     * When present the worker builder emits "{Name} (@AudioN)" prompt tokens.
+     */
+    audioBindings?: Array<{ url: string; characterName?: string }>
     /** Reference video clips for Seedance reference-to-video. */
     videoUrls?: string[]
     negativePrompt?: string
@@ -566,6 +571,18 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       audioUrls: Array.isArray(providerInput.audioUrls)
         ? providerInput.audioUrls.filter(
             (v): v is string => typeof v === 'string' && v.trim().length > 0,
+          )
+        : undefined,
+      audioBindings: Array.isArray(providerInput.audioBindings)
+        ? providerInput.audioBindings.flatMap(
+            (entry): Array<{ url: string; characterName?: string }> => {
+              if (!isRecord(entry)) return []
+              const url = readStringField(entry, 'url')
+              if (!url) return []
+              const characterName =
+                readStringField(entry, 'characterName') ?? undefined
+              return [characterName ? { url, characterName } : { url }]
+            },
           )
         : undefined,
       videoUrls: Array.isArray(providerInput.videoUrls)

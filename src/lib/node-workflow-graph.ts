@@ -141,6 +141,97 @@ export function harvestUpstreamVoiceAudioUrls(
 }
 
 /**
+ * A reference-audio clip plus optional binding info — the character name
+ * the voice belongs to, when the user wired the voice node through a
+ * character node instead of directly into Seedance. The Seedance Reference
+ * builder uses the name to label the `@AudioN` token in the prompt so the
+ * model knows which audio goes with which character.
+ */
+export interface AudioBinding {
+  /** Reference audio URL — what gets sent as fal `audio_urls[N]`. */
+  url: string
+  /**
+   * The character name carried in by the upstream character node, if any.
+   * Empty when the voice was wired directly into the focal node without
+   * routing through a character.
+   */
+  characterName?: string
+}
+
+function readCharacterName(node: NodeWorkflowNode): string | undefined {
+  const fromData =
+    typeof node.data.characterName === 'string'
+      ? node.data.characterName.trim()
+      : ''
+  if (fromData) return fromData
+  const fromCharacter =
+    node.data.character && typeof node.data.character === 'object'
+      ? (node.data.character as { name?: unknown }).name
+      : undefined
+  if (typeof fromCharacter === 'string' && fromCharacter.trim()) {
+    return fromCharacter.trim()
+  }
+  return undefined
+}
+
+function readVoiceUrl(node: NodeWorkflowNode): string | undefined {
+  if (!isVoiceProfileNode(node)) return undefined
+  const url =
+    typeof node.data.voiceReferenceAudioUrl === 'string'
+      ? node.data.voiceReferenceAudioUrl.trim()
+      : ''
+  return url || undefined
+}
+
+/**
+ * Harvest reference-audio bindings (URL + optional character name) for a
+ * focal node. Walks one hop further than `harvestUpstreamVoiceAudioUrls`:
+ * voice nodes connected directly are emitted as unbound clips, voice nodes
+ * connected to an upstream character node are emitted with that character's
+ * name attached. The grand-upstream character chain is intentionally
+ * 1-deep — anything further is exotic enough that explicit edges make more
+ * sense than implicit propagation.
+ */
+export function harvestUpstreamAudioBindings(
+  focalNodeId: string,
+  edges: readonly NodeWorkflowEdge[],
+  nodes: readonly NodeWorkflowNode[],
+): AudioBinding[] {
+  const directUpstream = getUpstreamNodes(focalNodeId, edges, nodes)
+  const seenUrls = new Set<string>()
+  const bindings: AudioBinding[] = []
+
+  const push = (url: string, characterName?: string) => {
+    if (seenUrls.has(url)) return
+    seenUrls.add(url)
+    bindings.push({ url, ...(characterName ? { characterName } : {}) })
+  }
+
+  // Pass 1 — voices wired through a character node (character-bound) take
+  // priority so the first @AudioN slot gets the named binding when both
+  // direct and character-routed voices reference the same URL.
+  for (const node of directUpstream) {
+    if (!isVisualReferenceNode(node)) continue
+    const characterName = readCharacterName(node)
+    const characterUpstream = getUpstreamNodes(node.id, edges, nodes)
+    for (const candidate of characterUpstream) {
+      const url = readVoiceUrl(candidate)
+      if (!url) continue
+      push(url, characterName)
+    }
+  }
+
+  // Pass 2 — voices wired directly into the focal node (unbound).
+  for (const node of directUpstream) {
+    const url = readVoiceUrl(node)
+    if (!url) continue
+    push(url)
+  }
+
+  return bindings
+}
+
+/**
  * Build a prompt string from every upstream shotText node, in graph order.
  * Each shotText contributes its own scene/action/camera/composition stack via
  * `buildNodeWorkflowPrompt`. Multiple shotTexts are separated by a blank line

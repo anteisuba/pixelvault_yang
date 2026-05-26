@@ -2681,6 +2681,10 @@
     "characterImage": {
       "namePrefix": "Character",
       "nameLabel": "Character name",
+      "voiceBound": {
+        "namedVoice": "🎙 Voice bound: {voiceName} (will label the @AudioN slot in the video prompt)",
+        "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)"
+      },
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
       "emptyPreview": "No generated image yet",

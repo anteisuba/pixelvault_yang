@@ -6,6 +6,7 @@ import type { NodeWorkflowEdge, NodeWorkflowNode } from '@/types/node-workflow'
 import {
   getNodeMediaUrl,
   getUpstreamNodes,
+  harvestUpstreamAudioBindings,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoUrls,
@@ -332,5 +333,127 @@ describe('mergePromptWithUpstreamText', () => {
 
   it('returns empty when both are empty', () => {
     expect(mergePromptWithUpstreamText('', '   ')).toBe('')
+  })
+})
+
+describe('harvestUpstreamAudioBindings', () => {
+  it('attaches character names to voices routed through a character node', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+      }),
+      makeNode('charA', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Alice',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voiceA', 'charA'),
+      makeEdge('e2', 'charA', 'seedance'),
+    ]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/voice-a.mp3', characterName: 'Alice' },
+    ])
+  })
+
+  it('emits unbound voices when wired directly to the focal node', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [makeEdge('e1', 'voiceA', 'seedance')]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/voice-a.mp3' },
+    ])
+  })
+
+  it('binds multiple characters to their respective voices', () => {
+    const nodes = [
+      makeNode('voiceA', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice-a.mp3',
+      }),
+      makeNode('voiceB', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice-b.mp3',
+      }),
+      makeNode('charA', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Alice',
+      }),
+      makeNode('charB', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Bob',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voiceA', 'charA'),
+      makeEdge('e2', 'voiceB', 'charB'),
+      makeEdge('e3', 'charA', 'seedance'),
+      makeEdge('e4', 'charB', 'seedance'),
+    ]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/voice-a.mp3', characterName: 'Alice' },
+      { url: 'https://cdn/voice-b.mp3', characterName: 'Bob' },
+    ])
+  })
+
+  it('deduplicates the same voice URL appearing on multiple paths', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/voice.mp3',
+      }),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Alice',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      // Same voice URL reachable both directly and through char.
+      makeEdge('e1', 'voice', 'char'),
+      makeEdge('e2', 'char', 'seedance'),
+      makeEdge('e3', 'voice', 'seedance'),
+    ]
+    // Character-bound path takes priority, second path is dropped.
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/voice.mp3', characterName: 'Alice' },
+    ])
+  })
+
+  it('skips voice nodes with no recorded audio URL', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        characterName: 'Alice',
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voice', 'char'),
+      makeEdge('e2', 'char', 'seedance'),
+    ]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([])
+  })
+
+  it('uses character.name fallback when characterName is missing', () => {
+    const nodes = [
+      makeNode('voice', NODE_TYPE_IDS.voice, {
+        voiceReferenceAudioUrl: 'https://cdn/v.mp3',
+      }),
+      makeNode('char', NODE_TYPE_IDS.characterImage, {
+        character: {
+          characterId: 'char-1',
+          name: 'Charlie',
+          visualSeed: 'soft-cyan-haired explorer',
+        },
+      }),
+      makeNode('seedance', NODE_TYPE_IDS.seedance),
+    ]
+    const edges = [
+      makeEdge('e1', 'voice', 'char'),
+      makeEdge('e2', 'char', 'seedance'),
+    ]
+    expect(harvestUpstreamAudioBindings('seedance', edges, nodes)).toEqual([
+      { url: 'https://cdn/v.mp3', characterName: 'Charlie' },
+    ])
   })
 })

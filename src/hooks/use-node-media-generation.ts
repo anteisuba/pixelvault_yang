@@ -45,6 +45,16 @@ interface NodeMediaGenerationInput {
   referenceImages?: string[]
   /** Reference audio clips for voice cloning (Seedance reference-to-video). */
   audioUrls?: string[]
+  /**
+   * Voice-to-character bindings, when the Workbench can attribute each
+   * audio clip to a named character (voice node wired through a character
+   * node). Seedance Reference labels its @AudioN prompt tokens with the
+   * binding's characterName when present.
+   */
+  audioBindings?: Array<{
+    url: string
+    characterName?: string
+  }>
   /** Reference video clips (Seedance reference-to-video). */
   videoUrls?: string[]
   advancedParams?: AdvancedParams
@@ -194,6 +204,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             resolution: input.resolution,
             referenceImages: input.referenceImages,
             audioUrls: input.audioUrls,
+            audioBindings: input.audioBindings,
             videoUrls: input.videoUrls,
           })
 

@@ -2681,6 +2681,10 @@
     "characterImage": {
       "namePrefix": "角色",
       "nameLabel": "角色名称",
+      "voiceBound": {
+        "namedVoice": "🎙 已绑定音色：{voiceName}（视频生成时会标注角色名）",
+        "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）"
+      },
       "promptLabel": "角色图提示词",
       "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
       "emptyPreview": "还没有生成图片",

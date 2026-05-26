@@ -2681,6 +2681,10 @@
     "characterImage": {
       "namePrefix": "キャラクター",
       "nameLabel": "キャラクター名",
+      "voiceBound": {
+        "namedVoice": "🎙 音色をバインド：{voiceName}（動画生成時に @AudioN にキャラクター名が付きます）",
+        "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）"
+      },
       "promptLabel": "キャラクター画像プロンプト",
       "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
       "emptyPreview": "生成画像はまだありません",

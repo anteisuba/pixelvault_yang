@@ -3,6 +3,7 @@
 import type { ImgHTMLAttributes, ReactNode } from 'react'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { ReactFlowProvider } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -130,9 +131,11 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
     }
 
     return (
-      <NodeWorkflowActionsProvider value={actions}>
-        <CharacterImageInspector node={node} />
-      </NodeWorkflowActionsProvider>
+      <ReactFlowProvider>
+        <NodeWorkflowActionsProvider value={actions}>
+          <CharacterImageInspector node={node} />
+        </NodeWorkflowActionsProvider>
+      </ReactFlowProvider>
     )
   }
 
@@ -141,22 +144,24 @@ function renderWithActions(initialNode: NodeWorkflowNode) {
 
 function renderStatic(children: ReactNode) {
   return render(
-    <NodeWorkflowActionsProvider
-      value={{
-        updateNodeData,
-        updateScriptBreakdown: vi.fn(),
-        updateSeedancePromptPlan: vi.fn(),
-        spawnCharactersFromBreakdown: vi.fn(),
-        applySeedancePromptPlanToSeedance: vi.fn(),
-        deleteNode: vi.fn(),
-        generateCharacterImage,
-        modelOptionsByType: {
-          [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
-        },
-      }}
-    >
-      {children}
-    </NodeWorkflowActionsProvider>,
+    <ReactFlowProvider>
+      <NodeWorkflowActionsProvider
+        value={{
+          updateNodeData,
+          updateScriptBreakdown: vi.fn(),
+          updateSeedancePromptPlan: vi.fn(),
+          spawnCharactersFromBreakdown: vi.fn(),
+          applySeedancePromptPlanToSeedance: vi.fn(),
+          deleteNode: vi.fn(),
+          generateCharacterImage,
+          modelOptionsByType: {
+            [NODE_TYPE_IDS.characterImage]: [IMAGE_OPTION],
+          },
+        }}
+      >
+        {children}
+      </NodeWorkflowActionsProvider>
+    </ReactFlowProvider>,
   )
 }
 

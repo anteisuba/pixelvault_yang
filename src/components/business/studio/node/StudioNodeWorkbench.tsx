@@ -58,10 +58,10 @@ import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { buildNodeWorkflowPrompt } from '@/lib/node-workflow-prompt'
 import {
   getUpstreamNodes,
+  harvestUpstreamAudioBindings,
   harvestUpstreamImageUrls,
   harvestUpstreamShotTextPrompt,
   harvestUpstreamVideoUrls,
-  harvestUpstreamVoiceAudioUrls,
   mergePromptWithUpstreamText,
 } from '@/lib/node-workflow-graph'
 import type { AdvancedParams } from '@/types'
@@ -658,9 +658,18 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const upstreamImageUrls = isVideoMediaNode
         ? harvestUpstreamImageUrls(upstreamNodes)
         : []
-      const upstreamAudioUrls = isVideoMediaNode
-        ? harvestUpstreamVoiceAudioUrls(upstreamNodes).slice(0, 3)
+      // harvestUpstreamAudioBindings walks one hop further than the plain
+      // voice harvest: voices wired through a character node carry that
+      // character's name forward, so multi-character scenes can label
+      // `@AudioN` tokens with the right speaker in the fal prompt.
+      const upstreamAudioBindings = isVideoMediaNode
+        ? harvestUpstreamAudioBindings(
+            nodeId,
+            workflow.edges,
+            workflow.nodes,
+          ).slice(0, 3)
         : []
+      const upstreamAudioUrls = upstreamAudioBindings.map((b) => b.url)
       // Reference-video clips for Seedance reference-to-video. Each clip
       // contributes towards the cross-modality cap (≤12 files total) which
       // the builder enforces against image_urls.
@@ -773,6 +782,8 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,
+        audioBindings:
+          upstreamAudioBindings.length > 0 ? upstreamAudioBindings : undefined,
         videoUrls: upstreamVideoUrls.length > 0 ? upstreamVideoUrls : undefined,
         advancedParams,
       })

@@ -92,6 +92,15 @@ export interface ProviderQueueSubmitInput {
    */
   audioUrls?: string[]
   /**
+   * Per-clip binding labels (character name per audio URL). When supplied,
+   * the Seedance Reference builder labels @AudioN tokens with the character
+   * name so multi-character scenes route the right voice to the right person.
+   */
+  audioBindings?: ReadonlyArray<{
+    url: string
+    characterName?: string
+  }>
+  /**
    * Reference video clips. Consumed only by Seedance 2.0 reference-to-video
    * (unlocks the 0.6x price multiplier).
    */

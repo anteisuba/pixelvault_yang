@@ -9,6 +9,7 @@ import {
   type ClipboardEvent,
   type ChangeEvent,
 } from 'react'
+import { useEdges, useNodes } from '@xyflow/react'
 import {
   ArrowLeft,
   Clipboard,
@@ -17,6 +18,7 @@ import {
   Images,
   Library,
   Loader2,
+  Mic2,
   Trash2,
   Upload,
   WandSparkles,
@@ -61,7 +63,9 @@ import { CharacterImageReferenceControls } from '@/components/business/studio/no
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
 import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
 import { useRouter } from '@/i18n/navigation'
+import { getUpstreamNodes, isVoiceProfileNode } from '@/lib/node-workflow-graph'
 import type { GenerationRecord, NodeWorkflowNode } from '@/types'
+import type { NodeWorkflowEdge } from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { InspectorField } from './InspectorField'
@@ -89,6 +93,8 @@ export function CharacterImageInspector({
   node,
 }: CharacterImageInspectorProps) {
   const t = useTranslations('StudioNode.characterImage')
+  const allNodes = useNodes<NodeWorkflowNode>()
+  const edges = useEdges<NodeWorkflowEdge>()
   const router = useRouter()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const existingImageInputRef = useRef<HTMLInputElement>(null)
@@ -118,6 +124,35 @@ export function CharacterImageInspector({
     typeof node.data.characterName === 'string'
       ? node.data.characterName
       : (node.data.character?.name ?? t('namePrefix'))
+
+  // Detect a voice node wired into this character. When present, the
+  // Seedance Reference builder downstream labels its @AudioN token with
+  // this character's name — the user sees "🎙 已绑定音色" so the binding
+  // doesn't feel invisible until generation time. React Compiler memoizes
+  // automatically; an explicit useMemo here trips
+  // react-hooks/preserve-manual-memoization.
+  const boundVoice = ((): { url: string; voiceName: string | null } | null => {
+    const upstream = getUpstreamNodes(node.id, edges, allNodes)
+    for (const candidate of upstream) {
+      if (!isVoiceProfileNode(candidate)) continue
+      const url =
+        typeof candidate.data.voiceReferenceAudioUrl === 'string'
+          ? candidate.data.voiceReferenceAudioUrl.trim()
+          : ''
+      if (!url) continue
+      const voiceName =
+        (typeof candidate.data.voiceName === 'string' &&
+          candidate.data.voiceName.trim()) ||
+        (typeof candidate.data.voiceId === 'string' &&
+          candidate.data.voiceId.trim()) ||
+        (typeof candidate.data.voiceReferenceAudioName === 'string' &&
+          candidate.data.voiceReferenceAudioName.trim()) ||
+        null
+      return { url, voiceName }
+    }
+    return null
+  })()
+
   const generationStatus =
     node.data.generationStatus ??
     (imageUrl
@@ -608,6 +643,19 @@ export function CharacterImageInspector({
                 className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
               />
             </InspectorField>
+
+            {boundVoice ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-node-success/30 bg-node-success/10 px-3 py-2 text-xs leading-5 text-node-success">
+                <Mic2 className="size-3.5 shrink-0" />
+                <span className="flex-1 truncate">
+                  {boundVoice.voiceName
+                    ? t('voiceBound.namedVoice', {
+                        voiceName: boundVoice.voiceName,
+                      })
+                    : t('voiceBound.unnamed')}
+                </span>
+              </div>
+            ) : null}
 
             <InspectorField label={t('promptLabel')}>
               <IMEAwareTextarea

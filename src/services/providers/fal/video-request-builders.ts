@@ -39,6 +39,18 @@ export interface FalVideoRequestBuilderInput {
    */
   audioUrls?: string[]
   /**
+   * Optional binding labels for each audio clip — when a voice node was
+   * wired through a character node, the character's name travels with the
+   * URL. Seedance Reference uses this to label the `@AudioN` token in the
+   * auto-injected prompt prefix so the model knows which audio belongs to
+   * which character. When omitted, `audioUrls` is used verbatim with
+   * unlabeled `@AudioN` tokens.
+   */
+  audioBindings?: ReadonlyArray<{
+    url: string
+    characterName?: string
+  }>
+  /**
    * Reference video clips. Only consumed by builders for endpoints that
    * accept video_urls (Seedance 2.0 reference-to-video). Other builders
    * ignore. Providing a video reference unlocks the 0.6x price multiplier
@@ -357,18 +369,29 @@ function promptReferencesVideo(prompt: string): boolean {
   return /@Video[1-9]\b/.test(prompt)
 }
 
+interface AudioPrefixBinding {
+  url: string
+  characterName?: string
+}
+
 /**
  * Build the auto-inject prefix when the user supplied audio_urls but forgot
  * to wire them into the prompt. For N URLs we prepend `@Audio1 @Audio2 ...`
- * so the fal model knows which references to pull from. Users still write
- * their own dialogue (typically double-quoted) after the prefix.
+ * so the fal model knows which references to pull from. When a binding has
+ * a `characterName`, it's emitted as `"{Name} (@AudioN)"` instead of plain
+ * `@AudioN` so multi-character scenes communicate "Alice's voice ≠ Bob's"
+ * to the model. Users still write their own dialogue after the prefix.
  */
-function buildAudioReferencePrefix(audioCount: number): string {
-  const refs: string[] = []
-  for (let i = 1; i <= audioCount && i <= 3; i += 1) {
-    refs.push(`@Audio${i}`)
+function buildAudioReferencePrefix(
+  bindings: readonly AudioPrefixBinding[],
+): string {
+  const tokens: string[] = []
+  for (let i = 0; i < bindings.length && i < 3; i += 1) {
+    const slot = `@Audio${i + 1}`
+    const name = bindings[i]?.characterName?.trim()
+    tokens.push(name ? `${name} (${slot})` : slot)
   }
-  return refs.join(' ')
+  return tokens.join(' ')
 }
 
 function buildVideoReferencePrefix(videoCount: number): string {
@@ -398,10 +421,16 @@ function buildSeedanceReference(
   input: FalVideoRequestBuilderInput,
   allowedResolutions: readonly string[],
 ): Record<string, unknown> {
-  const audioUrls =
-    input.audioUrls && input.audioUrls.length > 0
-      ? input.audioUrls.slice(0, 3)
-      : []
+  // Prefer audioBindings when available (carry character names from the
+  // Workbench harvest). Fall back to audioUrls verbatim for callers that
+  // don't know about bindings (smoke tests, video-pipeline service, etc.).
+  const audioBindings =
+    input.audioBindings && input.audioBindings.length > 0
+      ? input.audioBindings.slice(0, 3)
+      : input.audioUrls && input.audioUrls.length > 0
+        ? input.audioUrls.slice(0, 3).map((url) => ({ url }))
+        : []
+  const audioUrls = audioBindings.map((binding) => binding.url)
   const videoUrls =
     input.videoUrls && input.videoUrls.length > 0
       ? input.videoUrls.slice(0, 3)
@@ -421,8 +450,8 @@ function buildSeedanceReference(
   const imageUrls = imageRefs.slice(0, Math.min(9, maxImages))
 
   let prompt = input.prompt
-  if (audioUrls.length > 0 && !promptReferencesAudio(prompt)) {
-    prompt = `${buildAudioReferencePrefix(audioUrls.length)} ${prompt}`.trim()
+  if (audioBindings.length > 0 && !promptReferencesAudio(prompt)) {
+    prompt = `${buildAudioReferencePrefix(audioBindings)} ${prompt}`.trim()
   }
   if (videoUrls.length > 0 && !promptReferencesVideo(prompt)) {
     prompt = `${buildVideoReferencePrefix(videoUrls.length)} ${prompt}`.trim()

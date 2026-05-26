@@ -496,6 +496,43 @@ export function CharacterImageInspector({
           </div>
         ) : null}
 
+        {/*
+         * Character name + voice-bound hint sit in the shared region so
+         * both `existing` and `ai` modes can rename the node. Multi-character
+         * Seedance scenes use this name to label @AudioN / image_urls
+         * order — picking a clear name here is what makes the video step
+         * able to distinguish characters.
+         */}
+        {!isChoiceMode ? (
+          <>
+            <InspectorField
+              label={t('nameLabel')}
+              statusDotClassName="bg-rose-200"
+            >
+              <IMEAwareInput
+                value={characterName}
+                onValueChange={handleCharacterNameChange}
+                aria-label={t('nameLabel')}
+                placeholder={t('namePrefix')}
+                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+              />
+            </InspectorField>
+
+            {boundVoice ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-node-success/30 bg-node-success/10 px-3 py-2 text-xs leading-5 text-node-success">
+                <Mic2 className="size-3.5 shrink-0" />
+                <span className="flex-1 truncate">
+                  {boundVoice.voiceName
+                    ? t('voiceBound.namedVoice', {
+                        voiceName: boundVoice.voiceName,
+                      })
+                    : t('voiceBound.unnamed')}
+                </span>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
         {isChoiceMode ? (
           <div className="space-y-2">
             <Popover>
@@ -631,31 +668,6 @@ export function CharacterImageInspector({
                 <ArrowLeft className="size-3.5" />
               </button>
             </div>
-
-            <InspectorField
-              label={t('nameLabel')}
-              statusDotClassName="bg-rose-200"
-            >
-              <IMEAwareInput
-                value={characterName}
-                onValueChange={handleCharacterNameChange}
-                aria-label={t('nameLabel')}
-                className="h-10 w-full rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm font-semibold text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
-              />
-            </InspectorField>
-
-            {boundVoice ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-node-success/30 bg-node-success/10 px-3 py-2 text-xs leading-5 text-node-success">
-                <Mic2 className="size-3.5 shrink-0" />
-                <span className="flex-1 truncate">
-                  {boundVoice.voiceName
-                    ? t('voiceBound.namedVoice', {
-                        voiceName: boundVoice.voiceName,
-                      })
-                    : t('voiceBound.unnamed')}
-                </span>
-              </div>
-            ) : null}
 
             <InspectorField label={t('promptLabel')}>
               <IMEAwareTextarea

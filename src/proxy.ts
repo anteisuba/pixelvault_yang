@@ -26,6 +26,13 @@ const isPublicRoute = createRouteMatcher([
   '/api/health',
   '/api/health/providers',
   '/api/internal/civitai-lora/prewarm',
+  // Worker-to-Next.js internal calls — these endpoints verify their own
+  // HMAC/Ed25519 signature and must bypass Clerk auth (the Worker has no
+  // Clerk session).
+  '/api/internal/execution/callback',
+  '/api/internal/execution/resolve-key',
+  '/api/internal/execution/long-video/advance',
+  '/api/internal/fal/webhook',
 ])
 
 const isDev = process.env.NODE_ENV === 'development'

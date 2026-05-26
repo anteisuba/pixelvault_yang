@@ -106,7 +106,10 @@ export function CanvasTopBar({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="w-72 border-node-panel-inner bg-node-panel text-node-foreground shadow-node-panel"
+                // w-60 on phone-portrait keeps the menu under ~60% of the
+                // viewport so the canvas behind stays partly visible; sm+
+                // restores the original 288px width for more breathing room.
+                className="w-60 border-node-panel-inner bg-node-panel text-node-foreground shadow-node-panel sm:w-72"
               >
                 <DropdownMenuLabel className="text-2xs uppercase tracking-nav-dense text-node-muted">
                   {t('projectMenu.current')}

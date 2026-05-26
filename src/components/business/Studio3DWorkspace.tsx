@@ -1381,7 +1381,11 @@ export function Studio3DWorkspace({
             <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
               <Box className="size-12 opacity-40" />
               <p className="font-serif text-sm">
-                {t('sourceImagePlaceholder')}
+                {/* Text-to-3D users don't need a source image — point them at
+                    the prompt input instead. */}
+                {isRodin && rodinMode === 'text'
+                  ? t('rodinTextModePlaceholder')
+                  : t('sourceImagePlaceholder')}
               </p>
               {/*
                * Empty-canvas affordance to load a previously generated 3D
@@ -1556,6 +1560,42 @@ export function Studio3DWorkspace({
                   )
                 })}
               </div>
+              {/* One-line contextual hint so the three modes aren't visually
+                  identical — explains how the current pick actually behaves. */}
+              <p className="font-serif text-[11px] italic leading-snug text-muted-foreground">
+                {t(
+                  rodinMode === 'image'
+                    ? 'rodinModeImageHint'
+                    : rodinMode === 'text'
+                      ? 'rodinModeTextHint'
+                      : 'rodinModeMeshFirstHint',
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Text-to-3D mode: prompt is the primary input, surface it
+              prominently right under the mode picker. In image/mesh modes
+              prompt stays in the Advanced section as supplementary guidance. */}
+          {isRodin && rodinMode === 'text' && (
+            <div className="flex flex-col gap-1.5">
+              <Label
+                htmlFor="rodin-prompt-top"
+                className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground"
+              >
+                {t('rodinPromptLabel')}
+                <span className="text-[10px] normal-case tracking-normal text-amber-700 dark:text-amber-400">
+                  {t('rodinPromptRequiredBadge')}
+                </span>
+              </Label>
+              <textarea
+                id="rodin-prompt-top"
+                value={rodinPrompt}
+                onChange={(e) => setRodinPrompt(e.target.value)}
+                placeholder={t('rodinPromptPlaceholder')}
+                rows={4}
+                className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
             </div>
           )}
 
@@ -2517,23 +2557,26 @@ export function Studio3DWorkspace({
                       </div>
                     </div>
 
-                    {/* Prompt */}
-                    <div className="flex flex-col gap-1">
-                      <Label
-                        htmlFor="rodin-prompt"
-                        className="text-[11px] uppercase tracking-wider text-muted-foreground"
-                      >
-                        {t('rodinPromptLabel')}
-                      </Label>
-                      <textarea
-                        id="rodin-prompt"
-                        value={rodinPrompt}
-                        onChange={(e) => setRodinPrompt(e.target.value)}
-                        placeholder={t('rodinPromptPlaceholder')}
-                        rows={2}
-                        className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                      />
-                    </div>
+                    {/* Prompt (image/mesh modes only — text mode promotes
+                        prompt to a top-of-panel input). */}
+                    {rodinMode !== 'text' && (
+                      <div className="flex flex-col gap-1">
+                        <Label
+                          htmlFor="rodin-prompt"
+                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
+                        >
+                          {t('rodinPromptLabel')}
+                        </Label>
+                        <textarea
+                          id="rodin-prompt"
+                          value={rodinPrompt}
+                          onChange={(e) => setRodinPrompt(e.target.value)}
+                          placeholder={t('rodinPromptPlaceholder')}
+                          rows={2}
+                          className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    )}
 
                     {/* File format */}
                     <div className="flex items-center gap-2">

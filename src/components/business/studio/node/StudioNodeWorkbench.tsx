@@ -745,8 +745,20 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
             scale: lora.scale,
           }))
         : []
+      // Negative prompt is video-only (Studio's VideoParams panel mirrors
+      // this restriction). Image kinds don't surface a control today, so we
+      // only forward it when generating video.
+      const negativePrompt =
+        isVideoMediaNode && typeof node.data.negativePrompt === 'string'
+          ? node.data.negativePrompt.trim() || undefined
+          : undefined
       const advancedParams: AdvancedParams | undefined =
-        loras.length > 0 ? { loras } : undefined
+        loras.length > 0 || negativePrompt
+          ? {
+              ...(loras.length > 0 ? { loras } : {}),
+              ...(negativePrompt ? { negativePrompt } : {}),
+            }
+          : undefined
 
       // Bridge: duration is stored as a string in node.data (text-input
       // legacy). The wire format accepts either a 4-15 integer or the
@@ -773,6 +785,16 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
               | '1080p'
               | undefined)
           : undefined
+      const videoAspectRatio =
+        isVideoMediaNode && typeof node.data.aspectRatio === 'string'
+          ? (node.data.aspectRatio as
+              | '1:1'
+              | '16:9'
+              | '9:16'
+              | '4:3'
+              | '3:4'
+              | undefined)
+          : undefined
 
       const result = await nodeMediaGeneration.generate({
         kind,
@@ -781,6 +803,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
         prompt: mergedPrompt,
         duration: videoDuration,
         resolution: videoResolution,
+        aspectRatio: videoAspectRatio,
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,

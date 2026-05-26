@@ -24,7 +24,13 @@ import { useTranslations } from 'next-intl'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
 import { Button } from '@/components/ui/button'
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
+import type { AspectRatio } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
+import {
+  VIDEO_ASPECT_RATIOS,
+  VIDEO_RESOLUTIONS,
+  type VideoResolution,
+} from '@/constants/video-options'
 import {
   NODE_GENERATION_STATUS_IDS,
   NODE_MEDIA_KIND_IDS,
@@ -382,6 +388,54 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     [node.data, node.id, updateNodeData],
   )
 
+  // Resolution / aspect-ratio / negative-prompt controls mirror Studio's
+  // VideoParams panel. We filter the option list by the picked model's
+  // capabilities so a Volc-only model never offers 1080p, and so on.
+  const resolutionOptions =
+    videoCapabilities?.supportedResolutions ?? VIDEO_RESOLUTIONS
+  const aspectRatioOptions =
+    videoCapabilities?.supportedAspectRatios ?? VIDEO_ASPECT_RATIOS
+  const currentResolution =
+    typeof node.data.resolution === 'string' &&
+    (resolutionOptions as readonly string[]).includes(node.data.resolution)
+      ? (node.data.resolution as VideoResolution)
+      : undefined
+  const currentAspectRatio =
+    typeof node.data.aspectRatio === 'string' &&
+    (aspectRatioOptions as readonly string[]).includes(node.data.aspectRatio)
+      ? (node.data.aspectRatio as AspectRatio)
+      : undefined
+  const currentNegativePrompt =
+    typeof node.data.negativePrompt === 'string' ? node.data.negativePrompt : ''
+
+  const handleResolutionToggle = useCallback(
+    (value: VideoResolution) => {
+      updateNodeData(node.id, {
+        resolution: currentResolution === value ? undefined : value,
+      })
+    },
+    [currentResolution, node.id, updateNodeData],
+  )
+
+  const handleAspectRatioToggle = useCallback(
+    (value: AspectRatio) => {
+      updateNodeData(node.id, {
+        aspectRatio: currentAspectRatio === value ? undefined : value,
+      })
+    },
+    [currentAspectRatio, node.id, updateNodeData],
+  )
+
+  const handleNegativePromptChange = useCallback(
+    (value: string) => {
+      const trimmed = value.trim()
+      updateNodeData(node.id, {
+        negativePrompt: trimmed.length > 0 ? trimmed : undefined,
+      })
+    },
+    [node.id, updateNodeData],
+  )
+
   const handleGenerate = useCallback(() => {
     void generateMediaNode?.(node.id)
   }, [generateMediaNode, node.id])
@@ -623,6 +677,77 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
 
       <div className="space-y-3">
         {VIDEO_GENERATION_FIELDS.map((fieldId) => renderField(fieldId))}
+
+        <InspectorField
+          label={t('resolutionLabel')}
+          statusDotClassName={videoAccent.dot}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {resolutionOptions.map((option) => {
+              const isSelected = currentResolution === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleResolutionToggle(option)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                    isSelected
+                      ? 'border-node-amber bg-node-amber text-node-canvas'
+                      : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-amber/40 hover:text-node-foreground',
+                  )}
+                >
+                  {option}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-1.5 text-2xs leading-4 text-node-subtle">
+            {t('resolutionHint')}
+          </p>
+        </InspectorField>
+
+        <InspectorField
+          label={t('aspectRatioLabel')}
+          statusDotClassName={videoAccent.dot}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {aspectRatioOptions.map((option) => {
+              const isSelected = currentAspectRatio === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleAspectRatioToggle(option)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                    isSelected
+                      ? 'border-node-amber bg-node-amber text-node-canvas'
+                      : 'border-node-panel-inner bg-node-panel-soft text-node-muted hover:border-node-amber/40 hover:text-node-foreground',
+                  )}
+                >
+                  {option}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-1.5 text-2xs leading-4 text-node-subtle">
+            {t('aspectRatioHint')}
+          </p>
+        </InspectorField>
+
+        <InspectorField
+          label={t('negativePromptLabel')}
+          statusDotClassName={videoAccent.dot}
+        >
+          <IMEAwareTextarea
+            value={currentNegativePrompt}
+            onValueChange={handleNegativePromptChange}
+            aria-label={t('negativePromptLabel')}
+            placeholder={t('negativePromptPlaceholder')}
+            className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+          />
+        </InspectorField>
       </div>
 
       {node.data.generationError ? (

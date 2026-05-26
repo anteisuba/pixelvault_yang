@@ -17,6 +17,7 @@ import {
   NODE_STUDIO_VOICE_PROFILE_SOURCES,
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
+import { IMAGE_SIZES } from '@/constants/config'
 import {
   NODE_GENERATION_STATUSES,
   NODE_WORKFLOW_FIELDS,
@@ -25,6 +26,7 @@ import {
   NODE_TYPES,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import {
   ScriptBreakdownPlannerSchema,
@@ -131,6 +133,15 @@ export const NodeWorkflowNodeDataSchema = z
     voiceReferenceAudioMimeType: z.string().trim().min(1).max(120).optional(),
     motion: z.string().optional(),
     duration: z.string().optional(),
+    // Video output controls — mirror Studio's video panel. `passthrough()` on
+    // this schema previously masked their absence; declaring them here makes
+    // the contract explicit and lets the Inspector + Workbench rely on a real
+    // type instead of `unknown`.
+    resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
+    aspectRatio: z
+      .enum(Object.keys(IMAGE_SIZES) as [string, ...string[]])
+      .optional(),
+    negativePrompt: z.string().trim().min(1).max(1000).optional(),
     audioIntent: z.string().optional(),
     status: NodeStatusSchema.default('idle'),
     breakdown: ScriptBreakdownResultSchema.optional(),

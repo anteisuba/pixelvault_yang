@@ -12,6 +12,8 @@ import {
 } from 'react'
 import {
   Bot,
+  GripHorizontal,
+  GripVertical,
   MessageSquarePlus,
   PanelRightClose,
   Sparkles,
@@ -623,9 +625,12 @@ export function StudioNodeAssistantDock({
         aria-valuenow={layout.widthPx}
         tabIndex={0}
         {...widthHandlers}
-        className="group absolute inset-y-0 left-0 z-10 flex w-1.5 cursor-col-resize items-center justify-center focus:outline-none"
+        title={t('resize.widthLabel')}
+        className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
       >
-        <span className="h-12 w-0.5 rounded-full bg-node-panel-inner transition-colors group-hover:bg-node-amber/60 group-focus-visible:bg-node-amber" />
+        <span className="flex h-14 w-1.5 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
+          <GripVertical className="size-3" />
+        </span>
       </div>
 
       <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner px-4 py-3">
@@ -687,9 +692,12 @@ export function StudioNodeAssistantDock({
           aria-valuenow={inspectorPercent}
           tabIndex={0}
           {...splitHandlers}
-          className="group relative flex h-1.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
+          title={t('resize.splitLabel')}
+          className="group relative flex h-2.5 shrink-0 cursor-row-resize items-center justify-center border-y border-node-panel-inner bg-node-panel-inner/40 focus:outline-none"
         >
-          <span className="h-0.5 w-12 rounded-full bg-node-panel-inner transition-colors group-hover:bg-node-amber/60 group-focus-visible:bg-node-amber" />
+          <span className="flex h-1.5 w-14 items-center justify-center rounded-full bg-node-panel-inner/80 text-node-muted transition-colors group-hover:bg-node-amber/70 group-hover:text-node-canvas group-focus-visible:bg-node-amber group-focus-visible:text-node-canvas">
+            <GripHorizontal className="size-3" />
+          </span>
         </div>
 
         <div

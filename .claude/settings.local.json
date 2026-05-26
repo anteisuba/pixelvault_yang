@@ -249,7 +249,10 @@
       "WebFetch(domain:hyper3d.ai)",
       "WebFetch(domain:help.scenario.com)",
       "WebFetch(domain:docs.comfy.org)",
-      "Bash(npx wrangler *)"
+      "Bash(npx wrangler *)",
+      "Bash(curl -s -o /dev/null -w \"callback: %{http_code}\\\\n\" -X POST -H \"Content-Type: application/json\" -d '{}' https://www.anteisuba.com/api/internal/execution/callback)",
+      "Bash(curl -s -o /dev/null -w \"resolve-key: %{http_code}\\\\n\" -X POST -H \"Content-Type: application/json\" -d '{}' https://www.anteisuba.com/api/internal/execution/resolve-key)",
+      "WebFetch(domain:developers.cloudflare.com)"
     ],
     "deny": [
       "Edit(scripts/**)",

@@ -359,7 +359,10 @@ export const RUNWAY_API = {
 
 /** Video generation configuration */
 export const VIDEO_GENERATION = {
-  MAX_DURATION: 10,
+  // Seedance 2.0 / Seedance Reference accept 4-15 seconds. Older models
+  // (Veo, Kling) clamp internally via their own builder helpers, so raising
+  // the wire-level cap to 15 doesn't break them.
+  MAX_DURATION: 15,
   DEFAULT_DURATION: 5,
   DURATION_OPTIONS: [3, 5, 10] as const,
   POLL_INTERVAL_MS: 3000,

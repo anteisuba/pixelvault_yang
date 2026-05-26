@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -168,6 +169,16 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
   const [topbarOpen, setTopbarOpen] = useState(true)
+
+  // Mobile UX: the AssistantDock spans left-4 → right-4 below md, so leaving
+  // it default-open hides the canvas entirely on a phone. Close it on first
+  // paint when the viewport is narrow; desktop keeps the default-open layout.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      setAssistantDockOpen(false)
+    }
+  }, [])
 
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 

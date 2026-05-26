@@ -132,3 +132,45 @@ export async function activateNodeWorkflowProjectAPI(
     return { success: false, error: unexpectedError(error) }
   }
 }
+
+export interface ReferenceVideoUpload {
+  url: string
+  sizeBytes: number
+  mimeType: string
+  fileName: string
+}
+
+export interface ReferenceVideoUploadResponse {
+  success: boolean
+  data?: ReferenceVideoUpload
+  error?: string
+  errorCode?: string
+}
+
+export async function uploadReferenceVideoAPI(
+  file: File,
+): Promise<ReferenceVideoUploadResponse> {
+  try {
+    const formData = new FormData()
+    formData.append('video', file)
+
+    const response = await fetch('/api/node-workflow/upload-reference-video', {
+      method: 'POST',
+      body: formData,
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string
+        errorCode?: string
+      }
+      return {
+        success: false,
+        errorCode: payload.errorCode,
+        error: payload.error ?? `Failed with status ${response.status}`,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}

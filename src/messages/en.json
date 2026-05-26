@@ -2553,7 +2553,8 @@
       "backgroundImage": "Background Image",
       "frameImage": "Frame Image",
       "voice": "Voice Profile",
-      "seedance": "Video Generation"
+      "seedance": "Video Generation",
+      "videoReference": "Reference Video"
     },
     "addMenuHelpers": {
       "composer": "Draft an idea prompt for the workflow.",
@@ -2564,7 +2565,8 @@
       "backgroundImage": "Generate a scene background and atmosphere plate.",
       "frameImage": "Generate a keyframe image before video creation.",
       "voice": "Select or upload a voice profile for video character voices.",
-      "seedance": "Aggregate upstream images, keyframes, and voices into a final video."
+      "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
+      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount."
     },
     "statuses": {
       "idle": "Idle",
@@ -2879,6 +2881,22 @@
       "statusSuccess": "Video generated",
       "statusError": "Generation failed"
     },
+    "videoReference": {
+      "title": "Reference video",
+      "description": "Upload a clip to use as reference for a downstream Seedance Reference node. Connecting a video automatically applies the 0.6x discount.",
+      "emptyPreview": "No video uploaded yet",
+      "upload": "Upload video",
+      "replace": "Replace video",
+      "clear": "Clear",
+      "uploading": "Uploading",
+      "uploaded": "Video uploaded",
+      "constraints": "Supports mp4 / mov / webm; up to 15 seconds and 50 MB per clip.",
+      "errors": {
+        "tooLong": "Video is {actual}s — longer than the {max}s cap.",
+        "metadataFailed": "Couldn't read the video metadata. Try a different file.",
+        "uploadFailed": "Video upload failed. Please try again."
+      }
+    },
     "mediaNodes": {
       "promptLabel": "Prompt",
       "promptPlaceholder": "Describe what this node should create...",
@@ -3027,6 +3045,10 @@
       "seedance": {
         "emptyPreview": "Aggregate character images, backgrounds, keyframes, and voices into video.",
         "footerEmpty": "Waiting for video inputs"
+      },
+      "videoReference": {
+        "emptyPreview": "Upload a ≤15s clip as a reference for downstream Seedance Reference.",
+        "footerEmpty": "Waiting for upload"
       }
     },
     "topbar": {

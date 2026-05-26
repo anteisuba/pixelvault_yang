@@ -20,6 +20,18 @@ describe('reference-image-capabilities', () => {
       expect(cap.kind).toBe('none')
     })
 
+    it.each([
+      AI_MODELS.FLUX_2_PRO,
+      AI_MODELS.SEEDREAM_45,
+      AI_MODELS.FLUX_2_DEV,
+      AI_MODELS.FLUX_2_SCHNELL,
+      AI_MODELS.FLUX_2_MAX,
+      AI_MODELS.RECRAFT_V4_PRO,
+    ])('returns kind:none for FAL text-to-image endpoint %s', (modelId) => {
+      const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.FAL, modelId)
+      expect(cap.kind).toBe('none')
+    })
+
     it('returns flexible max=14 for GEMINI adapter', () => {
       const cap = getImageReferenceCapability(AI_ADAPTER_TYPES.GEMINI)
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
@@ -36,6 +48,26 @@ describe('reference-image-capabilities', () => {
       )
       if (cap.kind !== 'flexible') throw new Error('expected flexible')
       expect(cap.max).toBe(16)
+      expect(cap.mode).toBe('native')
+    })
+
+    it('honours VolcEngine Seedream official multi-reference limit', () => {
+      const cap = getImageReferenceCapability(
+        AI_ADAPTER_TYPES.VOLCENGINE,
+        AI_MODELS.SEEDREAM_50_LITE,
+      )
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.max).toBe(14)
+      expect(cap.mode).toBe('native')
+    })
+
+    it('uses Ideogram style reference image_urls limit', () => {
+      const cap = getImageReferenceCapability(
+        AI_ADAPTER_TYPES.FAL,
+        AI_MODELS.IDEOGRAM_3,
+      )
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.max).toBe(3)
       expect(cap.mode).toBe('native')
     })
 
@@ -92,6 +124,33 @@ describe('reference-image-capabilities', () => {
       expect(cap.max).toBe(3)
       expect(cap.defaultRole).toBe('subject')
       expect(cap.mode).toBe('native')
+    })
+
+    it('Kling V3 Pro exposes one start image plus three element references', () => {
+      const cap = getVideoReferenceCapability(AI_MODELS.KLING_V3_PRO)
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.min).toBe(0)
+      expect(cap.max).toBe(4)
+      expect(cap.defaultRole).toBe('subject')
+      expect(cap.mode).toBe('native')
+    })
+
+    it('Seedance 2.0 Reference exposes up to 9 reference images', () => {
+      const cap = getVideoReferenceCapability(AI_MODELS.SEEDANCE_20_REFERENCE)
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.min).toBe(1)
+      expect(cap.max).toBe(9)
+      expect(cap.defaultRole).toBe('subject')
+      expect(cap.mode).toBe('native')
+    })
+
+    it('Seedance 2.0 Fast Reference exposes up to 9 reference images', () => {
+      const cap = getVideoReferenceCapability(
+        AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      )
+      if (cap.kind !== 'flexible') throw new Error('expected flexible')
+      expect(cap.min).toBe(1)
+      expect(cap.max).toBe(9)
     })
   })
 

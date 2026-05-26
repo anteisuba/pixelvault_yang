@@ -36,6 +36,7 @@ import { FrameImageInspector } from './inspector/FrameImageInspector'
 import { SeedanceInspector } from './inspector/SeedanceInspector'
 import { ShotInspector } from './inspector/ShotInspector'
 import { ShotTextInspector } from './inspector/ShotTextInspector'
+import { VideoReferenceInspector } from './inspector/VideoReferenceInspector'
 import { VoiceInspector } from './inspector/VoiceInspector'
 
 interface StudioNodeAssistantDockProps {
@@ -154,6 +155,10 @@ function InspectorPanel({
 
   if (primary.type === NODE_TYPE_IDS.seedance) {
     return <SeedanceInspector node={primary} />
+  }
+
+  if (primary.type === NODE_TYPE_IDS.videoReference) {
+    return <VideoReferenceInspector node={primary} />
   }
 
   return (
@@ -285,7 +290,7 @@ export function StudioNodeAssistantDock({
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className="pointer-events-auto absolute right-6 top-24 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+        className="pointer-events-auto absolute right-6 top-24 inline-flex h-10 items-center gap-2 rounded-xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
       >
         <Bot className="size-4 text-node-amber" />
         {tAssistant('toggle')}
@@ -294,7 +299,7 @@ export function StudioNodeAssistantDock({
   }
 
   return (
-    <aside className="pointer-events-auto absolute bottom-4 right-4 top-20 flex w-96 flex-col overflow-hidden rounded-3xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl lg:w-studio-right">
+    <aside className="pointer-events-auto absolute bottom-4 right-4 top-20 flex w-96 flex-col overflow-hidden rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 text-node-foreground shadow-node-panel backdrop-blur-xl lg:w-studio-right">
       <div className="flex items-center justify-between gap-2 border-b border-node-panel-inner px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-node-foreground">
@@ -311,7 +316,7 @@ export function StudioNodeAssistantDock({
             variant="ghost"
             aria-label={t('newConversation')}
             onClick={conversation.clear}
-            className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+            className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
           >
             <MessageSquarePlus className="size-4" />
           </Button>
@@ -325,7 +330,7 @@ export function StudioNodeAssistantDock({
             variant="ghost"
             aria-label={t('collapse')}
             onClick={() => onOpenChange(false)}
-            className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+            className="rounded-xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
           >
             <PanelRightClose className="size-4" />
           </Button>

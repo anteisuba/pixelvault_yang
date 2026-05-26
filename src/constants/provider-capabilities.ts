@@ -262,6 +262,17 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: 5,
     referenceImageMode: 'native' as const,
   },
+  // Seedance 2.0 reference-to-video endpoints accept image_urls up to 9 per
+  // fal docs (https://fal.ai/models/bytedance/seedance-2.0/reference-to-video).
+  // Inheriting the FAL adapter default of 1 silently truncated multi-ref runs.
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: {
+    maxReferenceImages: 9,
+    referenceImageMode: 'native' as const,
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: {
+    maxReferenceImages: 9,
+    referenceImageMode: 'native' as const,
+  },
 }
 
 /** Resolve effective capability config: model override → adapter fallback */

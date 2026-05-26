@@ -14,6 +14,7 @@
 import { AI_MODELS } from '@/constants/models'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  FAL_KLING_V3_MAX_REFERENCE_IMAGES,
   getMaxReferenceImages,
   getReferenceImageMode,
   type ReferenceImageMode,
@@ -91,6 +92,15 @@ export function getImageReferenceCapability(
 const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
   Record<string, ReferenceImageCapability>
 > = {
+  // fal-ai/kling-video/v3/pro/image-to-video takes one start image plus an
+  // optional element image set with `reference_image_urls` capped at 1-3.
+  [AI_MODELS.KLING_V3_PRO]: {
+    kind: 'flexible',
+    min: 0,
+    max: FAL_KLING_V3_MAX_REFERENCE_IMAGES,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
   // fal-ai/veo3.1/reference-to-video already posts `image_urls: string[]`.
   // Google's Veo 3.1 reference-to-video docs cap subject/scene references at
   // 3 images, so 3 is the right ceiling to expose to users.
@@ -98,6 +108,23 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     kind: 'flexible',
     min: 0,
     max: 3,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  // Seedance 2.0 reference-to-video accepts up to 9 reference images per the
+  // fal docs. The default `{max: 1}` previously truncated the upstream image
+  // harvest at one frame, surfacing as "3/1 refs" in the inspector.
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
+    defaultRole: 'subject',
+    mode: 'native',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: {
+    kind: 'flexible',
+    min: 1,
+    max: 9,
     defaultRole: 'subject',
     mode: 'native',
   },

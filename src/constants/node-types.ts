@@ -8,6 +8,7 @@ export const NODE_TYPE_IDS = {
   frameImage: 'frameImage',
   voice: 'voice',
   seedance: 'seedance',
+  videoReference: 'videoReference',
 } as const
 
 export const NODE_TYPES = [
@@ -20,6 +21,7 @@ export const NODE_TYPES = [
   NODE_TYPE_IDS.frameImage,
   NODE_TYPE_IDS.voice,
   NODE_TYPE_IDS.seedance,
+  NODE_TYPE_IDS.videoReference,
 ] as const
 
 export type NodeWorkflowNodeType = (typeof NODE_TYPES)[number]
@@ -34,6 +36,15 @@ export const NODE_IMAGE_MODEL_NODE_TYPES = [
 ] as const
 
 export const NODE_VIDEO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.seedance] as const
+
+/**
+ * Upload-only reference video nodes — they don't have a model selection and
+ * never generate; they only hold an uploaded clip that feeds the downstream
+ * Seedance Reference endpoint's video_urls.
+ */
+export const NODE_VIDEO_REFERENCE_NODE_TYPES = [
+  NODE_TYPE_IDS.videoReference,
+] as const
 
 export const NODE_AUDIO_MODEL_NODE_TYPES = [NODE_TYPE_IDS.voice] as const
 
@@ -64,6 +75,9 @@ export const NODE_WORKFLOW_FIELD_IDS = {
   lighting: 'lighting',
   frameIntent: 'frameIntent',
   dialogue: 'dialogue',
+  voiceName: 'voiceName',
+  voiceProvider: 'voiceProvider',
+  voiceId: 'voiceId',
   voiceStyle: 'voiceStyle',
   voiceEmotion: 'voiceEmotion',
   motion: 'motion',
@@ -82,6 +96,9 @@ export const NODE_WORKFLOW_FIELDS = [
   NODE_WORKFLOW_FIELD_IDS.lighting,
   NODE_WORKFLOW_FIELD_IDS.frameIntent,
   NODE_WORKFLOW_FIELD_IDS.dialogue,
+  NODE_WORKFLOW_FIELD_IDS.voiceName,
+  NODE_WORKFLOW_FIELD_IDS.voiceProvider,
+  NODE_WORKFLOW_FIELD_IDS.voiceId,
   NODE_WORKFLOW_FIELD_IDS.voiceStyle,
   NODE_WORKFLOW_FIELD_IDS.voiceEmotion,
   NODE_WORKFLOW_FIELD_IDS.motion,
@@ -119,7 +136,9 @@ export const NODE_WORKFLOW_FIELDS_BY_NODE_TYPE: Partial<
     NODE_WORKFLOW_FIELD_IDS.prompt,
   ],
   [NODE_TYPE_IDS.voice]: [
-    NODE_WORKFLOW_FIELD_IDS.dialogue,
+    NODE_WORKFLOW_FIELD_IDS.voiceName,
+    NODE_WORKFLOW_FIELD_IDS.voiceProvider,
+    NODE_WORKFLOW_FIELD_IDS.voiceId,
     NODE_WORKFLOW_FIELD_IDS.voiceStyle,
     NODE_WORKFLOW_FIELD_IDS.voiceEmotion,
   ],
@@ -142,6 +161,7 @@ export const NODE_MEDIA_KIND_BY_NODE_TYPE = {
   [NODE_TYPE_IDS.frameImage]: NODE_MEDIA_KIND_IDS.image,
   [NODE_TYPE_IDS.voice]: NODE_MEDIA_KIND_IDS.audio,
   [NODE_TYPE_IDS.seedance]: NODE_MEDIA_KIND_IDS.video,
+  [NODE_TYPE_IDS.videoReference]: NODE_MEDIA_KIND_IDS.video,
 } as const satisfies Record<
   NodeWorkflowNodeType,
   NodeWorkflowMediaKind | undefined

@@ -2553,7 +2553,8 @@
       "backgroundImage": "背景画像",
       "frameImage": "キーフレーム",
       "voice": "音色",
-      "seedance": "動画生成"
+      "seedance": "動画生成",
+      "videoReference": "参考動画"
     },
     "addMenuHelpers": {
       "composer": "制作アイデアをワークフローの出発点として書きます。",
@@ -2564,7 +2565,8 @@
       "backgroundImage": "シーン背景と空気感のある画像を生成します。",
       "frameImage": "動画生成前のキーフレーム画像を生成します。",
       "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
-      "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。"
+      "seedance": "上流の画像、キーフレーム、音色を集約して最終動画を生成します。",
+      "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。"
     },
     "statuses": {
       "idle": "待機中",
@@ -2879,6 +2881,22 @@
       "statusSuccess": "動画を生成しました",
       "statusError": "生成に失敗しました"
     },
+    "videoReference": {
+      "title": "参考動画",
+      "description": "動画クリップをアップロードして下流の Seedance Reference ノードの参考に使用します。参考動画を接続すると 0.6 倍の価格が自動適用されます。",
+      "emptyPreview": "まだ動画がアップロードされていません",
+      "upload": "動画をアップロード",
+      "replace": "動画を差し替え",
+      "clear": "クリア",
+      "uploading": "アップロード中",
+      "uploaded": "動画をアップロードしました",
+      "constraints": "mp4 / mov / webm に対応。1 クリップあたり ≤ 15 秒、≤ 50 MB です。",
+      "errors": {
+        "tooLong": "動画は {actual} 秒で、{max} 秒の上限を超えています。",
+        "metadataFailed": "動画のメタデータを読み取れませんでした。別のファイルをお試しください。",
+        "uploadFailed": "動画のアップロードに失敗しました。再度お試しください。"
+      }
+    },
     "mediaNodes": {
       "promptLabel": "プロンプト",
       "promptPlaceholder": "このノードで生成する内容を説明...",
@@ -3027,6 +3045,10 @@
       "seedance": {
         "emptyPreview": "キャラクター画像、背景、キーフレーム、音色を集約して動画化します。",
         "footerEmpty": "動画入力を待機中"
+      },
+      "videoReference": {
+        "emptyPreview": "≤15 秒の動画をアップロードして、下流の Seedance Reference の参考にします。",
+        "footerEmpty": "アップロード待ち"
       }
     },
     "topbar": {

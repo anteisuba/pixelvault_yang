@@ -136,6 +136,12 @@ const Model3DQueueMetaSchema = z
      * state only.
      */
     workerDispatched: z.boolean().optional(),
+    /**
+     * Discriminator for `execution-callback.service.ts` so MODEL_3D callbacks
+     * skip the VIDEO/AUDIO R2 upload path. Always 'MODEL_3D' for jobs created
+     * by this service — `serializeQueueMeta` injects it automatically.
+     */
+    outputType: z.literal('MODEL_3D').optional(),
   })
   .passthrough()
 
@@ -1072,7 +1078,9 @@ function buildModel3DWorkerContext(params: {
 }
 
 function serializeQueueMeta(meta: Model3DQueueMeta): string {
-  return JSON.stringify(meta)
+  // Inject outputType so the callback service routes to the MODEL_3D branch
+  // instead of the default VIDEO upload path.
+  return JSON.stringify({ ...meta, outputType: 'MODEL_3D' as const })
 }
 
 function parseQueueMeta(value: string): Model3DQueueMeta {

@@ -2553,7 +2553,8 @@
       "backgroundImage": "背景图",
       "frameImage": "关键帧",
       "voice": "音色",
-      "seedance": "视频生成"
+      "seedance": "视频生成",
+      "videoReference": "参考视频"
     },
     "addMenuHelpers": {
       "composer": "写下创作想法，作为工作流的起点。",
@@ -2564,7 +2565,8 @@
       "backgroundImage": "生成场景背景和空间氛围图。",
       "frameImage": "生成视频前使用的关键帧画面。",
       "voice": "选择或上传音色，作为视频角色声音线索。",
-      "seedance": "聚合上游图像、关键帧和音色，生成最终视频。"
+      "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
+      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。"
     },
     "statuses": {
       "idle": "空闲",
@@ -2879,6 +2881,22 @@
       "statusSuccess": "视频已生成",
       "statusError": "生成失败"
     },
+    "videoReference": {
+      "title": "参考视频",
+      "description": "上传一段视频片段，作为下游视频生成节点的参考。Seedance Reference 接到参考视频时会自动应用 6 折价格。",
+      "emptyPreview": "还没有上传视频",
+      "upload": "上传视频",
+      "replace": "替换视频",
+      "clear": "清空",
+      "uploading": "上传中",
+      "uploaded": "视频已上传",
+      "constraints": "支持 mp4 / mov / webm，单个片段 ≤ 15 秒、≤ 50 MB。",
+      "errors": {
+        "tooLong": "视频时长 {actual}s 超过 {max}s 的上限。",
+        "metadataFailed": "无法读取视频信息，请换个文件再试。",
+        "uploadFailed": "视频上传失败，请重试。"
+      }
+    },
     "mediaNodes": {
       "promptLabel": "提示词",
       "promptPlaceholder": "描述这个节点要生成的内容...",
@@ -3027,6 +3045,10 @@
       "seedance": {
         "emptyPreview": "聚合角色图、背景图、关键帧和音色生成视频。",
         "footerEmpty": "等待视频输入"
+      },
+      "videoReference": {
+        "emptyPreview": "上传一段 ≤15 秒的视频，作为下游 Seedance Reference 的参考。",
+        "footerEmpty": "等待上传"
       }
     },
     "topbar": {

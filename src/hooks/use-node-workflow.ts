@@ -359,6 +359,14 @@ function createDefaultNodeData(
     }
   }
 
+  if (type === NODE_TYPE_IDS.videoReference) {
+    return {
+      prompt: '',
+      status: NODE_STATUS_IDS.idle,
+      mediaKind: NODE_MEDIA_KIND_IDS.video,
+    }
+  }
+
   if (type === NODE_TYPE_IDS.shotText) {
     return {
       prompt: '',

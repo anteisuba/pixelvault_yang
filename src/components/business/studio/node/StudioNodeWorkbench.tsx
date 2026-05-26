@@ -82,6 +82,7 @@ import { FrameImageNode } from './nodes/FrameImageNode'
 import { SeedanceNode } from './nodes/SeedanceNode'
 import { ShotNode } from './nodes/ShotNode'
 import { ShotTextNode } from './nodes/ShotTextNode'
+import { VideoReferenceNode } from './nodes/VideoReferenceNode'
 import { VoiceNode } from './nodes/VoiceNode'
 
 const NODE_COMPONENTS: NodeTypes = {
@@ -94,6 +95,7 @@ const NODE_COMPONENTS: NodeTypes = {
   [NODE_TYPE_IDS.frameImage]: FrameImageNode,
   [NODE_TYPE_IDS.voice]: VoiceNode,
   [NODE_TYPE_IDS.seedance]: SeedanceNode,
+  [NODE_TYPE_IDS.videoReference]: VideoReferenceNode,
 }
 
 const NODE_STUDIO_DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {

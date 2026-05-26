@@ -5,6 +5,7 @@ import {
   Bot,
   Clapperboard,
   FileText,
+  Film,
   ImagePlus,
   Mic2,
   PanelsTopLeft,
@@ -346,6 +347,27 @@ export function CanvasAddMenu({
           </span>
           <span className="mt-1 block text-xs leading-5 text-node-muted">
             {t('addMenuHelpers.seedance')}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => onSelect(NODE_TYPE_IDS.videoReference)}
+        className={cn(
+          'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
+          'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+        )}
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-red-200">
+          <Film className="size-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-node-foreground">
+            {t('nodeTypes.videoReference')}
+          </span>
+          <span className="mt-1 block text-xs leading-5 text-node-muted">
+            {t('addMenuHelpers.videoReference')}
           </span>
         </span>
       </button>

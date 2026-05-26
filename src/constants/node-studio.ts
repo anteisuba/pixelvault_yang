@@ -92,12 +92,12 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_MINI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
     label: 'OpenAI',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_PRO_PREVIEW,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
     label: 'Gemini',
   },
   {
@@ -186,6 +186,15 @@ export const NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS = {
   generated: 'generated',
   existing: 'existing',
 } as const
+
+/**
+ * Per-clip duration cap enforced client-side before uploading a reference
+ * video. fal Seedance reference-to-video accepts up to 3 clips with a
+ * combined duration of ≤15s; we cap a single clip at 15s so one upload can
+ * fill the full budget. Combined-duration validation happens server-side
+ * once we know all connected video URLs.
+ */
+export const REFERENCE_VIDEO_MAX_DURATION_SECONDS = 15
 
 export const NODE_STUDIO_IMAGE_OUTPUT_SOURCES = [
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,

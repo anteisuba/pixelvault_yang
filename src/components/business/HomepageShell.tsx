@@ -1,4 +1,3 @@
-import { Fragment } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -13,10 +12,12 @@ import '@/app/homepage.css'
 
 import { HomepageAuthCta } from './HomepageAuthCta'
 import { HomepageBottomCta } from './HomepageBottomCta'
+import { HomepageCapabilityMatrix } from './HomepageCapabilityMatrix'
 import { HomepageFeatureSection } from './HomepageFeatureSection'
 import { HomepageFooter } from './HomepageFooter'
 import { HomepageHero } from './HomepageHero'
 import { HomepageModelLineup } from './HomepageModelLineup'
+import { HomepageRevealMotion } from './HomepageRevealMotion'
 import { HomepageShowcaseRail } from './HomepageShowcaseRail'
 
 export function HomepageShell() {
@@ -25,6 +26,10 @@ export function HomepageShell() {
 
   return (
     <div className="homepage relative">
+      <HomepageRevealMotion />
+      <a href="#homepage-main" className="homepage-skip-link">
+        {t('skipToContent')}
+      </a>
       <header className="homepage-header sticky top-0 z-20">
         <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
@@ -38,7 +43,9 @@ export function HomepageShell() {
               <span />
               <span />
             </span>
-            <span className="sr-only">{tCommon('brand')}</span>
+            <span className="homepage-brand-wordmark hidden font-display text-base font-semibold sm:inline">
+              {tCommon('brand')}
+            </span>
           </Link>
 
           <nav
@@ -73,31 +80,31 @@ export function HomepageShell() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-content px-4 sm:px-6 lg:px-8 relative z-[2]">
-        <main
-          className="flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]"
-          style={{
-            paddingBlock: 'clamp(2.5rem, 5vw, 5rem) clamp(3rem, 5vw, 4rem)',
-          }}
-        >
+      <div className="homepage-content-shell mx-auto max-w-content px-4 sm:px-6 lg:px-8">
+        <main id="homepage-main" className="homepage-main">
           <HomepageHero />
 
-          <div className="homepage-features-band flex flex-col gap-[clamp(3rem,5vw,4.5rem)] max-sm:gap-[clamp(2.25rem,4vw,3rem)]">
-            {HOMEPAGE_FEATURE_SECTIONS.map((section, idx) => (
-              <Fragment key={section.id}>
+          <div className="homepage-features-band">
+            <div className="homepage-feature-stack">
+              {HOMEPAGE_FEATURE_SECTIONS.map((section) => (
                 <HomepageFeatureSection
+                  key={section.id}
                   id={section.id}
                   ctaHref={section.ctaHref}
                   tone={section.tone}
                   reverse={section.reverse}
-                  comingSoon={
-                    'comingSoon' in section ? section.comingSoon : false
-                  }
+                  rhythm={section.rhythm}
+                  showEyebrow={section.showEyebrow}
+                  showCta={section.showCta}
+                  comingSoon={Boolean(
+                    'comingSoon' in section && section.comingSoon,
+                  )}
                   media={section.media}
                 />
-                {idx === 3 && <HomepageShowcaseRail />}
-              </Fragment>
-            ))}
+              ))}
+              <HomepageShowcaseRail />
+              <HomepageCapabilityMatrix />
+            </div>
           </div>
 
           <HomepageModelLineup />

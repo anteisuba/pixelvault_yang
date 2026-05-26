@@ -4,19 +4,24 @@ import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { HOMEPAGE_MODEL_COUNTS } from '@/constants/homepage'
+
 import { HomepageHero } from './HomepageHero'
 
 const EXPECTED_HERO = {
   en: {
-    eyebrow: '39 models. Bring your own API key. Pay as you go.',
+    eyebrow: '{count} active models. Bring your own API key. Pay as you go.',
+    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} active models. Bring your own API key. Pay as you go.`,
     title: 'Turn ideas into images, footage, and voice.',
   },
   zh: {
-    eyebrow: '39 个模型。自带 API key。按用量付费。',
+    eyebrow: '{count} 个可用模型。自带 API key。按用量付费。',
+    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} 个可用模型。自带 API key。按用量付费。`,
     title: '把想法做成画面、镜头和声音。',
   },
   ja: {
-    eyebrow: '39 モデル。BYO API キー。従量課金。',
+    eyebrow: '{count} 件の有効モデル。BYO API キー。従量課金。',
+    renderedEyebrow: `${HOMEPAGE_MODEL_COUNTS.total} 件の有効モデル。BYO API キー。従量課金。`,
     title: 'アイデアを、絵と映像と声に。',
   },
 } as const
@@ -24,13 +29,16 @@ const EXPECTED_HERO = {
 type Locale = keyof typeof EXPECTED_HERO
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, values?: Record<string, number>) => {
     const map: Record<string, string> = {
       eyebrow: EXPECTED_HERO.en.eyebrow,
       title: EXPECTED_HERO.en.title,
-      subtitle: 'Run prompts across 39 image, video, and audio models.',
+      subtitle: 'Run prompts across active image, video, and audio models.',
     }
-    return map[key] ?? key
+    return (map[key] ?? key).replaceAll(
+      '{count}',
+      String(values?.count ?? HOMEPAGE_MODEL_COUNTS.total),
+    )
   },
 }))
 
@@ -69,7 +77,9 @@ describe('HomepageHero', () => {
   it('renders eyebrow, title and subtitle copy', () => {
     render(<HomepageHero />)
 
-    expect(screen.getByText(EXPECTED_HERO.en.eyebrow)).toBeInTheDocument()
+    expect(
+      screen.getByText(EXPECTED_HERO.en.renderedEyebrow),
+    ).toBeInTheDocument()
     expect(screen.getByText(EXPECTED_HERO.en.title)).toBeInTheDocument()
   })
 

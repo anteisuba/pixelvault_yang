@@ -10,6 +10,7 @@ export function HomepageShowcaseRail() {
 
   return (
     <section
+      data-homepage-reveal
       className="homepage-showcase-rail"
       aria-labelledby="homepage-showcase-rail-title"
     >

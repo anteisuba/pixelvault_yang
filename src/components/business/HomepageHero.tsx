@@ -1,7 +1,10 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
+import {
+  HOMEPAGE_MODEL_COUNT_VALUES,
+  HOMEPAGE_SHOWCASE,
+} from '@/constants/homepage'
 
 import { HomepageAuthCta } from './HomepageAuthCta'
 
@@ -16,7 +19,7 @@ export function HomepageHero() {
     >
       <div className="flex flex-col items-center text-center">
         <span className="homepage-hero-pill mb-5 rounded-full px-4 py-2 text-sm font-semibold">
-          {t('eyebrow')}
+          {t('eyebrow', HOMEPAGE_MODEL_COUNT_VALUES)}
         </span>
         <h1
           id="homepage-hero-title"

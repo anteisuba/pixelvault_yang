@@ -204,20 +204,17 @@
   "Homepage": {
     "brandLabel": "Personal AI Gallery",
     "navigationLabel": "Homepage",
+    "skipToContent": "Skip to homepage content",
     "nav": {
       "app": "App"
     },
     "navigation": {
-      "image": "Image",
-      "video": "Video",
-      "lora": "LoRA",
-      "audio": "Audio",
-      "model3d": "3D",
+      "models": "Models",
       "arena": "Arena",
       "gallery": "Gallery"
     },
     "hero": {
-      "eyebrow": "39 models. Bring your own API key. Pay as you go.",
+      "eyebrow": "{count} active models. Bring your own API key. Pay as you go.",
       "title": "Turn ideas into images, footage, and voice.",
       "subtitle": "PixelVault is your personal AI creative gallery. Generate images, video, and voice in one place — every render, prompt, and seed is saved automatically."
     },
@@ -228,12 +225,56 @@
       "title": "The archive, growing in real time",
       "description": "A live rail of recent keepers — every prompt and model is one click away to remix."
     },
+    "capabilityMatrix": {
+      "eyebrow": "The rest of the stack",
+      "title": "Specialized tools stay close to the archive.",
+      "description": "Voice, 3D, workflows, ranking, and social discovery sit behind the same saved generation record instead of becoming separate apps."
+    },
+    "mediaLabels": {
+      "imageEditing": {
+        "original": "Original",
+        "styleOne": "Ghibli",
+        "styleTwo": "Oil",
+        "styleThree": "Watercolor"
+      },
+      "video": {
+        "storyboard": "Storyboard · 4f"
+      },
+      "lora": {
+        "trainingSet": "Training set · 4 images",
+        "model": "LoRA · v1.2"
+      },
+      "upscale": {
+        "before": "512px",
+        "after": "2048px · 4×",
+        "scale": "4×"
+      },
+      "tts": {
+        "label": "Fish Audio S2 Pro",
+        "caption": "ZH · JP · EN · KR",
+        "play": "Play sample",
+        "pause": "Pause sample"
+      },
+      "model3d": {
+        "turntable": "Turntable · 360°"
+      },
+      "workflow": {
+        "imageNode": "image · flux",
+        "upscaleNode": "upscale · 4×",
+        "videoNode": "i2v · veo3",
+        "deployNode": "deploy →",
+        "status": "Coming soon"
+      },
+      "arena": {
+        "winner": "WIN",
+        "vote": "Cast your vote"
+      }
+    },
     "bottomCta": {
       "eyebrow": "Start archiving",
       "title": "Your next image should belong to you.",
-      "description": "Five minutes to wire your first API key — then generate across 39 models and keep every image, clip, prompt, and seed in your own R2.",
-      "primary": "Start your archive",
-      "secondary": "See the model lineup"
+      "description": "Five minutes to wire your first API key — then generate across {count} active models and keep every image, clip, prompt, and seed in your own R2.",
+      "primary": "Start your archive"
     },
     "footer": {
       "tagline": "Personal AI gallery · Bring your own keys · Forever archived",
@@ -256,15 +297,15 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "24 of 27 models",
+        "eyebrow": "Reference-aware image routes",
         "title": "Edit with references",
-        "description": "Drop in a reference image and 24 of our 27 models will use it. Up to 14 references on Gemini, 4 on Flux Kontext Max, 1 on most others. Native i2i, img2img, and director modes — we route to the path each model expects.",
+        "description": "Drop in a reference image and route it through the model that fits: Gemini for multi-reference compositions, Flux Kontext for directed edits, and specialist image models for style or cleanup.",
         "cta": "Try editing"
       },
       "video": {
-        "eyebrow": "16 video models",
+        "eyebrow": "{count} video models",
         "title": "Video Generation",
-        "description": "Kling, Vidu Q3, LumaRay, Veo 3.1, Runway Gen-4.5, Seedance — 16 video models in one studio. Most support image-to-video. Chain shots together for native long video up to 120 seconds.",
+        "description": "Kling 3.0 Pro, Veo 3.1, and Seedance 2.0 variants live in one studio. Text-to-video, image-to-video, reference-to-video, and native extension paths stay archived with the prompt that made them.",
         "cta": "Generate video"
       },
       "lora": {
@@ -286,9 +327,9 @@
         "cta": "Generate audio"
       },
       "model3d": {
-        "eyebrow": "5 image-to-3D models",
+        "eyebrow": "{count} image-to-3D models",
         "title": "Image-to-3D Models",
-        "description": "Hunyuan3D v3.1 Pro, Hunyuan3D v3, Trellis 2, Hunyuan3D 2.1, and TripoSR — from high-fidelity multi-view PBR to fast geometry previews. Pick an image from your archive, get a rotatable GLB, drag it in the browser, scan a code to drop it into AR. 3D assets archive alongside images, video, and audio.",
+        "description": "Use the active image-to-3D lineup for everything from high-fidelity multi-view PBR to fast geometry previews. Pick an image from your archive, get a rotatable GLB, and keep the 3D asset beside your images, video, and audio.",
         "cta": "Generate 3D"
       },
       "workflow": {
@@ -328,11 +369,12 @@
     },
     "modelLineup": {
       "title": "The best AI models, ready when you are",
-      "description": "39 models from OpenAI, Google, fal.ai, NovelAI, Replicate and VolcEngine. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
+      "description": "{count} active models across image, video, audio, and 3D. We test, wire, and maintain each one — you bring your own key, swap models per request, and keep every result in your archive.",
       "groups": {
         "image": "Image Models",
         "video": "Video Models",
-        "audio": "Audio Models"
+        "audio": "Audio Models",
+        "model3d": "3D Models"
       },
       "priceImage": "{amount} per image",
       "priceSecond": "{amount} per second",

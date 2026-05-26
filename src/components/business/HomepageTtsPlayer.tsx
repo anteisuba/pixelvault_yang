@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 
 interface HomepageTtsPlayerProps {
   src?: string
-  label?: string
-  caption?: string
+  label: string
+  caption: string
+  playLabel: string
+  pauseLabel: string
 }
 
 const BAR_COUNT = 60
@@ -29,8 +31,10 @@ const BAR_GEOMETRY = Array.from({ length: BAR_COUNT }, (_, i) => {
 
 export function HomepageTtsPlayer({
   src = '/homepage/tts/sample.mp3',
-  label = 'Fish Audio S2 Pro',
-  caption = 'ZH · JP · EN · KR',
+  label,
+  caption,
+  playLabel,
+  pauseLabel,
 }: HomepageTtsPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -110,10 +114,10 @@ export function HomepageTtsPlayer({
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? 'Pause sample' : 'Play sample'}
+        aria-label={playing ? pauseLabel : playLabel}
         className="absolute inset-0 z-[4] cursor-pointer"
       >
-        <span className="sr-only">{playing ? 'Pause' : 'Play'}</span>
+        <span className="sr-only">{playing ? pauseLabel : playLabel}</span>
       </button>
 
       <svg

@@ -204,20 +204,17 @@
   "Homepage": {
     "brandLabel": "个人 AI 画廊",
     "navigationLabel": "首页",
+    "skipToContent": "跳到首页正文",
     "nav": {
       "app": "应用"
     },
     "navigation": {
-      "image": "图像",
-      "video": "视频",
-      "lora": "LoRA",
-      "audio": "语音",
-      "model3d": "3D",
+      "models": "模型",
       "arena": "擂台",
       "gallery": "画廊"
     },
     "hero": {
-      "eyebrow": "39 个模型。自带 API key。按用量付费。",
+      "eyebrow": "{count} 个可用模型。自带 API key。按用量付费。",
       "title": "把想法做成画面、镜头和声音。",
       "subtitle": "PixelVault 是你的个人 AI 创作画廊。在一处生成图像、视频和配音；作品、prompt 和 seed 自动保存。"
     },
@@ -228,12 +225,56 @@
       "title": "社区档案，正在生长",
       "description": "实时滚动展示最近留进归档的精选生成 — prompt 与模型都可一键复用。"
     },
+    "capabilityMatrix": {
+      "eyebrow": "其余创作能力",
+      "title": "专业工具都贴着同一个档案系统。",
+      "description": "语音、3D、工作流、擂台排行和社交发现不再拆成一串入口；它们都围绕同一条生成记录展开。"
+    },
+    "mediaLabels": {
+      "imageEditing": {
+        "original": "原图",
+        "styleOne": "吉卜力",
+        "styleTwo": "油画",
+        "styleThree": "水彩"
+      },
+      "video": {
+        "storyboard": "分镜 · 4 帧"
+      },
+      "lora": {
+        "trainingSet": "训练集 · 4 张",
+        "model": "LoRA · v1.2"
+      },
+      "upscale": {
+        "before": "512px",
+        "after": "2048px · 4×",
+        "scale": "4×"
+      },
+      "tts": {
+        "label": "Fish Audio S2 Pro",
+        "caption": "ZH · JP · EN · KR",
+        "play": "播放示例",
+        "pause": "暂停示例"
+      },
+      "model3d": {
+        "turntable": "转台 · 360°"
+      },
+      "workflow": {
+        "imageNode": "图像 · flux",
+        "upscaleNode": "放大 · 4×",
+        "videoNode": "图生视频 · veo3",
+        "deployNode": "部署 →",
+        "status": "即将上线"
+      },
+      "arena": {
+        "winner": "胜出",
+        "vote": "投票选择"
+      }
+    },
     "bottomCta": {
       "eyebrow": "开始建档",
       "title": "你的下一张图，应该属于你自己。",
-      "description": "5 分钟接好你的第一把 API key，让 39 个模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
-      "primary": "免费开始建档",
-      "secondary": "查看模型阵容"
+      "description": "5 分钟接好你的第一把 API key，让 {count} 个可用模型在一处生成，让每一张图、每一条 prompt 都落到你自己的 R2。",
+      "primary": "免费开始建档"
     },
     "footer": {
       "tagline": "个人 AI 画廊 · 自带 key · 永久归档",
@@ -256,15 +297,15 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "27 个模型中 24 个支持",
+        "eyebrow": "参考图编辑路径",
         "title": "参考图编辑",
-        "description": "丢一张参考图，27 个模型里 24 个会用上它 — Gemini 最多吃 14 张参考，Flux Kontext Max 吃 4 张，其他多数吃 1 张。原生 i2i、img2img、director 三种模式，各家走各家的路。",
+        "description": "丢一张参考图，然后交给最适合的模型路径：多参考构图走 Gemini，定向编辑走 Flux Kontext，风格化或清理则走对应的图像模型。",
         "cta": "试试编辑"
       },
       "video": {
-        "eyebrow": "16 个视频模型",
+        "eyebrow": "{count} 个视频模型",
         "title": "视频生成",
-        "description": "Kling、Vidu Q3、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 16 个视频模型一站接入，大部分支持图生视频。多段拼接长视频，原生支持到 120 秒。",
+        "description": "Kling 3.0 Pro、Veo 3.1 和 Seedance 2.0 系列都在同一个工作台里。文生视频、图生视频、参考视频和原生延长路径都会跟生成它们的 prompt 一起归档。",
         "cta": "生成视频"
       },
       "lora": {
@@ -286,9 +327,9 @@
         "cta": "生成语音"
       },
       "model3d": {
-        "eyebrow": "5 个图生 3D 模型",
+        "eyebrow": "{count} 个图生 3D 模型",
         "title": "图生 3D 模型",
-        "description": "Hunyuan3D v3.1 Pro、Hunyuan3D v3、Trellis 2、Hunyuan3D 2.1 和 TripoSR — 从高精度多视角 PBR 到秒级几何预览。从档案里挑一张图，生成可旋转的 GLB 模型，浏览器里直接拖动观看，扫码 AR 放进现实。3D 资产和图像视频音频一起归档。",
+        "description": "使用当前可用的图生 3D 阵容，从高精度多视角 PBR 到快速几何预览都能覆盖。从档案里挑一张图，生成可旋转的 GLB；3D 资产和图像、视频、音频一起归档。",
         "cta": "生成 3D"
       },
       "workflow": {
@@ -328,11 +369,12 @@
     },
     "modelLineup": {
       "title": "精选 AI 模型，即开即用",
-      "description": "39 个模型，覆盖 OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
+      "description": "{count} 个可用模型，覆盖图像、视频、语音和 3D。每一家我们都接好、测过、维护着 — 你自带 API key，按需切换，每次生成都进档案。",
       "groups": {
         "image": "图像模型",
         "video": "视频模型",
-        "audio": "语音模型"
+        "audio": "语音模型",
+        "model3d": "3D 模型"
       },
       "priceImage": "{amount} / 张",
       "priceSecond": "{amount} / 秒",

@@ -204,20 +204,17 @@
   "Homepage": {
     "brandLabel": "パーソナルAIギャラリー",
     "navigationLabel": "ホームページ",
+    "skipToContent": "ホームページ本文へ移動",
     "nav": {
       "app": "アプリ"
     },
     "navigation": {
-      "image": "画像",
-      "video": "動画",
-      "lora": "LoRA",
-      "audio": "音声",
-      "model3d": "3D",
+      "models": "モデル",
       "arena": "Arena",
       "gallery": "ギャラリー"
     },
     "hero": {
-      "eyebrow": "39 モデル。BYO API キー。従量課金。",
+      "eyebrow": "{count} 件の有効モデル。BYO API キー。従量課金。",
       "title": "アイデアを、絵と映像と声に。",
       "subtitle": "PixelVault はあなただけの AI 創作ギャラリー。画像も動画もボイスもひとつの場所で。作品・プロンプト・シードはすべて自動保存。"
     },
@@ -228,12 +225,56 @@
       "title": "アーカイブはリアルタイムで育つ",
       "description": "最近アーカイブに残った作品の横スクロール — プロンプトもモデルもワンクリックで再利用。"
     },
+    "capabilityMatrix": {
+      "eyebrow": "そのほかの制作スタック",
+      "title": "専門ツールも、同じアーカイブの近くに。",
+      "description": "音声、3D、ワークフロー、ランキング、ソーシャル発見まで。別々のアプリに分けず、同じ生成記録の上に置いています。"
+    },
+    "mediaLabels": {
+      "imageEditing": {
+        "original": "元画像",
+        "styleOne": "ジブリ",
+        "styleTwo": "油彩",
+        "styleThree": "水彩"
+      },
+      "video": {
+        "storyboard": "ストーリーボード · 4f"
+      },
+      "lora": {
+        "trainingSet": "学習セット · 4 枚",
+        "model": "LoRA · v1.2"
+      },
+      "upscale": {
+        "before": "512px",
+        "after": "2048px · 4×",
+        "scale": "4×"
+      },
+      "tts": {
+        "label": "Fish Audio S2 Pro",
+        "caption": "ZH · JP · EN · KR",
+        "play": "サンプルを再生",
+        "pause": "サンプルを一時停止"
+      },
+      "model3d": {
+        "turntable": "ターンテーブル · 360°"
+      },
+      "workflow": {
+        "imageNode": "画像 · flux",
+        "upscaleNode": "拡大 · 4×",
+        "videoNode": "i2v · veo3",
+        "deployNode": "deploy →",
+        "status": "近日公開"
+      },
+      "arena": {
+        "winner": "勝利",
+        "vote": "投票する"
+      }
+    },
     "bottomCta": {
       "eyebrow": "アーカイブを始める",
       "title": "次の 1 枚は、あなた自身のものに。",
-      "description": "5 分で最初の API キーを接続 — 39 モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
-      "primary": "無料でアーカイブを始める",
-      "secondary": "モデル一覧を見る"
+      "description": "5 分で最初の API キーを接続 — {count} 件の有効モデルを 1 つのキャンバスから動かし、生成画像・動画・プロンプト・シードを自分の R2 に残す。",
+      "primary": "無料でアーカイブを始める"
     },
     "footer": {
       "tagline": "個人 AI ギャラリー · 自分のキーで · 永久保存",
@@ -256,15 +297,15 @@
     },
     "featureSections": {
       "imageEditing": {
-        "eyebrow": "27 モデル中 24 対応",
+        "eyebrow": "リファレンス対応ルート",
         "title": "リファレンス編集",
-        "description": "リファレンス画像を渡せば、27 のうち 24 のモデルが使ってくれます。Gemini は最大 14 枚、Flux Kontext Max は 4 枚、ほかはほぼ 1 枚。i2i、img2img、director — モデルが期待するモードに自動で乗ります。",
+        "description": "リファレンス画像を渡し、目的に合うモデルへ通します。複数リファレンスの構図なら Gemini、指示付き編集なら Flux Kontext、スタイルや整理には専用の画像モデルを選べます。",
         "cta": "編集してみる"
       },
       "video": {
-        "eyebrow": "16 の動画モデル",
+        "eyebrow": "{count} の動画モデル",
         "title": "動画生成",
-        "description": "Kling、Vidu Q3、LumaRay、Veo 3.1、Runway Gen-4.5、Seedance — 16 の動画モデルを 1 つのスタジオで。多くが image-to-video 対応。ネイティブのロング動画チェイニングで最長 120 秒。",
+        "description": "Kling 3.0 Pro、Veo 3.1、Seedance 2.0 系を 1 つのスタジオに集約。text-to-video、image-to-video、reference-to-video、ネイティブ延長の経路を、生成したプロンプトと一緒に保存します。",
         "cta": "動画を生成"
       },
       "lora": {
@@ -286,9 +327,9 @@
         "cta": "音声を生成"
       },
       "model3d": {
-        "eyebrow": "5つの画像→3Dモデル",
+        "eyebrow": "{count} 件の画像→3Dモデル",
         "title": "画像→3Dモデル",
-        "description": "Hunyuan3D v3.1 Pro、Hunyuan3D v3、Trellis 2、Hunyuan3D 2.1、TripoSR — 高精度マルチビューPBRから高速ジオメトリプレビューまで対応。アーカイブから画像を選んで、回転可能な GLB を生成。ブラウザでドラッグ、QR で AR 配置。3D アセットも画像・動画・音声と同じ書庫へ。",
+        "description": "有効な画像→3D ラインアップで、高精度マルチビュー PBR から高速ジオメトリプレビューまで扱えます。アーカイブから画像を選び、回転可能な GLB を生成し、3D アセットも画像・動画・音声と同じ書庫へ。",
         "cta": "3Dを生成"
       },
       "workflow": {
@@ -328,11 +369,12 @@
     },
     "modelLineup": {
       "title": "主要な AI モデル、すぐ使える",
-      "description": "OpenAI、Google、fal.ai、NovelAI、Replicate、VolcEngine など 39 モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
+      "description": "画像・動画・音声・3D をまたぐ {count} 件の有効モデル。すべて私たちが接続・検証・メンテナンス。BYOK でリクエストごとに切り替え、生成結果はアーカイブへ。",
       "groups": {
         "image": "画像モデル",
         "video": "動画モデル",
-        "audio": "音声モデル"
+        "audio": "音声モデル",
+        "model3d": "3Dモデル"
       },
       "priceImage": "{amount} / 枚",
       "priceSecond": "{amount} / 秒",

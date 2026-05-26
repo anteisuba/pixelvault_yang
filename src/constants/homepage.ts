@@ -1,5 +1,96 @@
-import { AI_MODELS } from '@/constants/models'
+import { AI_MODELS, getAvailableModels } from '@/constants/models'
 import { ROUTES } from '@/constants/routes'
+import type { OutputType } from '@/types'
+
+const AVAILABLE_HOMEPAGE_MODELS = getAvailableModels()
+
+function countAvailableModels(outputType: OutputType): number {
+  return AVAILABLE_HOMEPAGE_MODELS.filter(
+    (model) => model.outputType === outputType,
+  ).length
+}
+
+export const HOMEPAGE_MODEL_COUNTS = {
+  total: AVAILABLE_HOMEPAGE_MODELS.length,
+  image: countAvailableModels('IMAGE'),
+  video: countAvailableModels('VIDEO'),
+  audio: countAvailableModels('AUDIO'),
+  model3d: countAvailableModels('MODEL_3D'),
+} as const
+
+export const HOMEPAGE_MODEL_COUNT_VALUES: Record<string, number> = {
+  count: HOMEPAGE_MODEL_COUNTS.total,
+  imageCount: HOMEPAGE_MODEL_COUNTS.image,
+  videoCount: HOMEPAGE_MODEL_COUNTS.video,
+  audioCount: HOMEPAGE_MODEL_COUNTS.audio,
+  model3dCount: HOMEPAGE_MODEL_COUNTS.model3d,
+}
+
+export type HomepageModelPricingUnit = 'image' | 'second' | 'kchars'
+
+export interface HomepageModelReferencePrice {
+  amount: number
+  unit: HomepageModelPricingUnit
+}
+
+/**
+ * Best-effort USD reference prices shown on the public homepage. These are
+ * display-only and intentionally separate from server-owned credit policy.
+ */
+export const HOMEPAGE_MODEL_REFERENCE_PRICES: Partial<
+  Record<AI_MODELS, HomepageModelReferencePrice>
+> = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_2]: { amount: 0.04, unit: 'image' },
+  [AI_MODELS.GEMINI_PRO_IMAGE]: { amount: 0.039, unit: 'image' },
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: { amount: 0.039, unit: 'image' },
+  [AI_MODELS.FLUX_2_PRO]: { amount: 0.04, unit: 'image' },
+  [AI_MODELS.FLUX_2_DEV]: { amount: 0.025, unit: 'image' },
+  [AI_MODELS.FLUX_2_SCHNELL]: { amount: 0.003, unit: 'image' },
+  [AI_MODELS.FLUX_2_MAX]: { amount: 0.06, unit: 'image' },
+  [AI_MODELS.FLUX_KONTEXT_PRO]: { amount: 0.04, unit: 'image' },
+  [AI_MODELS.FLUX_KONTEXT_MAX]: { amount: 0.08, unit: 'image' },
+  [AI_MODELS.IDEOGRAM_3]: { amount: 0.06, unit: 'image' },
+  [AI_MODELS.RECRAFT_V4_PRO]: { amount: 0.06, unit: 'image' },
+  [AI_MODELS.SEEDREAM_45]: { amount: 0.04, unit: 'image' },
+  [AI_MODELS.SEEDREAM_50_LITE]: { amount: 0.012, unit: 'image' },
+  [AI_MODELS.SEEDREAM_40]: { amount: 0.011, unit: 'image' },
+  [AI_MODELS.NOVELAI_V45_FULL]: { amount: 0.012, unit: 'image' },
+  [AI_MODELS.NOVELAI_V45_CURATED]: { amount: 0.012, unit: 'image' },
+  [AI_MODELS.ILLUSTRIOUS_XL]: { amount: 0.003, unit: 'image' },
+  [AI_MODELS.SD_35_LARGE]: { amount: 0.025, unit: 'image' },
+  [AI_MODELS.ANIMAGINE_XL_4]: { amount: 0.003, unit: 'image' },
+  [AI_MODELS.KLING_V3_PRO]: { amount: 0.3, unit: 'second' },
+  [AI_MODELS.VEO_31]: { amount: 0.2, unit: 'second' },
+  [AI_MODELS.SEEDANCE_20]: { amount: 0.1, unit: 'second' },
+  [AI_MODELS.SEEDANCE_20_FAST]: { amount: 0.06, unit: 'second' },
+  [AI_MODELS.SEEDANCE_20_REFERENCE]: { amount: 0.1, unit: 'second' },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: { amount: 0.06, unit: 'second' },
+  [AI_MODELS.FISH_AUDIO_S2_PRO]: { amount: 0.2, unit: 'kchars' },
+}
+
+export function formatHomepageReferencePriceAmount(amount: number): string {
+  if (amount >= 1) return `$${amount.toFixed(2)}`
+  if (amount >= 0.01) return `$${amount.toFixed(2)}`
+  return `$${amount.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`
+}
+
+export const HOMEPAGE_FEATURE_TRANSLATION_VALUES: Record<
+  string,
+  Record<string, number>
+> = {
+  imageEditing: {
+    imageCount: HOMEPAGE_MODEL_COUNTS.image,
+  },
+  video: {
+    count: HOMEPAGE_MODEL_COUNTS.video,
+  },
+  tts: {
+    count: HOMEPAGE_MODEL_COUNTS.audio,
+  },
+  model3d: {
+    count: HOMEPAGE_MODEL_COUNTS.model3d,
+  },
+}
 
 export const HOMEPAGE_METADATA = {
   title: 'PixelVault | Personal AI Gallery',
@@ -13,93 +104,14 @@ export const HOMEPAGE_ROUTES = {
   signIn: ROUTES.SIGN_IN,
   signUp: ROUTES.SIGN_UP,
   studio: ROUTES.STUDIO,
-  workflow: '#workflow',
   models: '#models',
 } as const
 
 export const HOMEPAGE_NAVIGATION = [
-  { id: 'image', href: '#imageEditing' },
-  { id: 'video', href: '#video' },
-  { id: 'lora', href: '#lora' },
-  { id: 'audio', href: '#tts' },
-  { id: 'model3d', href: '#model3d' },
+  { id: 'models', href: '#models' },
   { id: 'arena', href: ROUTES.ARENA },
   { id: 'gallery', href: HOMEPAGE_ROUTES.gallery },
 ] as const
-
-export const HOMEPAGE_FEATURES = [
-  {
-    id: 'chooseEngine',
-    icon: 'sparkles',
-  },
-  {
-    id: 'keepEveryKeeper',
-    icon: 'archive',
-  },
-  {
-    id: 'requestUsage',
-    icon: 'shield',
-  },
-] as const
-
-export type HomepageFeatureIcon = (typeof HOMEPAGE_FEATURES)[number]['icon']
-
-export const HOMEPAGE_WORKFLOW = [
-  {
-    id: 'frameIdea',
-    step: '01',
-  },
-  {
-    id: 'generateWithIntent',
-    step: '02',
-  },
-  {
-    id: 'archiveWinners',
-    step: '03',
-  },
-] as const
-
-export const HOMEPAGE_SCENES = [
-  {
-    id: 'sdxlRealism',
-    tone: 'dawn',
-    modelId: AI_MODELS.SDXL,
-  },
-  {
-    id: 'animagineAnime',
-    tone: 'forest',
-    modelId: AI_MODELS.ANIMAGINE_XL_4,
-  },
-  {
-    id: 'geminiConcept',
-    tone: 'ink',
-    modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
-  },
-] as const
-
-export type HomepageSceneTone = (typeof HOMEPAGE_SCENES)[number]['tone']
-
-export const HOMEPAGE_COMPARISON = [
-  { id: 'byok', icon: 'key' },
-  { id: 'archive', icon: 'archive' },
-  { id: 'arena', icon: 'swords' },
-] as const
-
-export type HomepageComparisonIcon =
-  (typeof HOMEPAGE_COMPARISON)[number]['icon']
-
-/** Merged Features + Comparison for the unified "Why PixelVault" section */
-export const HOMEPAGE_VALUE_PROPS = [
-  { id: 'chooseEngine', icon: 'sparkles' },
-  { id: 'keepEveryKeeper', icon: 'archive' },
-  { id: 'requestUsage', icon: 'shield' },
-  { id: 'byok', icon: 'key' },
-  { id: 'permanentArchive', icon: 'database' },
-  { id: 'arena', icon: 'swords' },
-] as const
-
-export type HomepageValuePropIcon =
-  (typeof HOMEPAGE_VALUE_PROPS)[number]['icon']
 
 /**
  * Optional media shown inside each feature section's media tile.
@@ -117,6 +129,8 @@ export type HomepageFeatureMedia =
   | { type: 'image'; src: string; alt: string }
   | { type: 'video'; src: string; poster?: string; alt: string }
 
+export type HomepageFeatureRhythm = 'feature' | 'compact'
+
 /** Krea-style feature sections — left-image / right-text alternating */
 export const HOMEPAGE_FEATURE_SECTIONS = [
   {
@@ -124,6 +138,9 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'sky',
     reverse: false,
+    rhythm: 'feature',
+    showEyebrow: true,
+    showCta: true,
     // Prompt: a portrait of a young woman on the left + 3 stylised
     // re-renders (Ghibli / oil / watercolor) tiled on the right, soft
     // editorial layout, plenty of negative space, 16:10.
@@ -134,6 +151,9 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'forest',
     reverse: true,
+    rhythm: 'feature',
+    showEyebrow: true,
+    showCta: true,
     // Prompt: a film-strip storyboard with 4 cinematic frames of a
     // dragon swooping over mountains, golden-hour lighting, frame
     // numbers along the top, 16:10.
@@ -144,6 +164,9 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'amber',
     reverse: false,
+    rhythm: 'feature',
+    showEyebrow: false,
+    showCta: false,
     // Prompt: a contact sheet of training images on the left + the
     // resulting consistent character on the right, "before / after"
     // label, soft warm light, 16:10.
@@ -154,69 +177,11 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
     ctaHref: ROUTES.STUDIO,
     tone: 'dawn',
     reverse: true,
+    rhythm: 'feature',
+    showEyebrow: false,
+    showCta: false,
     // Prompt: a single image split vertically — left half blurry low-res,
     // right half tack-sharp 4× upscale, magnifier loupe over the seam,
-    // 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'tts',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'ink',
-    reverse: false,
-    // Prompt: a sound-wave ribbon flowing across the frame with a
-    // floating speech bubble of multilingual text, dark ink palette,
-    // 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'model3d',
-    ctaHref: ROUTES.STUDIO_3D,
-    tone: 'forest',
-    reverse: true,
-    // Prompt: a single anime character on the left morphing into a
-    // rotating 3D mesh on the right, white studio background, soft
-    // turntable lighting, 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'workflow',
-    ctaHref: ROUTES.STUDIO,
-    tone: 'forest',
-    reverse: false,
-    comingSoon: true,
-    // VIDEO. Prompt for Veo 3.1 / Seedance 2.0: a node-based visual
-    // workflow editor; mouse drags a connection between an "image gen"
-    // node and an "upscale" node, then a "deploy" button pulses and
-    // turns green. 6–8s loop, no audio.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'arena',
-    ctaHref: ROUTES.ARENA,
-    tone: 'amber',
-    reverse: true,
-    // Prompt: four AI portraits in a 2x2 grid, one tagged with a glowing
-    // "winner" ribbon and a small ELO scoreboard in the corner, 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'archive',
-    ctaHref: ROUTES.GALLERY,
-    tone: 'earth',
-    reverse: false,
-    // Prompt: a vast wall of generation thumbnails fading into the
-    // distance, a timeline ribbon along the bottom, earthy palette,
-    // 16:10.
-    media: undefined as HomepageFeatureMedia | undefined,
-  },
-  {
-    id: 'social',
-    ctaHref: ROUTES.GALLERY,
-    tone: 'sky',
-    reverse: true,
-    // Prompt: three artwork cards stacked at gentle angles with avatars,
-    // like counts, and a "follow" badge, soft sky-blue background,
     // 16:10.
     media: undefined as HomepageFeatureMedia | undefined,
   },
@@ -225,12 +190,27 @@ export const HOMEPAGE_FEATURE_SECTIONS = [
   ctaHref: string
   tone: string
   reverse: boolean
+  rhythm: HomepageFeatureRhythm
+  showEyebrow: boolean
+  showCta: boolean
   comingSoon?: boolean
   media: HomepageFeatureMedia | undefined
 }>
 
 export type HomepageFeatureSectionTone =
   (typeof HOMEPAGE_FEATURE_SECTIONS)[number]['tone']
+
+export const HOMEPAGE_CAPABILITY_ITEMS = [
+  { id: 'tts', comingSoon: false },
+  { id: 'model3d', comingSoon: false },
+  { id: 'workflow', comingSoon: true },
+  { id: 'arena', comingSoon: false },
+  { id: 'archive', comingSoon: false },
+  { id: 'social', comingSoon: false },
+] as const satisfies ReadonlyArray<{
+  id: string
+  comingSoon: boolean
+}>
 
 /** Showcase images for hero + gallery preview */
 export const HOMEPAGE_SHOWCASE = [

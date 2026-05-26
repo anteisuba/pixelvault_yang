@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 
 import { HOMEPAGE_SHOWCASE } from '@/constants/homepage'
 
@@ -65,23 +66,67 @@ function pick(section: string, index: number, fallbackIdx: number): string {
 export function HomepageFeatureMediaFallback({
   id,
 }: HomepageFeatureMediaFallbackProps) {
+  const t = useTranslations('Homepage.mediaLabels')
+
   switch (id) {
     case 'imageEditing':
-      return <FallbackImageEditing />
+      return (
+        <FallbackImageEditing
+          originalLabel={t('imageEditing.original')}
+          styleLabels={[
+            t('imageEditing.styleOne'),
+            t('imageEditing.styleTwo'),
+            t('imageEditing.styleThree'),
+          ]}
+        />
+      )
     case 'video':
-      return <FallbackVideoStrip />
+      return <FallbackVideoStrip storyboardLabel={t('video.storyboard')} />
     case 'lora':
-      return <FallbackLoraSheet />
+      return (
+        <FallbackLoraSheet
+          trainingSetLabel={t('lora.trainingSet')}
+          modelLabel={t('lora.model')}
+        />
+      )
     case 'upscale':
-      return <FallbackUpscale />
+      return (
+        <FallbackUpscale
+          beforeLabel={t('upscale.before')}
+          afterLabel={t('upscale.after')}
+          scaleLabel={t('upscale.scale')}
+        />
+      )
     case 'tts':
-      return <FallbackTts />
+      return (
+        <FallbackTts
+          label={t('tts.label')}
+          caption={t('tts.caption')}
+          playLabel={t('tts.play')}
+          pauseLabel={t('tts.pause')}
+        />
+      )
     case 'model3d':
-      return <FallbackModel3d />
+      return <FallbackModel3d turntableLabel={t('model3d.turntable')} />
     case 'workflow':
-      return <FallbackWorkflow />
+      return (
+        <FallbackWorkflow
+          nodes={[
+            t('workflow.imageNode'),
+            t('workflow.upscaleNode'),
+            t('workflow.videoNode'),
+            t('workflow.deployNode'),
+          ]}
+          statusLabel={t('workflow.status')}
+        />
+      )
     case 'arena':
-      return <FallbackArena />
+      return (
+        <FallbackArena
+          winnerLabel={t('arena.winner')}
+          voteLabel={t('arena.vote')}
+        />
+      )
     case 'archive':
       return <FallbackArchive />
     case 'social':
@@ -129,19 +174,26 @@ function FbLabel({
   )
 }
 
-function FallbackImageEditing() {
-  const labels = ['吉卜力', '油画', '水彩']
+interface FallbackImageEditingProps {
+  originalLabel: string
+  styleLabels: readonly string[]
+}
+
+function FallbackImageEditing({
+  originalLabel,
+  styleLabels,
+}: FallbackImageEditingProps) {
   return (
     <div className="absolute inset-0 grid grid-cols-2">
       <div className="relative overflow-hidden">
         <FbImg src={pick('imageEditing', 0, 0)} alt="" />
-        <FbLabel className="left-3 top-3">原图</FbLabel>
+        <FbLabel className="left-3 top-3">{originalLabel}</FbLabel>
       </div>
       <div className="grid grid-rows-3">
         {[1, 2, 3].map((idx, i) => (
           <div key={idx} className="relative overflow-hidden">
             <FbImg src={pick('imageEditing', idx, idx)} alt="" sizes="20vw" />
-            <FbLabel className="left-2 top-2">{labels[i]}</FbLabel>
+            <FbLabel className="left-2 top-2">{styleLabels[i]}</FbLabel>
           </div>
         ))}
       </div>
@@ -149,7 +201,11 @@ function FallbackImageEditing() {
   )
 }
 
-function FallbackVideoStrip() {
+interface FallbackVideoStripProps {
+  storyboardLabel: string
+}
+
+function FallbackVideoStrip({ storyboardLabel }: FallbackVideoStripProps) {
   return (
     <div className="absolute inset-0 flex">
       {[0, 1, 2, 3].map((idx) => (
@@ -160,12 +216,20 @@ function FallbackVideoStrip() {
           </span>
         </div>
       ))}
-      <FbLabel className="bottom-3 right-3">storyboard · 4f</FbLabel>
+      <FbLabel className="bottom-3 right-3">{storyboardLabel}</FbLabel>
     </div>
   )
 }
 
-function FallbackLoraSheet() {
+interface FallbackLoraSheetProps {
+  trainingSetLabel: string
+  modelLabel: string
+}
+
+function FallbackLoraSheet({
+  trainingSetLabel,
+  modelLabel,
+}: FallbackLoraSheetProps) {
   return (
     <div className="absolute inset-0 grid grid-cols-2">
       {[0, 1, 2, 3].map((idx) => (
@@ -173,13 +237,23 @@ function FallbackLoraSheet() {
           <FbImg src={pick('lora', idx, idx)} alt="" sizes="20vw" />
         </div>
       ))}
-      <FbLabel className="left-3 top-3">训练集 · 4 张</FbLabel>
-      <FbLabel className="bottom-3 right-3">LoRA · v1.2</FbLabel>
+      <FbLabel className="left-3 top-3">{trainingSetLabel}</FbLabel>
+      <FbLabel className="bottom-3 right-3">{modelLabel}</FbLabel>
     </div>
   )
 }
 
-function FallbackUpscale() {
+interface FallbackUpscaleProps {
+  beforeLabel: string
+  afterLabel: string
+  scaleLabel: string
+}
+
+function FallbackUpscale({
+  beforeLabel,
+  afterLabel,
+  scaleLabel,
+}: FallbackUpscaleProps) {
   return (
     <div className="absolute inset-0">
       <div className="absolute inset-0">
@@ -193,20 +267,43 @@ function FallbackUpscale() {
         }}
       />
       <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/70 mix-blend-overlay" />
-      <FbLabel className="left-3 top-3">512px</FbLabel>
-      <FbLabel className="right-3 top-3">2048px · 4×</FbLabel>
+      <FbLabel className="left-3 top-3">{beforeLabel}</FbLabel>
+      <FbLabel className="right-3 top-3">{afterLabel}</FbLabel>
       <div className="absolute left-1/2 top-1/2 z-[2] flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/30 backdrop-blur-sm">
-        <span className="font-mono text-[10px] text-white">4×</span>
+        <span className="font-mono text-[10px] text-white">{scaleLabel}</span>
       </div>
     </div>
   )
 }
 
-function FallbackTts() {
-  return <HomepageTtsPlayer />
+interface FallbackTtsProps {
+  label: string
+  caption: string
+  playLabel: string
+  pauseLabel: string
 }
 
-function FallbackModel3d() {
+function FallbackTts({
+  label,
+  caption,
+  playLabel,
+  pauseLabel,
+}: FallbackTtsProps) {
+  return (
+    <HomepageTtsPlayer
+      label={label}
+      caption={caption}
+      playLabel={playLabel}
+      pauseLabel={pauseLabel}
+    />
+  )
+}
+
+interface FallbackModel3dProps {
+  turntableLabel: string
+}
+
+function FallbackModel3d({ turntableLabel }: FallbackModel3dProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="absolute inset-0 overflow-hidden">
@@ -238,12 +335,24 @@ function FallbackModel3d() {
           strokeDasharray="2 3"
         />
       </svg>
-      <FbLabel className="bottom-3 right-3">turntable · 360°</FbLabel>
+      <FbLabel className="bottom-3 right-3">{turntableLabel}</FbLabel>
     </div>
   )
 }
 
-function FallbackWorkflow() {
+interface FallbackWorkflowProps {
+  nodes: readonly [string, string, string, string]
+  statusLabel: string
+}
+
+function FallbackWorkflow({ nodes, statusLabel }: FallbackWorkflowProps) {
+  const workflowNodes = [
+    { x: 40, y: 70, label: nodes[0] },
+    { x: 250, y: 40, label: nodes[1] },
+    { x: 250, y: 140, label: nodes[2] },
+    { x: 460, y: 100, label: nodes[3] },
+  ] as const
+
   return (
     <div className="absolute inset-0 p-6">
       <svg viewBox="0 0 600 320" className="h-full w-full" aria-hidden="true">
@@ -266,13 +375,7 @@ function FallbackWorkflow() {
           </pattern>
         </defs>
         <rect width="600" height="320" fill="url(#wf-grid)" />
-        {/* nodes */}
-        {[
-          { x: 40, y: 70, label: 'image · flux' },
-          { x: 250, y: 40, label: 'upscale · 4×' },
-          { x: 250, y: 140, label: 'i2v · veo3' },
-          { x: 460, y: 100, label: 'deploy →' },
-        ].map((n, i) => (
+        {workflowNodes.map((n, i) => (
           <g key={i}>
             <rect
               x={n.x}
@@ -294,7 +397,6 @@ function FallbackWorkflow() {
             </text>
           </g>
         ))}
-        {/* edges */}
         <path
           d="M 150 92 C 200 92, 200 62, 250 62"
           fill="none"
@@ -327,12 +429,17 @@ function FallbackWorkflow() {
         />
         <circle cx="460" cy="122" r="6" fill="rgb(34,197,94)" />
       </svg>
-      <FbLabel className="bottom-4 right-4">即将上线</FbLabel>
+      <FbLabel className="bottom-4 right-4">{statusLabel}</FbLabel>
     </div>
   )
 }
 
-function FallbackArena() {
+interface FallbackArenaProps {
+  winnerLabel: string
+  voteLabel: string
+}
+
+function FallbackArena({ winnerLabel, voteLabel }: FallbackArenaProps) {
   const models = ['Flux', 'GPT-Image', 'Gemini']
   const winnerIdx = 1
   return (
@@ -352,7 +459,7 @@ function FallbackArena() {
             </span>
             {winner && (
               <span className="absolute left-2 top-2 z-[2] rounded bg-amber-300 px-2 py-0.5 font-mono text-[10px] font-bold text-black">
-                ELO 1547 · WIN
+                ELO 1547 · {winnerLabel}
               </span>
             )}
           </div>
@@ -361,7 +468,7 @@ function FallbackArena() {
       <div className="relative flex flex-col items-center justify-center gap-1 border border-dashed border-white/25 bg-white/[0.03] text-white/70">
         <span className="font-mono text-[28px] leading-none">+</span>
         <span className="font-mono text-[10px] uppercase tracking-[0.12em]">
-          Cast your vote
+          {voteLabel}
         </span>
       </div>
     </div>

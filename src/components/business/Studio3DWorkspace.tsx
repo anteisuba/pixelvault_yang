@@ -378,11 +378,20 @@ export function Studio3DWorkspace({
   // button that re-submits a second independent job with the user's actual
   // `rodinMaterial` choice + `parentGenerationId` set. OFF preserves the
   // single-job behaviour.
-  const [rodinMeshFirst, setRodinMeshFirst] = useState(false)
-  // Rodin Gen-2.5 text-to-3D: when ON, Generate is enabled even without a
-  // source image — Rodin auto-selects text-to-3D mode when no `images` are
-  // attached. Prompt becomes required in this mode.
-  const [rodinTextMode, setRodinTextMode] = useState(false)
+  // Rodin Gen-2.5 generation mode — three mutually exclusive workflows.
+  // Replaces what used to be two parallel boolean switches (rodinMeshFirst,
+  // rodinTextMode) so the Inspector can show a single segmented control at
+  // the top instead of two cards buried inside the parameter list.
+  //   'image'      — image-to-3D, single pass, default
+  //   'text'       — text-to-3D, prompt-only, no source image
+  //   'mesh_first' — image-to-3D, mesh-only first pass; "Continue with
+  //                  textures" button on the resulting Generation textures
+  //                  the same mesh via /api/v2/rodin_texture_only
+  const [rodinMode, setRodinMode] = useState<'image' | 'text' | 'mesh_first'>(
+    'image',
+  )
+  const rodinMeshFirst = rodinMode === 'mesh_first'
+  const rodinTextMode = rodinMode === 'text'
   // Client-side "Keep as final" memory — server doesn't know about it (avoids
   // a Generation mutation route). Once dismissed for a given mesh Generation
   // id the Continue/Keep buttons stop appearing on subsequent views of it.
@@ -1504,143 +1513,162 @@ export function Studio3DWorkspace({
             </div>
           )}
 
-          {/* Rodin text-to-3D toggle — when ON the source image picker
-              collapses into a hint and Generate runs against the prompt
-              alone. Only shown for the Rodin model; the toggle has no
-              effect on Hunyuan / TripoSR / Trellis. */}
+          {/* Rodin mode picker — three mutually exclusive workflows.
+              Replaces what used to be two separate switch cards (Text-to-3D
+              and Mesh-first) further down the panel. Image is the default;
+              Text hides the source picker entirely; Mesh emits a textureless
+              first pass with a "Continue with textures" affordance on the
+              result. */}
           {isRodin && (
-            <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3">
-              <Switch
-                id="rodin-text-mode"
-                checked={rodinTextMode}
-                onCheckedChange={setRodinTextMode}
-              />
-              <div className="flex-1">
-                <Label
-                  htmlFor="rodin-text-mode"
-                  className="cursor-pointer text-xs font-medium"
-                >
-                  {t('rodinTextModeLabel')}
-                </Label>
-                <p className="mt-0.5 font-serif text-[11px] italic leading-snug text-muted-foreground">
-                  {t('rodinTextModeHint')}
-                </p>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('rodinModeLabel')}
+              </Label>
+              <div
+                role="radiogroup"
+                aria-label={t('rodinModeLabel')}
+                className="flex gap-0.5 rounded-md bg-muted/50 p-0.5"
+              >
+                {(['image', 'text', 'mesh_first'] as const).map((mode) => {
+                  const isActive = rodinMode === mode
+                  const labelKey =
+                    mode === 'image'
+                      ? 'rodinModeImageLabel'
+                      : mode === 'text'
+                        ? 'rodinModeTextLabel'
+                        : 'rodinModeMeshFirstLabel'
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => setRodinMode(mode)}
+                      className={cn(
+                        'flex-1 rounded px-2 py-1.5 text-[11px] font-medium transition-colors',
+                        isActive
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {/* Compact image picker — mirrors Image Studio bottom-toolbar chip pattern */}
-          <div
-            className={cn(
-              'flex flex-col gap-2',
-              rodinTextMode && isRodin && 'pointer-events-none opacity-50',
-            )}
-          >
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              {t('sourceImageLabel')}
-            </Label>
-            {sourceImage ? (
-              <div className="flex gap-3 rounded-lg border border-border/50 bg-background/60 p-2">
-                <div className="relative size-20 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
-                  <Image
-                    src={sourceImage.url}
-                    alt={t('sourceImageLabel')}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleClearSource}
-                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-                    aria-label={t('removeSourceImageLabel')}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {sourceImage.prompt || t('sourceImageLabel')}
-                    </p>
-                    {sourceImage.width > 0 && sourceImage.height > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {sourceImage.width}×{sourceImage.height}
+          {/* Compact image picker. Hidden entirely in text-to-3D mode
+              (Rodin only) — text mode has no source image at all. */}
+          {!(isRodin && rodinTextMode) && (
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t('sourceImageLabel')}
+              </Label>
+              {sourceImage ? (
+                <div className="flex gap-3 rounded-lg border border-border/50 bg-background/60 p-2">
+                  <div className="relative size-20 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
+                    <Image
+                      src={sourceImage.url}
+                      alt={t('sourceImageLabel')}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleClearSource}
+                      className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                      aria-label={t('removeSourceImageLabel')}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {sourceImage.prompt || t('sourceImageLabel')}
                       </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPickerOpen(true)}
-                      disabled={uploading || isGenerating}
-                      className="h-8 rounded-full px-2"
-                      aria-label={t('selectFromAssets')}
-                      title={t('selectFromAssets')}
-                    >
-                      <FolderOpen className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleUploadClick}
-                      disabled={uploading || isGenerating}
-                      className="h-8 rounded-full px-2"
-                      aria-label={
-                        uploading ? t('uploading') : t('uploadButton')
-                      }
-                      title={uploading ? t('uploading') : t('uploadButton')}
-                    >
-                      {uploading ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Upload className="size-3.5" />
+                      {sourceImage.width > 0 && sourceImage.height > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {sourceImage.width}×{sourceImage.height}
+                        </p>
                       )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPickerOpen(true)}
+                        disabled={uploading || isGenerating}
+                        className="h-8 rounded-full px-2"
+                        aria-label={t('selectFromAssets')}
+                        title={t('selectFromAssets')}
+                      >
+                        <FolderOpen className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleUploadClick}
+                        disabled={uploading || isGenerating}
+                        className="h-8 rounded-full px-2"
+                        aria-label={
+                          uploading ? t('uploading') : t('uploadButton')
+                        }
+                        title={uploading ? t('uploading') : t('uploadButton')}
+                      >
+                        {uploading ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="size-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
+                  <ImageIcon className="size-6 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    {t('sourceImagePlaceholder')}
+                  </span>
+                  <div className="flex w-full flex-col gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleUploadClick}
+                      disabled={uploading}
+                      className="w-full rounded-full"
+                    >
+                      <Upload className="mr-1.5 size-3.5" />
+                      {uploading ? t('uploading') : t('uploadButton')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setPickerOpen(true)}
+                      disabled={uploading}
+                      className="w-full rounded-full"
+                    >
+                      <FolderOpen className="mr-1.5 size-3.5" />
+                      {t('selectFromAssets')}
                     </Button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
-                <ImageIcon className="size-6 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {t('sourceImagePlaceholder')}
-                </span>
-                <div className="flex w-full flex-col gap-2">
-                  <Button
-                    type="button"
-                    onClick={handleUploadClick}
-                    disabled={uploading}
-                    className="w-full rounded-full"
-                  >
-                    <Upload className="mr-1.5 size-3.5" />
-                    {uploading ? t('uploading') : t('uploadButton')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setPickerOpen(true)}
-                    disabled={uploading}
-                    className="w-full rounded-full"
-                  >
-                    <FolderOpen className="mr-1.5 size-3.5" />
-                    {t('selectFromAssets')}
-                  </Button>
-                </div>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+          )}
 
           {sourceImage && sourceQualityIssues.length > 0 && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs leading-5 text-destructive">
@@ -2231,27 +2259,8 @@ export function Studio3DWorkspace({
                     {t('rodinHighPackLabel')}
                   </Label>
                 </div>
-                {/* Mesh-first preview: dispatches first job with material=None.
-                    A "Continue with textures" affordance appears on the
-                    resulting Generation. */}
-                <div className="mt-2 flex items-start gap-2 border-t border-border/40 pt-2">
-                  <Switch
-                    id="rodin-mesh-first"
-                    checked={rodinMeshFirst}
-                    onCheckedChange={setRodinMeshFirst}
-                  />
-                  <div className="flex-1">
-                    <Label
-                      htmlFor="rodin-mesh-first"
-                      className="cursor-pointer text-xs font-medium"
-                    >
-                      {t('rodinMeshFirstLabel')}
-                    </Label>
-                    <p className="mt-0.5 font-serif text-[11px] italic leading-snug text-muted-foreground">
-                      {t('rodinMeshFirstHint')}
-                    </p>
-                  </div>
-                </div>
+                {/* Mesh-first preview promoted to the top-of-panel mode
+                    picker — no inline switch here anymore. */}
               </div>
 
               {/* T12: Input Images — cross/compass layout */}

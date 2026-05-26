@@ -54,13 +54,15 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   },
   [AI_MODELS.SEEDANCE_20]: {
     // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // Standard tier supports up to 1080p (Fast tier caps at 720p).
     // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   [AI_MODELS.SEEDANCE_20_FAST]: {
     // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // Fast tier caps at 720p (no 1080p).
     // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],
@@ -79,14 +81,16 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   // Voice-cloning endpoints — only path to use voice node's reference audio
   [AI_MODELS.SEEDANCE_20_REFERENCE]: {
     // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // Standard Reference tier supports up to 1080p (Fast Reference caps at 720p).
     // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },
   },
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: {
     // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // Fast Reference tier caps at 720p (no 1080p).
     // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],

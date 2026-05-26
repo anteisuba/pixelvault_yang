@@ -439,10 +439,10 @@ interface MineHeaderProps {
 function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
   const t = useTranslations('LoraWorkbench')
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-1">
+    <header className="flex flex-row items-start justify-between gap-3 sm:items-end">
+      <div className="min-w-0 space-y-1">
         <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-2xl font-semibold tracking-tight">
+          <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
             {t('myLorasTitle')}
           </h2>
           {!isLoading && totalCount > 0 ? (
@@ -451,7 +451,11 @@ function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
             </span>
           ) : null}
         </div>
-        <p className="text-sm text-muted-foreground">{t('myLorasSubtitle')}</p>
+        {/* Subtitle hidden on mobile — title is self-explanatory and we
+            want the cards above the fold. */}
+        <p className="hidden text-sm text-muted-foreground sm:block">
+          {t('myLorasSubtitle')}
+        </p>
       </div>
       <Button
         type="button"
@@ -459,13 +463,14 @@ function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
         size="sm"
         onClick={() => void onRefresh()}
         disabled={isLoading}
-        className="shrink-0 self-start sm:self-auto"
+        aria-label={t('refresh')}
+        className="shrink-0"
       >
         <RefreshCw
           className={cn('size-3.5', isLoading && 'animate-spin')}
           aria-hidden
         />
-        {t('refresh')}
+        <span className="hidden sm:inline">{t('refresh')}</span>
       </Button>
     </header>
   )
@@ -804,8 +809,11 @@ function CivitaiCommunityBranch({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-      <header className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <h2 className="font-display text-xl font-semibold tracking-tight">
+      {/* Mobile: title + refresh on the same row so the section header doesn't
+          eat ~88px of vertical space before any content shows. sm+ gets the
+          original taller layout with refresh aligned to the bottom-right. */}
+      <header className="flex flex-row items-center justify-between gap-2 border-b border-border/60 pb-3 sm:items-end sm:pb-4">
+        <h2 className="font-display text-lg font-semibold tracking-tight sm:text-xl">
           {t('communityTitle')}
         </h2>
         <Button
@@ -813,9 +821,11 @@ function CivitaiCommunityBranch({
           variant="ghost"
           size="sm"
           onClick={() => void library.refresh()}
+          aria-label={t('refresh')}
+          className="shrink-0"
         >
           <RefreshCw className="size-3.5" aria-hidden />
-          {t('refresh')}
+          <span className="hidden sm:inline">{t('refresh')}</span>
         </Button>
       </header>
 
@@ -1555,7 +1565,10 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
         }}
         title={isExternal ? t('externalBadgeHint') : undefined}
         className={cn(
-          'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-2xs font-medium transition-colors',
+          // Smaller chip + tighter padding on mobile so the 7 base-model
+          // chips (+ separator) wrap to at most 2 rows on iPhone-portrait
+          // instead of overflowing horizontally.
+          'inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-2xs font-medium transition-colors sm:px-2.5',
           isActive
             ? isExternal
               ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300'
@@ -1573,7 +1586,10 @@ function BaseModelChipRow({ value, onChange }: BaseModelChipRowProps) {
     <div
       role="radiogroup"
       aria-label={t('baseModelFilterLabel')}
-      className="flex flex-wrap items-center gap-1.5"
+      // `max-w-full` + explicit `w-full` ensures the row's intrinsic width
+      // never exceeds the parent column, so flex-wrap activates instead of
+      // silently overflowing the section card on narrow viewports.
+      className="flex w-full max-w-full flex-wrap items-center gap-1.5"
     >
       {renderChip('all')}
       {generatableChips.map(renderChip)}

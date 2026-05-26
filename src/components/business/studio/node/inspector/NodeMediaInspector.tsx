@@ -76,10 +76,37 @@ import type { NodeWorkflowNode } from '@/types/node-workflow'
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { InspectorField } from './InspectorField'
 
+/**
+ * Optional card library slot — when provided, NodeMediaInspector adds a
+ * "from card library" choice in the image-choice block and renders a
+ * "bound card" hint when the node is currently sourced from a card.
+ * BackgroundImageInspector populates this slot using useBackgroundCards;
+ * other media node types (frameImage, shotText, etc.) leave it absent
+ * and see no behavioral change. All copy lives under the inspector's
+ * existing i18n namespace (StudioNode.mediaNodes.cardLibrary.*).
+ */
+interface NodeMediaCardLibrarySlot {
+  cards: ReadonlyArray<{
+    id: string
+    name: string
+    description: string | null
+    sourceImageUrl: string | null
+    tags?: string[]
+  }>
+  isLoading: boolean
+  /**
+   * Currently bound card (typically resolved by the caller from
+   * node.data.cardId). Drives the "📇 来自背景卡：xxx" hint.
+   */
+  boundCard: { id: string; name: string } | null
+  onApply: (cardId: string) => void
+}
+
 interface NodeMediaInspectorProps {
   node: NodeWorkflowNode
   type: NodeWorkflowNodeType
   kind: NodeWorkflowMediaKind
+  cardLibrary?: NodeMediaCardLibrarySlot
 }
 
 function getStatusLabelKey(
@@ -123,14 +150,33 @@ export function NodeMediaInspector({
   node,
   type,
   kind,
+  cardLibrary,
 }: NodeMediaInspectorProps) {
   const t = useTranslations('StudioNode.mediaNodes')
   const tFields = useTranslations('StudioNode.workflowFields')
   const tWorkflows = useTranslations('StudioNode.workflowNodes')
   const router = useRouter()
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const [cardPickerOpen, setCardPickerOpen] = useState(false)
+  const [cardPickerQuery, setCardPickerQuery] = useState('')
   const existingImageInputRef = useRef<HTMLInputElement>(null)
   const existingPasteTargetRef = useRef<HTMLDivElement>(null)
+
+  // Filter the card library by free-form query (matches name, description,
+  // tags). Cards array is empty when no slot was provided, so the filter
+  // short-circuits without rebuilding the array.
+  const cardSearchResults = useMemo(() => {
+    if (!cardLibrary) return []
+    const query = cardPickerQuery.trim().toLowerCase()
+    if (query.length === 0) return cardLibrary.cards
+    return cardLibrary.cards.filter((card) => {
+      if (card.name.toLowerCase().includes(query)) return true
+      if (card.description?.toLowerCase().includes(query)) return true
+      if (card.tags?.some((tag) => tag.toLowerCase().includes(query)))
+        return true
+      return false
+    })
+  }, [cardLibrary, cardPickerQuery])
   const { generateMediaNode, modelOptionsByType, updateNodeData } =
     useNodeWorkflowActions()
   const { uploadFile, isUploading: isExistingImageUploading } =
@@ -504,6 +550,91 @@ export function NodeMediaInspector({
     </PopoverContent>
   )
 
+  // Card library picker — only rendered when the parent supplies the slot.
+  // The popover state stays local because each node instance keeps its own
+  // search + scroll position.
+  const cardLibraryPickerContent = cardLibrary ? (
+    <PopoverContent
+      align="center"
+      sideOffset={8}
+      collisionPadding={12}
+      className="w-80 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
+    >
+      <div className="border-b border-node-panel-inner px-4 py-3">
+        <p className="text-sm font-semibold text-node-foreground">
+          {t('cardLibrary.title')}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-node-muted">
+          {t('cardLibrary.hint')}
+        </p>
+        <input
+          type="search"
+          value={cardPickerQuery}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            setCardPickerQuery(event.target.value)
+          }
+          placeholder={t('cardLibrary.searchPlaceholder')}
+          className="mt-2 h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs leading-4 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto p-2">
+        {cardLibrary.isLoading ? (
+          <div className="flex h-24 items-center justify-center gap-2 text-xs text-node-muted">
+            <Loader2 className="size-4 animate-spin text-node-amber" />
+            {t('cardLibrary.loading')}
+          </div>
+        ) : cardSearchResults.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs leading-5 text-node-subtle">
+            {cardLibrary.cards.length === 0
+              ? t('cardLibrary.empty')
+              : t('cardLibrary.noMatch')}
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {cardSearchResults.map((card) => (
+              <li key={card.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    cardLibrary.onApply(card.id)
+                    setCardPickerOpen(false)
+                    setCardPickerQuery('')
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                >
+                  <span className="relative flex size-12 shrink-0 overflow-hidden rounded-lg bg-node-panel">
+                    {card.sourceImageUrl ? (
+                      <Image
+                        src={card.sourceImageUrl}
+                        alt={card.name}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <Images className="m-auto size-4 text-node-subtle" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-semibold text-node-foreground">
+                      {card.name}
+                    </span>
+                    {card.description ? (
+                      <span className="mt-0.5 line-clamp-2 block text-2xs leading-4 text-node-muted">
+                        {card.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </PopoverContent>
+  ) : null
+
   return (
     <>
       <div className="space-y-4">
@@ -591,6 +722,32 @@ export function NodeMediaInspector({
               {existingImagePickerContent}
             </Popover>
 
+            {/* Card library — only rendered when caller passes the slot.
+                Background nodes plug useBackgroundCards in via the prop. */}
+            {cardLibrary ? (
+              <Popover open={cardPickerOpen} onOpenChange={setCardPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+                      <Library className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-node-foreground">
+                        {t('modeCardTitle')}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-node-muted">
+                        {t('modeCardDescription')}
+                      </span>
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                {cardLibraryPickerContent}
+              </Popover>
+            ) : null}
+
             <button
               type="button"
               onClick={handleChooseAiMode}
@@ -652,6 +809,17 @@ export function NodeMediaInspector({
                 <ArrowLeft className="size-3.5" />
               </button>
             </div>
+
+            {cardLibrary?.boundCard ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-node-amber/30 bg-node-amber/10 px-3 py-2 text-xs leading-5 text-node-amber">
+                <Library className="size-3.5 shrink-0" />
+                <span className="flex-1 truncate">
+                  {t('cardLibrary.bound', {
+                    name: cardLibrary.boundCard.name,
+                  })}
+                </span>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap gap-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-2">
               <Popover>

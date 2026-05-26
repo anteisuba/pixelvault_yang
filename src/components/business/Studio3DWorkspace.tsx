@@ -1173,14 +1173,16 @@ export function Studio3DWorkspace({
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] w-full flex-col bg-background md:h-screen">
-      <header className="flex flex-col gap-1 border-b border-border/40 px-6 py-4">
+      <header className="flex flex-col gap-1 border-b border-border/40 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2">
           <Box className="size-4 text-primary" />
-          <h1 className="font-display text-xl font-medium tracking-tight">
+          <h1 className="font-display text-lg font-medium tracking-tight sm:text-xl">
             {t('title')}
           </h1>
         </div>
-        <p className="font-serif text-sm leading-6 text-muted-foreground">
+        {/* Hide subtitle on mobile to save vertical room; the title is
+            self-explanatory once you're on /studio/3d. */}
+        <p className="hidden font-serif text-sm leading-6 text-muted-foreground sm:block">
           {t('description')}
         </p>
       </header>

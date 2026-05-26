@@ -71,6 +71,7 @@ const MobileTrainingSheet = dynamic(
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -695,12 +696,18 @@ function CivitaiCommunityBranch({
   const router = useRouter()
   const stack = useActiveLoraStack()
   const library = useCivitaiLoraLibrary()
+  const isMobile = useIsMobile()
   const [coverPreview, setCoverPreview] = useState<{
     url: string
     name: string
   } | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Phone-portrait pattern: tapping a LoRA row opens a bottom drawer with the
+  // inspector. Without this, the inspector stacks below the list on mobile
+  // (lg:grid-cols-3 collapses to 1 col) which forced a long scroll just to see
+  // details / hit the "Use in Studio" button.
+  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false)
   const searchWrapperRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -763,6 +770,19 @@ function CivitaiCommunityBranch({
       }
     },
     [isFavorited, onFavorite, onUnfavoriteByUrl],
+  )
+
+  const handleSelectItem = useCallback(
+    (item: CivitaiLoraLibraryItem) => {
+      library.selectItem(item)
+      // On phone-portrait, tapping a row should *go somewhere* — open the
+      // bottom drawer with the inspector. On desktop the inline inspector
+      // already updates, so no drawer is needed.
+      if (isMobile) {
+        setMobileInspectorOpen(true)
+      }
+    },
+    [isMobile, library],
   )
 
   const handleSortChange = useCallback(
@@ -931,7 +951,7 @@ function CivitaiCommunityBranch({
                     (entry) => entry.asset.id === item.id,
                   )}
                   isFavorited={isFavorited(item.loraUrl)}
-                  onSelect={library.selectItem}
+                  onSelect={handleSelectItem}
                   onUse={handleUse}
                   onFavorite={handleFavoriteToggle}
                 />
@@ -949,26 +969,69 @@ function CivitaiCommunityBranch({
           />
         </div>
 
-        <CivitaiLoraInspector
-          item={library.selectedItem}
-          isFavorited={
-            library.selectedItem
-              ? isFavorited(library.selectedItem.loraUrl)
-              : false
-          }
-          onUse={handleUse}
-          onFavorite={handleFavoriteToggle}
-          onCopyTryPrompt={handleCopyTryPrompt}
-          onPreviewCover={(item) =>
-            item.coverImageUrl
-              ? setCoverPreview({
-                  url: item.coverImageUrl,
-                  name: item.name,
-                })
-              : undefined
-          }
-        />
+        {/* Desktop: inline right-column inspector. Hidden on phone-portrait —
+            the drawer below takes over so the user doesn't have to scroll past
+            a full list to see a selected LoRA's details. */}
+        <div className="hidden lg:block">
+          <CivitaiLoraInspector
+            item={library.selectedItem}
+            isFavorited={
+              library.selectedItem
+                ? isFavorited(library.selectedItem.loraUrl)
+                : false
+            }
+            onUse={handleUse}
+            onFavorite={handleFavoriteToggle}
+            onCopyTryPrompt={handleCopyTryPrompt}
+            onPreviewCover={(item) =>
+              item.coverImageUrl
+                ? setCoverPreview({
+                    url: item.coverImageUrl,
+                    name: item.name,
+                  })
+                : undefined
+            }
+          />
+        </div>
       </div>
+
+      {/* Mobile-only bottom drawer for inspector. Vaul-backed so it gets the
+          native iOS swipe-to-dismiss + scaled-background feel. Triggered by
+          handleSelectItem, dismissed by drag, overlay tap, or the X button. */}
+      <Drawer
+        open={isMobile && mobileInspectorOpen && !!library.selectedItem}
+        onOpenChange={setMobileInspectorOpen}
+      >
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerTitle className="sr-only">
+            {library.selectedItem?.name ?? ''}
+          </DrawerTitle>
+          <div className="overflow-y-auto px-4 pb-6 pt-2">
+            <CivitaiLoraInspector
+              item={library.selectedItem}
+              isFavorited={
+                library.selectedItem
+                  ? isFavorited(library.selectedItem.loraUrl)
+                  : false
+              }
+              onUse={(item) => {
+                handleUse(item)
+                setMobileInspectorOpen(false)
+              }}
+              onFavorite={handleFavoriteToggle}
+              onCopyTryPrompt={handleCopyTryPrompt}
+              onPreviewCover={(item) =>
+                item.coverImageUrl
+                  ? setCoverPreview({
+                      url: item.coverImageUrl,
+                      name: item.name,
+                    })
+                  : undefined
+              }
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <Dialog
         open={coverPreview !== null}

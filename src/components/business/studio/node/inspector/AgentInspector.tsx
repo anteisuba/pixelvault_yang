@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, type ChangeEvent } from 'react'
+import { useCallback } from 'react'
 import { AlertCircle, Bot, Film, ImagePlus, Loader2, Wand2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -16,9 +16,8 @@ import {
   SCRIPT_PLANNER_PROVIDER_IDS,
 } from '@/constants/script-breakdown'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 
-import { IMEAwareTextarea } from './IMEAwareField'
+import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -129,6 +128,40 @@ export function AgentInspector({ node }: AgentInspectorProps) {
       })
     },
     [breakdown, node.id, updateNodeData],
+  )
+
+  // Seedance plan editing: title / visualDescription / finalPrompt / timeline.
+  // We dispatch the whole plan back to the node on every change so the
+  // downstream `applySeedancePromptPlanToSeedance` action sees the user's
+  // edits, not the original LLM output. Empty strings are kept verbatim —
+  // Zod min(1) will reject them at the apply step, surfacing a clear toast.
+  const handleSeedancePlanFieldChange = useCallback(
+    (field: 'title' | 'visualDescription' | 'finalPrompt', next: string) => {
+      if (!seedancePromptPlan) return
+      updateNodeData(node.id, {
+        seedancePromptPlan: {
+          ...seedancePromptPlan,
+          [field]: next,
+        },
+      })
+    },
+    [node.id, seedancePromptPlan, updateNodeData],
+  )
+
+  const handleTimelineFieldChange = useCallback(
+    (index: number, field: 'action' | 'camera', next: string) => {
+      if (!seedancePromptPlan) return
+      const nextTimeline = seedancePromptPlan.timeline.map((item, i) =>
+        i === index ? { ...item, [field]: next } : item,
+      )
+      updateNodeData(node.id, {
+        seedancePromptPlan: {
+          ...seedancePromptPlan,
+          timeline: nextTimeline,
+        },
+      })
+    },
+    [node.id, seedancePromptPlan, updateNodeData],
   )
 
   const handleSpawnCharacters = useCallback(() => {
@@ -294,22 +327,45 @@ export function AgentInspector({ node }: AgentInspectorProps) {
       {agentMode === NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt &&
       seedancePromptPlan ? (
         <>
-          <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
+          <div className="space-y-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-node-foreground">
-                  {seedancePromptPlan.title}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-node-muted">
-                  {seedancePromptPlan.visualDescription}
-                </p>
-              </div>
+              <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                {t('seedance.headerLabel')}
+              </p>
               <span className="shrink-0 rounded-full border border-node-panel-inner bg-node-panel px-2 py-1 text-2xs font-semibold text-node-muted">
                 {t('copyRisk', {
                   risk: t(`copyRiskLevels.${seedancePromptPlan.copyRisk}`),
                 })}
               </span>
             </div>
+            <InspectorField
+              label={t('seedance.titleLabel')}
+              statusDotClassName="bg-node-amber"
+            >
+              <IMEAwareInput
+                value={seedancePromptPlan.title}
+                onValueChange={(next) =>
+                  handleSeedancePlanFieldChange('title', next)
+                }
+                aria-label={t('seedance.titleLabel')}
+                placeholder={t('seedance.titlePlaceholder')}
+                className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+              />
+            </InspectorField>
+            <InspectorField
+              label={t('seedance.visualDescriptionLabel')}
+              statusDotClassName="bg-node-amber"
+            >
+              <IMEAwareTextarea
+                value={seedancePromptPlan.visualDescription}
+                onValueChange={(next) =>
+                  handleSeedancePlanFieldChange('visualDescription', next)
+                }
+                aria-label={t('seedance.visualDescriptionLabel')}
+                placeholder={t('seedance.visualDescriptionPlaceholder')}
+                className="min-h-20 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+              />
+            </InspectorField>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -337,18 +393,22 @@ export function AgentInspector({ node }: AgentInspectorProps) {
             label={t('seedance.finalPrompt')}
             statusDotClassName="bg-node-amber"
           >
-            <Textarea
-              readOnly
+            <IMEAwareTextarea
               value={seedancePromptPlan.finalPrompt}
-              className="min-h-32 resize-none rounded-2xl border-node-panel-inner bg-node-panel-soft text-sm leading-6 text-node-foreground shadow-none focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+              onValueChange={(next) =>
+                handleSeedancePlanFieldChange('finalPrompt', next)
+              }
+              aria-label={t('seedance.finalPrompt')}
+              placeholder={t('seedance.finalPromptPlaceholder')}
+              className="min-h-32 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
             />
           </InspectorField>
 
           <div className="space-y-2">
-            {seedancePromptPlan.timeline.map((item) => (
+            {seedancePromptPlan.timeline.map((item, index) => (
               <div
-                key={`${item.startSecond}-${item.endSecond}-${item.action}`}
-                className="rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3"
+                key={`timeline-${index}`}
+                className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3"
               >
                 <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
                   {t('seedance.timelineRange', {
@@ -356,12 +416,28 @@ export function AgentInspector({ node }: AgentInspectorProps) {
                     end: item.endSecond,
                   })}
                 </p>
-                <p className="mt-1 text-xs leading-5 text-node-foreground">
-                  {item.action}
-                </p>
-                <p className="mt-1 text-2xs leading-4 text-node-muted">
-                  {item.camera}
-                </p>
+                <IMEAwareTextarea
+                  value={item.action}
+                  onValueChange={(next) =>
+                    handleTimelineFieldChange(index, 'action', next)
+                  }
+                  aria-label={t('seedance.timelineActionLabel', {
+                    n: index + 1,
+                  })}
+                  placeholder={t('seedance.timelineActionPlaceholder')}
+                  className="min-h-16 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                />
+                <IMEAwareInput
+                  value={item.camera}
+                  onValueChange={(next) =>
+                    handleTimelineFieldChange(index, 'camera', next)
+                  }
+                  aria-label={t('seedance.timelineCameraLabel', {
+                    n: index + 1,
+                  })}
+                  placeholder={t('seedance.timelineCameraPlaceholder')}
+                  className="h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-2xs leading-4 text-node-muted outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                />
               </div>
             ))}
           </div>

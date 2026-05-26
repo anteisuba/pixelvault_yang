@@ -1009,7 +1009,11 @@ function CivitaiCommunityBranch({
         open={isMobile && mobileInspectorOpen && !!library.selectedItem}
         onOpenChange={setMobileInspectorOpen}
       >
-        <DrawerContent className="max-h-[85vh]">
+        {/* aria-describedby explicitly unset — Radix otherwise warns about a
+            missing Description, but the drawer body already contains all the
+            details and a verbose description would just be noise for screen
+            readers. */}
+        <DrawerContent aria-describedby={undefined} className="max-h-[85vh]">
           <DrawerTitle className="sr-only">
             {library.selectedItem?.name ?? ''}
           </DrawerTitle>

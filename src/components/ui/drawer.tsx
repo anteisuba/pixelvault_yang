@@ -87,11 +87,16 @@ const DrawerFooter = ({
 )
 DrawerFooter.displayName = 'DrawerFooter'
 
+// Must wrap DrawerPrimitive.Title (vaul re-exports Radix Dialog's primitive
+// under the hood). A plain `<h2>` doesn't satisfy Radix's a11y check and
+// triggers the dev-time "DialogContent requires a DialogTitle" warning,
+// because Radix walks for `DialogPrimitive.Title` specifically — not just
+// any heading element. Same applies to DrawerDescription.
 const DrawerTitle = React.forwardRef<
-  HTMLHeadingElement,
-  React.HTMLAttributes<HTMLHeadingElement>
+  React.ComponentRef<typeof DrawerPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <h2
+  <DrawerPrimitive.Title
     ref={ref}
     className={cn(
       'text-lg font-semibold leading-none tracking-tight',
@@ -103,10 +108,10 @@ const DrawerTitle = React.forwardRef<
 DrawerTitle.displayName = 'DrawerTitle'
 
 const DrawerDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
+  React.ComponentRef<typeof DrawerPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <p
+  <DrawerPrimitive.Description
     ref={ref}
     className={cn('text-sm text-muted-foreground', className)}
     {...props}

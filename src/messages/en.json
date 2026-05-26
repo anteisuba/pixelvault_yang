@@ -2764,10 +2764,34 @@
         "timelineActionPlaceholder": "What is happening in this segment…",
         "timelineCameraLabel": "Segment {n} camera",
         "timelineCameraPlaceholder": "Camera language, e.g. push-in, overhead…",
+        "timelineAdd": "Add segment",
         "applyToVideo": "Apply to connected video node"
       },
       "spawnCharacters": "Spawn character images ({count})",
-      "spawnCharactersTooltip": "Create one Character Image node for each breakdown character."
+      "spawnCharactersTooltip": "Create one Character Image node for each breakdown character.",
+      "spawnFullWorkflow": "⭐ Spawn full workflow ({count} shots)",
+      "breakdownShotsLabel": "Shot list",
+      "breakdownShotsAdd": "Add shot",
+      "shotEditor": {
+        "header": "Shot {n}",
+        "action": "Action",
+        "actionPlaceholder": "What happens in this beat…",
+        "camera": "Camera",
+        "cameraPlaceholder": "e.g. push-in, overhead, close-up…",
+        "startSec": "Start (s)",
+        "startSecPlaceholder": "0",
+        "endSec": "End (s)",
+        "endSecPlaceholder": "—",
+        "rangeWarning": "End second must be greater than start.",
+        "characters": "Characters in shot",
+        "background": "Background",
+        "backgroundNone": "None",
+        "maxRefs": "Max references",
+        "maxRefsPlaceholder": "Model default",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "delete": "Delete shot"
+      }
     },
     "characterImage": {
       "namePrefix": "Character",
@@ -3296,6 +3320,13 @@
       "charactersSpawned": "{count, plural, one {Spawned # character image node.} other {Spawned # character image nodes.}}",
       "charactersAlreadySpawned": "All characters already have image nodes.",
       "charactersSpawnNoBreakdown": "Generate an Agent breakdown before spawning character images.",
+      "spawnFullWorkflowSuccess": "Spawned a full workflow with {count} shots.",
+      "spawnFullWorkflow": {
+        "noBreakdown": "Generate an Agent breakdown or Seedance plan first.",
+        "notAgent": "Pick an Agent node first.",
+        "emptyShots": "Shot list is empty — add at least one shot."
+      },
+      "timelineCannotDeleteLast": "At least one segment must remain.",
       "projectCreated": "Project \"{name}\" created.",
       "projectRenamed": "Project renamed to \"{name}\".",
       "projectDeleted": "Project \"{name}\" deleted."

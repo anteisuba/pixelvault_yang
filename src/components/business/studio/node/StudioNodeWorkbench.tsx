@@ -895,6 +895,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       updateScriptBreakdown: workflow.updateScriptBreakdown,
       updateSeedancePromptPlan: workflow.updateSeedancePromptPlan,
       spawnCharactersFromBreakdown: workflow.spawnCharactersFromBreakdown,
+      spawnFullWorkflowFromAgent: workflow.spawnFullWorkflowFromAgent,
       applySeedancePromptPlanToSeedance:
         workflow.applySeedancePromptPlanToSeedance,
       deleteNode: workflow.deleteNode,
@@ -911,6 +912,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       workflow.deleteNode,
       workflow.applySeedancePromptPlanToSeedance,
       workflow.spawnCharactersFromBreakdown,
+      workflow.spawnFullWorkflowFromAgent,
       workflow.updateNodeData,
       workflow.updateScriptBreakdown,
       workflow.updateSeedancePromptPlan,

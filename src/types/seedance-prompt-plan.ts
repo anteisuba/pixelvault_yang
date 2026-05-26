@@ -27,6 +27,14 @@ export const SeedancePromptTimelineItemSchema = z.object({
     .trim()
     .max(SEEDANCE_PROMPT_PLAN_LIMITS.timelineCompositionMaxLength)
     .optional(),
+  // User-driven bindings used when spawning the full workflow. The LLM
+  // doesn't populate these — they're filled as the user edits the plan
+  // and tells the Inspector which character / background each beat needs.
+  // Empty / absent means "any character / no specific background".
+  characterIds: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+  backgroundIds: z.array(z.string().trim().min(1).max(80)).max(4).optional(),
+  /** Per-shot cap on reference images. Falls back to model capability. */
+  maxReferences: z.number().int().min(0).max(9).optional(),
 })
 
 export const SeedancePromptPlanRequestSchema = z.object({

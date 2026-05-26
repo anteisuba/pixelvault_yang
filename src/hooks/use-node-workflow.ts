@@ -81,6 +81,7 @@ export interface NodeWorkflowActions {
     planner: SeedancePromptPlanPlanner,
   ): void
   spawnCharactersFromBreakdown(agentNodeId: string): SpawnCharactersResult
+  spawnFullWorkflowFromAgent(agentNodeId: string): SpawnFullWorkflowResult
   applySeedancePromptPlanToSeedance(
     agentNodeId: string,
   ): ApplySeedancePromptPlanResult
@@ -90,6 +91,12 @@ export interface NodeWorkflowActions {
 export interface SpawnCharactersResult {
   createdNodeIds: string[]
   skippedCharacterIds: string[]
+}
+
+export interface SpawnFullWorkflowResult {
+  createdNodeIds: string[]
+  shotCount: number
+  refusal: 'noBreakdown' | 'notAgent' | 'emptyShots' | null
 }
 
 export interface ApplySeedancePromptPlanResult {
@@ -1052,6 +1059,237 @@ export function useNodeWorkflow({
     [defaultProjectName, setWorkflowStorage],
   )
 
+  /**
+   * Materialise the Agent's curated shot list into a runnable subgraph:
+   *   - one shotText node per shot, prefilled with action + camera
+   *   - one Seedance node per shot, duration derived from start/endSec
+   *   - per-shot edges: shotText → seedance, plus each bound character /
+   *     background node → seedance (skipped silently when the user
+   *     hasn't spawned the matching node yet)
+   *   - a single videoMerge node fed by every Seedance when ≥2 shots
+   *
+   * Bindings reference breakdown character / scene IDs and are translated
+   * via the maps below to actual on-canvas node ids. The function does
+   * NOT spawn characters — pair with spawnCharactersFromBreakdown for
+   * the full chain.
+   *
+   * Works in both storyBreakdown (uses breakdown.shots) and
+   * seedancePrompt (uses seedancePromptPlan.timeline) modes — the agent
+   * mode field decides which list drives the spawn.
+   */
+  const spawnFullWorkflowFromAgent = useCallback(
+    (agentNodeId: string): SpawnFullWorkflowResult => {
+      const currentState = getCurrentProject(
+        storageRef.current,
+        defaultProjectName,
+      ).state
+      const agentNode = currentState.nodes.find(
+        (node) => node.id === agentNodeId && node.type === NODE_TYPE_IDS.agent,
+      )
+      if (!agentNode) {
+        return { createdNodeIds: [], shotCount: 0, refusal: 'notAgent' }
+      }
+
+      const breakdown = agentNode.data.breakdown
+      const plan = agentNode.data.seedancePromptPlan
+      const usingBreakdown =
+        agentNode.data.agentMode === NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
+          ? Boolean(breakdown)
+          : false
+      const usingPlan = !usingBreakdown && Boolean(plan)
+      if (!usingBreakdown && !usingPlan) {
+        return { createdNodeIds: [], shotCount: 0, refusal: 'noBreakdown' }
+      }
+
+      interface ShotInput {
+        action: string
+        camera: string
+        startSecond?: number
+        endSecond?: number
+        characterIds?: string[]
+        backgroundIds?: string[]
+        maxReferences?: number
+      }
+      const shots: ShotInput[] = usingBreakdown
+        ? (breakdown?.shots ?? []).map((shot) => ({
+            action: shot.promptSeed,
+            camera: shot.camera,
+            startSecond: shot.startSecond,
+            endSecond: shot.endSecond,
+            characterIds: shot.characterIds,
+            backgroundIds: shot.backgroundIds,
+            maxReferences: shot.maxReferences,
+          }))
+        : (plan?.timeline ?? []).map((item) => ({
+            action: item.action,
+            camera: item.camera,
+            startSecond: item.startSecond,
+            endSecond: item.endSecond,
+            characterIds: item.characterIds,
+            backgroundIds: item.backgroundIds,
+            maxReferences: item.maxReferences,
+          }))
+
+      if (shots.length === 0) {
+        return { createdNodeIds: [], shotCount: 0, refusal: 'emptyShots' }
+      }
+
+      // characterDraftId -> on-canvas characterImage node id. Only nodes
+      // already spawned are included — missing characters quietly drop
+      // out of the binding map and the user can rerun spawnCharacters
+      // then this action again to fill them in.
+      const characterDraftToNodeId = new Map<string, string>()
+      for (const node of currentState.nodes) {
+        if (node.type !== NODE_TYPE_IDS.characterImage) continue
+        const draftId = node.data.character?.characterId
+        if (typeof draftId === 'string' && draftId.length > 0) {
+          characterDraftToNodeId.set(draftId, node.id)
+        }
+      }
+      // backgroundDraftId (scene id) -> on-canvas backgroundImage node.
+      // backgroundImage nodes don't ship with a draft-id field yet, so
+      // for now the map is best-effort: nodes whose data carries a
+      // `sceneId` property will be linked, others silently skipped.
+      const backgroundDraftToNodeId = new Map<string, string>()
+      for (const node of currentState.nodes) {
+        if (node.type !== NODE_TYPE_IDS.backgroundImage) continue
+        const sceneId =
+          'sceneId' in node.data && typeof node.data.sceneId === 'string'
+            ? node.data.sceneId
+            : undefined
+        if (sceneId) backgroundDraftToNodeId.set(sceneId, node.id)
+      }
+
+      const {
+        shotTextOffsetX,
+        seedanceOffsetX,
+        videoMergeOffsetX,
+        rowOffsetY,
+      } = NODE_STUDIO_NODE_PLACEMENT.workflowSpawn
+      const firstY =
+        agentNode.position.y - ((shots.length - 1) * rowOffsetY) / 2
+
+      const createdNodes: NodeWorkflowNode[] = []
+      const createdEdges: NodeWorkflowEdge[] = []
+      const seedanceNodeIds: string[] = []
+
+      const pushEdge = (sourceId: string, targetId: string) => {
+        createdEdges.push({
+          id: createWorkflowId(NODE_STUDIO_ID_PREFIXES.edge),
+          source: sourceId,
+          target: targetId,
+          type: NODE_STUDIO_EDGE_VISUALS.type,
+          interactionWidth: NODE_STUDIO_EDGE_VISUALS.interactionWidth,
+          markerEnd: {
+            type: NODE_STUDIO_EDGE_VISUALS.markerEndType,
+            color: NODE_STUDIO_EDGE_VISUALS.color,
+            width: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            height: NODE_STUDIO_EDGE_VISUALS.markerSize,
+            strokeWidth: NODE_STUDIO_EDGE_VISUALS.markerStrokeWidth,
+          },
+        })
+      }
+
+      shots.forEach((shot, index) => {
+        const rowY = firstY + index * rowOffsetY
+
+        const shotTextNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+        createdNodes.push({
+          id: shotTextNodeId,
+          type: NODE_TYPE_IDS.shotText,
+          position: {
+            x: agentNode.position.x + shotTextOffsetX,
+            y: rowY,
+          },
+          data: {
+            prompt: '',
+            status: NODE_STATUS_IDS.idle,
+            action: shot.action.trim() || undefined,
+            camera: shot.camera.trim() || undefined,
+          },
+        })
+
+        const seedanceNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+        const durationSec =
+          typeof shot.startSecond === 'number' &&
+          typeof shot.endSecond === 'number'
+            ? Math.max(0.1, shot.endSecond - shot.startSecond)
+            : undefined
+        createdNodes.push({
+          id: seedanceNodeId,
+          type: NODE_TYPE_IDS.seedance,
+          position: {
+            x: agentNode.position.x + seedanceOffsetX,
+            y: rowY,
+          },
+          data: {
+            prompt: '',
+            status: NODE_STATUS_IDS.idle,
+            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+            // duration is stored as a string on the node (text-input
+            // legacy); the workbench parses it back to a number for the
+            // generate call.
+            ...(typeof durationSec === 'number'
+              ? { duration: String(Math.round(durationSec)) }
+              : {}),
+          },
+        })
+        seedanceNodeIds.push(seedanceNodeId)
+
+        pushEdge(shotTextNodeId, seedanceNodeId)
+
+        for (const characterDraftId of shot.characterIds ?? []) {
+          const target = characterDraftToNodeId.get(characterDraftId)
+          if (target) pushEdge(target, seedanceNodeId)
+        }
+        for (const backgroundDraftId of shot.backgroundIds ?? []) {
+          const target = backgroundDraftToNodeId.get(backgroundDraftId)
+          if (target) pushEdge(target, seedanceNodeId)
+        }
+      })
+
+      // videoMerge: only meaningful with 2+ clips.
+      if (seedanceNodeIds.length >= 2) {
+        const mergeNodeId = createWorkflowId(NODE_STUDIO_ID_PREFIXES.node)
+        createdNodes.push({
+          id: mergeNodeId,
+          type: NODE_TYPE_IDS.videoMerge,
+          position: {
+            x: agentNode.position.x + videoMergeOffsetX,
+            y: agentNode.position.y,
+          },
+          data: {
+            prompt: '',
+            status: NODE_STATUS_IDS.idle,
+            generationStatus: NODE_GENERATION_STATUS_IDS.idle,
+          },
+        })
+        for (const seedanceId of seedanceNodeIds) {
+          pushEdge(seedanceId, mergeNodeId)
+        }
+      }
+
+      setWorkflowStorage((latestStorage) =>
+        patchCurrentProjectState(
+          latestStorage,
+          defaultProjectName,
+          (latestState) => ({
+            ...latestState,
+            nodes: [...latestState.nodes, ...createdNodes],
+            edges: [...latestState.edges, ...createdEdges],
+          }),
+        ),
+      )
+
+      return {
+        createdNodeIds: createdNodes.map((node) => node.id),
+        shotCount: shots.length,
+        refusal: null,
+      }
+    },
+    [defaultProjectName, setWorkflowStorage],
+  )
+
   const getOutgoingTargetByType = useCallback(
     (sourceId: string, targetType: NodeWorkflowNodeType) => {
       const currentState = getCurrentProject(
@@ -1253,6 +1491,7 @@ export function useNodeWorkflow({
       updateScriptBreakdown,
       updateSeedancePromptPlan,
       spawnCharactersFromBreakdown,
+      spawnFullWorkflowFromAgent,
       applySeedancePromptPlanToSeedance,
       deleteNode,
       getOutgoingTargetByType,
@@ -1279,6 +1518,7 @@ export function useNodeWorkflow({
       saveNow,
       state,
       spawnCharactersFromBreakdown,
+      spawnFullWorkflowFromAgent,
       switchProject,
       tidyLayout,
       updateScriptBreakdown,

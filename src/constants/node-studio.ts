@@ -270,6 +270,16 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     offsetX: 420,
     offsetY: 260,
   },
+  // spawnFullWorkflowFromAgent lays per-shot rows in three columns to the
+  // right of the Agent: shotText, Seedance, then a single videoMerge.
+  // tidyLayout will dagre-pack things later, but sane initial positions
+  // mean the user sees a recognisable structure before re-arranging.
+  workflowSpawn: {
+    shotTextOffsetX: 840,
+    seedanceOffsetX: 1260,
+    videoMergeOffsetX: 1680,
+    rowOffsetY: 260,
+  },
 } as const
 
 export const NODE_STUDIO_ID_PREFIXES = {

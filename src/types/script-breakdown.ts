@@ -59,6 +59,15 @@ export const ShotDraftSchema = z.object({
   camera: BreakdownTextSchema,
   composition: BreakdownTextSchema,
   promptSeed: BreakdownTextSchema,
+  // Duration is user-driven (LLM doesn't emit timestamps in breakdown
+  // mode) — used by the Seedance node when spawning the full workflow.
+  startSecond: z.number().min(0).max(600).optional(),
+  endSecond: z.number().min(0).max(600).optional(),
+  // User-driven bindings, same role as on SeedancePromptTimelineItem.
+  characterIds: z.array(BreakdownIdSchema).max(12).optional(),
+  backgroundIds: z.array(BreakdownIdSchema).max(4).optional(),
+  /** Per-shot cap on reference images. Falls back to model capability. */
+  maxReferences: z.number().int().min(0).max(9).optional(),
 })
 
 export const ScriptBreakdownRequestSchema = z.object({

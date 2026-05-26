@@ -45,6 +45,11 @@ const ACTIONS: NodeWorkflowCanvasActions = {
   updateScriptBreakdown: vi.fn(),
   updateSeedancePromptPlan: vi.fn(),
   spawnCharactersFromBreakdown: vi.fn(),
+  spawnFullWorkflowFromAgent: vi.fn(() => ({
+    createdNodeIds: [],
+    shotCount: 0,
+    refusal: null,
+  })),
   applySeedancePromptPlanToSeedance: vi.fn(),
   deleteNode: vi.fn(),
   sendFromComposer,

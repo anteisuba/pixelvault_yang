@@ -2764,10 +2764,34 @@
         "timelineActionPlaceholder": "このセグメントで何が起きるか…",
         "timelineCameraLabel": "セグメント {n} のカメラ",
         "timelineCameraPlaceholder": "カメラ表現（例：寄り、俯瞰）…",
+        "timelineAdd": "セグメントを追加",
         "applyToVideo": "接続した動画ノードへ適用"
       },
       "spawnCharacters": "キャラクター画像を派生 ({count})",
-      "spawnCharactersTooltip": "分解結果の各キャラクターに Character Image ノードを作成します。"
+      "spawnCharactersTooltip": "分解結果の各キャラクターに Character Image ノードを作成します。",
+      "spawnFullWorkflow": "⭐ 完全ワークフローを派生 ({count} ショット)",
+      "breakdownShotsLabel": "ショット一覧",
+      "breakdownShotsAdd": "ショットを追加",
+      "shotEditor": {
+        "header": "ショット {n}",
+        "action": "アクション",
+        "actionPlaceholder": "このショットで起きること…",
+        "camera": "カメラ",
+        "cameraPlaceholder": "例：寄り、俯瞰、クローズアップ…",
+        "startSec": "開始（秒）",
+        "startSecPlaceholder": "0",
+        "endSec": "終了（秒）",
+        "endSecPlaceholder": "—",
+        "rangeWarning": "終了秒は開始秒より大きくしてください。",
+        "characters": "登場キャラクター",
+        "background": "背景",
+        "backgroundNone": "なし",
+        "maxRefs": "参考画像上限",
+        "maxRefsPlaceholder": "モデル既定",
+        "moveUp": "上へ",
+        "moveDown": "下へ",
+        "delete": "ショットを削除"
+      }
     },
     "characterImage": {
       "namePrefix": "キャラクター",
@@ -3296,6 +3320,13 @@
       "charactersSpawned": "{count} 個のキャラクター画像ノードを派生しました。",
       "charactersAlreadySpawned": "すべてのキャラクターは既にノード化されています。",
       "charactersSpawnNoBreakdown": "キャラクター画像を派生する前に Agent の分解を生成してください。",
+      "spawnFullWorkflowSuccess": "{count} ショット分の完全ワークフローを派生しました。",
+      "spawnFullWorkflow": {
+        "noBreakdown": "先に Agent の分解または Seedance プロンプトを生成してください。",
+        "notAgent": "Agent ノードを選択してください。",
+        "emptyShots": "ショット一覧が空です。最低 1 つのショットを追加してください。"
+      },
+      "timelineCannotDeleteLast": "少なくとも 1 つのセグメントを残してください。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",
       "projectRenamed": "プロジェクト名を「{name}」に変更しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。"

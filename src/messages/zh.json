@@ -2764,10 +2764,34 @@
         "timelineActionPlaceholder": "这一段画面里在发生什么…",
         "timelineCameraLabel": "第 {n} 段镜头",
         "timelineCameraPlaceholder": "镜头语言，如：推近、俯拍…",
+        "timelineAdd": "新增镜头段",
         "applyToVideo": "写入已连接的视频节点"
       },
       "spawnCharacters": "派生角色图 ({count})",
-      "spawnCharactersTooltip": "为拆解结果里的每个角色创建一个角色图节点。"
+      "spawnCharactersTooltip": "为拆解结果里的每个角色创建一个角色图节点。",
+      "spawnFullWorkflow": "⭐ 派生完整工作流 ({count} 镜头)",
+      "breakdownShotsLabel": "镜头清单",
+      "breakdownShotsAdd": "新增镜头",
+      "shotEditor": {
+        "header": "镜头 {n}",
+        "action": "动作描述",
+        "actionPlaceholder": "这一段画面里在发生什么…",
+        "camera": "镜头语言",
+        "cameraPlaceholder": "如：推近、俯拍、特写…",
+        "startSec": "起始秒",
+        "startSecPlaceholder": "0",
+        "endSec": "结束秒",
+        "endSecPlaceholder": "—",
+        "rangeWarning": "结束秒应大于起始秒。",
+        "characters": "出场角色",
+        "background": "场景背景",
+        "backgroundNone": "无",
+        "maxRefs": "参考图上限",
+        "maxRefsPlaceholder": "默认按模型上限",
+        "moveUp": "上移",
+        "moveDown": "下移",
+        "delete": "删除该镜头"
+      }
     },
     "characterImage": {
       "namePrefix": "角色",
@@ -3296,6 +3320,13 @@
       "charactersSpawned": "已派生 {count} 个角色图节点。",
       "charactersAlreadySpawned": "所有角色都已派生过节点。",
       "charactersSpawnNoBreakdown": "请先生成 Agent 拆解，再派生角色图。",
+      "spawnFullWorkflowSuccess": "已派生 {count} 个镜头的完整工作流。",
+      "spawnFullWorkflow": {
+        "noBreakdown": "请先生成 Agent 拆解或 Seedance 提示词，再派生工作流。",
+        "notAgent": "请选择 Agent 节点。",
+        "emptyShots": "镜头列表为空，请先添加至少一个镜头。"
+      },
+      "timelineCannotDeleteLast": "至少保留一个镜头段。",
       "projectCreated": "项目「{name}」已创建。",
       "projectRenamed": "项目已重命名为「{name}」。",
       "projectDeleted": "项目「{name}」已删除。"

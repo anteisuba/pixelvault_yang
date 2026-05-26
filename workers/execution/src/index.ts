@@ -78,7 +78,8 @@ interface WorkerVideoRunContext extends WorkerRunContextBase {
     modelId: string
     externalModelId: string
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
-    duration?: number
+    /** Either a number of seconds, or 'auto' (Seedance-only literal). */
+    duration?: number | 'auto'
     referenceImage?: string
     /**
      * Multi-reference URLs for endpoints whose fal API takes `image_urls`
@@ -547,7 +548,14 @@ function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
       externalModelId,
       aspectRatio:
         aspectRatio as WorkerVideoRunContext['providerInput']['aspectRatio'],
-      duration: readPositiveNumberField(providerInput, 'duration') ?? undefined,
+      // Accept either a positive number (Seedance 4-15, Veo 4/6/8s, etc.)
+      // or the literal 'auto' token — Seedance-only, lets the model decide.
+      duration: ((): number | 'auto' | undefined => {
+        const raw = providerInput.duration
+        if (typeof raw === 'number' && raw > 0) return raw
+        if (raw === 'auto') return 'auto'
+        return undefined
+      })(),
       referenceImage:
         readStringField(providerInput, 'referenceImage') ?? undefined,
       referenceImages: Array.isArray(providerInput.referenceImages)
@@ -1615,14 +1623,32 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
     const context = event.payload
 
     try {
+      // Resolve the API key ONCE, AES-GCM encrypt before persisting in
+      // workflow state via step.do. Subsequent steps decrypt in-memory.
+      // Avoids (a) hitting Cloudflare's per-workflow subrequest budget by
+      // re-resolving every poll, and (b) leaking the plaintext BYOK key into
+      // workflow state visible to anyone with state read access. Mirrors the
+      // Hyper3DRodinWorkflow / Hunyuan3DWorkflow pattern.
+      const encryptedApiKey = await step.do(
+        'resolve-api-key',
+        {
+          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          timeout: '30 seconds',
+        },
+        async () => {
+          const plaintext = await resolveApiKey(this.env, context)
+          return encryptStateString(plaintext, this.env)
+        },
+      )
+
       const queue = await step.do(
-        'resolve-key-and-submit-provider',
+        'submit-provider',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
-          const apiKey = await resolveApiKey(this.env, context)
+          const apiKey = await decryptStateString(encryptedApiKey, this.env)
           return submitFalQueue(context, apiKey)
         },
       )
@@ -1637,7 +1663,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
             timeout: '30 seconds',
           },
           async () => {
-            const apiKey = await resolveApiKey(this.env, context)
+            const apiKey = await decryptStateString(encryptedApiKey, this.env)
             return pollFalQueue(queue, apiKey, context.outputType)
           },
         )
@@ -1660,8 +1686,13 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
                 context.outputType === 'VIDEO'
                   ? context.providerInput.height
                   : undefined,
+              // The 'auto' literal can't satisfy ExecutionCallbackResultDataSchema's
+              // numeric duration field — coerce to undefined and let DB store
+              // null (the real output length comes from fal's response metadata
+              // in future iterations).
               duration:
-                context.outputType === 'VIDEO'
+                context.outputType === 'VIDEO' &&
+                typeof context.providerInput.duration === 'number'
                   ? context.providerInput.duration
                   : undefined,
               requestCount: 1,

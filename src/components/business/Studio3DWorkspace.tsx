@@ -1188,8 +1188,10 @@ export function Studio3DWorkspace({
       </header>
 
       <div className="flex flex-1 flex-col gap-0 overflow-hidden md:flex-row">
-        {/* Main canvas — ModelViewer when generated; placeholder otherwise */}
-        <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-muted/20 p-6">
+        {/* Main canvas — ModelViewer when generated; placeholder otherwise.
+            Min-height on mobile prevents the canvas from collapsing flat when
+            the Inspector below has a lot of content. */}
+        <main className="relative flex min-h-[40vh] flex-1 items-center justify-center overflow-hidden bg-muted/20 p-4 sm:p-6 md:min-h-0">
           {displayGeneration ? (
             <div className="relative size-full">
               {previewModelUrl && !finalModelVisible && (
@@ -1438,8 +1440,12 @@ export function Studio3DWorkspace({
           )}
         </main>
 
-        {/* Right panel — source, multi-view, preset, advanced params, generate */}
-        <aside className="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-border/40 bg-muted/10 p-5 md:w-80 md:border-l md:border-t-0">
+        {/* Right panel — source, multi-view, preset, advanced params, generate.
+            Width scales up at larger breakpoints so the dense parameter list
+            doesn't feel cramped on a 4K monitor and doesn't waste laptop
+            real estate. On mobile this becomes a full-width section stacked
+            below the canvas. */}
+        <aside className="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-border/40 bg-muted/10 p-4 sm:p-5 md:w-80 md:border-l md:border-t-0 lg:w-96 2xl:w-[28rem]">
           {/* Model Hero Card — shows active model + "Change" switcher */}
           <div className="rounded-lg border border-border/60 bg-card p-3">
             <div className="flex items-center gap-3">
@@ -1551,7 +1557,7 @@ export function Studio3DWorkspace({
                       aria-checked={isActive}
                       onClick={() => setRodinMode(mode)}
                       className={cn(
-                        'flex-1 rounded px-2 py-1.5 text-[11px] font-medium transition-colors',
+                        'min-w-0 flex-1 truncate rounded px-1.5 py-1.5 text-[11px] font-medium transition-colors',
                         isActive
                           ? 'bg-background text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground',
@@ -2222,12 +2228,14 @@ export function Studio3DWorkspace({
                 </p>
               </div>
 
-              {/* Geometry preset card — unified mesh_mode + quality grid */}
+              {/* Geometry preset card — unified mesh_mode + quality grid.
+                  Drop to 2 columns on very narrow inspector (mobile portrait)
+                  so each chip still reads cleanly; 4 columns at md+. */}
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">
                 <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
                   {t('rodinMeshModeLabel')}
                 </Label>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                   {RODIN_MESH_MODES.flatMap((mode) =>
                     RODIN_QUALITIES.map((quality) => {
                       const isActive =
@@ -2734,18 +2742,24 @@ export function Studio3DWorkspace({
             </div>
           )}
 
-          <Button
-            type="button"
-            disabled={!canGenerate}
-            onClick={handleGenerate}
-            className={cn(
-              'mt-auto w-full rounded-full',
-              !canGenerate && 'opacity-60',
-            )}
-          >
-            <Sparkles className="mr-1.5 size-4" />
-            {isGenerating ? t('generating') : t('generateButton')}
-          </Button>
+          {/* Generate button — on mobile it sticks to the bottom of the
+              Inspector with a backdrop so it stays in view as the user
+              scrolls long parameter lists. On md+ it just sits at the
+              bottom of the scrollable aside. */}
+          <div className="sticky bottom-0 -mx-4 mt-auto border-t border-border/40 bg-muted/95 px-4 py-3 backdrop-blur-sm sm:-mx-5 sm:px-5 md:static md:mx-0 md:border-t-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+            <Button
+              type="button"
+              disabled={!canGenerate}
+              onClick={handleGenerate}
+              className={cn(
+                'w-full rounded-full',
+                !canGenerate && 'opacity-60',
+              )}
+            >
+              <Sparkles className="mr-1.5 size-4" />
+              {isGenerating ? t('generating') : t('generateButton')}
+            </Button>
+          </div>
         </aside>
       </div>
 

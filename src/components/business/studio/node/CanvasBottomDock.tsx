@@ -55,7 +55,11 @@ export function CanvasBottomDock() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div className="pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-3xl border border-node-panel-inner/70 bg-node-panel/95 p-2 shadow-node-panel backdrop-blur-xl md:bottom-6">
+      {/* Hidden below md: every tool here is a placeholder that just toasts
+          "not implemented", and the dock collides with the Assistant bottom-
+          sheet + AppSidebar floating buttons on phone-portrait. md+ restores
+          the centered toolbar where it has room to breathe. */}
+      <div className="pointer-events-auto absolute bottom-4 left-1/2 hidden -translate-x-1/2 items-center gap-2 rounded-3xl border border-node-panel-inner/70 bg-node-panel/95 p-2 shadow-node-panel backdrop-blur-xl md:bottom-6 md:flex">
         <div className="flex items-center gap-1">
           {NODE_STUDIO_TOOL_MODES.map((mode) => {
             const Icon = TOOL_MODE_ICONS[mode]

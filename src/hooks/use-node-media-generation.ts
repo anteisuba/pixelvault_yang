@@ -8,6 +8,7 @@ import {
   VIDEO_GENERATION,
   type AspectRatio,
 } from '@/constants/config'
+import type { VideoResolution } from '@/constants/video-options'
 import {
   checkAudioStatusAPI,
   checkVideoStatusAPI,
@@ -31,6 +32,16 @@ interface NodeMediaGenerationInput {
   prompt: string
   apiKeyId?: string
   aspectRatio?: AspectRatio
+  /**
+   * Video duration in seconds (Seedance accepts 4-15) or the literal 'auto'
+   * to let the model decide. Only consumed by video kind; other kinds ignore.
+   */
+  duration?: number | 'auto'
+  /**
+   * Video output resolution. Only consumed by video kind. When omitted the
+   * provider builder falls back to its per-model default (720p for Seedance).
+   */
+  resolution?: VideoResolution
   referenceImages?: string[]
   /** Reference audio clips for voice cloning (Seedance reference-to-video). */
   audioUrls?: string[]
@@ -177,8 +188,10 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             modelId: input.modelId,
             apiKeyId: input.apiKeyId,
             prompt: input.prompt,
-            aspectRatio: VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
-            duration: VIDEO_GENERATION.DEFAULT_DURATION,
+            aspectRatio:
+              input.aspectRatio ?? VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
+            duration: input.duration ?? VIDEO_GENERATION.DEFAULT_DURATION,
+            resolution: input.resolution,
             referenceImages: input.referenceImages,
             audioUrls: input.audioUrls,
             videoUrls: input.videoUrls,

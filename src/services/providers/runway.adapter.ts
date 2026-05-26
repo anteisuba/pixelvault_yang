@@ -165,7 +165,9 @@ export const runwayAdapter: ProviderAdapter = {
     const baseUrl = resolveRunwayBaseUrl(providerConfig.baseUrl)
     const externalModelId = getExecutionModelId(modelId)
     const ratio = getRunwayRatio(aspectRatio)
-    const requestedDuration = duration ?? 5
+    // Runway doesn't support the 'auto' literal — coerce to its default.
+    const requestedDuration: number =
+      typeof duration === 'number' ? duration : 5
     const submitPath = getRunwaySubmitPath({
       externalModelId,
       referenceImage,

@@ -3019,7 +3019,9 @@
       },
       "duration": {
         "label": "長さ",
-        "placeholder": "例：4s、6s、8s..."
+        "placeholder": "例：4s、6s、8s...",
+        "auto": "自動（モデルが決定）",
+        "seconds": "{value} 秒"
       },
       "audioIntent": {
         "label": "音声 / 音色指示",

@@ -17,7 +17,13 @@ export interface FalVideoRequestBuilderInput {
   modelId: string
   externalModelId: string
   aspectRatio: AspectRatio
-  duration?: number
+  /**
+   * Either a number of seconds (clamped per model — Seedance allows 4-15) or
+   * the literal `'auto'` token. Builders that don't understand 'auto' coerce
+   * it to their configured default. Only Seedance 2.0 endpoints emit 'auto'
+   * verbatim to fal.
+   */
+  duration?: number | 'auto'
   /** Single reference image for single-frame i2v models (Kling, Seedance...) */
   referenceImage?: string
   /**
@@ -73,6 +79,17 @@ function pickString(
   fallback: string,
 ): string {
   return value && allowed.includes(value) ? value : fallback
+}
+
+/**
+ * Strip the 'auto' literal — most builders don't understand it and need to
+ * fall back to a fixed numeric default. Seedance builders special-case 'auto'
+ * upstream of these pickers and never reach this coercion.
+ */
+function asNumericDuration(
+  duration: number | 'auto' | undefined,
+): number | undefined {
+  return typeof duration === 'number' ? duration : undefined
 }
 
 function pickNumberDuration(
@@ -195,7 +212,11 @@ function buildKlingV3Pro(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickClampedStringDuration(input.duration, 3, 15),
+    duration: pickClampedStringDuration(
+      asNumericDuration(input.duration),
+      3,
+      15,
+    ),
     generate_audio: input.videoDefaults?.generateAudio ?? true,
   }
 
@@ -221,7 +242,7 @@ function buildVeo31(
   const body: Record<string, unknown> = {
     prompt: input.prompt,
     aspect_ratio: pickString(input.aspectRatio, ['16:9', '9:16'], '16:9'),
-    duration: pickVeoDuration(input.duration),
+    duration: pickVeoDuration(asNumericDuration(input.duration)),
     resolution:
       pickResolution(
         input.resolution,
@@ -255,7 +276,11 @@ function buildViduQ3Pro(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickClampedNumberDuration(input.duration, 1, 16),
+    duration: pickClampedNumberDuration(
+      asNumericDuration(input.duration),
+      1,
+      16,
+    ),
     resolution:
       pickResolution(
         input.resolution,
@@ -279,6 +304,16 @@ function buildViduQ3Pro(
   return body
 }
 
+/**
+ * Seedance is the only fal video endpoint that understands the literal
+ * 'auto' token for duration — let it pass through verbatim. Everything else
+ * gets clamped to 4-15 seconds.
+ */
+function pickSeedanceDuration(duration: number | 'auto' | undefined): string {
+  if (duration === 'auto') return 'auto'
+  return pickClampedStringDuration(asNumericDuration(duration), 4, 15)
+}
+
 function buildSeedance20(
   input: FalVideoRequestBuilderInput,
   mode: FalVideoMode,
@@ -293,7 +328,7 @@ function buildSeedance20(
         allowedResolutions,
         '720p',
       ) ?? '720p',
-    duration: pickClampedStringDuration(input.duration, 4, 15),
+    duration: pickSeedanceDuration(input.duration),
     aspect_ratio: pickString(
       input.aspectRatio,
       FAL_EXTENDED_ASPECT_RATIOS,
@@ -402,7 +437,7 @@ function buildSeedanceReference(
         allowedResolutions,
         '720p',
       ) ?? '720p',
-    duration: pickClampedStringDuration(input.duration, 4, 15),
+    duration: pickSeedanceDuration(input.duration),
     aspect_ratio: pickString(
       input.aspectRatio,
       FAL_EXTENDED_ASPECT_RATIOS,
@@ -426,7 +461,7 @@ function buildSeedanceProV1(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickStringDuration(input.duration, [5, 10], 5),
+    duration: pickStringDuration(asNumericDuration(input.duration), [5, 10], 5),
   }
 
   const resolution = pickResolution(input.resolution, input.videoDefaults, [
@@ -457,7 +492,7 @@ function buildMiniMaxHailuo23(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickStringDuration(input.duration, [6, 10], 6),
+    duration: pickStringDuration(asNumericDuration(input.duration), [6, 10], 6),
   }
   applyPromptOptimizer(body, input)
 
@@ -478,7 +513,7 @@ function buildLumaRay2(
       FAL_EXTENDED_ASPECT_RATIOS,
       '16:9',
     ),
-    duration: pickLumaDuration(input.duration),
+    duration: pickLumaDuration(asNumericDuration(input.duration)),
   }
 
   const resolution = pickResolution(
@@ -500,7 +535,7 @@ function buildPika25(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickNumberDuration(input.duration, [5, 10], 5),
+    duration: pickNumberDuration(asNumericDuration(input.duration), [5, 10], 5),
   }
 
   const resolution = pickResolution(input.resolution, input.videoDefaults, [
@@ -527,7 +562,7 @@ function buildKlingV21Master(
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     prompt: input.prompt,
-    duration: pickStringDuration(input.duration, [5, 10], 5),
+    duration: pickStringDuration(asNumericDuration(input.duration), [5, 10], 5),
   }
 
   if (mode === 'image-to-video') {
@@ -571,7 +606,11 @@ function buildWan26(
         ['720p', '1080p'],
         '720p',
       ) ?? '720p',
-    duration: pickStringDuration(input.duration, [5, 10, 15], 5),
+    duration: pickStringDuration(
+      asNumericDuration(input.duration),
+      [5, 10, 15],
+      5,
+    ),
   }
 
   applyNegativePrompt(body, input)

@@ -3019,7 +3019,9 @@
       },
       "duration": {
         "label": "时长",
-        "placeholder": "例如：4s、6s、8s..."
+        "placeholder": "例如：4s、6s、8s...",
+        "auto": "自动（由模型决定）",
+        "seconds": "{value} 秒"
       },
       "audioIntent": {
         "label": "音频 / 音色说明",

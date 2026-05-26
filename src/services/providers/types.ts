@@ -71,7 +71,12 @@ export interface ProviderQueueSubmitInput {
   aspectRatio: AspectRatio
   providerConfig: ProviderConfig
   apiKey: string
-  duration?: number
+  /**
+   * Either a number of seconds, or the literal 'auto' token (Seedance 2.0
+   * supports this; other builders coerce 'auto' to their configured default
+   * via `asNumericDuration` in fal/video-request-builders.ts).
+   */
+  duration?: number | 'auto'
   /**
    * Single reference image — kept for back-compat with the bulk of video
    * models that only accept one i2v starting frame. New multi-reference

@@ -386,12 +386,31 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
     void generateMediaNode?.(node.id)
   }, [generateMediaNode, node.id])
 
+  // fal Seedance duration enum: 'auto' or 4..15 seconds (13 options).
+  // Reference: https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+  const DURATION_OPTIONS = [
+    'auto',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12',
+    '13',
+    '14',
+    '15',
+  ] as const
+
   const renderField = (fieldId: NodeWorkflowFieldId) => {
     const value = getNodeWorkflowFieldValue(node.data, fieldId)
     const isLongField =
       fieldId === NODE_WORKFLOW_FIELD_IDS.motion ||
       fieldId === NODE_WORKFLOW_FIELD_IDS.audioIntent ||
       fieldId === NODE_WORKFLOW_FIELD_IDS.prompt
+    const isDurationField = fieldId === NODE_WORKFLOW_FIELD_IDS.duration
 
     return (
       <InspectorField
@@ -399,7 +418,31 @@ export function SeedanceInspector({ node }: SeedanceInspectorProps) {
         label={tFields(`${fieldId}.label`)}
         statusDotClassName={videoAccent.dot}
       >
-        {isLongField ? (
+        {isDurationField ? (
+          <select
+            value={
+              DURATION_OPTIONS.includes(
+                value as (typeof DURATION_OPTIONS)[number],
+              )
+                ? value
+                : 'auto'
+            }
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              handleFieldChange(fieldId, event.target.value)
+            }
+            aria-label={tFields(`${fieldId}.label`)}
+            className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+          >
+            <option value="auto">{tFields('duration.auto')}</option>
+            {DURATION_OPTIONS.filter((option) => option !== 'auto').map(
+              (option) => (
+                <option key={option} value={option}>
+                  {tFields('duration.seconds', { value: option })}
+                </option>
+              ),
+            )}
+          </select>
+        ) : isLongField ? (
           <Textarea
             value={value}
             onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>

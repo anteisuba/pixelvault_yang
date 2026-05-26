@@ -342,10 +342,17 @@ export const GenerateVideoRequestSchema = z.object({
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
     .default(VIDEO_GENERATION.DEFAULT_ASPECT_RATIO),
+  /**
+   * Video duration in seconds, or the literal `'auto'` token to let the
+   * provider decide (Seedance 2.0 supports this). Falls back to the system
+   * default when omitted. Builders that don't recognise 'auto' (Veo, Kling,
+   * Runway, Volcengine) coerce it to their configured default.
+   */
   duration: z
-    .number()
-    .min(1)
-    .max(VIDEO_GENERATION.MAX_DURATION)
+    .union([
+      z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION),
+      z.literal('auto'),
+    ])
     .default(VIDEO_GENERATION.DEFAULT_DURATION),
   referenceImage: z.string().optional(),
   /**
@@ -1147,7 +1154,13 @@ const WorkerVideoProviderInputSchema = z.object({
   modelId: z.string().min(1),
   externalModelId: z.string().min(1),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
-  duration: z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION).optional(),
+  /** Either a number of seconds, or 'auto' (Seedance-only literal). */
+  duration: z
+    .union([
+      z.number().min(1).max(VIDEO_GENERATION.MAX_DURATION),
+      z.literal('auto'),
+    ])
+    .optional(),
   referenceImage: z.string().optional(),
   /** Multi-reference array for Veo 3.1 reference-to-video. */
   referenceImages: z.array(z.string()).max(3).optional(),

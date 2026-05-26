@@ -172,7 +172,8 @@ export function buildVolcEngineVideoQueueBody({
     body.ratio = aspectRatio
   }
 
-  if (duration != null) {
+  // Volcengine doesn't support the 'auto' literal — coerce to its default.
+  if (typeof duration === 'number') {
     body.duration = Math.min(12, Math.max(2, duration))
   } else {
     body.duration = VIDEO_GENERATION.DEFAULT_DURATION

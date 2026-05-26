@@ -13,7 +13,8 @@ import { GenerateImageServiceError } from '@/services/generate-image.service'
 interface ValidateVideoGenerationInput {
   modelId: string
   aspectRatio: AspectRatio
-  duration?: number
+  /** Either a clamped number or 'auto' (Seedance literal); 'auto' skips numeric range checks. */
+  duration?: number | 'auto'
   referenceImage?: string
   referenceImages?: string[]
   resolution?: VideoResolution
@@ -78,8 +79,10 @@ export function validateVideoGenerationInput({
     )
   }
 
+  // 'auto' bypasses the numeric range/enum checks — the model decides the
+  // duration itself, so we can't validate it against a fixed allow-list.
   if (
-    duration != null &&
+    typeof duration === 'number' &&
     capabilities.supportedDurations &&
     !capabilities.supportedDurations.includes(duration)
   ) {
@@ -125,9 +128,10 @@ export function validateVideoGenerationInput({
     )
   }
 
+  // 'auto' is a model-side decision — no resolution/duration matrix check.
   if (
     !resolution ||
-    duration == null ||
+    typeof duration !== 'number' ||
     !capabilities.resolutionDurationMatrix
   ) {
     return

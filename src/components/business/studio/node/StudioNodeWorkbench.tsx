@@ -735,11 +735,39 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
       const advancedParams: AdvancedParams | undefined =
         loras.length > 0 ? { loras } : undefined
 
+      // Bridge: duration is stored as a string in node.data (text-input
+      // legacy). The wire format accepts either a 4-15 integer or the
+      // literal 'auto' (Seedance-only). 'auto' passes through verbatim;
+      // numeric strings get parsed + clamped; anything else falls back to
+      // undefined so the service-side default kicks in.
+      const rawDuration =
+        isVideoMediaNode && typeof node.data.duration === 'string'
+          ? node.data.duration.trim()
+          : ''
+      const videoDuration: number | 'auto' | undefined = (() => {
+        if (rawDuration === 'auto') return 'auto'
+        const parsed = Number(rawDuration)
+        if (!Number.isFinite(parsed)) return undefined
+        if (parsed < 4 || parsed > 15) return undefined
+        return parsed
+      })()
+      const videoResolution =
+        isVideoMediaNode && typeof node.data.resolution === 'string'
+          ? (node.data.resolution as
+              | '480p'
+              | '540p'
+              | '720p'
+              | '1080p'
+              | undefined)
+          : undefined
+
       const result = await nodeMediaGeneration.generate({
         kind,
         modelId: model.modelId,
         apiKeyId: model.apiKeyId,
         prompt: mergedPrompt,
+        duration: videoDuration,
+        resolution: videoResolution,
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
         audioUrls: upstreamAudioUrls.length > 0 ? upstreamAudioUrls : undefined,

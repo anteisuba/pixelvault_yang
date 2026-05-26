@@ -1187,7 +1187,11 @@ export function Studio3DWorkspace({
         </p>
       </header>
 
-      <div className="flex flex-1 flex-col gap-0 overflow-hidden md:flex-row">
+      {/* Mobile: allow the whole inner column to scroll vertically so the
+          Inspector (content height >> viewport) is reachable. md+ reverts
+          to overflow-hidden so the aside scrolls internally and the canvas
+          stays pinned. */}
+      <div className="flex flex-1 flex-col gap-0 overflow-y-auto md:flex-row md:overflow-hidden">
         {/* Main canvas — ModelViewer when generated; placeholder otherwise.
             Min-height on mobile prevents the canvas from collapsing flat when
             the Inspector below has a lot of content. */}
@@ -1444,8 +1448,9 @@ export function Studio3DWorkspace({
             Width scales up at larger breakpoints so the dense parameter list
             doesn't feel cramped on a 4K monitor and doesn't waste laptop
             real estate. On mobile this becomes a full-width section stacked
-            below the canvas. */}
-        <aside className="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-border/40 bg-muted/10 p-4 sm:p-5 md:w-80 md:border-l md:border-t-0 lg:w-96 2xl:w-[28rem]">
+            below the canvas and flows naturally (parent scrolls); on md+
+            it scrolls independently inside its fixed column width. */}
+        <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 p-4 sm:p-5 md:min-h-0 md:w-80 md:overflow-y-auto md:border-l md:border-t-0 lg:w-96 2xl:w-[28rem]">
           {/* Model Hero Card — shows active model + "Change" switcher */}
           <div className="rounded-lg border border-border/60 bg-card p-3">
             <div className="flex items-center gap-3">

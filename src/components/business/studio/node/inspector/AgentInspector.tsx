@@ -1,7 +1,15 @@
 'use client'
 
-import { useCallback } from 'react'
-import { AlertCircle, Bot, Film, ImagePlus, Loader2, Wand2 } from 'lucide-react'
+import { useCallback, useState, type ChangeEvent } from 'react'
+import {
+  AlertCircle,
+  Bot,
+  ChevronDown,
+  Film,
+  ImagePlus,
+  Loader2,
+  Wand2,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -18,6 +26,12 @@ import {
 import { Button } from '@/components/ui/button'
 
 import { IMEAwareInput, IMEAwareTextarea } from './IMEAwareField'
+import { cn } from '@/lib/utils'
+import type {
+  CharacterDraft,
+  SceneDraft,
+  ScriptBreakdownResult,
+} from '@/types/script-breakdown'
 import type { NodeWorkflowNode } from '@/types/node-workflow'
 
 import {
@@ -38,6 +52,92 @@ function getAgentMode(node: NodeWorkflowNode): AgentMode {
   return node.data.agentMode === NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt
     ? NODE_STUDIO_AGENT_MODE_IDS.seedancePrompt
     : NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown
+}
+
+/**
+ * Node-themed collapsible row used to fold the per-character / per-scene
+ * editors. Keeps the inspector scroll-height reasonable when a breakdown
+ * spawns 5+ entries while still letting users edit any field in place.
+ */
+function NodeCollapsible({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  summary?: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div className="rounded-2xl border border-node-panel-inner bg-node-panel-soft">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-node-foreground">
+            {title}
+          </p>
+          {summary ? (
+            <p className="mt-0.5 truncate text-2xs leading-4 text-node-muted">
+              {summary}
+            </p>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 text-node-muted transition-transform duration-200',
+            isOpen && 'rotate-180',
+          )}
+        />
+      </button>
+      {isOpen ? (
+        <div className="space-y-3 border-t border-node-panel-inner px-3 py-3">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const CHARACTER_EDITABLE_FIELDS = [
+  'nameSuggestion',
+  'role',
+  'functionInStory',
+  'personality',
+  'visualSeed',
+  'goal',
+] as const satisfies readonly Exclude<keyof CharacterDraft, 'id' | 'label'>[]
+
+const SCENE_EDITABLE_FIELDS = [
+  'label',
+  'summary',
+  'location',
+  'timeOfDay',
+  'mood',
+] as const satisfies readonly Exclude<keyof SceneDraft, 'id'>[]
+
+type BreakdownTopField = 'title' | 'logline' | 'referenceIntent'
+const BREAKDOWN_TOP_FIELDS = [
+  'title',
+  'logline',
+  'referenceIntent',
+] as const satisfies readonly BreakdownTopField[]
+
+function isMultilineBreakdownField(field: BreakdownTopField): boolean {
+  return field !== 'title'
+}
+
+function getBreakdownFieldValue(
+  breakdown: ScriptBreakdownResult,
+  field: BreakdownTopField,
+): string {
+  return breakdown[field]
 }
 
 export function AgentInspector({ node }: AgentInspectorProps) {
@@ -114,16 +214,51 @@ export function AgentInspector({ node }: AgentInspectorProps) {
     })
   }, [applySeedancePromptPlanToSeedance, node.id, tToasts])
 
-  const handleLoglineChange = useCallback(
-    (next: string) => {
-      if (!breakdown) {
-        return
-      }
-
+  // Top-level breakdown text fields (title / logline / referenceIntent).
+  // The BREAKDOWN_TOP_FIELDS loop dispatches every field through this single
+  // handler.
+  const handleBreakdownFieldChange = useCallback(
+    (field: BreakdownTopField, next: string) => {
+      if (!breakdown) return
       updateNodeData(node.id, {
         breakdown: {
           ...breakdown,
-          logline: next,
+          [field]: next,
+        },
+      })
+    },
+    [breakdown, node.id, updateNodeData],
+  )
+
+  // characters[i] / scenes[i] field edit — keeps id stable, replaces the
+  // chosen draft, dispatches the whole breakdown back to node.data so
+  // spawnCharactersFromBreakdown picks up the user's edits.
+  const handleCharacterFieldChange = useCallback(
+    (index: number, field: keyof CharacterDraft, next: string) => {
+      if (!breakdown) return
+      const nextCharacters = breakdown.characters.map((character, i) =>
+        i === index ? { ...character, [field]: next } : character,
+      )
+      updateNodeData(node.id, {
+        breakdown: {
+          ...breakdown,
+          characters: nextCharacters,
+        },
+      })
+    },
+    [breakdown, node.id, updateNodeData],
+  )
+
+  const handleSceneFieldChange = useCallback(
+    (index: number, field: keyof SceneDraft, next: string) => {
+      if (!breakdown) return
+      const nextScenes = breakdown.scenes.map((scene, i) =>
+        i === index ? { ...scene, [field]: next } : scene,
+      )
+      updateNodeData(node.id, {
+        breakdown: {
+          ...breakdown,
+          scenes: nextScenes,
         },
       })
     },
@@ -153,6 +288,29 @@ export function AgentInspector({ node }: AgentInspectorProps) {
       if (!seedancePromptPlan) return
       const nextTimeline = seedancePromptPlan.timeline.map((item, i) =>
         i === index ? { ...item, [field]: next } : item,
+      )
+      updateNodeData(node.id, {
+        seedancePromptPlan: {
+          ...seedancePromptPlan,
+          timeline: nextTimeline,
+        },
+      })
+    },
+    [node.id, seedancePromptPlan, updateNodeData],
+  )
+
+  // Timeline timestamp edit — clamp to schema bounds (0..600). We let the
+  // raw input through during typing; the clamp happens on dispatch so users
+  // can backspace through values without snapping back.
+  const handleTimelineSecondsChange = useCallback(
+    (index: number, field: 'startSecond' | 'endSecond', rawValue: string) => {
+      if (!seedancePromptPlan) return
+      const parsed = Number(rawValue)
+      const clamped = Number.isFinite(parsed)
+        ? Math.min(600, Math.max(0, parsed))
+        : 0
+      const nextTimeline = seedancePromptPlan.timeline.map((item, i) =>
+        i === index ? { ...item, [field]: clamped } : item,
       )
       updateNodeData(node.id, {
         seedancePromptPlan: {
@@ -271,13 +429,35 @@ export function AgentInspector({ node }: AgentInspectorProps) {
 
       {agentMode === NODE_STUDIO_AGENT_MODE_IDS.storyBreakdown && breakdown ? (
         <>
-          <InspectorField label={t('logline')} statusDotClassName="bg-lime-300">
-            <IMEAwareTextarea
-              value={breakdown.logline}
-              onValueChange={handleLoglineChange}
-              className="min-h-24 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
-            />
-          </InspectorField>
+          {BREAKDOWN_TOP_FIELDS.map((field) => (
+            <InspectorField
+              key={field}
+              label={t(`breakdownFields.${field}.label`)}
+              statusDotClassName="bg-lime-300"
+            >
+              {isMultilineBreakdownField(field) ? (
+                <IMEAwareTextarea
+                  value={getBreakdownFieldValue(breakdown, field)}
+                  onValueChange={(next) =>
+                    handleBreakdownFieldChange(field, next)
+                  }
+                  aria-label={t(`breakdownFields.${field}.label`)}
+                  placeholder={t(`breakdownFields.${field}.placeholder`)}
+                  className="min-h-20 w-full resize-none rounded-2xl border border-node-panel-inner bg-node-panel-soft px-3 py-2 text-sm leading-6 text-node-foreground shadow-none outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                />
+              ) : (
+                <IMEAwareInput
+                  value={getBreakdownFieldValue(breakdown, field)}
+                  onValueChange={(next) =>
+                    handleBreakdownFieldChange(field, next)
+                  }
+                  aria-label={t(`breakdownFields.${field}.label`)}
+                  placeholder={t(`breakdownFields.${field}.placeholder`)}
+                  className="h-10 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-sm leading-6 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                />
+              )}
+            </InspectorField>
+          ))}
 
           <div className="grid grid-cols-5 gap-2">
             {SCRIPT_BREAKDOWN_SUMMARY_FIELDS.map((field) => (
@@ -294,6 +474,76 @@ export function AgentInspector({ node }: AgentInspectorProps) {
               </div>
             ))}
           </div>
+
+          {breakdown.characters.length > 0 ? (
+            <InspectorField
+              label={t('breakdownCharactersLabel')}
+              statusDotClassName="bg-rose-300"
+            >
+              <div className="space-y-2">
+                {breakdown.characters.map((character, index) => (
+                  <NodeCollapsible
+                    key={character.id}
+                    title={character.nameSuggestion || character.label}
+                    summary={character.role}
+                  >
+                    {CHARACTER_EDITABLE_FIELDS.map((field) => (
+                      <InspectorField
+                        key={field}
+                        label={t(`characterFields.${field}.label`)}
+                      >
+                        <IMEAwareTextarea
+                          value={character[field]}
+                          onValueChange={(next) =>
+                            handleCharacterFieldChange(index, field, next)
+                          }
+                          aria-label={t(`characterFields.${field}.label`)}
+                          placeholder={t(
+                            `characterFields.${field}.placeholder`,
+                          )}
+                          className="min-h-16 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                        />
+                      </InspectorField>
+                    ))}
+                  </NodeCollapsible>
+                ))}
+              </div>
+            </InspectorField>
+          ) : null}
+
+          {breakdown.scenes.length > 0 ? (
+            <InspectorField
+              label={t('breakdownScenesLabel')}
+              statusDotClassName="bg-sky-300"
+            >
+              <div className="space-y-2">
+                {breakdown.scenes.map((scene, index) => (
+                  <NodeCollapsible
+                    key={scene.id}
+                    title={scene.label}
+                    summary={scene.summary}
+                  >
+                    {SCENE_EDITABLE_FIELDS.map((field) => (
+                      <InspectorField
+                        key={field}
+                        label={t(`sceneFields.${field}.label`)}
+                      >
+                        <IMEAwareTextarea
+                          value={scene[field]}
+                          onValueChange={(next) =>
+                            handleSceneFieldChange(index, field, next)
+                          }
+                          aria-label={t(`sceneFields.${field}.label`)}
+                          placeholder={t(`sceneFields.${field}.placeholder`)}
+                          className="min-h-16 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                        />
+                      </InspectorField>
+                    ))}
+                  </NodeCollapsible>
+                ))}
+              </div>
+            </InspectorField>
+          ) : null}
 
           <Button
             type="button"
@@ -405,41 +655,103 @@ export function AgentInspector({ node }: AgentInspectorProps) {
           </InspectorField>
 
           <div className="space-y-2">
-            {seedancePromptPlan.timeline.map((item, index) => (
-              <div
-                key={`timeline-${index}`}
-                className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3"
-              >
-                <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
-                  {t('seedance.timelineRange', {
-                    start: item.startSecond,
-                    end: item.endSecond,
-                  })}
-                </p>
-                <IMEAwareTextarea
-                  value={item.action}
-                  onValueChange={(next) =>
-                    handleTimelineFieldChange(index, 'action', next)
-                  }
-                  aria-label={t('seedance.timelineActionLabel', {
-                    n: index + 1,
-                  })}
-                  placeholder={t('seedance.timelineActionPlaceholder')}
-                  className="min-h-16 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
-                />
-                <IMEAwareInput
-                  value={item.camera}
-                  onValueChange={(next) =>
-                    handleTimelineFieldChange(index, 'camera', next)
-                  }
-                  aria-label={t('seedance.timelineCameraLabel', {
-                    n: index + 1,
-                  })}
-                  placeholder={t('seedance.timelineCameraPlaceholder')}
-                  className="h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-2xs leading-4 text-node-muted outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
-                />
-              </div>
-            ))}
+            {seedancePromptPlan.timeline.map((item, index) => {
+              const startInvalid =
+                Number.isFinite(item.startSecond) &&
+                Number.isFinite(item.endSecond) &&
+                item.endSecond < item.startSecond
+              return (
+                <div
+                  key={`timeline-${index}`}
+                  className="space-y-2 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3"
+                >
+                  <p className="text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                    {t('seedance.timelineLabel', { n: index + 1 })}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {t('seedance.timelineStartLabel')}
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={1}
+                        value={item.startSecond}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          handleTimelineSecondsChange(
+                            index,
+                            'startSecond',
+                            event.target.value,
+                          )
+                        }
+                        aria-label={t('seedance.timelineStartLabelA11y', {
+                          n: index + 1,
+                        })}
+                        className={cn(
+                          'h-9 w-full rounded-xl border bg-node-panel px-3 text-sm leading-5 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          startInvalid
+                            ? 'border-node-danger/60'
+                            : 'border-node-panel-inner',
+                        )}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-2xs font-semibold uppercase tracking-nav-dense text-node-muted">
+                      {t('seedance.timelineEndLabel')}
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={1}
+                        value={item.endSecond}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          handleTimelineSecondsChange(
+                            index,
+                            'endSecond',
+                            event.target.value,
+                          )
+                        }
+                        aria-label={t('seedance.timelineEndLabelA11y', {
+                          n: index + 1,
+                        })}
+                        className={cn(
+                          'h-9 w-full rounded-xl border bg-node-panel px-3 text-sm leading-5 text-node-foreground outline-none focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20',
+                          startInvalid
+                            ? 'border-node-danger/60'
+                            : 'border-node-panel-inner',
+                        )}
+                      />
+                    </label>
+                  </div>
+                  {startInvalid ? (
+                    <p className="text-2xs leading-4 text-node-danger">
+                      {t('seedance.timelineRangeWarning')}
+                    </p>
+                  ) : null}
+                  <IMEAwareTextarea
+                    value={item.action}
+                    onValueChange={(next) =>
+                      handleTimelineFieldChange(index, 'action', next)
+                    }
+                    aria-label={t('seedance.timelineActionLabel', {
+                      n: index + 1,
+                    })}
+                    placeholder={t('seedance.timelineActionPlaceholder')}
+                    className="min-h-16 w-full resize-none rounded-xl border border-node-panel-inner bg-node-panel px-3 py-2 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/30"
+                  />
+                  <IMEAwareInput
+                    value={item.camera}
+                    onValueChange={(next) =>
+                      handleTimelineFieldChange(index, 'camera', next)
+                    }
+                    aria-label={t('seedance.timelineCameraLabel', {
+                      n: index + 1,
+                    })}
+                    placeholder={t('seedance.timelineCameraPlaceholder')}
+                    className="h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel px-3 text-2xs leading-4 text-node-muted outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+                  />
+                </div>
+              )
+            })}
           </div>
 
           <Button

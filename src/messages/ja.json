@@ -2650,6 +2650,70 @@
         }
       },
       "logline": "ログライン",
+      "breakdownFields": {
+        "title": {
+          "label": "ストーリータイトル",
+          "placeholder": "このストーリーの名前…"
+        },
+        "logline": {
+          "label": "ログライン",
+          "placeholder": "ストーリーを一文で…"
+        },
+        "referenceIntent": {
+          "label": "リファレンス意図",
+          "placeholder": "スタイル参考、ビジュアル方向…"
+        }
+      },
+      "breakdownCharactersLabel": "キャラクター一覧",
+      "breakdownScenesLabel": "シーン一覧",
+      "characterFields": {
+        "nameSuggestion": {
+          "label": "推奨名",
+          "placeholder": "キャラクター名…"
+        },
+        "role": {
+          "label": "役割",
+          "placeholder": "主役 / 助演 / 敵役 / ナレーター…"
+        },
+        "functionInStory": {
+          "label": "物語上の役割",
+          "placeholder": "物語の中で何を担うか…"
+        },
+        "personality": {
+          "label": "性格",
+          "placeholder": "性格、口調、癖…"
+        },
+        "visualSeed": {
+          "label": "ビジュアル・シード",
+          "placeholder": "外見、衣装、スタイルキーワード…"
+        },
+        "goal": {
+          "label": "目標 / 動機",
+          "placeholder": "このキャラクターが望むもの…"
+        }
+      },
+      "sceneFields": {
+        "label": {
+          "label": "シーン名",
+          "placeholder": "短いシーン名…"
+        },
+        "summary": {
+          "label": "シーン概要",
+          "placeholder": "このシーンで起きること…"
+        },
+        "location": {
+          "label": "場所",
+          "placeholder": "シーンが起きる空間や環境…"
+        },
+        "timeOfDay": {
+          "label": "時間帯",
+          "placeholder": "朝、夜、夕暮れ…"
+        },
+        "mood": {
+          "label": "雰囲気",
+          "placeholder": "感情、トーン、テンポ…"
+        }
+      },
       "copyRisk": "コピーリスク：{risk}",
       "copyRiskLevels": {
         "low": "低",
@@ -2672,6 +2736,12 @@
         "timeline": "時間軸",
         "timelineCount": "{count} セグメント",
         "timelineRange": "{start}s-{end}s",
+        "timelineLabel": "セグメント {n}",
+        "timelineStartLabel": "開始（秒）",
+        "timelineEndLabel": "終了（秒）",
+        "timelineStartLabelA11y": "セグメント {n} 開始秒",
+        "timelineEndLabelA11y": "セグメント {n} 終了秒",
+        "timelineRangeWarning": "終了秒が開始秒より前です。",
         "finalPrompt": "Seedance プロンプト",
         "finalPromptPlaceholder": "完成版 Seedance プロンプト。編集して動画ノードに適用できます。",
         "headerLabel": "概要",

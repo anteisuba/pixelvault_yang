@@ -2650,6 +2650,70 @@
         }
       },
       "logline": "Logline",
+      "breakdownFields": {
+        "title": {
+          "label": "Story title",
+          "placeholder": "Give this story a name…"
+        },
+        "logline": {
+          "label": "Logline",
+          "placeholder": "Tell the story in one line…"
+        },
+        "referenceIntent": {
+          "label": "Reference intent",
+          "placeholder": "Style references, inspirations, visual direction…"
+        }
+      },
+      "breakdownCharactersLabel": "Characters",
+      "breakdownScenesLabel": "Scenes",
+      "characterFields": {
+        "nameSuggestion": {
+          "label": "Suggested name",
+          "placeholder": "Character's name…"
+        },
+        "role": {
+          "label": "Role",
+          "placeholder": "Protagonist / supporting / antagonist / narrator…"
+        },
+        "functionInStory": {
+          "label": "Function in story",
+          "placeholder": "What they do for the plot…"
+        },
+        "personality": {
+          "label": "Personality",
+          "placeholder": "Traits, voice, habits…"
+        },
+        "visualSeed": {
+          "label": "Visual seed",
+          "placeholder": "Looks, wardrobe, style keywords…"
+        },
+        "goal": {
+          "label": "Goal / motivation",
+          "placeholder": "What this character wants…"
+        }
+      },
+      "sceneFields": {
+        "label": {
+          "label": "Scene title",
+          "placeholder": "Short scene name…"
+        },
+        "summary": {
+          "label": "Scene summary",
+          "placeholder": "What happens in this beat…"
+        },
+        "location": {
+          "label": "Location",
+          "placeholder": "Where the scene takes place…"
+        },
+        "timeOfDay": {
+          "label": "Time of day",
+          "placeholder": "Morning, night, dusk…"
+        },
+        "mood": {
+          "label": "Mood",
+          "placeholder": "Emotion, tone, pacing…"
+        }
+      },
       "copyRisk": "Copy risk: {risk}",
       "copyRiskLevels": {
         "low": "Low",
@@ -2672,6 +2736,12 @@
         "timeline": "Timeline",
         "timelineCount": "{count, plural, one {# segment} other {# segments}}",
         "timelineRange": "{start}s-{end}s",
+        "timelineLabel": "Segment {n}",
+        "timelineStartLabel": "Start (s)",
+        "timelineEndLabel": "End (s)",
+        "timelineStartLabelA11y": "Segment {n} start second",
+        "timelineEndLabelA11y": "Segment {n} end second",
+        "timelineRangeWarning": "End second is before start second.",
         "finalPrompt": "Seedance prompt",
         "finalPromptPlaceholder": "Full Seedance prompt — edit before applying to the video node.",
         "headerLabel": "Summary",

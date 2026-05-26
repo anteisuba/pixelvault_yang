@@ -111,7 +111,8 @@ const Model3DQueueMetaSchema = z
     mesh: Model3DCompletedQueueHandleSchema.optional(),
     final: Model3DQueueHandleSchema.optional(),
     finalResult: Model3DProviderResultSchema.optional(),
-    sourceImageUrl: z.string().url(),
+    // Optional for Rodin text-to-3D where there's no source image at all.
+    sourceImageUrl: z.string().url().optional(),
     preparedImageUrl: z.string().url().optional(),
     sourceGenerationId: z.string().optional(),
     projectId: z.string().optional(),
@@ -273,6 +274,18 @@ export async function submit3DGenerationForUserId(
       400,
     )
   }
+
+  // Text-to-3D is only supported via the Worker path (Rodin). Any caller
+  // reaching the legacy inline path without a source image is a programmer
+  // error — guard so the rest of the function can treat imageUrl as defined.
+  if (!input.imageUrl) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Source image URL is required for this 3D model.',
+      400,
+    )
+  }
+  const inputImageUrl = input.imageUrl
 
   let sourceQualityReport: Awaited<
     ReturnType<typeof inspect3DSourceImageQuality>
@@ -725,7 +738,9 @@ export async function retryMesh3DGenerationForUserId(
       adapterType: executionRoute.adapterType,
       submit: providerAdapter.submitModel3DToQueue,
       input: {
-        imageUrl: queueMeta.preparedImageUrl ?? queueMeta.sourceImageUrl,
+        // Hunyuan inline path only runs for image-to-3D — text-to-3D is
+        // Rodin-only and dispatches to the Worker path.
+        imageUrl: (queueMeta.preparedImageUrl ?? queueMeta.sourceImageUrl)!,
         modelId: executionRoute.modelId,
         providerConfig: executionRoute.providerConfig,
         apiKey: executionRoute.apiKey,
@@ -936,6 +951,25 @@ async function submitWorker3DGeneration({
     executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
     input.rodinTextureOnly === true
 
+  // Rodin Gen-2.5 text-to-3D: prompt-only generation (no source image).
+  // The /api/v2/rodin endpoint auto-detects text mode when no `images` are
+  // attached — submitRodinJob already guards `imageUrl` before uploading.
+  const isRodinTextToThreeD =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
+    !input.imageUrl &&
+    !!input.rodinPrompt?.trim()
+
+  if (
+    isRodinTextToThreeD &&
+    (!input.rodinPrompt || !input.rodinPrompt.trim())
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Text-to-3D mode requires a non-empty prompt.',
+      400,
+    )
+  }
+
   let parentMeshUrl: string | undefined
   let effectiveSourceImageUrl = input.imageUrl
 
@@ -977,51 +1011,64 @@ async function submitWorker3DGeneration({
     effectiveSourceImageUrl = parent.referenceImageUrl ?? input.imageUrl
   }
 
+  // Text-to-3D skips image-related steps entirely (no source image to check
+  // or prep). The Worker will dispatch with no `images` field — Rodin auto-
+  // selects text-to-3D mode when nothing is uploaded.
   let sourceQualityReport: Awaited<
     ReturnType<typeof inspect3DSourceImageQuality>
-  >
-  try {
-    sourceQualityReport = await inspect3DSourceImageQuality(
-      effectiveSourceImageUrl,
-      {
-        userId,
-      },
-    )
-  } catch (error) {
-    logger.warn('3D source quality inspection failed', {
-      imageUrl: effectiveSourceImageUrl,
-      error: error instanceof Error ? error.message : String(error),
-    })
+  > | null = null
+  let preparedImageUrl: string | undefined
+
+  if (isRodinTextToThreeD) {
+    preparedImageUrl = undefined
+  } else if (!effectiveSourceImageUrl) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
-      'Source image is not accessible or is not a valid raster image.',
-      422,
+      'Source image URL is required for image-to-3D generation.',
+      400,
     )
-  }
+  } else {
+    try {
+      sourceQualityReport = await inspect3DSourceImageQuality(
+        effectiveSourceImageUrl,
+        { userId },
+      )
+    } catch (error) {
+      logger.warn('3D source quality inspection failed', {
+        imageUrl: effectiveSourceImageUrl,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Source image is not accessible or is not a valid raster image.',
+        422,
+      )
+    }
 
-  // Texture-only continuations re-use an already-validated mesh from the
-  // parent — skip the LLM semantic check (mesh + reference were already
-  // accepted on the mesh-first pass). Still surface raster-format failures
-  // because the LLM check is inside inspect3DSourceImageQuality already.
-  if (!isRodinTextureOnly && sourceQualityReport.blockingIssues.length > 0) {
-    throw new GenerateImageServiceError(
-      'VALIDATION_ERROR',
-      build3DSourceQualityMessage(sourceQualityReport),
-      422,
-    )
-  }
+    // Texture-only continuations re-use an already-validated mesh from the
+    // parent — skip the LLM semantic check (mesh + reference were already
+    // accepted on the mesh-first pass). Still surface raster-format failures
+    // because the LLM check is inside inspect3DSourceImageQuality already.
+    if (!isRodinTextureOnly && sourceQualityReport.blockingIssues.length > 0) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        build3DSourceQualityMessage(sourceQualityReport),
+        422,
+      )
+    }
 
-  // Texture-only also skips prep (upscale/whitepad) — the reference image
-  // was already prepped before the mesh-only pass.
-  const preparedImageUrl = isRodinTextureOnly
-    ? effectiveSourceImageUrl
-    : input.prep3D === false
+    // Texture-only also skips prep (upscale/whitepad) — the reference image
+    // was already prepped before the mesh-only pass.
+    preparedImageUrl = isRodinTextureOnly
       ? effectiveSourceImageUrl
-      : await prepare3DSourceImage({
-          imageUrl: effectiveSourceImageUrl,
-          userId,
-          falApiKey: executionRoute.apiKey,
-        })
+      : input.prep3D === false
+        ? effectiveSourceImageUrl
+        : await prepare3DSourceImage({
+            imageUrl: effectiveSourceImageUrl,
+            userId,
+            falApiKey: executionRoute.apiKey,
+          })
+  }
 
   const generationJob = await createGenerationJob({
     userId,
@@ -1079,7 +1126,7 @@ async function submitWorker3DGeneration({
         prompt: input.prompt ?? '',
         apiKeyId: executionRoute.resolvedApiKeyId,
         multiViewImages: input.multiViewImages,
-        sourceQuality: sourceQualityReport,
+        sourceQuality: sourceQualityReport ?? undefined,
         ...(isRodinMeshFirstJob && { rodinMeshFirst: true }),
         ...(input.parentGenerationId && {
           parentGenerationId: input.parentGenerationId,
@@ -1107,7 +1154,8 @@ function buildModel3DWorkerContext(params: {
   userId: string
   executionRoute: GenerationExecutionRoute
   input: Generate3DRequest
-  preparedImageUrl: string
+  /** Undefined for Rodin text-to-3D mode (no source image at all). */
+  preparedImageUrl: string | undefined
   modelConfig: ReturnType<typeof getModelById>
   /** Pre-resolved by submitWorker3DGeneration when input.rodinTextureOnly. */
   rodinTextureOnly?: boolean
@@ -1488,7 +1536,9 @@ async function submitFinalTextured3DQueue(params: {
     adapterType: executionRoute.adapterType,
     submit: params.submitModel3DToQueue,
     input: {
-      imageUrl: queueMeta.preparedImageUrl ?? queueMeta.sourceImageUrl,
+      // Hunyuan/TripoSR continue path is image-to-3D only — text-to-3D is
+      // Rodin-only and dispatches to the Worker path.
+      imageUrl: (queueMeta.preparedImageUrl ?? queueMeta.sourceImageUrl)!,
       modelId: executionRoute.modelId,
       providerConfig: executionRoute.providerConfig,
       apiKey: executionRoute.apiKey,

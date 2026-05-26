@@ -379,6 +379,10 @@ export function Studio3DWorkspace({
   // `rodinMaterial` choice + `parentGenerationId` set. OFF preserves the
   // single-job behaviour.
   const [rodinMeshFirst, setRodinMeshFirst] = useState(false)
+  // Rodin Gen-2.5 text-to-3D: when ON, Generate is enabled even without a
+  // source image — Rodin auto-selects text-to-3D mode when no `images` are
+  // attached. Prompt becomes required in this mode.
+  const [rodinTextMode, setRodinTextMode] = useState(false)
   // Client-side "Keep as final" memory — server doesn't know about it (avoids
   // a Generation mutation route). Once dismissed for a given mesh Generation
   // id the Continue/Keep buttons stop appearing on subsequent views of it.
@@ -676,11 +680,16 @@ export function Studio3DWorkspace({
     [generatedViews, manualMultiViewImages],
   )
 
+  // Rodin text-to-3D mode bypasses the source image requirement: a non-empty
+  // prompt is enough to generate. All other models still require a source.
+  const isRodinTextOnlySubmit =
+    isRodin && rodinTextMode && rodinPrompt.trim().length > 0
   const canGenerate =
-    !!sourceImage &&
     !isGenerating &&
     (isRodin ? hasRodinKey : hasFalKey) &&
-    sourceQualityIssues.length === 0
+    (isRodinTextOnlySubmit
+      ? true
+      : !!sourceImage && sourceQualityIssues.length === 0)
 
   // Core submission — split out so `handleGenerate` and `handleRefineWithHunyuan`
   // (P6: TripoSR base → Hunyuan3D refine) can share the param-assembly logic.
@@ -704,7 +713,12 @@ export function Studio3DWorkspace({
   }) => {
     const targetModelId = override?.modelId ?? selectedModelId
     const targetSourceUrl = override?.sourceUrl ?? sourceImage?.url
-    if (!targetSourceUrl) return
+
+    const targetIsRodin = targetModelId === AI_MODELS.RODIN_GEN_2_5
+    // Rodin text-to-3D: the prompt alone is enough — no source image needed.
+    const isTextOnlySubmit =
+      targetIsRodin && rodinTextMode && rodinPrompt.trim().length > 0
+    if (!targetSourceUrl && !isTextOnlySubmit) return
 
     const targetSourceGenId =
       override?.sourceGenerationId !== undefined
@@ -718,10 +732,8 @@ export function Studio3DWorkspace({
       ? getMultiViewImages(effectiveMultiViewViews)
       : undefined
 
-    const targetIsRodin = targetModelId === AI_MODELS.RODIN_GEN_2_5
-
     const params: Generate3DRequest = {
-      imageUrl: targetSourceUrl,
+      ...(targetSourceUrl && { imageUrl: targetSourceUrl }),
       modelId: targetModelId,
       ...(targetSourceGenId && { sourceGenerationId: targetSourceGenId }),
       ...(targetPrompt && { prompt: targetPrompt }),

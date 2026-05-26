@@ -2650,6 +2650,70 @@
         }
       },
       "logline": "梗概",
+      "breakdownFields": {
+        "title": {
+          "label": "故事标题",
+          "placeholder": "为这个故事起个名字…"
+        },
+        "logline": {
+          "label": "梗概",
+          "placeholder": "一句话讲清楚这个故事…"
+        },
+        "referenceIntent": {
+          "label": "参考意图",
+          "placeholder": "希望参考的风格、参照作品或视觉方向…"
+        }
+      },
+      "breakdownCharactersLabel": "角色清单",
+      "breakdownScenesLabel": "场景清单",
+      "characterFields": {
+        "nameSuggestion": {
+          "label": "建议姓名",
+          "placeholder": "角色姓名…"
+        },
+        "role": {
+          "label": "角色定位",
+          "placeholder": "主角 / 配角 / 反派 / 旁白…"
+        },
+        "functionInStory": {
+          "label": "故事职能",
+          "placeholder": "在故事里承担的功能…"
+        },
+        "personality": {
+          "label": "性格",
+          "placeholder": "性格特征、语气、习惯…"
+        },
+        "visualSeed": {
+          "label": "视觉种子",
+          "placeholder": "外观特征、服装、风格关键词…"
+        },
+        "goal": {
+          "label": "动机 / 目标",
+          "placeholder": "这个角色想要什么…"
+        }
+      },
+      "sceneFields": {
+        "label": {
+          "label": "场景标题",
+          "placeholder": "简短场景名…"
+        },
+        "summary": {
+          "label": "场景概要",
+          "placeholder": "这一幕发生了什么…"
+        },
+        "location": {
+          "label": "地点",
+          "placeholder": "场景所在的空间或环境…"
+        },
+        "timeOfDay": {
+          "label": "时间",
+          "placeholder": "清晨、夜晚、黄昏…"
+        },
+        "mood": {
+          "label": "氛围",
+          "placeholder": "情绪、色调、节奏…"
+        }
+      },
       "copyRisk": "版权风险：{risk}",
       "copyRiskLevels": {
         "low": "低",
@@ -2672,6 +2736,12 @@
         "timeline": "时间轴",
         "timelineCount": "{count} 段",
         "timelineRange": "{start}s-{end}s",
+        "timelineLabel": "第 {n} 段",
+        "timelineStartLabel": "起始秒",
+        "timelineEndLabel": "结束秒",
+        "timelineStartLabelA11y": "第 {n} 段起始秒",
+        "timelineEndLabelA11y": "第 {n} 段结束秒",
+        "timelineRangeWarning": "结束秒早于起始秒，请检查。",
         "finalPrompt": "Seedance 提示词",
         "finalPromptPlaceholder": "完整的 Seedance 提示词，可直接编辑后再写入视频节点。",
         "headerLabel": "概要",

@@ -767,8 +767,12 @@ export const Model3DMultiViewImagesSchema = z
   .partial()
 
 export const Generate3DRequestSchema = z.object({
-  /** Public URL of the source image (already in user's R2 / asset library) */
-  imageUrl: z.string().trim().url('Source image URL is required'),
+  /**
+   * Public URL of the source image. Required for image-to-3D mode. For Rodin
+   * Gen-2.5 text-to-3D (`rodinPrompt` set, no image), this field is omitted
+   * and the service skips source quality checks / preprocessing entirely.
+   */
+  imageUrl: z.string().trim().url('Source image URL is required').optional(),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   /** Hunyuan3D: enable PBR-textured mesh (3x cost). Ignored by TripoSR. */
   texturedMesh: z.boolean().optional(),
@@ -1329,7 +1333,8 @@ export const WorkerModel3DRunContextSchema = z.object({
   pollIntervalMs: z.number().int().positive(),
   providerInput: z
     .object({
-      imageUrl: z.string().url(),
+      // Optional for Rodin text-to-3D mode (prompt only, no source image).
+      imageUrl: z.string().url().optional(),
       modelId: z.string().min(1),
       externalModelId: z.string().min(1),
       seed: z.number().int().optional(),

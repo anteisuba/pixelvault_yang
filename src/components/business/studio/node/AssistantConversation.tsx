@@ -46,8 +46,8 @@ export function AssistantConversation({
   )
 
   return (
-    <div className="flex min-h-72 shrink-0 flex-col bg-node-panel/70">
-      <div className="max-h-40 min-h-16 space-y-3 overflow-y-auto px-4 py-3">
+    <div className="flex min-h-56 shrink-0 flex-col bg-node-panel/70 md:min-h-72">
+      <div className="max-h-32 min-h-16 space-y-3 overflow-y-auto px-3 py-2 md:max-h-40 md:px-4 md:py-3">
         {messages.length === 0 ? (
           <div className="flex min-h-14 flex-col justify-center text-sm leading-6 text-node-muted">
             {t('empty')}
@@ -114,22 +114,22 @@ export function AssistantConversation({
 
       <form
         onSubmit={handleSubmit}
-        className="border-t border-node-panel-inner px-4 pb-4 pt-3"
+        className="border-t border-node-panel-inner px-3 pb-3 pt-2 md:px-4 md:pb-4 md:pt-3"
       >
         <Textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={t('placeholder')}
-          className="min-h-28 resize-none rounded-3xl border-node-panel-inner bg-node-panel-soft px-4 py-3 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30"
+          className="min-h-20 resize-none rounded-3xl border-node-panel-inner bg-node-panel-soft px-3 py-2.5 text-sm leading-6 text-node-foreground shadow-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-node-amber/30 md:min-h-28 md:px-4 md:py-3"
         />
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="inline-flex h-8 min-w-0 items-center truncate rounded-full border border-node-panel-inner bg-node-panel-soft px-3 text-2xs font-medium text-node-subtle">
+        <div className="mt-2 flex items-center justify-between gap-2 md:mt-3 md:gap-3">
+          <span className="hidden h-8 min-w-0 items-center truncate rounded-full border border-node-panel-inner bg-node-panel-soft px-3 text-2xs font-medium text-node-subtle sm:inline-flex">
             {t('modeHint')}
           </span>
           <Button
             type="submit"
             disabled={!draft.trim() || isLoading}
-            className="h-10 rounded-2xl bg-node-foreground px-4 text-xs font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted"
+            className="ml-auto h-9 rounded-2xl bg-node-foreground px-3 text-xs font-semibold text-node-canvas hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-muted md:h-10 md:px-4"
           >
             {isLoading ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />

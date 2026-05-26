@@ -231,7 +231,7 @@ export function CanvasAssistantRouteSelector({
             type="button"
             aria-label={t('triggerLabel')}
             aria-expanded={open}
-            className="group flex h-8 max-w-40 items-center gap-1.5 rounded-2xl px-2 text-xs text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-amber/35"
+            className="group flex h-8 max-w-24 items-center gap-1 rounded-2xl px-1.5 text-xs text-node-muted transition-colors hover:bg-node-panel-inner hover:text-node-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-node-amber/35 sm:max-w-40 sm:gap-1.5 sm:px-2"
           >
             <span className="relative flex size-4 shrink-0 items-center justify-center">
               <Bot className="size-3.5 text-node-amber" />
@@ -244,7 +244,9 @@ export function CanvasAssistantRouteSelector({
                 />
               ) : null}
             </span>
-            <span className="min-w-0 truncate">{selectedLabel}</span>
+            <span className="hidden min-w-0 truncate sm:inline">
+              {selectedLabel}
+            </span>
             <ChevronDown
               className={cn(
                 'size-3 shrink-0 transition-transform',

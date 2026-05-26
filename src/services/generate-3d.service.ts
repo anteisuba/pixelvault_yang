@@ -143,6 +143,19 @@ const Model3DQueueMetaSchema = z
      * by this service — `serializeQueueMeta` injects it automatically.
      */
     outputType: z.literal('MODEL_3D').optional(),
+    /**
+     * Hyper3D Rodin Gen-2.5 mesh-first: marks this job as the mesh-only
+     * first pass (material was forced to 'None'). Surfaces a "Continue with
+     * textures" affordance in the UI and is mirrored onto the resulting
+     * Generation's `snapshot`. Distinct from Hunyuan3D's MESH_FIRST flow.
+     */
+    rodinMeshFirst: z.boolean().optional(),
+    /**
+     * Hyper3D Rodin Gen-2.5 mesh-first: when this job is the textured
+     * continuation, the id of the mesh-only Generation it descends from.
+     * Mirrored onto the Generation's `snapshot` for gallery linkage.
+     */
+    parentGenerationId: z.string().min(1).optional(),
   })
   .passthrough()
 
@@ -986,6 +999,14 @@ async function submitWorker3DGeneration({
     throw new GenerateImageServiceError('PROVIDER_ERROR', message, 502)
   }
 
+  // Rodin mesh-first lineage: persisted on the job's queue meta so the
+  // callback service can mirror it onto the resulting Generation's snapshot.
+  // First-pass jobs carry `rodinMeshFirst=true`; textured continuations carry
+  // `parentGenerationId` pointing at the mesh-only Generation.
+  const isRodinMeshFirstJob =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
+    input.rodinMeshFirst === true
+
   await db.generationJob.update({
     where: { id: generationJob.id },
     data: {
@@ -998,6 +1019,10 @@ async function submitWorker3DGeneration({
         apiKeyId: executionRoute.resolvedApiKeyId,
         multiViewImages: input.multiViewImages,
         sourceQuality: sourceQualityReport,
+        ...(isRodinMeshFirstJob && { rodinMeshFirst: true }),
+        ...(input.parentGenerationId && {
+          parentGenerationId: input.parentGenerationId,
+        }),
       }),
       prompt: input.prompt ?? '',
     },
@@ -1007,6 +1032,10 @@ async function submitWorker3DGeneration({
     adapter: executionRoute.adapterType,
     modelId: executionRoute.modelId,
     jobId: generationJob.id,
+    ...(isRodinMeshFirstJob && { rodinMeshFirst: true }),
+    ...(input.parentGenerationId && {
+      parentGenerationId: input.parentGenerationId,
+    }),
   })
 
   return { jobId: generationJob.id, requestId: generationJob.id }
@@ -1028,6 +1057,15 @@ function buildModel3DWorkerContext(params: {
     preparedImageUrl,
     modelConfig,
   } = params
+
+  // Rodin mesh-first first pass: force material='None' so the provider returns
+  // an untextured mesh (faster + cheaper). The user's actual material choice
+  // is replayed when they click "Continue with textures", which issues a new
+  // independent submit with `rodinMeshFirst=false` + parentGenerationId set.
+  const isRodinMeshFirst =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
+    input.rodinMeshFirst === true
+  const effectiveMaterial = isRodinMeshFirst ? 'None' : input.rodinMaterial
 
   return {
     runId,
@@ -1056,7 +1094,7 @@ function buildModel3DWorkerContext(params: {
       meshMode: input.rodinMeshMode,
       quality: input.rodinQuality,
       textureMode: input.rodinTextureMode,
-      material: input.rodinMaterial,
+      material: effectiveMaterial,
       highPack: input.rodinHighPack,
       taPose: input.rodinTAPose,
       hdTexture: input.rodinHdTexture,

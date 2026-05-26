@@ -894,6 +894,23 @@ export const Generate3DRequestSchema = z.object({
    * When false the existing auto-chain behaviour is preserved.
    */
   staged: z.boolean().optional(),
+  /**
+   * Hyper3D Rodin Gen-2.5: when true, force `material='None'` on the dispatched
+   * provider input so the first job emits a mesh-only preview (faster + cheaper,
+   * no texture cost). The UI surfaces a "Continue with textures" button after
+   * the mesh-only Generation lands; clicking it re-submits a second independent
+   * job with the user's actual material choice + `parentGenerationId` set.
+   * Distinct from Hunyuan3D's `previewMode=MESH_FIRST` (single-job two-stage
+   * pipeline) — Rodin is two fully independent jobs that each bill separately.
+   */
+  rodinMeshFirst: z.boolean().optional(),
+  /**
+   * Mesh-first lineage: id of the mesh-only Generation that this textured
+   * generation continues from. Persisted onto the textured Generation's
+   * `snapshot` JSON so the gallery / UI can hide the mesh-only preview once
+   * its textured continuation exists.
+   */
+  parentGenerationId: z.string().trim().min(1).optional(),
 })
 
 export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>

@@ -373,6 +373,18 @@ export function Studio3DWorkspace({
   const [rodinAdditionalImages, setRodinAdditionalImages] = useState<string[]>(
     [],
   )
+  // Rodin mesh-first: when ON, the first job is dispatched with material='None'
+  // (untextured mesh only). The viewer then surfaces a "Continue with textures"
+  // button that re-submits a second independent job with the user's actual
+  // `rodinMaterial` choice + `parentGenerationId` set. OFF preserves the
+  // single-job behaviour.
+  const [rodinMeshFirst, setRodinMeshFirst] = useState(false)
+  // Client-side "Keep as final" memory — server doesn't know about it (avoids
+  // a Generation mutation route). Once dismissed for a given mesh Generation
+  // id the Continue/Keep buttons stop appearing on subsequent views of it.
+  const [keptAsFinalIds, setKeptAsFinalIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [uploadingRodinAngle, setUploadingRodinAngle] = useState<string | null>(
     null,
   )
@@ -680,6 +692,12 @@ export function Studio3DWorkspace({
     sourceGenerationId?: string | null
     sourcePrompt?: string
     seed?: number
+    /** Rodin mesh-first: force the toggle OFF on this submit (used by the
+     *  "Continue with textures" path so the textured pass doesn't loop). */
+    forceMeshFirstOff?: boolean
+    /** Rodin mesh-first: lineage pointer from a textured continuation back to
+     *  its mesh-only parent Generation. */
+    parentGenerationId?: string
   }) => {
     const targetModelId = override?.modelId ?? selectedModelId
     const targetSourceUrl = override?.sourceUrl ?? sourceImage?.url
@@ -785,6 +803,14 @@ export function Studio3DWorkspace({
                 RODIN_MAX_REFERENCE_IMAGES - 1,
               ),
             }),
+            // Mesh-first: dispatched as material='None' server-side. The
+            // "Continue with textures" button on the resulting Generation
+            // re-submits with rodinMeshFirst=false + parentGenerationId set.
+            ...(rodinMeshFirst &&
+              !override?.forceMeshFirstOff && { rodinMeshFirst: true }),
+            ...(override?.parentGenerationId && {
+              parentGenerationId: override.parentGenerationId,
+            }),
           }
         })()),
     }
@@ -835,6 +861,51 @@ export function Studio3DWorkspace({
     await submitGenerate({
       modelId: displayGeneration.model,
       seed: newSeed,
+    })
+  }
+
+  // Rodin mesh-first continuation. Visible when the current Generation was the
+  // mesh-only first pass (snapshot.rodinMeshFirst === true) and the user hasn't
+  // dismissed the affordance ("Keep as final"). Clicking re-submits a second
+  // independent Rodin job using the SAME source image + the user's CURRENT
+  // material selection in the Inspector (defaults to PBR), with
+  // rodinMeshFirst forced OFF + parentGenerationId set for lineage.
+  const meshFirstSnapshot =
+    displayGeneration?.snapshot &&
+    typeof displayGeneration.snapshot === 'object' &&
+    !Array.isArray(displayGeneration.snapshot)
+      ? (displayGeneration.snapshot as Record<string, unknown>)
+      : null
+  const isDisplayingMeshOnlyPreview =
+    !!displayGeneration &&
+    displayGeneration.model === AI_MODELS.RODIN_GEN_2_5 &&
+    meshFirstSnapshot?.rodinMeshFirst === true
+  const canContinueToTextures =
+    isDisplayingMeshOnlyPreview &&
+    !isGenerating &&
+    hasRodinKey &&
+    !keptAsFinalIds.has(displayGeneration!.id) &&
+    !!(displayGeneration!.referenceImageUrl ?? displayGeneration!.url)
+
+  const handleContinueToTextures = async () => {
+    if (!canContinueToTextures || !displayGeneration) return
+    const sourceUrl =
+      displayGeneration.referenceImageUrl ?? displayGeneration.url
+    await submitGenerate({
+      modelId: AI_MODELS.RODIN_GEN_2_5,
+      sourceUrl,
+      sourceGenerationId: null,
+      forceMeshFirstOff: true,
+      parentGenerationId: displayGeneration.id,
+    })
+  }
+
+  const handleKeepAsFinal = () => {
+    if (!displayGeneration) return
+    setKeptAsFinalIds((prev) => {
+      const next = new Set(prev)
+      next.add(displayGeneration.id)
+      return next
     })
   }
 
@@ -1195,7 +1266,37 @@ export function Studio3DWorkspace({
                     )}
                   </Button>
                 )}
+                {/* Rodin mesh-first continuation pair. Appears once on a
+                    mesh-only preview; "Keep as final" dismisses both
+                    (client-side state, see keptAsFinalIds). */}
+                {canContinueToTextures && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleContinueToTextures()}
+                    >
+                      <Sparkles className="mr-1.5 size-3.5" />
+                      {t('rodinContinueToTextureLabel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleKeepAsFinal}
+                    >
+                      <Check className="mr-1.5 size-3.5" />
+                      {t('rodinKeepAsFinalLabel')}
+                    </Button>
+                  </>
+                )}
               </div>
+              {isDisplayingMeshOnlyPreview && (
+                <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm dark:text-amber-300">
+                  <Box className="size-3.5" />
+                  <span>{t('rodinMeshOnlyPreviewBadge')}</span>
+                </div>
+              )}
             </div>
           ) : isGenerating && provisionalModelUrl ? (
             /*
@@ -2077,6 +2178,27 @@ export function Studio3DWorkspace({
                   >
                     {t('rodinHighPackLabel')}
                   </Label>
+                </div>
+                {/* Mesh-first preview: dispatches first job with material=None.
+                    A "Continue with textures" affordance appears on the
+                    resulting Generation. */}
+                <div className="mt-2 flex items-start gap-2 border-t border-border/40 pt-2">
+                  <Switch
+                    id="rodin-mesh-first"
+                    checked={rodinMeshFirst}
+                    onCheckedChange={setRodinMeshFirst}
+                  />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="rodin-mesh-first"
+                      className="cursor-pointer text-xs font-medium"
+                    >
+                      {t('rodinMeshFirstLabel')}
+                    </Label>
+                    <p className="mt-0.5 font-serif text-[11px] italic leading-snug text-muted-foreground">
+                      {t('rodinMeshFirstHint')}
+                    </p>
+                  </div>
                 </div>
               </div>
 

@@ -88,6 +88,19 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     projectId: z.string().min(1).optional(),
     isFreeGeneration: z.boolean().optional(),
     audioFormat: z.string().min(1).optional(),
+    /**
+     * Hyper3D Rodin mesh-first: true on the first-pass mesh-only Generation.
+     * Mirrored from the job's queue meta — see `submitWorker3DGeneration` in
+     * generate-3d.service.ts. The UI uses it to surface "Continue with
+     * textures" / "Keep as final" affordances on the resulting Generation.
+     */
+    rodinMeshFirst: z.boolean().optional(),
+    /**
+     * Hyper3D Rodin mesh-first: lineage pointer from a textured continuation
+     * back to its mesh-only parent Generation. Lets the gallery hide the
+     * mesh-only preview once its textured continuation lands.
+     */
+    parentGenerationId: z.string().min(1).optional(),
   })
 
 function parseWorkerJobMetadata(value: string | null) {
@@ -491,6 +504,14 @@ async function finalizeModel3DResult(
                   providerMetadata: resultData.providerMetadata,
                   cost: resultData.cost,
                 },
+                // Rodin mesh-first lineage. `rodinMeshFirst=true` marks this
+                // Generation as a mesh-only preview that the UI can offer to
+                // continue with textures or keep as final. `parentGenerationId`
+                // links a textured continuation back to its mesh-only parent.
+                ...(metadata.rodinMeshFirst && { rodinMeshFirst: true }),
+                ...(metadata.parentGenerationId && {
+                  parentGenerationId: metadata.parentGenerationId,
+                }),
               },
               timer,
             ),
@@ -531,6 +552,10 @@ async function finalizeModel3DResult(
     logger.info('Execution callback MODEL_3D result finalized', {
       runId: job.id,
       generationId: generation.id,
+      ...(metadata.rodinMeshFirst && { rodinMeshFirst: true }),
+      ...(metadata.parentGenerationId && {
+        parentGenerationId: metadata.parentGenerationId,
+      }),
     })
     timer.setContext({ generationId: generation.id })
     timer.log({ runId: job.id })

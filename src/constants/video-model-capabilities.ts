@@ -53,12 +53,16 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     requiresReferenceImage: true,
   },
   [AI_MODELS.SEEDANCE_20]: {
-    supportedDurations: [4, 5, 8, 10, 15],
+    // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   [AI_MODELS.SEEDANCE_20_FAST]: {
-    supportedDurations: [4, 5, 8, 10, 15],
+    // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
@@ -74,13 +78,17 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   },
   // Voice-cloning endpoints — only path to use voice node's reference audio
   [AI_MODELS.SEEDANCE_20_REFERENCE]: {
-    supportedDurations: [4, 5, 8, 10, 15],
+    // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },
   },
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: {
-    supportedDurations: [4, 5, 8, 10, 15],
+    // fal Seedance 2.0 enum: auto | 4..15 (every integer).
+    // https://fal.ai/models/bytedance/seedance-2.0/reference-to-video
+    supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['480p', '720p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },

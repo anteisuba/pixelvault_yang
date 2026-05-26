@@ -61,11 +61,19 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { CharacterImageLoraControls } from '@/components/business/studio/node/CharacterImageLoraControls'
 import { CharacterImageReferenceControls } from '@/components/business/studio/node/CharacterImageReferenceControls'
 import { WorkflowModelPicker } from '@/components/business/studio/node/WorkflowModelPicker'
+import { useCharacterCards } from '@/hooks/use-character-cards'
 import { useNodeReferenceUpload } from '@/hooks/use-node-reference-upload'
 import { useRouter } from '@/i18n/navigation'
 import { getUpstreamNodes, isVoiceProfileNode } from '@/lib/node-workflow-graph'
-import type { GenerationRecord, NodeWorkflowNode } from '@/types'
-import type { NodeWorkflowEdge } from '@/types/node-workflow'
+import type {
+  CharacterCardRecord,
+  GenerationRecord,
+  NodeWorkflowNode,
+} from '@/types'
+import type {
+  NodeWorkflowEdge,
+  NodeWorkflowReferenceAsset,
+} from '@/types/node-workflow'
 
 import { useNodeWorkflowActions } from '../NodeWorkflowActionsContext'
 import { InspectorField } from './InspectorField'
@@ -103,6 +111,16 @@ export function CharacterImageInspector({
     useNodeWorkflowActions()
   const { uploadFile, isUploading: isExistingImageUploading } =
     useNodeReferenceUpload()
+  // Character library — used by the "from card library" choice. Owns its
+  // own fetch / cache so node studio doesn't need the full StudioData
+  // context (this page is outside the (workspace) sub-layout).
+  const {
+    cards: characterCards,
+    isLoading: isLoadingCards,
+    findCard,
+  } = useCharacterCards()
+  const [cardPickerOpen, setCardPickerOpen] = useState(false)
+  const [cardPickerQuery, setCardPickerQuery] = useState('')
   const imageUrl =
     typeof node.data.imageUrl === 'string' ? node.data.imageUrl : null
   const imageSource =
@@ -195,6 +213,91 @@ export function CharacterImageInspector({
       imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.ai,
     })
   }, [node.id, updateNodeData])
+
+  /**
+   * Hydrate the character image node from a library card. The card's
+   * cover image becomes the node's existing image, the card's prompt
+   * becomes the node prompt, reference images become reference assets
+   * (so downstream Seedance gets multi-angle refs), and the cardId is
+   * stored so the binding is recoverable later.
+   *
+   * LoRAs on the card are skipped for V1 — card.loras only carries
+   * `{ url, scale }`, while the node's lora schema needs the full
+   * NodeWorkflowLoraSelection shape (assetId, name, type, baseModel…).
+   * Once we have a card → node lora bridge that resolves the asset
+   * record, this is the place to wire it.
+   */
+  const handleApplyCard = useCallback(
+    (card: CharacterCardRecord) => {
+      // Each card reference image becomes an "asset"-source reference,
+      // with sourceId = `${card.id}:${index}` so the same card applied
+      // twice doesn't collide. The first source image takes the
+      // identity role; the rest default to identity too (the user can
+      // tweak roles in the per-reference popover after applying).
+      const referenceUrls: string[] = [
+        card.sourceImageUrl,
+        ...(card.referenceImages ?? []),
+      ].filter(
+        (url, index, list) =>
+          typeof url === 'string' &&
+          url.trim().length > 0 &&
+          list.indexOf(url) === index,
+      )
+      const referenceAssets: NodeWorkflowReferenceAsset[] = referenceUrls
+        .slice(0, NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.maxItems)
+        .map((url, index) => ({
+          id: `${card.id}:${index}`,
+          url,
+          role: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultRole,
+          weight: NODE_STUDIO_CHARACTER_IMAGE_REFERENCES.defaultWeight,
+          source: NODE_STUDIO_REFERENCE_SOURCE_IDS.asset,
+          sourceId: card.id,
+          name: card.name,
+        }))
+
+      updateNodeData(node.id, {
+        cardId: card.id,
+        characterName: card.name,
+        prompt: card.characterPrompt || card.description || '',
+        imageMode: NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS.existing,
+        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+        imageUrl: card.sourceImageUrl,
+        sourceGenerationId: undefined,
+        sourceLabel: card.name,
+        referenceAssets,
+      })
+      setCardPickerOpen(false)
+      setCardPickerQuery('')
+      toast.success(t('cardLibrary.applied', { name: card.name }), {
+        duration: NODE_STUDIO_PLACEHOLDER_TOAST.durationMs,
+        position: NODE_STUDIO_PLACEHOLDER_TOAST.position,
+      })
+    },
+    [node.id, t, updateNodeData],
+  )
+
+  // Filter the card library by free-form query (matches name and tags).
+  const cardSearchResults = useMemo(() => {
+    const query = cardPickerQuery.trim().toLowerCase()
+    if (query.length === 0) return characterCards
+    return characterCards.filter((card) => {
+      if (card.name.toLowerCase().includes(query)) return true
+      if (card.description?.toLowerCase().includes(query)) return true
+      if (card.tags.some((tag) => tag.toLowerCase().includes(query)))
+        return true
+      return false
+    })
+  }, [cardPickerQuery, characterCards])
+
+  // When the node already has a card binding, surface the card name as a
+  // hint near the character name so the user can see "this came from
+  // <card>". `findCard` walks variants too, so subvariant bindings work.
+  const boundCard = useMemo(() => {
+    const cardId =
+      typeof node.data.cardId === 'string' ? node.data.cardId : null
+    if (!cardId) return null
+    return findCard(cardId)
+  }, [findCard, node.data.cardId])
 
   const handleReturnToChoice = useCallback(() => {
     updateNodeData(node.id, {
@@ -451,6 +554,97 @@ export function CharacterImageInspector({
     </PopoverContent>
   )
 
+  // Card library picker — separate popover content keyed to its own
+  // open state so the search input and scroll position survive
+  // independently from the existing-image picker.
+  const cardLibraryPickerContent = (
+    <PopoverContent
+      align="center"
+      sideOffset={8}
+      collisionPadding={12}
+      className="w-80 rounded-2xl border-node-panel-inner bg-node-panel/96 p-0 text-node-foreground shadow-node-panel backdrop-blur-xl"
+    >
+      <div className="border-b border-node-panel-inner px-4 py-3">
+        <p className="text-sm font-semibold text-node-foreground">
+          {t('cardLibrary.title')}
+        </p>
+        <p className="mt-1 text-xs leading-5 text-node-muted">
+          {t('cardLibrary.hint')}
+        </p>
+        <input
+          type="search"
+          value={cardPickerQuery}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            setCardPickerQuery(event.target.value)
+          }
+          placeholder={t('cardLibrary.searchPlaceholder')}
+          className="mt-2 h-9 w-full rounded-xl border border-node-panel-inner bg-node-panel-soft px-3 text-xs leading-4 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-amber focus-visible:ring-2 focus-visible:ring-node-amber/20"
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto p-2">
+        {isLoadingCards ? (
+          <div className="flex h-24 items-center justify-center gap-2 text-xs text-node-muted">
+            <Loader2 className="size-4 animate-spin text-node-amber" />
+            {t('cardLibrary.loading')}
+          </div>
+        ) : cardSearchResults.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs leading-5 text-node-subtle">
+            {characterCards.length === 0
+              ? t('cardLibrary.empty')
+              : t('cardLibrary.noMatch')}
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {cardSearchResults.map((card) => {
+              const variantCount = card.variants?.length ?? 0
+              return (
+                <li key={card.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyCard(card)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-node-panel-inner bg-node-panel-soft p-2 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                  >
+                    <span className="relative flex size-12 shrink-0 overflow-hidden rounded-lg bg-node-panel">
+                      {card.sourceImageUrl ? (
+                        <Image
+                          src={card.sourceImageUrl}
+                          alt={card.name}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <ImageIcon className="m-auto size-4 text-node-subtle" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-node-foreground">
+                        {card.name}
+                      </span>
+                      {card.description ? (
+                        <span className="mt-0.5 line-clamp-2 block text-2xs leading-4 text-node-muted">
+                          {card.description}
+                        </span>
+                      ) : null}
+                      {variantCount > 0 ? (
+                        <span className="mt-1 inline-flex items-center rounded-full border border-node-panel-inner px-1.5 py-0.5 text-2xs font-semibold text-node-subtle">
+                          {t('cardLibrary.variantCount', {
+                            count: variantCount,
+                          })}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </PopoverContent>
+  )
+
   return (
     <>
       <div className="space-y-4">
@@ -530,6 +724,15 @@ export function CharacterImageInspector({
                 </span>
               </div>
             ) : null}
+
+            {boundCard ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-node-amber/30 bg-node-amber/10 px-3 py-2 text-xs leading-5 text-node-amber">
+                <Library className="size-3.5 shrink-0" />
+                <span className="flex-1 truncate">
+                  {t('cardLibrary.bound', { name: boundCard.name })}
+                </span>
+              </div>
+            ) : null}
           </>
         ) : null}
 
@@ -555,6 +758,31 @@ export function CharacterImageInspector({
                 </button>
               </PopoverTrigger>
               {existingImagePickerContent}
+            </Popover>
+
+            {/* Library card → node: prefills name / prompt / cover image /
+                reference assets in one click. Shows variant count when the
+                card has subvariants so users know they're picking the root. */}
+            <Popover open={cardPickerOpen} onOpenChange={setCardPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-node-panel-inner bg-node-panel-soft p-3 text-left transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-node-panel-inner text-node-amber">
+                    <Library className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-node-foreground">
+                      {t('modeCardTitle')}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-node-muted">
+                      {t('modeCardDescription')}
+                    </span>
+                  </span>
+                </button>
+              </PopoverTrigger>
+              {cardLibraryPickerContent}
             </Popover>
 
             <button

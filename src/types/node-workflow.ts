@@ -188,6 +188,13 @@ export const NodeWorkflowNodeDataSchema = z
     sourceLabel: z.string().trim().min(1).max(160).optional(),
     characterName: z.string().trim().min(1).max(160).optional(),
     character: NodeWorkflowCharacterReferenceSchema.optional(),
+    /**
+     * Library card binding — set when the character image node was hydrated
+     * from a CharacterCardRecord. Separate from `character.characterId`
+     * (which references breakdown drafts) so spawnFullWorkflow can keep
+     * the two binding spaces distinct.
+     */
+    cardId: z.string().trim().min(1).max(160).optional(),
     referenceAssets: z.array(NodeWorkflowReferenceAssetSchema).optional(),
     loras: z.array(NodeWorkflowLoraSelectionSchema).optional(),
   })

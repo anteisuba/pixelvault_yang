@@ -3094,6 +3094,8 @@
       "addNode": "ノードを追加",
       "arrange": "キャンバスを整列",
       "save": "保存",
+      "collapse": "トップバーを閉じてキャンバスを広げる",
+      "expand": "トップバーを開く",
       "createProjectPrompt": "プロジェクト名",
       "renameProjectPrompt": "プロジェクト名を変更",
       "deleteProjectConfirm": "「{name}」を削除しますか？このプロジェクトのローカル Node Studio キャンバスが削除されます。"

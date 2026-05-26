@@ -9,6 +9,7 @@ import {
   FolderPlus,
   LayoutTemplate,
   Loader2,
+  PanelTopClose,
   Pencil,
   Plus,
   Save,
@@ -44,6 +45,7 @@ interface CanvasTopBarProps {
   onRenameProject: () => void
   onDeleteProject: () => void
   onSwitchProject: (id: string) => void
+  onCollapse?: () => void
   className?: string
 }
 
@@ -60,6 +62,7 @@ export function CanvasTopBar({
   onRenameProject,
   onDeleteProject,
   onSwitchProject,
+  onCollapse,
   className,
 }: CanvasTopBarProps) {
   const t = useTranslations('StudioNode')
@@ -211,6 +214,19 @@ export function CanvasTopBar({
             <Save className="size-4" />
           )}
         </Button>
+        {onCollapse ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t('topbar.collapse')}
+            title={t('topbar.collapse')}
+            onClick={onCollapse}
+            className="rounded-2xl text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          >
+            <PanelTopClose className="size-4" />
+          </Button>
+        ) : null}
       </div>
     </header>
   )

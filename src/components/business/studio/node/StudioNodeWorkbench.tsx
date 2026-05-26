@@ -20,6 +20,7 @@ import {
   type NodeTypes,
   type XYPosition,
 } from '@xyflow/react'
+import { PanelTopOpen } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -166,6 +167,7 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
   >()
   const [addMenu, setAddMenu] = useState<AddMenuState | null>(null)
   const [assistantDockOpen, setAssistantDockOpen] = useState(true)
+  const [topbarOpen, setTopbarOpen] = useState(true)
 
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
 
@@ -927,20 +929,34 @@ function StudioNodeCanvas({ canvasRef }: StudioNodeCanvasProps) {
           <CanvasMiniMap />
         </ReactFlow>
         <div className="pointer-events-none absolute inset-0 z-10">
-          <CanvasTopBar
-            nodeCount={workflow.nodes.length}
-            projectName={workflow.currentProjectName}
-            projects={workflow.projects}
-            currentProjectId={workflow.currentProjectId}
-            onAddClick={handleTopbarAddClick}
-            onArrange={handleTidyLayout}
-            onSave={handleSaveNow}
-            isSaving={isSaving}
-            onCreateProject={handleCreateProject}
-            onRenameProject={handleRenameProject}
-            onDeleteProject={handleDeleteProject}
-            onSwitchProject={handleSwitchProject}
-          />
+          {topbarOpen ? (
+            <CanvasTopBar
+              nodeCount={workflow.nodes.length}
+              projectName={workflow.currentProjectName}
+              projects={workflow.projects}
+              currentProjectId={workflow.currentProjectId}
+              onAddClick={handleTopbarAddClick}
+              onArrange={handleTidyLayout}
+              onSave={handleSaveNow}
+              isSaving={isSaving}
+              onCreateProject={handleCreateProject}
+              onRenameProject={handleRenameProject}
+              onDeleteProject={handleDeleteProject}
+              onSwitchProject={handleSwitchProject}
+              onCollapse={() => setTopbarOpen(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              aria-label={t('topbar.expand')}
+              title={t('topbar.expand')}
+              onClick={() => setTopbarOpen(true)}
+              className="pointer-events-auto absolute left-4 top-4 inline-flex h-10 items-center gap-2 rounded-2xl border border-node-panel-inner/80 bg-node-panel/95 px-3 text-xs font-semibold text-node-foreground shadow-node-panel backdrop-blur-xl transition-colors hover:border-node-amber/40 hover:bg-node-panel-inner md:left-6"
+            >
+              <PanelTopOpen className="size-4 text-node-amber" />
+              <span className="truncate">{workflow.currentProjectName}</span>
+            </button>
+          )}
           <StudioNodeAssistantDock
             open={assistantDockOpen}
             projectName={workflow.currentProjectName}

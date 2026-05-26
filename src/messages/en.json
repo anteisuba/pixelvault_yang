@@ -3094,6 +3094,8 @@
       "addNode": "Add node",
       "arrange": "Arrange canvas",
       "save": "Save",
+      "collapse": "Collapse topbar to show the full canvas",
+      "expand": "Expand topbar",
       "createProjectPrompt": "Project name",
       "renameProjectPrompt": "Rename project",
       "deleteProjectConfirm": "Delete \"{name}\"? This removes its local Node Studio canvas."

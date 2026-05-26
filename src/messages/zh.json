@@ -3094,6 +3094,8 @@
       "addNode": "添加节点",
       "arrange": "整理画布",
       "save": "保存",
+      "collapse": "收起顶栏，展开画布",
+      "expand": "展开顶栏",
       "createProjectPrompt": "项目名称",
       "renameProjectPrompt": "重命名项目",
       "deleteProjectConfirm": "确定删除「{name}」吗？这个项目的本地节点画布会被移除。"

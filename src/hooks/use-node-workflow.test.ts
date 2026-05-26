@@ -104,7 +104,7 @@ const FAKE_BREAKDOWN: ScriptBreakdownResult = {
 
 const FAKE_PLANNER: ScriptBreakdownPlanner = {
   adapterType: AI_ADAPTER_TYPES.GEMINI,
-  modelId: 'gemini-2.5-flash-lite',
+  modelId: 'gemini-3.1-flash-lite',
   label: 'Gemini',
 }
 
@@ -131,7 +131,7 @@ const FAKE_SEEDANCE_PLAN: SeedancePromptPlanResult = {
 
 const FAKE_SEEDANCE_PLANNER: SeedancePromptPlanPlanner = {
   adapterType: AI_ADAPTER_TYPES.GEMINI,
-  modelId: 'gemini-3-pro-preview',
+  modelId: 'gemini-3.5-flash',
   label: 'Gemini',
 }
 

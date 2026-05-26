@@ -38,7 +38,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'premium',
     styleTag: 'general',
   },
-  // #3 — Top FLUX, multi-reference editing, character consistency
+  // #3 — Top FLUX text-to-image endpoint
   {
     id: AI_MODELS.FLUX_2_PRO,
     cost: 2,
@@ -51,7 +51,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'premium',
     styleTag: 'photorealistic',
   },
-  // #4 — Cinematic aesthetics, strong spatial understanding
+  // #4 — Cinematic FAL text-to-image endpoint
   {
     id: AI_MODELS.SEEDREAM_45,
     cost: 2,

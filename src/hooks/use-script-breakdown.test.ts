@@ -24,7 +24,7 @@ const BREAKDOWN_RESPONSE: ScriptBreakdownResponseData = {
   },
   planner: {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: 'gpt-4.1-nano',
+    modelId: 'gpt-5.4-mini',
     label: 'OpenAI',
   },
 }

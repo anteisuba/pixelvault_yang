@@ -38,7 +38,7 @@ const FAKE_ROUTE = {
     baseUrl: 'https://generativelanguage.googleapis.com',
   },
   apiKey: 'gemini-key',
-  modelId: 'gemini-3-pro-preview',
+  modelId: 'gemini-3.5-flash',
   label: 'Personal Gemini',
 }
 

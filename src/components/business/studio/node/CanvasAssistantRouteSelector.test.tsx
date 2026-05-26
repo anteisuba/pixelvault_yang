@@ -31,7 +31,7 @@ beforeEach(() => {
     keys: [
       {
         id: 'key-gemini',
-        modelId: 'gemini-3-pro-preview',
+        modelId: 'gemini-3.5-flash',
         adapterType: AI_ADAPTER_TYPES.GEMINI,
         providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
         label: 'Gemini route',

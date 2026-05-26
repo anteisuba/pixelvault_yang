@@ -40,7 +40,7 @@ export const DEFAULT_SCRIPT_PLANNER_PROVIDER = SCRIPT_PLANNER_PROVIDER_IDS.auto
 
 export const SCRIPT_PLANNER_MODELS = {
   gemini: {
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_PRO_PREVIEW,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     label: 'Gemini',
   },
@@ -50,7 +50,7 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'DeepSeek',
   },
   openai: {
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     label: 'OpenAI',
   },

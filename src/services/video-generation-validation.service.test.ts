@@ -107,13 +107,24 @@ describe('video-generation-validation.service', () => {
       }
     })
 
-    it('rejects 2 references for a single-image model (Kling V3 Pro)', () => {
+    it('accepts 4 references for Kling V3 Pro start image plus element references', () => {
+      expect(() =>
+        validateVideoGenerationInput({
+          modelId: AI_MODELS.KLING_V3_PRO,
+          aspectRatio: '16:9',
+          duration: 5,
+          referenceImages: ['a', 'b', 'c', 'd'],
+        }),
+      ).not.toThrow()
+    })
+
+    it('rejects 5 references for Kling V3 Pro with REFERENCE_IMAGE_LIMIT_EXCEEDED', () => {
       try {
         validateVideoGenerationInput({
           modelId: AI_MODELS.KLING_V3_PRO,
           aspectRatio: '16:9',
           duration: 5,
-          referenceImages: ['a', 'b'],
+          referenceImages: ['a', 'b', 'c', 'd', 'e'],
         })
         throw new Error('expected validation to throw')
       } catch (err) {

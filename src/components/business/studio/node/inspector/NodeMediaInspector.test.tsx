@@ -29,8 +29,25 @@ vi.mock('@/i18n/navigation', () => ({
   }),
 }))
 
+vi.mock('@xyflow/react', () => ({
+  useEdges: () => [],
+  useNodes: () => [],
+}))
+
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
+}))
+
+vi.mock('@/components/business/studio/FishVoiceLibraryDialog', () => ({
+  FishVoiceLibraryDialog: ({
+    onSelectVoiceId,
+  }: {
+    onSelectVoiceId: (voiceId: string) => void
+  }) => (
+    <button type="button" onClick={() => onSelectVoiceId('fish-voice-test')}>
+      fishVoiceDialog
+    </button>
+  ),
 }))
 
 vi.mock(
@@ -68,6 +85,7 @@ vi.mock('@/hooks/use-node-reference-upload', () => ({
 import {
   NODE_STUDIO_CHARACTER_IMAGE_MODE_IDS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
+  NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS,
 } from '@/constants/node-studio'
 import {
   AI_ADAPTER_TYPES,
@@ -115,15 +133,6 @@ const VIDEO_OPTION: NodeWorkflowModelOption = {
   apiKeyId: 'key-video',
 }
 
-const AUDIO_OPTION: NodeWorkflowModelOption = {
-  ...IMAGE_OPTION,
-  optionId: 'saved:audio',
-  modelId: 'fish-audio-s2-pro',
-  adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
-  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
-  apiKeyId: 'key-audio',
-}
-
 const ACTIONS: NodeWorkflowCanvasActions = {
   updateNodeData,
   updateScriptBreakdown: vi.fn(),
@@ -136,7 +145,6 @@ const ACTIONS: NodeWorkflowCanvasActions = {
     [NODE_TYPE_IDS.shot]: [IMAGE_OPTION],
     [NODE_TYPE_IDS.backgroundImage]: [IMAGE_OPTION],
     [NODE_TYPE_IDS.frameImage]: [IMAGE_OPTION],
-    [NODE_TYPE_IDS.voice]: [AUDIO_OPTION],
     [NODE_TYPE_IDS.seedance]: [VIDEO_OPTION],
   },
 }
@@ -274,7 +282,6 @@ describe('Node media inspectors', () => {
     [NODE_TYPE_IDS.shot, ShotInspector],
     [NODE_TYPE_IDS.backgroundImage, BackgroundImageInspector],
     [NODE_TYPE_IDS.frameImage, FrameImageInspector],
-    [NODE_TYPE_IDS.voice, VoiceInspector],
     [NODE_TYPE_IDS.seedance, SeedanceInspector],
   ] satisfies Array<[NodeWorkflowNodeType, MediaInspectorComponent]>)(
     'selects a model and generates %s nodes',
@@ -303,4 +310,30 @@ describe('Node media inspectors', () => {
       expect(generateMediaNode).toHaveBeenCalledWith(`node-${type}`)
     },
   )
+
+  it('edits voice profile data without treating it as a generation node', () => {
+    renderMediaInspector(VoiceInspector, createNode(NODE_TYPE_IDS.voice))
+
+    fireEvent.change(screen.getByLabelText('voiceName.label'), {
+      target: { value: 'Narrator voice' },
+    })
+
+    expect(updateNodeData).toHaveBeenCalledWith('node-voice', {
+      [NODE_WORKFLOW_FIELD_IDS.voiceName]: 'Narrator voice',
+      status: NODE_STATUS_IDS.ready,
+    })
+
+    fireEvent.click(screen.getByText('fishVoiceDialog'))
+
+    expect(updateNodeData).toHaveBeenCalledWith(
+      'node-voice',
+      expect.objectContaining({
+        voiceId: 'fish-voice-test',
+        voiceSource: NODE_STUDIO_VOICE_PROFILE_SOURCE_IDS.fishAudio,
+        status: NODE_STATUS_IDS.ready,
+      }),
+    )
+    expect(screen.queryByText('modelPicker')).not.toBeInTheDocument()
+    expect(generateMediaNode).not.toHaveBeenCalled()
+  })
 })

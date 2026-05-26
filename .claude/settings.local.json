@@ -244,7 +244,12 @@
       "Bash(kill %1)",
       "Bash(gh issue *)",
       "Bash(find C:/workspace/pixelvault_yang/src/app/[locale]/\\\\\\(auth\\\\\\) -name \"*.tsx\")",
-      "Bash(find src/app/[locale] -name \"loading.tsx\" -o -name \"error.tsx\")"
+      "Bash(find src/app/[locale] -name \"loading.tsx\" -o -name \"error.tsx\")",
+      "WebFetch(domain:developer.hyper3d.ai)",
+      "WebFetch(domain:hyper3d.ai)",
+      "WebFetch(domain:help.scenario.com)",
+      "WebFetch(domain:docs.comfy.org)",
+      "Bash(npx wrangler *)"
     ],
     "deny": [
       "Edit(scripts/**)",

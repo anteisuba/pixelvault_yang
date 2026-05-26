@@ -48,7 +48,7 @@ describe('FishVoiceLibraryDialog', () => {
     )
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('voiceLibraryTitle')).toBeInTheDocument()
+    expect(screen.getByText('voiceMarket')).toBeInTheDocument()
     expect(screen.getByText('voiceLibraryDescription')).toBeInTheDocument()
     expect(screen.getByTestId('voice-selector')).toHaveClass('h-full')
     expect(screen.getByText('audio-settings')).toBeInTheDocument()

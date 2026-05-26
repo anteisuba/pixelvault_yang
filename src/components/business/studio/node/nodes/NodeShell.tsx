@@ -18,6 +18,8 @@ interface NodeShellRootProps {
   type: NodeTokenType
   selected?: boolean
   children: ReactNode
+  showSourceHandle?: boolean
+  showTargetHandle?: boolean
 }
 
 interface NodeShellHeaderProps {
@@ -30,34 +32,44 @@ interface NodeShellSlotProps {
   className?: string
 }
 
-function NodeShellRoot({ type, selected, children }: NodeShellRootProps) {
+function NodeShellRoot({
+  type,
+  selected,
+  children,
+  showSourceHandle = true,
+  showTargetHandle = true,
+}: NodeShellRootProps) {
   const accent = NODE_ACCENTS[type]
 
   return (
     <article
       className={cn(
-        'group relative w-80 overflow-visible rounded-3xl border bg-node-panel text-node-foreground shadow-node-panel transition-colors',
+        'group relative w-80 overflow-visible rounded-2xl border bg-node-panel text-node-foreground shadow-node-panel transition-colors',
         selected
           ? cn('border-node-foreground/70 ring-2', accent.selectedRing)
           : 'border-node-panel-inner/80 hover:border-node-muted/70',
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className={cn(
-          '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
-          accent.dot,
-        )}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className={cn(
-          '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
-          accent.dot,
-        )}
-      />
+      {showTargetHandle ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={cn(
+            '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
+            accent.dot,
+          )}
+        />
+      ) : null}
+      {showSourceHandle ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn(
+            '!z-10 !size-4 !border-2 !border-node-canvas ring-2 ring-node-canvas transition-transform hover:!scale-125',
+            accent.dot,
+          )}
+        />
+      ) : null}
       {children}
     </article>
   )
@@ -72,7 +84,7 @@ function NodeShellHeader({ type, status }: NodeShellHeaderProps) {
       <div className="flex min-w-0 items-center gap-2">
         <span
           className={cn(
-            'flex size-7 shrink-0 items-center justify-center rounded-xl text-xs font-bold',
+            'flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold',
             accent.iconPlate,
             accent.iconText,
           )}

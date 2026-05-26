@@ -12,6 +12,7 @@ import {
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { getVoice } from '@/services/fish-audio-voice.service'
 import { ensureUser } from '@/services/user.service'
+import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
 import type { CreateVoiceCardRequest, UpdateVoiceCardRequest } from '@/types'
 
 export interface ListVoiceCardsResult {
@@ -44,12 +45,13 @@ async function validateFishAudioVoice(
   dbUserId: string,
   voiceId: string,
 ): Promise<void> {
-  const apiKey = await findActiveKeyForAdapter(
+  const userApiKey = await findActiveKeyForAdapter(
     dbUserId,
     AI_ADAPTER_TYPES.FISH_AUDIO,
   )
+  const apiKeyValue = userApiKey?.keyValue ?? getFishAudioVoiceLibraryApiKey()
 
-  if (!apiKey) {
+  if (!apiKeyValue) {
     throw new ApiRequestError(
       'FISH_AUDIO_API_KEY_REQUIRED',
       400,
@@ -59,7 +61,7 @@ async function validateFishAudioVoice(
   }
 
   try {
-    await getVoice(apiKey.keyValue, voiceId)
+    await getVoice(apiKeyValue, voiceId)
   } catch {
     throw new ApiRequestError(
       'VOICE_NOT_FOUND',
@@ -78,16 +80,17 @@ async function validateVoiceReference(
     return
   }
 
-  if (data.provider !== VOICE_CARD_PROVIDER.FISH_AUDIO) {
-    throw new ApiRequestError(
-      'VOICE_ID_PROVIDER_MISMATCH',
-      400,
-      'errors.voiceCard.voiceIdProviderMismatch',
-      'voiceId is only valid for fish_audio provider.',
-    )
+  if (data.provider === VOICE_CARD_PROVIDER.FISH_AUDIO) {
+    await validateFishAudioVoice(dbUserId, data.voiceId)
+    return
   }
 
-  await validateFishAudioVoice(dbUserId, data.voiceId)
+  throw new ApiRequestError(
+    'VOICE_ID_PROVIDER_MISMATCH',
+    400,
+    'errors.voiceCard.voiceIdProviderMismatch',
+    'voiceId is only valid for supported voice providers.',
+  )
 }
 
 export async function createVoiceCard(

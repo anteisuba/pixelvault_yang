@@ -8,7 +8,11 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
-import { getExecutionModelId, getModelById } from '@/constants/models'
+import {
+  AI_MODELS,
+  getExecutionModelId,
+  getModelById,
+} from '@/constants/models'
 import { AUDIO_PACE_SPEED, AUDIO_STYLE_PROMPTS } from '@/constants/voice-cards'
 import {
   AI_ADAPTER_TYPES,
@@ -304,12 +308,14 @@ function resolveAudioSpeed(request: {
 }
 
 function canSubmitAudioViaExecutionWorker(route: {
+  modelId: string
   adapterType: AI_ADAPTER_TYPES
   resolvedApiKeyId?: string | null
   isFreeGeneration?: boolean
 }): boolean {
   return (
     route.adapterType === AI_ADAPTER_TYPES.FAL &&
+    route.modelId === AI_MODELS.FAL_F5_TTS &&
     (Boolean(route.resolvedApiKeyId) || route.isFreeGeneration === true)
   )
 }

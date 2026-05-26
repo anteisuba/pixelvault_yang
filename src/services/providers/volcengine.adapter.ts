@@ -8,6 +8,7 @@ import {
   VIDEO_GENERATION,
 } from '@/constants/config'
 import { AI_MODELS, getExecutionModelId } from '@/constants/models'
+import { VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 import {
@@ -241,7 +242,10 @@ export const volcengineAdapter: ProviderAdapter = {
     } else if (referenceImage) {
       allRefs.push(referenceImage)
     }
-    for (const ref of allRefs.slice(0, 10)) {
+    for (const ref of allRefs.slice(
+      0,
+      VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES,
+    )) {
       content.push({ type: 'image_url', image_url: { url: ref } })
     }
 

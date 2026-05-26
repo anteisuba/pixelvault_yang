@@ -147,14 +147,14 @@ describe('createVoiceCard', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('rejects voiceId for non-fish_audio provider', async () => {
+  it('rejects voiceId for providers without voice library support', async () => {
     await expect(
       createVoiceCard('clerk_test_user', {
         ...VALID_INPUT,
         provider: VOICE_CARD_PROVIDER.FAL_F5TTS,
         voiceId: 'bogus-id',
       }),
-    ).rejects.toThrow(/only.*fish_audio/i)
+    ).rejects.toThrow(/supported voice providers/i)
 
     expect(mockGetVoice).not.toHaveBeenCalled()
     expect(mockCreate).not.toHaveBeenCalled()
@@ -256,12 +256,12 @@ describe('updateVoiceCard', () => {
     })
   })
 
-  it('rejects changing provider away from fish_audio while voiceId exists', async () => {
+  it('rejects changing provider to one without voice library support while voiceId exists', async () => {
     await expect(
       updateVoiceCard('clerk_test_user', 'voice_card_123', {
         provider: VOICE_CARD_PROVIDER.FAL_F5TTS,
       }),
-    ).rejects.toThrow(/only.*fish_audio/i)
+    ).rejects.toThrow(/supported voice providers/i)
 
     expect(mockUpdate).not.toHaveBeenCalled()
   })

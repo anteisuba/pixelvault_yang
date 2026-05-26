@@ -97,9 +97,9 @@ function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
 }
 
 const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
-  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_FLASH_LITE,
+  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_1_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_4_1_NANO,
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_4_MINI,
   [AI_ADAPTER_TYPES.VOLCENGINE]:
     LLM_TEXT_MODEL_IDS.VOLCENGINE_DOUBAO_1_5_PRO_32K,
 }
@@ -182,7 +182,14 @@ function getOpenAiTokenLimit(modelId: string, maxTokens: number) {
 function toLlmTextProviderError(
   responseStatus: number,
   errorBody: string,
+  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
 ): ApiRequestError {
+  logger.warn('LLM provider request failed', {
+    adapterType: context.adapterType,
+    modelId: context.modelId,
+    responseStatus,
+    errorBodySnippet: errorBody.slice(0, 400),
+  })
   const parsedCode = parseGenerationErrorCode(`${responseStatus} ${errorBody}`)
 
   if (
@@ -400,7 +407,10 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody)
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId,
+    })
   }
 
   const data = GeminiTextResponseSchema.parse(await response.json())
@@ -457,7 +467,10 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody)
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId,
+    })
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
@@ -504,7 +517,10 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody)
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      modelId,
+    })
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())
@@ -572,7 +588,10 @@ async function volcengineTextCompletion(input: LlmTextInput): Promise<string> {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody)
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      modelId,
+    })
   }
 
   const data = OpenAiChatResponseSchema.parse(await response.json())

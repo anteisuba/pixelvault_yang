@@ -145,9 +145,8 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     state.workflowMode === 'quick' && surfaceSelectedModel
       ? surfaceSelectedModel.modelId
       : (selectedStyleCard?.modelId ?? undefined)
-  // Step 3 routes by outputType: video models go through the video surface so
-  // Veo 3.1 reference-to-video gets its real 3-image capacity instead of the
-  // FAL adapter default (1).
+  // Route by outputType: video models go through the video surface so
+  // model-specific multi-reference limits override the FAL adapter default.
   const referenceCapability = getReferenceCapability(
     isVideoMode ? 'video' : 'image',
     adapterType,

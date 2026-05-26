@@ -65,12 +65,28 @@ function parseJsonObject(raw: string): unknown {
 }
 
 function validateSeedancePromptPlanOutput(rawOutput: string) {
+  let parsed: unknown
+  try {
+    parsed = parseJsonObject(rawOutput)
+  } catch (error) {
+    logger.warn('Seedance prompt plan JSON parse failed', {
+      rawOutputLength: rawOutput.length,
+      rawOutputSnippet: rawOutput.slice(0, 800),
+    })
+    throw error
+  }
+
   const validation = validateLlmStructuredOutput(
-    parseJsonObject(rawOutput),
+    parsed,
     SeedancePromptPlanResultSchema,
   )
 
   if (!validation.usable || !validation.data) {
+    logger.warn('Seedance prompt plan schema validation failed', {
+      reason: validation.reason,
+      rawOutputLength: rawOutput.length,
+      rawOutputSnippet: rawOutput.slice(0, 800),
+    })
     throw createInvalidPlannerOutputError()
   }
 
@@ -149,7 +165,7 @@ export async function createSeedancePromptPlan(
     {
       maxAttempts: 2,
       baseDelayMs: 800,
-      label: 'seedance-prompt-plan.llm',
+      label: `seedance-prompt-plan.llm[${route.adapterType}/${route.modelId}]`,
       isRetryable: isSeedancePromptPlanRetryable,
     },
   )

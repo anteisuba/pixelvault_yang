@@ -288,19 +288,25 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
 
   const tSetup = useTranslations('QuickSetup')
 
-  // ── Model options: split into available / needs key ─────────────
-  const { availableModels, lockedModels } = useMemo(() => {
-    const available: typeof modelOptions = []
+  // ── Model options: split API-key routes from platform quota routes ──
+  const { savedModels, platformModels, lockedModels } = useMemo(() => {
+    const saved: typeof modelOptions = []
+    const platform: typeof modelOptions = []
     const locked: typeof modelOptions = []
     for (const opt of modelOptions) {
-      // Models with a saved key, or free-tier models → available
-      if (opt.sourceType === 'saved' || opt.freeTier) {
-        available.push(opt)
+      if (opt.sourceType === 'saved') {
+        saved.push(opt)
+      } else if (opt.freeTier) {
+        platform.push(opt)
       } else {
         locked.push(opt)
       }
     }
-    return { availableModels: available, lockedModels: locked }
+    return {
+      savedModels: saved,
+      platformModels: platform,
+      lockedModels: locked,
+    }
   }, [modelOptions])
 
   const closeModelPicker = useCallback(() => {
@@ -332,6 +338,64 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     },
     [closeModelPicker, tModels],
   )
+
+  const renderAvailableModelOption = (
+    option: (typeof modelOptions)[number],
+  ) => {
+    const isSelected = option.optionId === state.selectedOptionId
+    const optionLabel =
+      option.keyLabel ?? getTranslatedModelLabel(tModels, option.modelId)
+    const optionModelLabel = getTranslatedModelLabel(tModels, option.modelId)
+    const providerLabel = getProviderLabel(option.providerConfig)
+    const optionMeta = option.keyLabel
+      ? `${optionModelLabel} · ${providerLabel}`
+      : option.freeTier && option.sourceType === 'workspace'
+        ? `${providerLabel} · ${tSetup('platformQuota')}`
+        : providerLabel
+    const searchValue = [
+      option.optionId,
+      optionLabel,
+      optionModelLabel,
+      providerLabel,
+      option.maskedKey,
+      option.freeTier && option.sourceType === 'workspace'
+        ? tSetup('platformQuota')
+        : undefined,
+    ]
+      .filter((v): v is string => Boolean(v))
+      .join(' ')
+
+    return (
+      <CommandItem
+        key={option.optionId}
+        value={searchValue}
+        onSelect={() => handleSelectModel(option.optionId)}
+        className="group min-h-12 gap-3 px-3 py-2.5"
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
+          <Sparkles className="size-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-2">
+            {option.keyId ? (
+              <ApiKeyHealthDot status={healthMap[option.keyId]} />
+            ) : option.freeTier ? (
+              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+            ) : null}
+            <span className="truncate text-sm font-semibold">
+              {optionLabel}
+            </span>
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
+            {optionMeta}
+          </span>
+        </span>
+        {isSelected ? (
+          <Check className="size-4 shrink-0 text-foreground" />
+        ) : null}
+      </CommandItem>
+    )
+  }
 
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
@@ -1053,73 +1117,19 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                               <CommandEmpty>
                                 {tForm('modelSelector.emptySearch')}
                               </CommandEmpty>
-                              {availableModels.length > 0 && (
-                                <CommandGroup heading={tSetup('available')}>
-                                  {availableModels.map((option) => {
-                                    const isSelected =
-                                      option.optionId === state.selectedOptionId
-                                    const optionLabel =
-                                      option.keyLabel ??
-                                      getTranslatedModelLabel(
-                                        tModels,
-                                        option.modelId,
-                                      )
-                                    const optionModelLabel =
-                                      getTranslatedModelLabel(
-                                        tModels,
-                                        option.modelId,
-                                      )
-                                    const providerLabel = getProviderLabel(
-                                      option.providerConfig,
-                                    )
-                                    const optionMeta = option.keyLabel
-                                      ? `${optionModelLabel} · ${providerLabel}`
-                                      : providerLabel
-                                    const searchValue = [
-                                      option.optionId,
-                                      optionLabel,
-                                      optionModelLabel,
-                                      providerLabel,
-                                      option.maskedKey,
-                                    ]
-                                      .filter((v): v is string => Boolean(v))
-                                      .join(' ')
+                              {savedModels.length > 0 && (
+                                <CommandGroup
+                                  heading={tSetup('configuredKeys')}
+                                >
+                                  {savedModels.map(renderAvailableModelOption)}
+                                </CommandGroup>
+                              )}
 
-                                    return (
-                                      <CommandItem
-                                        key={option.optionId}
-                                        value={searchValue}
-                                        onSelect={() =>
-                                          handleSelectModel(option.optionId)
-                                        }
-                                        className="group min-h-12 gap-3 px-3 py-2.5"
-                                      >
-                                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground transition-colors group-hover:bg-background/80 group-hover:text-foreground group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground">
-                                          <Sparkles className="size-3.5" />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                          <span className="flex min-w-0 items-center gap-2">
-                                            {option.keyId ? (
-                                              <ApiKeyHealthDot
-                                                status={healthMap[option.keyId]}
-                                              />
-                                            ) : option.freeTier ? (
-                                              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                            ) : null}
-                                            <span className="truncate text-sm font-semibold">
-                                              {optionLabel}
-                                            </span>
-                                          </span>
-                                          <span className="mt-0.5 block truncate text-xs text-muted-foreground/75">
-                                            {optionMeta}
-                                          </span>
-                                        </span>
-                                        {isSelected ? (
-                                          <Check className="size-4 shrink-0 text-foreground" />
-                                        ) : null}
-                                      </CommandItem>
-                                    )
-                                  })}
+                              {platformModels.length > 0 && (
+                                <CommandGroup heading={tSetup('platformQuota')}>
+                                  {platformModels.map(
+                                    renderAvailableModelOption,
+                                  )}
                                 </CommandGroup>
                               )}
 

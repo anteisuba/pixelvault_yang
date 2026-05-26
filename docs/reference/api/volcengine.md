@@ -79,7 +79,7 @@ Content-Type: `application/json`
 
 ### Multi-Reference Image
 
-`image` 字段支持数组格式，最多 10 张：
+Seedream 5.0 Lite / 4.0 的参考图最多 14 张：
 
 ```json
 {
@@ -206,7 +206,7 @@ Content-Type: `application/json`
 ## Capabilities
 
 - ✅ Text-to-Image (同步)
-- ✅ Multi-reference images（最多 10 张）
+- ✅ Multi-reference images（最多 14 张）
 - ✅ Seed, Guidance scale
 - ✅ Video generation (异步 queue)
 - ✅ Image-to-Video (first frame)

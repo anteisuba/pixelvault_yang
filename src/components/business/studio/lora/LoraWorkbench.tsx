@@ -849,7 +849,14 @@ function CivitaiCommunityBranch({
         </Button>
       </header>
 
-      <div className="grid gap-4 pt-4 lg:grid-cols-3">
+      {/* `grid-cols-1` matters even though there's only one mobile child —
+          Tailwind's `grid-cols-1` resolves to `minmax(0, 1fr)`, which lets the
+          single column shrink to the section's content box. Without it, the
+          implicit grid track sizes to min-content, and any long unbreakable
+          string inside a row (e.g. a Civitai trigger word) blows the section
+          past the viewport edge. Repro: viewport <lg, search a LoRA whose
+          trigger word is one long token. */}
+      <div className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-3">
         <div className="flex min-h-0 flex-col gap-3 lg:col-span-2">
           <BaseModelChipRow
             value={library.baseModel}

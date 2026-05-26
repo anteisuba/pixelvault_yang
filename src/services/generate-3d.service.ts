@@ -928,16 +928,68 @@ async function submitWorker3DGeneration({
   executionRoute: GenerationExecutionRoute
   provider: string
 }): Promise<Model3DSubmitResponseData> {
+  // Rodin texture-only continuation: re-textures an existing mesh-only
+  // Generation by POSTing to /api/v2/rodin_texture_only. We pull the GLB
+  // URL and the original reference image off the parent Generation so the
+  // caller doesn't have to round-trip them.
+  const isRodinTextureOnly =
+    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN &&
+    input.rodinTextureOnly === true
+
+  let parentMeshUrl: string | undefined
+  let effectiveSourceImageUrl = input.imageUrl
+
+  if (isRodinTextureOnly) {
+    if (!input.parentGenerationId) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'rodinTextureOnly requires parentGenerationId pointing at the mesh-only Generation.',
+        400,
+      )
+    }
+    const parent = await db.generation.findUnique({
+      where: { id: input.parentGenerationId },
+      select: {
+        id: true,
+        userId: true,
+        modelUrl: true,
+        referenceImageUrl: true,
+        outputType: true,
+      },
+    })
+    if (!parent || parent.userId !== userId) {
+      throw new GenerateImageServiceError(
+        'JOB_NOT_FOUND',
+        'Parent mesh Generation not found.',
+        404,
+      )
+    }
+    if (parent.outputType !== 'MODEL_3D' || !parent.modelUrl) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Parent Generation is not a 3D mesh or has no modelUrl.',
+        400,
+      )
+    }
+    parentMeshUrl = parent.modelUrl
+    // Prefer the original reference image — that's what was paired with the
+    // mesh during the first pass. Fall back to whatever the caller passed.
+    effectiveSourceImageUrl = parent.referenceImageUrl ?? input.imageUrl
+  }
+
   let sourceQualityReport: Awaited<
     ReturnType<typeof inspect3DSourceImageQuality>
   >
   try {
-    sourceQualityReport = await inspect3DSourceImageQuality(input.imageUrl, {
-      userId,
-    })
+    sourceQualityReport = await inspect3DSourceImageQuality(
+      effectiveSourceImageUrl,
+      {
+        userId,
+      },
+    )
   } catch (error) {
     logger.warn('3D source quality inspection failed', {
-      imageUrl: input.imageUrl,
+      imageUrl: effectiveSourceImageUrl,
       error: error instanceof Error ? error.message : String(error),
     })
     throw new GenerateImageServiceError(
@@ -947,7 +999,11 @@ async function submitWorker3DGeneration({
     )
   }
 
-  if (sourceQualityReport.blockingIssues.length > 0) {
+  // Texture-only continuations re-use an already-validated mesh from the
+  // parent — skip the LLM semantic check (mesh + reference were already
+  // accepted on the mesh-first pass). Still surface raster-format failures
+  // because the LLM check is inside inspect3DSourceImageQuality already.
+  if (!isRodinTextureOnly && sourceQualityReport.blockingIssues.length > 0) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       build3DSourceQualityMessage(sourceQualityReport),
@@ -955,11 +1011,14 @@ async function submitWorker3DGeneration({
     )
   }
 
-  const preparedImageUrl =
-    input.prep3D === false
-      ? input.imageUrl
+  // Texture-only also skips prep (upscale/whitepad) — the reference image
+  // was already prepped before the mesh-only pass.
+  const preparedImageUrl = isRodinTextureOnly
+    ? effectiveSourceImageUrl
+    : input.prep3D === false
+      ? effectiveSourceImageUrl
       : await prepare3DSourceImage({
-          imageUrl: input.imageUrl,
+          imageUrl: effectiveSourceImageUrl,
           userId,
           falApiKey: executionRoute.apiKey,
         })
@@ -979,6 +1038,8 @@ async function submitWorker3DGeneration({
     input,
     preparedImageUrl,
     modelConfig,
+    rodinTextureOnly: isRodinTextureOnly,
+    parentMeshUrl,
   })
 
   const dispatch =
@@ -1048,6 +1109,9 @@ function buildModel3DWorkerContext(params: {
   input: Generate3DRequest
   preparedImageUrl: string
   modelConfig: ReturnType<typeof getModelById>
+  /** Pre-resolved by submitWorker3DGeneration when input.rodinTextureOnly. */
+  rodinTextureOnly?: boolean
+  parentMeshUrl?: string
 }): WorkerModel3DRunContext {
   const {
     runId,
@@ -1056,6 +1120,8 @@ function buildModel3DWorkerContext(params: {
     input,
     preparedImageUrl,
     modelConfig,
+    rodinTextureOnly,
+    parentMeshUrl,
   } = params
 
   // Rodin mesh-first first pass: force material='None' so the provider returns
@@ -1110,6 +1176,12 @@ function buildModel3DWorkerContext(params: {
       useOriginalAlpha: input.rodinUseOriginalAlpha,
       previewRender: input.rodinPreviewRender,
       isMicro: input.rodinIsMicro,
+      // Rodin texture-only continuation: when true, the Worker routes to
+      // /api/v2/rodin_texture_only with `parentMeshUrl` as the GLB to texture
+      // and `imageUrl` as the texture reference. Geometry from the parent is
+      // preserved verbatim (no regeneration).
+      ...(rodinTextureOnly && { rodinTextureOnly: true }),
+      ...(parentMeshUrl && { parentMeshUrl }),
       // FAL / Hunyuan3D + Trellis
       texturedMesh: input.texturedMesh,
       octreeResolution: input.octreeResolution,

@@ -180,6 +180,15 @@ interface WorkerModel3DRunContext {
     octreeResolution?: number
     generateType?: string
     polygonType?: string
+    /**
+     * Rodin texture-only continuation: when true, dispatch to
+     * /api/v2/rodin_texture_only instead of /api/v2/rodin. Uses
+     * `parentMeshUrl` as the input mesh and `imageUrl` as the texture
+     * reference. Preserves the exact mesh geometry from the parent job.
+     */
+    rodinTextureOnly?: boolean
+    /** R2 URL of the GLB to be textured (from a prior mesh-only Rodin job). */
+    parentMeshUrl?: string
   }
 }
 
@@ -1011,6 +1020,113 @@ async function submitRodinJob(
   if (!jobUuid) {
     throw new Error(
       `Hyper3D Rodin submit returned no job UUID. Response: ${JSON.stringify(data).slice(0, 300)}`,
+    )
+  }
+
+  return {
+    jobUuid,
+    subscriptionKey: subscriptionKey ?? undefined,
+    statusUrl: `${HYPER3D_BASE_URL}/api/v2/status`,
+    downloadUrl: `${HYPER3D_BASE_URL}/api/v2/download`,
+  }
+}
+
+/**
+ * Texture-only continuation: re-textures an existing mesh GLB without
+ * regenerating geometry. Posts to /api/v2/rodin_texture_only with the source
+ * mesh + reference image. Returns the same submit shape as submitRodinJob so
+ * polling + download can reuse the regular Rodin flow.
+ *
+ * https://developer.hyper3d.ai/api-specification/generate-texture
+ */
+async function submitRodinTextureOnlyJob(
+  context: WorkerModel3DRunContext,
+  apiKey: string,
+): Promise<RodinSubmitResult> {
+  const { providerInput } = context
+  if (!providerInput.parentMeshUrl) {
+    throw new Error(
+      'rodin_texture_only requires providerInput.parentMeshUrl (GLB to texture).',
+    )
+  }
+
+  const form = new FormData()
+
+  async function appendBinaryFile(
+    fieldName: string,
+    url: string,
+    fallbackMime: string,
+  ): Promise<void> {
+    const res = await fetch(url)
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch ${fieldName} (${res.status}): ${url.slice(0, 80)}`,
+      )
+    }
+    const buffer = await res.arrayBuffer()
+    const mime = res.headers.get('content-type') ?? fallbackMime
+    const ext = mime.includes('jpeg')
+      ? 'jpg'
+      : mime.includes('webp')
+        ? 'webp'
+        : mime.includes('png')
+          ? 'png'
+          : mime.includes('gltf')
+            ? 'glb'
+            : 'bin'
+    form.append(
+      fieldName,
+      new Blob([buffer], { type: mime }),
+      `${fieldName}.${ext}`,
+    )
+  }
+
+  await appendBinaryFile('image', providerInput.imageUrl, 'image/png')
+  await appendBinaryFile(
+    'model',
+    providerInput.parentMeshUrl,
+    'model/gltf-binary',
+  )
+
+  // Per docs: optional prompt / seed / reference_scale / geometry_file_format /
+  // material / resolution. We forward everything the user set in the Inspector
+  // so the textured output matches their material/format choice.
+  if (providerInput.material) form.append('material', providerInput.material)
+  if (providerInput.geometryFileFormat) {
+    form.append('geometry_file_format', providerInput.geometryFileFormat)
+  }
+  if (providerInput.prompt) form.append('prompt', providerInput.prompt)
+  if (providerInput.seed != null && providerInput.seed >= 0) {
+    form.append('seed', String(providerInput.seed))
+  }
+
+  const response = await fetch(
+    `${HYPER3D_BASE_URL}/api/v2/rodin_texture_only`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    },
+  )
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => '')
+    throw new Error(
+      `Hyper3D Rodin texture-only submit failed with status ${response.status}: ${errBody.slice(0, 400)}`,
+    )
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  const jobUuid = readStringField(data, 'uuid')
+  const jobsMeta =
+    data.jobs != null && typeof data.jobs === 'object'
+      ? (data.jobs as Record<string, unknown>)
+      : {}
+  const subscriptionKey = readStringField(jobsMeta, 'subscription_key')
+
+  if (!jobUuid) {
+    throw new Error(
+      `Hyper3D Rodin texture-only submit returned no job UUID. Response: ${JSON.stringify(data).slice(0, 300)}`,
     )
   }
 
@@ -1876,15 +1992,22 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
         },
       )
 
+      // Texture-only continuation goes to a different Rodin endpoint
+      // (/api/v2/rodin_texture_only) with mesh + image as binaries; everything
+      // downstream (status polling, download, R2 upload, callback) is identical
+      // to a regular Rodin job, so the rest of this workflow is unchanged.
+      const isTextureOnly = context.providerInput.rodinTextureOnly === true
       const rodin = await step.do(
-        'submit-rodin',
+        isTextureOnly ? 'submit-rodin-texture-only' : 'submit-rodin',
         {
           retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return submitRodinJob(context, apiKey)
+          return isTextureOnly
+            ? submitRodinTextureOnlyJob(context, apiKey)
+            : submitRodinJob(context, apiKey)
         },
       )
 

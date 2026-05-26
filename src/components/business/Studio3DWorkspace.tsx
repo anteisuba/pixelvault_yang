@@ -698,6 +698,9 @@ export function Studio3DWorkspace({
     /** Rodin mesh-first: lineage pointer from a textured continuation back to
      *  its mesh-only parent Generation. */
     parentGenerationId?: string
+    /** Rodin texture-only continuation: dispatches to
+     *  /api/v2/rodin_texture_only so the exact parent mesh is preserved. */
+    rodinTextureOnly?: boolean
   }) => {
     const targetModelId = override?.modelId ?? selectedModelId
     const targetSourceUrl = override?.sourceUrl ?? sourceImage?.url
@@ -811,6 +814,10 @@ export function Studio3DWorkspace({
             ...(override?.parentGenerationId && {
               parentGenerationId: override.parentGenerationId,
             }),
+            // Texture-only continuation: dispatched to
+            // /api/v2/rodin_texture_only with the parent mesh + same reference
+            // image. Preserves the exact mesh geometry from the parent.
+            ...(override?.rodinTextureOnly && { rodinTextureOnly: true }),
           }
         })()),
     }
@@ -897,6 +904,9 @@ export function Studio3DWorkspace({
       sourceGenerationId: null,
       forceMeshFirstOff: true,
       parentGenerationId: displayGeneration.id,
+      // Use /api/v2/rodin_texture_only so the parent mesh is preserved
+      // exactly — no geometry drift between preview and final output.
+      rodinTextureOnly: true,
     })
   }
 

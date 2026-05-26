@@ -935,6 +935,15 @@ export const Generate3DRequestSchema = z.object({
    * its textured continuation exists.
    */
   parentGenerationId: z.string().trim().min(1).optional(),
+  /**
+   * Hyper3D Rodin Gen-2.5 texture-only continuation: when true, the service
+   * dispatches to /api/v2/rodin_texture_only (not /api/v2/rodin) so the exact
+   * mesh from `parentGenerationId` is preserved and only textures are
+   * generated. Requires `parentGenerationId` to point at a completed
+   * mesh-only Generation owned by the same user. The service reads the
+   * parent's `modelUrl` + `referenceImageUrl` to construct the request.
+   */
+  rodinTextureOnly: z.boolean().optional(),
 })
 
 export type Generate3DRequest = z.infer<typeof Generate3DRequestSchema>
@@ -1343,6 +1352,11 @@ export const WorkerModel3DRunContextSchema = z.object({
       useOriginalAlpha: z.boolean().optional(),
       previewRender: z.boolean().optional(),
       isMicro: z.boolean().optional(),
+      // Rodin texture-only continuation: re-textures an existing mesh GLB
+      // without regenerating geometry. See submitRodinTextureOnlyJob in
+      // workers/execution/src/index.ts.
+      rodinTextureOnly: z.boolean().optional(),
+      parentMeshUrl: z.string().url().optional(),
       // fal / Hunyuan3D
       enablePbr: z.boolean().optional(),
       faceCount: z.number().int().optional(),
